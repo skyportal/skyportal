@@ -1,0 +1,64 @@
+def test_user_create_public_source_spectrum(user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user, mode="create")
+def test_user_create_public_source_groupspectrum(user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(user, mode="create")
+def test_user_read_public_source_spectrum(user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user, mode="read")
+def test_user_read_public_source_groupspectrum(user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(user, mode="read")
+def test_user_update_public_source_spectrum(user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user, mode="update")
+def test_user_update_public_source_groupspectrum(user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(user, mode="update")
+def test_user_delete_public_source_spectrum(user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user, mode="delete")
+def test_user_delete_public_source_groupspectrum(user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(user, mode="delete")
+def test_user_group2_create_public_source_spectrum(user_group2, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user_group2, mode="create")
+def test_user_group2_create_public_source_groupspectrum(user_group2, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(user_group2, mode="create")
+def test_user_group2_read_public_source_spectrum(user_group2, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user_group2, mode="read")
+def test_user_group2_read_public_source_groupspectrum(user_group2, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(user_group2, mode="read")
+def test_user_group2_update_public_source_spectrum(user_group2, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user_group2, mode="update")
+def test_user_group2_update_public_source_groupspectrum(user_group2, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(user_group2, mode="update")
+def test_user_group2_delete_public_source_spectrum(user_group2, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user_group2, mode="delete")
+def test_user_group2_delete_public_source_groupspectrum(user_group2, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(user_group2, mode="delete")
+def test_super_admin_user_create_public_source_spectrum(super_admin_user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(super_admin_user, mode="create")
+def test_super_admin_user_create_public_source_groupspectrum(super_admin_user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(super_admin_user, mode="create")
+def test_super_admin_user_read_public_source_spectrum(super_admin_user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(super_admin_user, mode="read")
+def test_super_admin_user_read_public_source_groupspectrum(super_admin_user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(super_admin_user, mode="read")
+def test_super_admin_user_update_public_source_spectrum(super_admin_user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(super_admin_user, mode="update")
+def test_super_admin_user_update_public_source_groupspectrum(super_admin_user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(super_admin_user, mode="update")
+def test_super_admin_user_delete_public_source_spectrum(super_admin_user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(super_admin_user, mode="delete")
+def test_super_admin_user_delete_public_source_groupspectrum(super_admin_user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(super_admin_user, mode="delete")
+def test_group_admin_user_create_public_source_spectrum(group_admin_user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(group_admin_user, mode="create")
+def test_group_admin_user_create_public_source_groupspectrum(group_admin_user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(group_admin_user, mode="create")
+def test_group_admin_user_read_public_source_spectrum(group_admin_user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(group_admin_user, mode="read")
+def test_group_admin_user_read_public_source_groupspectrum(group_admin_user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(group_admin_user, mode="read")
+def test_group_admin_user_update_public_source_spectrum(group_admin_user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(group_admin_user, mode="update")
+def test_group_admin_user_update_public_source_groupspectrum(group_admin_user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(group_admin_user, mode="update")
+def test_group_admin_user_delete_public_source_spectrum(group_admin_user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(group_admin_user, mode="delete")
+def test_group_admin_user_delete_public_source_groupspectrum(group_admin_user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(group_admin_user, mode="delete")

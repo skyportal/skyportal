@@ -2252,7 +2252,7 @@ User.photometry = relationship(
 GroupPhotometry = join_model("group_photometry", Group, Photometry, base=Base)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 GroupPhotometry.delete = GroupPhotometry.update = compose_access_control(
-    AccessibleByGroupMembers, GroupPhotometry.read
+    AccessibleByGroupAdmins, GroupPhotometry.read
 )
 
 
@@ -2548,7 +2548,7 @@ SpectrumObserver.create = (
 GroupSpectrum = join_model("group_spectra", Group, Spectrum, base=Base)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 GroupSpectrum.update = GroupSpectrum.delete = compose_access_control(
-    AccessibleByGroupMembers, GroupSpectrum.read
+    AccessibleByGroupAdmins, GroupSpectrum.read
 )
 
 

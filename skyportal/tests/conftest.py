@@ -27,6 +27,8 @@ from skyportal.models import (
     GroupComment,
     GroupAnnotation,
     GroupClassification,
+    GroupPhotometry,
+    GroupSpectrum,
 )
 from skyportal.tests.fixtures import (
     ObjFactory,
@@ -906,6 +908,42 @@ def public_groupclassification(public_classification):
         .filter(
             GroupClassification.group_id == public_classification.groups[0].id,
             GroupClassification.classification_id == public_classification.id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_source_photometry_point(public_source):
+    return public_source.photometry[0]
+
+
+@pytest.fixture()
+def public_source_spectrum(public_source):
+    return public_source.spectra[0]
+
+
+@pytest.fixture()
+def public_source_groupphotometry(public_source_photometry_point):
+    return (
+        DBSession()
+        .query(GroupPhotometry)
+        .filter(
+            GroupPhotometry.group_id == public_source_photometry_point.groups[0].id,
+            GroupPhotometry.photometr_id == public_source_photometry_point.id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_source_groupspectrum(public_source_spectrum):
+    return (
+        DBSession()
+        .query(GroupSpectrum)
+        .filter(
+            GroupSpectrum.group_id == public_source_spectrum.groups[0].id,
+            GroupSpectrum.spectr_id == public_source_spectrum.id,
         )
         .first()
     )

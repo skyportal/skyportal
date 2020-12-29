@@ -2032,3 +2032,509 @@ def test_group_admin_user_delete_public_groupclassification(
         group_admin_user, mode="delete"
     )
     assert accessible
+
+
+def test_user_create_public_source_photometry_point(
+    user, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_create_public_source_groupphotometry(user, public_source_groupphotometry):
+    accessible = public_source_groupphotometry.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_read_public_source_photometry_point(user, public_source_photometry_point):
+    accessible = public_source_photometry_point.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_read_public_source_groupphotometry(user, public_source_groupphotometry):
+    accessible = public_source_groupphotometry.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_update_public_source_photometry_point(
+    user, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(user, mode="update")
+    assert not accessible  # only owner can update
+
+
+def test_user_update_public_source_groupphotometry(user, public_source_groupphotometry):
+    accessible = public_source_groupphotometry.is_accessible_by(user, mode="update")
+    assert not accessible  # only accessible by group admin
+
+
+def test_user_delete_public_source_photometry_point(
+    user, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(user, mode="delete")
+    assert not accessible  # only accessible by owner
+
+
+def test_user_delete_public_source_groupphotometry(user, public_source_groupphotometry):
+    accessible = public_source_groupphotometry.is_accessible_by(user, mode="delete")
+    assert not accessible  # only accessible by group admin
+
+
+def test_user_group2_create_public_source_photometry_point(
+    user_group2, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(
+        user_group2, mode="create"
+    )
+    assert accessible
+
+
+def test_user_group2_create_public_source_groupphotometry(
+    user_group2, public_source_groupphotometry
+):
+    accessible = public_source_groupphotometry.is_accessible_by(
+        user_group2, mode="create"
+    )
+    assert not accessible  # need read access to the underlying photometry
+
+
+def test_user_group2_read_public_source_photometry_point(
+    user_group2, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(
+        user_group2, mode="read"
+    )
+    assert not accessible  # must be a member of one of the photometry's groups
+
+
+def test_user_group2_read_public_source_groupphotometry(
+    user_group2, public_source_groupphotometry
+):
+    accessible = public_source_groupphotometry.is_accessible_by(
+        user_group2, mode="read"
+    )
+    assert not accessible  # must be a member of one of the photometry's groups
+
+
+def test_user_group2_update_public_source_photometry_point(
+    user_group2, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(
+        user_group2, mode="update"
+    )
+    assert not accessible  # must be photometry owner
+
+
+def test_user_group2_update_public_source_groupphotometry(
+    user_group2, public_source_groupphotometry
+):
+    accessible = public_source_groupphotometry.is_accessible_by(
+        user_group2, mode="update"
+    )
+    assert not accessible  # must be group admin
+
+
+def test_user_group2_delete_public_source_photometry_point(
+    user_group2, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(
+        user_group2, mode="delete"
+    )
+    assert not accessible  # must be photometry owner
+
+
+def test_user_group2_delete_public_source_groupphotometry(
+    user_group2, public_source_groupphotometry
+):
+    accessible = public_source_groupphotometry.is_accessible_by(
+        user_group2, mode="delete"
+    )
+    assert not accessible  # must be group admin
+
+
+def test_super_admin_user_create_public_source_photometry_point(
+    super_admin_user, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(
+        super_admin_user, mode="create"
+    )
+
+    assert accessible
+
+
+def test_super_admin_user_create_public_source_groupphotometry(
+    super_admin_user, public_source_groupphotometry
+):
+    accessible = public_source_groupphotometry.is_accessible_by(
+        super_admin_user, mode="create"
+    )
+    assert accessible
+
+
+def test_super_admin_user_read_public_source_photometry_point(
+    super_admin_user, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(
+        super_admin_user, mode="read"
+    )
+    assert accessible
+
+
+def test_super_admin_user_read_public_source_groupphotometry(
+    super_admin_user, public_source_groupphotometry
+):
+    accessible = public_source_groupphotometry.is_accessible_by(
+        super_admin_user, mode="read"
+    )
+
+    assert accessible
+
+
+def test_super_admin_user_update_public_source_photometry_point(
+    super_admin_user, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(
+        super_admin_user, mode="update"
+    )
+    assert accessible
+
+
+def test_super_admin_user_update_public_source_groupphotometry(
+    super_admin_user, public_source_groupphotometry
+):
+    accessible = public_source_groupphotometry.is_accessible_by(
+        super_admin_user, mode="update"
+    )
+
+    assert accessible
+
+
+def test_super_admin_user_delete_public_source_photometry_point(
+    super_admin_user, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(
+        super_admin_user, mode="delete"
+    )
+    assert accessible
+
+
+def test_super_admin_user_delete_public_source_groupphotometry(
+    super_admin_user, public_source_groupphotometry
+):
+    accessible = public_source_groupphotometry.is_accessible_by(
+        super_admin_user, mode="delete"
+    )
+
+    assert accessible
+
+
+def test_group_admin_user_create_public_source_photometry_point(
+    group_admin_user, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(
+        group_admin_user, mode="create"
+    )
+    assert accessible
+
+
+def test_group_admin_user_create_public_source_groupphotometry(
+    group_admin_user, public_source_groupphotometry
+):
+    accessible = public_source_groupphotometry.is_accessible_by(
+        group_admin_user, mode="create"
+    )
+    assert accessible
+
+
+def test_group_admin_user_read_public_source_photometry_point(
+    group_admin_user, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(
+        group_admin_user, mode="read"
+    )
+    assert accessible
+
+
+def test_group_admin_user_read_public_source_groupphotometry(
+    group_admin_user, public_source_groupphotometry
+):
+    accessible = public_source_groupphotometry.is_accessible_by(
+        group_admin_user, mode="read"
+    )
+    assert accessible
+
+
+def test_group_admin_user_update_public_source_photometry_point(
+    group_admin_user, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(
+        group_admin_user, mode="update"
+    )
+    assert not accessible  # must be photometry owner
+
+
+def test_group_admin_user_update_public_source_groupphotometry(
+    group_admin_user, public_source_groupphotometry
+):
+    accessible = public_source_groupphotometry.is_accessible_by(
+        group_admin_user, mode="update"
+    )
+    assert accessible
+
+
+def test_group_admin_user_delete_public_source_photometry_point(
+    group_admin_user, public_source_photometry_point
+):
+    accessible = public_source_photometry_point.is_accessible_by(
+        group_admin_user, mode="delete"
+    )
+    assert not accessible  # must be photometry owner
+
+
+def test_group_admin_user_delete_public_source_groupphotometry(
+    group_admin_user, public_source_groupphotometry
+):
+    accessible = public_source_groupphotometry.is_accessible_by(
+        group_admin_user, mode="delete"
+    )
+
+    assert accessible
+
+
+def test_user_create_public_source_spectrum(user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_create_public_source_groupspectrum(user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_read_public_source_spectrum(user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_read_public_source_groupspectrum(user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_update_public_source_spectrum(user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user, mode="update")
+    assert not accessible  # only owner can update
+
+
+def test_user_update_public_source_groupspectrum(user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(user, mode="update")
+    assert not accessible  # only accessible by group admin
+
+
+def test_user_delete_public_source_spectrum(user, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user, mode="delete")
+    assert not accessible  # only accessible by owner
+
+
+def test_user_delete_public_source_groupspectrum(user, public_source_groupspectrum):
+    accessible = public_source_groupspectrum.is_accessible_by(user, mode="delete")
+    assert not accessible  # only accessible by group admin
+
+
+def test_user_group2_create_public_source_spectrum(user_group2, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user_group2, mode="create")
+    assert accessible
+
+
+def test_user_group2_create_public_source_groupspectrum(
+    user_group2, public_source_groupspectrum
+):
+    accessible = public_source_groupspectrum.is_accessible_by(
+        user_group2, mode="create"
+    )
+    assert not accessible  # need read access to the underlying spectrum
+
+
+def test_user_group2_read_public_source_spectrum(user_group2, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user_group2, mode="read")
+    assert not accessible  # must be a member of one of the spectrum's groups
+
+
+def test_user_group2_read_public_source_groupspectrum(
+    user_group2, public_source_groupspectrum
+):
+    accessible = public_source_groupspectrum.is_accessible_by(user_group2, mode="read")
+    assert not accessible  # must be a member of one of the spectrum's groups
+
+
+def test_user_group2_update_public_source_spectrum(user_group2, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user_group2, mode="update")
+    assert not accessible  # must be spectrum owner
+
+
+def test_user_group2_update_public_source_groupspectrum(
+    user_group2, public_source_groupspectrum
+):
+    accessible = public_source_groupspectrum.is_accessible_by(
+        user_group2, mode="update"
+    )
+    assert not accessible  # must be group admin
+
+
+def test_user_group2_delete_public_source_spectrum(user_group2, public_source_spectrum):
+    accessible = public_source_spectrum.is_accessible_by(user_group2, mode="delete")
+    assert not accessible  # must be spectrum owner
+
+
+def test_user_group2_delete_public_source_groupspectrum(
+    user_group2, public_source_groupspectrum
+):
+    accessible = public_source_groupspectrum.is_accessible_by(
+        user_group2, mode="delete"
+    )
+    assert not accessible  # must be group admin
+
+
+def test_super_admin_user_create_public_source_spectrum(
+    super_admin_user, public_source_spectrum
+):
+    accessible = public_source_spectrum.is_accessible_by(
+        super_admin_user, mode="create"
+    )
+
+    assert accessible
+
+
+def test_super_admin_user_create_public_source_groupspectrum(
+    super_admin_user, public_source_groupspectrum
+):
+    accessible = public_source_groupspectrum.is_accessible_by(
+        super_admin_user, mode="create"
+    )
+    assert accessible
+
+
+def test_super_admin_user_read_public_source_spectrum(
+    super_admin_user, public_source_spectrum
+):
+    accessible = public_source_spectrum.is_accessible_by(super_admin_user, mode="read")
+    assert accessible
+
+
+def test_super_admin_user_read_public_source_groupspectrum(
+    super_admin_user, public_source_groupspectrum
+):
+    accessible = public_source_groupspectrum.is_accessible_by(
+        super_admin_user, mode="read"
+    )
+
+    assert accessible
+
+
+def test_super_admin_user_update_public_source_spectrum(
+    super_admin_user, public_source_spectrum
+):
+    accessible = public_source_spectrum.is_accessible_by(
+        super_admin_user, mode="update"
+    )
+    assert accessible
+
+
+def test_super_admin_user_update_public_source_groupspectrum(
+    super_admin_user, public_source_groupspectrum
+):
+    accessible = public_source_groupspectrum.is_accessible_by(
+        super_admin_user, mode="update"
+    )
+
+    assert accessible
+
+
+def test_super_admin_user_delete_public_source_spectrum(
+    super_admin_user, public_source_spectrum
+):
+    accessible = public_source_spectrum.is_accessible_by(
+        super_admin_user, mode="delete"
+    )
+    assert accessible
+
+
+def test_super_admin_user_delete_public_source_groupspectrum(
+    super_admin_user, public_source_groupspectrum
+):
+    accessible = public_source_groupspectrum.is_accessible_by(
+        super_admin_user, mode="delete"
+    )
+
+    assert accessible
+
+
+def test_group_admin_user_create_public_source_spectrum(
+    group_admin_user, public_source_spectrum
+):
+    accessible = public_source_spectrum.is_accessible_by(
+        group_admin_user, mode="create"
+    )
+    assert accessible
+
+
+def test_group_admin_user_create_public_source_groupspectrum(
+    group_admin_user, public_source_groupspectrum
+):
+    accessible = public_source_groupspectrum.is_accessible_by(
+        group_admin_user, mode="create"
+    )
+    assert accessible
+
+
+def test_group_admin_user_read_public_source_spectrum(
+    group_admin_user, public_source_spectrum
+):
+    accessible = public_source_spectrum.is_accessible_by(group_admin_user, mode="read")
+    assert accessible
+
+
+def test_group_admin_user_read_public_source_groupspectrum(
+    group_admin_user, public_source_groupspectrum
+):
+    accessible = public_source_groupspectrum.is_accessible_by(
+        group_admin_user, mode="read"
+    )
+    assert accessible
+
+
+def test_group_admin_user_update_public_source_spectrum(
+    group_admin_user, public_source_spectrum
+):
+    accessible = public_source_spectrum.is_accessible_by(
+        group_admin_user, mode="update"
+    )
+    assert not accessible  # must be spectrum owner
+
+
+def test_group_admin_user_update_public_source_groupspectrum(
+    group_admin_user, public_source_groupspectrum
+):
+    accessible = public_source_groupspectrum.is_accessible_by(
+        group_admin_user, mode="update"
+    )
+    assert accessible
+
+
+def test_group_admin_user_delete_public_source_spectrum(
+    group_admin_user, public_source_spectrum
+):
+    accessible = public_source_spectrum.is_accessible_by(
+        group_admin_user, mode="delete"
+    )
+    assert not accessible  # must be spectrum owner
+
+
+def test_group_admin_user_delete_public_source_groupspectrum(
+    group_admin_user, public_source_groupspectrum
+):
+    accessible = public_source_groupspectrum.is_accessible_by(
+        group_admin_user, mode="delete"
+    )
+
+    assert accessible

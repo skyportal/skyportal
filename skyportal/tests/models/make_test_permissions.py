@@ -22,6 +22,10 @@ targets = [
     'public_groupannotation',
     'public_classification',
     'public_groupclassification',
+    'public_source_photometry_point',
+    'public_source_spectrum',
+    'public_source_groupphotometry',
+    'public_source_groupspectrum',
 ]
 
 
@@ -34,9 +38,8 @@ with open(fname, 'w') as f:
             for target in targets:
                 test = f"""
 def test_{user}_{access_type}_{target}({user}, {target}):
-    def check_accessibility():
-        accessible = {target}.is_accessible_by({user}, mode="{access_type}")
-        assert accessible == accessible
+    accessible = {target}.is_accessible_by({user}, mode="{access_type}")
+    assert accessible == accessible
 
 """
                 f.write(test)
