@@ -44,7 +44,7 @@ from baselayer.app.models import (  # noqa
     UserACL,
     UserRole,
     UserAccessControl,
-    AccessibleIfUserIs,
+    AccessibleIfUserMatches,
     accessible_by_owner,
     restricted,
     public,
@@ -155,45 +155,53 @@ def is_modifiable_by(self, user):
 
 Base.is_readable_by = is_readable_by
 
-AccessibleByGroupsMembers = AccessibleIfUserIs('groups.users')
-AccessibleByGroupMembers = AccessibleIfUserIs('group.users')
-AccessibleByMembers = AccessibleIfUserIs('users')
+accessible_by_groups_members = AccessibleIfUserMatches('groups.users')
+accessible_by_group_members = AccessibleIfUserMatches('group.users')
+accessible_by_members = AccessibleIfUserMatches('users')
 
 
-class AccessibleByGroupAdmins(AccessibleByGroupMembers):
-    @staticmethod
-    def query_accessible_rows(cls, user_or_token, columns=None):
-        if user_or_token.is_admin:
-            return public.query_accessible_rows(cls, user_or_token, columns=columns)
-        query = AccessibleByGroupMembers.query_accessible_rows(
-            cls, user_or_token, columns=columns
-        )
-        admin_subq = (
-            DBSession().query(GroupUser).filter(GroupUser.admin.is_(True)).subquery()
-        )
-        query = query.join(
-            admin_subq,
-            sa.and_(admin_subq.c.group_id == Group.id, admin_subq.c.user_id == User.id),
-        )
+class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
+    @property
+    def relationship_key(self):
+        return self._relationship_key
+
+    @relationship_key.setter
+    def relationship_key(self, value):
+        if not isinstance(value, str):
+            raise ValueError(
+                f'Invalid value for relationship key: {value}, expected str, got {value.__class__.__name__}'
+            )
+        relationship_names = value.split('.')
+        if 'group_users' not in value:
+            raise ValueError('Relationship chain must contain "group_users".')
+        if len(relationship_names) < 1:
+            raise ValueError('Need at least 1 relationship to join on.')
+        self._relationship_key = value
+
+    def query_accessible_rows(self, cls, user_or_token, columns=None):
+        query = super().query_accessible_rows(cls, user_or_token, columns=columns)
+        if not user_or_token.is_admin:
+            # this avoids name collisions
+            group_user_subq = (
+                DBSession()
+                .query(GroupUser)
+                .filter(GroupUser.admin.is_(True))
+                .subquery()
+            )
+            query = query.join(
+                group_user_subq,
+                sa.and_(
+                    Group.id == group_user_subq.c.group_id,
+                    User.id == group_user_subq.c.user_id,
+                ),
+            )
         return query
 
 
-class AccessibleByAdmins(AccessibleByMembers):
-    @staticmethod
-    def query_accessible_rows(cls, user_or_token, columns=None):
-        if user_or_token.is_admin:
-            return public.query_accessible_rows(cls, user_or_token, columns=columns)
-        query = AccessibleByMembers.query_accessible_rows(
-            cls, user_or_token, columns=columns
-        )
-        admin_subq = (
-            DBSession().query(GroupUser).filter(GroupUser.admin.is_(True)).subquery()
-        )
-        query = query.join(
-            admin_subq,
-            sa.and_(admin_subq.c.group_id == Group.id, admin_subq.c.user_id == User.id),
-        )
-        return query
+accessible_by_group_admins = AccessibleIfGroupUserIsAdminAndUserMatches(
+    'group.group_users.user'
+)
+accessible_by_admins = AccessibleIfGroupUserIsAdminAndUserMatches('group_users.user')
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -213,8 +221,8 @@ class Group(Base):
     must have access to all of the `Group`'s data `Stream`s.
     """
 
-    update = delete = AccessibleByAdmins
-    member = AccessibleByMembers
+    update = delete = accessible_by_admins
+    member = accessible_by_members
 
     name = sa.Column(
         sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
@@ -306,7 +314,7 @@ class Group(Base):
 GroupUser = join_model('group_users', Group, User, base=Base)
 GroupUser.__doc__ = "Join table mapping `Group`s to `User`s."
 GroupUser.create = GroupUser.update = GroupUser.delete = ComposedAccessControl(
-    AccessibleByGroupAdmins, GroupUser.read
+    accessible_by_group_admins, GroupUser.read
 )
 
 GroupUser.admin = sa.Column(
@@ -372,7 +380,7 @@ class Stream(Base):
     """A data stream producing alerts that can be programmatically filtered
     using a Filter. """
 
-    read = AccessibleIfUserIs('users')
+    read = AccessibleIfUserMatches('users')
     create = update = delete = restricted
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
@@ -408,7 +416,7 @@ class Stream(Base):
 GroupStream = join_model('group_streams', Group, Stream, base=Base)
 GroupStream.__doc__ = "Join table mapping Groups to Streams."
 GroupStream.create = GroupStream.update = GroupStream.delete = ComposedAccessControl(
-    AccessibleByGroupAdmins, GroupStream.read
+    accessible_by_group_admins, GroupStream.read
 )
 
 
@@ -857,7 +865,7 @@ class Filter(Base):
     """
 
     # TODO: Track filter ownership and allow owners to update, delete filters
-    create = read = update = delete = AccessibleByGroupMembers
+    create = read = update = delete = accessible_by_group_members
 
     name = sa.Column(sa.String, nullable=False, unique=False, doc="Filter name.")
     stream_id = sa.Column(
@@ -895,7 +903,7 @@ class Filter(Base):
 
 class Candidate(Base):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
-    create = read = update = delete = AccessibleIfUserIs(
+    create = read = update = delete = AccessibleIfUserMatches(
         'filter.group.group_users.user'
     )
 
@@ -1016,7 +1024,7 @@ Candidate.is_readable_by = candidate_is_readable_by
 
 Source = join_model("sources", Group, Obj, base=Base)
 Source.create = Source.read = Source.update = Source.delete = ComposedAccessControl(
-    AccessibleByGroupMembers, Source.read
+    accessible_by_group_members, Source.read
 )
 
 Source.__doc__ = (
@@ -1658,7 +1666,7 @@ class Allocation(Base):
     """An allocation of observing time on a robotic instrument."""
 
     create = read = update = delete = ComposedAccessControl(
-        AccessibleByGroupMembers,
+        accessible_by_group_members,
         AccessibleIfRelatedRowsAreAccessible(instrument='read'),
     )
 
@@ -1706,7 +1714,7 @@ class Taxonomy(Base):
     """An ontology within which Objs can be classified."""
 
     # TODO: Add ownership logic to taxonomy
-    read = AccessibleByGroupsMembers
+    read = accessible_by_groups_members
 
     __tablename__ = 'taxonomies'
     name = sa.Column(
@@ -1761,7 +1769,7 @@ class Taxonomy(Base):
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy, base=Base)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 GroupTaxonomy.delete = GroupTaxonomy.update = ComposedAccessControl(
-    AccessibleByGroupAdmins, GroupTaxonomy.read
+    accessible_by_group_admins, GroupTaxonomy.read
 )
 
 
@@ -1803,10 +1811,10 @@ class Comment(Base):
     create = AccessibleIfRelatedRowsAreAccessible(obj='read')
 
     read = ComposedAccessControl(
-        AccessibleByGroupsMembers, AccessibleIfRelatedRowsAreAccessible(obj='read'),
+        accessible_by_groups_members, AccessibleIfRelatedRowsAreAccessible(obj='read'),
     )
 
-    update = delete = AccessibleIfUserIs('author')
+    update = delete = AccessibleIfUserMatches('author')
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
@@ -1875,7 +1883,7 @@ class Comment(Base):
 GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
 GroupComment.delete = GroupComment.update = ComposedAccessControl(
-    AccessibleByGroupAdmins, GroupComment.read
+    accessible_by_group_admins, GroupComment.read
 )
 
 User.comments = relationship(
@@ -1889,9 +1897,9 @@ class Annotation(Base):
 
     create = AccessibleIfRelatedRowsAreAccessible(obj='read')
     read = ComposedAccessControl(
-        AccessibleByGroupsMembers, AccessibleIfRelatedRowsAreAccessible(obj='read')
+        accessible_by_groups_members, AccessibleIfRelatedRowsAreAccessible(obj='read')
     )
-    update = delete = AccessibleIfUserIs('author')
+    update = delete = AccessibleIfUserMatches('author')
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
@@ -1963,7 +1971,7 @@ class Annotation(Base):
 GroupAnnotation = join_model("group_annotations", Group, Annotation, base=Base)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
 GroupAnnotation.delete = GroupAnnotation.update = ComposedAccessControl(
-    AccessibleByGroupAdmins, GroupAnnotation.read
+    accessible_by_group_admins, GroupAnnotation.read
 )
 
 User.annotations = relationship(
@@ -1982,8 +1990,10 @@ class Classification(Base):
     """Classification of an Obj."""
 
     create = ok_if_tax_and_obj_readable
-    read = ComposedAccessControl(AccessibleByGroupsMembers, ok_if_tax_and_obj_readable)
-    update = delete = AccessibleIfUserIs('author')
+    read = ComposedAccessControl(
+        accessible_by_groups_members, ok_if_tax_and_obj_readable
+    )
+    update = delete = AccessibleIfUserMatches('author')
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
     taxonomy_id = sa.Column(
@@ -2038,7 +2048,7 @@ GroupClassification = join_model(
 )
 GroupClassification.__doc__ = "Join table mapping Groups to Classifications."
 GroupClassification.delete = GroupClassification.update = ComposedAccessControl(
-    AccessibleByGroupAdmins, GroupClassification.read
+    accessible_by_group_admins, GroupClassification.read
 )
 
 
@@ -2047,7 +2057,7 @@ class Photometry(ha.Point, Base):
 
     __tablename__ = 'photometry'
 
-    read = AccessibleByGroupsMembers
+    read = accessible_by_groups_members
     update = delete = accessible_by_owner
 
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
@@ -2252,7 +2262,7 @@ User.photometry = relationship(
 GroupPhotometry = join_model("group_photometry", Group, Photometry, base=Base)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 GroupPhotometry.delete = GroupPhotometry.update = ComposedAccessControl(
-    AccessibleByGroupAdmins, GroupPhotometry.read
+    accessible_by_group_admins, GroupPhotometry.read
 )
 
 
@@ -2260,7 +2270,7 @@ class Spectrum(Base):
     """Wavelength-dependent measurement of the flux of an object through a
     dispersive element."""
 
-    read = AccessibleByGroupsMembers
+    read = accessible_by_groups_members
     update = delete = accessible_by_owner
 
     __tablename__ = 'spectra'
@@ -2538,17 +2548,17 @@ SpectrumReducer = join_model("spectrum_reducers", Spectrum, User, base=Base)
 SpectrumObserver = join_model("spectrum_observers", Spectrum, User, base=Base)
 SpectrumReducer.create = (
     SpectrumReducer.delete
-) = SpectrumReducer.update = AccessibleIfUserIs('spectrum.owner')
+) = SpectrumReducer.update = AccessibleIfUserMatches('spectrum.owner')
 SpectrumObserver.create = (
     SpectrumObserver.delete
-) = SpectrumObserver.update = AccessibleIfUserIs('spectrum.owner')
+) = SpectrumObserver.update = AccessibleIfUserMatches('spectrum.owner')
 
 # should be accessible only by spectrumowner ^^
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum, base=Base)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 GroupSpectrum.update = GroupSpectrum.delete = ComposedAccessControl(
-    AccessibleByGroupAdmins, GroupSpectrum.read
+    accessible_by_group_admins, GroupSpectrum.read
 )
 
 
@@ -2569,9 +2579,15 @@ class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
 
+    # TODO: Make read-accessible via target groups
     create = read = AccessibleIfRelatedRowsAreAccessible(obj="read", allocation="read")
     update = delete = ComposedAccessControl(
-        AccessibleIfUserIs('allocation.group.group_users.user'), read
+        ComposedAccessControl(
+            AccessibleIfUserMatches('allocation.group.users'),
+            AccessibleIfUserMatches('requester'),
+            logic='or',
+        ),
+        read,
     )
 
     requester_id = sa.Column(
@@ -2668,10 +2684,11 @@ class FollowupRequest(Base):
 FollowupRequestTargetGroup = join_model(
     'request_groups', FollowupRequest, Group, base=Base
 )
-FollowupRequestTargetGroup.update = (
-    FollowupRequestTargetGroup.delete
-) = ComposedAccessControl(
-    AccessibleIfUserIs('followup_request.requester'), FollowupRequestTargetGroup.read,
+FollowupRequestTargetGroup.create = (
+    FollowupRequestTargetGroup.update
+) = FollowupRequestTargetGroup.delete = ComposedAccessControl(
+    AccessibleIfUserMatches('followuprequest.requester'),
+    FollowupRequestTargetGroup.read,
 )
 
 

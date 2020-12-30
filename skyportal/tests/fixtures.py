@@ -31,6 +31,8 @@ from skyportal.models import (
     Taxonomy,
     Classification,
     init_db,
+    FollowupRequest,
+    Allocation,
 )
 
 import tdtax
@@ -352,5 +354,43 @@ class ClassificationFactory(factory.alchemy.SQLAlchemyModelFactory):
             passed_groups = []
 
         obj.groups = passed_groups
+        DBSession().add(obj)
+        DBSession().commit()
+
+
+class AllocationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Allocation
+
+    instrument = factory.SubFactory(InstrumentFactory)
+    group = (factory.SubFactory(GroupFactory),)
+    pi = (factory.LazyFunction(lambda: str(uuid.uuid4())),)
+    proposal_id = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    hours_allocated = 100
+
+
+class FollowupRequestFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = FollowupRequest
+
+    obj = (factory.SubFactory(ObjFactory),)
+    allocation = (factory.SubFactory(AllocationFactory),)
+    payload = (
+        {
+            'priority': "5",
+            'start_date': '3020-09-01',
+            'end_date': '3022-09-01',
+            'observation_type': 'IFU',
+        },
+    )
+    requester = factory.SubFactory(UserFactory)
+    last_modified_by = factory.SubFactory(UserFactory)
+
+    @factory.post_generation
+    def target_groups(obj, create, passed_groups, *args, **kwargs):
+        if not passed_groups:
+            passed_groups = []
+
+        obj.target_groups = passed_groups
         DBSession().add(obj)
         DBSession().commit()

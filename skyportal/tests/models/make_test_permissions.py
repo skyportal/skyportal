@@ -26,6 +26,8 @@ targets = [
     'public_source_spectrum',
     'public_source_groupphotometry',
     'public_source_groupspectrum',
+    'public_source_followuprequest',
+    'public_source_followup_request_target_group',
 ]
 
 

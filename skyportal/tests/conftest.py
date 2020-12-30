@@ -18,8 +18,6 @@ from skyportal.models import (
     Candidate,
     Role,
     User,
-    Allocation,
-    FollowupRequest,
     GroupStream,
     StreamUser,
     GroupUser,
@@ -29,6 +27,7 @@ from skyportal.models import (
     GroupClassification,
     GroupPhotometry,
     GroupSpectrum,
+    FollowupRequestTargetGroup,
 )
 from skyportal.tests.fixtures import (
     ObjFactory,
@@ -44,6 +43,8 @@ from skyportal.tests.fixtures import (
     CommentFactory,
     AnnotationFactory,
     ClassificationFactory,
+    FollowupRequestFactory,
+    AllocationFactory,
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 
@@ -727,35 +728,29 @@ def annotation_token_two_groups(user_two_groups):
 
 @pytest.fixture()
 def public_group_sedm_allocation(sedm, public_group):
-    allocation = Allocation(
+    return AllocationFactory(
         instrument=sedm,
         group=public_group,
         pi=str(uuid.uuid4()),
         proposal_id=str(uuid.uuid4()),
         hours_allocated=100,
     )
-    DBSession().add(allocation)
-    DBSession().commit()
-    return allocation
 
 
 @pytest.fixture()
 def public_group2_sedm_allocation(sedm, public_group2):
-    allocation = Allocation(
+    return AllocationFactory(
         instrument=sedm,
         group=public_group2,
         pi=str(uuid.uuid4()),
         proposal_id=str(uuid.uuid4()),
         hours_allocated=100,
     )
-    DBSession().add(allocation)
-    DBSession().commit()
-    return allocation
 
 
 @pytest.fixture()
 def public_source_followup_request(public_group_sedm_allocation, public_source, user):
-    fr = FollowupRequest(
+    return FollowupRequestFactory(
         obj=public_source,
         allocation=public_group_sedm_allocation,
         payload={
@@ -764,20 +759,17 @@ def public_source_followup_request(public_group_sedm_allocation, public_source, 
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
         },
-        requester_id=user.id,
-        last_modified_by_id=user.id,
+        requester=user,
+        last_modified_by_id=user,
+        target_groups=user.groups,
     )
-
-    DBSession().add(fr)
-    DBSession().commit()
-    return fr
 
 
 @pytest.fixture()
 def public_source_group2_followup_request(
     public_group2_sedm_allocation, public_source_group2, user_two_groups
 ):
-    fr = FollowupRequest(
+    return FollowupRequestFactory(
         obj=public_source_group2,
         allocation=public_group2_sedm_allocation,
         payload={
@@ -786,13 +778,10 @@ def public_source_group2_followup_request(
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
         },
-        requester_id=user_two_groups.id,
-        last_modified_by_id=user_two_groups.id,
+        requester=user_two_groups,
+        last_modified_by=user_two_groups,
+        target_groups=user_two_groups.groups,
     )
-
-    DBSession().add(fr)
-    DBSession().commit()
-    return fr
 
 
 @pytest.fixture()
@@ -944,6 +933,21 @@ def public_source_groupspectrum(public_source_spectrum):
         .filter(
             GroupSpectrum.group_id == public_source_spectrum.groups[0].id,
             GroupSpectrum.spectr_id == public_source_spectrum.id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_source_followup_request_target_group(public_source_followup_request):
+    return (
+        DBSession()
+        .query(FollowupRequestTargetGroup)
+        .filter(
+            FollowupRequestTargetGroup.followuprequest_id
+            == public_source_followup_request.id,
+            FollowupRequestTargetGroup.group_id
+            == public_source_followup_request.target_groups[0].id,
         )
         .first()
     )
