@@ -2900,3 +2900,95 @@ def test_group_admin_user_update_public_thumbnail(group_admin_user, public_thumb
 def test_group_admin_user_delete_public_thumbnail(group_admin_user, public_thumbnail):
     accessible = public_thumbnail.is_accessible_by(group_admin_user, mode="delete")
     assert not accessible  # need sysadmin
+
+
+def test_user_create_red_transients_run(user, red_transients_run):
+    accessible = red_transients_run.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_read_red_transients_run(user, red_transients_run):
+    accessible = red_transients_run.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_update_red_transients_run(user, red_transients_run):
+    accessible = red_transients_run.is_accessible_by(user, mode="update")
+    assert accessible
+
+
+def test_user_delete_red_transients_run(user, red_transients_run):
+    accessible = red_transients_run.is_accessible_by(user, mode="delete")
+    assert accessible
+
+
+def test_user_group2_create_red_transients_run(user_group2, red_transients_run):
+    accessible = red_transients_run.is_accessible_by(user_group2, mode="create")
+    assert accessible
+
+
+def test_user_group2_read_red_transients_run(user_group2, red_transients_run):
+    accessible = red_transients_run.is_accessible_by(user_group2, mode="read")
+    assert accessible
+
+
+def test_user_group2_update_red_transients_run(user_group2, red_transients_run):
+    accessible = red_transients_run.is_accessible_by(user_group2, mode="update")
+    assert not accessible  # must be owner
+
+
+def test_user_group2_delete_red_transients_run(user_group2, red_transients_run):
+    accessible = red_transients_run.is_accessible_by(user_group2, mode="delete")
+    assert not accessible  # must be owner
+
+
+def test_super_admin_user_create_red_transients_run(
+    super_admin_user, red_transients_run
+):
+    accessible = red_transients_run.is_accessible_by(super_admin_user, mode="create")
+    assert accessible
+
+
+def test_super_admin_user_read_red_transients_run(super_admin_user, red_transients_run):
+    accessible = red_transients_run.is_accessible_by(super_admin_user, mode="read")
+    assert accessible
+
+
+def test_super_admin_user_update_red_transients_run(
+    super_admin_user, red_transients_run
+):
+    accessible = red_transients_run.is_accessible_by(super_admin_user, mode="update")
+    assert accessible
+
+
+def test_super_admin_user_delete_red_transients_run(
+    super_admin_user, red_transients_run
+):
+    accessible = red_transients_run.is_accessible_by(super_admin_user, mode="delete")
+    assert accessible
+
+
+def test_group_admin_user_create_red_transients_run(
+    group_admin_user, red_transients_run
+):
+    accessible = red_transients_run.is_accessible_by(group_admin_user, mode="create")
+    assert accessible
+
+
+def test_group_admin_user_read_red_transients_run(group_admin_user, red_transients_run):
+    accessible = red_transients_run.is_accessible_by(group_admin_user, mode="read")
+    assert accessible
+
+
+def test_group_admin_user_update_red_transients_run(
+    group_admin_user, red_transients_run
+):
+    accessible = red_transients_run.is_accessible_by(group_admin_user, mode="update")
+    assert not accessible  # must be owner
+
+
+def test_group_admin_user_delete_red_transients_run(
+    group_admin_user, red_transients_run
+):
+    accessible = red_transients_run.is_accessible_by(group_admin_user, mode="delete")
+    assert not accessible  # must be owner

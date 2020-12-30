@@ -434,8 +434,8 @@ def sedm(p60_telescope):
 
 
 @pytest.fixture()
-def red_transients_run():
-    return ObservingRunFactory()
+def red_transients_run(user):
+    return ObservingRunFactory(owner=user)
 
 
 @pytest.fixture()

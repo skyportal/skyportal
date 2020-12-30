@@ -29,6 +29,7 @@ targets = [
     'public_source_followuprequest',
     'public_source_followup_request_target_group',
     'public_thumbnail',
+    'red_transients_run',
 ]
 
 
