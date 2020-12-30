@@ -28,6 +28,7 @@ from skyportal.models import (
     GroupPhotometry,
     GroupSpectrum,
     FollowupRequestTargetGroup,
+    Thumbnail,
 )
 from skyportal.tests.fixtures import (
     ObjFactory,
@@ -949,5 +950,16 @@ def public_source_followup_request_target_group(public_source_followup_request):
             FollowupRequestTargetGroup.group_id
             == public_source_followup_request.target_groups[0].id,
         )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_thumbnail(public_source):
+    return (
+        DBSession()
+        .query(Thumbnail)
+        .filter(Thumbnail.obj_id == public_source.id)
+        .order_by(Thumbnail.id.desc())
         .first()
     )

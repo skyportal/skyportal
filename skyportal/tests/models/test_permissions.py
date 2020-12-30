@@ -2584,7 +2584,8 @@ def test_user_update_public_source_followup_request_target_group(
         user, mode="update"
     )
     assert (
-        accessible  # since this is the user that authored the request, otherwise false
+        accessible
+        # since this is the user that authored the request, otherwise false
     )
 
 
@@ -2611,7 +2612,7 @@ def test_user_group2_create_public_source_followup_request(
     accessible = public_source_followup_request.is_accessible_by(
         user_group2, mode="create"
     )
-    assert not accessible  # need access to the underlying obj
+    assert not accessible  # need access to the allocation
 
 
 def test_user_group2_create_public_source_followup_request_target_group(
@@ -2819,3 +2820,83 @@ def test_group_admin_user_delete_public_source_followup_request_target_group(
         group_admin_user, mode="delete"
     )
     assert not accessible  # must be requester
+
+
+def test_user_create_public_thumbnail(user, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_read_public_thumbnail(user, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_update_public_thumbnail(user, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(user, mode="update")
+    assert not accessible  # restricted
+
+
+def test_user_delete_public_thumbnail(user, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(user, mode="delete")
+    assert not accessible  # restricted
+
+
+def test_user_group2_create_public_thumbnail(user_group2, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(user_group2, mode="create")
+    assert accessible
+
+
+def test_user_group2_read_public_thumbnail(user_group2, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(user_group2, mode="read")
+    assert accessible
+
+
+def test_user_group2_update_public_thumbnail(user_group2, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(user_group2, mode="update")
+    assert not accessible  # restricted
+
+
+def test_user_group2_delete_public_thumbnail(user_group2, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(user_group2, mode="delete")
+    assert not accessible
+
+
+def test_super_admin_user_create_public_thumbnail(super_admin_user, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(super_admin_user, mode="create")
+    assert accessible
+
+
+def test_super_admin_user_read_public_thumbnail(super_admin_user, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(super_admin_user, mode="read")
+    assert accessible
+
+
+def test_super_admin_user_update_public_thumbnail(super_admin_user, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(super_admin_user, mode="update")
+    assert accessible
+
+
+def test_super_admin_user_delete_public_thumbnail(super_admin_user, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(super_admin_user, mode="delete")
+    assert accessible
+
+
+def test_group_admin_user_create_public_thumbnail(group_admin_user, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(group_admin_user, mode="create")
+    assert accessible
+
+
+def test_group_admin_user_read_public_thumbnail(group_admin_user, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(group_admin_user, mode="read")
+    assert accessible
+
+
+def test_group_admin_user_update_public_thumbnail(group_admin_user, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(group_admin_user, mode="update")
+    assert not accessible  # need sysadmin
+
+
+def test_group_admin_user_delete_public_thumbnail(group_admin_user, public_thumbnail):
+    accessible = public_thumbnail.is_accessible_by(group_admin_user, mode="delete")
+    assert not accessible  # need sysadmin
