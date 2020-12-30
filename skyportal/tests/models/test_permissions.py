@@ -2992,3 +2992,111 @@ def test_group_admin_user_delete_red_transients_run(
 ):
     accessible = red_transients_run.is_accessible_by(group_admin_user, mode="delete")
     assert not accessible  # must be owner
+
+
+def test_user_create_problematic_assignment(user, problematic_assignment):
+    accessible = problematic_assignment.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_read_problematic_assignment(user, problematic_assignment):
+    accessible = problematic_assignment.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_update_problematic_assignment(user, problematic_assignment):
+    accessible = problematic_assignment.is_accessible_by(user, mode="update")
+    assert accessible
+
+
+def test_user_delete_problematic_assignment(user, problematic_assignment):
+    accessible = problematic_assignment.is_accessible_by(user, mode="delete")
+    assert accessible
+
+
+def test_user_group2_create_problematic_assignment(user_group2, problematic_assignment):
+    accessible = problematic_assignment.is_accessible_by(user_group2, mode="create")
+    assert accessible
+
+
+def test_user_group2_read_problematic_assignment(user_group2, problematic_assignment):
+    accessible = problematic_assignment.is_accessible_by(user_group2, mode="read")
+    assert accessible
+
+
+def test_user_group2_update_problematic_assignment(user_group2, problematic_assignment):
+    accessible = problematic_assignment.is_accessible_by(user_group2, mode="update")
+    assert accessible
+
+
+def test_user_group2_delete_problematic_assignment(user_group2, problematic_assignment):
+    accessible = problematic_assignment.is_accessible_by(user_group2, mode="delete")
+    assert accessible
+
+
+def test_super_admin_user_create_problematic_assignment(
+    super_admin_user, problematic_assignment
+):
+    accessible = problematic_assignment.is_accessible_by(
+        super_admin_user, mode="create"
+    )
+    assert accessible
+
+
+def test_super_admin_user_read_problematic_assignment(
+    super_admin_user, problematic_assignment
+):
+    accessible = problematic_assignment.is_accessible_by(super_admin_user, mode="read")
+    assert accessible
+
+
+def test_super_admin_user_update_problematic_assignment(
+    super_admin_user, problematic_assignment
+):
+    accessible = problematic_assignment.is_accessible_by(
+        super_admin_user, mode="update"
+    )
+    assert accessible
+
+
+def test_super_admin_user_delete_problematic_assignment(
+    super_admin_user, problematic_assignment
+):
+    accessible = problematic_assignment.is_accessible_by(
+        super_admin_user, mode="delete"
+    )
+    assert accessible
+
+
+def test_group_admin_user_create_problematic_assignment(
+    group_admin_user, problematic_assignment
+):
+    accessible = problematic_assignment.is_accessible_by(
+        group_admin_user, mode="create"
+    )
+    assert accessible
+
+
+def test_group_admin_user_read_problematic_assignment(
+    group_admin_user, problematic_assignment
+):
+    accessible = problematic_assignment.is_accessible_by(group_admin_user, mode="read")
+    assert accessible
+
+
+def test_group_admin_user_update_problematic_assignment(
+    group_admin_user, problematic_assignment
+):
+    accessible = problematic_assignment.is_accessible_by(
+        group_admin_user, mode="update"
+    )
+    assert accessible
+
+
+def test_group_admin_user_delete_problematic_assignment(
+    group_admin_user, problematic_assignment
+):
+    accessible = problematic_assignment.is_accessible_by(
+        group_admin_user, mode="delete"
+    )
+    assert accessible
