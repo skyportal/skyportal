@@ -1,5 +1,5 @@
-import os
 import shutil
+import os
 import time
 from os.path import join as pjoin
 

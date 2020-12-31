@@ -2,9 +2,10 @@ import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
 
+
+from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
-from ..base import BaseHandler
 from ...models import (
     DBSession,
     User,
@@ -17,6 +18,7 @@ from ...models import (
     ACL,
     Stream,
 )
+
 
 env, cfg = load_env()
 

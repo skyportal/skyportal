@@ -1,8 +1,7 @@
-from astropy import time as ap_time
-
-from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
+from baselayer.app.access import auth_or_token
 from ....models import Telescope
+from astropy import time as ap_time
 
 
 class EphemerisHandler(BaseHandler):

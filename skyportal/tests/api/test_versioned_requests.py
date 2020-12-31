@@ -1,5 +1,5 @@
-import skyportal
 from skyportal.tests import api
+import skyportal
 
 
 def test_versioned_request(view_only_token, public_source):

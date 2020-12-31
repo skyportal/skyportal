@@ -1,11 +1,10 @@
-from collections import defaultdict
-
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
-
+from collections import defaultdict
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from ....models import DBSession, Obj, Source
+
 
 default_prefs = {'maxNumSources': 5}
 

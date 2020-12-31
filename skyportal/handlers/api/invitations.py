@@ -1,7 +1,5 @@
 import uuid
-
 import python_http_client.exceptions
-
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
 from ..base import BaseHandler

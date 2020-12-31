@@ -1,10 +1,10 @@
-import datetime
 import uuid
-
+import datetime
 import pytest
-from tdtax import taxonomy, __version__
 
 from skyportal.tests import api
+
+from tdtax import taxonomy, __version__
 
 
 @pytest.mark.flaky(reruns=2)
@@ -234,7 +234,6 @@ def test_save_candidate_quick_save(
 def test_save_candidate_select_groups(
     driver, group_admin_user, public_group, public_candidate
 ):
-
     driver.get(f"/become_user/{group_admin_user.id}")
     driver.get("/candidates")
     driver.click_xpath(

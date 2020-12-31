@@ -1,10 +1,9 @@
-import json
+from . import FollowUpAPI, Listener
+from baselayer.app.env import load_env
 from datetime import datetime, timedelta
-
+import json
 import requests
 
-from baselayer.app.env import load_env
-from . import FollowUpAPI, Listener
 from ..utils import http
 
 env, cfg = load_env()

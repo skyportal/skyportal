@@ -1,12 +1,12 @@
 from .acls import ACLHandler, UserACLHandler
 from .allocation import AllocationHandler
-from .annotation import AnnotationHandler
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
-from .facility_listener import FacilityMessageHandler
+from .annotation import AnnotationHandler
 from .filter import FilterHandler
 from .followup_request import FollowupRequestHandler, AssignmentHandler
+from .facility_listener import FacilityMessageHandler
 from .group import (
     GroupHandler,
     GroupUserHandler,

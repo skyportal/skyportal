@@ -1,11 +1,11 @@
 import io
 from pathlib import Path
-
-import numpy as np
 from astropy.time import Time
-from marshmallow.exceptions import ValidationError
+import numpy as np
+
 from sqlalchemy.orm import joinedload
 
+from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from ..base import BaseHandler

@@ -1,9 +1,8 @@
-import base64
 import os
 import uuid
-
-from skyportal.models import DBSession, Obj, Thumbnail
+import base64
 from skyportal.tests import api
+from skyportal.models import DBSession, Obj, Thumbnail
 
 
 def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_camera):

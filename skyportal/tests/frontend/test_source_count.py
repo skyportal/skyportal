@@ -1,5 +1,5 @@
-import time
 import uuid
+import time
 
 from skyportal.tests import api
 

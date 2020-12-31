@@ -1,9 +1,9 @@
-import tornado.web
-
-from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
-from ....model_util import create_token
+from baselayer.app.access import auth_or_token
 from ....models import User, Token, DBSession
+from ....model_util import create_token
+
+import tornado.web
 
 
 class TokenHandler(BaseHandler):

@@ -1,17 +1,17 @@
 import os
+from os.path import join as pjoin
 import uuid
 from io import BytesIO
-from os.path import join as pjoin
-
 import pytest
-from PIL import Image, ImageChops
-from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException
+from PIL import Image, ImageChops
 
 from baselayer.app.config import load_config
-from skyportal.models import DBSession
 from skyportal.tests import api
+from skyportal.models import DBSession
+
 
 cfg = load_config()
 
@@ -40,7 +40,7 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
-@pytest.mark.xfail
+@pytest.mark.flaky(reruns=3)
 def test_classifications(driver, user, taxonomy_token, public_group, public_source):
     simple = {
         'class': 'Cepheid',

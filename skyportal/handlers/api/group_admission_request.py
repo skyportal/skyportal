@@ -1,5 +1,4 @@
 from baselayer.app.access import auth_or_token
-from .group import has_admin_access_for_group
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -7,6 +6,7 @@ from ...models import (
     User,
     GroupAdmissionRequest,
 )
+from .group import has_admin_access_for_group
 
 
 class GroupAdmissionRequestHandler(BaseHandler):

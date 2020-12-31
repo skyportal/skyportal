@@ -1,9 +1,9 @@
+from skyportal.handlers import BaseHandler
+from baselayer.app.access import auth_or_token
 import jsonschema
 
-from baselayer.app.access import auth_or_token
-from skyportal.handlers import BaseHandler
-from ... import facility_apis, enum_types
 from ...models import FollowupRequest
+from ... import facility_apis, enum_types
 
 
 class FacilityMessageHandler(BaseHandler):

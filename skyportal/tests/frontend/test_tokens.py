@@ -1,6 +1,5 @@
-import uuid
-
 import pytest
+import uuid
 
 
 @pytest.mark.flaky(reruns=2)

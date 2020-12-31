@@ -1,5 +1,5 @@
-from jsonschema.exceptions import ValidationError as JSONValidationError
 from tdtax import schema, validate
+from jsonschema.exceptions import ValidationError as JSONValidationError
 
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler

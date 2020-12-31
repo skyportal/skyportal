@@ -1,26 +1,21 @@
 import datetime
-import functools
+from json.decoder import JSONDecodeError
+import python_http_client.exceptions
+from twilio.base.exceptions import TwilioException
+import tornado
+from tornado.ioloop import IOLoop
 import io
 import math
-from json.decoder import JSONDecodeError
-
-import arrow
-import healpix_alchemy as ha
-import python_http_client.exceptions
-import tornado
 from dateutil.parser import isoparse
+from sqlalchemy.orm import joinedload
+from sqlalchemy import func, or_, tuple_
+import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
-from sqlalchemy import func, or_, tuple_
-from sqlalchemy.orm import joinedload
-from tornado.ioloop import IOLoop
-from twilio.base.exceptions import TwilioException
-
+import functools
+import healpix_alchemy as ha
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
-from .candidate import grab_query_results, update_redshift_history_if_relevant
-from .internal.source_views import register_source_view
-from .photometry import serialize
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -37,6 +32,7 @@ from ...models import (
     Classification,
     Taxonomy,
 )
+from .internal.source_views import register_source_view
 from ...utils import (
     get_nearby_offset_stars,
     facility_parameters,
@@ -44,6 +40,9 @@ from ...utils import (
     get_finding_chart,
     _calculate_best_position_for_offset_stars,
 )
+from .candidate import grab_query_results, update_redshift_history_if_relevant
+from .photometry import serialize
+
 
 SOURCES_PER_PAGE = 100
 

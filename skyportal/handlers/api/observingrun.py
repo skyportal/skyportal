@@ -1,7 +1,6 @@
 import numpy as np
-from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm import joinedload
-
+from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token, AccessError
 from ..base import BaseHandler
 from ...models import (

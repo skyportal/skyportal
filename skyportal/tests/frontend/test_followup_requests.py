@@ -1,13 +1,12 @@
-import glob
-import os
 import uuid
-
 import pytest
 import requests
 from selenium.webdriver.common.action_chains import ActionChains
-
 from baselayer.app.env import load_env
 from skyportal.tests import api
+import glob
+import os
+
 
 env, cfg = load_env()
 endpoint = cfg['app.sedm_endpoint']

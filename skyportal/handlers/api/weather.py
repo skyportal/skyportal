@@ -2,9 +2,10 @@ import datetime
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
+from ...utils.offset import get_url
+
 from ..base import BaseHandler
 from ...models import Telescope
-from ...utils.offset import get_url
 
 _, cfg = load_env()
 weather_refresh = cfg["weather"].get("refresh_time") if cfg.get("weather") else None

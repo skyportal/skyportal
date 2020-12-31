@@ -1,19 +1,23 @@
 import itertools
-import os
 
-import bokeh.embed as bokeh_embed
 import numpy as np
 import pandas as pd
-import sncosmo
-from astropy.time import Time
+
 from bokeh.core.properties import List, String
 from bokeh.layouts import row, column
 from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button, LinearAxis
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.plotting import figure, ColumnDataSource
+
+import bokeh.embed as bokeh_embed
+
+
+from astropy.time import Time
+
 from matplotlib import cm
 from matplotlib.colors import rgb2hex
 
+import os
 from skyportal.models import (
     DBSession,
     Obj,
@@ -25,6 +29,9 @@ from skyportal.models import (
     Spectrum,
     GroupSpectrum,
 )
+
+import sncosmo
+
 
 DETECT_THRESH = 3  # sigma
 

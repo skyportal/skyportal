@@ -1,10 +1,11 @@
 import uuid
+
+from skyportal.tests import api
+from tdtax import taxonomy, __version__
+
 from datetime import datetime, timezone, timedelta
 
 from dateutil import parser
-from tdtax import taxonomy, __version__
-
-from skyportal.tests import api
 
 
 def test_add_sources_two_groups(

@@ -1,11 +1,11 @@
-import inspect
-from enum import Enum
-
 import sqlalchemy as sa
-from sncosmo.bandpasses import _BANDPASSES
-from sncosmo.magsystems import _MAGSYSTEMS
+from enum import Enum
+import inspect
 
 from . import facility_apis
+
+from sncosmo.bandpasses import _BANDPASSES
+from sncosmo.magsystems import _MAGSYSTEMS
 
 
 def force_render_enum_markdown(values):

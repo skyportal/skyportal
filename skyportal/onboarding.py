@@ -1,6 +1,5 @@
 import datetime
 
-from baselayer.app.env import load_env
 from .models import (
     DBSession,
     User,
@@ -10,6 +9,8 @@ from .models import (
     Role,
     StreamUser,
 )
+from baselayer.app.env import load_env
+
 
 env, cfg = load_env()
 

@@ -1,6 +1,5 @@
-from copy import deepcopy
-
 from jsonschema_to_openapi.convert import convert
+from copy import deepcopy
 
 
 class _ListenerBase:

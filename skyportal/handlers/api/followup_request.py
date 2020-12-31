@@ -1,6 +1,5 @@
 import jsonschema
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
@@ -14,6 +13,9 @@ from ...models import (
     Group,
     Allocation,
 )
+
+from sqlalchemy.orm import joinedload
+
 from ...schema import AssignmentSchema, FollowupRequestPost
 
 

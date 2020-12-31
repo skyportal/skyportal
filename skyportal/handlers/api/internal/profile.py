@@ -2,8 +2,8 @@ from copy import deepcopy
 
 import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
-from sqlalchemy.exc import IntegrityError
 from validate_email import validate_email
+from sqlalchemy.exc import IntegrityError
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update

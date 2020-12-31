@@ -1,5 +1,5 @@
-from baselayer.app.access import auth_or_token
 from .base import BaseHandler
+from baselayer.app.access import auth_or_token
 
 
 class LogoutHandler(BaseHandler):

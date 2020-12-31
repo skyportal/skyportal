@@ -1,7 +1,6 @@
-from marshmallow.exceptions import ValidationError
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
-
+from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from ..base import BaseHandler

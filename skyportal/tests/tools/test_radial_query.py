@@ -1,12 +1,10 @@
-from uuid import uuid4
-
-import healpix_alchemy as ha
 import numpy as np
 import pytest
+from uuid import uuid4
 from astropy import coordinates as ap_coord
 from astropy import units as u
-
 from skyportal import models as sp_models
+import healpix_alchemy as ha
 
 
 @pytest.mark.parametrize('n', [100, 1000, 10000])

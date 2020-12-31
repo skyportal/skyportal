@@ -1,12 +1,10 @@
-import base64
-import io
 import os
+import io
+import base64
 from pathlib import Path
-
-from PIL import Image, UnidentifiedImageError
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.exc import StatementError
-
+from PIL import Image, UnidentifiedImageError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Obj, Source, Thumbnail

@@ -1,10 +1,9 @@
 import uuid
-from datetime import datetime, timezone
-
 import pytest
-from tdtax import taxonomy, __version__
-
 from .. import api
+
+from tdtax import taxonomy, __version__
+from datetime import datetime, timezone
 
 
 @pytest.mark.flaky(reruns=2)

@@ -1,8 +1,8 @@
-import subprocess
-
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from ....models import Source, DBSession
+
+import subprocess
 
 
 class DBInfoHandler(BaseHandler):

@@ -1,8 +1,7 @@
-from marshmallow.exceptions import ValidationError
-
-from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from ...models import DBSession, Group, Allocation, Instrument
+from baselayer.app.access import auth_or_token, permissions
+from marshmallow.exceptions import ValidationError
 
 
 class AllocationHandler(BaseHandler):

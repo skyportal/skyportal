@@ -1,8 +1,8 @@
 import uuid
 
-from tdtax import taxonomy, __version__
-
 from skyportal.tests import api
+
+from tdtax import taxonomy, __version__
 
 
 def test_add_retrieve_delete_taxonomy(taxonomy_token, public_group):

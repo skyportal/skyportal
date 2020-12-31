@@ -1,24 +1,24 @@
-import math
 import uuid
+import math
 
+from astropy.time import Time
+from astropy.table import Table
+from marshmallow.exceptions import ValidationError
 import numpy as np
 import pandas as pd
 import sncosmo
-import sqlalchemy as sa
-from astropy.table import Table
-from astropy.time import Time
-from marshmallow.exceptions import ValidationError
 from sncosmo.photdata import PhotometricData
-from sqlalchemy import and_
+
+import sqlalchemy as sa
 from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.orm import joinedload
-from sqlalchemy.sql import column
 from sqlalchemy.sql.expression import FromClause
+from sqlalchemy.sql import column
+from sqlalchemy.orm import joinedload
+from sqlalchemy import and_
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from ..base import BaseHandler
-from ...enum_types import ALLOWED_MAGSYSTEMS
 from ...models import (
     DBSession,
     Group,
@@ -28,6 +28,7 @@ from ...models import (
     PHOT_ZP,
     GroupPhotometry,
 )
+
 from ...schema import (
     PhotometryMag,
     PhotometryFlux,
@@ -35,6 +36,8 @@ from ...schema import (
     PhotMagFlexible,
     PhotometryRangeQuery,
 )
+from ...enum_types import ALLOWED_MAGSYSTEMS
+
 
 _, cfg = load_env()
 

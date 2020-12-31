@@ -1,12 +1,13 @@
 import os
 from os.path import join as pjoin
 
+from . import __version__
+
+from tornado.routing import URLSpec
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
-from tornado.routing import URLSpec
-
-from . import __version__
 from . import schema
+
 
 api_description = pjoin(os.path.dirname(__file__), 'api_description.md')
 

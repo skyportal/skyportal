@@ -1,11 +1,11 @@
-import numpy as np
-import pandas as pd
-from astropy import time as ap_time
-
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from .... import plot
 from ....models import ClassicalAssignment, Source, Telescope
+
+import numpy as np
+from astropy import time as ap_time
+import pandas as pd
 
 
 class PlotPhotometryHandler(BaseHandler):
