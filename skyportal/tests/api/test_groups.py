@@ -137,10 +137,12 @@ def test_public_group(view_only_token):
     int(response["data"]["id"])
 
 
-def test_add_delete_stream_group(super_admin_token, public_group, public_stream):
+def test_add_delete_stream_group(
+    super_admin_token, public_group_no_streams, public_stream
+):
     status, data = api(
         "POST",
-        f"groups/{public_group.id}/streams",
+        f"groups/{public_group_no_streams.id}/streams",
         data={"stream_id": public_stream.id},
         token=super_admin_token,
     )
@@ -149,16 +151,18 @@ def test_add_delete_stream_group(super_admin_token, public_group, public_stream)
 
     status, data = api(
         "DELETE",
-        f"groups/{public_group.id}/streams/{public_stream.id}",
+        f"groups/{public_group_no_streams.id}/streams/{public_stream.id}",
         token=super_admin_token,
     )
     assert status == 200
 
 
-def test_non_su_add_stream_to_group(manage_groups_token, public_group, public_stream):
+def test_non_su_add_stream_to_group(
+    manage_groups_token, public_group_no_streams, public_stream
+):
     status, data = api(
         "POST",
-        f"groups/{public_group.id}/streams",
+        f"groups/{public_group_no_streams.id}/streams",
         data={"stream_id": public_stream.id},
         token=manage_groups_token,
     )
@@ -166,11 +170,11 @@ def test_non_su_add_stream_to_group(manage_groups_token, public_group, public_st
 
 
 def test_add_already_added_stream_to_group(
-    super_admin_token, public_group, public_stream
+    super_admin_token, public_group_no_streams, public_stream
 ):
     status, data = api(
         "POST",
-        f"groups/{public_group.id}/streams",
+        f"groups/{public_group_no_streams.id}/streams",
         data={"stream_id": public_stream.id},
         token=super_admin_token,
     )
@@ -179,7 +183,7 @@ def test_add_already_added_stream_to_group(
 
     status, data = api(
         "POST",
-        f"groups/{public_group.id}/streams",
+        f"groups/{public_group_no_streams.id}/streams",
         data={"stream_id": public_stream.id},
         token=super_admin_token,
     )
@@ -188,7 +192,7 @@ def test_add_already_added_stream_to_group(
 
 
 def test_add_stream_to_single_user_group_delete_stream(
-    super_admin_token, super_admin_user, public_group, public_stream
+    super_admin_token, super_admin_user, public_group_no_streams, public_stream
 ):
     # create new user
     username = str(uuid.uuid4())
@@ -248,11 +252,11 @@ def test_add_stream_to_single_user_group_delete_stream(
 
 
 def test_add_stream_to_group_delete_stream(
-    super_admin_token, public_group, public_stream
+    super_admin_token, public_group_no_streams, public_stream
 ):
     status, data = api(
         "POST",
-        f"groups/{public_group.id}/streams",
+        f"groups/{public_group_no_streams.id}/streams",
         data={"stream_id": public_stream.id},
         token=super_admin_token,
     )
@@ -260,7 +264,9 @@ def test_add_stream_to_group_delete_stream(
     assert data["data"]["stream_id"] == public_stream.id
 
     # check stream is there
-    status, data = api("GET", f"groups/{public_group.id}", token=super_admin_token,)
+    status, data = api(
+        "GET", f"groups/{public_group_no_streams.id}", token=super_admin_token,
+    )
     assert data["data"]["streams"][0]["id"] == public_stream.id
 
     # delete stream
@@ -270,7 +276,9 @@ def test_add_stream_to_group_delete_stream(
     assert status == 200
 
     # check group still exists and stream is not there
-    status, data = api("GET", f"groups/{public_group.id}", token=super_admin_token,)
+    status, data = api(
+        "GET", f"groups/{public_group_no_streams.id}", token=super_admin_token,
+    )
     assert len(data["data"]["streams"]) == 0
 
 

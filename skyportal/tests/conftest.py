@@ -169,6 +169,11 @@ def public_group2(public_stream2):
 
 
 @pytest.fixture()
+def public_group_no_streams():
+    return GroupFactory()
+
+
+@pytest.fixture()
 def group_with_stream(
     super_admin_user, group_admin_user, user, view_only_user, public_stream
 ):
