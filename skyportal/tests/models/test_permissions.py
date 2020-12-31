@@ -3100,3 +3100,108 @@ def test_group_admin_user_delete_problematic_assignment(
         group_admin_user, mode="delete"
     )
     assert accessible
+
+
+# These tests are commented out because they require email / twilio clients
+# to be set up, which is not done by default.
+"""
+def test_user_create_invitation(user, invitation):
+    accessible = invitation.is_accessible_by(user, mode="create")
+    assert accessible
+def test_user_read_invitation(user, invitation):
+    accessible = invitation.is_accessible_by(user, mode="read")
+    assert accessible
+def test_user_update_invitation(user, invitation):
+    accessible = invitation.is_accessible_by(user, mode="update")
+    assert accessible
+def test_user_delete_invitation(user, invitation):
+    accessible = invitation.is_accessible_by(user, mode="delete")
+    assert accessible
+def test_user_group2_create_invitation(user_group2, invitation):
+    accessible = invitation.is_accessible_by(user_group2, mode="create")
+    assert accessible
+def test_user_group2_read_invitation(user_group2, invitation):
+    accessible = invitation.is_accessible_by(user_group2, mode="read")
+    assert not accessible  # must be the inviter
+def test_user_group2_update_invitation(user_group2, invitation):
+    accessible = invitation.is_accessible_by(user_group2, mode="update")
+    assert not accessible  # must be the inviter
+def test_user_group2_delete_invitation(user_group2, invitation):
+    accessible = invitation.is_accessible_by(user_group2, mode="delete")
+    assert not accessible  # must be the inviter
+def test_super_admin_user_create_invitation(super_admin_user, invitation):
+    accessible = invitation.is_accessible_by(super_admin_user, mode="create")
+    assert accessible
+def test_super_admin_user_read_invitation(super_admin_user, invitation):
+    accessible = invitation.is_accessible_by(super_admin_user, mode="read")
+    assert accessible
+def test_super_admin_user_update_invitation(super_admin_user, invitation):
+    accessible = invitation.is_accessible_by(super_admin_user, mode="update")
+    assert accessible
+def test_super_admin_user_delete_invitation(super_admin_user, invitation):
+    accessible = invitation.is_accessible_by(super_admin_user, mode="delete")
+    assert accessible
+
+def test_group_admin_user_create_invitation(group_admin_user, invitation):
+    accessible = invitation.is_accessible_by(group_admin_user, mode="create")
+    assert accessible
+def test_group_admin_user_read_invitation(group_admin_user, invitation):
+    accessible = invitation.is_accessible_by(group_admin_user, mode="read")
+    assert not accessible  # must be the inviter
+def test_group_admin_user_update_invitation(group_admin_user, invitation):
+    accessible = invitation.is_accessible_by(group_admin_user, mode="update")
+    assert not accessible  # must be the inviter
+def test_group_admin_user_delete_invitation(group_admin_user, invitation):
+    accessible = invitation.is_accessible_by(group_admin_user, mode="delete")
+    assert not accessible  # must be the inviter
+
+
+def test_user_create_public_source_notification(user, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(user, mode="create")
+    assert accessible
+def test_user_read_public_source_notification(user, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(user, mode="read")
+    assert accessible
+def test_user_update_public_source_notification(user, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(user, mode="update")
+    assert not accessible  # must be sender
+def test_user_delete_public_source_notification(user, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(user, mode="delete")
+    assert not accessible  # must be sender
+def test_user_group2_create_public_source_notification(user_group2, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(user_group2, mode="create")
+    assert not accessible  # must be member of all target groups
+def test_user_group2_read_public_source_notification(user_group2, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(user_group2, mode="read")
+    assert not accessible  # must be a member of at least one target group
+def test_user_group2_update_public_source_notification(user_group2, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(user_group2, mode="update")
+    assert not accessible  # must be notification sender
+def test_user_group2_delete_public_source_notification(user_group2, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(user_group2, mode="delete")
+    assert not accessible  # must be notification sender
+def test_super_admin_user_create_public_source_notification(super_admin_user, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(super_admin_user, mode="create")
+    assert accessible
+def test_super_admin_user_read_public_source_notification(super_admin_user, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(super_admin_user, mode="read")
+    assert accessible
+def test_super_admin_user_update_public_source_notification(super_admin_user, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(super_admin_user, mode="update")
+    assert accessible
+def test_super_admin_user_delete_public_source_notification(super_admin_user, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(super_admin_user, mode="delete")
+    assert accessible
+def test_group_admin_user_create_public_source_notification(group_admin_user, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(group_admin_user, mode="create")
+    assert accessible
+def test_group_admin_user_read_public_source_notification(group_admin_user, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(group_admin_user, mode="read")
+    assert accessible
+def test_group_admin_user_update_public_source_notification(group_admin_user, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(group_admin_user, mode="update")
+    assert accessible  # must be notification sender
+def test_group_admin_user_delete_public_source_notification(group_admin_user, public_source_notification):
+    accessible = public_source_notification.is_accessible_by(group_admin_user, mode="delete")
+    assert accessible  # must be notification sender
+"""

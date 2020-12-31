@@ -3014,6 +3014,8 @@ User.assignments = relationship(
 
 class Invitation(Base):
 
+    read = update = delete = AccessibleIfUserMatches('invited_by')
+
     token = sa.Column(sa.String(), nullable=False, unique=True)
     groups = relationship(
         "Group",
@@ -3059,6 +3061,12 @@ def send_user_invite_email(mapper, connection, target):
 
 
 class SourceNotification(Base):
+
+    create = read = ComposedAccessControl(
+        AccessibleIfRelatedRowsAreAccessible(source='read'),
+    )
+    update = delete = AccessibleIfUserMatches('sent_by')
+
     groups = relationship(
         "Group",
         secondary="group_notifications",
@@ -3092,6 +3100,15 @@ class SourceNotification(Base):
 
 
 GroupSourceNotification = join_model('group_notifications', Group, SourceNotification)
+GroupSourceNotification.create = (
+    GroupSourceNotification.read
+) = accessible_by_group_members
+GroupSourceNotification.update = GroupSourceNotification.delete = ComposedAccessControl(
+    accessible_by_group_admins,
+    AccessibleIfUserMatches('sourcenotification.sent_by'),
+    logic='or',
+)
+
 User.source_notifications = relationship(
     'SourceNotification',
     back_populates='sent_by',

@@ -33,6 +33,8 @@ from skyportal.models import (
     init_db,
     FollowupRequest,
     Allocation,
+    Invitation,
+    SourceNotification,
 )
 
 import tdtax
@@ -394,3 +396,57 @@ class FollowupRequestFactory(factory.alchemy.SQLAlchemyModelFactory):
         obj.target_groups = passed_groups
         DBSession().add(obj)
         DBSession().commit()
+
+
+class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Invitation
+
+    token = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    admin_for_groups = []
+    user_email = 'user@email.com'
+    invited_by = factory.SubFactory(UserFactory)
+    used = False
+
+    @factory.post_generation
+    def groups(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for group in extracted:
+                obj.groups.append(group)
+                DBSession().add(obj)
+                DBSession().commit()
+
+    @factory.post_generation
+    def streams(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for stream in extracted:
+                obj.streams.append(stream)
+                DBSession().add(obj)
+                DBSession().commit()
+
+
+class NotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = SourceNotification
+
+    sent_by = factory.SubFactory(UserFactory)
+    source = factory.SubFactory(ObjFactory)
+    additional_notes = 'abcd'
+    level = 'hard'
+
+    @factory.post_generation
+    def groups(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for group in extracted:
+                obj.groups.append(group)
+                DBSession().add(obj)
+                DBSession().commit()

@@ -46,6 +46,8 @@ from skyportal.tests.fixtures import (
     ClassificationFactory,
     FollowupRequestFactory,
     AllocationFactory,
+    InvitationFactory,
+    NotificationFactory,
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 
@@ -963,3 +965,13 @@ def public_thumbnail(public_source):
         .order_by(Thumbnail.id.desc())
         .first()
     )
+
+
+@pytest.fixture()
+def invitation(user):
+    return InvitationFactory(invited_by=user)
+
+
+@pytest.fixture()
+def public_source_notification(source_notification_user, public_source):
+    return NotificationFactory(sent_by=source_notification_user, source=public_source)

@@ -31,6 +31,7 @@ targets = [
     'public_thumbnail',
     'red_transients_run',
     'problematic_assignment',
+    'invitation',
 ]
 
 
