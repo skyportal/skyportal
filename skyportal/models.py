@@ -311,7 +311,7 @@ class Group(Base):
     )
 
 
-GroupUser = join_model('group_users', Group, User, base=Base)
+GroupUser = join_model('group_users', Group, User)
 GroupUser.__doc__ = "Join table mapping `Group`s to `User`s."
 GroupUser.create = GroupUser.update = GroupUser.delete = ComposedAccessControl(
     accessible_by_group_admins, GroupUser.read
@@ -413,14 +413,14 @@ class Stream(Base):
     )
 
 
-GroupStream = join_model('group_streams', Group, Stream, base=Base)
+GroupStream = join_model('group_streams', Group, Stream)
 GroupStream.__doc__ = "Join table mapping Groups to Streams."
 GroupStream.create = GroupStream.update = GroupStream.delete = ComposedAccessControl(
     accessible_by_group_admins, GroupStream.read
 )
 
 
-StreamUser = join_model('stream_users', Stream, User, base=Base)
+StreamUser = join_model('stream_users', Stream, User)
 StreamUser.__doc__ = "Join table mapping Streams to Users."
 StreamUser.create = restricted
 
@@ -1022,7 +1022,7 @@ Candidate.get_obj_if_readable_by = get_candidate_if_readable_by
 Candidate.is_readable_by = candidate_is_readable_by
 
 
-Source = join_model("sources", Group, Obj, base=Base)
+Source = join_model("sources", Group, Obj)
 Source.create = Source.read = Source.update = Source.delete = ComposedAccessControl(
     accessible_by_group_members, Source.read
 )
@@ -1766,7 +1766,7 @@ class Taxonomy(Base):
     )
 
 
-GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy, base=Base)
+GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 GroupTaxonomy.delete = GroupTaxonomy.update = ComposedAccessControl(
     accessible_by_group_admins, GroupTaxonomy.read
@@ -1968,7 +1968,7 @@ class Annotation(Base):
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
 
-GroupAnnotation = join_model("group_annotations", Group, Annotation, base=Base)
+GroupAnnotation = join_model("group_annotations", Group, Annotation)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
 GroupAnnotation.delete = GroupAnnotation.update = ComposedAccessControl(
     accessible_by_group_admins, GroupAnnotation.read
@@ -2043,9 +2043,7 @@ class Classification(Base):
     )
 
 
-GroupClassification = join_model(
-    "group_classifications", Group, Classification, base=Base
-)
+GroupClassification = join_model("group_classifications", Group, Classification)
 GroupClassification.__doc__ = "Join table mapping Groups to Classifications."
 GroupClassification.delete = GroupClassification.update = ComposedAccessControl(
     accessible_by_group_admins, GroupClassification.read
@@ -2259,7 +2257,7 @@ User.photometry = relationship(
     foreign_keys="Photometry.owner_id",
 )
 
-GroupPhotometry = join_model("group_photometry", Group, Photometry, base=Base)
+GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 GroupPhotometry.delete = GroupPhotometry.update = ComposedAccessControl(
     accessible_by_group_admins, GroupPhotometry.read
@@ -2544,8 +2542,8 @@ User.spectra = relationship(
     'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
 )
 
-SpectrumReducer = join_model("spectrum_reducers", Spectrum, User, base=Base)
-SpectrumObserver = join_model("spectrum_observers", Spectrum, User, base=Base)
+SpectrumReducer = join_model("spectrum_reducers", Spectrum, User)
+SpectrumObserver = join_model("spectrum_observers", Spectrum, User)
 SpectrumReducer.create = (
     SpectrumReducer.delete
 ) = SpectrumReducer.update = AccessibleIfUserMatches('spectrum.owner')
@@ -2555,7 +2553,7 @@ SpectrumObserver.create = (
 
 # should be accessible only by spectrumowner ^^
 
-GroupSpectrum = join_model("group_spectra", Group, Spectrum, base=Base)
+GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 GroupSpectrum.update = GroupSpectrum.delete = ComposedAccessControl(
     accessible_by_group_admins, GroupSpectrum.read
@@ -2681,9 +2679,7 @@ class FollowupRequest(Base):
         return self.allocation.group_id in user_or_token_group_ids
 
 
-FollowupRequestTargetGroup = join_model(
-    'request_groups', FollowupRequest, Group, base=Base
-)
+FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
 FollowupRequestTargetGroup.create = (
     FollowupRequestTargetGroup.update
 ) = FollowupRequestTargetGroup.delete = ComposedAccessControl(
@@ -3041,9 +3037,9 @@ class Invitation(Base):
     used = sa.Column(sa.Boolean, nullable=False, default=False)
 
 
-GroupInvitation = join_model('group_invitations', Group, Invitation, base=Base)
-StreamInvitation = join_model('stream_invitations', Stream, Invitation, base=Base)
-UserInvitation = join_model("user_invitations", User, Invitation, base=Base)
+GroupInvitation = join_model('group_invitations', Group, Invitation)
+StreamInvitation = join_model('stream_invitations', Stream, Invitation)
+UserInvitation = join_model("user_invitations", User, Invitation)
 
 
 @event.listens_for(Invitation, 'after_insert')
