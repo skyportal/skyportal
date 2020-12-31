@@ -1,6 +1,6 @@
+from pathlib import Path
 import hashlib
 import os
-from pathlib import Path
 
 from baselayer.log import make_log
 

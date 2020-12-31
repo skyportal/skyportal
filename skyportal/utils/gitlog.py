@@ -2,6 +2,7 @@ import re
 
 from baselayer.log import make_log
 
+
 pr_url_base = "https://github.com/skyportal/skyportal/pull"
 commit_url_base = "https://github.com/skyportal/skyportal/commit"
 
