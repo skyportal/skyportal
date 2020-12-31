@@ -166,7 +166,7 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
         return self._relationship_key
 
     @relationship_key.setter
-    def relationship_key(self, value):
+    def relationship_chain(self, value):
         if not isinstance(value, str):
             raise ValueError(
                 f'Invalid value for relationship key: {value}, expected str, got {value.__class__.__name__}'
