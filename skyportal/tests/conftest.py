@@ -164,8 +164,8 @@ def public_group(public_stream):
 
 
 @pytest.fixture()
-def public_group2(public_stream2):
-    return GroupFactory(streams=[public_stream2])
+def public_group2(public_stream):
+    return GroupFactory(streams=[public_stream])
 
 
 @pytest.fixture()
@@ -508,8 +508,10 @@ def user2(public_group):
 
 
 @pytest.fixture()
-def user_no_groups():
-    return UserFactory(roles=[models.Role.query.get("Full user")])
+def user_no_groups(public_stream):
+    return UserFactory(
+        roles=[models.Role.query.get("Full user")], streams=[public_stream]
+    )
 
 
 @pytest.fixture()

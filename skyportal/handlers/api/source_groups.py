@@ -110,7 +110,12 @@ class SourceGroupsHandler(BaseHandler):
             source.active = False
             source.unsaved_at = datetime.datetime.utcnow()
 
-        self.finalize_transaction()
+        # TODO: replace with  self.finalize_transaction() once API refactor is complete
+        # currently a single record is used for both source requests and sources
+        # this should be refactored into two database models since the two
+        # records have different permissions
+
+        DBSession().commit()
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
@@ -173,7 +178,14 @@ class SourceGroupsHandler(BaseHandler):
         source.requested = requested
         if active and not previously_active:
             source.saved_by_id = self.associated_user_object.id
-        self.finalize_transaction()
+
+        # TODO: replace with  self.finalize_transaction() once API refactor is complete
+        # currently a single record is used for both source requests and sources
+        # this should be refactored into two database models since the two
+        # records have different permissions
+        # self.finalize_transaction()
+
+        DBSession().commit()
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
