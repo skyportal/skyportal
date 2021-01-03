@@ -10,7 +10,7 @@ def test_add_objects_to_list(user, public_candidate, public_candidate2):
     )
 
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={
             'user_id': user.id,
@@ -24,7 +24,7 @@ def test_add_objects_to_list(user, public_candidate, public_candidate2):
     item1 = data["data"]["id"]  # get the list item ID
 
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={
             'user_id': user.id,
@@ -47,11 +47,11 @@ def test_add_objects_to_list(user, public_candidate, public_candidate2):
 
     assert set(items) == {item1, item2}
 
-    # try to put a listing to a non-existing object
+    # try to post a listing to a non-existing object
     fake_obj_id = str(uuid.uuid4())
 
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={'user_id': user.id, 'obj_id': fake_obj_id, 'list_name': 'favorites'},
         token=token_id,
@@ -77,7 +77,6 @@ def test_double_posting(user, public_candidate):
     )
 
     assert status == 200
-    listing_id1 = data['data']['id']
 
     # try posting the same listing again!
     status, data = api(
@@ -93,23 +92,6 @@ def test_double_posting(user, public_candidate):
 
     assert status == 400
 
-    # doing a PUT instead of POST should be fine (simply ignored)
-    status, data = api(
-        'PUT',
-        'listing',
-        data={
-            'user_id': user.id,
-            'obj_id': public_candidate.id,
-            'list_name': 'favorites',
-        },
-        token=token_id,
-    )
-
-    assert status == 200
-    listing_id2 = data['data']['id']
-
-    assert listing_id1 == listing_id2  # check the PUT returns the same identifier
-
 
 def test_add_remove_objects(user, public_candidate, public_candidate2):
 
@@ -118,7 +100,7 @@ def test_add_remove_objects(user, public_candidate, public_candidate2):
     )
 
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={
             'user_id': user.id,
@@ -131,7 +113,7 @@ def test_add_remove_objects(user, public_candidate, public_candidate2):
     item1 = data["data"]["id"]  # get the list item ID
 
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={
             'user_id': user.id,
@@ -168,7 +150,7 @@ def test_add_objects_to_different_lists(user, public_candidate, public_candidate
     list1 = str(uuid.uuid4())
 
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': list1},
         token=token_id,
@@ -179,7 +161,7 @@ def test_add_objects_to_different_lists(user, public_candidate, public_candidate
 
     list2 = str(uuid.uuid4())
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={'user_id': user.id, 'obj_id': public_candidate2.id, 'list_name': list2},
         token=token_id,
@@ -206,7 +188,7 @@ def test_patching_listing(user, user2, public_candidate, public_candidate2):
     list1 = str(uuid.uuid4())
 
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': list1},
         token=token_id,
@@ -216,7 +198,7 @@ def test_patching_listing(user, user2, public_candidate, public_candidate2):
     item1 = data["data"]["id"]  # get the list item ID
 
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={'user_id': user.id, 'obj_id': public_candidate2.id, 'list_name': list1},
         token=token_id,
@@ -269,7 +251,7 @@ def test_listings_user_permissions(
     )
 
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={
             'user_id': user.id,
@@ -375,7 +357,7 @@ def test_invalid_listing_name_fails(user, public_candidate):
 
     # we cannot post a listing with an empty string
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': ''},
         token=token_id,
@@ -386,7 +368,7 @@ def test_invalid_listing_name_fails(user, public_candidate):
 
     # we cannot post a listing with a non-alphanumeric first letter
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': ' '},
         token=token_id,
@@ -397,7 +379,7 @@ def test_invalid_listing_name_fails(user, public_candidate):
 
     # we cannot post a listing with a non-alphanumeric first letter
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': '-'},
         token=token_id,
@@ -408,7 +390,7 @@ def test_invalid_listing_name_fails(user, public_candidate):
 
     # this is ok
     status, data = api(
-        'PUT',
+        'POST',
         'listing',
         data={
             'user_id': user.id,

@@ -104,67 +104,6 @@ class UserObjListHandler(BaseHandler):
 
         return self.success(data=query.all())
 
-    def add_listing(self, error_if_exists):
-        """
-        Add the listing given in the request body.
-        error_if_exists: boolean
-          true: will throw an error if listing exists (POST)
-          false: will ignore if listing already exists (PUT)
-        """
-
-        data = self.get_json()
-
-        schema = Listing.__schema__()
-        try:
-            schema.load(data)
-        except ValidationError as e:
-            return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
-
-        user_id = data.get('user_id')
-
-        err_str = check_user_and_permissions(user_id, self.associated_user_object)
-        if err_str is not None:
-            return self.error(err_str)
-
-        obj_id = data.get('obj_id')
-        if Obj.query.get(obj_id) is None:  # verify that object exists!
-            return self.error(f'Object "{obj_id}" does not exist!')
-
-        list_name = data.get('list_name')
-        if not check_list_name(list_name):
-            return self.error(
-                "Input `list_name` must begin with alphanumeric/underscore"
-            )
-
-        query = (
-            DBSession()
-            .query(Listing)
-            .filter(
-                Listing.user_id == int(user_id),
-                Listing.obj_id == obj_id,
-                Listing.list_name == list_name,
-            )
-        )
-
-        # what to do if listing already exists...
-        if query.first() is not None:
-            if error_if_exists:
-                return self.error(
-                    f'Listing already exists with user_id={user_id}, obj_id={obj_id} and list_name={list_name}'
-                )
-            else:  # update the listing instead
-                listing = query.first()
-                listing.user_id = user_id
-                listing.obj_id = obj_id
-                listing.list_name = list_name
-        else:  # no such listing, can just add a new one!
-            listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
-            DBSession().add(listing)
-
-        DBSession().commit()
-
-        return self.success(data={'id': listing.id})
-
     @auth_or_token
     def post(self):
         """
@@ -211,55 +150,52 @@ class UserObjListHandler(BaseHandler):
 
         """
 
-        return self.add_listing(error_if_exists=True)
+        data = self.get_json()
 
-    @auth_or_token
-    def put(self):
-        """
-        ---
-        description: Add a listing, if it exists, ignore this call
-        requestBody:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user_id:
-                    type: integer
-                    required: true
-                  obj_id:
-                    type: string
-                    required: true
-                  list_name:
-                    type: string
-                    required: true
-                    description: |
-                        Listing name for this item, e.g., "favorites".
-                        Multiple objects can be saved by the same user to different
-                        lists, where the list names are user-defined.
-                        List name must be a non-empty string starting with an
-                        alphanumeric character or underscore.
-                        (it must match the regex: /^\\w+/)
+        schema = Listing.__schema__()
+        try:
+            schema.load(data)
+        except ValidationError as e:
+            return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
-        responses:
-          200:
-            content:
-              application/json:
-                schema:
-                  allOf:
-                    - $ref: '#/components/schemas/Success'
-                    - type: object
-                      properties:
-                        data:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              description: New or existing listing ID
+        user_id = data.get('user_id')
 
-        """
+        err_str = check_user_and_permissions(user_id, self.associated_user_object)
+        if err_str is not None:
+            return self.error(err_str)
 
-        return self.add_listing(error_if_exists=False)
+        obj_id = data.get('obj_id')
+        if Obj.query.get(obj_id) is None:  # verify that object exists!
+            return self.error(f'Object "{obj_id}" does not exist!')
+
+        list_name = data.get('list_name')
+        if not check_list_name(list_name):
+            return self.error(
+                "Input `list_name` must begin with alphanumeric/underscore"
+            )
+
+        query = (
+            DBSession()
+            .query(Listing)
+            .filter(
+                Listing.user_id == int(user_id),
+                Listing.obj_id == obj_id,
+                Listing.list_name == list_name,
+            )
+        )
+
+        # what to do if listing already exists...
+        if query.first() is not None:
+            return self.error(
+                f'Listing already exists with user_id={user_id}, obj_id={obj_id} and list_name={list_name}'
+            )
+
+        # no such listing, can just add a new one!
+        listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
+        DBSession().add(listing)
+        DBSession().commit()
+
+        return self.success(data={'id': listing.id})
 
     @auth_or_token
     def patch(self, listing_id):
