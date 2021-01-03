@@ -12,17 +12,37 @@ from ...models import (
 
 
 def check_list_name(name):
-    """
-    checks that list_name begins with an alphanumeric character
+    """checks that list_name begins with an alphanumeric character
+
+    Parameters
+    ----------
+    name: string
+          name of the new listing.
+
+    Return
+    ------
+    bool
+        True if listing name conforms to requirements
+
     """
     return re.search(r'^\w+', name) is not None
 
 
 def check_user_and_permissions(user_id, associated_user):
-    """
-    Verify that the user id is valid, and that the user has access to the requested user's listings.
-    If fails, return an error string.
-    If succeeds, return None.
+    """Verify that the user id is valid, and that the user has access to the requested user's listings.
+
+    Parameters
+    ----------
+    user_id: integer
+            the ID of the user associated witht the listing, not necessarily the poster.
+    associated_user: integer
+            the ID of the user that is posting the listing.
+
+    Return
+    ------
+    bool
+        If fails, return an error string. If succeeds, return None.
+
     """
 
     try:
