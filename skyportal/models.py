@@ -588,7 +588,11 @@ class Obj(Base, ha.Point):
     @hybrid_property
     def last_detected_at(self):
         """UTC ISO date at which the object was last detected above a S/N of 5."""
-        detections = [phot.iso for phot in self.photometry if phot.snr and phot.snr > 5]
+        detections = [
+            phot.iso
+            for phot in self.photometry
+            if phot.snr is not None and phot.snr > 5
+        ]
         return max(detections) if detections else None
 
     @last_detected_at.expression
@@ -597,8 +601,8 @@ class Obj(Base, ha.Point):
         return (
             sa.select([sa.func.max(Photometry.iso)])
             .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
             .where(Photometry.snr > 5.0)
-            .group_by(Photometry.obj_id)
             .label('last_detected_at')
         )
 
@@ -608,19 +612,28 @@ class Obj(Base, ha.Point):
         detections = [
             (phot.iso, phot.mag)
             for phot in self.photometry
-            if phot.snr and phot.snr > 5
+            if phot.snr is not None and phot.snr > 5
         ]
         return max(detections, key=(lambda x: x[0]))[1] if detections else None
 
     @last_detected_mag.expression
     def last_detected_mag(cls):
         """Magnitude at which the object was last detected above a S/N of 5."""
+        last_detected = (
+            sa.select([cls.id, sa.func.max(Photometry.mjd).label("max_mjd")])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > 5.0)
+            .group_by(cls.id)
+            .alias()
+        )
         return (
             sa.select([Photometry.mag])
             .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
             .where(Photometry.snr > 5.0)
-            .group_by(Photometry.obj_id)
-            .having(Photometry.iso == sa.func.max(Photometry.iso))
+            .where(cls.id == last_detected.c.id)
+            .where(Photometry.mjd == last_detected.c.max_mjd)
             .label('last_detected_mag')
         )
 
@@ -630,7 +643,7 @@ class Obj(Base, ha.Point):
         detections = [
             (phot.iso, phot.mag)
             for phot in self.photometry
-            if phot.snr and phot.snr > 5
+            if phot.snr is not None and phot.snr > 5
         ]
         return max(detections, key=(lambda x: x[1]))[0] if detections else None
 
@@ -640,16 +653,21 @@ class Obj(Base, ha.Point):
         return (
             sa.select([Photometry.iso])
             .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
             .where(Photometry.snr > 5.0)
-            .group_by(Photometry.obj_id)
-            .having(Photometry.mag == sa.func.max(Photometry.mag))
+            .order_by(Photometry.mag.desc())
+            .limit(1)
             .label('peak_detected_at')
         )
 
     @hybrid_property
     def peak_detected_mag(self):
         """Peak magnitude at which the object was detected above a S/N of 5."""
-        detections = [phot.mag for phot in self.photometry if phot.snr and phot.snr > 5]
+        detections = [
+            phot.mag
+            for phot in self.photometry
+            if phot.snr is not None and phot.snr > 5
+        ]
         return max(detections) if detections else None
 
     @peak_detected_mag.expression
@@ -658,8 +676,8 @@ class Obj(Base, ha.Point):
         return (
             sa.select([sa.func.max(Photometry.mag)])
             .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
             .where(Photometry.snr > 5.0)
-            .group_by(Photometry.obj_id)
             .label('peak_detected_mag')
         )
 
@@ -2084,7 +2102,7 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def mag(self):
         """The magnitude of the photometry point in the AB system."""
-        if self.flux is not None and self.flux > 0:
+        if not np.isnan(self.flux) and self.flux > 0:
             return -2.5 * np.log10(self.flux) + PHOT_ZP
         else:
             return None
@@ -2092,7 +2110,7 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def e_mag(self):
         """The error on the magnitude of the photometry point."""
-        if self.flux is not None and self.flux > 0 and self.fluxerr > 0:
+        if not np.isnan(self.flux) and self.flux > 0 and self.fluxerr > 0:
             return (2.5 / np.log(10)) * (self.fluxerr / self.flux)
         else:
             return None
@@ -2103,7 +2121,7 @@ class Photometry(Base, ha.Point):
         return sa.case(
             [
                 (
-                    sa.and_(cls.flux != None, cls.flux > 0),  # noqa
+                    sa.and_(cls.flux != 'NaN', cls.flux > 0),  # noqa
                     -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
                 )
             ],
@@ -2117,7 +2135,7 @@ class Photometry(Base, ha.Point):
             [
                 (
                     sa.and_(
-                        cls.flux != None, cls.flux > 0, cls.fluxerr > 0
+                        cls.flux != 'NaN', cls.flux > 0, cls.fluxerr > 0
                     ),  # noqa: E711
                     2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
                 )
@@ -2144,12 +2162,24 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def snr(self):
         """Signal-to-noise ratio of this Photometry point."""
-        return self.flux / self.fluxerr if self.flux and self.fluxerr else None
+        return (
+            self.flux / self.fluxerr
+            if not np.isnan(self.flux) and not np.isnan(self.fluxerr)
+            else None
+        )
 
     @snr.expression
     def snr(self):
         """Signal-to-noise ratio of this Photometry point."""
-        return self.flux / self.fluxerr
+        return sa.case(
+            [
+                (
+                    sa.and_(self.flux != 'NaN', self.fluxerr != 0),  # noqa
+                    self.flux / self.fluxerr,
+                )
+            ],
+            else_=None,
+        )
 
 
 Photometry.is_modifiable_by = is_modifiable_by
