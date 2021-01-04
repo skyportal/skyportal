@@ -591,7 +591,7 @@ class Obj(Base, ha.Point):
         detections = [
             phot.iso
             for phot in self.photometry
-            if not np.isnan(phot.snr) and phot.snr > 5
+            if phot.snr is not None and phot.snr > 5
         ]
         return max(detections) if detections else None
 
@@ -601,7 +601,7 @@ class Obj(Base, ha.Point):
         return (
             sa.select([sa.func.max(Photometry.iso)])
             .where(Photometry.obj_id == cls.id)
-            .where(Photometry.snr != 'NaN')
+            .where(Photometry.snr.isnot(None))
             .where(Photometry.snr > 5.0)
             .group_by(Photometry.obj_id)
             .label('last_detected')
