@@ -47,6 +47,7 @@ const GroupSources = ({ route }) => {
         group_ids: [route.id],
         pageNumber: 1,
         numPerPage: 10,
+        includeSpectrumExists: true,
       })
     );
     dispatch(
@@ -54,6 +55,7 @@ const GroupSources = ({ route }) => {
         group_ids: [route.id],
         pageNumber: 1,
         numPerPage: 10,
+        includeSpectrumExists: true,
       })
     );
   }, [route.id, dispatch]);

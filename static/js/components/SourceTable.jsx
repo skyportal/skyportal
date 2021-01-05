@@ -235,13 +235,17 @@ const SourceTable = ({
                 <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
               </Suspense>
             </Grid>
-            <Grid item>
-              <Suspense fallback={<div>Loading spectra...</div>}>
-                <VegaSpectrum
-                  dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
-                />
-              </Suspense>
-            </Grid>
+
+            {source.spectrum_exists && (
+              <Grid item>
+                <Suspense fallback={<div>Loading spectra...</div>}>
+                  <VegaSpectrum
+                    dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
+                  />
+                </Suspense>
+              </Grid>
+            )}
+            {!source.spectrum_exists && "no spectra exist"}
             <Grid item>
               <div className={classes.commentListContainer}>
                 {comments.map(
