@@ -181,24 +181,43 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
         </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
+            Time Saved (UTC)
+          </Typography>
+          <TextField
+            size="small"
+            label="Saved After"
+            name="savedAfter"
+            inputRef={register}
+            placeholder="2021-01-01T00:00:00"
+          />
+          <TextField
+            size="small"
+            label="Saved Before"
+            name="savedBefore"
+            inputRef={register}
+            placeholder="2021-01-01T00:00:00"
+          />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
             Time Last Detected (UTC)
           </Typography>
           <TextField
             size="small"
-            label="Start Date"
+            label="Last Detected After"
             name="startDate"
             inputRef={register}
             placeholder="2012-08-30T00:00:00"
           />
           <TextField
             size="small"
-            label="End Date"
+            label="Last Detected Before"
             name="endDate"
             inputRef={register}
             placeholder="2012-08-30T00:00:00"
           />
         </div>
-        <div className={classes.formItemRightColumn}>
+        <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Simbad Class
           </Typography>
@@ -210,7 +229,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
           />
         </div>
-        <div className={classes.formItem}>
+        <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Classification
           </Typography>
@@ -264,7 +283,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             defaultValue={[]}
           />
         </div>
-        <div className={classes.formItemRightColumn}>
+        <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Redshift
           </Typography>
@@ -289,7 +308,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
           />
         </div>
-        <div className={classes.formItem}>
+        <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Peak Magnitude
           </Typography>
@@ -314,7 +333,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
           />
         </div>
-        <div className={classes.formItemRightColumn}>
+        <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
             Latest Magnitude
           </Typography>
@@ -339,7 +358,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
           />
         </div>
-        <div className={classes.formItem}>
+        <div className={classes.formItemRightColumn}>
           <Typography variant="subtitle2" className={classes.title}>
             Which have a...
           </Typography>

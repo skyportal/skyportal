@@ -529,6 +529,15 @@ const SourceTable = ({
   };
 
   const handleFilterSubmit = async (formData) => {
+    // Remove empty position
+    if (
+      formData.position.ra === "" &&
+      formData.position.dec === "" &&
+      formData.position.radius === ""
+    ) {
+      delete formData.position;
+    }
+
     const data = filterOutEmptyValues(formData);
     setTableFilterList(
       Object.entries(data).map(([key, value]) => {
