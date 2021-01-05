@@ -24,7 +24,7 @@ import ClearIcon from "@material-ui/icons/Clear";
 
 import dayjs from "dayjs";
 
-import { ra_to_hours, dec_to_dms, flux_to_mag } from "../units";
+import { ra_to_hours, dec_to_dms, time_relative_to_local } from "../units";
 import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
@@ -127,8 +127,6 @@ const SourceTable = ({
   );
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
-
-  const mjdNow = Math.floor(Date.now() / 86400000.0 + 40587.5);
 
   const handleTableChange = (action, tableState) => {
     switch (action) {
@@ -491,12 +489,9 @@ const SourceTable = ({
 
   const renderPeakMagnitude = (dataIndex) => {
     const source = sources[dataIndex];
-    const peakPoint = source.photometry
-      .filter((point) => point.flux)
-      .sort((a, b) => a.flux - b.flux)[0];
-    return source.photometry.length > 0 ? (
-      <Tooltip title={`${(mjdNow - peakPoint.mjd).toFixed(2)} days ago`}>
-        <div>{`${flux_to_mag(peakPoint.flux, peakPoint.zp).toFixed(4)}`}</div>
+    return source.peak_detected_mag ? (
+      <Tooltip title={time_relative_to_local(source.peak_detected_at)}>
+        <div>{`${source.peak_detected_mag.toFixed(4)}`}</div>
       </Tooltip>
     ) : (
       <div>No photometry</div>
@@ -505,14 +500,9 @@ const SourceTable = ({
 
   const renderLatestMagnitude = (dataIndex) => {
     const source = sources[dataIndex];
-    const latestPoint = source.photometry
-      .filter((point) => point.flux)
-      .sort((a, b) => b.mjd - a.mjd)[0];
-    return source.photometry.length > 0 ? (
-      <Tooltip title={`${(mjdNow - latestPoint.mjd).toFixed(2)} days ago`}>
-        <div>
-          {`${flux_to_mag(latestPoint.flux, latestPoint.zp).toFixed(4)}`}
-        </div>
+    return source.last_detected_mag ? (
+      <Tooltip title={time_relative_to_local(source.last_detected_at)}>
+        <div>{`${source.last_detected_mag.toFixed(4)}`}</div>
       </Tooltip>
     ) : (
       <div>No photometry</div>
@@ -829,7 +819,10 @@ SourceTable.propTypes = {
         }),
       }),
       spectrum_exists: PropTypes.bool,
-      photometry: PropTypes.arrayOf(PropTypes.shape({})),
+      last_detected_at: PropTypes.string,
+      last_detected_mag: PropTypes.number,
+      peak_detected_at: PropTypes.string,
+      peak_detected_mag: PropTypes.number,
       groups: PropTypes.arrayOf(
         PropTypes.shape({
           id: PropTypes.number,
