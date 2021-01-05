@@ -177,7 +177,7 @@ class CandidateHandler(BaseHandler):
               Comma-separated string of filter IDs (e.g. "1,2"). Defaults to all of user's
               groups' filters if groupIDs is not provided.
           - in: query
-            name: annotationsExcludeOrigin
+            name: annotationExcludeOrigin
             nullable: true
             schema:
               type: string
@@ -186,7 +186,7 @@ class CandidateHandler(BaseHandler):
               If the annotationsExcludeDate is also given, then annotations with
               this origin will also be loaded if they were modified before that date.
           - in: query
-            name: annotationsExcludeDate
+            name: annotationExcludeDate
             nullable: true
             schema:
               type: string
@@ -500,17 +500,33 @@ class CandidateHandler(BaseHandler):
         if annotation_exclude_origin is not None:
 
             if annotation_exclude_date is None:
-                print(annotation_exclude_origin)
-                q.filter(Annotation.origin != annotation_exclude_origin)
-                print(len(q.all()))
+                right = (
+                    DBSession()
+                    .query(Obj.id)
+                    .join(Annotation)
+                    .filter(Annotation.origin == annotation_exclude_origin)
+                    .subquery()
+                )
             else:
                 expire_date = arrow.get(annotation_exclude_date).datetime
-                q.filter(
-                    Annotation.origin
-                    != annotation_exclude_origin | Annotation.origin
-                    == annotation_exclude_origin & Annotation.modified
-                    < expire_date
+                right = (
+                    DBSession()
+                    .query(Obj.id)
+                    .join(Annotation)
+                    .filter(
+                        Annotation.origin == annotation_exclude_origin,
+                        Annotation.modified >= expire_date,
+                    )
+                    .subquery()
                 )
+                # q.filter(
+                #     Annotation.origin
+                #     != annotation_exclude_origin | Annotation.origin
+                #     == annotation_exclude_origin & Annotation.modified
+                #     < expire_date
+                # )
+
+            q = q.outerjoin(right, Obj.id == right.c.id).filter(right.c.id.is_(None))
 
         if annotation_filter_list is not None:
             # Parse annotation filter list objects from the query string
