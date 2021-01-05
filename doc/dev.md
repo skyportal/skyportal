@@ -30,6 +30,7 @@ make run_testing   # fire up the server with `test_conf.yaml`
 
 pytest skyportal/tests/api  # test api
 pytest skyportal/tests/frontend/test_user.py  # run subset of frontend tests
+pytest skyportal/tests/frontend/test_user.py::test_user_profile_fetching  # run a single test
 ```
 
 On Linux, the tests can be run in "headless" mode (no browser display):

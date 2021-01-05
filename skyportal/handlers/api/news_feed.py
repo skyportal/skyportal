@@ -51,7 +51,7 @@ class NewsFeedHandler(BaseHandler):
         if 'newsFeed' in preferences and 'numItems' in preferences['newsFeed']:
             n_items = min(int(preferences['newsFeed']['numItems']), 50)
         else:
-            n_items = 5
+            n_items = 10
 
         def fetch_newest(model):
             query = model.query.filter(
@@ -85,84 +85,98 @@ class NewsFeedHandler(BaseHandler):
 
             return newest
 
-        sources = fetch_newest(Source)
-        comments = fetch_newest(Comment)
-        classifications = fetch_newest(Classification)
-        spectra = fetch_newest(Spectrum)
-        photometry = fetch_newest(Photometry)
         news_feed_items = []
-        source_seen = set()
-        # Iterate in reverse so that we arrive at re-saved sources second
-        for s in reversed(sources):
-            if s.obj_id in source_seen:
-                message = 'Source saved to new group'
-            else:
-                message = 'New source saved'
-                source_seen.add(s.obj_id)
+        if preferences.get("newsFeed", {}).get("categories", {}).get("sources", True):
+            sources = fetch_newest(Source)
+            source_seen = set()
+            # Iterate in reverse so that we arrive at re-saved sources second
+            for s in reversed(sources):
+                if s.obj_id in source_seen:
+                    message = 'Source saved to new group'
+                else:
+                    message = 'New source saved'
+                    source_seen.add(s.obj_id)
 
-            # Prepend since we are iterating in reverse
-            news_feed_items.insert(
-                0,
-                {
-                    'type': 'source',
-                    'time': s.created_at,
-                    'message': message,
-                    'source_id': s.obj_id,
-                },
+                # Prepend since we are iterating in reverse
+                news_feed_items.insert(
+                    0,
+                    {
+                        'type': 'source',
+                        'time': s.created_at,
+                        'message': message,
+                        'source_id': s.obj_id,
+                    },
+                )
+        if preferences.get("newsFeed", {}).get("categories", {}).get("comments", True):
+            comments = fetch_newest(Comment)
+            # Add latest comments
+            news_feed_items.extend(
+                [
+                    {
+                        'type': 'comment',
+                        'time': c.created_at,
+                        'message': c.text,
+                        'source_id': c.obj_id,
+                        'author': c.author.username,
+                        'author_info': c.author_info,
+                    }
+                    for c in comments
+                ]
             )
-        # Add latest comments
-        news_feed_items.extend(
-            [
-                {
-                    'type': 'comment',
-                    'time': c.created_at,
-                    'message': c.text,
-                    'source_id': c.obj_id,
-                    'author': c.author.username,
-                    'author_info': c.author_info,
-                }
-                for c in comments
-            ]
-        )
-        # Add latest classifications
-        news_feed_items.extend(
-            [
-                {
-                    "type": "classification",
-                    "time": c.created_at,
-                    "message": f"New classification for {c.obj_id} added by {c.author.username}: {c.classification}",
-                    "source_id": c.obj_id,
-                    "author_info": basic_user_display_info(c.author),
-                }
-                for c in classifications
-            ]
-        )
-        # Add latest spectra
-        news_feed_items.extend(
-            [
-                {
-                    "type": "spectrum",
-                    "time": s.created_at,
-                    "message": f"{s.owner.first_name} {s.owner.last_name} uploaded a new spectrum taken with {s.instrument.name} for {s.obj_id}",
-                    "source_id": s.obj_id,
-                    "author_info": basic_user_display_info(s.owner),
-                }
-                for s in spectra
-            ]
-        )
-        # Add latest follow-up photometry
-        news_feed_items.extend(
-            [
-                {
-                    "type": "photometry",
-                    "time": p.created_at,
-                    "message": f"{p.owner.first_name} {p.owner.last_name} uploaded new follow-up photometry taken with {p.instrument.name} for {p.obj_id}",
-                    "source_id": p.obj_id,
-                    "author_info": basic_user_display_info(p.owner),
-                }
-                for p in photometry
-            ]
-        )
+        if (
+            preferences.get("newsFeed", {})
+            .get("categories", {})
+            .get("classifications", True)
+        ):
+            classifications = fetch_newest(Classification)
+            # Add latest classifications
+            news_feed_items.extend(
+                [
+                    {
+                        "type": "classification",
+                        "time": c.created_at,
+                        "message": f"New classification for {c.obj_id} added by {c.author.username}: {c.classification}",
+                        "source_id": c.obj_id,
+                        "author_info": basic_user_display_info(c.author),
+                    }
+                    for c in classifications
+                ]
+            )
+        if preferences.get("newsFeed", {}).get("categories", {}).get("spectra", True):
+            spectra = fetch_newest(Spectrum)
+            # Add latest spectra
+            news_feed_items.extend(
+                [
+                    {
+                        "type": "spectrum",
+                        "time": s.created_at,
+                        "message": f"{s.owner.first_name} {s.owner.last_name} uploaded a new spectrum taken with {s.instrument.name} for {s.obj_id}",
+                        "source_id": s.obj_id,
+                        "author_info": basic_user_display_info(s.owner),
+                    }
+                    for s in spectra
+                ]
+            )
+        if (
+            preferences.get("newsFeed", {})
+            .get("categories", {})
+            .get("photometry", True)
+        ):
+            photometry = fetch_newest(Photometry)
+            # Add latest follow-up photometry
+            news_feed_items.extend(
+                [
+                    {
+                        "type": "photometry",
+                        "time": p.created_at,
+                        "message": f"{p.owner.first_name} {p.owner.last_name} uploaded new follow-up photometry taken with {p.instrument.name} for {p.obj_id}",
+                        "source_id": p.obj_id,
+                        "author_info": basic_user_display_info(p.owner),
+                    }
+                    for p in photometry
+                ]
+            )
+
         news_feed_items.sort(key=lambda x: x['time'], reverse=True)
         news_feed_items = news_feed_items[:n_items]
 

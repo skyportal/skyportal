@@ -2,8 +2,8 @@ import uuid
 import pytest
 import numpy.testing as npt
 import numpy as np
-from tdtax import taxonomy, __version__
 import arrow
+from tdtax import taxonomy, __version__
 
 from skyportal.tests import api
 from skyportal.models import cosmo
