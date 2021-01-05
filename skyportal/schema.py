@@ -670,7 +670,7 @@ class PhotometryMag(_Schema, PhotBase):
         else:
             nsigflux = 10 ** (-0.4 * (data['limiting_mag'] - PHOT_ZP))
             flux = None
-            fluxerr = nsigflux / data['limiting_mag']
+            fluxerr = nsigflux / PHOT_DETECTION_THRESHOLD
 
         # convert flux to microJanskies.
         table = Table(
