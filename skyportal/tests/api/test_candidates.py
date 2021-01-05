@@ -44,6 +44,17 @@ def test_token_user_retrieving_candidate_with_phot(view_only_token, public_candi
     assert all(k in data["data"] for k in ["ra", "dec", "redshift", "dm", "photometry"])
 
 
+def test_token_user_retrieving_candidate_with_spec(view_only_token, public_candidate):
+    status, data = api(
+        "GET",
+        f"candidates/{public_candidate.id}?includeSpectra=true",
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert all(k in data["data"] for k in ["ra", "dec", "redshift", "dm", "spectra"])
+
+
 def test_token_user_post_delete_new_candidate(
     upload_data_token, view_only_token, public_filter,
 ):
@@ -632,3 +643,62 @@ def test_candidate_list_redshift_range(
     assert status == 200
     assert len(data["data"]["candidates"]) == 1
     assert data["data"]["candidates"][0]["id"] == obj_id1
+
+
+def test_exclude_by_outdated_annotations(
+    annotation_token, view_only_token, public_group, public_candidate, public_candidate2
+):
+    status, data = api(
+        "GET",
+        "candidates",
+        params={"redshiftRange": "(0,0.5)", "groupIDs": f"{public_group.id}"},
+        token=view_only_token,
+    )
+
+    assert status == 200
+    num_candidates = len(data["data"]["candidates"])
+
+    origin = str(uuid.uuid4())
+    t0 = datetime.datetime.now(datetime.timezone.utc)  # recall when it was created
+
+    # add an annotation from this origin
+    status, data = api(
+        "POST",
+        "annotation",
+        data={"obj_id": public_candidate.id, "origin": origin, "data": {'value1': 1}},
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        "candidates",
+        params={
+            "redshiftRange": "(0,0.5)",
+            "groupIDs": f"{public_group.id}",
+            "annotationExcludeOrigin": origin,
+        },
+        token=view_only_token,
+    )
+
+    assert status == 200
+    assert (
+        num_candidates == len(data["data"]["candidates"]) + 1
+    )  # should have one less candidate
+
+    status, data = api(
+        "GET",
+        "candidates",
+        params={
+            "redshiftRange": "(0,0.5)",
+            "groupIDs": f"{public_group.id}",
+            "annotationExcludeOrigin": origin,
+            "annotationExcludeDate": str(t0 + datetime.timedelta(seconds=3)),
+        },
+        token=view_only_token,
+    )
+
+    assert status == 200
+    assert num_candidates == len(
+        data["data"]["candidates"]
+    )  # should now have all the original candidates
