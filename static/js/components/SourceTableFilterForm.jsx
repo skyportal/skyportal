@@ -89,7 +89,7 @@ const getMultiselectStyles = (value, selectedValues, theme) => {
   };
 };
 
-const SourceTableFilterForm = ({ handleFilterSubmit, groups }) => {
+const SourceTableFilterForm = ({ handleFilterSubmit }) => {
   const classes = useStyles();
   const theme = useTheme();
 
@@ -116,18 +116,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit, groups }) => {
 
   const [selectedClassifications, setSelectedClassifications] = useState([]);
 
-  const { handleSubmit, register, getValues, control, reset } = useForm();
-
-  const [selectedGroups, setSelectedGroups] = useState([]);
-  const groupIDToName = {};
-  groups.forEach((g) => {
-    groupIDToName[g.id] = g.name;
-  });
-
-  const validateGroups = () => {
-    const formState = getValues({ nest: true });
-    return formState.groupIds.length !== 0;
-  };
+  const { handleSubmit, register, control, reset } = useForm();
 
   const handleClickReset = () => {
     reset();
@@ -159,7 +148,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit, groups }) => {
           <TextField
             size="small"
             label="RA (deg)"
-            name="ra"
+            name="position.ra"
             type="number"
             inputProps={{
               step: 0.001,
@@ -170,7 +159,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit, groups }) => {
           <TextField
             size="small"
             label="Dec (deg)"
-            name="dec"
+            name="position.dec"
             type="number"
             inputProps={{
               step: 0.001,
@@ -181,7 +170,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit, groups }) => {
           <TextField
             size="small"
             label="Radius (deg)"
-            name="radius"
+            name="position.radius"
             type="number"
             inputProps={{
               step: 0.001,
@@ -395,61 +384,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit, groups }) => {
             />
           </div>
         </div>
-        {groups && (
-          <div className={classes.formItemRightColumn}>
-            <Typography variant="subtitle2" className={classes.title}>
-              Group(s)
-            </Typography>
-            <Controller
-              id="groupSelect"
-              name="groupIds"
-              labelId="sourcesFilterGroupSelectLabel"
-              as={Select}
-              control={control}
-              rules={{
-                required: true,
-                validate: validateGroups,
-              }}
-              defaultValue={[]}
-              onChange={([event]) => {
-                setSelectedGroups(event.target.value);
-                return event.target.value;
-              }}
-              input={
-                <Input className={classes.multiSelect} id="selectGroupsChip" />
-              }
-              renderValue={(selected) => (
-                <div className={classes.chips}>
-                  {selected.map((value) => (
-                    <Chip
-                      key={value}
-                      label={groupIDToName[value]}
-                      className={classes.chip}
-                    />
-                  ))}
-                </div>
-              )}
-              MenuProps={MenuProps}
-              multiple
-            >
-              {groups.length > 0 &&
-                groups.map((group) => (
-                  <MenuItem
-                    value={group.id}
-                    key={group.id.toString()}
-                    data-testid={`sourcesFilterGroupSelect_${group.id}`}
-                    style={getMultiselectStyles(
-                      group.id,
-                      selectedGroups,
-                      theme
-                    )}
-                  >
-                    {group.name}
-                  </MenuItem>
-                ))}
-            </Controller>
-          </div>
-        )}
         <div className={classes.formButtons}>
           <ButtonGroup
             variant="contained"
@@ -475,11 +409,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit, groups }) => {
 
 SourceTableFilterForm.propTypes = {
   handleFilterSubmit: PropTypes.func.isRequired,
-  groups: PropTypes.arrayOf(PropTypes.shape({})),
-};
-
-SourceTableFilterForm.defaultProps = {
-  groups: undefined,
 };
 
 export default SourceTableFilterForm;

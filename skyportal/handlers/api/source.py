@@ -447,10 +447,10 @@ class SourceHandler(BaseHandler):
         classifications = self.get_query_argument("classifications", None)
         min_redshift = self.get_query_argument("minRedshift", None)
         max_redshift = self.get_query_argument("maxRedshift", None)
-        # min_peak_magnitude = self.get_query_argument("minPeakMagnitude", None)
-        # max_peak_magnitude = self.get_query_argument("maxPeakMagnitude", None)
-        # min_latest_magnitude = self.get_query_argument("minLatestMagnitude", None)
-        # max_latest_magnitude = self.get_query_argument("maxLatestMagnitude", None)
+        min_peak_magnitude = self.get_query_argument("minPeakMagnitude", None)
+        max_peak_magnitude = self.get_query_argument("maxPeakMagnitude", None)
+        min_latest_magnitude = self.get_query_argument("minLatestMagnitude", None)
+        max_latest_magnitude = self.get_query_argument("maxLatestMagnitude", None)
         has_spectrum = self.get_query_argument("hasSpectrum", False)
 
         # These are just throwaway helper classes to help with deserialization
@@ -712,6 +712,38 @@ class SourceHandler(BaseHandler):
                     "Invalid values for maxRedshift - could not convert to float"
                 )
             q = q.filter(Obj.redshift <= max_redshift)
+        if min_peak_magnitude is not None:
+            try:
+                min_peak_magnitude = float(min_peak_magnitude)
+            except ValueError:
+                return self.error(
+                    "Invalid values for minPeakMagnitude - could not convert to float"
+                )
+            q = q.filter(Obj.peak_detected_mag >= min_peak_magnitude)
+        if max_peak_magnitude is not None:
+            try:
+                max_peak_magnitude = float(max_peak_magnitude)
+            except ValueError:
+                return self.error(
+                    "Invalid values for maxPeakMagnitude - could not convert to float"
+                )
+            q = q.filter(Obj.peak_detected_mag <= max_peak_magnitude)
+        if min_latest_magnitude is not None:
+            try:
+                min_latest_magnitude = float(min_latest_magnitude)
+            except ValueError:
+                return self.error(
+                    "Invalid values for minLatestMagnitude - could not convert to float"
+                )
+            q = q.filter(Obj.last_detected_mag >= min_latest_magnitude)
+        if max_latest_magnitude is not None:
+            try:
+                max_latest_magnitude = float(max_latest_magnitude)
+            except ValueError:
+                return self.error(
+                    "Invalid values for maxLatestMagnitude - could not convert to float"
+                )
+            q = q.filter(Obj.last_detected_mag <= max_latest_magnitude)
         if classifications is not None:
             if isinstance(classifications, str) and "," in classifications:
                 classifications = [c.strip() for c in classifications.split(",")]

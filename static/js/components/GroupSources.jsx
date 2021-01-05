@@ -129,23 +129,6 @@ const GroupSources = ({ route }) => {
     dispatch(sourcesActions.fetchPendingGroupSources(data));
   };
 
-  if (
-    savedSourcesState.sources?.length === 0 &&
-    pendingSourcesState.sources?.length === 0
-  ) {
-    return (
-      <div className={classes.source}>
-        <Typography variant="h4" gutterBottom align="center">
-          {`${groupName} sources`}
-        </Typography>
-        <br />
-        <Typography variant="h5" align="center">
-          No sources have been saved to this group yet.
-        </Typography>
-      </div>
-    );
-  }
-
   return (
     <div className={classes.source}>
       <Typography variant="h4" gutterBottom align="center">

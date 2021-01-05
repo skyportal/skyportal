@@ -4,15 +4,12 @@ import { useSelector, useDispatch } from "react-redux";
 
 import TableCell from "@material-ui/core/TableCell";
 import TableRow from "@material-ui/core/TableRow";
-
-import Typography from "@material-ui/core/Typography";
 import IconButton from "@material-ui/core/IconButton";
 import Button from "@material-ui/core/Button";
 import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
 import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
-import CircularProgress from "@material-ui/core/CircularProgress";
 import MUIDataTable from "mui-datatables";
 import {
   makeStyles,
@@ -35,6 +32,7 @@ import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
+import { filterOutEmptyValues } from "../API";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
@@ -119,8 +117,9 @@ const SourceTable = ({
     defaultDisplayedColumns
   );
 
-  let { all: allGroups } = useSelector((state) => state.groups);
   const [tableFilterList, setTableFilterList] = useState([]);
+  const [filterFormData, setFilterFormData] = useState(null);
+  const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
 
   // Color styling
   const userColorTheme = useSelector(
@@ -131,23 +130,16 @@ const SourceTable = ({
 
   const mjdNow = Math.floor(Date.now() / 86400000.0 + 40587.5);
 
-  if (!allGroups?.length || !sources) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-  allGroups = allGroups.filter((group) => !group.single_user_group);
-
   const handleTableChange = (action, tableState) => {
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
+        setRowsPerPage(tableState.rowsPerPage);
         paginateCallback(
           tableState.page + 1,
           tableState.rowsPerPage,
-          tableState.sortOrder
+          tableState.sortOrder,
+          filterFormData
         );
         break;
       case "viewColumnsChange":
@@ -160,9 +152,9 @@ const SourceTable = ({
         break;
       case "sort":
         if (tableState.sortOrder.direction === "none") {
-          paginateCallback(1, tableState.rowsPerPage, {});
+          paginateCallback(1, tableState.rowsPerPage, {}, filterFormData);
         } else {
-          sortingCallback(tableState.sortOrder);
+          sortingCallback(tableState.sortOrder, filterFormData);
         }
         break;
       default:
@@ -205,26 +197,6 @@ const SourceTable = ({
       );
     }
   };
-
-  if (sources.length === 0 && sourceStatus === "saved") {
-    return (
-      <Grid item>
-        <div>
-          <Typography
-            variant="h4"
-            gutterBottom
-            color="textSecondary"
-            align="center"
-          >
-            <b>No sources have been saved...</b>
-          </Typography>
-        </div>
-      </Grid>
-    );
-  }
-  if (sources.length === 0 && sourceStatus === "requested") {
-    return null;
-  }
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
@@ -557,32 +529,50 @@ const SourceTable = ({
   };
 
   const handleFilterSubmit = async (formData) => {
-    Object.keys(formData).forEach(
-      (key) => !formData[key] && delete formData[key]
-    );
+    const data = filterOutEmptyValues(formData);
     setTableFilterList(
-      Object.entries(formData).map(([key, value]) => `${key}: ${value}`)
+      Object.entries(data).map(([key, value]) => {
+        if (key === "position") {
+          return `position: ${value.ra} (RA), ${value.dec} (Dec), ${value.radius} (Radius)`;
+        }
+        return `${key}: ${value}`;
+      })
     );
+
+    // Expand cone search params
+    if ("position" in data) {
+      data.ra = data.position.ra;
+      data.dec = data.position.dec;
+      data.radius = data.position.radius;
+      delete data.position;
+    }
+
+    setFilterFormData(data);
+    paginateCallback(1, rowsPerPage, {}, data);
   };
 
   const handleTableFilterChipChange = (column, filterList, type) => {
     if (type === "chip") {
-      const nameFilterList = filterList[0];
+      const sourceFilterList = filterList[0];
       // Convert chip filter list to filter form data
       const data = {};
-      nameFilterList.forEach((filterChip) => {
+      sourceFilterList.forEach((filterChip) => {
         const [key, value] = filterChip.split(": ");
-        data[key] = value;
+        if (key === "position") {
+          const fields = value.split(/\s*\(\D*\),*\s*/);
+          [data.ra, data.dec, data.radius] = fields;
+        } else {
+          data[key] = value;
+        }
       });
-      handleFilterSubmit(data);
+      setTableFilterList(sourceFilterList);
+      setFilterFormData(data);
+      paginateCallback(1, rowsPerPage, {}, data);
     }
   };
 
   const customFilterDisplay = () => (
-    <SourceTableFilterForm
-      handleFilterSubmit={handleFilterSubmit}
-      groups={allGroups}
-    />
+    <SourceTableFilterForm handleFilterSubmit={handleFilterSubmit} />
   );
 
   const columns = [
