@@ -574,6 +574,7 @@ class ObjSpectraHandler(BaseHandler):
             if normalization == "median":
                 for s in return_values:
                     norm = np.median(np.abs(s["fluxes"]))
+                    norm = norm if norm != 0.0 else 1e-20
                     if not (np.isfinite(norm) and norm > 0):
                         # otherwise normalize the value at the median wavelength to 1
                         median_wave_index = np.argmin(
