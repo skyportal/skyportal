@@ -236,9 +236,7 @@ const SourceTable = ({
                   <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
                 </Suspense>
               )}
-              {!source.photometry_exists && (
-                <div> no photometry exists &nbsp </div>
-              )}
+              {!source.photometry_exists && <div> no photometry exists </div>}
             </Grid>
             <Grid item>
               {source.spectrum_exists && (
@@ -248,7 +246,7 @@ const SourceTable = ({
                   />
                 </Suspense>
               )}
-              {!source.spectrum_exists && <div> no spectra exist &nbsp </div>}
+              {!source.spectrum_exists && <div> no spectra exist </div>}
             </Grid>
             <Grid item>
               <div className={classes.commentListContainer}>
