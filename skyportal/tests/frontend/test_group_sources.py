@@ -68,9 +68,6 @@ def test_add_new_source_renders_on_group_sources_page(
     # make sure the div containing the individual source appears
     driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{obj_id}"]')
 
-    # Check for vega plot
-    driver.wait_for_xpath("//canvas", timeout=20)
-
     # post a taxonomy and classification
     status, data = api(
         'POST',
