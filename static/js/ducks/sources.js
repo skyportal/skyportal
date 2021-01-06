@@ -23,12 +23,15 @@ const addFilterParamDefaults = (filterParams) => {
 
 export function fetchSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
+  filterParams.includePhotometryExists = true;
+  filterParams.includeSpectrumExists = true;
   return API.GET("/api/sources", FETCH_SOURCES, filterParams);
 }
 
 export function fetchSavedGroupSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.includePhotometry = true;
+  filterParams.includePhotometryExists = true;
   filterParams.includeSpectrumExists = true;
   return API.GET("/api/sources", FETCH_SAVED_GROUP_SOURCES, filterParams);
 }
@@ -37,6 +40,7 @@ export function fetchPendingGroupSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.pendingOnly = true;
   filterParams.includePhotometry = true;
+  filterParams.includePhotometryExists = true;
   filterParams.includeSpectrumExists = true;
   return API.GET("/api/sources", FETCH_PENDING_GROUP_SOURCES, filterParams);
 }
