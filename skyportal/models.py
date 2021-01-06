@@ -585,14 +585,6 @@ class Obj(Base, ha.Point):
         doc="Notifications regarding the object sent out by users",
     )
 
-    listings = relationship(
-        "Listing",
-        back_populates="obj",
-        cascade="save-update, merge, refresh-expire, expunge",
-        passive_deletes=True,
-        doc="Listings combining interesting objects referenced by a user+obj+list name combination, e.g., favorites list",
-    )
-
     @hybrid_property
     def last_detected(self):
         """UTC ISO date at which the object was last detected above a S/N of 5."""
@@ -2604,9 +2596,7 @@ class Listing(Base):
         doc="The ID of the object that is on this Listing",
     )
 
-    obj = relationship(
-        "Obj", back_populates="listings", doc="The object referenced by this listing",
-    )
+    obj = relationship("Obj", doc="The object referenced by this listing",)
 
     list_name = sa.Column(
         sa.String,

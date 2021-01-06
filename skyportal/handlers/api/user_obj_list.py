@@ -93,7 +93,7 @@ class UserObjListHandler(BaseHandler):
 
         error_obj = check_user_and_permissions(user_id, self.associated_user_object)
         if error_obj is not None:
-            return error_obj
+            return self.error(error_obj)
 
         list_name = self.get_query_argument("listName", None)
 
@@ -190,7 +190,6 @@ class UserObjListHandler(BaseHandler):
                 f'Listing already exists with user_id={user_id}, obj_id={obj_id} and list_name={list_name}'
             )
 
-        # no such listing, can just add a new one!
         listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
         DBSession().add(listing)
         DBSession().commit()
