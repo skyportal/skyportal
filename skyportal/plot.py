@@ -706,6 +706,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
 
         # normalize spectra to a median flux of 1 for easy comparison
         normfac = np.nanmedian(np.abs(s.fluxes))
+        normfac = normfac if normfac != 0.0 else 1e-20
 
         df = pd.DataFrame(
             {
