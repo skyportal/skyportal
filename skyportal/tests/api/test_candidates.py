@@ -651,7 +651,7 @@ def test_exclude_by_outdated_annotations(
     status, data = api(
         "GET",
         "candidates",
-        params={"redshiftRange": "(0,0.5)", "groupIDs": f"{public_group.id}"},
+        params={"groupIDs": f"{public_group.id}"},
         token=view_only_token,
     )
 
@@ -673,11 +673,7 @@ def test_exclude_by_outdated_annotations(
     status, data = api(
         "GET",
         "candidates",
-        params={
-            "redshiftRange": "(0,0.5)",
-            "groupIDs": f"{public_group.id}",
-            "annotationExcludeOrigin": origin,
-        },
+        params={"groupIDs": f"{public_group.id}", "annotationExcludeOrigin": origin},
         token=view_only_token,
     )
 
@@ -690,7 +686,6 @@ def test_exclude_by_outdated_annotations(
         "GET",
         "candidates",
         params={
-            "redshiftRange": "(0,0.5)",
             "groupIDs": f"{public_group.id}",
             "annotationExcludeOrigin": origin,
             "annotationExcludeDate": str(t0 + datetime.timedelta(seconds=3)),

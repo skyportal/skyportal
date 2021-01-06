@@ -184,10 +184,10 @@ class CandidateHandler(BaseHandler):
               type: string
             description: |
               Only load objects that do not have annotations from this origin.
-              If the annotationsExcludeDate is also given, then annotations with
-              this origin will also be loaded if they were modified before that date.
+              If the annotationsExcludeOutdatedDate is also given, then annotations with
+              this origin will still be loaded if they were modified before that date.
           - in: query
-            name: annotationExcludeDate
+            name: annotationExcludeOutdatedDate
             nullable: true
             schema:
               type: string
@@ -196,7 +196,7 @@ class CandidateHandler(BaseHandler):
               Only relevant if giving the annotationExcludeOrigin argument.
               Will treat objects with outdated annotations as if they did not have that annotation,
               so it will load an object if it doesn't have an annotation with the origin specified or
-              if it does have it but the annotation modified date < annotationsExcludeDate
+              if it does have it but the annotation modified date < annotationsExcludeOutdatedDate
           - in: query
             name: sortByAnnotationOrigin
             nullable: true
@@ -393,7 +393,9 @@ class CandidateHandler(BaseHandler):
         annotation_exclude_origin = self.get_query_argument(
             'annotationExcludeOrigin', None
         )
-        annotation_exclude_date = self.get_query_argument('annotationExcludeDate', None)
+        annotation_exclude_date = self.get_query_argument(
+            'annotationExcludeOutdatedDate', None
+        )
         sort_by_origin = self.get_query_argument("sortByAnnotationOrigin", None)
         annotation_filter_list = self.get_query_argument("annotationFilterList", None)
         classifications = self.get_query_argument("classifications", None)
@@ -534,12 +536,6 @@ class CandidateHandler(BaseHandler):
                     )
                     .subquery()
                 )
-                # q.filter(
-                #     Annotation.origin
-                #     != annotation_exclude_origin | Annotation.origin
-                #     == annotation_exclude_origin & Annotation.modified
-                #     < expire_date
-                # )
 
             q = q.outerjoin(right, Obj.id == right.c.id).filter(right.c.id.is_(None))
 
