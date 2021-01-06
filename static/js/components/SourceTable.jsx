@@ -231,21 +231,25 @@ const SourceTable = ({
               useGrid={false}
             />
             <Grid item>
-              <Suspense fallback={<div>Loading plot...</div>}>
-                <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
-              </Suspense>
+              {source.photometry_exists && (
+                <Suspense fallback={<div>Loading plot...</div>}>
+                  <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
+                </Suspense>
+              )}
+              {!source.photometry_exists && (
+                <div> no photometry exists &nbsp </div>
+              )}
             </Grid>
-
-            {source.spectrum_exists && (
-              <Grid item>
+            <Grid item>
+              {source.spectrum_exists && (
                 <Suspense fallback={<div>Loading spectra...</div>}>
                   <VegaSpectrum
                     dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
                   />
                 </Suspense>
-              </Grid>
-            )}
-            {!source.spectrum_exists && "no spectra exist"}
+              )}
+              {!source.spectrum_exists && <div> no spectra exist &nbsp </div>}
+            </Grid>
             <Grid item>
               <div className={classes.commentListContainer}>
                 {comments.map(
