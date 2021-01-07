@@ -69,9 +69,10 @@ const GroupSources = ({ route }) => {
 
   const groupName = groups.filter((g) => g.id === groupID)[0]?.name || "";
 
-  const handleSavedSourcesTableSorting = (sortData) => {
+  const handleSavedSourcesTableSorting = (sortData, filterData) => {
     dispatch(
       sourcesActions.fetchSavedGroupSources({
+        ...filterData,
         group_ids: [route.id],
         pageNumber: 1,
         numPerPage: savedSourcesRowsPerPage,
@@ -84,10 +85,12 @@ const GroupSources = ({ route }) => {
   const handleSavedSourcesTablePagination = (
     pageNumber,
     numPerPage,
-    sortData
+    sortData,
+    filterData
   ) => {
     setSavedSourcesRowsPerPage(numPerPage);
     const data = {
+      ...filterData,
       group_ids: [route.id],
       pageNumber,
       numPerPage,
@@ -99,9 +102,10 @@ const GroupSources = ({ route }) => {
     dispatch(sourcesActions.fetchSavedGroupSources(data));
   };
 
-  const handlePendingSourcesTableSorting = (sortData) => {
+  const handlePendingSourcesTableSorting = (sortData, filterData) => {
     dispatch(
       sourcesActions.fetchPendingGroupSources({
+        ...filterData,
         group_ids: [route.id],
         pageNumber: 1,
         numPerPage: pendingSourcesRowsPerPage,
@@ -114,10 +118,12 @@ const GroupSources = ({ route }) => {
   const handlePendingSourcesTablePagination = (
     pageNumber,
     numPerPage,
-    sortData
+    sortData,
+    filterData
   ) => {
     setPendingSourcesRowsPerPage(numPerPage);
     const data = {
+      ...filterData,
       group_ids: [route.id],
       pageNumber,
       numPerPage,
