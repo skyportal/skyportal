@@ -584,6 +584,60 @@ def test_sources_filter_by_classifications(
     assert data["data"]["sources"][0]["id"] == obj_id1
 
 
+def test_object_last_detected(
+    upload_data_token, view_only_token, public_source, ztf_camera, public_group
+):
+    # Some very high mjd to make this the latest point
+    # This is not a detection though
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 99999.0,
+            'instrument_id': ztf_camera.id,
+            'mag': None,
+            'magerr': None,
+            'limiting_mag': 22.3,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # A high mjd, but lower than the first point
+    # Since this is a detection, it should be returned as "last_detected"
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 90000.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api("GET", f"sources/{public_source.id}", token=view_only_token)
+    assert status == 200
+    assert data["status"] == "success"
+    assert (
+        data["data"]["last_detected"]
+        == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
+    )
+
+
 def test_source_photometry_summary_info(
     upload_data_token, view_only_token, public_source_no_data, ztf_camera, public_group
 ):

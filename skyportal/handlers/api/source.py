@@ -329,6 +329,13 @@ class SourceHandler(BaseHandler):
               Boolean indicating whether to include comment metadata in response.
               Defaults to false.
           - in: query
+            name: includePhotometryExists
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return if a source has any photometry points. Defaults to false.
+          - in: query
             name: includeSpectrumExists
             nullable: true
             schema:
@@ -441,6 +448,9 @@ class SourceHandler(BaseHandler):
         sort_by = self.get_query_argument("sortBy", None)
         sort_order = self.get_query_argument("sortOrder", "asc")
         include_comments = self.get_query_argument("includeComments", False)
+        include_photometry_exists = self.get_query_argument(
+            "includePhotometryExists", False
+        )
         include_spectrum_exists = self.get_query_argument(
             "includeSpectrumExists", False
         )
@@ -585,6 +595,11 @@ class SourceHandler(BaseHandler):
                 source_info["photometry"] = [
                     serialize(phot, 'ab', 'flux') for phot in photometry
                 ]
+            if include_photometry_exists:
+                source_info["photometry_exists"] = (
+                    len(Obj.get_photometry_readable_by_user(obj_id, self.current_user))
+                    > 0
+                )
             if include_spectrum_exists:
                 source_info["spectrum_exists"] = (
                     len(Obj.get_spectra_readable_by(obj_id, self.current_user)) > 0
@@ -884,6 +899,15 @@ class SourceHandler(BaseHandler):
                     source_list[-1]["photometry"] = [
                         serialize(phot, 'ab', 'flux') for phot in photometry
                     ]
+                if include_photometry_exists:
+                    source_list[-1]["photometry_exists"] = (
+                        len(
+                            Obj.get_photometry_readable_by_user(
+                                source.id, self.current_user
+                            )
+                        )
+                        > 0
+                    )
                 if include_spectrum_exists:
                     source_list[-1]["spectrum_exists"] = (
                         len(Obj.get_spectra_readable_by(source.id, self.current_user))
