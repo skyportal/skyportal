@@ -772,7 +772,7 @@ const SourceTable = ({
   }
 
   return (
-    <div className={classes.source}>
+    <div className={classes.source} data-testid={`source_table_${title}`}>
       <div>
         <Grid
           container
