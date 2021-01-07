@@ -29,6 +29,8 @@ app:
       exact: True
     - path: "/source/:id"
       component: Source
+    - path: "/favorites"
+      component: FavoritesPage
     - path: "/groups"
       component: Groups
     - path: "/group/:id"
