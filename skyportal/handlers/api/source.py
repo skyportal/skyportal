@@ -142,6 +142,13 @@ class SourceHandler(BaseHandler):
                 Boolean indicating whether to include comment metadata in response.
                 Defaults to false.
             - in: query
+              name: includePhotometryExists
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to return if a source has any photometry points. Defaults to false.
+            - in: query
               name: includeSpectrumExists
               nullable: true
               schema:
