@@ -31,6 +31,7 @@ from ...models import (
     SourceNotification,
     Classification,
     Taxonomy,
+    Listing,
 )
 from .internal.source_views import register_source_view
 from ...utils import (
@@ -212,6 +213,13 @@ class SourceHandler(BaseHandler):
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
               last_detected <= endDate
           - in: query
+            name: listName
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Get only sources saved to the querying user's list, e.g., "favorites".
+          - in: query
             name: group_ids
             nullable: true
             schema:
@@ -366,6 +374,7 @@ class SourceHandler(BaseHandler):
         radius = self.get_query_argument('radius', None)
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
+        list_name = self.get_query_argument('listName', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_requested = self.get_query_argument("includeRequested", False)
@@ -618,6 +627,14 @@ class SourceHandler(BaseHandler):
             q = q.filter(Source.saved_at <= saved_before)
         if saved_after:
             q = q.filter(Source.saved_at >= saved_after)
+        if list_name:
+            obj_list = Listing.query.filter(
+                Listing.list_name == list_name,
+                Listing.user_id == self.associated_user_object.id,
+            ).all()
+            obj_id_list = [obj.obj_id for obj in obj_list]
+            if obj_id_list is not None:
+                q = q.filter(Source.obj_id.in_(obj_id_list))
         if simbad_class:
             q = q.filter(
                 func.lower(Obj.altdata['simbad']['class'].astext)

@@ -89,7 +89,7 @@ class UserObjListHandler(BaseHandler):
         """
 
         if user_id is None:
-            user_id = self.current_user
+            user_id = self.associated_user_object.id
 
         error_obj = check_user_and_permissions(user_id, self.associated_user_object)
         if error_obj is not None:

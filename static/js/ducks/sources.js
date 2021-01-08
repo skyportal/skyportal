@@ -12,6 +12,9 @@ const FETCH_PENDING_GROUP_SOURCES = "skyportal/FETCH_PENDING_GROUP_SOURCES";
 const FETCH_PENDING_GROUP_SOURCES_OK =
   "skyportal/FETCH_PENDING_GROUP_SOURCES_OK";
 
+const FETCH_FAVORITE_SOURCES = "skyportal/FETCH_FAVORITE_SOURCES";
+const FETCH_FAVORITE_SOURCES_OK = "skyportal/FETCH_FAVORITE_SOURCES_OK";
+
 const addFilterParamDefaults = (filterParams) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
@@ -43,6 +46,14 @@ export function fetchPendingGroupSources(filterParams = {}) {
   filterParams.includePhotometryExists = true;
   filterParams.includeSpectrumExists = true;
   return API.GET("/api/sources", FETCH_PENDING_GROUP_SOURCES, filterParams);
+}
+
+export function fetchFavoriteSources(filterParams = {}) {
+  addFilterParamDefaults(filterParams);
+  filterParams.includePhotometryExists = true;
+  filterParams.includeSpectrumExists = true;
+  filterParams.listName = "favorites";
+  return API.GET("/api/sources", FETCH_FAVORITE_SOURCES, filterParams);
 }
 
 const initialState = {
@@ -92,6 +103,12 @@ const reducer = (
       return {
         ...state,
         pendingGroupSources: action.data,
+      };
+    }
+    case FETCH_FAVORITE_SOURCES_OK: {
+      return {
+        ...state,
+        favorites: action.data,
       };
     }
     default:

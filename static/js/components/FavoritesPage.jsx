@@ -28,13 +28,13 @@ const useStyles = makeStyles((theme) => ({
 const FavoritesPage = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
-
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
-  const sourcesState = useSelector((state) => state.sources.favorites);
 
   useEffect(() => {
     dispatch(sourcesActions.fetchFavoriteSources());
   }, [dispatch]);
+
+  const sourcesState = useSelector((state) => state.sources.favorites);
 
   const handleSourcesTableSorting = (sortData) => {
     dispatch(
@@ -59,11 +59,12 @@ const FavoritesPage = () => {
     }
     dispatch(sourcesActions.fetchFavoriteSources(data));
   };
-  if (!sourcesState.sources) {
+
+  if (sourcesState == null) {
     return <CircularProgress />;
   }
 
-  if (sourcesState.sources?.length === 0) {
+  if (sourcesState.sources.length === 0) {
     return (
       <div className={classes.source}>
         <Typography variant="h4" gutterBottom align="center">
