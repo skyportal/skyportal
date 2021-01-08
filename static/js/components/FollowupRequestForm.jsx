@@ -128,24 +128,26 @@ const FollowupRequestForm = ({
         setGroupIDs={setSelectedGroupIds}
         groupIDs={selectedGroupIds}
       />
-      <Form
-        schema={
-          instrumentFormParams[
-            allocationLookUp[selectedAllocationId].instrument_id
-          ].formSchema
-        }
-        uiSchema={
-          instrumentFormParams[
-            allocationLookUp[selectedAllocationId].instrument_id
-          ].uiSchema
-        }
-        onSubmit={handleSubmit}
-      />
-      {isSubmitting && (
-        <div className={classes.marginTop}>
-          <CircularProgress />
-        </div>
-      )}
+      <div data-testid="followup-request-form">
+        <Form
+          schema={
+            instrumentFormParams[
+              allocationLookUp[selectedAllocationId].instrument_id
+            ].formSchema
+          }
+          uiSchema={
+            instrumentFormParams[
+              allocationLookUp[selectedAllocationId].instrument_id
+            ].uiSchema
+          }
+          onSubmit={handleSubmit}
+        />
+        {isSubmitting && (
+          <div className={classes.marginTop}>
+            <CircularProgress />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

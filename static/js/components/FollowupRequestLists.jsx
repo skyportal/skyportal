@@ -126,6 +126,7 @@ const FollowupRequestLists = ({
                                 color="primary"
                                 type="submit"
                                 variant="outlined"
+                                data-testid={`deleteRequest_${followupRequest.id}`}
                               >
                                 Delete
                               </Button>

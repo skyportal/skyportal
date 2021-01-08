@@ -48,7 +48,7 @@ const EditFollowupRequestDialog = ({
         type="submit"
         variant="outlined"
         onClick={handleClickOpen}
-        name={`editRequest_${followupRequest.id}`}
+        data-testid={`editRequest_${followupRequest.id}`}
       >
         Edit
       </Button>
