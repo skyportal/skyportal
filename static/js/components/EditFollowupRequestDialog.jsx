@@ -3,8 +3,9 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
-import Form from "@rjsf/material-ui";
+import Button from "@material-ui/core/Button";
 import { makeStyles } from "@material-ui/core/styles";
+import Form from "@rjsf/material-ui";
 import * as Actions from "../ducks/source";
 
 const useStyles = makeStyles(() => ({
@@ -41,13 +42,16 @@ const EditFollowupRequestDialog = ({
 
   return (
     <span key={followupRequest.id}>
-      <button
-        type="button"
+      <Button
+        size="small"
+        color="primary"
+        type="submit"
+        variant="outlined"
         onClick={handleClickOpen}
         name={`editRequest_${followupRequest.id}`}
       >
         Edit
-      </button>
+      </Button>
       <Dialog open={open} onClose={handleClose} className={classes.dialog}>
         <DialogContent>
           <Form

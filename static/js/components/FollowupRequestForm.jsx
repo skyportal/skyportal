@@ -4,7 +4,6 @@ import PropTypes from "prop-types";
 import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
 import MenuItem from "@material-ui/core/MenuItem";
-import Button from "@material-ui/core/Button";
 import Form from "@rjsf/material-ui";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { makeStyles } from "@material-ui/core/styles";
@@ -21,7 +20,9 @@ const useStyles = makeStyles(() => ({
   chip: {
     margin: 2,
   },
-  hiddenButton: { display: "none" },
+  marginTop: {
+    marginTop: "1rem",
+  },
 }));
 
 const FollowupRequestForm = ({
@@ -139,19 +140,12 @@ const FollowupRequestForm = ({
           ].uiSchema
         }
         onSubmit={handleSubmit}
-      >
-        {isSubmitting && (
-          <div>
-            <Button
-              className={classes.hiddenButton}
-              size="large"
-              color="primary"
-              type="submit"
-            />
-            <CircularProgress />
-          </div>
-        )}
-      </Form>
+      />
+      {isSubmitting && (
+        <div className={classes.marginTop}>
+          <CircularProgress />
+        </div>
+      )}
     </div>
   );
 };
