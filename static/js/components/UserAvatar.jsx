@@ -1,7 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { makeStyles } from "@material-ui/core/styles";
-
 import Avatar from "@material-ui/core/Avatar";
 
 const useStyles = makeStyles((theme) => ({
@@ -22,6 +21,22 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+// Return true if all characters in a string are Korean characters
+export const isAllKoreanCharacters = (str) => {
+  return str.match(
+    /^([\uac00-\ud7af]|[\u1100-\u11ff]|[\u3130-\u318f]|[\ua960-\ua97f]|[\ud7b0-\ud7ff])+$/g
+  );
+};
+
+const getInitials = (firstName, lastName) => {
+  // Korean names are almost always <=2 characters; last names are written first,
+  // so using the full first name is a more natural "initials" than (firstName[0], lastName[0])
+  if (isAllKoreanCharacters(firstName)) {
+    return firstName;
+  }
+  return `${firstName?.charAt(0)}${lastName?.charAt(0)}`;
+};
+
 const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
   // use the hash of the username (which is in the gravatarUrl) to
   // select a unique color for this user
@@ -40,7 +55,7 @@ const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
   const backUpLetters =
     firstName === null
       ? username.slice(0, 2)
-      : `${firstName?.charAt(0)}${lastName?.charAt(0)}`;
+      : getInitials(firstName, lastName);
 
   const props = { size, usercolor, backUpLetters };
   const classes = useStyles(props);
