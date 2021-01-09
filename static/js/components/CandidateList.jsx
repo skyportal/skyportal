@@ -531,13 +531,21 @@ const CandidateList = () => {
             </div>
           </div>
         )}
-        {candidateObj.last_detected && (
+        {candidateObj.last_detected_at && (
           <div className={classes.infoItem}>
             <b>Last detected: </b>
             <span>
-              {String(candidateObj.last_detected).split(".")[0].split("T")[1]}
+              {
+                String(candidateObj.last_detected_at)
+                  .split(".")[0]
+                  .split("T")[1]
+              }
               &nbsp;&nbsp;
-              {String(candidateObj.last_detected).split(".")[0].split("T")[0]}
+              {
+                String(candidateObj.last_detected_at)
+                  .split(".")[0]
+                  .split("T")[0]
+              }
             </span>
           </div>
         )}
