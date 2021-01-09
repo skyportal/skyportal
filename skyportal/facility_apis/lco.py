@@ -1,10 +1,6 @@
-import time
 import json
 import requests
 from datetime import datetime, timedelta
-
-from lxml import etree
-from suds import Client
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
@@ -12,6 +8,7 @@ from baselayer.app.env import load_env
 from ..utils import http
 
 env, cfg = load_env()
+
 
 class SINISTRORequest:
 
@@ -45,11 +42,10 @@ class SINISTRORequest:
             payload for requests.
         """
 
-
         # Constraints used for scheduling this observation
         constraints = {
             'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': 30
+            'min_lunar_distance': 30,
         }
 
         # The target of the observation
@@ -58,7 +54,7 @@ class SINISTRORequest:
             'type': 'ICRS',
             'ra': request.obj.ra,
             'dec': request.obj.dec,
-            'epoch': 2000
+            'epoch': 2000,
         }
 
         exp_time = request.payload["exposure_time"]
@@ -67,53 +63,50 @@ class SINISTRORequest:
         # The configurations for this request. In this example we are taking 2 exposures with different filters.
         configurations = []
         for filt in request.payload['observation_choices']:
-            configurations.append({'type': 'EXPOSE',
-                                  'instrument_type': '1M0-SCICAM-SINISTRO',
-                                  'constraints': constraints,
-                                  'target': target,
-                                  'acquisition_config': {},
-                                  'guiding_config': {},
-                                  'instrument_configs': [
-                                      {
-                                          'exposure_time': exp_time,
-                                          'exposure_count': exp_count,
-                                          'optical_elements':
-                                              {
-                                                  'filter': '%s' % filt
-                                              }
-                                       }
-                                  ]
-                              })
+            configurations.append(
+                {
+                    'type': 'EXPOSE',
+                    'instrument_type': '1M0-SCICAM-SINISTRO',
+                    'constraints': constraints,
+                    'target': target,
+                    'acquisition_config': {},
+                    'guiding_config': {},
+                    'instrument_configs': [
+                        {
+                            'exposure_time': exp_time,
+                            'exposure_count': exp_count,
+                            'optical_elements': {'filter': '%s' % filt},
+                        }
+                    ],
+                }
+            )
 
         tstart = request.payload["start_date"] + ' 00:00:00'
         tend = request.payload["end_date"] + ' 00:00:00'
 
-        windows = [{
-            'start': tstart,
-            'end': tend
-        }]
-    
+        windows = [{'start': tstart, 'end': tend}]
+
         # The telescope class that should be used for this observation
-        location = {
-            'telescope_class': '1m0'
-        }
-   
+        location = {'telescope_class': '1m0'}
+
         altdata = request.allocation.altdata
- 
+
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-                'name': '%s' % (request.obj.id),  # The title
-                'proposal': altdata["PROPOSAL_ID"],
-                'ipp_value': request.payload["priority"],
-                'operator': 'SINGLE',
-                'observation_type': 'NORMAL',
-                'requests': [{
+            'name': '%s' % (request.obj.id),  # The title
+            'proposal': altdata["PROPOSAL_ID"],
+            'ipp_value': request.payload["priority"],
+            'operator': 'SINGLE',
+            'observation_type': 'NORMAL',
+            'requests': [
+                {
                     'configurations': configurations,
                     'windows': windows,
                     'location': location,
-                }]
-            }
-    
+                }
+            ],
+        }
+
         return requestgroup
 
 
@@ -134,7 +127,6 @@ class SPECTRALRequest:
 
         self.requestgroup = self._build_payload(request)
 
-
     def _build_payload(self, request):
         """Payload json for LCO 2m SPECTRAL queue requests.
 
@@ -150,11 +142,10 @@ class SPECTRALRequest:
             payload for requests.
         """
 
-
         # Constraints used for scheduling this observation
         constraints = {
             'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': request.payload["minimum_lunar_distance"]   
+            'min_lunar_distance': request.payload["minimum_lunar_distance"],
         }
 
         # The target of the observation
@@ -163,7 +154,7 @@ class SPECTRALRequest:
             'type': 'ICRS',
             'ra': request.obj.ra,
             'dec': request.obj.dec,
-            'epoch': 2000
+            'epoch': 2000,
         }
 
         exp_time = request.payload["exposure_time"]
@@ -171,54 +162,52 @@ class SPECTRALRequest:
 
         configurations = []
         for filt in request.payload['observation_choices']:
-            configurations.append({'type': 'EXPOSE',
-                                  'instrument_type': '2M0-SCICAM-SPECTRAL',
-                                  'constraints': constraints,
-                                  'target': target,
-                                  'acquisition_config': {},
-                                  'guiding_config': {},
-                                  'instrument_configs': [
-                                      {
-                                          'exposure_time': exp_time,
-                                          'exposure_count': exp_count,
-                                          'optical_elements':
-                                              {
-                                                  'filter': '%s' % filt
-                                              }
-                                       }
-                                  ]
-                              })
+            configurations.append(
+                {
+                    'type': 'EXPOSE',
+                    'instrument_type': '2M0-SCICAM-SPECTRAL',
+                    'constraints': constraints,
+                    'target': target,
+                    'acquisition_config': {},
+                    'guiding_config': {},
+                    'instrument_configs': [
+                        {
+                            'exposure_time': exp_time,
+                            'exposure_count': exp_count,
+                            'optical_elements': {'filter': '%s' % filt},
+                        }
+                    ],
+                }
+            )
 
         tstart = request.payload["start_date"] + ' 00:00:00'
         tend = request.payload["end_date"] + ' 00:00:00'
 
-        windows = [{
-            'start': tstart,
-            'end': tend
-        }]
-    
+        windows = [{'start': tstart, 'end': tend}]
+
         # The telescope class that should be used for this observation
-        location = {
-            'telescope_class': '2m0'
-        }
-   
+        location = {'telescope_class': '2m0'}
+
         altdata = request.allocation.altdata
- 
+
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-                'name': '%s' % (request.obj.id),  # The title
-                'proposal': altdata["PROPOSAL_ID"],
-                'ipp_value': request.payload["priority"],
-                'operator': 'SINGLE',
-                'observation_type': 'NORMAL',
-                'requests': [{
+            'name': '%s' % (request.obj.id),  # The title
+            'proposal': altdata["PROPOSAL_ID"],
+            'ipp_value': request.payload["priority"],
+            'operator': 'SINGLE',
+            'observation_type': 'NORMAL',
+            'requests': [
+                {
                     'configurations': configurations,
                     'windows': windows,
                     'location': location,
-                }]
-            }
-    
+                }
+            ],
+        }
+
         return requestgroup
+
 
 class MUSCATRequest:
 
@@ -252,11 +241,10 @@ class MUSCATRequest:
             payload for requests.
         """
 
-
         # Constraints used for scheduling this observation
         constraints = {
             'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': request.payload["minimum_lunar_distance"]
+            'min_lunar_distance': request.payload["minimum_lunar_distance"],
         }
 
         # The target of the observation
@@ -265,7 +253,7 @@ class MUSCATRequest:
             'type': 'ICRS',
             'ra': request.obj.ra,
             'dec': request.obj.dec,
-            'epoch': 2000
+            'epoch': 2000,
         }
 
         exp_time = request.payload["exposure_time"]
@@ -287,50 +275,48 @@ class MUSCATRequest:
                             'diffuser_g_position': 'out',
                             'diffuser_r_position': 'out',
                             'diffuser_i_position': 'out',
-                            'diffuser_z_position': 'out'
+                            'diffuser_z_position': 'out',
                         },
                         'extra_params': {
                             'exposure_mode': 'SYNCHRONOUS',
                             'exposure_time_g': exp_time,
                             'exposure_time_r': exp_time,
                             'exposure_time_i': exp_time,
-                            'exposure_time_z': exp_time
-                        }
+                            'exposure_time_z': exp_time,
+                        },
                     }
-                ]
+                ],
             }
         ]
 
         tstart = request.payload["start_date"] + ' 00:00:00'
         tend = request.payload["end_date"] + ' 00:00:00'
 
-        windows = [{
-            'start': tstart,
-            'end': tend
-        }]
+        windows = [{'start': tstart, 'end': tend}]
 
         # The telescope class that should be used for this observation
-        location = {
-            'telescope_class': '2m0'
-        }
-   
+        location = {'telescope_class': '2m0'}
+
         altdata = request.allocation.altdata
- 
+
         # The full RequestGroup, with additional meta-data
         requestgroup = {
-                'name': '%s' % (request.obj.id),  # The title
-                'proposal': altdata["PROPOSAL_ID"],
-                'ipp_value': request.payload["priority"],
-                'operator': 'SINGLE',
-                'observation_type': 'NORMAL',
-                'requests': [{
+            'name': '%s' % (request.obj.id),  # The title
+            'proposal': altdata["PROPOSAL_ID"],
+            'ipp_value': request.payload["priority"],
+            'operator': 'SINGLE',
+            'observation_type': 'NORMAL',
+            'requests': [
+                {
                     'configurations': configurations,
                     'windows': windows,
                     'location': location,
-                }]
-            }
-    
+                }
+            ],
+        }
+
         return requestgroup
+
 
 class FLOYDSRequest:
 
@@ -364,11 +350,10 @@ class FLOYDSRequest:
             payload for requests.
         """
 
-
         # Constraints used for scheduling this observation
         constraints = {
             'max_airmass': request.payload["maximum_airmass"],
-            'min_lunar_distance': request.payload["minimum_lunar_distance"]
+            'min_lunar_distance': request.payload["minimum_lunar_distance"],
         }
 
         # The target of the observation
@@ -377,146 +362,121 @@ class FLOYDSRequest:
             'type': 'ICRS',
             'ra': request.obj.ra,
             'dec': request.obj.dec,
-            'epoch': 2000
+            'epoch': 2000,
         }
 
         # The telescope class that should be used for this observation
-        location = {
-            'telescope_class': '2m0'
-        }
+        location = {'telescope_class': '2m0'}
 
         exp_time = request.payload["exposure_time"]
         exp_count = int(request.payload["exposure_counts"])
 
         configurations = [
-        {   
-            'type': 'LAMP_FLAT',
-            'instrument_type': '2M0-FLOYDS-SCICAM',
-            'constraints': constraints,
-            'target': target,
-            'acquisition_config': {},
-            'guiding_config': {
-                'mode': 'OFF',
-                'optional': False},
-            'instrument_configs': [
-                {
-                    'exposure_time': 50,
-                    'exposure_count': 1,
-                    'rotator_mode': 'VFLOAT',
-                    'optical_elements': {
-                        'slit': 'slit_1.6as'
+            {
+                'type': 'LAMP_FLAT',
+                'instrument_type': '2M0-FLOYDS-SCICAM',
+                'constraints': constraints,
+                'target': target,
+                'acquisition_config': {},
+                'guiding_config': {'mode': 'OFF', 'optional': False},
+                'instrument_configs': [
+                    {
+                        'exposure_time': 50,
+                        'exposure_count': 1,
+                        'rotator_mode': 'VFLOAT',
+                        'optical_elements': {'slit': 'slit_1.6as'},
                     }
-                }
-            ]
-        },
-        {  
-            'type': 'ARC',
-            'instrument_type': '2M0-FLOYDS-SCICAM',
-            'constraints': constraints,
-            'target': target,
-            'acquisition_config': {},
-            'guiding_config': {
-                'mode': 'OFF',
-                'optional': False},
-            'instrument_configs': [
-                {
-                    'exposure_time': 60,
-                    'exposure_count': 1,
-                    'rotator_mode': 'VFLOAT',
-                    'optical_elements': {
-                        'slit': 'slit_1.6as'
-                    }
-                }
-            ]
-        },
-        {
-            'type': 'SPECTRUM',
-            'instrument_type': '2M0-FLOYDS-SCICAM',
-            'constraints': constraints,
-            'target': target,
-            'acquisition_config': {
-                'mode': 'WCS'
+                ],
             },
-            'guiding_config': {
-                'mode': 'ON',
-                'optional': False
+            {
+                'type': 'ARC',
+                'instrument_type': '2M0-FLOYDS-SCICAM',
+                'constraints': constraints,
+                'target': target,
+                'acquisition_config': {},
+                'guiding_config': {'mode': 'OFF', 'optional': False},
+                'instrument_configs': [
+                    {
+                        'exposure_time': 60,
+                        'exposure_count': 1,
+                        'rotator_mode': 'VFLOAT',
+                        'optical_elements': {'slit': 'slit_1.6as'},
+                    }
+                ],
             },
-            'instrument_configs': [
-                {
-                    'exposure_time': exp_time,
-                    'exposure_count': exp_count,
-                    'rotator_mode': 'VFLOAT',
-                    'optical_elements': {
-                        'slit': 'slit_1.6as'
+            {
+                'type': 'SPECTRUM',
+                'instrument_type': '2M0-FLOYDS-SCICAM',
+                'constraints': constraints,
+                'target': target,
+                'acquisition_config': {'mode': 'WCS'},
+                'guiding_config': {'mode': 'ON', 'optional': False},
+                'instrument_configs': [
+                    {
+                        'exposure_time': exp_time,
+                        'exposure_count': exp_count,
+                        'rotator_mode': 'VFLOAT',
+                        'optical_elements': {'slit': 'slit_1.6as'},
                     }
-                }
-            ]
-        },
-        {
-            'type': 'ARC',
-            'instrument_type': '2M0-FLOYDS-SCICAM',
-            'constraints': constraints,
-            'target': target,
-            'acquisition_config': {},
-            'guiding_config': {
-                'mode': 'OFF',
-                'optional': False},
-            'instrument_configs': [
-                {
-                    'exposure_time': 60,
-                    'exposure_count': 1,
-                    'rotator_mode': 'VFLOAT',
-                    'optical_elements': {
-                        'slit': 'slit_1.6as'
+                ],
+            },
+            {
+                'type': 'ARC',
+                'instrument_type': '2M0-FLOYDS-SCICAM',
+                'constraints': constraints,
+                'target': target,
+                'acquisition_config': {},
+                'guiding_config': {'mode': 'OFF', 'optional': False},
+                'instrument_configs': [
+                    {
+                        'exposure_time': 60,
+                        'exposure_count': 1,
+                        'rotator_mode': 'VFLOAT',
+                        'optical_elements': {'slit': 'slit_1.6as'},
                     }
-                }
-            ]
-        },
-        {
-            'type': 'LAMP_FLAT',
-            'instrument_type': '2M0-FLOYDS-SCICAM',
-            'constraints': constraints,
-            'target': target,
-            'acquisition_config': {},
-            'guiding_config': {
-                'mode': 'OFF',
-                'optional': False},
-            'instrument_configs': [
-                {
-                    'exposure_time': 50,
-                    'exposure_count': 1,
-                    'rotator_mode': 'VFLOAT',
-                    'optical_elements': {
-                        'slit': 'slit_1.6as'
+                ],
+            },
+            {
+                'type': 'LAMP_FLAT',
+                'instrument_type': '2M0-FLOYDS-SCICAM',
+                'constraints': constraints,
+                'target': target,
+                'acquisition_config': {},
+                'guiding_config': {'mode': 'OFF', 'optional': False},
+                'instrument_configs': [
+                    {
+                        'exposure_time': 50,
+                        'exposure_count': 1,
+                        'rotator_mode': 'VFLOAT',
+                        'optical_elements': {'slit': 'slit_1.6as'},
                     }
-                }
-            ]
-        }]
-    
+                ],
+            },
+        ]
+
         tstart = request.payload["start_date"] + ' 00:00:00'
         tend = request.payload["end_date"] + ' 00:00:00'
 
-        windows = [{
-            'start': tstart,
-            'end': tend
-        }]   
+        windows = [{'start': tstart, 'end': tend}]
 
         altdata = request.allocation.altdata
 
         # The full RequestGroup, with additional meta-data
         requestgroup = {
             'name': '%s' % (request.obj.id),  # The title
-            'proposal': altdata["PROPOSAL_ID"], 
+            'proposal': altdata["PROPOSAL_ID"],
             'ipp_value': request.payload["priority"],
             'operator': 'SINGLE',
             'observation_type': 'NORMAL',
-            'requests': [{
-                'configurations': configurations,
-                'windows': windows,
-                'location': location,
-            }]
+            'requests': [
+                {
+                    'configurations': configurations,
+                    'windows': windows,
+                    'location': location,
+                }
+            ],
         }
-    
+
         return requestgroup
 
 
@@ -555,7 +515,7 @@ class LCOAPI(FollowUpAPI):
 
         r = requests.post(
             'https://observe.lco.global/api/requestgroups/{}/cancel/'.format(uid),
-            headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])}
+            headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])},
         )
 
         r.raise_for_status()
@@ -569,7 +529,6 @@ class LCOAPI(FollowUpAPI):
         )
 
         DBSession().add(transaction)
-
 
     @staticmethod
     def update(request):
@@ -610,14 +569,14 @@ class LCOAPI(FollowUpAPI):
 
         r = requests.get(
             'https://observe.lco.global/api/requestgroups/{}/'.format(uid),
-            headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])}
+            headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])},
         )
 
         r.raise_for_status()
 
         content = req.transactions[0].response["content"]
         content = json.loads(content)
-       
+
         if content["state"] == "COMPLETED":
             request.status = "complete"
 
@@ -659,7 +618,7 @@ class SINISTROAPI(LCOAPI):
         r = requests.post(
             'https://observe.lco.global/api/requestgroups/',
             headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])},
-            json=requestgroup  # Make sure you use json!
+            json=requestgroup,  # Make sure you use json!
         )
 
         r.raise_for_status()
@@ -715,14 +674,14 @@ class SINISTROAPI(LCOAPI):
                 "type": "number",
                 "default": 2.0,
                 "minimum": 1,
-                "maximum": 3
+                "maximum": 3,
             },
             "minimum_lunar_distance": {
                 "title": "Maximum Seeing [arcsec] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
-                "maximum": 180
+                "maximum": 180,
             },
             "priority": {
                 "title": "IPP (0-2)",
@@ -737,7 +696,7 @@ class SINISTROAPI(LCOAPI):
             "end_date",
             "maximum_airmass",
             "minimum_lunar_distance",
-            "priority"
+            "priority",
         ],
     }
 
@@ -773,7 +732,7 @@ class SPECTRALAPI(LCOAPI):
         r = requests.post(
             'https://observe.lco.global/api/requestgroups/',
             headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])},
-            json=requestgroup  # Make sure you use json!
+            json=requestgroup,  # Make sure you use json!
         )
 
         r.raise_for_status()
@@ -781,7 +740,7 @@ class SPECTRALAPI(LCOAPI):
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            if requestgroup['requests']['target']["dec"] > 17:            
+            if requestgroup['requests']['target']["dec"] > 17:
                 request.status = f'rejected: Spectral only available in South.'
             else:
                 request.status = f'rejected: {r.content}'
@@ -832,14 +791,14 @@ class SPECTRALAPI(LCOAPI):
                 "type": "number",
                 "default": 2.0,
                 "minimum": 1,
-                "maximum": 3
+                "maximum": 3,
             },
             "minimum_lunar_distance": {
                 "title": "Maximum Seeing [arcsec] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
-                "maximum": 180
+                "maximum": 180,
             },
             "priority": {
                 "title": "IPP (0-2)",
@@ -854,11 +813,12 @@ class SPECTRALAPI(LCOAPI):
             "end_date",
             "maximum_airmass",
             "minimum_lunar_distance",
-            "priority"
+            "priority",
         ],
     }
 
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
+
 
 class MUSCATAPI(LCOAPI):
 
@@ -888,7 +848,7 @@ class MUSCATAPI(LCOAPI):
         r = requests.post(
             'https://observe.lco.global/api/requestgroups/',
             headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])},
-            json=requestgroup  # Make sure you use json!
+            json=requestgroup,  # Make sure you use json!
         )
 
         r.raise_for_status()
@@ -937,14 +897,14 @@ class MUSCATAPI(LCOAPI):
                 "type": "number",
                 "default": 2.0,
                 "minimum": 1,
-                "maximum": 3
+                "maximum": 3,
             },
             "minimum_lunar_distance": {
                 "title": "Maximum Seeing [arcsec] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
-                "maximum": 180
+                "maximum": 180,
             },
             "priority": {
                 "title": "IPP (0-2)",
@@ -959,7 +919,7 @@ class MUSCATAPI(LCOAPI):
             "end_date",
             "maximum_airmass",
             "minimum_lunar_distance",
-            "priority"
+            "priority",
         ],
     }
 
@@ -994,7 +954,7 @@ class FLOYDSAPI(LCOAPI):
         r = requests.post(
             'https://observe.lco.global/api/requestgroups/',
             headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])},
-            json=requestgroup  # Make sure you use json!
+            json=requestgroup,  # Make sure you use json!
         )
 
         r.raise_for_status()
@@ -1043,14 +1003,14 @@ class FLOYDSAPI(LCOAPI):
                 "type": "number",
                 "default": 2.0,
                 "minimum": 1,
-                "maximum": 3
+                "maximum": 3,
             },
             "minimum_lunar_distance": {
                 "title": "Maximum Seeing [arcsec] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
-                "maximum": 180
+                "maximum": 180,
             },
             "priority": {
                 "title": "IPP (0-2)",
@@ -1065,8 +1025,8 @@ class FLOYDSAPI(LCOAPI):
             "end_date",
             "maximum_airmass",
             "minimum_lunar_distance",
-            "priority"
-        ]
+            "priority",
+        ],
     }
 
     ui_json_schema = {}
