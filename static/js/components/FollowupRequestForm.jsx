@@ -5,6 +5,7 @@ import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
 import MenuItem from "@material-ui/core/MenuItem";
 import Form from "@rjsf/material-ui";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import { makeStyles } from "@material-ui/core/styles";
 import * as Actions from "../ducks/source";
 import GroupShareSelect from "./GroupShareSelect";
@@ -18,6 +19,9 @@ const useStyles = makeStyles(() => ({
   },
   chip: {
     margin: 2,
+  },
+  marginTop: {
+    marginTop: "1rem",
   },
 }));
 
@@ -33,6 +37,7 @@ const FollowupRequestForm = ({
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // Initialize the select
@@ -85,14 +90,16 @@ const FollowupRequestForm = ({
     setSelectedAllocationId(e.target.value);
   };
 
-  const handleSubmit = ({ formData }) => {
+  const handleSubmit = async ({ formData }) => {
+    setIsSubmitting(true);
     const json = {
       obj_id,
       allocation_id: selectedAllocationId,
       target_group_ids: selectedGroupIds,
       payload: formData,
     };
-    dispatch(Actions.submitFollowupRequest(json));
+    await dispatch(Actions.submitFollowupRequest(json));
+    setIsSubmitting(false);
   };
 
   return (
@@ -121,19 +128,26 @@ const FollowupRequestForm = ({
         setGroupIDs={setSelectedGroupIds}
         groupIDs={selectedGroupIds}
       />
-      <Form
-        schema={
-          instrumentFormParams[
-            allocationLookUp[selectedAllocationId].instrument_id
-          ].formSchema
-        }
-        uiSchema={
-          instrumentFormParams[
-            allocationLookUp[selectedAllocationId].instrument_id
-          ].uiSchema
-        }
-        onSubmit={handleSubmit}
-      />
+      <div data-testid="followup-request-form">
+        <Form
+          schema={
+            instrumentFormParams[
+              allocationLookUp[selectedAllocationId].instrument_id
+            ].formSchema
+          }
+          uiSchema={
+            instrumentFormParams[
+              allocationLookUp[selectedAllocationId].instrument_id
+            ].uiSchema
+          }
+          onSubmit={handleSubmit}
+        />
+        {isSubmitting && (
+          <div className={classes.marginTop}>
+            <CircularProgress />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

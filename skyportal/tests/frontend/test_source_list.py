@@ -73,8 +73,6 @@ def test_add_sources_two_groups(
     # make sure the div containing the individual source appears
     driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{obj_id}"]')
 
-    driver.wait_for_xpath("//*[@class='vega-embed']")
-
     # post a taxonomy and classification
     status, data = api(
         'POST',
@@ -110,9 +108,6 @@ def test_add_sources_two_groups(
     driver.wait_for_xpath_to_disappear(
         f"//*[text()[contains(., '{'Algol'}')]]", timeout=1
     )
-
-    # making sure the drawer is still open even after posting a classification!
-    driver.wait_for_xpath("//*[@class='vega-embed']")
 
     # filter on the object id (page refresh, but still filtering on this object)
     obj_button = driver.wait_for_xpath("//input[@name='sourceID']")

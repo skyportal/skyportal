@@ -21,6 +21,8 @@ from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
+from sqlalchemy_utils.types import JSONType
+from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
 from sqlalchemy import func
 
 from twilio.rest import Client as TwilioClient
@@ -958,6 +960,14 @@ Candidate.get_obj_if_readable_by = get_candidate_if_readable_by
 Candidate.is_readable_by = candidate_is_readable_by
 
 
+User.listings = relationship(
+    'Listing',
+    back_populates='user',
+    passive_deletes=True,
+    doc='The listings saved by this user',
+)
+
+
 Source = join_model("sources", Group, Obj)
 Source.__doc__ = (
     "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
@@ -1636,6 +1646,21 @@ class Allocation(Base):
         doc="The Instrument the allocation is associated with.",
     )
 
+    _altdata = sa.Column(
+        EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5')
+    )
+
+    @property
+    def altdata(self):
+        if self._altdata is None:
+            return {}
+        else:
+            return json.loads(self._altdata)
+
+    @altdata.setter
+    def altdata(self, value):
+        self._altdata = value
+
 
 class Taxonomy(Base):
     """An ontology within which Objs can be classified."""
@@ -2030,7 +2055,7 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def mag(self):
         """The magnitude of the photometry point in the AB system."""
-        if self.flux is not None and self.flux > 0:
+        if not np.isnan(self.flux) and self.flux > 0:
             return -2.5 * np.log10(self.flux) + PHOT_ZP
         else:
             return None
@@ -2038,7 +2063,7 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def e_mag(self):
         """The error on the magnitude of the photometry point."""
-        if self.flux is not None and self.flux > 0 and self.fluxerr > 0:
+        if not np.isnan(self.flux) and self.flux > 0 and self.fluxerr > 0:
             return (2.5 / np.log(10)) * (self.fluxerr / self.flux)
         else:
             return None
@@ -2049,7 +2074,7 @@ class Photometry(Base, ha.Point):
         return sa.case(
             [
                 (
-                    sa.and_(cls.flux != None, cls.flux > 0),  # noqa
+                    sa.and_(cls.flux != 'NaN', cls.flux > 0),  # noqa
                     -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
                 )
             ],
@@ -2063,7 +2088,7 @@ class Photometry(Base, ha.Point):
             [
                 (
                     sa.and_(
-                        cls.flux != None, cls.flux > 0, cls.fluxerr > 0
+                        cls.flux != 'NaN', cls.flux > 0, cls.fluxerr > 0
                     ),  # noqa: E711
                     2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
                 )
@@ -2090,7 +2115,11 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def snr(self):
         """Signal-to-noise ratio of this Photometry point."""
-        return self.flux / self.fluxerr if self.flux and self.fluxerr else None
+        return (
+            self.flux / self.fluxerr
+            if not np.isnan(self.flux) and not np.isnan(self.fluxerr)
+            else None
+        )
 
     @snr.expression
     def snr(self):
@@ -2569,6 +2598,57 @@ User.transactions = relationship(
     'FacilityTransaction',
     back_populates='initiator',
     doc="The FacilityTransactions initiated by this User.",
+)
+
+
+class Listing(Base):
+
+    user_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this Listing.",
+    )
+
+    user = relationship(
+        "User",
+        foreign_keys=user_id,
+        back_populates="listings",
+        doc="The user that saved this object/listing",
+    )
+
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the object that is on this Listing",
+    )
+
+    obj = relationship("Obj", doc="The object referenced by this listing",)
+
+    list_name = sa.Column(
+        sa.String,
+        index=True,
+        nullable=False,
+        doc="Name of the list, e.g., 'favorites'. ",
+    )
+
+
+Listing.__table_args__ = (
+    sa.Index(
+        "listings_main_index",
+        Listing.user_id,
+        Listing.obj_id,
+        Listing.list_name,
+        unique=True,
+    ),
+    sa.Index(
+        "listings_reverse_index",
+        Listing.list_name,
+        Listing.obj_id,
+        Listing.user_id,
+        unique=True,
+    ),
 )
 
 
