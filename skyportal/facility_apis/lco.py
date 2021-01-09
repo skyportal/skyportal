@@ -17,6 +17,19 @@ class SINISTRORequest:
 
     """A JSON structure for LCO 1m SINISTRO requests."""
 
+    def __init__(self, request):
+        """Initialize SINISTRO request.
+
+        Parameters
+        ----------
+
+        request: skyportal.models.FollowupRequest
+            The request to add to the queue and the SkyPortal database.
+
+        """
+
+        self.requestgroup = self._build_payload(request)
+
     def _build_payload(self, request):
         """Payload json for LCO 1m SINISTRO queue requests.
 
@@ -108,6 +121,20 @@ class SPECTRALRequest:
 
     """A JSON structure for LCO 2m SPECTRAL requests."""
 
+    def __init__(self, request):
+        """Initialize SPECTRAL request.
+
+        Parameters
+        ----------
+
+        request: skyportal.models.FollowupRequest
+            The request to add to the queue and the SkyPortal database.
+
+        """
+
+        self.requestgroup = self._build_payload(request)
+
+
     def _build_payload(self, request):
         """Payload json for LCO 2m SPECTRAL queue requests.
 
@@ -196,6 +223,19 @@ class SPECTRALRequest:
 class MUSCATRequest:
 
     """An XML structure for LCO 2m MUSCAT requests."""
+
+    def __init__(self, request):
+        """Initialize MUSCAT request.
+
+        Parameters
+        ----------
+
+        request: skyportal.models.FollowupRequest
+            The request to add to the queue and the SkyPortal database.
+
+        """
+
+        self.requestgroup = self._build_payload(request)
 
     def _build_payload(self, request):
         """Payload json for LCO 2m MUSCAT queue requests.
@@ -295,6 +335,19 @@ class MUSCATRequest:
 class FLOYDSRequest:
 
     """An XML structure for LCO 2m FLOYDS requests."""
+
+    def __init__(self, request):
+        """Initialize FLOYDS request.
+
+        Parameters
+        ----------
+
+        request: skyportal.models.FollowupRequest
+            The request to add to the queue and the SkyPortal database.
+
+        """
+
+        self.requestgroup = self._build_payload(request)
 
     def _build_payload(self, request):
         """Payload header for LCO 2m FLOYDS queue requests.
@@ -600,8 +653,8 @@ class SINISTROAPI(LCOAPI):
         if not altdata:
             return
 
-        ltreq = SINISTRORequest()
-        requestgroup = ltreq._build_payload(request)
+        lcoreq = SINISTRORequest(request)
+        requestgroup = lcoreq.requestgroup
 
         r = requests.post(
             'https://observe.lco.global/api/requestgroups/',
@@ -714,8 +767,8 @@ class SPECTRALAPI(LCOAPI):
         if not altdata:
             return
 
-        ltreq = SPECTRALRequest()
-        requestgroup = ltreq._build_payload(request)
+        lcoreq = SPECTRALRequest(request)
+        requestgroup = lcoreq.requestgroup
 
         r = requests.post(
             'https://observe.lco.global/api/requestgroups/',
@@ -829,8 +882,8 @@ class MUSCATAPI(LCOAPI):
         if not altdata:
             return
 
-        ltreq = MUSCATRequest()
-        requestgroup = ltreq._build_payload(request)
+        lcoreq = MUSCATRequest(request)
+        requestgroup = lcoreq.requestgroup
 
         r = requests.post(
             'https://observe.lco.global/api/requestgroups/',
@@ -935,8 +988,8 @@ class FLOYDSAPI(LCOAPI):
         if not altdata:
             return
 
-        ltreq = FLOYDSRequest()
-        requestgroup = ltreq._build_payload(request)
+        lcoreq = FLOYDSRequest(request)
+        requestgroup = lcoreq.requestgroup
 
         r = requests.post(
             'https://observe.lco.global/api/requestgroups/',
