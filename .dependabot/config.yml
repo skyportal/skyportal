@@ -8,3 +8,6 @@ update_configs:
           dependency_name: "react-dnd"
       - match:
           dependency_name: "@date-io/dayjs"
+  - package_manager: "python"
+    directory: "/"
+    update_schedule: "monthly"

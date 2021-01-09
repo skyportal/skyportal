@@ -19,7 +19,6 @@ from astropy.io import fits, ascii
 from astropy.utils.exceptions import AstropyWarning
 from slugify import slugify
 from sqlalchemy import cast, event
-from sqlalchemy import func
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
@@ -27,6 +26,10 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_utils import URLType, EmailType
+from sqlalchemy_utils.types import JSONType
+from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
+from sqlalchemy import func
+
 from twilio.rest import Client as TwilioClient
 
 from baselayer.app.custom_exceptions import AccessError
@@ -73,6 +76,9 @@ utcnow = func.timezone('UTC', func.current_timestamp())
 
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
+
+# The minimum signal-to-noise ratio to consider a photometry point as a detection
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 
 def get_app_base_url():
@@ -612,7 +618,7 @@ class Obj(Base, ha.Point):
     detect_photometry_count = sa.Column(
         sa.Integer,
         nullable=True,
-        doc="How many times the object was detected above :math:`S/N = 5`.",
+        doc="How many times the object was detected above :math:`S/N = phot_detection_threshold (3.0 by default)`.",
     )
 
     spectra = relationship(
@@ -650,25 +656,99 @@ class Obj(Base, ha.Point):
     )
 
     @hybrid_property
-    def last_detected(self):
-        """UTC ISO date at which the object was last detected above a S/N of 5."""
+    def last_detected_at(self):
+        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
         detections = [
             phot.iso
             for phot in self.photometry
-            if phot.snr is not None and phot.snr > 5
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
         ]
         return max(detections) if detections else None
 
-    @last_detected.expression
-    def last_detected(cls):
-        """UTC ISO date at which the object was last detected above a S/N of 5."""
+    @last_detected_at.expression
+    def last_detected_at(cls):
+        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
         return (
             sa.select([sa.func.max(Photometry.iso)])
             .where(Photometry.obj_id == cls.id)
             .where(Photometry.snr.isnot(None))
-            .where(Photometry.snr > 5.0)
-            .group_by(Photometry.obj_id)
-            .label('last_detected')
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .label('last_detected_at')
+        )
+
+    @hybrid_property
+    def last_detected_mag(self):
+        """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
+        detections = [
+            (phot.iso, phot.mag)
+            for phot in self.photometry
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
+        ]
+        return max(detections, key=(lambda x: x[0]))[1] if detections else None
+
+    @last_detected_mag.expression
+    def last_detected_mag(cls):
+        """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
+        last_detected = (
+            sa.select([cls.id, sa.func.max(Photometry.mjd).label("max_mjd")])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .group_by(cls.id)
+            .alias()
+        )
+        return (
+            sa.select([Photometry.mag])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .where(cls.id == last_detected.c.id)
+            .where(Photometry.mjd == last_detected.c.max_mjd)
+            .label('last_detected_mag')
+        )
+
+    @hybrid_property
+    def peak_detected_at(self):
+        """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
+        detections = [
+            (phot.iso, phot.mag)
+            for phot in self.photometry
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
+        ]
+        return max(detections, key=(lambda x: x[1]))[0] if detections else None
+
+    @peak_detected_at.expression
+    def peak_detected_at(cls):
+        """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
+        return (
+            sa.select([Photometry.iso])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .order_by(Photometry.mag.desc())
+            .limit(1)
+            .label('peak_detected_at')
+        )
+
+    @hybrid_property
+    def peak_detected_mag(self):
+        """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
+        detections = [
+            phot.mag
+            for phot in self.photometry
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
+        ]
+        return max(detections) if detections else None
+
+    @peak_detected_mag.expression
+    def peak_detected_mag(cls):
+        """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
+        return (
+            sa.select([sa.func.max(Photometry.mag)])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .label('peak_detected_mag')
         )
 
     def add_linked_thumbnails(self):
@@ -1722,6 +1802,21 @@ class Allocation(Base):
         doc="The Instrument the allocation is associated with.",
     )
 
+    _altdata = sa.Column(
+        EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5')
+    )
+
+    @property
+    def altdata(self):
+        if self._altdata is None:
+            return {}
+        else:
+            return json.loads(self._altdata)
+
+    @altdata.setter
+    def altdata(self, value):
+        self._altdata = value
+
 
 class Taxonomy(Base):
     """An ontology within which Objs can be classified."""
@@ -2242,7 +2337,15 @@ class Photometry(ha.Point, Base):
     @snr.expression
     def snr(self):
         """Signal-to-noise ratio of this Photometry point."""
-        return self.flux / self.fluxerr
+        return sa.case(
+            [
+                (
+                    sa.and_(self.flux != 'NaN', self.fluxerr != 0),  # noqa
+                    self.flux / self.fluxerr,
+                )
+            ],
+            else_=None,
+        )
 
 
 Photometry.is_modifiable_by = is_modifiable_by
