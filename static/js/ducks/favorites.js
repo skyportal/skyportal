@@ -24,6 +24,13 @@ export const removeFromFavorites = (source_id) =>
     obj_id: source_id,
   });
 
+// Websocket message handler
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType === REFRESH_FAVORITES) {
+    dispatch(fetchFavorites());
+  }
+});
+
 const reducer = (state = { favorites: [] }, action) => {
   switch (action.type) {
     case FETCH_FAVORITES_OK: {
@@ -37,12 +44,5 @@ const reducer = (state = { favorites: [] }, action) => {
       return state;
   }
 };
-
-// Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
-  if (actionType === REFRESH_FAVORITES) {
-    dispatch(fetchFavorites());
-  }
-});
 
 store.injectReducer("favorites", reducer);
