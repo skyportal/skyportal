@@ -200,8 +200,7 @@ class UserObjListHandler(BaseHandler):
         DBSession().add(listing)
         DBSession().commit()
 
-        obj_key = Obj.query.filter(Obj.id == obj_id).first().internal_key
-        self.push(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
+        self.push(action='skyportal/REFRESH_FAVORITES')
 
         return self.success(data={'id': listing.id})
 
@@ -294,8 +293,7 @@ class UserObjListHandler(BaseHandler):
 
         DBSession().commit()
 
-        obj_key = Obj.query.filter(Obj.id == obj_id).first().internal_key
-        self.push(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
+        self.push(action='skyportal/REFRESH_FAVORITES')
 
         return self.success()
 
@@ -385,7 +383,6 @@ class UserObjListHandler(BaseHandler):
         DBSession.delete(listing)
         DBSession.commit()
 
-        obj_key = Obj.query.filter(Obj.id == obj_id).first().internal_key
-        self.push(action='skyportal/FETCH_FAVORITES', payload={'obj_key': obj_key})
+        self.push(action='skyportal/REFRESH_FAVORITES')
 
         return self.success()

@@ -1,3 +1,4 @@
+import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
@@ -5,6 +6,7 @@ const FETCH_FAVORITES = "skyportal/FETCH_FAVORITES";
 const FETCH_FAVORITES_OK = "skyportal/FETCH_FAVORITES_OK";
 const ADD_TO_FAVORITES = "skyportal/ADD_TO_FAVORITES";
 const REMOVE_FROM_FAVORITES = "skyportal/REMOVE_FROM_FAVORITES";
+const REFRESH_FAVORITES = "skyportal/REFRESH_FAVORITES";
 
 // eslint-disable-next-line import/prefer-default-export
 export const fetchFavorites = () =>
@@ -35,5 +37,12 @@ const reducer = (state = { favorites: [] }, action) => {
       return state;
   }
 };
+
+// Websocket message handler
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType === REFRESH_FAVORITES) {
+    dispatch(fetchFavorites());
+  }
+});
 
 store.injectReducer("favorites", reducer);
