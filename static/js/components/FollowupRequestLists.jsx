@@ -23,11 +23,11 @@ const FollowupRequestLists = ({
   const classes = useStyles();
   const dispatch = useDispatch();
 
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(null);
   const handleDelete = async (id) => {
-    setIsDeleting(true);
+    setIsDeleting(id);
     await dispatch(Actions.deleteFollowupRequest(id));
-    setIsDeleting(false);
+    setIsDeleting(null);
   };
 
   if (
@@ -111,7 +111,8 @@ const FollowupRequestLists = ({
                       <td>{followupRequest.status}</td>
                       {modifiable && (
                         <td>
-                          {implementsDelete && isDeleting ? (
+                          {implementsDelete &&
+                          isDeleting === followupRequest.id ? (
                             <div>
                               <CircularProgress />
                             </div>
@@ -121,10 +122,11 @@ const FollowupRequestLists = ({
                                 onClick={() => {
                                   handleDelete(followupRequest.id);
                                 }}
-                                className={classes.hiddenButton}
                                 size="small"
                                 color="primary"
                                 type="submit"
+                                variant="outlined"
+                                data-testid={`deleteRequest_${followupRequest.id}`}
                               >
                                 Delete
                               </Button>

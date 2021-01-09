@@ -116,12 +116,10 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     driver.get(f"/become_user/{super_admin_user.id}")
 
     driver.get(f"/source/{public_source.id}")
-    # wait for the plots to load
-    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
-    # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//span[text()="Mg"]')
 
-    submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
     driver.wait_for_xpath(submit_button_xpath)
 
     select_box = driver.find_element_by_id(
@@ -129,10 +127,16 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     )
     select_box.click()
 
-    driver.click_xpath('//li[contains(text(), "SEDM")]', scroll_parent=True)
+    driver.click_xpath(
+        f'//li[contains(text(), "SEDM")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
 
     # mode select
-    driver.click_xpath('//*[@id="root_observation_type"]')
+    driver.click_xpath('//div[@id="root_observation_type"]', wait_clickable=False)
 
     # mix n match option
     driver.click_xpath('''//li[@data-value="Mix 'n Match"]''')
@@ -173,12 +177,10 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
     driver.get(f"/become_user/{super_admin_user.id}")
 
     driver.get(f"/source/{public_source.id}")
-    # wait for the plots to load
-    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
-    # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
 
-    submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
     driver.wait_for_xpath(submit_button_xpath)
 
     select_box = driver.find_element_by_id(
@@ -186,10 +188,15 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
     )
     select_box.click()
 
-    driver.click_xpath('//li[contains(text(), "SPRAT")]', scroll_parent=True)
+    driver.click_xpath(
+        f'//li[contains(text(), "SPRAT")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
 
-    photometric_option = driver.wait_for_xpath('//input[@id="root_photometric"]')
-    driver.scroll_to_element_and_click(photometric_option)
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    driver.click_xpath('//input[@id="root_photometric"]', wait_clickable=False)
 
     driver.click_xpath(submit_button_xpath)
 
@@ -218,12 +225,10 @@ def add_followup_request_using_frontend_and_verify_IOI(
     driver.get(f"/become_user/{super_admin_user.id}")
 
     driver.get(f"/source/{public_source.id}")
-    # wait for the plots to load
-    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
-    # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
 
-    submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
     driver.wait_for_xpath(submit_button_xpath)
 
     select_box = driver.find_element_by_id(
@@ -231,15 +236,19 @@ def add_followup_request_using_frontend_and_verify_IOI(
     )
     select_box.click()
 
-    driver.click_xpath('//li[contains(text(), "IOI")]', scroll_parent=True)
+    driver.click_xpath(
+        f'//li[contains(text(), "IOI")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
 
     # H band option
     driver.click_xpath(
         '//input[@id="root_observation_choices_0"]', wait_clickable=False
     )
-
-    photometric_option = driver.wait_for_xpath('//input[@id="root_photometric"]')
-    driver.scroll_to_element_and_click(photometric_option)
+    driver.click_xpath('//input[@id="root_photometric"]', wait_clickable=False)
 
     driver.click_xpath(submit_button_xpath)
 
@@ -268,12 +277,10 @@ def add_followup_request_using_frontend_and_verify_IOO(
     driver.get(f"/become_user/{super_admin_user.id}")
 
     driver.get(f"/source/{public_source.id}")
-    # wait for the plots to load
-    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
-    # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
 
-    submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
     driver.wait_for_xpath(submit_button_xpath)
 
     select_box = driver.find_element_by_id(
@@ -281,7 +288,13 @@ def add_followup_request_using_frontend_and_verify_IOO(
     )
     select_box.click()
 
-    driver.click_xpath('//li[contains(text(), "IOO")]', scroll_parent=True)
+    driver.click_xpath(
+        f'//li[contains(text(), "IOO")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
 
     # u band option
     driver.click_xpath(
@@ -293,8 +306,7 @@ def add_followup_request_using_frontend_and_verify_IOO(
         '//input[@id="root_observation_choices_4"]', wait_clickable=False
     )
 
-    photometric_option = driver.wait_for_xpath('//input[@id="root_photometric"]')
-    driver.scroll_to_element_and_click(photometric_option)
+    driver.click_xpath('//input[@id="root_photometric"]', wait_clickable=False)
 
     driver.click_xpath(submit_button_xpath)
 
@@ -312,7 +324,7 @@ def add_followup_request_using_frontend_and_verify_IOO(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -364,7 +376,9 @@ def test_edit_existing_followup_request(
     add_followup_request_using_frontend_and_verify_SEDM(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
-    edit_button = driver.wait_for_xpath(f'//button[contains(@name, "editRequest")]')
+    edit_button = driver.wait_for_xpath(
+        f'//button[contains(@data-testid, "editRequest")]'
+    )
     driver.scroll_to_element_and_click(edit_button)
     mode_select = driver.wait_for_xpath(
         '//div[@role="dialog"]//div[@id="root_observation_type"]'
@@ -375,7 +389,7 @@ def test_edit_existing_followup_request(
     driver.scroll_to_element_and_click(mix_n_match_option)
 
     submit_button = driver.wait_for_xpath(
-        '//form[@class="rjsf"]//button[@type="submit"]'
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
 
     driver.scroll_to_element_and_click(submit_button)
@@ -399,7 +413,9 @@ def test_delete_followup_request_SEDM(
     add_followup_request_using_frontend_and_verify_SEDM(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
-    delete_button = driver.wait_for_xpath(f'//button[contains(@name, "deleteRequest")]')
+    delete_button = driver.wait_for_xpath(
+        f'//button[contains(@data-testid, "deleteRequest")]'
+    )
     driver.scroll_to_element_and_click(delete_button)
 
     driver.wait_for_xpath_to_disappear(
@@ -423,7 +439,7 @@ def test_delete_followup_request_IOO(
     )
 
     driver.click_xpath(
-        f'//button[contains(@name, "deleteRequest")]', scroll_parent=True
+        f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )
 
     driver.wait_for_xpath_to_disappear(
@@ -447,7 +463,7 @@ def test_delete_followup_request_IOI(
     )
 
     driver.click_xpath(
-        f'//button[contains(@name, "deleteRequest")]', scroll_parent=True
+        f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )
 
     driver.wait_for_xpath_to_disappear(
@@ -471,7 +487,7 @@ def test_delete_followup_request_SPRAT(
     )
 
     driver.click_xpath(
-        f'//button[contains(@name, "deleteRequest")]', scroll_parent=True
+        f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )
 
     driver.wait_for_xpath_to_disappear(
@@ -504,44 +520,44 @@ def test_submit_new_followup_request_two_groups(
     driver.get(f"/become_user/{super_admin_user.id}")
 
     driver.get(f"/source/{public_source_two_groups.id}")
-    # wait for the plots to load
-    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
-    # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//span[text()="Mg"]', timeout=20)
 
-    submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
     driver.wait_for_xpath(submit_button_xpath)
 
     select_box = driver.find_element_by_id(
         "mui-component-select-followupRequestAllocationSelect"
     )
     select_box.click()
-
-    driver.wait_for_xpath('//li[@data-value="1"]')
-    for ii in range(1, 100):
-        allocation = driver.wait_for_xpath('//li[@data-value="%d"]' % ii)
-        if "SEDM" in allocation.text:
-            allocation.click()
-            break
-
-    group_select = driver.wait_for_xpath('//*[@id="selectGroups"]')
-    driver.scroll_to_element_and_click(group_select)
-
-    group1 = f'//*[@data-testid="group_{public_group.id}"]'
-    driver.click_xpath(group1, scroll_parent=True)
-
-    group2 = f'//*[@data-testid="group_{public_group2.id}"]'
-    driver.click_xpath(group2, scroll_parent=True)
+    driver.click_xpath(
+        f'//li[contains(text(), "SEDM")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
 
     # Click somewhere definitely outside the select list to remove focus from select
+    driver.click_xpath("//header")
+
+    driver.click_xpath('//*[@id="selectGroups"]', wait_clickable=False)
+
+    group1 = f'//*[@data-testid="group_{public_group.id}"]'
+    driver.click_xpath(group1, scroll_parent=True, wait_clickable=False)
+
+    group2 = f'//*[@data-testid="group_{public_group2.id}"]'
+    driver.click_xpath(group2, scroll_parent=True, wait_clickable=False)
+
+    # Click somewhere definitely outside the select list to remove focus from select
+    # The manual ActionChains click seems to close the really long select list of groups
+    # and then the second click actually takes the focus away.
     header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().pause(0.1).perform()
+    ActionChains(driver).move_to_element(header).click().perform()
+    driver.click_xpath("//header")
 
     # mode select
-    driver.click_xpath('//*[@id="root_observation_type"]')
+    driver.click_xpath('//div[@id="root_observation_type"]', wait_clickable=False)
 
     # mix n match option
-    driver.click_xpath('''//li[@data-value="Mix 'n Match"]''')
+    driver.click_xpath('''//li[@data-value="Mix 'n Match"]''', scroll_parent=True)
 
     # u band option
     driver.click_xpath(
