@@ -81,6 +81,10 @@ app:
       icon: Search
       url: /candidates
 
+    - name: Favorites
+      icon: Star
+      url: /favorites
+
     - name: Groups
       icon: GroupWork
       url: /groups

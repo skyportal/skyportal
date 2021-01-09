@@ -11,6 +11,7 @@ import * as sourceCountsActions from "./ducks/sourceCounts";
 import * as observingRunsActions from "./ducks/observingRuns";
 import * as telescopesActions from "./ducks/telescopes";
 import * as taxonomyActions from "./ducks/taxonomies";
+import * as favoritesActions from "./ducks/favorites";
 
 export default function hydrate() {
   return (dispatch) => {
@@ -28,5 +29,6 @@ export default function hydrate() {
     dispatch(observingRunsActions.fetchObservingRuns());
     dispatch(telescopesActions.fetchTelescopes());
     dispatch(taxonomyActions.fetchTaxonomies());
+    dispatch(favoritesActions.fetchFavorites());
   };
 }

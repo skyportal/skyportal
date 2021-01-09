@@ -33,6 +33,7 @@ import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
+import FavoritesButton from "./FavoritesButton";
 
 const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
@@ -100,6 +101,12 @@ export const useSourceStyles = makeStyles((theme) => ({
   alignRight: {
     display: "inline-block",
     verticalAlign: "super",
+    align: "right",
+    justify: "flex-end",
+  },
+  alignLeft: {
+    display: "inline-block",
+    verticalAlign: "super",
   },
   followupContainer: {
     display: "flex",
@@ -130,10 +137,13 @@ const SourceDesktop = ({ source }) => {
     <div className={classes.source}>
       <div className={classes.leftColumn}>
         <div className={classes.leftColumnItem}>
-          <div className={classes.alignRight}>
+          <div className={classes.alignLeft}>
             <SharePage />
           </div>
           <div className={classes.name}>{source.id}</div>
+          <div className={classes.alignRight}>
+            <FavoritesButton source_id={source.id} />
+          </div>
           <br />
           <ShowClassification
             classifications={source.classifications}

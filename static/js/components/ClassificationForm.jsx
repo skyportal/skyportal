@@ -201,7 +201,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     );
   };
   CustomGroupsWidget.propTypes = {
-    value: PropTypes.string.isRequired,
+    value: PropTypes.arrayOf(PropTypes.string).isRequired,
     onChange: PropTypes.func.isRequired,
     options: PropTypes.shape({
       enumOptions: PropTypes.arrayOf(PropTypes.shape({})),
