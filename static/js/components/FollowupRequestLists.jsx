@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
+import Button from "@material-ui/core/Button";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import { makeStyles } from "@material-ui/core/styles";
 
 import * as Actions from "../ducks/source";
@@ -11,9 +13,6 @@ const useStyles = makeStyles(() => ({
   followupRequestTable: {
     borderSpacing: "0.7em",
   },
-  container: {
-    overflowX: "scroll",
-  },
 }));
 
 const FollowupRequestLists = ({
@@ -23,8 +22,12 @@ const FollowupRequestLists = ({
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const deleteRequest = (id) => {
-    dispatch(Actions.deleteFollowupRequest(id));
+
+  const [isDeleting, setIsDeleting] = useState(null);
+  const handleDelete = async (id) => {
+    setIsDeleting(id);
+    await dispatch(Actions.deleteFollowupRequest(id));
+    setIsDeleting(null);
   };
 
   if (
@@ -71,10 +74,7 @@ const FollowupRequestLists = ({
         const modifiable = implementsEdit || implementsDelete;
 
         return (
-          <div
-            key={`instrument_${instrument_id}_table_div`}
-            className={classes.container}
-          >
+          <div key={`instrument_${instrument_id}_table_div`}>
             <h3>{instLookUp[instrument_id].name} Requests</h3>
             <table
               className={classes.followupRequestTable}
@@ -111,16 +111,26 @@ const FollowupRequestLists = ({
                       <td>{followupRequest.status}</td>
                       {modifiable && (
                         <td>
-                          {implementsDelete && (
-                            <button
-                              type="button"
-                              name={`deleteRequest_${followupRequest.id}`}
-                              onClick={() => {
-                                deleteRequest(followupRequest.id);
-                              }}
-                            >
-                              Delete
-                            </button>
+                          {implementsDelete &&
+                          isDeleting === followupRequest.id ? (
+                            <div>
+                              <CircularProgress />
+                            </div>
+                          ) : (
+                            <div>
+                              <Button
+                                onClick={() => {
+                                  handleDelete(followupRequest.id);
+                                }}
+                                size="small"
+                                color="primary"
+                                type="submit"
+                                variant="outlined"
+                                data-testid={`deleteRequest_${followupRequest.id}`}
+                              >
+                                Delete
+                              </Button>
+                            </div>
                           )}
                           {implementsEdit && (
                             <EditFollowupRequestDialog

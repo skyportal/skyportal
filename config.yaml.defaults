@@ -21,6 +21,9 @@ app:
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://pharos.caltech.edu/add_fritz
 
+  lt_host: 161.72.57.3
+  lt_port: 8080
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:

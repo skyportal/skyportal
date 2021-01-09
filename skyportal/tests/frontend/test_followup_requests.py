@@ -19,6 +19,15 @@ except requests.exceptions.ConnectTimeout:
 else:
     sedm_isonline = True
 
+url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
+lt_isonline = False
+try:
+    requests.get(url, timeout=5)
+except requests.exceptions.ConnectTimeout:
+    pass
+else:
+    lt_isonline = True
+
 
 def add_telescope_and_instrument(instrument_name, token):
     status, data = api("GET", f"instrument?name={instrument_name}", token=token)
@@ -53,7 +62,7 @@ def add_telescope_and_instrument(instrument_name, token):
             "band": "Optical",
             "telescope_id": telescope_id,
             "filters": ["ztfg"],
-            "api_classname": "SEDMAPI",
+            "api_classname": f"{instrument_name.upper()}API",
         },
         token=token,
     )
@@ -62,7 +71,7 @@ def add_telescope_and_instrument(instrument_name, token):
     return data["data"]
 
 
-def add_allocation(instrument_id, group_id, token):
+def add_allocation_sedm(instrument_id, group_id, token):
     status, data = api(
         "POST",
         "allocation",
@@ -79,26 +88,55 @@ def add_allocation(instrument_id, group_id, token):
     return data["data"]
 
 
-def add_followup_request_using_frontend_and_verify(
+def add_allocation_lt(instrument_id, group_id, token):
+    status, data = api(
+        "POST",
+        "allocation",
+        data={
+            "group_id": group_id,
+            "instrument_id": instrument_id,
+            "hours_allocated": 100,
+            "pi": "Ed Hubble",
+            "_altdata": '{"username": "fritz_bot", "password": "fX5uxZTDy3", "LT_proposalID": "GrowthTest"}',
+        },
+        token=token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    return data["data"]
+
+
+def add_followup_request_using_frontend_and_verify_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
     idata = add_telescope_and_instrument("SEDM", super_admin_token)
-    add_allocation(idata['id'], public_group.id, super_admin_token)
+    add_allocation_sedm(idata['id'], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
     driver.get(f"/source/{public_source.id}")
-    # wait for the plots to load
-    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
-    # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//span[text()="Mg"]')
 
-    submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
     driver.wait_for_xpath(submit_button_xpath)
 
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "SEDM")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
     # mode select
-    driver.click_xpath('//*[@id="root_observation_type"]')
+    driver.click_xpath('//div[@id="root_observation_type"]', wait_clickable=False)
 
     # mix n match option
     driver.click_xpath('''//li[@data-value="Mix 'n Match"]''')
@@ -128,13 +166,204 @@ def add_followup_request_using_frontend_and_verify(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+def add_followup_request_using_frontend_and_verify_SPRAT(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+
+    idata = add_telescope_and_instrument("SPRAT", super_admin_token)
+    add_allocation_lt(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "SPRAT")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    driver.click_xpath('//input[@id="root_photometric"]', wait_clickable=False)
+
+    driver.click_xpath(submit_button_xpath)
+
+    driver.wait_for_xpath(
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]',
+        timeout=20,
+    )
+    driver.wait_for_xpath(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "blue")]''',
+        timeout=20,
+    )
+    driver.wait_for_xpath(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]''',
+        timeout=20,
+    )
+
+
+def add_followup_request_using_frontend_and_verify_IOI(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+
+    idata = add_telescope_and_instrument("IOI", super_admin_token)
+    add_allocation_lt(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "IOI")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    # H band option
+    driver.click_xpath(
+        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+    )
+    driver.click_xpath('//input[@id="root_photometric"]', wait_clickable=False)
+
+    driver.click_xpath(submit_button_xpath)
+
+    driver.wait_for_xpath(
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]',
+        timeout=20,
+    )
+    driver.wait_for_xpath(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "H")]''',
+        timeout=20,
+    )
+    driver.wait_for_xpath(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]''',
+        timeout=20,
+    )
+
+
+def add_followup_request_using_frontend_and_verify_IOO(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+
+    idata = add_telescope_and_instrument("IOO", super_admin_token)
+    add_allocation_lt(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "IOO")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    # u band option
+    driver.click_xpath(
+        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+    )
+
+    # z option
+    driver.click_xpath(
+        '//input[@id="root_observation_choices_4"]', wait_clickable=False
+    )
+
+    driver.click_xpath('//input[@id="root_photometric"]', wait_clickable=False)
+
+    driver.click_xpath(submit_button_xpath)
+
+    driver.wait_for_xpath(
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]',
+        timeout=20,
+    )
+    driver.wait_for_xpath(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "u,z")]''',
+        timeout=20,
+    )
+    driver.wait_for_xpath(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]''',
+        timeout=20,
+    )
+
+
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
-def test_submit_new_followup_request(
+def test_submit_new_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
 
-    add_followup_request_using_frontend_and_verify(
+    add_followup_request_using_frontend_and_verify_SEDM(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lt_isonline, reason="LT server down")
+def test_submit_new_followup_request_IOO(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+
+    add_followup_request_using_frontend_and_verify_IOO(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lt_isonline, reason="LT server down")
+def test_submit_new_followup_request_IOI(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+
+    add_followup_request_using_frontend_and_verify_IOO(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lt_isonline, reason="LT server down")
+def test_submit_new_followup_request_SPRAT(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+
+    add_followup_request_using_frontend_and_verify_SPRAT(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -144,10 +373,12 @@ def test_submit_new_followup_request(
 def test_edit_existing_followup_request(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify(
+    add_followup_request_using_frontend_and_verify_SEDM(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
-    edit_button = driver.wait_for_xpath(f'//button[contains(@name, "editRequest")]')
+    edit_button = driver.wait_for_xpath(
+        f'//button[contains(@data-testid, "editRequest")]'
+    )
     driver.scroll_to_element_and_click(edit_button)
     mode_select = driver.wait_for_xpath(
         '//div[@role="dialog"]//div[@id="root_observation_type"]'
@@ -158,7 +389,7 @@ def test_edit_existing_followup_request(
     driver.scroll_to_element_and_click(mix_n_match_option)
 
     submit_button = driver.wait_for_xpath(
-        '//form[@class="rjsf"]//button[@type="submit"]'
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
     )
 
     driver.scroll_to_element_and_click(submit_button)
@@ -176,13 +407,15 @@ def test_edit_existing_followup_request(
 
 @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason='SEDM server down')
-def test_delete_followup_request(
+def test_delete_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-    add_followup_request_using_frontend_and_verify(
+    add_followup_request_using_frontend_and_verify_SEDM(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
-    delete_button = driver.wait_for_xpath(f'//button[contains(@name, "deleteRequest")]')
+    delete_button = driver.wait_for_xpath(
+        f'//button[contains(@data-testid, "deleteRequest")]'
+    )
     driver.scroll_to_element_and_click(delete_button)
 
     driver.wait_for_xpath_to_disappear(
@@ -196,7 +429,79 @@ def test_delete_followup_request(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lt_isonline, reason="LT server down")
+def test_delete_followup_request_IOO(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    add_followup_request_using_frontend_and_verify_IOO(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+    driver.click_xpath(
+        f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
+    )
+
+    driver.wait_for_xpath_to_disappear(
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]'
+    )
+    driver.wait_for_xpath_to_disappear(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "u,z")]'''
+    )
+    driver.wait_for_xpath_to_disappear(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lt_isonline, reason="LT server down")
+def test_delete_followup_request_IOI(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    add_followup_request_using_frontend_and_verify_IOI(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+    driver.click_xpath(
+        f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
+    )
+
+    driver.wait_for_xpath_to_disappear(
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]'
+    )
+    driver.wait_for_xpath_to_disappear(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "H")]'''
+    )
+    driver.wait_for_xpath_to_disappear(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lt_isonline, reason="LT server down")
+def test_delete_followup_request_SPRAT(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    add_followup_request_using_frontend_and_verify_SPRAT(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+    driver.click_xpath(
+        f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
+    )
+
+    driver.wait_for_xpath_to_disappear(
+        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]'
+    )
+    driver.wait_for_xpath_to_disappear(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "blue")]'''
+    )
+    driver.wait_for_xpath_to_disappear(
+        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+    )
+
+
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_two_groups(
     driver,
@@ -210,37 +515,49 @@ def test_submit_new_followup_request_two_groups(
 ):
 
     idata = add_telescope_and_instrument("SEDM", super_admin_token)
-    add_allocation(idata['id'], public_group.id, super_admin_token)
+    add_allocation_sedm(idata['id'], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
     driver.get(f"/source/{public_source_two_groups.id}")
-    # wait for the plots to load
-    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
-    # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//span[text()="Mg"]', timeout=20)
 
-    submit_button_xpath = '//form[@class="rjsf"]//button[@type="submit"]'
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
     driver.wait_for_xpath(submit_button_xpath)
 
-    group_select = '//*[@id="selectGroups"]'
-    driver.click_xpath(group_select)
-
-    group1 = f'//*[@data-testid="group_{public_group.id}"]'
-    driver.click_xpath(group1, scroll_parent=True)
-
-    group2 = f'//*[@data-testid="group_{public_group2.id}"]'
-    driver.click_xpath(group2, scroll_parent=True)
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+    driver.click_xpath(
+        f'//li[contains(text(), "SEDM")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
 
     # Click somewhere definitely outside the select list to remove focus from select
+    driver.click_xpath("//header")
+
+    driver.click_xpath('//*[@id="selectGroups"]', wait_clickable=False)
+
+    group1 = f'//*[@data-testid="group_{public_group.id}"]'
+    driver.click_xpath(group1, scroll_parent=True, wait_clickable=False)
+
+    group2 = f'//*[@data-testid="group_{public_group2.id}"]'
+    driver.click_xpath(group2, scroll_parent=True, wait_clickable=False)
+
+    # Click somewhere definitely outside the select list to remove focus from select
+    # The manual ActionChains click seems to close the really long select list of groups
+    # and then the second click actually takes the focus away.
     header = driver.wait_for_xpath("//header")
-    ActionChains(driver).move_to_element(header).click().pause(0.1).perform()
+    ActionChains(driver).move_to_element(header).click().perform()
+    driver.click_xpath("//header")
 
     # mode select
-    driver.click_xpath('//*[@id="root_observation_type"]')
+    driver.click_xpath('//div[@id="root_observation_type"]', wait_clickable=False)
 
     # mix n match option
-    driver.click_xpath('''//li[@data-value="Mix 'n Match"]''')
+    driver.click_xpath('''//li[@data-value="Mix 'n Match"]''', scroll_parent=True)
 
     # u band option
     driver.click_xpath(
