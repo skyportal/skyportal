@@ -74,6 +74,9 @@ utcnow = func.timezone('UTC', func.current_timestamp())
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
 
+# The minimum signal-to-noise ratio to consider a photometry point as a detection
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
+
 
 def get_app_base_url():
     ports_to_ignore = {True: 443, False: 80}  # True/False <-> server.ssl=True/False
@@ -550,7 +553,7 @@ class Obj(Base, ha.Point):
     detect_photometry_count = sa.Column(
         sa.Integer,
         nullable=True,
-        doc="How many times the object was detected above :math:`S/N = 5`.",
+        doc="How many times the object was detected above :math:`S/N = phot_detection_threshold (3.0 by default)`.",
     )
 
     spectra = relationship(
@@ -589,43 +592,43 @@ class Obj(Base, ha.Point):
 
     @hybrid_property
     def last_detected_at(self):
-        """UTC ISO date at which the object was last detected above a S/N of 5."""
+        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
         detections = [
             phot.iso
             for phot in self.photometry
-            if phot.snr is not None and phot.snr > 5
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
         ]
         return max(detections) if detections else None
 
     @last_detected_at.expression
     def last_detected_at(cls):
-        """UTC ISO date at which the object was last detected above a S/N of 5."""
+        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
         return (
             sa.select([sa.func.max(Photometry.iso)])
             .where(Photometry.obj_id == cls.id)
             .where(Photometry.snr.isnot(None))
-            .where(Photometry.snr > 5.0)
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
             .label('last_detected_at')
         )
 
     @hybrid_property
     def last_detected_mag(self):
-        """Magnitude at which the object was last detected above a S/N of 5."""
+        """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
         detections = [
             (phot.iso, phot.mag)
             for phot in self.photometry
-            if phot.snr is not None and phot.snr > 5
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
         ]
         return max(detections, key=(lambda x: x[0]))[1] if detections else None
 
     @last_detected_mag.expression
     def last_detected_mag(cls):
-        """Magnitude at which the object was last detected above a S/N of 5."""
+        """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
         last_detected = (
             sa.select([cls.id, sa.func.max(Photometry.mjd).label("max_mjd")])
             .where(Photometry.obj_id == cls.id)
             .where(Photometry.snr.isnot(None))
-            .where(Photometry.snr > 5.0)
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
             .group_by(cls.id)
             .alias()
         )
@@ -633,7 +636,7 @@ class Obj(Base, ha.Point):
             sa.select([Photometry.mag])
             .where(Photometry.obj_id == cls.id)
             .where(Photometry.snr.isnot(None))
-            .where(Photometry.snr > 5.0)
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
             .where(cls.id == last_detected.c.id)
             .where(Photometry.mjd == last_detected.c.max_mjd)
             .label('last_detected_mag')
@@ -641,22 +644,22 @@ class Obj(Base, ha.Point):
 
     @hybrid_property
     def peak_detected_at(self):
-        """UTC ISO date at which the object was detected at peak magnitude above a S/N of 5."""
+        """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
         detections = [
             (phot.iso, phot.mag)
             for phot in self.photometry
-            if phot.snr is not None and phot.snr > 5
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
         ]
         return max(detections, key=(lambda x: x[1]))[0] if detections else None
 
     @peak_detected_at.expression
     def peak_detected_at(cls):
-        """UTC ISO date at which the object was detected at peak magnitude above a S/N of 5."""
+        """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
         return (
             sa.select([Photometry.iso])
             .where(Photometry.obj_id == cls.id)
             .where(Photometry.snr.isnot(None))
-            .where(Photometry.snr > 5.0)
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
             .order_by(Photometry.mag.desc())
             .limit(1)
             .label('peak_detected_at')
@@ -664,22 +667,22 @@ class Obj(Base, ha.Point):
 
     @hybrid_property
     def peak_detected_mag(self):
-        """Peak magnitude at which the object was detected above a S/N of 5."""
+        """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
         detections = [
             phot.mag
             for phot in self.photometry
-            if phot.snr is not None and phot.snr > 5
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
         ]
         return max(detections) if detections else None
 
     @peak_detected_mag.expression
     def peak_detected_mag(cls):
-        """Peak magnitude at which the object was detected above a S/N of 5."""
+        """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
         return (
             sa.select([sa.func.max(Photometry.mag)])
             .where(Photometry.obj_id == cls.id)
             .where(Photometry.snr.isnot(None))
-            .where(Photometry.snr > 5.0)
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
             .label('peak_detected_mag')
         )
 
