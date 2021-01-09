@@ -588,7 +588,7 @@ class Obj(Base, ha.Point):
     )
 
     @hybrid_property
-    def last_detected(self):
+    def last_detected_at(self):
         """UTC ISO date at which the object was last detected above a S/N of 5."""
         detections = [
             phot.iso
@@ -597,16 +597,90 @@ class Obj(Base, ha.Point):
         ]
         return max(detections) if detections else None
 
-    @last_detected.expression
-    def last_detected(cls):
+    @last_detected_at.expression
+    def last_detected_at(cls):
         """UTC ISO date at which the object was last detected above a S/N of 5."""
         return (
             sa.select([sa.func.max(Photometry.iso)])
             .where(Photometry.obj_id == cls.id)
             .where(Photometry.snr.isnot(None))
             .where(Photometry.snr > 5.0)
-            .group_by(Photometry.obj_id)
-            .label('last_detected')
+            .label('last_detected_at')
+        )
+
+    @hybrid_property
+    def last_detected_mag(self):
+        """Magnitude at which the object was last detected above a S/N of 5."""
+        detections = [
+            (phot.iso, phot.mag)
+            for phot in self.photometry
+            if phot.snr is not None and phot.snr > 5
+        ]
+        return max(detections, key=(lambda x: x[0]))[1] if detections else None
+
+    @last_detected_mag.expression
+    def last_detected_mag(cls):
+        """Magnitude at which the object was last detected above a S/N of 5."""
+        last_detected = (
+            sa.select([cls.id, sa.func.max(Photometry.mjd).label("max_mjd")])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > 5.0)
+            .group_by(cls.id)
+            .alias()
+        )
+        return (
+            sa.select([Photometry.mag])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > 5.0)
+            .where(cls.id == last_detected.c.id)
+            .where(Photometry.mjd == last_detected.c.max_mjd)
+            .label('last_detected_mag')
+        )
+
+    @hybrid_property
+    def peak_detected_at(self):
+        """UTC ISO date at which the object was detected at peak magnitude above a S/N of 5."""
+        detections = [
+            (phot.iso, phot.mag)
+            for phot in self.photometry
+            if phot.snr is not None and phot.snr > 5
+        ]
+        return max(detections, key=(lambda x: x[1]))[0] if detections else None
+
+    @peak_detected_at.expression
+    def peak_detected_at(cls):
+        """UTC ISO date at which the object was detected at peak magnitude above a S/N of 5."""
+        return (
+            sa.select([Photometry.iso])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > 5.0)
+            .order_by(Photometry.mag.desc())
+            .limit(1)
+            .label('peak_detected_at')
+        )
+
+    @hybrid_property
+    def peak_detected_mag(self):
+        """Peak magnitude at which the object was detected above a S/N of 5."""
+        detections = [
+            phot.mag
+            for phot in self.photometry
+            if phot.snr is not None and phot.snr > 5
+        ]
+        return max(detections) if detections else None
+
+    @peak_detected_mag.expression
+    def peak_detected_mag(cls):
+        """Peak magnitude at which the object was detected above a S/N of 5."""
+        return (
+            sa.select([sa.func.max(Photometry.mag)])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > 5.0)
+            .label('peak_detected_mag')
         )
 
     def add_linked_thumbnails(self):
@@ -2122,7 +2196,15 @@ class Photometry(Base, ha.Point):
     @snr.expression
     def snr(self):
         """Signal-to-noise ratio of this Photometry point."""
-        return self.flux / self.fluxerr
+        return sa.case(
+            [
+                (
+                    sa.and_(self.flux != 'NaN', self.fluxerr != 0),  # noqa
+                    self.flux / self.fluxerr,
+                )
+            ],
+            else_=None,
+        )
 
 
 Photometry.is_modifiable_by = is_modifiable_by

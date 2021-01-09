@@ -36,6 +36,7 @@ from skyportal.models import (
     User,
     Allocation,
     FollowupRequest,
+    Obj,
 )
 
 import astroplan
@@ -224,6 +225,15 @@ def public_source_two_groups(public_group, public_group2):
 def public_source_group2(public_group2):
     obj = ObjFactory(groups=[public_group2])
     DBSession.add(Source(obj_id=obj.id, group_id=public_group2.id))
+    DBSession.commit()
+    return obj
+
+
+@pytest.fixture()
+def public_source_no_data(public_group):
+    obj = Obj(id=str(uuid.uuid4()), ra=0.0, dec=0.0, redshift=0.0,)
+    DBSession.add(obj)
+    DBSession.add(Source(obj_id=obj.id, group_id=public_group.id))
     DBSession.commit()
     return obj
 
