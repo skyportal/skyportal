@@ -18,6 +18,7 @@ from matplotlib import cm
 from matplotlib.colors import rgb2hex
 
 import os
+from baselayer.app.env import load_env
 from skyportal.models import (
     DBSession,
     Obj,
@@ -32,8 +33,9 @@ from skyportal.models import (
 
 import sncosmo
 
-
-DETECT_THRESH = 3  # sigma
+_, cfg = load_env()
+# The minimum signal-to-noise ratio to consider a photometry point as a detection
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 SPEC_LINES = {
     'H': ([3970, 4102, 4341, 4861, 6563], '#ff0000'),
@@ -189,7 +191,9 @@ def photometry_plot(obj_id, user, width=600, height=300):
     data['zp'] = PHOT_ZP
     data['magsys'] = 'ab'
     data['alpha'] = 1.0
-    data['lim_mag'] = -2.5 * np.log10(data['fluxerr'] * DETECT_THRESH) + data['zp']
+    data['lim_mag'] = (
+        -2.5 * np.log10(data['fluxerr'] * PHOT_DETECTION_THRESHOLD) + data['zp']
+    )
 
     # Passing a dictionary to a bokeh datasource causes the frontend to die,
     # deleting the dictionary column fixes that
@@ -200,9 +204,9 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
     # calculate the magnitudes - a photometry point is considered "significant"
     # or "detected" (and thus can be represented by a magnitude) if its snr
-    # is above DETECT_THRESH
+    # is above PHOT_DETECTION_THRESHOLD
     obsind = data['hasflux'] & (
-        data['flux'].fillna(0.0) / data['fluxerr'] >= DETECT_THRESH
+        data['flux'].fillna(0.0) / data['fluxerr'] >= PHOT_DETECTION_THRESHOLD
     )
     data.loc[~obsind, 'mag'] = None
     data.loc[obsind, 'mag'] = -2.5 * np.log10(data[obsind]['flux']) + PHOT_ZP
@@ -348,7 +352,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         )
         .read()
         .replace('default_zp', str(PHOT_ZP))
-        .replace('detect_thresh', str(DETECT_THRESH)),
+        .replace('detect_thresh', str(PHOT_DETECTION_THRESHOLD)),
     )
 
     slider.js_on_change('value', callback)
@@ -667,7 +671,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         )
         .read()
         .replace('default_zp', str(PHOT_ZP))
-        .replace('detect_thresh', str(DETECT_THRESH)),
+        .replace('detect_thresh', str(PHOT_DETECTION_THRESHOLD)),
     )
     slider.js_on_change('value', callback)
 
@@ -705,7 +709,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     for i, s in enumerate(spectra):
 
         # normalize spectra to a median flux of 1 for easy comparison
-        normfac = np.nanmedian(s.fluxes)
+        normfac = np.nanmedian(np.abs(s.fluxes))
+        normfac = normfac if normfac != 0.0 else 1e-20
 
         df = pd.DataFrame(
             {

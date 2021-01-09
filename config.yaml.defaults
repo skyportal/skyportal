@@ -21,6 +21,9 @@ app:
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://pharos.caltech.edu/add_fritz
 
+  lt_host: 161.72.57.3
+  lt_port: 8080
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
@@ -256,6 +259,10 @@ misc:
   # the user-supplied cosmology parameter set constructs the site-wide cosmology.
   cosmology: Planck18_arXiv_v2
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
+
+  # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
+  # consider a photometry point as a detection
+  photometry_detection_threshold_nsigma: 3.0
 
 weather:
   # time in seconds to wait before fetching weather for a given telescope

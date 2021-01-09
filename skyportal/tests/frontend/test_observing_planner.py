@@ -28,7 +28,9 @@ def test_source_is_added_to_observing_run_via_frontend(
 ):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
-    run_select = driver.wait_for_xpath('//*[@data-testid="assignmentSelect"]')
+    run_select = driver.wait_for_xpath(
+        '//*[@data-testid="assignmentSelect"]', timeout=20
+    )
     driver.scroll_to_element_and_click(run_select)
     observingrun_title = (
         f"{red_transients_run.calendar_date} "

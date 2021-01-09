@@ -11,6 +11,9 @@ server:
     google_oauth2_key:
     google_oauth2_secret:
 
+misc:
+  photometry_detection_threshold_nsigma: 3.0
+
 twilio:
   # Twilio Sendgrid API configs
   # This needs to be set to a valid, Sendgrid-registered address in config.yaml
