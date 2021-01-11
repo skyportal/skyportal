@@ -824,7 +824,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     z_slider = Slider(
         value=obj.redshift if obj.redshift is not None else 0.0,
         start=0.0,
-        end=1.0,
+        end=2.0,
         step=0.001,
         show_value=False,
         format="0[.]000",
