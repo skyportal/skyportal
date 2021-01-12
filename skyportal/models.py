@@ -2851,7 +2851,7 @@ FollowupRequestTargetGroup.create = (
     FollowupRequestTargetGroup.update
 ) = FollowupRequestTargetGroup.delete = (
     AccessibleIfUserMatches('followuprequest.requester')
-    & FollowupRequestTargetGroup.read,
+    & FollowupRequestTargetGroup.read
 )
 
 
