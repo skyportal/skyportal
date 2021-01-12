@@ -51,7 +51,6 @@ from baselayer.app.models import (  # noqa
     accessible_by_owner,
     restricted,
     public,
-    ComposedAccessControl,
     AccessibleIfRelatedRowsAreAccessible,
 )
 from skyportal import facility_apis
@@ -373,8 +372,8 @@ class Group(Base):
 
 GroupUser = join_model('group_users', Group, User)
 GroupUser.__doc__ = "Join table mapping `Group`s to `User`s."
-GroupUser.create = GroupUser.update = GroupUser.delete = ComposedAccessControl(
-    accessible_by_group_admins, GroupUser.read
+GroupUser.create = GroupUser.update = GroupUser.delete = (
+    accessible_by_group_admins & GroupUser.read
 )
 
 GroupUser.admin = sa.Column(
@@ -475,8 +474,8 @@ class Stream(Base):
 
 GroupStream = join_model('group_streams', Group, Stream)
 GroupStream.__doc__ = "Join table mapping Groups to Streams."
-GroupStream.create = GroupStream.update = GroupStream.delete = ComposedAccessControl(
-    accessible_by_group_admins, GroupStream.read
+GroupStream.create = GroupStream.update = GroupStream.delete = (
+    accessible_by_group_admins & GroupStream.read
 )
 
 
@@ -1170,8 +1169,8 @@ User.listings = relationship(
 
 
 Source = join_model("sources", Group, Obj)
-Source.create = Source.read = Source.update = Source.delete = ComposedAccessControl(
-    accessible_by_group_members, Source.read
+Source.create = Source.read = Source.update = Source.delete = (
+    accessible_by_group_members & Source.read
 )
 
 Source.__doc__ = (
@@ -1812,9 +1811,9 @@ class Instrument(Base):
 class Allocation(Base):
     """An allocation of observing time on a robotic instrument."""
 
-    create = read = update = delete = ComposedAccessControl(
-        accessible_by_group_members,
-        AccessibleIfRelatedRowsAreAccessible(instrument='read'),
+    create = read = update = delete = (
+        accessible_by_group_members
+        & AccessibleIfRelatedRowsAreAccessible(instrument='read')
     )
 
     pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
@@ -1930,8 +1929,8 @@ class Taxonomy(Base):
 
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
-GroupTaxonomy.delete = GroupTaxonomy.update = ComposedAccessControl(
-    accessible_by_group_admins, GroupTaxonomy.read
+GroupTaxonomy.delete = GroupTaxonomy.update = (
+    accessible_by_group_admins & GroupTaxonomy.read
 )
 
 
@@ -1972,8 +1971,8 @@ class Comment(Base):
 
     create = AccessibleIfRelatedRowsAreAccessible(obj='read')
 
-    read = ComposedAccessControl(
-        accessible_by_groups_members, AccessibleIfRelatedRowsAreAccessible(obj='read'),
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read'
     )
 
     update = delete = AccessibleIfUserMatches('author')
@@ -2044,8 +2043,8 @@ class Comment(Base):
 
 GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
-GroupComment.delete = GroupComment.update = ComposedAccessControl(
-    accessible_by_group_admins, GroupComment.read
+GroupComment.delete = GroupComment.update = (
+    accessible_by_group_admins & GroupComment.read
 )
 
 User.comments = relationship(
@@ -2058,8 +2057,8 @@ class Annotation(Base):
     with a set of data as JSON"""
 
     create = AccessibleIfRelatedRowsAreAccessible(obj='read')
-    read = ComposedAccessControl(
-        accessible_by_groups_members, AccessibleIfRelatedRowsAreAccessible(obj='read')
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read'
     )
     update = delete = AccessibleIfUserMatches('author')
 
@@ -2132,8 +2131,8 @@ class Annotation(Base):
 
 GroupAnnotation = join_model("group_annotations", Group, Annotation)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
-GroupAnnotation.delete = GroupAnnotation.update = ComposedAccessControl(
-    accessible_by_group_admins, GroupAnnotation.read
+GroupAnnotation.delete = GroupAnnotation.update = (
+    accessible_by_group_admins & GroupAnnotation.read
 )
 
 User.annotations = relationship(
@@ -2152,9 +2151,7 @@ class Classification(Base):
     """Classification of an Obj."""
 
     create = ok_if_tax_and_obj_readable
-    read = ComposedAccessControl(
-        accessible_by_groups_members, ok_if_tax_and_obj_readable
-    )
+    read = accessible_by_groups_members & ok_if_tax_and_obj_readable
     update = delete = AccessibleIfUserMatches('author')
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
@@ -2207,8 +2204,8 @@ class Classification(Base):
 
 GroupClassification = join_model("group_classifications", Group, Classification)
 GroupClassification.__doc__ = "Join table mapping Groups to Classifications."
-GroupClassification.delete = GroupClassification.update = ComposedAccessControl(
-    accessible_by_group_admins, GroupClassification.read
+GroupClassification.delete = GroupClassification.update = (
+    accessible_by_group_admins & GroupClassification.read
 )
 
 
@@ -2433,8 +2430,8 @@ User.photometry = relationship(
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
-GroupPhotometry.delete = GroupPhotometry.update = ComposedAccessControl(
-    accessible_by_group_admins, GroupPhotometry.read
+GroupPhotometry.delete = GroupPhotometry.update = (
+    accessible_by_group_admins & GroupPhotometry.read
 )
 
 
@@ -2729,8 +2726,8 @@ SpectrumObserver.create = (
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
-GroupSpectrum.update = GroupSpectrum.delete = ComposedAccessControl(
-    accessible_by_group_admins, GroupSpectrum.read
+GroupSpectrum.update = GroupSpectrum.delete = (
+    accessible_by_group_admins & GroupSpectrum.read
 )
 
 
@@ -2753,14 +2750,10 @@ class FollowupRequest(Base):
 
     # TODO: Make read-accessible via target groups
     create = read = AccessibleIfRelatedRowsAreAccessible(obj="read", allocation="read")
-    update = delete = ComposedAccessControl(
-        ComposedAccessControl(
-            AccessibleIfUserMatches('allocation.group.users'),
-            AccessibleIfUserMatches('requester'),
-            logic='or',
-        ),
-        read,
-    )
+    update = delete = (
+        AccessibleIfUserMatches('allocation.group.users')
+        | AccessibleIfUserMatches('requester')
+    ) & read
 
     requester_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -2856,9 +2849,9 @@ class FollowupRequest(Base):
 FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
 FollowupRequestTargetGroup.create = (
     FollowupRequestTargetGroup.update
-) = FollowupRequestTargetGroup.delete = ComposedAccessControl(
-    AccessibleIfUserMatches('followuprequest.requester'),
-    FollowupRequestTargetGroup.read,
+) = FollowupRequestTargetGroup.delete = (
+    AccessibleIfUserMatches('followuprequest.requester')
+    & FollowupRequestTargetGroup.read,
 )
 
 
@@ -3283,9 +3276,7 @@ def send_user_invite_email(mapper, connection, target):
 
 class SourceNotification(Base):
 
-    create = read = ComposedAccessControl(
-        AccessibleIfRelatedRowsAreAccessible(source='read'),
-    )
+    create = read = AccessibleIfRelatedRowsAreAccessible(source='read')
     update = delete = AccessibleIfUserMatches('sent_by')
 
     groups = relationship(
@@ -3324,10 +3315,8 @@ GroupSourceNotification = join_model('group_notifications', Group, SourceNotific
 GroupSourceNotification.create = (
     GroupSourceNotification.read
 ) = accessible_by_group_members
-GroupSourceNotification.update = GroupSourceNotification.delete = ComposedAccessControl(
-    accessible_by_group_admins,
-    AccessibleIfUserMatches('sourcenotification.sent_by'),
-    logic='or',
+GroupSourceNotification.update = GroupSourceNotification.delete = (
+    accessible_by_group_admins | AccessibleIfUserMatches('sourcenotification.sent_by'),
 )
 
 User.source_notifications = relationship(
