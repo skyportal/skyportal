@@ -482,7 +482,7 @@ class CandidateHandler(BaseHandler):
             # Don't apply the order by just yet. Save it so we can pass it to
             # the LIMT/OFFSET helper function down the line once other query
             # params are set.
-            order_by = [Obj.last_detected.desc().nullslast(), Obj.id]
+            order_by = [Obj.last_detected_at.desc().nullslast(), Obj.id]
 
         if saved_status in [
             "savedToAllSelected",
