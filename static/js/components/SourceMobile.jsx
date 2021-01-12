@@ -118,7 +118,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
   followupContainer: {
     display: "flex",
-    overflowX: "scroll",
+    overflow: "hidden",
     flexDirection: "column",
     minWidth: 0,
   },
