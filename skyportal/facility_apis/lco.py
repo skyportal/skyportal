@@ -740,7 +740,7 @@ class SPECTRALAPI(LCOAPI):
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            if requestgroup['requests']['target']["dec"] > 17:
+            if requestgroup['requests']['target']["dec"] < 17:
                 request.status = f'rejected: Spectral only available in South.'
             else:
                 request.status = f'rejected: {r.content}'
