@@ -187,7 +187,15 @@ def photometry_plot(obj_id, user, width=600, height=300):
         return None, None, None
 
     data['color'] = [get_color(f) for f in data['filter']]
-    data['label'] = [f'{i}/{f}' for i, f in zip(data['instrument'], data['filter'])]
+
+    labels = []
+    for i, datarow in data.iterrows():
+        label = f'{datarow["instrument"]}/{datarow["filter"]}'
+        if datarow['origin'] is not None:
+            label += f'/{datarow["origin"]}'
+        labels.append(label)
+
+    data['label'] = labels
     data['zp'] = PHOT_ZP
     data['magsys'] = 'ab'
     data['alpha'] = 1.0
@@ -816,7 +824,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     z_slider = Slider(
         value=obj.redshift if obj.redshift is not None else 0.0,
         start=0.0,
-        end=1.0,
+        end=3.0,
         step=0.001,
         show_value=False,
         format="0[.]000",

@@ -243,7 +243,9 @@ class GroupHandler(BaseHandler):
                               description: New group ID
         """
         data = self.get_json()
-        if data.get("name") is None:
+        if data.get("name") is None or (
+            isinstance(data.get("name"), str) and data.get("name").strip() == ""
+        ):
             return self.error("Missing required parameter: `name`")
 
         try:
