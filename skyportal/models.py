@@ -3315,9 +3315,9 @@ GroupSourceNotification = join_model('group_notifications', Group, SourceNotific
 GroupSourceNotification.create = (
     GroupSourceNotification.read
 ) = accessible_by_group_members
-GroupSourceNotification.update = GroupSourceNotification.delete = (
-    accessible_by_group_admins | AccessibleIfUserMatches('sourcenotification.sent_by'),
-)
+GroupSourceNotification.update = (
+    GroupSourceNotification.delete
+) = accessible_by_group_admins | AccessibleIfUserMatches('sourcenotification.sent_by')
 
 User.source_notifications = relationship(
     'SourceNotification',
