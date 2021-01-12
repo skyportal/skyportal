@@ -167,6 +167,41 @@ accessible_by_members = AccessibleIfUserMatches('users')
 
 
 class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
+    def __init__(self, relationship_chain):
+        """A class that grants access to users related to a specific record
+        through a chain of relationships. The relationship chain must
+        contain a relationship called `group_users` and matches are only
+        valid if the `admin` property of the corresponding `group_users` rows
+        are true.
+
+        Parameters
+        ----------
+        relationship_chain: str
+            The chain of relationships to check the User or Token against in
+            `query_accessible_rows`. Should be specified as
+
+            >>>> f'{relationship1_name}.{relationship2_name}...{relationshipN_name}'
+
+            The first relationship should be defined on the target class, and
+            each subsequent relationship should be defined on the class pointed
+            to by the previous relationship. If the querying user matches any
+            record pointed to by the final relationship, the logic will grant
+            access to the querying user.
+
+        Examples
+        --------
+
+        Grant access if the querying user is an admin of any of the record's
+        groups:
+
+            >>>> AccessibleIfGroupUserIsAdminAndUserMatches('groups.group_users.user')
+
+        Grant access if the querying user is an admin of the record's group:
+
+            >>>> AccessibleIfUserMatches('group.group_users.user')
+        """
+        self.relationship_chain = relationship_chain
+
     @property
     def relationship_key(self):
         return self._relationship_key
@@ -185,6 +220,25 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
         self._relationship_key = value
 
     def query_accessible_rows(self, cls, user_or_token, columns=None):
+        """Construct a Query object that, when executed, returns the rows of a
+        specified table that are accessible to a specified user or token.
+
+        Parameters
+        ----------
+        cls: `baselayer.app.models.DeclarativeMeta`
+            The mapped class of the target table.
+        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
+            The User or Token to check.
+        columns: list of sqlalchemy.Column, optional, default None
+            The columns to retrieve from the target table. If None, queries
+            the mapped class directly and returns mapped instances.
+
+        Returns
+        -------
+        query: sqlalchemy.Query
+            Query for the accessible rows.
+        """
+
         query = super().query_accessible_rows(cls, user_or_token, columns=columns)
         if not user_or_token.is_admin:
             # this avoids name collisions
