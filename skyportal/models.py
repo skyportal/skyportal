@@ -21,6 +21,8 @@ from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_utils import URLType, EmailType
+from sqlalchemy_utils.types import JSONType
+from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
 from sqlalchemy import func
 
 from twilio.rest import Client as TwilioClient
@@ -71,6 +73,9 @@ utcnow = func.timezone('UTC', func.current_timestamp())
 
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
+
+# The minimum signal-to-noise ratio to consider a photometry point as a detection
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 
 def get_app_base_url():
@@ -548,7 +553,7 @@ class Obj(Base, ha.Point):
     detect_photometry_count = sa.Column(
         sa.Integer,
         nullable=True,
-        doc="How many times the object was detected above :math:`S/N = 5`.",
+        doc="How many times the object was detected above :math:`S/N = phot_detection_threshold (3.0 by default)`.",
     )
 
     spectra = relationship(
@@ -586,20 +591,99 @@ class Obj(Base, ha.Point):
     )
 
     @hybrid_property
-    def last_detected(self):
-        """UTC ISO date at which the object was last detected above a S/N of 5."""
-        detections = [phot.iso for phot in self.photometry if phot.snr and phot.snr > 5]
+    def last_detected_at(self):
+        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
+        detections = [
+            phot.iso
+            for phot in self.photometry
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
+        ]
         return max(detections) if detections else None
 
-    @last_detected.expression
-    def last_detected(cls):
-        """UTC ISO date at which the object was last detected above a S/N of 5."""
+    @last_detected_at.expression
+    def last_detected_at(cls):
+        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
         return (
             sa.select([sa.func.max(Photometry.iso)])
             .where(Photometry.obj_id == cls.id)
-            .where(Photometry.snr > 5.0)
-            .group_by(Photometry.obj_id)
-            .label('last_detected')
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .label('last_detected_at')
+        )
+
+    @hybrid_property
+    def last_detected_mag(self):
+        """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
+        detections = [
+            (phot.iso, phot.mag)
+            for phot in self.photometry
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
+        ]
+        return max(detections, key=(lambda x: x[0]))[1] if detections else None
+
+    @last_detected_mag.expression
+    def last_detected_mag(cls):
+        """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
+        last_detected = (
+            sa.select([cls.id, sa.func.max(Photometry.mjd).label("max_mjd")])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .group_by(cls.id)
+            .alias()
+        )
+        return (
+            sa.select([Photometry.mag])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .where(cls.id == last_detected.c.id)
+            .where(Photometry.mjd == last_detected.c.max_mjd)
+            .label('last_detected_mag')
+        )
+
+    @hybrid_property
+    def peak_detected_at(self):
+        """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
+        detections = [
+            (phot.iso, phot.mag)
+            for phot in self.photometry
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
+        ]
+        return max(detections, key=(lambda x: x[1]))[0] if detections else None
+
+    @peak_detected_at.expression
+    def peak_detected_at(cls):
+        """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
+        return (
+            sa.select([Photometry.iso])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .order_by(Photometry.mag.desc())
+            .limit(1)
+            .label('peak_detected_at')
+        )
+
+    @hybrid_property
+    def peak_detected_mag(self):
+        """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
+        detections = [
+            phot.mag
+            for phot in self.photometry
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
+        ]
+        return max(detections) if detections else None
+
+    @peak_detected_mag.expression
+    def peak_detected_mag(cls):
+        """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
+        return (
+            sa.select([sa.func.max(Photometry.mag)])
+            .where(Photometry.obj_id == cls.id)
+            .where(Photometry.snr.isnot(None))
+            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .label('peak_detected_mag')
         )
 
     def add_linked_thumbnails(self):
@@ -949,6 +1033,14 @@ def candidate_is_readable_by(self, user_or_token):
 
 Candidate.get_obj_if_readable_by = get_candidate_if_readable_by
 Candidate.is_readable_by = candidate_is_readable_by
+
+
+User.listings = relationship(
+    'Listing',
+    back_populates='user',
+    passive_deletes=True,
+    doc='The listings saved by this user',
+)
 
 
 Source = join_model("sources", Group, Obj)
@@ -1629,6 +1721,21 @@ class Allocation(Base):
         doc="The Instrument the allocation is associated with.",
     )
 
+    _altdata = sa.Column(
+        EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5')
+    )
+
+    @property
+    def altdata(self):
+        if self._altdata is None:
+            return {}
+        else:
+            return json.loads(self._altdata)
+
+    @altdata.setter
+    def altdata(self, value):
+        self._altdata = value
+
 
 class Taxonomy(Base):
     """An ontology within which Objs can be classified."""
@@ -1790,7 +1897,7 @@ User.comments = relationship("Comment", back_populates="author")
 
 class Annotation(Base):
     """A sortable/searchable Annotation made by a filter or other robot,
-    with a set of data as JSON """
+    with a set of data as JSON"""
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
@@ -2023,7 +2130,7 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def mag(self):
         """The magnitude of the photometry point in the AB system."""
-        if self.flux is not None and self.flux > 0:
+        if not np.isnan(self.flux) and self.flux > 0:
             return -2.5 * np.log10(self.flux) + PHOT_ZP
         else:
             return None
@@ -2031,7 +2138,7 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def e_mag(self):
         """The error on the magnitude of the photometry point."""
-        if self.flux is not None and self.flux > 0 and self.fluxerr > 0:
+        if not np.isnan(self.flux) and self.flux > 0 and self.fluxerr > 0:
             return (2.5 / np.log(10)) * (self.fluxerr / self.flux)
         else:
             return None
@@ -2042,7 +2149,7 @@ class Photometry(Base, ha.Point):
         return sa.case(
             [
                 (
-                    sa.and_(cls.flux != None, cls.flux > 0),  # noqa
+                    sa.and_(cls.flux != 'NaN', cls.flux > 0),  # noqa
                     -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
                 )
             ],
@@ -2056,7 +2163,7 @@ class Photometry(Base, ha.Point):
             [
                 (
                     sa.and_(
-                        cls.flux != None, cls.flux > 0, cls.fluxerr > 0
+                        cls.flux != 'NaN', cls.flux > 0, cls.fluxerr > 0
                     ),  # noqa: E711
                     2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
                 )
@@ -2083,12 +2190,24 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def snr(self):
         """Signal-to-noise ratio of this Photometry point."""
-        return self.flux / self.fluxerr if self.flux and self.fluxerr else None
+        return (
+            self.flux / self.fluxerr
+            if not np.isnan(self.flux) and not np.isnan(self.fluxerr)
+            else None
+        )
 
     @snr.expression
     def snr(self):
         """Signal-to-noise ratio of this Photometry point."""
-        return self.flux / self.fluxerr
+        return sa.case(
+            [
+                (
+                    sa.and_(self.flux != 'NaN', self.fluxerr != 0),  # noqa
+                    self.flux / self.fluxerr,
+                )
+            ],
+            else_=None,
+        )
 
 
 Photometry.is_modifiable_by = is_modifiable_by
@@ -2562,6 +2681,57 @@ User.transactions = relationship(
     'FacilityTransaction',
     back_populates='initiator',
     doc="The FacilityTransactions initiated by this User.",
+)
+
+
+class Listing(Base):
+
+    user_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this Listing.",
+    )
+
+    user = relationship(
+        "User",
+        foreign_keys=user_id,
+        back_populates="listings",
+        doc="The user that saved this object/listing",
+    )
+
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the object that is on this Listing",
+    )
+
+    obj = relationship("Obj", doc="The object referenced by this listing",)
+
+    list_name = sa.Column(
+        sa.String,
+        index=True,
+        nullable=False,
+        doc="Name of the list, e.g., 'favorites'. ",
+    )
+
+
+Listing.__table_args__ = (
+    sa.Index(
+        "listings_main_index",
+        Listing.user_id,
+        Listing.obj_id,
+        Listing.list_name,
+        unique=True,
+    ),
+    sa.Index(
+        "listings_reverse_index",
+        Listing.list_name,
+        Listing.obj_id,
+        Listing.user_id,
+        unique=True,
+    ),
 )
 
 

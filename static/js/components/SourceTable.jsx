@@ -4,15 +4,12 @@ import { useSelector, useDispatch } from "react-redux";
 
 import TableCell from "@material-ui/core/TableCell";
 import TableRow from "@material-ui/core/TableRow";
-
-import Typography from "@material-ui/core/Typography";
 import IconButton from "@material-ui/core/IconButton";
 import Button from "@material-ui/core/Button";
 import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
 import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
-import CircularProgress from "@material-ui/core/CircularProgress";
 import MUIDataTable from "mui-datatables";
 import {
   makeStyles,
@@ -27,13 +24,15 @@ import ClearIcon from "@material-ui/icons/Clear";
 
 import dayjs from "dayjs";
 
-import { ra_to_hours, dec_to_dms, flux_to_mag } from "../units";
+import { ra_to_hours, dec_to_dms, time_relative_to_local } from "../units";
 import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
+import SourceTableFilterForm from "./SourceTableFilterForm";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
+import { filterOutEmptyValues } from "../API";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
@@ -51,6 +50,12 @@ const useStyles = makeStyles((theme) => ({
   tableGrid: {
     width: "100%",
   },
+  groupSelect: {
+    maxWidth: "20rem",
+  },
+  filterFormRow: {
+    margin: "0.75rem 0",
+  },
 }));
 
 const getMuiTheme = (theme) =>
@@ -60,6 +65,17 @@ const getMuiTheme = (theme) =>
       MUIDataTableHeadCell: {
         sortLabelRoot: {
           height: "1.4rem",
+        },
+      },
+      // Hide default filter items for custom form
+      MuiGridList: {
+        root: {
+          display: "none",
+        },
+      },
+      MUIDataTableFilter: {
+        header: {
+          display: "none",
         },
       },
     },
@@ -101,6 +117,10 @@ const SourceTable = ({
     defaultDisplayedColumns
   );
 
+  const [tableFilterList, setTableFilterList] = useState([]);
+  const [filterFormData, setFilterFormData] = useState(null);
+  const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+
   // Color styling
   const userColorTheme = useSelector(
     (state) => state.profile.preferences.theme
@@ -108,24 +128,16 @@ const SourceTable = ({
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
-  const mjdNow = Math.floor(Date.now() / 86400000.0 + 40587.5);
-
-  if (!sources) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
   const handleTableChange = (action, tableState) => {
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
+        setRowsPerPage(tableState.rowsPerPage);
         paginateCallback(
           tableState.page + 1,
           tableState.rowsPerPage,
-          tableState.sortOrder
+          tableState.sortOrder,
+          filterFormData
         );
         break;
       case "viewColumnsChange":
@@ -138,9 +150,9 @@ const SourceTable = ({
         break;
       case "sort":
         if (tableState.sortOrder.direction === "none") {
-          paginateCallback(1, tableState.rowsPerPage, {});
+          paginateCallback(1, tableState.rowsPerPage, {}, filterFormData);
         } else {
-          sortingCallback(tableState.sortOrder);
+          sortingCallback(tableState.sortOrder, filterFormData);
         }
         break;
       default:
@@ -184,26 +196,6 @@ const SourceTable = ({
     }
   };
 
-  if (sources.length === 0 && sourceStatus === "saved") {
-    return (
-      <Grid item>
-        <div>
-          <Typography
-            variant="h4"
-            gutterBottom
-            color="textSecondary"
-            align="center"
-          >
-            <b>No sources have been saved...</b>
-          </Typography>
-        </div>
-      </Grid>
-    );
-  }
-  if (sources.length === 0 && sourceStatus === "requested") {
-    return null;
-  }
-
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     const colSpan = rowData.length + 1;
@@ -231,16 +223,22 @@ const SourceTable = ({
               useGrid={false}
             />
             <Grid item>
-              <Suspense fallback={<div>Loading plot...</div>}>
-                <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
-              </Suspense>
+              {source.photometry_exists && (
+                <Suspense fallback={<div>Loading plot...</div>}>
+                  <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
+                </Suspense>
+              )}
+              {!source.photometry_exists && <div> no photometry exists </div>}
             </Grid>
             <Grid item>
-              <Suspense fallback={<div>Loading spectra...</div>}>
-                <VegaSpectrum
-                  dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
-                />
-              </Suspense>
+              {source.spectrum_exists && (
+                <Suspense fallback={<div>Loading spectra...</div>}>
+                  <VegaSpectrum
+                    dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
+                  />
+                </Suspense>
+              )}
+              {!source.spectrum_exists && <div> no spectra exist </div>}
             </Grid>
             <Grid item>
               <div className={classes.commentListContainer}>
@@ -497,12 +495,9 @@ const SourceTable = ({
 
   const renderPeakMagnitude = (dataIndex) => {
     const source = sources[dataIndex];
-    const peakPoint = source.photometry
-      .filter((point) => point.flux)
-      .sort((a, b) => a.flux - b.flux)[0];
-    return source.photometry.length > 0 ? (
-      <Tooltip title={`${(mjdNow - peakPoint.mjd).toFixed(2)} days ago`}>
-        <div>{`${flux_to_mag(peakPoint.flux, peakPoint.zp).toFixed(4)}`}</div>
+    return source.peak_detected_mag ? (
+      <Tooltip title={time_relative_to_local(source.peak_detected_at)}>
+        <div>{`${source.peak_detected_mag.toFixed(4)}`}</div>
       </Tooltip>
     ) : (
       <div>No photometry</div>
@@ -511,14 +506,9 @@ const SourceTable = ({
 
   const renderLatestMagnitude = (dataIndex) => {
     const source = sources[dataIndex];
-    const latestPoint = source.photometry
-      .filter((point) => point.flux)
-      .sort((a, b) => b.mjd - a.mjd)[0];
-    return source.photometry.length > 0 ? (
-      <Tooltip title={`${(mjdNow - latestPoint.mjd).toFixed(2)} days ago`}>
-        <div>
-          {`${flux_to_mag(latestPoint.flux, latestPoint.zp).toFixed(4)}`}
-        </div>
+    return source.last_detected_mag ? (
+      <Tooltip title={time_relative_to_local(source.last_detected_at)}>
+        <div>{`${source.last_detected_mag.toFixed(4)}`}</div>
       </Tooltip>
     ) : (
       <div>No photometry</div>
@@ -534,12 +524,75 @@ const SourceTable = ({
     );
   };
 
+  const handleFilterSubmit = async (formData) => {
+    // Remove empty position
+    if (
+      formData.position.ra === "" &&
+      formData.position.dec === "" &&
+      formData.position.radius === ""
+    ) {
+      delete formData.position;
+    }
+
+    const data = filterOutEmptyValues(formData);
+    setTableFilterList(
+      Object.entries(data).map(([key, value]) => {
+        if (key === "position") {
+          return `position: ${value.ra} (RA), ${value.dec} (Dec), ${value.radius} (Radius)`;
+        }
+        return `${key}: ${value}`;
+      })
+    );
+
+    // Expand cone search params
+    if ("position" in data) {
+      data.ra = data.position.ra;
+      data.dec = data.position.dec;
+      data.radius = data.position.radius;
+      delete data.position;
+    }
+
+    setFilterFormData(data);
+    paginateCallback(1, rowsPerPage, {}, data);
+  };
+
+  const handleTableFilterChipChange = (column, filterList, type) => {
+    if (type === "chip") {
+      const sourceFilterList = filterList[0];
+      // Convert chip filter list to filter form data
+      const data = {};
+      sourceFilterList.forEach((filterChip) => {
+        const [key, value] = filterChip.split(": ");
+        if (key === "position") {
+          const fields = value.split(/\s*\(\D*\),*\s*/);
+          [data.ra, data.dec, data.radius] = fields;
+        } else {
+          data[key] = value;
+        }
+      });
+      setTableFilterList(sourceFilterList);
+      setFilterFormData(data);
+      paginateCallback(1, rowsPerPage, {}, data);
+    }
+  };
+
+  const customFilterDisplay = () => (
+    <SourceTableFilterForm handleFilterSubmit={handleFilterSubmit} />
+  );
+
   const columns = [
     {
       name: "id",
       label: "Source ID",
       options: {
+        // Hijack custom filtering for this column to use for the entire form
         filter: true,
+        filterType: "custom",
+        filterList: tableFilterList,
+        filterOptions: {
+          // eslint-disable-next-line react/display-name
+          display: () => <></>,
+        },
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Source ID"),
@@ -549,7 +602,7 @@ const SourceTable = ({
     {
       name: "Alias",
       options: {
-        filter: true,
+        filter: false,
         sort: false,
         display: displayedColumns.includes("Alias"),
         customBodyRenderLite: renderAlias,
@@ -613,7 +666,7 @@ const SourceTable = ({
       name: "classification",
       label: "Classification",
       options: {
-        filter: true,
+        filter: false,
         sort: true,
         sortThirdClickReset: true,
         display: displayedColumns.includes("Classification"),
@@ -653,6 +706,7 @@ const SourceTable = ({
     {
       name: "Spectrum?",
       options: {
+        filter: false,
         sort: false,
         customBodyRenderLite: renderSpectrumExists,
         display: displayedColumns.includes("Spectrum?"),
@@ -661,6 +715,7 @@ const SourceTable = ({
     {
       name: "Peak Magnitude",
       options: {
+        filter: false,
         sort: false,
         customBodyRenderLite: renderPeakMagnitude,
         display: displayedColumns.includes("Peak Magnitude"),
@@ -669,6 +724,7 @@ const SourceTable = ({
     {
       name: "Latest Magnitude",
       options: {
+        filter: false,
         sort: false,
         customBodyRenderLite: renderLatestMagnitude,
         display: displayedColumns.includes("Latest Magnitude"),
@@ -677,6 +733,7 @@ const SourceTable = ({
     {
       name: "TNS Name",
       options: {
+        filter: false,
         sort: false,
         customBodyRenderLite: renderTNSName,
         display: displayedColumns.includes("TNS Name"),
@@ -698,7 +755,9 @@ const SourceTable = ({
     jumpToPage: true,
     pagination: true,
     count: totalMatches,
-    filter: false,
+    filter: true,
+    customFilterDialogFooter: customFilterDisplay,
+    onFilterChange: handleTableFilterChipChange,
     search: false,
   };
 
@@ -713,7 +772,7 @@ const SourceTable = ({
   }
 
   return (
-    <div className={classes.source}>
+    <div className={classes.source} data-testid={`source_table_${title}`}>
       <div>
         <Grid
           container
@@ -766,7 +825,10 @@ SourceTable.propTypes = {
         }),
       }),
       spectrum_exists: PropTypes.bool,
-      photometry: PropTypes.arrayOf(PropTypes.shape({})),
+      last_detected_at: PropTypes.string,
+      last_detected_mag: PropTypes.number,
+      peak_detected_at: PropTypes.string,
+      peak_detected_mag: PropTypes.number,
       groups: PropTypes.arrayOf(
         PropTypes.shape({
           id: PropTypes.number,

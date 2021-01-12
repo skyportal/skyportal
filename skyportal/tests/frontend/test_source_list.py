@@ -48,14 +48,22 @@ def test_add_sources_two_groups(
     assert data['data']['id'] == f'{obj_id}'
 
     # filter on the object id
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
     obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
     obj_button.clear()
     obj_button.send_keys(obj_id)
-    submit = "//button[contains(.,'Submit')]"
-    driver.click_xpath(submit)
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+    )
 
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
+
+    # Close filter form
+    driver.click_xpath(
+        "//button[contains(@class, 'MUIDataTableToolbar-filterCloseIcon')]",
+        wait_clickable=False,
+    )
 
     # find the date it was saved
     saved_at_element = driver.wait_for_xpath(
@@ -68,12 +76,12 @@ def test_add_sources_two_groups(
     driver.wait_for_xpath(f"//*[text()[contains(., '{'0.153'}')]]")
 
     # little triangle you push to expand the table
-    driver.click_xpath("//*[@id='expandable-button']")
+    driver.click_xpath(
+        "//tr[@data-testid='MUIDataTableBodyRow-0']//*[@id='expandable-button']"
+    )
 
     # make sure the div containing the individual source appears
     driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{obj_id}"]')
-
-    driver.wait_for_xpath("//*[@class='vega-embed']")
 
     # post a taxonomy and classification
     status, data = api(
@@ -111,15 +119,14 @@ def test_add_sources_two_groups(
         f"//*[text()[contains(., '{'Algol'}')]]", timeout=1
     )
 
-    # making sure the drawer is still open even after posting a classification!
-    driver.wait_for_xpath("//*[@class='vega-embed']")
-
     # filter on the object id (page refresh, but still filtering on this object)
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
     obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
     obj_button.clear()
     obj_button.send_keys(obj_id)
-    submit = "//button[contains(.,'Submit')]"
-    driver.click_xpath(submit)
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+    )
 
     # check the classification does show up after a refresh
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
@@ -160,11 +167,13 @@ def test_add_sources_two_groups(
     assert status == 200
 
     # filter on the object id (page refresh, but still filtering on this object)
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
     obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
     obj_button.clear()
     obj_button.send_keys(obj_id)
-    submit = "//button[contains(.,'Submit')]"
-    driver.click_xpath(submit)
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+    )
 
     # make sure the new classification, made to group 2, shows up
     driver.wait_for_xpath(f"//*[text()[contains(., '{'RS CVn'}')]]")
@@ -234,21 +243,29 @@ def test_filter_by_classification(
 
     driver.get(f"/become_user/{user.id}")
     driver.get("/sources")
+
+    # Filter for classification
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
     driver.click_xpath("//div[@id='classifications-select']")
     driver.click_xpath(
         f"//li[@data-value='{taxonomy_name}: Algol']", scroll_parent=True
     )
-    driver.click_xpath('//span[text()="Submit"]')
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+    )
+
     # Should see the posted source
     driver.wait_for_xpath(f'//a[@data-testid="{source_id}"]')
 
     # Now search for a different classification
-    driver.click_xpath("//div[@id='classifications-select']")
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
     # Clear old classification selection
     driver.click_xpath(
         f"//li[@data-value='{taxonomy_name}: Algol']", scroll_parent=True
     )
     driver.click_xpath(f"//li[@data-value='{taxonomy_name}: AGN']", scroll_parent=True)
-    driver.click_xpath('//span[text()="Submit"]')
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+    )
     # Should no longer see the source
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')

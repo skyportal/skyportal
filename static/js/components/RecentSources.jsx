@@ -217,7 +217,7 @@ const RecentSources = ({ classes }) => {
         <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
         <div className={classes.widgetIcon}>
           <WidgetPrefsDialog
-            formValues={recentSourcesPrefs}
+            initialValues={recentSourcesPrefs}
             stateBranchName="recentSources"
             title="Recent Sources Preferences"
             onSubmit={profileActions.updateUserPreferences}

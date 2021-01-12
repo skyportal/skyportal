@@ -7,7 +7,7 @@ import Typography from "@material-ui/core/Typography";
 import Box from "@material-ui/core/Box";
 import PropTypes from "prop-types";
 
-import UserAvatar from "./UserAvatar";
+import UserAvatar, { isAllKoreanCharacters } from "./UserAvatar";
 
 export const UserContactInfo = ({ user }) => {
   let contact_string = "";
@@ -42,6 +42,14 @@ UserContactInfo.propTypes = {
   }).isRequired,
 };
 
+const getUserRealName = (firstName, lastName) => {
+  // Korean names are generally written in last->first name order with no space in between
+  if (isAllKoreanCharacters(firstName) && isAllKoreanCharacters(lastName)) {
+    return `${lastName}${firstName}`;
+  }
+  return `${firstName} ${lastName}`;
+};
+
 const UserProfileInfo = () => {
   const profile = useSelector((state) => state.profile);
 
@@ -72,7 +80,8 @@ const UserProfileInfo = () => {
                 : "visible",
             }}
           >
-            {profile.first_name} {profile.last_name}
+            {(profile.first_name || profile.last_name) &&
+              getUserRealName(profile.first_name, profile.last_name)}
           </h2>
         </div>
         &nbsp;

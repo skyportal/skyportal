@@ -8,7 +8,7 @@ const spec = (url) => ({
     url,
     format: {
       type: "json",
-      property: "data", // where on the JSON does the data live
+      property: "data.spectra", // where on the JSON does the data live
     },
   },
   transform: [

@@ -22,7 +22,7 @@ from marshmallow_enum import EnumField
 
 
 from baselayer.app.models import Base as _Base, DBSession as _DBSession
-
+from baselayer.app.env import load_env
 from skyportal.enum_types import (
     py_allowed_bandpasses,
     py_allowed_magsystems,
@@ -40,10 +40,13 @@ import inspect
 import numpy as np
 from enum import Enum
 
+_, cfg = load_env()
+# The default lim mag n-sigma to consider a photometry point as a detection
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
+
 
 class ApispecEnumField(EnumField):
-    """See https://github.com/justanr/marshmallow_enum/issues/24#issue-335162592
-    """
+    """See https://github.com/justanr/marshmallow_enum/issues/24#issue-335162592"""
 
     def __init__(self, enum, *args, **kwargs):
         super().__init__(enum, *args, **kwargs)
@@ -304,7 +307,8 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         'e.g., upper limits from ZTF1, where flux is not provided '
         'for non-detections. For a given photometry '
         'point, if `flux` is null, `fluxerr` is '
-        'used to derive a 5-sigma limiting magnitude '
+        'used to derive a n-sigma limiting magnitude '
+        '(where n is configurable; 3.0 by default) '
         'when the photometry point is requested in '
         'magnitude space from the Photomety GET api.',
         required=False,
@@ -392,9 +396,9 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         description='Number of standard deviations '
         'above the background that the limiting '
         'magnitudes correspond to. Null values '
-        'not allowed. Default = 5.',
+        f'not allowed. Default = {PHOT_DETECTION_THRESHOLD}.',
         required=False,
-        missing=5,
+        missing=PHOT_DETECTION_THRESHOLD,
     )
 
 
@@ -581,10 +585,10 @@ class PhotometryFlux(_Schema, PhotBase):
 
 class PhotometryMag(_Schema, PhotBase):
     """This is one of  two classes that are used for deserializing
-     and validating the postprocessed input data of `PhotometryHandler.post`
-     and `PhotometryHandler.put` and for generating the API docs of
-     `PhotometryHandler.get`.
-     """
+    and validating the postprocessed input data of `PhotometryHandler.post`
+    and `PhotometryHandler.put` and for generating the API docs of
+    `PhotometryHandler.get`.
+    """
 
     mag = fields.Number(
         description='Magnitude of the observation in the '
@@ -664,9 +668,9 @@ class PhotometryMag(_Schema, PhotBase):
             flux = 10 ** (-0.4 * (data['mag'] - PHOT_ZP))
             fluxerr = data['magerr'] / (2.5 / np.log(10)) * flux
         else:
-            fivesigflux = 10 ** (-0.4 * (data['limiting_mag'] - PHOT_ZP))
+            nsigflux = 10 ** (-0.4 * (data['limiting_mag'] - PHOT_ZP))
             flux = None
-            fluxerr = fivesigflux / 5
+            fluxerr = nsigflux / PHOT_DETECTION_THRESHOLD
 
         # convert flux to microJanskies.
         table = Table(

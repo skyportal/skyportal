@@ -21,6 +21,9 @@ app:
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://pharos.caltech.edu/add_fritz
 
+  lt_host: 161.72.57.3
+  lt_port: 8080
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
@@ -155,7 +158,7 @@ app:
     # 150px in height. The row height can be altered in the homepage_grid
     # section above (as well as other grid characteristics).
     WeatherWidget:
-      resizeable: false
+      resizeable: true
       layouts:
         xlg: [0, 10, 4, 1]
         lg: [0, 10, 4, 1]
@@ -166,7 +169,7 @@ app:
     SourceCounts:
       props:
         sinceDaysAgo: 7
-      resizeable: false
+      resizeable: true
       layouts:
         xlg: [14, 0, 2, 1]
         lg: [10, 0, 2, 1]
@@ -175,7 +178,7 @@ app:
         xs: [0, 0, 4, 1]
 
     RecentSources:
-      resizeable: false
+      resizeable: true
       layouts:
         xlg: [0, 0, 5, 3]
         lg: [0, 0, 4, 3]
@@ -184,7 +187,7 @@ app:
         xs: [0, 4, 4, 3]
 
     NewsFeed:
-      resizeable: false
+      resizeable: true
       layouts:
         xlg: [10, 0, 4, 3]
         lg: [7, 0, 3, 3]
@@ -193,7 +196,7 @@ app:
         xs: [0, 1, 4, 3]
 
     TopSources:
-      resizeable: false
+      resizeable: true
       layouts:
         xlg: [5, 0, 5, 3]
         lg: [4, 3, 3, 3]
@@ -204,7 +207,7 @@ app:
     GroupList:
       props:
         title: My Groups
-      resizeable: false
+      resizeable: true
       layouts:
         xlg: [14, 1, 2, 2]
         lg: [10, 1, 2, 2]
@@ -250,6 +253,10 @@ misc:
   # the user-supplied cosmology parameter set constructs the site-wide cosmology.
   cosmology: Planck18_arXiv_v2
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
+
+  # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
+  # consider a photometry point as a detection
+  photometry_detection_threshold_nsigma: 3.0
 
 weather:
   # time in seconds to wait before fetching weather for a given telescope

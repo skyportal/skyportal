@@ -44,14 +44,14 @@ const UpdateProfileForm = () => {
     });
   }, [reset, profile]);
 
-  const onSubmit = async (formValues) => {
+  const onSubmit = async (initialValues) => {
     setIsSubmitting(true);
     const basicinfo = {
-      username: formValues.username,
-      first_name: formValues.firstName,
-      last_name: formValues.lastName,
-      contact_email: formValues.email,
-      contact_phone: formValues.phone,
+      username: initialValues.username,
+      first_name: initialValues.firstName,
+      last_name: initialValues.lastName,
+      contact_email: initialValues.email,
+      contact_phone: initialValues.phone,
     };
     const result = await dispatch(
       ProfileActions.updateBasicUserInfo(basicinfo)

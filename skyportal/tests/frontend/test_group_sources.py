@@ -68,9 +68,6 @@ def test_add_new_source_renders_on_group_sources_page(
     # make sure the div containing the individual source appears
     driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{obj_id}"]')
 
-    # Check for vega plot
-    driver.wait_for_xpath("//*[@class='vega-embed']", timeout=20)
-
     # post a taxonomy and classification
     status, data = api(
         'POST',
@@ -171,7 +168,9 @@ def test_request_source(
     driver.get(f"/group_sources/{public_group2.id}")
 
     # there should not be any new sources (the source is in group1)
-    driver.wait_for_xpath("//*[text()[contains(., 'No sources')]]")
+    driver.wait_for_xpath(
+        "//div[@data-testid='source_table_Saved']//*[text()[contains(., 'Sorry, no matching records found')]]"
+    )
 
     # request this source to be added to group2
     status, data = api(
