@@ -23,6 +23,18 @@ def test_token_user_create_new_group(manage_groups_token, super_admin_user):
     assert data["data"]["name"] == group_name
 
 
+def test_cannot_create_group_empty_string_name(manage_groups_token, super_admin_user):
+    group_name = ""
+    status, data = api(
+        "POST",
+        "groups",
+        data={"name": group_name, "group_admins": [super_admin_user.id]},
+        token=manage_groups_token,
+    )
+    assert status == 400
+    assert "Missing required parameter" in data["message"]
+
+
 def test_fetch_group_by_name(manage_groups_token, super_admin_user):
     group_name = str(uuid.uuid4())
     status, data = api(
