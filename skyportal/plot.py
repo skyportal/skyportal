@@ -758,8 +758,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     split = data.groupby('id')
     hover = HoverTool(
         tooltips=[
-            ('wavelength', '$x'),
-            ('flux', '$y'),
+            ('wavelength', '@wavelength{0,0.000}'),
+            ('flux', '@flux'),
             ('telesecope', '@telescope'),
             ('instrument', '@instrument'),
             ('UTC date observed', '@date_observed'),
@@ -783,12 +783,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     plot.add_tools(hover)
     model_dict = {}
     for i, (key, df) in enumerate(split):
-        model_dict['s' + str(i)] = plot.step(
-            x='wavelength',
-            y='flux',
-            color=color_map[key],
-            source=ColumnDataSource(df),
-            mode="center",
+        model_dict['s' + str(i)] = plot.line(
+            x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(df),
         )
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
