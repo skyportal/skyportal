@@ -6,11 +6,11 @@ joblib==1.0.0
 seaborn==0.11.1
 bokeh==2.2.3
 pytest-randomly==3.5.0
-factory-boy==2.11.1
+factory-boy==3.2.0
 astropy==4.0.1.post1
 aplpy==2.0.3
 reproject==0.7.1
-avro-python3==1.8.2
+avro-python3==1.10.1
 fastavro==0.21.7
 tqdm==4.23.2
 matplotlib==3.3.3
