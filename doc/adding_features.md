@@ -510,10 +510,10 @@ Here's a screen capture of what we've implemented in action:
 Now our new feature should be fully implemented, and we'll add a test to make sure it's working as expected. We use Selenium in our front-end tests; we'll use that to programmatically navigate, click, enter text, etc., in a browser session, and ensure that elements are rendering and behaving as expected. Let's take a look at an example test for our new component:
 
 
-`skyportal/tests/frontend/test_comments.py`:
+`skyportal/tests/frontend/test_test_comments.py`:
 
 ``` python
-def test_comments(driver, user):
+def test_test_comments(driver, user):
     driver.get(f'/become_user/{user.id}')
     driver.get('/test_comments)
 
@@ -616,12 +616,12 @@ class SomeHandler(BaseHandler):
 
 Let's recap the files we've created or edited to implement this new feature:
 
-- component definition file `static/js/components/RandomString.jsx` _(new)_
-- Redux-related code (action creators, reducer, etc.) `static/js/ducks/randomString.js` _(new)_
-- importing our new component and rendering it in a component that's already being rendered _(2 lines of code)_
-- back-end handler definition in `skyportal/handlers/api/random_string.py` _(new)_
+- component definition file `static/js/components/TestComments.jsx` _(new)_
+- Redux-related code (action creators, reducer, etc.) `static/js/ducks/testComments.js` _(new)_
+- specifying the route/component mapping in `config.yaml.defaults` _(edit)_
+- back-end handler definition in `skyportal/handlers/api/test_comments.py` _(new)_
 - importing our handler and adding the route mapping to our handlers list in `skyportal/app_server.py` _(2 lines of code)_
-- adding a new test in `skyportal/tests/frontend/test_random_string.py` _(new)_
+- adding a new test in `skyportal/tests/frontend/test_comments.py` _(new)_
 
 
 
