@@ -58,6 +58,10 @@ export const useSourceStyles = makeStyles((theme) => ({
   column: {
     display: "flex",
     flexFlow: "column nowrap",
+    width: "100%",
+    "&>div": {
+      width: "100%",
+    },
   },
   mainColumn: {
     display: "flex",
