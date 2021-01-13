@@ -756,16 +756,16 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     smoothed_data = pd.concat(dfs)
 
     split = data.groupby('id')
-    # hover = HoverTool(
-    #    tooltips=[
-    #        ('wavelength', '$x'),
-    #        ('flux', '$y'),
-    #        ('telesecope', '@telescope'),
-    #        ('instrument', '@instrument'),
-    #        ('UTC date observed', '@date_observed'),
-    #        ('PI', '@pi'),
-    #    ]
-    # )
+    hover = HoverTool(
+        tooltips=[
+            ('wavelength', '$x'),
+            ('flux', '$y'),
+            ('telesecope', '@telescope'),
+            ('instrument', '@instrument'),
+            ('UTC date observed', '@date_observed'),
+            ('PI', '@pi'),
+        ]
+    )
     smoothed_max = np.max(smoothed_data['flux'])
     smoothed_min = np.min(smoothed_data['flux'])
     ymax = smoothed_max * 1.05
@@ -783,8 +783,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         tools='box_zoom,wheel_zoom,pan,reset',
         active_drag='box_zoom',
     )
-    # Does not work: scizen9 2020-01-13
-    # plot.add_tools(hover)
+    plot.add_tools(hover)
     model_dict = {}
     for i, (key, df) in enumerate(split):
         model_dict['s' + str(i)] = plot.step(
