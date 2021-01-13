@@ -30,6 +30,7 @@ import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
+import FavoritesButton from "./FavoritesButton";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
 import { filterOutEmptyValues } from "../API";
@@ -55,6 +56,12 @@ const useStyles = makeStyles((theme) => ({
   },
   filterFormRow: {
     margin: "0.75rem 0",
+  },
+  sourceName: {
+    verticalAlign: "middle",
+  },
+  starButton: {
+    verticalAlign: "middle",
   },
 }));
 
@@ -314,13 +321,20 @@ const SourceTable = ({
   const renderObjId = (dataIndex) => {
     const objid = sources[dataIndex].id;
     return (
-      <a
-        href={`/source/${objid}`}
-        key={`${objid}_objid`}
-        data-testid={`${objid}`}
-      >
-        {objid}
-      </a>
+      <>
+        <span className={classes.sourceName}>
+          <a
+            href={`/source/${objid}`}
+            key={`${objid}_objid`}
+            data-testid={`${objid}`}
+          >
+            {objid}
+          </a>
+        </span>
+        <span className={classes.starButton}>
+          <FavoritesButton sourceID={objid} />
+        </span>
+      </>
     );
   };
 
