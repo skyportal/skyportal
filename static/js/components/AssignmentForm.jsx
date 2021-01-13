@@ -8,6 +8,7 @@ import TextField from "@material-ui/core/TextField";
 import Button from "@material-ui/core/Button";
 import FormControl from "@material-ui/core/FormControl";
 import MenuItem from "@material-ui/core/MenuItem";
+import Typography from "@material-ui/core/Typography";
 import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -69,6 +70,9 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
       flexFlow: "row wrap",
       alignItems: "center",
     },
+    observingRunSelectItem: {
+      whiteSpace: "break-spaces",
+    },
   }));
   const classes = useStyles();
 
@@ -77,7 +81,11 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   );
 
   if (upcomingObservingRuns.length === 0) {
-    return <b>No upcoming observing runs to assign target to...</b>;
+    return (
+      <Typography variant="subtitle2">
+        No upcoming observing runs to assign target to...
+      </Typography>
+    );
   }
 
   const initialFormState = {
@@ -101,7 +109,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
   return (
     <div>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <h3>Assign Target to Observing Run</h3>
+        <Typography variant="h6">Assign Target to Observing Run</Typography>
         <div className={classes.formContainer}>
           <FormControl className={classes.formControl}>
             <InputLabel id="assignmentSelectLabel">Choose Run</InputLabel>
@@ -122,6 +130,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
                 <MenuItem
                   value={observingRun.id}
                   key={observingRun.id.toString()}
+                  className={classes.observingRunSelectItem}
                 >
                   {observingRunTitle(
                     observingRun,

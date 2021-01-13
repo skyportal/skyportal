@@ -30,9 +30,12 @@ const useStyles = makeStyles(() => ({
   accordion: {
     width: "99%",
   },
+  container: {
+    margin: "1rem 0",
+  },
 }));
 
-// Tweak responsive column widths
+// Tweak responsive styling
 const getMuiTheme = (theme) =>
   createMuiTheme({
     palette: theme.palette,
@@ -202,7 +205,7 @@ const FollowupRequestLists = ({
   };
 
   return (
-    <div>
+    <div className={classes.container}>
       {Object.keys(requestsGroupedByInstId).map((instrument_id) => {
         // get the flat, unique list of all keys across all requests
         const keys = requestsGroupedByInstId[instrument_id].reduce((r, a) => {
