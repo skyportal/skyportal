@@ -756,31 +756,35 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     smoothed_data = pd.concat(dfs)
 
     split = data.groupby('id')
-    hover = HoverTool(
-        tooltips=[
-            ('wavelength', '$x'),
-            ('flux', '$y'),
-            ('telesecope', '@telescope'),
-            ('instrument', '@instrument'),
-            ('UTC date observed', '@date_observed'),
-            ('PI', '@pi'),
-        ]
-    )
+    # hover = HoverTool(
+    #    tooltips=[
+    #        ('wavelength', '$x'),
+    #        ('flux', '$y'),
+    #        ('telesecope', '@telescope'),
+    #        ('instrument', '@instrument'),
+    #        ('UTC date observed', '@date_observed'),
+    #        ('PI', '@pi'),
+    #    ]
+    # )
     smoothed_max = np.max(smoothed_data['flux'])
     smoothed_min = np.min(smoothed_data['flux'])
     ymax = smoothed_max * 1.05
     ymin = smoothed_min - 0.05 * (smoothed_max - smoothed_min)
     xmin = np.min(data['wavelength']) - 100
     xmax = np.max(data['wavelength']) + 100
+    if obj.redshift is not None and obj.redshift > 0:
+        xmin_rest = xmin / (1.0 + obj.redshift)
+        xmax_rest = xmax / (1.0 + obj.redshift)
     plot = figure(
-        aspect_ratio=2,
+        aspect_ratio=1.5,
         sizing_mode='scale_width',
         y_range=(ymin, ymax),
         x_range=(xmin, xmax),
         tools='box_zoom,wheel_zoom,pan,reset',
         active_drag='box_zoom',
     )
-    plot.add_tools(hover)
+    # Does not work: scizen9 2020-01-13
+    # plot.add_tools(hover)
     model_dict = {}
     for i, (key, df) in enumerate(split):
         model_dict['s' + str(i)] = plot.step(
@@ -793,6 +797,12 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
+    if obj.redshift is not None and obj.redshift > 0:
+        plot.extra_x_ranges = {"rest_wave": Range1d(start=xmin_rest, end=xmax_rest)}
+        plot.add_layout(
+            LinearAxis(x_range_name="rest_wave", axis_label="Rest Wavelength (Å)"),
+            'above',
+        )
 
     # TODO how to choose a good default?
     plot.y_range = Range1d(0, 1.03 * data.flux.max())
