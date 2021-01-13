@@ -9,18 +9,18 @@ import StarBorderIcon from "@material-ui/icons/StarBorder";
 
 import * as Actions from "../ducks/favorites";
 
-const FavoritesButton = ({ source_id }) => {
+const FavoritesButton = ({ sourceID }) => {
   const { favorites } = useSelector((state) => state.favorites);
   const dispatch = useDispatch();
 
-  if (!source_id) {
+  if (!sourceID) {
     return null;
   }
-  if (favorites.includes(source_id)) {
+  if (favorites.includes(sourceID)) {
     return (
       <IconButton
         onClick={() => {
-          dispatch(Actions.removeFromFavorites(source_id));
+          dispatch(Actions.removeFromFavorites(sourceID));
         }}
       >
         <StarIcon />
@@ -31,7 +31,7 @@ const FavoritesButton = ({ source_id }) => {
   return (
     <IconButton
       onClick={() => {
-        dispatch(Actions.addToFavorites(source_id));
+        dispatch(Actions.addToFavorites(sourceID));
       }}
     >
       <StarBorderIcon />
@@ -40,7 +40,7 @@ const FavoritesButton = ({ source_id }) => {
 };
 
 FavoritesButton.propTypes = {
-  source_id: PropTypes.string.isRequired,
+  sourceID: PropTypes.string.isRequired,
 };
 
 export default FavoritesButton;

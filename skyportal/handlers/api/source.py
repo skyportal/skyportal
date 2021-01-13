@@ -717,13 +717,8 @@ class SourceHandler(BaseHandler):
         if saved_after:
             q = q.filter(Source.saved_at >= saved_after)
         if list_name:
-            obj_list = Listing.query.filter(
-                Listing.list_name == list_name,
-                Listing.user_id == self.associated_user_object.id,
-            ).all()
-            obj_id_list = [obj.obj_id for obj in obj_list]
-            if obj_id_list is not None:
-                q = q.filter(Source.obj_id.in_(obj_id_list))
+            q = q.join(Listing, isouter=True)
+            q = q.filter(Listing.list_name == list_name)
         if simbad_class:
             q = q.filter(
                 func.lower(Obj.altdata['simbad']['class'].astext)

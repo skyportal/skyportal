@@ -149,7 +149,7 @@ const SourceDesktop = ({ source }) => {
           </div>
           <div className={classes.name}>{source.id}</div>
           <div className={classes.alignRight}>
-            <FavoritesButton source_id={source.id} />
+            <FavoritesButton sourceID={source.id} />
           </div>
           <br />
           <ShowClassification
