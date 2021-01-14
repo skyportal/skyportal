@@ -141,6 +141,9 @@ class SPECTRALRequest:
             payload for requests.
         """
 
+        if request.obj.dec > 17:
+            raise ValueError('Spectral only available in South.')
+
         # Constraints used for scheduling this observation
         constraints = {
             'max_airmass': request.payload["maximum_airmass"],
@@ -739,10 +742,7 @@ class SPECTRALAPI(LCOAPI):
         if r.status_code == 201:
             request.status = 'submitted'
         else:
-            if requestgroup['requests']['target']["dec"] < 17:
-                request.status = f'rejected: Spectral only available in South.'
-            else:
-                request.status = f'rejected: {r.content}'
+            request.status = f'rejected: {r.content}'
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
