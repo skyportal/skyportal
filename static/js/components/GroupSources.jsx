@@ -4,7 +4,6 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { makeStyles } from "@material-ui/core/styles";
 
-import Typography from "@material-ui/core/Typography";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import SourceTable from "./SourceTable";
 
@@ -137,14 +136,10 @@ const GroupSources = ({ route }) => {
 
   return (
     <div className={classes.source}>
-      <Typography variant="h4" gutterBottom align="center">
-        {`${groupName} sources`}
-      </Typography>
-      <br />
       {!!savedSourcesState.sources && (
         <SourceTable
           sources={savedSourcesState.sources}
-          title="Saved"
+          title={`${groupName} sources`}
           sourceStatus="saved"
           groupID={groupID}
           paginateCallback={handleSavedSourcesTablePagination}
