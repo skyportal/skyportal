@@ -846,8 +846,8 @@ class MUSCATAPI(LCOAPI):
         requestgroup = lcoreq.requestgroup
 
         r = requests.post(
-            'https://observe.lco.global/api/requestgroups/',
-            headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])},
+            "https://observe.lco.global/api/requestgroups/",
+            headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
             json=requestgroup,  # Make sure you use json!
         )
 
