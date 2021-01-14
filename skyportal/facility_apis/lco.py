@@ -568,8 +568,8 @@ class LCOAPI(FollowUpAPI):
         uid = content["id"]
 
         r = requests.get(
-            'https://observe.lco.global/api/requestgroups/{}/'.format(uid),
-            headers={'Authorization': 'Token {}'.format(altdata["API_TOKEN"])},
+            f"https://observe.lco.global/api/requestgroups/{uid}/",
+            headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
         )
 
         r.raise_for_status()
