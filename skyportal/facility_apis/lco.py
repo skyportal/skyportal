@@ -60,7 +60,6 @@ class SINISTRORequest:
         exp_time = request.payload["exposure_time"]
         exp_count = int(request.payload["exposure_counts"])
 
-        # The configurations for this request. In this example we are taking 2 exposures with different filters.
         configurations = []
         for filt in request.payload['observation_choices']:
             configurations.append(
