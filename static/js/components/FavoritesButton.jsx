@@ -22,6 +22,7 @@ const FavoritesButton = ({ sourceID }) => {
         onClick={() => {
           dispatch(Actions.removeFromFavorites(sourceID));
         }}
+        data-testid={`favorites-include_${sourceID}`}
       >
         <StarIcon />
       </IconButton>
@@ -33,6 +34,7 @@ const FavoritesButton = ({ sourceID }) => {
       onClick={() => {
         dispatch(Actions.addToFavorites(sourceID));
       }}
+      data-testid={`favorites-exclude_${sourceID}`}
     >
       <StarBorderIcon />
     </IconButton>

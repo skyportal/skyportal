@@ -718,7 +718,10 @@ class SourceHandler(BaseHandler):
             q = q.filter(Source.saved_at >= saved_after)
         if list_name:
             q = q.join(Listing, isouter=True)
-            q = q.filter(Listing.list_name == list_name)
+            q = q.filter(
+                Listing.list_name == list_name,
+                Listing.user_id == self.associated_user_object.id,
+            )
         if simbad_class:
             q = q.filter(
                 func.lower(Obj.altdata['simbad']['class'].astext)
