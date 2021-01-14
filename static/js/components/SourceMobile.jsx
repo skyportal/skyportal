@@ -133,6 +133,33 @@ export const useSourceStyles = makeStyles((theme) => ({
     fontWeight: "bold",
     fontSize: "110%",
   },
+  sourceInfo: {
+    display: "flex",
+    flexFlow: "row wrap",
+  },
+  infoLine: {
+    // Get it's own line
+    flexBasis: "100%",
+    display: "flex",
+    flexFlow: "row wrap",
+    padding: "0.25rem 0",
+  },
+  redshiftInfo: {
+    padding: "0.25rem 0.5rem 0.25rem 0",
+  },
+  dmdlInfo: {
+    alignSelf: "center",
+    "&>div": {
+      display: "inline",
+      padding: "0.25rem 0.5rem 0.25rem 0",
+    },
+  },
+  infoButton: {
+    paddingRight: "0.5rem",
+  },
+  findingChart: {
+    alignItems: "center",
+  },
 }));
 
 const SourceMobile = ({ source }) => {
@@ -165,68 +192,87 @@ const SourceMobile = ({ source }) => {
               <div className={classes.name}>{source.id}</div>
             </div>
             <div>
-              <ShowClassification
-                classifications={source.classifications}
-                taxonomyList={taxonomyList}
-              />
-              <b>Position (J2000):</b>
-              &nbsp; &nbsp;
-              <span className={classes.position}>
-                {ra_to_hours(source.ra, ":")} &nbsp;
-                {dec_to_dms(source.dec, ":")}
-              </span>
-              &nbsp; (&alpha;,&delta;= {source.ra}, &nbsp;
-              {source.dec}; <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)},
-              &nbsp;
-              {source.gal_lat.toFixed(6)}
-              )
-              <br />
-              <>
-                <b>Redshift: &nbsp;</b>
-                {source.redshift && source.redshift.toFixed(4)}
-                <UpdateSourceRedshift source={source} />
-                <SourceRedshiftHistory
-                  redshiftHistory={source.redshift_history}
-                />
-              </>
-              {source.dm && (
-                <>
+              <div className={classes.sourceInfo}>
+                <div className={classes.infoLine}>
+                  <ShowClassification
+                    classifications={source.classifications}
+                    taxonomyList={taxonomyList}
+                  />
+                </div>
+                <div className={classes.infoLine}>
+                  <b>Position (J2000):</b>
+                  &nbsp; &nbsp;
+                  <span className={classes.position}>
+                    {ra_to_hours(source.ra, ":")} &nbsp;
+                    {dec_to_dms(source.dec, ":")}
+                  </span>
+                  &nbsp; (&alpha;,&delta;= {source.ra}, &nbsp;
+                  {source.dec}; <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)},
+                  &nbsp;
+                  {source.gal_lat.toFixed(6)})
+                </div>
+                <div className={classes.infoLine}>
+                  <div className={classes.redshiftInfo}>
+                    <b>Redshift: &nbsp;</b>
+                    {source.redshift && source.redshift.toFixed(4)}
+                    <UpdateSourceRedshift source={source} />
+                    <SourceRedshiftHistory
+                      redshiftHistory={source.redshift_history}
+                    />
+                  </div>
+                  <div className={classes.dmdlInfo}>
+                    {source.dm && (
+                      <div>
+                        <b>DM: &nbsp;</b>
+                        {source.dm.toFixed(3)}
+                        &nbsp; mag
+                      </div>
+                    )}
+                    {source.luminosity_distance && (
+                      <div>
+                        <b>
+                          <i>D</i>
+                          <sub>L</sub>: &nbsp;
+                        </b>
+                        {source.luminosity_distance.toFixed(2)}
+                        &nbsp; Mpc
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className={`${classes.infoLine} ${classes.findingChart}`}>
+                  <b>Finding Chart:&nbsp;</b>
+                  <Button
+                    href={`/api/sources/${source.id}/finder`}
+                    download="finder-chart-pdf"
+                    size="small"
+                  >
+                    PDF
+                  </Button>
                   &nbsp;|&nbsp;
-                  <b>DM: &nbsp;</b>
-                  {source.dm.toFixed(3)}
-                  &nbsp; mag
-                </>
-              )}
-              {source.luminosity_distance && (
-                <>
-                  &nbsp;|&nbsp;
-                  <b>
-                    <i>D</i>
-                    <sub>L</sub>: &nbsp;
-                  </b>
-                  {source.luminosity_distance.toFixed(2)}
-                  &nbsp; Mpc
-                </>
-              )}
-              {source.redshift != null && <>&nbsp;|&nbsp;</>}
-              <b>Finding Chart:&nbsp;</b>
-              <Button
-                href={`/api/sources/${source.id}/finder`}
-                download="finder-chart-pdf"
-              >
-                PDF
-              </Button>
-              <Link to={`/source/${source.id}/finder`} role="link">
-                <Button>Interactive</Button>
-              </Link>
-              &nbsp;|&nbsp;
-              <Button onClick={() => setShowStarList(!showStarList)}>
-                {showStarList ? "Hide Starlist" : "Show Starlist"}
-              </Button>
-              &nbsp;|&nbsp;
-              <Link to={`/observability/${source.id}`} role="link">
-                <Button>Observability</Button>
-              </Link>
+                  <Link to={`/source/${source.id}/finder`} role="link">
+                    <Button size="small">Interactive</Button>
+                  </Link>
+                </div>
+                <div className={classes.infoLine}>
+                  <div className={classes.infoButton}>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      onClick={() => setShowStarList(!showStarList)}
+                    >
+                      {showStarList ? "Hide Starlist" : "Show Starlist"}
+                    </Button>
+                  </div>
+                  <div className={classes.infoButton}>
+                    <Link to={`/observability/${source.id}`} role="link">
+                      <Button size="small" variant="contained">
+                        Observability
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
               <br />
               {showStarList && <StarList sourceId={source.id} />}
               {source.groups.map((group) => (
