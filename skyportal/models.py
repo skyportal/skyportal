@@ -1154,7 +1154,7 @@ def get_source_if_readable_by(obj_id, user_or_token, options=[]):
        The requested Obj.
     """
 
-    if Source.query.filter(Source.obj_id == obj_id).first() is None:
+    if Obj.query.get(obj_id) is None:
         return None
     user_group_ids = [g.id for g in user_or_token.accessible_groups]
     s = (
