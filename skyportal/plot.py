@@ -687,7 +687,75 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
     p2 = Panel(child=layout, title='Mag')
 
-    tabs = Tabs(tabs=[p2, p1], width=width, height=height, sizing_mode='fixed')
+    # now make period plot
+
+    if obj.period is not None:
+        period = obj.period
+
+        period_xmin = -0.1
+        period_xmax = 2.1
+
+        period_plot = figure(
+            aspect_ratio=1.5,
+            sizing_mode='scale_both',
+            active_drag='box_zoom',
+            tools='box_zoom,wheel_zoom,pan,reset,save',
+            y_range=(ymax, ymin),
+            x_range=(period_xmin, period_xmax),
+            toolbar_location='above',
+            toolbar_sticky=False,
+            x_axis_location='above',
+        )
+
+        period_plot.xaxis.axis_label = 'MJD'
+        period_plot.yaxis.axis_label = 'mag'
+        period_plot.toolbar.logo = None
+
+        obj = DBSession().query(Obj).get(obj_id)
+        if obj.dm is not None:
+            period_plot.extra_y_ranges = {
+                "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
+            }
+            period_plot.add_layout(
+                LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
+            )
+
+        period_model_dict = {}
+
+        for i, (label, df) in enumerate(split):
+
+            df['mjd_folda'] = (df['mjd'] % period) / period
+            df['mjd_foldb'] = df['mjd_folda'] + 1.0
+            key = f'folda{i}'
+            period_model_dict[key] = period_plot.scatter(
+                x='mjd_folda',
+                y='mag',
+                color='color',
+                marker='circle',
+                fill_color='color',
+                alpha='alpha',
+                source=ColumnDataSource(df[df['obs']]),
+            )
+            key = f'foldb{i}'
+            period_model_dict[key] = period_plot.scatter(
+                x='mjd_foldb',
+                y='mag',
+                color='color',
+                marker='circle',
+                fill_color='color',
+                alpha='alpha',
+                source=ColumnDataSource(df[df['obs']]),
+            )
+
+        period_layout = column(
+            row(period_plot, toggle), sizing_mode='scale_width', width=width
+        )
+
+        p3 = Panel(child=period_layout, title='Period')
+
+        tabs = Tabs(tabs=[p2, p1, p3], width=width, height=height, sizing_mode='fixed')
+    else:
+        tabs = Tabs(tabs=[p2, p1], width=width, height=height, sizing_mode='fixed')
     return bokeh_embed.json_item(tabs)
 
 
