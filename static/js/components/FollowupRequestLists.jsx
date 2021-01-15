@@ -232,7 +232,7 @@ const FollowupRequestLists = ({
                 {instLookUp[instrument_id].name} Requests
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
+            <AccordionDetails data-testid="followupRequestTable">
               <MuiThemeProvider theme={getMuiTheme(theme)}>
                 <MUIDataTable
                   data={requestsGroupedByInstId[instrument_id]}
