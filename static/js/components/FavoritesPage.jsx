@@ -36,9 +36,10 @@ const FavoritesPage = () => {
 
   const sourcesState = useSelector((state) => state.sources.favorites);
 
-  const handleSourcesTableSorting = (sortData) => {
+  const handleSourcesTableSorting = (sortData, filterData) => {
     dispatch(
       sourcesActions.fetchFavoriteSources({
+        ...filterData,
         pageNumber: 1,
         numPerPage: sourcesRowsPerPage,
         sortBy: sortData.name,
@@ -47,9 +48,15 @@ const FavoritesPage = () => {
     );
   };
 
-  const handleSourcesTablePagination = (pageNumber, numPerPage, sortData) => {
+  const handleSourcesTablePagination = (
+    pageNumber,
+    numPerPage,
+    sortData,
+    filterData
+  ) => {
     setSourcesRowsPerPage(numPerPage);
     const data = {
+      ...filterData,
       pageNumber,
       numPerPage,
     };
@@ -93,6 +100,7 @@ const FavoritesPage = () => {
           totalMatches={sourcesState.totalMatches}
           numPerPage={sourcesState.numPerPage}
           sortingCallback={handleSourcesTableSorting}
+          favoritesRemoveButton
         />
       )}
     </div>

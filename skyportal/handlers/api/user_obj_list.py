@@ -201,6 +201,7 @@ class UserObjListHandler(BaseHandler):
         DBSession().commit()
 
         self.push(action='skyportal/REFRESH_FAVORITES')
+        self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
 
         return self.success(data={'id': listing.id})
 
@@ -294,6 +295,7 @@ class UserObjListHandler(BaseHandler):
         DBSession().commit()
 
         self.push(action='skyportal/REFRESH_FAVORITES')
+        self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
 
         return self.success()
 
@@ -384,5 +386,6 @@ class UserObjListHandler(BaseHandler):
         DBSession.commit()
 
         self.push(action='skyportal/REFRESH_FAVORITES')
+        self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
 
         return self.success()

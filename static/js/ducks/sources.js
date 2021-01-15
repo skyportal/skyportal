@@ -1,3 +1,4 @@
+import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
@@ -14,6 +15,8 @@ const FETCH_PENDING_GROUP_SOURCES_OK =
 
 const FETCH_FAVORITE_SOURCES = "skyportal/FETCH_FAVORITE_SOURCES";
 const FETCH_FAVORITE_SOURCES_OK = "skyportal/FETCH_FAVORITE_SOURCES_OK";
+
+const REFRESH_FAVORITE_SOURCES = "skyportal/REFRESH_FAVORITE_SOURCES";
 
 const addFilterParamDefaults = (filterParams) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
@@ -60,6 +63,13 @@ const initialState = {
   totalMatches: 0,
   numPerPage: 10,
 };
+
+// Websocket message handler
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType === REFRESH_FAVORITE_SOURCES) {
+    dispatch(fetchFavoriteSources());
+  }
+});
 
 const reducer = (
   state = {

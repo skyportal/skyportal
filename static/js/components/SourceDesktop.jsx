@@ -124,10 +124,6 @@ const SourceDesktop = ({ source }) => {
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
 
-  //   useEffect(() => {
-  //     dispatch(favoritesActions.fetchFavorites());
-  //   }, [dispatch]);
-
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );

@@ -100,7 +100,7 @@ const defaultDisplayedColumns = [
 ];
 
 // MUI data table with pull out rows containing a summary of each source.
-// This component is used in GroupSources and SourceList.
+// This component is used in GroupSources, SourceList and Favorites page.
 const SourceTable = ({
   sources,
   title,
@@ -111,6 +111,7 @@ const SourceTable = ({
   totalMatches,
   numPerPage,
   sortingCallback,
+  favoritesRemoveButton = false,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -223,6 +224,14 @@ const SourceTable = ({
             justify="center"
             alignItems="center"
           >
+            {favoritesRemoveButton ? (
+              <div>
+                {" "}
+                <FavoritesButton sourceID={source.id} textMode />{" "}
+              </div>
+            ) : (
+              ""
+            )}
             <ThumbnailList
               thumbnails={source.thumbnails}
               ra={source.ra}
@@ -332,7 +341,7 @@ const SourceTable = ({
           </a>
         </span>
         <span className={classes.starButton}>
-          <FavoritesButton sourceID={objid} />
+          {!favoritesRemoveButton ? <FavoritesButton sourceID={objid} /> : ""}
         </span>
       </>
     );
@@ -859,6 +868,7 @@ SourceTable.propTypes = {
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   sortingCallback: PropTypes.func,
+  favoritesRemoveButton: PropTypes.bool,
 };
 
 SourceTable.defaultProps = {
@@ -869,6 +879,7 @@ SourceTable.defaultProps = {
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,
+  favoritesRemoveButton: false,
 };
 
 export default SourceTable;

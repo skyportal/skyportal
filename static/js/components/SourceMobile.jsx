@@ -162,8 +162,7 @@ const SourceMobile = ({ source }) => {
               <div className={classes.name}>
                 <span> {source.id} </span>
                 <span>
-                  {" "}
-                  <FavoritesButton sourceID={source.id} />{" "}
+                  <FavoritesButton sourceID={source.id} />
                 </span>
               </div>
             </div>

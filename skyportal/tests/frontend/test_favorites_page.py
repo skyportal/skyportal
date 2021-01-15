@@ -23,14 +23,11 @@ def test_add_remove_favorites(driver, user, public_source):
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{public_source.id}')]")
 
-    # make sure the source appears with the filled button
-    driver.wait_for_xpath(f'//*[@data-testid="favorites-include_{public_source.id}"]')
+    # little triangle you push to expand the table
+    driver.click_xpath("//*[@id='expandable-button']")
 
     # click to un-save the source as favorite
-    driver.click_xpath(f'//*[@data-testid="favorites-include_{public_source.id}"]')
-
-    # refresh to see changes
-    driver.get("/favorites")
+    driver.click_xpath(f'//*[@data-testid="favorites-text-include_{public_source.id}"]')
 
     driver.wait_for_xpath(
         '//*[contains(text(), "No sources have been saved as favorites.")]'
@@ -147,9 +144,8 @@ def test_remove_favorites_from_api(driver, super_admin_user, public_group):
     # go to the favorites page
     driver.get("/favorites")
 
-    # find the name of the newly added source and the filled favorites button
+    # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
-    driver.wait_for_xpath(f'//*[@data-testid="favorites-include_{obj_id}"]')
 
     # remove this listing via API
     status, data = api('DELETE', f'listing/{listing_id}', token=token_id,)
