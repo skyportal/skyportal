@@ -11,7 +11,7 @@ class CommentHandler(BaseHandler):
     def get(self, comment_id):
         """
         ---
-        description: Retrieve a comment
+        description: Retrieve a  comment
         tags:
           - comments
         parameters:
