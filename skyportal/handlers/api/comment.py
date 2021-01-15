@@ -3,7 +3,7 @@ from distutils.util import strtobool
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Comment, Group, Candidate, Filter
+from ...models import DBSession, Source, Comment, Group, Candidate, Filter, Obj
 
 
 class CommentHandler(BaseHandler):
@@ -95,8 +95,8 @@ class CommentHandler(BaseHandler):
             return self.error("Missing required field `obj_id`")
         comment_text = data.get("text")
 
-        # Ensure user/token has access to parent source
-        _ = Source.get_obj_if_readable_by(obj_id, self.current_user)
+        # Ensure user/token has access to associated Obj
+        _ = Obj.get_if_readable_by(obj_id, self.current_user)
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
