@@ -696,7 +696,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         period_xmax = 2.1
 
         period_plot = figure(
-            aspect_ratio=1.5,
+            aspect_ratio=1.7,
             sizing_mode='scale_both',
             active_drag='box_zoom',
             tools='box_zoom,wheel_zoom,pan,reset,save',
@@ -704,10 +704,10 @@ def photometry_plot(obj_id, user, width=600, height=300):
             x_range=(period_xmin, period_xmax),
             toolbar_location='above',
             toolbar_sticky=False,
-            x_axis_location='above',
+            x_axis_location='below',
         )
 
-        period_plot.xaxis.axis_label = 'MJD'
+        period_plot.xaxis.axis_label = 'phase'
         period_plot.yaxis.axis_label = 'mag'
         period_plot.toolbar.logo = None
 
@@ -746,9 +746,81 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 alpha='alpha',
                 source=ColumnDataSource(df[df['obs']]),
             )
+            key = f'all{i}'
+            period_model_dict[key] = ColumnDataSource(df[df['obs']])
+
+        period_title = Div(text="Period (<i>days</i>): ")
+        period_slider = Slider(
+            value=obj.period if obj.period is not None else 0.0,
+            start=0.0,
+            end=3.0,
+            step=0.0000001,
+            show_value=False,
+            format="0[.]0000000",
+        )
+        period_textinput = TextInput(
+            value=str(obj.period if obj.period is not None else 0.0)
+        )
+        period_textinput.js_on_change(
+            'value',
+            CustomJS(
+                args={'period': period_textinput, 'slider': period_slider},
+                code="""
+                // Update slider value to match text input
+                slider.value = parseFloat(period.value).toFixed(7);
+            """,
+            ),
+        )
+        period_slider.js_on_change(
+            'value',
+            CustomJS(
+                args={
+                    'slider': period_slider,
+                    'textinput': period_textinput,
+                    'toggle': toggle,
+                    **period_model_dict,
+                },
+                code="""
+                const period = parseFloat(slider.value).toFixed(7);
+                textinput.value = parseFloat(slider.value).toFixed(7);
+                textinput.change.emit();
+                for (let i = 0; i < toggle.labels.length; i++) {
+                    const allsource = eval(`all${i}`);
+                    const mjd = allsource.data.mjd;
+                    const folda = eval(`folda${i}`).data_source;
+                    const foldb = eval(`foldb${i}`).data_source;
+                    for (let m = 0; m < mjd.length; m++) {
+                        folda.data.mjd_folda[m] = (mjd[m] % period) / period;
+                        foldb.data.mjd_foldb[m] = folda.data.mjd_folda[m] + 1.;
+                    }
+                    folda.change.emit();
+                    foldb.change.emit();
+                }
+            """,
+            ),
+        )
+        period_button = Button(label="Reset Period")
+        period_button.js_on_click(
+            CustomJS(
+                args={
+                    'slider': period_slider,
+                    'textinput': period_textinput,
+                    'period': obj.period,
+                },
+                code="""
+                    textinput.value = parseFloat(period).toFixed(13);
+                    slider.value = period;
+                """,
+            )
+        )
+        period_row = row(period_slider, period_button)
+        period_column = column(period_title, period_row, period_textinput)
 
         period_layout = column(
-            row(period_plot, toggle), sizing_mode='scale_width', width=width
+            row(period_column),
+            row(period_plot, toggle),
+            sizing_mode='scale_width',
+            width=width,
         )
 
         p3 = Panel(child=period_layout, title='Period')
