@@ -82,8 +82,9 @@ def test_add_favorites_from_api(driver, super_admin_user, public_group):
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
 
-    # now go to the source page
+    # go to source page, wait until it finishes loading
     driver.get(f"/source/{obj_id}")
+    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
 
     # click the filled star to un-save this source
     driver.click_xpath(f'//*[@data-testid="favorites-include_{obj_id}"]')
