@@ -128,14 +128,6 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
         f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
 
-    # must search for this user, otherwise it may be in a different page of the table
-    driver.click_xpath('//*[@data-testid="Search-iconButton"]')
-    search_input_xpath = "//input[@aria-label='Search']"
-    search_input = driver.wait_for_xpath(search_input_xpath)
-    driver.click_xpath(search_input_xpath)
-    search_input.send_keys(user.username)
-
-    # now find the username and delete the user
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
     driver.click_xpath(f'//button[@data-testid="delete-{user.username}"]')
     driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{user.username}")]')
