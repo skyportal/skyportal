@@ -82,11 +82,8 @@ def test_add_favorites_from_api(driver, super_admin_user, public_group):
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
 
-    # go to source page, wait until it finishes loading
-    driver.get(f"/source/{obj_id}")
-
     # click the filled star to un-save this source
-    driver.click_xpath(f'//*[@data-testid="favorites-include_{obj_id}"]', timeout=20)
+    driver.click_xpath(f'//*[@data-testid="favorites-include_{obj_id}"]')
     driver.wait_for_xpath(f'//*[@data-testid="favorites-exclude_{obj_id}"]')
 
     # back to the favorites table
