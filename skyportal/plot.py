@@ -772,8 +772,11 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     ymin = smoothed_min - 0.05 * (smoothed_max - smoothed_min)
     xmin = np.min(data['wavelength']) - 100
     xmax = np.max(data['wavelength']) + 100
+    if obj.redshift is not None and obj.redshift > 0:
+        xmin_rest = xmin / (1.0 + obj.redshift)
+        xmax_rest = xmax / (1.0 + obj.redshift)
     plot = figure(
-        aspect_ratio=2,
+        aspect_ratio=1.5,
         sizing_mode='scale_width',
         y_range=(ymin, ymax),
         x_range=(xmin, xmax),
@@ -796,6 +799,12 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
+    if obj.redshift is not None and obj.redshift > 0:
+        plot.extra_x_ranges = {"rest_wave": Range1d(start=xmin_rest, end=xmax_rest)}
+        plot.add_layout(
+            LinearAxis(x_range_name="rest_wave", axis_label="Rest Wavelength (Å)"),
+            'above',
+        )
 
     # TODO how to choose a good default?
     plot.y_range = Range1d(0, 1.03 * data.flux.max())
