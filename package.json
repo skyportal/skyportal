@@ -59,7 +59,7 @@
     "redux": "4.0.5",
     "redux-logger": "3.0.6",
     "redux-thunk": "2.3.0",
-    "semver": "7.3.2",
+    "semver": "7.3.4",
     "style-loader": "2.0.0",
     "styled-components": "4.4.1",
     "use-count-up": "2.2.5",
