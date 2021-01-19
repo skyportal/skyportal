@@ -113,6 +113,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   sourceInfo: {
     display: "flex",
     flexFlow: "row wrap",
+    alignItems: "center",
   },
   infoLine: {
     // Get it's own line
@@ -171,16 +172,27 @@ const SourceDesktop = ({ source }) => {
               />
             </div>
             <div className={classes.infoLine}>
-              <b>Position (J2000):</b>
-              &nbsp; &nbsp;
-              <span className={classes.position}>
-                {ra_to_hours(source.ra, ":")} &nbsp;
-                {dec_to_dms(source.dec, ":")}
-              </span>
-              &nbsp; (&alpha;,&delta;= {source.ra}, &nbsp;
-              {source.dec}; <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)},
-              &nbsp;
-              {source.gal_lat.toFixed(6)})
+              <div className={classes.sourceInfo}>
+                <div>
+                  <b>Position (J2000):&nbsp; &nbsp;</b>
+                </div>
+                <div>
+                  <span className={classes.position}>
+                    {ra_to_hours(source.ra, ":")} &nbsp;
+                    {dec_to_dms(source.dec, ":")} &nbsp;
+                  </span>
+                </div>
+              </div>
+              <div className={classes.sourceInfo}>
+                <div>
+                  (&alpha;,&delta;= {source.ra}, &nbsp;
+                  {source.dec}; &nbsp;
+                </div>
+                <div>
+                  <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
+                  {source.gal_lat.toFixed(6)})
+                </div>
+              </div>
             </div>
             <div className={classes.infoLine}>
               <div className={classes.redshiftInfo}>
