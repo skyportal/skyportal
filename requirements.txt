@@ -7,7 +7,7 @@ seaborn==0.11.1
 bokeh==2.2.3
 pytest-randomly==3.5.0
 factory-boy==3.2.0
-astropy==4.0.1.post1
+astropy==4.2
 aplpy==2.0.3
 reproject==0.7.1
 avro-python3==1.10.1
