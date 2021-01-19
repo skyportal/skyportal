@@ -15,7 +15,7 @@ fastavro==0.21.7
 tqdm==4.23.2
 matplotlib==3.3.3
 astroquery==0.4.1
-apispec==3.3.2
+apispec==4.0.0
 marshmallow==3.10.0
 marshmallow-sqlalchemy==0.24.1
 marshmallow-enum==1.5.1
