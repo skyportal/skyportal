@@ -1,9 +1,31 @@
+import string
 import base64
 from distutils.util import strtobool
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Comment, Group, Candidate, Filter, Obj
+from ...models import (
+    DBSession,
+    Source,
+    Comment,
+    Group,
+    Candidate,
+    Filter,
+    Obj,
+    User,
+    UserNotification,
+)
+
+
+def users_mentioned(text):
+    punctuation = string.punctuation.replace("-", "").replace("@", "")
+    usernames = []
+    for word in text.replace(",", " ").split():
+        word = word.strip(punctuation)
+        if word.startswith("@"):
+            usernames.append(word.replace("@", ""))
+    users = User.query.filter(User.username.in_(usernames)).all()
+    return users
 
 
 class CommentHandler(BaseHandler):
@@ -160,9 +182,22 @@ class CommentHandler(BaseHandler):
             author=author,
             groups=groups,
         )
+        users_mentioned_in_comment = users_mentioned(comment_text)
+        if users_mentioned_in_comment:
+            for user_mentioned in users_mentioned_in_comment:
+                DBSession().add(
+                    UserNotification(
+                        user=user_mentioned,
+                        text=f"{self.current_user.username} mentioned you in a comment on {obj_id}",
+                        url=f"/source/{obj_id}",
+                    )
+                )
 
         DBSession().add(comment)
         DBSession().commit()
+        if users_mentioned_in_comment:
+            for user_mentioned in users_mentioned_in_comment:
+                self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',

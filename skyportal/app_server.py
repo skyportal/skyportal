@@ -76,6 +76,8 @@ from skyportal.handlers.api.internal import (
     AnnotationsInfoHandler,
     EphemerisHandler,
     StandardsHandler,
+    NotificationHandler,
+    BulkNotificationHandler,
 )
 
 from . import models, model_util, openapi
@@ -155,6 +157,8 @@ skyportal_handlers = [
     (r'/api/internal/log', LogHandler),
     (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
     (r'/api/internal/annotations_info', AnnotationsInfoHandler),
+    (r'/api/internal/notifications(/[0-9]+)?', NotificationHandler),
+    (r'/api/internal/notifications/all', BulkNotificationHandler),
     (r'/api/internal/ps1_thumbnail', PS1ThumbnailHandler),
     (r'/api/.*', InvalidEndpointHandler),
     (r'/become_user(/.*)?', BecomeUserHandler),

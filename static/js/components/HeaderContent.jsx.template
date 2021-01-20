@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import Box from "@material-ui/core/Box";
 import ProfileDropdown from "./ProfileDropdown";
 import Logo from "./Logo";
-
+import Notifications from "./Notifications";
 import styles from "./Main.css";
 
 const HeaderContent = () => (
@@ -22,7 +22,8 @@ const HeaderContent = () => (
       </Link>
       <Box p={2} />
     </div>
-    <div style= {%- raw -%} {{ position: "fixed", right: "1rem", top: "0.4rem" }} {%- endraw -%} >
+    <div style= {%- raw -%} {{ position: "fixed", right: "1rem", top: "0.4rem", display: "flex" }} {%- endraw -%} >
+      <Notifications />
       <ProfileDropdown />
     </div>
   </div>

@@ -3068,6 +3068,39 @@ class SourceNotification(Base):
     level = sa.Column(sa.String(), nullable=False)
 
 
+class UserNotification(Base):
+    user_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the associated User",
+    )
+    user = relationship(
+        "User", back_populates="notifications", doc="The associated User",
+    )
+    text = sa.Column(
+        sa.String(), nullable=False, doc="The notification text to display",
+    )
+    read = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        index=True,
+        doc="Boolean indicating whether notification has been viewed.",
+    )
+    url = sa.Column(
+        sa.String(),
+        nullable=True,
+        doc="URL to which to direct upon click, if relevant",
+    )
+
+
+User.notifications = relationship(
+    "UserNotification",
+    back_populates="user",
+    doc="Notifications to be displayed on front-end associated with User",
+)
+
 GroupSourceNotification = join_model('group_notifications', Group, SourceNotification)
 User.source_notifications = relationship(
     'SourceNotification',
