@@ -17,9 +17,13 @@ class NotificationHandler(BaseHandler):
             ):
                 return self.error("Insufficient permissions")
             return self.success(data=notification)
-        notifications = UserNotification.query.filter(
-            UserNotification.user_id == self.associated_user_object.id
-        ).all()
+        notifications = (
+            UserNotification.query.filter(
+                UserNotification.user_id == self.associated_user_object.id
+            )
+            .order_by(UserNotification.created_at.desc())
+            .all()
+        )
         return self.success(data=notifications)
 
     def patch(self, notification_id):

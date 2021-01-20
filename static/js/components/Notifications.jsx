@@ -9,6 +9,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import Divider from "@material-ui/core/Divider";
+import Button from "@material-ui/core/Button";
 
 import * as userNotificationsActions from "../ducks/userNotifications";
 
@@ -23,6 +24,10 @@ const useStyles = makeStyles((theme) => ({
   },
   unreadMessage: {
     fontWeight: "bold",
+  },
+  centered: {
+    display: "flex",
+    justifyContent: "center",
   },
 }));
 
@@ -47,7 +52,6 @@ const Notifications = () => {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const handleClickOpen = (event) => {
     setAnchorEl(event.currentTarget);
-    dispatch(userNotificationsActions.updateAllNotifications({ read: true }));
   };
   const handleClose = () => {
     setAnchorEl(null);
@@ -57,6 +61,23 @@ const Notifications = () => {
   const deleteAllNotifications = () => {
     dispatch(userNotificationsActions.deleteAllNotifications());
     handleClose();
+  };
+
+  const markAllRead = () => {
+    dispatch(userNotificationsActions.updateAllNotifications({ read: true }));
+  };
+
+  const markRead = (notificationID) => {
+    dispatch(
+      userNotificationsActions.updateNotification({
+        notificationID,
+        data: { read: true },
+      })
+    );
+  };
+
+  const deleteNotification = (notificationID) => {
+    dispatch(userNotificationsActions.deleteNotification(notificationID));
   };
 
   return (
@@ -103,20 +124,36 @@ const Notifications = () => {
                   >
                     {notification.text}
                   </ListItem>
+                  <ListItem className={classes.centered}>
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        markRead(notification.id);
+                      }}
+                    >
+                      Mark read
+                    </Button>
+                    |
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        deleteNotification(notification.id);
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </ListItem>
                   <Divider />
                 </>
               ))}
             {notifications && notifications.length > 0 && (
-              <ListItem
-                button
-                alignItems="center"
-                onClick={deleteAllNotifications}
-              >
-                <em>Clear All</em>
+              <ListItem className={classes.centered}>
+                <Button onClick={markAllRead}>Mark all read</Button>|
+                <Button onClick={deleteAllNotifications}>Delete all</Button>
               </ListItem>
             )}
             {(!notifications || notifications.length === 0) && (
-              <ListItem alignItems="center">
+              <ListItem className={classes.centered}>
                 <em>No notifications</em>
               </ListItem>
             )}
