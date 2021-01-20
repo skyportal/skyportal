@@ -104,8 +104,6 @@ const MainContent = ({ root }) => {
 
         <SidebarAndHeader open={open} />
 
-        <Responsive mobileElement={ProfileDropdown} />
-
         <div
           role="main"
           className={clsx(classes.content, {

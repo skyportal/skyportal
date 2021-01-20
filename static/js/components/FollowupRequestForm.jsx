@@ -23,6 +23,16 @@ const useStyles = makeStyles(() => ({
   marginTop: {
     marginTop: "1rem",
   },
+  allocationSelect: {
+    width: "100%",
+  },
+  allocationSelectItem: {
+    whiteSpace: "break-spaces",
+  },
+  container: {
+    width: "99%",
+    marginBottom: "1rem",
+  },
 }));
 
 const FollowupRequestForm = ({
@@ -103,7 +113,7 @@ const FollowupRequestForm = ({
   };
 
   return (
-    <div>
+    <div className={classes.container}>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
       <Select
         labelId="allocationSelectLabel"
@@ -113,7 +123,11 @@ const FollowupRequestForm = ({
         className={classes.allocationSelect}
       >
         {allocationList.map((allocation) => (
-          <MenuItem value={allocation.id} key={allocation.id}>
+          <MenuItem
+            value={allocation.id}
+            key={allocation.id}
+            className={classes.allocationSelectItem}
+          >
             {`${
               telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
             } / ${instLookUp[allocation.instrument_id].name} - ${
