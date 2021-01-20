@@ -663,6 +663,7 @@ class SourceHandler(BaseHandler):
 
         # Fetch multiple sources
         query_options = [joinedload(Obj.thumbnails)]
+
         if not save_summary:
             q = (
                 DBSession()
@@ -683,6 +684,8 @@ class SourceHandler(BaseHandler):
                 .filter(Source.group_id.in_(user_accessible_group_ids))
             )
 
+        if list_name:
+            q = q.join(Listing)
         if classifications is not None or sort_by == "classification":
             q = q.join(Classification, isouter=True)
             if classifications is not None:
@@ -717,7 +720,6 @@ class SourceHandler(BaseHandler):
         if saved_after:
             q = q.filter(Source.saved_at >= saved_after)
         if list_name:
-            q = q.join(Listing)
             q = q.filter(
                 Listing.list_name == list_name,
                 Listing.user_id == self.associated_user_object.id,
