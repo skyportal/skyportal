@@ -121,6 +121,9 @@ const Notifications = () => {
                         ? classes.readMessage
                         : classes.unreadMessage
                     }
+                    onClick={() => {
+                      markRead(notification.id);
+                    }}
                   >
                     {notification.text}
                   </ListItem>
