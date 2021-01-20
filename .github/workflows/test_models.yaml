@@ -1,4 +1,4 @@
-name: Test SkyPortal
+name: Test Skyportal Model Logic
 
 on:
   push:
@@ -145,7 +145,7 @@ jobs:
 
       - name: Run test suite
         run: |
-          make test_headless
+          make test_headless TEST_SPEC="skyportal/tests/models"
 
       - name: Upload logs
         uses: actions/upload-artifact@v2
