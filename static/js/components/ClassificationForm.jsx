@@ -161,7 +161,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     return (
       <>
         <InputLabel id="classificationGroupSelectLabel">
-          Choose Group (all user-accessible groups if blank)
+          Choose Group (all groups if blank)
         </InputLabel>
         <Select
           id="groupSelect"

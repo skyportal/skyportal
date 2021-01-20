@@ -11,11 +11,11 @@ astropy==4.0.1.post1
 aplpy==2.0.3
 reproject==0.7.1
 avro-python3==1.10.1
-fastavro==0.21.7
+fastavro==1.2.4
 tqdm==4.23.2
 matplotlib==3.3.3
 astroquery==0.4.1
-apispec==3.3.2
+apispec==4.0.0
 marshmallow==3.10.0
 marshmallow-sqlalchemy==0.24.1
 marshmallow-enum==1.5.1
