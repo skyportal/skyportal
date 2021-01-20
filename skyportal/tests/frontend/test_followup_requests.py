@@ -152,17 +152,18 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     )
     driver.click_xpath(submit_button_xpath)
 
+    driver.click_xpath("//div[@id='SEDM-requests-header']")
     driver.wait_for_xpath(
-        f'//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "Mix \'n Match")]'
+        f'//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "Mix \'n Match")]'
     )
     driver.wait_for_xpath(
-        f'''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "u,IFU")]'''
+        f'''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "u,IFU")]'''
     )
     driver.wait_for_xpath(
-        f'''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "1")]'''
+        f'''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "1")]'''
     )
     driver.wait_for_xpath(
-        f'''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+        f'''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "submitted")]'''
     )
 
 
@@ -200,16 +201,17 @@ def add_followup_request_using_frontend_and_verify_SPRAT(
 
     driver.click_xpath(submit_button_xpath)
 
+    driver.click_xpath("//div[@id='SPRAT-requests-header']")
     driver.wait_for_xpath(
-        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]',
+        '//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "300")]',
         timeout=20,
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "blue")]''',
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "blue")]''',
         timeout=20,
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]''',
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "submitted")]''',
         timeout=20,
     )
 
@@ -252,16 +254,17 @@ def add_followup_request_using_frontend_and_verify_IOI(
 
     driver.click_xpath(submit_button_xpath)
 
+    driver.click_xpath("//div[@id='IOI-requests-header']")
     driver.wait_for_xpath(
-        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]',
+        '//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "300")]',
         timeout=20,
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "H")]''',
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "H")]''',
         timeout=20,
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]''',
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "submitted")]''',
         timeout=20,
     )
 
@@ -310,16 +313,17 @@ def add_followup_request_using_frontend_and_verify_IOO(
 
     driver.click_xpath(submit_button_xpath)
 
+    driver.click_xpath("//div[@id='IOO-requests-header']")
     driver.wait_for_xpath(
-        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]',
+        '//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "300")]',
         timeout=20,
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "u,z")]''',
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "u,z")]''',
         timeout=20,
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]''',
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "submitted")]''',
         timeout=20,
     )
 
@@ -394,14 +398,15 @@ def test_edit_existing_followup_request(
 
     driver.scroll_to_element_and_click(submit_button)
 
+    driver.click_xpath("//div[@id='SEDM-requests-header']")
     driver.wait_for_xpath(
-        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "IFU")]'
+        '//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "IFU")]'
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "1")]'''
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "1")]'''
     )
     driver.wait_for_xpath(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "submitted")]'''
     )
 
 
@@ -418,14 +423,15 @@ def test_delete_followup_request_SEDM(
     )
     driver.scroll_to_element_and_click(delete_button)
 
+    driver.click_xpath("//div[@id='SEDM-requests-header']")
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "u,IFU")]'''
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "u,IFU")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "1")]'''
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "1")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "submitted")]'''
     )
 
 
@@ -442,14 +448,15 @@ def test_delete_followup_request_IOO(
         f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )
 
+    driver.click_xpath("//div[@id='IOO-requests-header']")
     driver.wait_for_xpath_to_disappear(
-        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]'
+        '//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "u,z")]'''
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "u,z")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "submitted")]'''
     )
 
 
@@ -466,14 +473,15 @@ def test_delete_followup_request_IOI(
         f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )
 
+    driver.click_xpath("//div[@id='IOI-requests-header']")
     driver.wait_for_xpath_to_disappear(
-        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]'
+        '//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "H")]'''
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "H")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "submitted")]'''
     )
 
 
@@ -490,14 +498,15 @@ def test_delete_followup_request_SPRAT(
         f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )
 
+    driver.click_xpath("//div[@id='SPRAT-requests-header']")
     driver.wait_for_xpath_to_disappear(
-        '//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "300")]'
+        '//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "300")]'
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "blue")]'''
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "blue")]'''
     )
     driver.wait_for_xpath_to_disappear(
-        '''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+        '''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "submitted")]'''
     )
 
 
@@ -570,17 +579,18 @@ def test_submit_new_followup_request_two_groups(
     )
     driver.click_xpath(submit_button_xpath)
 
+    driver.click_xpath("//div[@id='SEDM-requests-header']")
     driver.wait_for_xpath(
-        f'//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "Mix \'n Match")]'
+        f'//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "Mix \'n Match")]'
     )
     driver.wait_for_xpath(
-        f'''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "u,IFU")]'''
+        f'''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "u,IFU")]'''
     )
     driver.wait_for_xpath(
-        f'''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "1")]'''
+        f'''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "1")]'''
     )
     driver.wait_for_xpath(
-        f'''//table[contains(@data-testid, "followupRequestTable")]//td[contains(., "submitted")]'''
+        f'''//div[contains(@data-testid, "followupRequestTable")]//div[contains(., "submitted")]'''
     )
 
     filename = glob.glob(
