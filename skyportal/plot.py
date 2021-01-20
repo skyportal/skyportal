@@ -689,8 +689,14 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
     # now make period plot
 
-    if obj.period is not None:
-        period = obj.period
+    if obj.varstar:
+
+        # get period from annotations (any for now)
+        annotation_list = obj.get_annotations_readable_by(user)[0]
+        if 'period' in annotation_list.data:
+            period = annotation_list.data['period']
+        else:
+            period = 0.1
 
         period_xmin = -0.1
         period_xmax = 2.1
@@ -751,16 +757,14 @@ def photometry_plot(obj_id, user, width=600, height=300):
 
         period_title = Div(text="Period (<i>days</i>): ")
         period_slider = Slider(
-            value=obj.period if obj.period is not None else 0.0,
+            value=period if period is not None else 0.0,
             start=0.0,
             end=3.0,
             step=0.0000001,
             show_value=False,
-            format="0[.]0000000",
+            # format="0[.]0000000",
         )
-        period_textinput = TextInput(
-            value=str(obj.period if obj.period is not None else 0.0)
-        )
+        period_textinput = TextInput(value=str(period if period is not None else 0.0))
         period_textinput.js_on_change(
             'value',
             CustomJS(
@@ -805,7 +809,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 args={
                     'slider': period_slider,
                     'textinput': period_textinput,
-                    'period': obj.period,
+                    'period': period,
                 },
                 code="""
                     textinput.value = parseFloat(period).toFixed(13);

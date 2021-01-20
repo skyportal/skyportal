@@ -216,7 +216,7 @@ candidates:
     ra: 353.36647
     dec: 33.646149
     redshift: 0.063
-    period:
+    varstar: false
     altdata:
       simbad:
         class: RRLyr
@@ -228,7 +228,7 @@ candidates:
     ra: 353.36647
     dec: 33.646149
     redshift: 0.063
-    period:
+    varstar: false
     altdata:
       simbad:
         class: RRLyr
@@ -239,7 +239,7 @@ candidates:
     ra: 322.718872
     dec: 27.574113
     redshift: 0.0
-    period: 0.5281217208459
+    varstar: true
     altdata:
       simbad:
         class: RRLyr
@@ -250,7 +250,7 @@ candidates:
     ra: 322.718872
     dec: 27.574113
     redshift: 0.0
-    period: 0.5281217208459
+    varstar: true
     altdata:
       simbad:
         class: RRLyr
@@ -341,6 +341,7 @@ annotation:
     origin: "Program A"
     data:
       numeric_field: 0.98765
+      period: 0.5281217208459
       some_boolean: false
     group_ids:
       - =program_A

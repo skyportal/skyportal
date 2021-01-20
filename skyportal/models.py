@@ -460,11 +460,6 @@ class Obj(Base, ha.Point):
     redshift_history = sa.Column(
         JSONB, nullable=True, doc="Record of who set which redshift values and when.",
     )
-    period = sa.Column(sa.Float, nullable=True, doc="Period [days]")
-    period_history = sa.Column(
-        JSONB, nullable=True, doc="Record of who set which period values and when.",
-    )
-
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(
         JSONB,
