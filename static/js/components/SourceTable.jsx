@@ -383,11 +383,9 @@ const SourceTable = ({
   // helper function to get the classifications
   const getClassifications = (source) => {
     if (groupID !== undefined) {
-      return source.classifications.filter((cls) => {
-        return cls.groups.find((g) => {
-          return g.id === groupID;
-        });
-      });
+      return source.classifications.filter((cls) =>
+        cls.groups.find((g) => g.id === groupID)
+      );
     }
     return source.classifications;
   };
@@ -408,7 +406,7 @@ const SourceTable = ({
 
   // helper function to get the source groups
   const getGroups = (source) => {
-    return source.groups.filter((group) => group.active);
+    source.groups.filter((group) => group.active);
   };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
@@ -434,16 +432,10 @@ const SourceTable = ({
   // helper function to get the source saved_at date
   const getDate = (source) => {
     if (groupID !== undefined) {
-      const group = source.groups.find((g) => {
-        return g.id === groupID;
-      });
+      const group = source.groups.find((g) => g.id === groupID);
       return group?.saved_at;
     }
-    const dates = source.groups
-      .map((g) => {
-        return g.saved_at;
-      })
-      .sort();
+    const dates = source.groups.map((g) => g.saved_at).sort();
     return dates[dates.length - 1];
   };
 

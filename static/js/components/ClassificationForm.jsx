@@ -97,32 +97,30 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
 
   // Custom form widget for the classifications to format and display the contexts as well
   const CustomClassificationWidget = ({ value, onChange, options }) => {
-    return (
-      <TextField
-        id="classification"
-        select
-        required
-        label="Classification"
-        value={value || ""}
-        onChange={(event) => {
-          onChange(event.target.value);
-        }}
-      >
-        {options.enumOptions.map((option) => {
-          const [classification, context] = option.value.split(" <> ");
-          return (
-            <MenuItem key={option.value} value={option.value}>
-              <span>
-                <b>{classification}</b>
-                &nbsp;
-                {context !== "" && <br />}
-                {context}
-              </span>
-            </MenuItem>
-          );
-        })}
-      </TextField>
-    );
+    <TextField
+      id="classification"
+      select
+      required
+      label="Classification"
+      value={value || ""}
+      onChange={(event) => {
+        onChange(event.target.value);
+      }}
+    >
+      {options.enumOptions.map((option) => {
+        const [classification, context] = option.value.split(" <> ");
+        return (
+          <MenuItem key={option.value} value={option.value}>
+            <span>
+              <b>{classification}</b>
+              &nbsp;
+              {context !== "" && <br />}
+              {context}
+            </span>
+          </MenuItem>
+        );
+      })}
+    </TextField>;
   };
   CustomClassificationWidget.propTypes = {
     value: PropTypes.string.isRequired,
@@ -135,22 +133,20 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   // Custom form widget for probability because rxjs MUI UpdownWidget does not have working min/max/step
   // https://github.com/rjsf-team/react-jsonschema-form/issues/2022
   const CustomProbabilityWidget = ({ value, onChange }) => {
-    return (
-      <TextField
-        id="probability"
-        label="Probability"
-        type="number"
-        helperText="[0-1]"
-        InputLabelProps={{
-          shrink: true,
-        }}
-        inputProps={{ min: "0", max: "1", step: "0.0001" }}
-        value={value || ""}
-        onChange={(event) => {
-          onChange(event.target.value);
-        }}
-      />
-    );
+    <TextField
+      id="probability"
+      label="Probability"
+      type="number"
+      helperText="[0-1]"
+      InputLabelProps={{
+        shrink: true,
+      }}
+      inputProps={{ min: "0", max: "1", step: "0.0001" }}
+      value={value || ""}
+      onChange={(event) => {
+        onChange(event.target.value);
+      }}
+    />;
   };
   CustomProbabilityWidget.propTypes = {
     value: PropTypes.string.isRequired,
@@ -158,47 +154,45 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   };
 
   const CustomGroupsWidget = ({ value, onChange, options }) => {
-    return (
-      <>
-        <InputLabel id="classificationGroupSelectLabel">
-          Choose Group (all groups if blank)
-        </InputLabel>
-        <Select
-          id="groupSelect"
-          onChange={(event) => {
-            onChange(event.target.value);
-          }}
-          input={<Input id="selectGroupsChip" />}
-          labelId="classificationGroupSelectLabel"
-          value={value || ""}
-          renderValue={(selected) => (
-            <div className={classes.chips}>
-              {selected.map((group) => (
-                <Chip
-                  key={group}
-                  label={groupIDToName[group]}
-                  className={classes.chip}
-                />
-              ))}
-            </div>
-          )}
-          MenuProps={MenuProps}
-          fullWidth
-          multiple
-        >
-          {options.enumOptions.length > 0 &&
-            options.enumOptions.map((group) => (
-              <MenuItem
-                value={group.value}
-                key={group.value.toString()}
-                data-testid={`notificationGroupSelect_${group.value}`}
-              >
-                {group.label}
-              </MenuItem>
+    <>
+      <InputLabel id="classificationGroupSelectLabel">
+        Choose Group (all groups if blank)
+      </InputLabel>
+      <Select
+        id="groupSelect"
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+        input={<Input id="selectGroupsChip" />}
+        labelId="classificationGroupSelectLabel"
+        value={value || ""}
+        renderValue={(selected) => (
+          <div className={classes.chips}>
+            {selected.map((group) => (
+              <Chip
+                key={group}
+                label={groupIDToName[group]}
+                className={classes.chip}
+              />
             ))}
-        </Select>
-      </>
-    );
+          </div>
+        )}
+        MenuProps={MenuProps}
+        fullWidth
+        multiple
+      >
+        {options.enumOptions.length > 0 &&
+          options.enumOptions.map((group) => (
+            <MenuItem
+              value={group.value}
+              key={group.value.toString()}
+              data-testid={`notificationGroupSelect_${group.value}`}
+            >
+              {group.label}
+            </MenuItem>
+          ))}
+      </Select>
+    </>;
   };
   CustomGroupsWidget.propTypes = {
     value: PropTypes.arrayOf(PropTypes.string).isRequired,
