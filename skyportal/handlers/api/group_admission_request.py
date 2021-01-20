@@ -5,6 +5,7 @@ from ...models import (
     Group,
     User,
     GroupAdmissionRequest,
+    UserNotification,
 )
 from .group import has_admin_access_for_group
 
@@ -201,7 +202,15 @@ class GroupAdmissionRequestHandler(BaseHandler):
         ):
             return self.error("Insufficient permissions.")
         admission_request.status = status
+        DBSession().add(
+            UserNotification(
+                user=admission_request.user,
+                text=f"Your admission request to group {admission_request.group.name} has been {status}.",
+                url="/groups",
+            )
+        )
         DBSession().commit()
+        self.flow.push(admission_request.user_id, "skyportal/FETCH_NOTIFICATIONS", {})
         return self.success()
 
     @auth_or_token
