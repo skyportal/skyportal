@@ -1305,7 +1305,29 @@ def get_obj_classifications_readable_by(self, user_or_token):
     ]
 
 
+def get_obj_annotations_readable_by(self, user_or_token):
+    """Query the database and return the Classifications on this Obj that are accessible
+    to any of the User or Token owner's accessible Groups.
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+       The requesting `User` or `Token` object.
+
+    Returns
+    -------
+    classification_list : list of `skyportal.models.Classification`
+       The accessible classifications attached to this Obj.
+    """
+    return [
+        annotations
+        for annotations in self.annotations
+        if annotations.is_readable_by(user_or_token)
+    ]
+
+
 Obj.get_classifications_readable_by = get_obj_classifications_readable_by
+Obj.get_annotations_readable_by = get_obj_annotations_readable_by
 
 
 def get_photometry_readable_by_user(obj_id, user_or_token):

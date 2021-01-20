@@ -2,7 +2,7 @@ import re
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Annotation, Group, Candidate, Filter
+from ...models import DBSession, Source, Annotation, Group, Candidate, Filter, Obj
 
 
 class AnnotationHandler(BaseHandler):
@@ -277,3 +277,40 @@ class AnnotationHandler(BaseHandler):
             return self.error('Insufficient user permissions.')
         self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
         return self.success()
+
+
+class ObjAnnotationHandler(BaseHandler):
+    @auth_or_token
+    def get(self, obj_id):
+        """
+        ---
+        description: Retrieve object's annotations
+        tags:
+          - annotations
+          - sources
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfAnnotations
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        obj = Obj.get_if_readable_by(obj_id, self.current_user)
+        if obj is None:
+            return self.error('Invalid obj_id.')
+
+        annotations = obj.get_annotations_readable_by(self.current_user)
+        for annotation in annotations:
+            del annotation.groups
+
+        return self.success(data=annotations)
