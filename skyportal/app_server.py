@@ -58,6 +58,7 @@ from skyportal.handlers.api import (
     ThumbnailHandler,
     UserHandler,
     WeatherHandler,
+    PS1ThumbnailHandler,
 )
 from skyportal.handlers.api.internal import (
     PlotPhotometryHandler,
@@ -154,6 +155,7 @@ skyportal_handlers = [
     (r'/api/internal/log', LogHandler),
     (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
     (r'/api/internal/annotations_info', AnnotationsInfoHandler),
+    (r'/api/internal/ps1_thumbnail', PS1ThumbnailHandler),
     (r'/api/.*', InvalidEndpointHandler),
     (r'/become_user(/.*)?', BecomeUserHandler),
     (r'/logout', LogoutHandler),

@@ -36,6 +36,7 @@ from .source import (
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,
+    PS1ThumbnailHandler,
 )
 from .source_groups import SourceGroupsHandler
 from .spectrum import (
