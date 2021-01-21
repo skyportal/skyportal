@@ -726,6 +726,10 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
             )
 
+        period_imhover = HoverTool(tooltips=tooltip_format)
+        period_imhover.renderers = []
+        period_plot.add_tools(period_imhover)
+
         period_model_dict = {}
 
         for i, (label, df) in enumerate(split):
@@ -742,6 +746,9 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 alpha='alpha',
                 source=ColumnDataSource(df[df['obs']]),
             )
+
+            period_imhover.renderers.append(period_model_dict[key])
+
             key = f'foldb{i}'
             period_model_dict[key] = period_plot.scatter(
                 x='mjd_foldb',
@@ -752,6 +759,62 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 alpha='alpha',
                 source=ColumnDataSource(df[df['obs']]),
             )
+            period_imhover.renderers.append(period_model_dict[key])
+
+            key = f'foldaerr{i}'
+            y_err_x = []
+            y_err_y = []
+
+            for d, ro in df[df['obs']].iterrows():
+                px = ro['mjd_folda']
+                py = ro['mag']
+                err = ro['magerr']
+
+                y_err_x.append((px, px))
+                y_err_y.append((py - err, py + err))
+
+            period_model_dict[key] = period_plot.multi_line(
+                xs='xs',
+                ys='ys',
+                color='color',
+                alpha='alpha',
+                source=ColumnDataSource(
+                    data=dict(
+                        xs=y_err_x,
+                        ys=y_err_y,
+                        color=df[df['obs']]['color'],
+                        alpha=[1.0] * len(df[df['obs']]),
+                    )
+                ),
+            )
+
+            key = f'foldberr{i}'
+            y_err_x = []
+            y_err_y = []
+
+            for d, ro in df[df['obs']].iterrows():
+                px = ro['mjd_foldb']
+                py = ro['mag']
+                err = ro['magerr']
+
+                y_err_x.append((px, px))
+                y_err_y.append((py - err, py + err))
+
+            period_model_dict[key] = period_plot.multi_line(
+                xs='xs',
+                ys='ys',
+                color='color',
+                alpha='alpha',
+                source=ColumnDataSource(
+                    data=dict(
+                        xs=y_err_x,
+                        ys=y_err_y,
+                        color=df[df['obs']]['color'],
+                        alpha=[1.0] * len(df[df['obs']]),
+                    )
+                ),
+            )
+
             key = f'all{i}'
             period_model_dict[key] = ColumnDataSource(df[df['obs']])
 
@@ -761,8 +824,8 @@ def photometry_plot(obj_id, user, width=600, height=300):
             start=0.0,
             end=3.0,
             step=0.0000001,
-            show_value=False,
-            # format="0[.]0000000",
+            show_value=True,
+            format="0[.]0000000",
         )
         period_textinput = TextInput(value=str(period if period is not None else 0.0))
         period_textinput.js_on_change(
@@ -817,12 +880,32 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 """,
             )
         )
+
+        period_toggle = CheckboxWithLegendGroup(
+            labels=colors_labels.label.tolist(),
+            active=list(range(len(colors_labels))),
+            colors=colors_labels.color.tolist(),
+            width=width // 5,
+        )
+
+        # TODO replace `eval` with Namespaces
+        # https://github.com/bokeh/bokeh/pull/6340
+        period_toggle.js_on_click(
+            CustomJS(
+                args={'toggle': period_toggle, **period_model_dict},
+                code=open(
+                    os.path.join(
+                        os.path.dirname(__file__), '../static/js/plotjs', 'togglep.js'
+                    )
+                ).read(),
+            )
+        )
         period_row = row(period_slider, period_button)
         period_column = column(period_title, period_row, period_textinput)
 
         period_layout = column(
             row(period_column),
-            row(period_plot, toggle),
+            row(period_plot, period_toggle),
             sizing_mode='scale_width',
             width=width,
         )
