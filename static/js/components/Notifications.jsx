@@ -85,10 +85,12 @@ const Notifications = () => {
       <IconButton
         onClick={handleClickOpen}
         style={{ marginTop: "0.6rem", marginRight: "1rem" }}
+        data-testid="notificationsButton"
       >
         <Badge
           badgeContent={unreadCount}
           color={unreadCount > 0 ? "secondary" : "primary"}
+          data-testid="notificationsBadge"
         >
           <MUINotificationsIcon fontSize="large" color="primary" />
         </Badge>
@@ -124,11 +126,13 @@ const Notifications = () => {
                     onClick={() => {
                       markRead(notification.id);
                     }}
+                    data-testid={`notification${notification.id}`}
                   >
                     {notification.text}
                   </ListItem>
                   <ListItem className={classes.centered}>
                     <Button
+                      data-testid={`markReadButton${notification.id}`}
                       size="small"
                       onClick={() => {
                         markRead(notification.id);
@@ -138,6 +142,7 @@ const Notifications = () => {
                     </Button>
                     |
                     <Button
+                      data-testid={`deleteNotificationButton${notification.id}`}
                       size="small"
                       onClick={() => {
                         deleteNotification(notification.id);
@@ -151,8 +156,16 @@ const Notifications = () => {
               ))}
             {notifications && notifications.length > 0 && (
               <ListItem className={classes.centered}>
-                <Button onClick={markAllRead}>Mark all read</Button>|
-                <Button onClick={deleteAllNotifications}>Delete all</Button>
+                <Button onClick={markAllRead} data-testid="markAllReadButton">
+                  Mark all read
+                </Button>
+                |
+                <Button
+                  onClick={deleteAllNotifications}
+                  data-testid="deleteAllNotificationsButton"
+                >
+                  Delete all
+                </Button>
               </ListItem>
             )}
             {(!notifications || notifications.length === 0) && (
