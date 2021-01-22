@@ -96,7 +96,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   };
 
   // Custom form widget for the classifications to format and display the contexts as well
-  const CustomClassificationWidget = ({ value, onChange, options }) => {
+  const CustomClassificationWidget = ({ value, onChange, options }) => (
     <TextField
       id="classification"
       select
@@ -120,8 +120,9 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
           </MenuItem>
         );
       })}
-    </TextField>;
-  };
+    </TextField>
+  );
+
   CustomClassificationWidget.propTypes = {
     value: PropTypes.string.isRequired,
     onChange: PropTypes.func.isRequired,
@@ -132,7 +133,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
 
   // Custom form widget for probability because rxjs MUI UpdownWidget does not have working min/max/step
   // https://github.com/rjsf-team/react-jsonschema-form/issues/2022
-  const CustomProbabilityWidget = ({ value, onChange }) => {
+  const CustomProbabilityWidget = ({ value, onChange }) => (
     <TextField
       id="probability"
       label="Probability"
@@ -146,8 +147,8 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       onChange={(event) => {
         onChange(event.target.value);
       }}
-    />;
-  };
+    />
+  );
   CustomProbabilityWidget.propTypes = {
     value: PropTypes.string.isRequired,
     onChange: PropTypes.func.isRequired,
