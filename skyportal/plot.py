@@ -698,25 +698,25 @@ def photometry_plot(obj_id, user, width=600, height=300):
         else:
             period = 0.1
 
-        period_xmin = -0.1
-        period_xmax = 2.1
-
+        # bokeh figure for period plotting
         period_plot = figure(
             aspect_ratio=1.7,
             sizing_mode='scale_both',
             active_drag='box_zoom',
             tools='box_zoom,wheel_zoom,pan,reset,save',
             y_range=(ymax, ymin),
-            x_range=(period_xmin, period_xmax),
+            x_range=(-0.1, 2.1),  # cover two phases: a and b
             toolbar_location='above',
             toolbar_sticky=False,
             x_axis_location='below',
         )
 
+        # axis labels
         period_plot.xaxis.axis_label = 'phase'
         period_plot.yaxis.axis_label = 'mag'
         period_plot.toolbar.logo = None
 
+        # do we have a distance modulus (dm)?
         obj = DBSession().query(Obj).get(obj_id)
         if obj.dm is not None:
             period_plot.extra_y_ranges = {
@@ -726,16 +726,22 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
             )
 
+        # initiate hover tool
         period_imhover = HoverTool(tooltips=tooltip_format)
         period_imhover.renderers = []
         period_plot.add_tools(period_imhover)
 
+        # store all the plot data
         period_model_dict = {}
 
+        # iterate over each filter
         for i, (label, df) in enumerate(split):
 
+            # fold x-axis on period in days
             df['mjd_folda'] = (df['mjd'] % period) / period
             df['mjd_foldb'] = df['mjd_folda'] + 1.0
+
+            # phase a plotting
             key = f'folda{i}'
             period_model_dict[key] = period_plot.scatter(
                 x='mjd_folda',
@@ -744,11 +750,12 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 marker='circle',
                 fill_color='color',
                 alpha='alpha',
-                source=ColumnDataSource(df[df['obs']]),
+                source=ColumnDataSource(df[df['obs']]),  # only visible data
             )
-
+            # add to hover tool
             period_imhover.renderers.append(period_model_dict[key])
 
+            # phase b plotting
             key = f'foldb{i}'
             period_model_dict[key] = period_plot.scatter(
                 x='mjd_foldb',
@@ -757,22 +764,24 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 marker='circle',
                 fill_color='color',
                 alpha='alpha',
-                source=ColumnDataSource(df[df['obs']]),
+                source=ColumnDataSource(df[df['obs']]),  # only visible data
             )
             period_imhover.renderers.append(period_model_dict[key])
 
+            # errorbars for phase a
             key = f'foldaerr{i}'
             y_err_x = []
             y_err_y = []
 
+            # get each visible error value
             for d, ro in df[df['obs']].iterrows():
                 px = ro['mjd_folda']
                 py = ro['mag']
                 err = ro['magerr']
-
+                # set up error tuples
                 y_err_x.append((px, px))
                 y_err_y.append((py - err, py + err))
-
+            # plot phase a errors
             period_model_dict[key] = period_plot.multi_line(
                 xs='xs',
                 ys='ys',
@@ -788,18 +797,20 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 ),
             )
 
+            # errorbars for phase b
             key = f'foldberr{i}'
             y_err_x = []
             y_err_y = []
 
+            # get each visible error value
             for d, ro in df[df['obs']].iterrows():
                 px = ro['mjd_foldb']
                 py = ro['mag']
                 err = ro['magerr']
-
+                # set up error tuples
                 y_err_x.append((px, px))
                 y_err_y.append((py - err, py + err))
-
+            # plot phase b errors
             period_model_dict[key] = period_plot.multi_line(
                 xs='xs',
                 ys='ys',
@@ -815,79 +826,14 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 ),
             )
 
-            key = f'all{i}'
-            period_model_dict[key] = ColumnDataSource(df[df['obs']])
-
-        period_title = Div(text="Period (<i>days</i>): ")
-        period_slider = Slider(
-            value=period if period is not None else 0.0,
-            start=0.0,
-            end=3.0,
-            step=0.0000001,
-            show_value=True,
-            format="0[.]0000000",
-        )
-        period_textinput = TextInput(value=str(period if period is not None else 0.0))
-        period_textinput.js_on_change(
-            'value',
-            CustomJS(
-                args={'period': period_textinput, 'slider': period_slider},
-                code="""
-                // Update slider value to match text input
-                slider.value = parseFloat(period.value).toFixed(7);
-            """,
-            ),
-        )
-        period_slider.js_on_change(
-            'value',
-            CustomJS(
-                args={
-                    'slider': period_slider,
-                    'textinput': period_textinput,
-                    'toggle': toggle,
-                    **period_model_dict,
-                },
-                code="""
-                const period = parseFloat(slider.value).toFixed(7);
-                textinput.value = parseFloat(slider.value).toFixed(7);
-                textinput.change.emit();
-                for (let i = 0; i < toggle.labels.length; i++) {
-                    const allsource = eval(`all${i}`);
-                    const mjd = allsource.data.mjd;
-                    const folda = eval(`folda${i}`).data_source;
-                    const foldb = eval(`foldb${i}`).data_source;
-                    for (let m = 0; m < mjd.length; m++) {
-                        folda.data.mjd_folda[m] = (mjd[m] % period) / period;
-                        foldb.data.mjd_foldb[m] = folda.data.mjd_folda[m] + 1.;
-                    }
-                    folda.change.emit();
-                    foldb.change.emit();
-                }
-            """,
-            ),
-        )
-        period_button = Button(label="Reset Period")
-        period_button.js_on_click(
-            CustomJS(
-                args={
-                    'slider': period_slider,
-                    'textinput': period_textinput,
-                    'period': period,
-                },
-                code="""
-                    textinput.value = parseFloat(period).toFixed(13);
-                    slider.value = period;
-                """,
-            )
-        )
-
+        # toggle for folded photometry
         period_toggle = CheckboxWithLegendGroup(
             labels=colors_labels.label.tolist(),
             active=list(range(len(colors_labels))),
             colors=colors_labels.color.tolist(),
             width=width // 5,
         )
-
+        # use javascript to perform toggling on click
         # TODO replace `eval` with Namespaces
         # https://github.com/bokeh/bokeh/pull/6340
         period_toggle.js_on_click(
@@ -900,20 +846,52 @@ def photometry_plot(obj_id, user, width=600, height=300):
                 ).read(),
             )
         )
-        period_row = row(period_slider, period_button)
-        period_column = column(period_title, period_row, period_textinput)
+
+        # set up period adjustment text box
+        period_title = Div(text="Period (days): ")
+        period_textinput = TextInput(value=str(period if period is not None else 0.0))
+        period_textinput.js_on_change(
+            'value',
+            CustomJS(
+                args={
+                    'textinput': period_textinput,
+                    'toggle': period_toggle,
+                    **period_model_dict,
+                },
+                code=open(
+                    os.path.join(
+                        os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
+                    )
+                ).read(),
+            ),
+        )
+        # a way to reset the period
+        period_button = Button(label="Reset Period")
+        period_button.js_on_click(
+            CustomJS(
+                args={'textinput': period_textinput, 'period': period},
+                code="""
+                    textinput.value = parseFloat(period).toFixed(13);
+                """,
+            )
+        )
+
+        # layout
+        period_row = row(period_title, period_textinput, period_button)
 
         period_layout = column(
-            row(period_column),
+            period_row,
             row(period_plot, period_toggle),
             sizing_mode='scale_width',
             width=width,
         )
 
+        # Period panel
         p3 = Panel(child=period_layout, title='Period')
-
+        # tabs for mag, flux, period
         tabs = Tabs(tabs=[p2, p1, p3], width=width, height=height, sizing_mode='fixed')
     else:
+        # tabs for mag, flux
         tabs = Tabs(tabs=[p2, p1], width=width, height=height, sizing_mode='fixed')
     return bokeh_embed.json_item(tabs)
 
