@@ -67,11 +67,24 @@ const Notifications = () => {
     dispatch(userNotificationsActions.updateAllNotifications({ read: true }));
   };
 
+  const markAllUnread = () => {
+    dispatch(userNotificationsActions.updateAllNotifications({ read: false }));
+  };
+
   const markRead = (notificationID) => {
     dispatch(
       userNotificationsActions.updateNotification({
         notificationID,
         data: { read: true },
+      })
+    );
+  };
+
+  const markUnread = (notificationID) => {
+    dispatch(
+      userNotificationsActions.updateNotification({
+        notificationID,
+        data: { read: false },
       })
     );
   };
@@ -132,15 +145,28 @@ const Notifications = () => {
                     {notification.text}
                   </ListItem>
                   <ListItem className={classes.centered}>
-                    <Button
-                      data-testid={`markReadButton${notification.id}`}
-                      size="small"
-                      onClick={() => {
-                        markRead(notification.id);
-                      }}
-                    >
-                      Mark read
-                    </Button>
+                    {!notification.read && (
+                      <Button
+                        data-testid={`markReadButton${notification.id}`}
+                        size="small"
+                        onClick={() => {
+                          markRead(notification.id);
+                        }}
+                      >
+                        Mark read
+                      </Button>
+                    )}
+                    {notification.read && (
+                      <Button
+                        data-testid={`markUnreadButton${notification.id}`}
+                        size="small"
+                        onClick={() => {
+                          markUnread(notification.id);
+                        }}
+                      >
+                        Mark unread
+                      </Button>
+                    )}
                     |
                     <Button
                       data-testid={`deleteNotificationButton${notification.id}`}
@@ -157,9 +183,19 @@ const Notifications = () => {
               ))}
             {notifications && notifications.length > 0 && (
               <ListItem className={classes.centered}>
-                <Button onClick={markAllRead} data-testid="markAllReadButton">
-                  Mark all read
-                </Button>
+                {unreadCount > 0 && (
+                  <Button onClick={markAllRead} data-testid="markAllReadButton">
+                    Mark all read
+                  </Button>
+                )}
+                {unreadCount === 0 && (
+                  <Button
+                    onClick={markAllUnread}
+                    data-testid="markAllUnreadButton"
+                  >
+                    Mark all unread
+                  </Button>
+                )}
                 |
                 <Button
                   onClick={deleteAllNotifications}
