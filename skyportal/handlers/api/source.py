@@ -70,6 +70,9 @@ def add_ps1_thumbnail_and_push_ws_msg(obj, request_handler):
     request_handler.push_all(
         action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
     )
+    request_handler.push_all(
+        action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+    )
 
 
 class SourceHandler(BaseHandler):
@@ -1734,3 +1737,17 @@ class SourceNotificationHandler(BaseHandler):
             )
 
         return self.success(data={'id': new_notification.id})
+
+
+class PS1ThumbnailHandler(BaseHandler):
+    @auth_or_token
+    def post(self):
+        data = self.get_json()
+        obj_id = data.get("objID")
+        if obj_id is None:
+            return self.error("Missing required paramter objID")
+        obj = Obj.get_if_readable_by(obj_id, self.current_user)
+        IOLoop.current().add_callback(
+            lambda: add_ps1_thumbnail_and_push_ws_msg(obj, self)
+        )
+        return self.success()

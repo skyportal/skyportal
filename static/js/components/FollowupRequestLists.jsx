@@ -3,7 +3,18 @@ import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 import Button from "@material-ui/core/Button";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import { makeStyles } from "@material-ui/core/styles";
+import Accordion from "@material-ui/core/Accordion";
+import AccordionSummary from "@material-ui/core/AccordionSummary";
+import AccordionDetails from "@material-ui/core/AccordionDetails";
+import Typography from "@material-ui/core/Typography";
+import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
+import {
+  makeStyles,
+  createMuiTheme,
+  MuiThemeProvider,
+  useTheme,
+} from "@material-ui/core/styles";
+import MUIDataTable from "mui-datatables";
 
 import * as Actions from "../ducks/source";
 
@@ -13,7 +24,58 @@ const useStyles = makeStyles(() => ({
   followupRequestTable: {
     borderSpacing: "0.7em",
   },
+  actionButtons: {
+    display: "flex",
+    flexFlow: "row wrap",
+  },
+  accordion: {
+    width: "99%",
+  },
+  container: {
+    margin: "1rem 0",
+  },
 }));
+
+// Tweak responsive styling
+const getMuiTheme = (theme) =>
+  createMuiTheme({
+    palette: theme.palette,
+    overrides: {
+      MUIDataTable: {
+        paper: {
+          width: "100%",
+        },
+      },
+      MUIDataTableBodyCell: {
+        stackedCommon: {
+          overflow: "hidden",
+          "&:last-child": {
+            paddingLeft: "0.25rem",
+          },
+        },
+      },
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
+          },
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0.rem",
+            marginRight: "2rem",
+          },
+        },
+      },
+    },
+  });
 
 const FollowupRequestLists = ({
   followupRequests,
@@ -22,6 +84,7 @@ const FollowupRequestLists = ({
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const theme = useTheme();
 
   const [isDeleting, setIsDeleting] = useState(null);
   const handleDelete = async (id) => {
@@ -54,8 +117,96 @@ const FollowupRequestLists = ({
     value.sort();
   });
 
+  const getDataTableColumns = (keys, instrument_id) => {
+    const implementsDelete =
+      instrumentFormParams[instrument_id].methodsImplemented.delete;
+    const implementsEdit =
+      instrumentFormParams[instrument_id].methodsImplemented.update;
+    const modifiable = implementsEdit || implementsDelete;
+
+    const columns = [
+      { name: "requester.username", label: "Requester" },
+      { name: "allocation.group.name", label: "Allocation" },
+    ];
+    keys.forEach((key) => {
+      const renderKey = (value) =>
+        Array.isArray(value) ? value.join(",") : value;
+
+      const field = Object.keys(
+        instrumentFormParams[instrument_id].aliasLookup
+      ).includes(key)
+        ? instrumentFormParams[instrument_id].aliasLookup[key]
+        : key;
+      columns.push({
+        name: `payload.${key}`,
+        label: field,
+        options: {
+          customBodyRender: renderKey,
+        },
+      });
+    });
+    columns.push({ name: "status", label: "Status" });
+    if (modifiable) {
+      const renderModify = (dataIndex) => {
+        const followupRequest =
+          requestsGroupedByInstId[instrument_id][dataIndex];
+        return (
+          <div className={classes.actionButtons}>
+            {implementsDelete && isDeleting === followupRequest.id ? (
+              <div>
+                <CircularProgress />
+              </div>
+            ) : (
+              <div>
+                <Button
+                  onClick={() => {
+                    handleDelete(followupRequest.id);
+                  }}
+                  size="small"
+                  color="primary"
+                  type="submit"
+                  variant="outlined"
+                  data-testid={`deleteRequest_${followupRequest.id}`}
+                >
+                  Delete
+                </Button>
+              </div>
+            )}
+            {implementsEdit && (
+              <EditFollowupRequestDialog
+                followupRequest={followupRequest}
+                instrumentFormParams={instrumentFormParams}
+              />
+            )}
+          </div>
+        );
+      };
+      columns.push({
+        name: "modify",
+        label: "Modify",
+        options: {
+          customBodyRenderLite: renderModify,
+        },
+      });
+    }
+
+    return columns;
+  };
+
+  const options = {
+    filter: false,
+    sort: false,
+    print: true,
+    download: true,
+    search: true,
+    selectableRows: "none",
+    enableNestedDataAccess: ".",
+    elevation: 0,
+    rowsPerPageOptions: [1, 10, 15],
+  };
+
   return (
-    <div>
+    <div className={classes.container}>
       {Object.keys(requestsGroupedByInstId).map((instrument_id) => {
         // get the flat, unique list of all keys across all requests
         const keys = requestsGroupedByInstId[instrument_id].reduce((r, a) => {
@@ -67,85 +218,30 @@ const FollowupRequestLists = ({
           return r;
         }, []);
 
-        const implementsDelete =
-          instrumentFormParams[instrument_id].methodsImplemented.delete;
-        const implementsEdit =
-          instrumentFormParams[instrument_id].methodsImplemented.update;
-        const modifiable = implementsEdit || implementsDelete;
-
         return (
-          <div key={`instrument_${instrument_id}_table_div`}>
-            <h3>{instLookUp[instrument_id].name} Requests</h3>
-            <table
-              className={classes.followupRequestTable}
-              data-testid={`followupRequestTable_${instrument_id}`}
+          <Accordion
+            className={classes.accordion}
+            key={`instrument_${instrument_id}_table_div`}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls={`${instLookUp[instrument_id].name}-requests`}
+              id={`${instLookUp[instrument_id].name}-requests-header`}
             >
-              <thead>
-                <td>Requester</td>
-                <td>Allocation</td>
-                {keys.map((key) => (
-                  <td key={key}>
-                    {Object.keys(
-                      instrumentFormParams[instrument_id].aliasLookup
-                    ).includes(key)
-                      ? instrumentFormParams[instrument_id].aliasLookup[key]
-                      : key}
-                  </td>
-                ))}
-                <td>Status</td>
-                {modifiable && <td>Modify</td>}
-              </thead>
-              <tbody>
-                {requestsGroupedByInstId[instrument_id].map(
-                  (followupRequest) => (
-                    <tr key={followupRequest.id}>
-                      <td>{followupRequest.requester.username}</td>
-                      <td>{followupRequest.allocation.group.name}</td>
-                      {keys.map((key) => (
-                        <td key={`fr_${followupRequest.id}_${key}`}>
-                          {Array.isArray(followupRequest.payload[key])
-                            ? followupRequest.payload[key].join(",")
-                            : followupRequest.payload[key]}
-                        </td>
-                      ))}
-                      <td>{followupRequest.status}</td>
-                      {modifiable && (
-                        <td>
-                          {implementsDelete &&
-                          isDeleting === followupRequest.id ? (
-                            <div>
-                              <CircularProgress />
-                            </div>
-                          ) : (
-                            <div>
-                              <Button
-                                onClick={() => {
-                                  handleDelete(followupRequest.id);
-                                }}
-                                size="small"
-                                color="primary"
-                                type="submit"
-                                variant="outlined"
-                                data-testid={`deleteRequest_${followupRequest.id}`}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          )}
-                          {implementsEdit && (
-                            <EditFollowupRequestDialog
-                              followupRequest={followupRequest}
-                              instrumentFormParams={instrumentFormParams}
-                            />
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  )
-                )}
-              </tbody>
-            </table>
-          </div>
+              <Typography variant="subtitle1">
+                {instLookUp[instrument_id].name} Requests
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails data-testid="followupRequestTable">
+              <MuiThemeProvider theme={getMuiTheme(theme)}>
+                <MUIDataTable
+                  data={requestsGroupedByInstId[instrument_id]}
+                  options={options}
+                  columns={getDataTableColumns(keys, instrument_id)}
+                />
+              </MuiThemeProvider>
+            </AccordionDetails>
+          </Accordion>
         );
       })}
     </div>

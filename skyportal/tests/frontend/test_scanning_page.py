@@ -67,7 +67,7 @@ def test_candidate_group_filtering(
 
 
 @pytest.mark.flaky(reruns=2)
-def test_candidate_unsaved_only_filtering(
+def test_candidate_saved_status_filtering(
     driver,
     user,
     public_candidate,
@@ -76,6 +76,9 @@ def test_candidate_unsaved_only_filtering(
     upload_data_token,
     manage_groups_token,
 ):
+    # This test just tests basic unsaved/saved filtering to test integration of
+    # the front-end form. More detailed testing of all options are covered in
+    # the API tests.
     candidate_id = str(uuid.uuid4())
     for i in range(5):
         status, data = api(
@@ -118,16 +121,19 @@ def test_candidate_unsaved_only_filtering(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    unsaved_only_checkbox = driver.wait_for_xpath(
-        '//*[@data-testid="unsavedOnlyCheckbox"]'
+    # Set to candidates not saved to any accessibe groups
+    driver.click_xpath("//*[@data-testid='savedStatusSelect']")
+    driver.click_xpath(
+        "//li[@data-value='notSavedToAnyAccessible']", scroll_parent=True
     )
-    driver.scroll_to_element_and_click(unsaved_only_checkbox)
-    submit_button = driver.wait_for_xpath('//span[text()="Search"]')
-    driver.scroll_to_element_and_click(submit_button)
+    driver.click_xpath('//span[text()="Search"]')
     for i in range(5):
         driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}_{i}"]')
-    driver.scroll_to_element_and_click(unsaved_only_checkbox)
-    driver.scroll_to_element_and_click(submit_button)
+
+    # Set to candidates is saved to any accessibe groups and submit again
+    driver.click_xpath("//*[@data-testid='savedStatusSelect']")
+    driver.click_xpath("//li[@data-value='savedToAnyAccessible']", scroll_parent=True)
+    driver.click_xpath('//span[text()="Search"]')
     for i in range(5):
         driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
 

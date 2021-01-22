@@ -299,12 +299,13 @@ class ObjClassificationHandler(BaseHandler):
         description: Retrieve an object's classifications
         tags:
           - classifications
+          - sources
         parameters:
           - in: path
             name: obj_id
             required: true
             schema:
-              type: integer
+              type: string
         responses:
           200:
             content:

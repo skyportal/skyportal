@@ -4,7 +4,9 @@ from ...models import (
     DBSession,
     Group,
     User,
+    GroupUser,
     GroupAdmissionRequest,
+    UserNotification,
 )
 from .group import has_admin_access_for_group
 
@@ -139,19 +141,39 @@ class GroupAdmissionRequestHandler(BaseHandler):
             and not self.current_user.is_system_admin
         ):
             return self.error("Insufficient permissions")
-        if (
-            Group.query.get(group_id) is None
-            or Group.query.get(group_id).single_user_group
-        ):
+        group = Group.query.get(group_id)
+        if group is None or group.single_user_group:
             return self.error("Invalid group ID")
-        if User.query.get(user_id) is None:
+        requesting_user = User.query.get(user_id)
+        if requesting_user is None:
             return self.error("Invalid user ID")
         admission_request = GroupAdmissionRequest(
             user_id=user_id, group_id=group_id, status="pending"
         )
         DBSession().add(admission_request)
+
+        group_admin_gu = (
+            GroupUser.query.filter(GroupUser.group_id == group_id)
+            .filter(GroupUser.admin.is_(True))
+            .first()
+        )
+        group_admin = (
+            User.query.get(group_admin_gu.user_id)
+            if group_admin_gu is not None
+            else None
+        )
+        if group_admin is not None:
+            DBSession().add(
+                UserNotification(
+                    user=group_admin,
+                    text=f"{requesting_user.username} has requested to join {group.name}",
+                    url=f"/group/{group_id}",
+                )
+            )
         self.finalize_transaction()
         self.push(action="skyportal/FETCH_USER_PROFILE")
+        if group_admin is not None:
+            self.flow.push(group_admin.id, "skyportal/FETCH_NOTIFICATIONS", {})
         return self.success(data={"id": admission_request.id})
 
     @auth_or_token
@@ -202,7 +224,16 @@ class GroupAdmissionRequestHandler(BaseHandler):
         ):
             return self.error("Insufficient permissions.")
         admission_request.status = status
+        DBSession().add(
+            UserNotification(
+                user=admission_request.user,
+                text=f"Your admission request to group {admission_request.group.name} has been {status}",
+                url="/groups",
+            )
+        )
+
         self.finalize_transaction()
+        self.flow.push(admission_request.user_id, "skyportal/FETCH_NOTIFICATIONS", {})
         return self.success()
 
     @auth_or_token

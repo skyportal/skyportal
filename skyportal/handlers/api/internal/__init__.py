@@ -15,3 +15,4 @@ from .log import LogHandler
 from .annotations_info import AnnotationsInfoHandler
 from .ephemeris import EphemerisHandler
 from .standards import StandardsHandler
+from .notifications import NotificationHandler, BulkNotificationHandler

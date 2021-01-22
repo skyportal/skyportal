@@ -60,6 +60,12 @@ const useStyles = makeStyles(() => ({
     display: "inline-block",
     marginRight: "0.5rem",
   },
+  savedStatusSelect: {
+    margin: "1rem 0",
+    "& input": {
+      fontSize: "1rem",
+    },
+  },
 }));
 
 function getStyles(classification, selectedClassifications, theme) {
@@ -70,6 +76,31 @@ function getStyles(classification, selectedClassifications, theme) {
         : theme.typography.fontWeightMedium,
   };
 }
+
+const savedStatusSelectOptions = [
+  { value: "all", label: "regardless of saved status" },
+  { value: "savedToAllSelected", label: "and is saved to all selected groups" },
+  {
+    value: "savedToAnySelected",
+    label: "and is saved to at least one of the selected groups",
+  },
+  {
+    value: "savedToAnyAccessible",
+    label: "and is saved to at least one group I have access to",
+  },
+  {
+    value: "notSavedToAnyAccessible",
+    label: "and is not saved to any of group I have access to",
+  },
+  {
+    value: "notSavedToAnySelected",
+    label: "and is not saved to any of the selected groups",
+  },
+  {
+    value: "notSavedToAllSelected",
+    label: "and is not saved to all of the selected groups",
+  },
+];
 
 const FilterCandidateList = ({
   userAccessibleGroups,
@@ -146,7 +177,7 @@ const FilterCandidateList = ({
     );
     const data = {
       groupIDs: selectedGroupIDs,
-      unsavedOnly: formData.unsavedOnly,
+      savedStatus: formData.savedStatus,
     };
     // Convert dates to ISO for parsing on back-end
     if (formData.startDate) {
@@ -184,8 +215,10 @@ const FilterCandidateList = ({
             <Controller
               render={({ onChange, value }) => (
                 <KeyboardDateTimePicker
-                  value={dayjs.utc(value)}
-                  onChange={(e, date) => onChange(dayjs.utc(date))}
+                  value={value ? dayjs.utc(value) : null}
+                  onChange={(e, date) =>
+                    date ? onChange(dayjs.utc(date)) : onChange(date)
+                  }
                   label="Start (UTC)"
                   format="YYYY/MM/DD HH:mm"
                   ampm={false}
@@ -217,24 +250,25 @@ const FilterCandidateList = ({
               defaultValue={defaultEndDate}
             />
           </div>
-          <div>
-            <FormControlLabel
-              control={
-                <Controller
-                  render={({ onChange, value }) => (
-                    <Checkbox
-                      onChange={(event) => onChange(event.target.checked)}
-                      checked={value}
-                      data-testid="unsavedOnlyCheckbox"
-                    />
-                  )}
-                  name="unsavedOnly"
-                  control={control}
-                  defaultValue={false}
-                />
-              }
-              label="Show only unsaved candidates"
-            />
+          <div className={classes.savedStatusSelect}>
+            <InputLabel id="savedStatusSelectLabel">
+              Show only candidates which passed a filter from the selected
+              groups...
+            </InputLabel>
+            <Controller
+              labelId="savedStatusSelectLabel"
+              as={Select}
+              name="savedStatus"
+              control={control}
+              input={<Input data-testid="savedStatusSelect" />}
+              defaultValue="all"
+            >
+              {savedStatusSelectOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Controller>
           </div>
           <div className={classes.formRow}>
             <InputLabel id="classifications-select-label">
