@@ -840,7 +840,7 @@ class Obj(Base, ha.Point):
            The airmass of the Obj at the requested times
         """
 
-        output_shape = np.shape(time)
+        output_shape = time.shape
         time = np.atleast_1d(time)
         altitude = self.altitude(telescope, time).to('degree').value
         above = altitude > 0
