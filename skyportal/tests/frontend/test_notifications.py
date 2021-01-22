@@ -85,5 +85,8 @@ def test_group_admission_requests_notifications(
     driver.get("/")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
     driver.wait_for_xpath(
-        f'//*[text()="Your admission request to group {public_group2.name} has been accepted."]'
+        f'//*[text()="Your admission request to group {public_group2.name} has been accepted"]'
+    )
+    driver.wait_for_xpath(
+        f'//*[text()="You\'ve been added to group {public_group2.name}"]'
     )
