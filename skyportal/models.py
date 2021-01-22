@@ -3312,6 +3312,9 @@ class SourceNotification(Base):
 
 
 class UserNotification(Base):
+
+    read = AccessibleIfUserMatches('user')
+
     user_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
