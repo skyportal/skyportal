@@ -15,6 +15,7 @@ from ...models import (
     Stream,
     User,
     Token,
+    UserNotification,
 )
 
 _, cfg = load_env()
@@ -454,9 +455,16 @@ class GroupUserHandler(BaseHandler):
         )
         if gu is not None:
             return self.error("Specified user is already a member of this group.")
-        DBSession.add(GroupUser(group_id=group_id, user_id=user_id, admin=admin))
+        DBSession().add(GroupUser(group_id=group_id, user_id=user_id, admin=admin))
+        DBSession().add(
+            UserNotification(
+                user=user,
+                text=f"You've been added to group {group.name}",
+                url=f"/group/{group.id}",
+            )
+        )
         DBSession().commit()
-
+        self.flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS", {})
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         return self.success(
             data={'group_id': group_id, 'user_id': user_id, 'admin': admin}
@@ -629,11 +637,13 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
         if len(from_groups) != len(set(from_group_ids)):
             return self.error("One or more invalid IDs in fromGroupIDs parameter.")
         user_ids = set()
-        for group in from_groups:
-            for user in group.users:
+        for from_group in from_groups:
+            for user in from_group.users:
                 # Ensure user has sufficient stream access to be added to group
-                if group.streams:
-                    if not all([stream in user.streams for stream in group.streams]):
+                if from_group.streams:
+                    if not all(
+                        [stream in user.streams for stream in from_group.streams]
+                    ):
                         return self.error(
                             "Not all users have sufficient stream access "
                             "to be added to this group."
@@ -648,13 +658,22 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
                 .first()
             )
             if gu is None:
-                DBSession.add(
+                DBSession().add(
                     GroupUser(group_id=group_id, user_id=user_id, admin=False)
+                )
+                DBSession().add(
+                    UserNotification(
+                        user_id=user_id,
+                        text=f"You've been added to group {group.name}",
+                        url=f"/group/{group.id}",
+                    )
                 )
 
         DBSession().commit()
 
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
+        for user_id in user_ids:
+            self.flow.push(user_id, "skyportal/FETCH_NOTIFICATIONS", {})
         return self.success()
 
 
