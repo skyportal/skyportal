@@ -405,9 +405,7 @@ const SourceTable = ({
   };
 
   // helper function to get the source groups
-  const getGroups = (source) => {
-    source.groups.filter((group) => group.active);
-  };
+  const getGroups = (source) => source.groups.filter((group) => group.active);
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderGroups = (dataIndex) => {

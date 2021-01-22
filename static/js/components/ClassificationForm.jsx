@@ -153,7 +153,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     onChange: PropTypes.func.isRequired,
   };
 
-  const CustomGroupsWidget = ({ value, onChange, options }) => {
+  const CustomGroupsWidget = ({ value, onChange, options }) => (
     <>
       <InputLabel id="classificationGroupSelectLabel">
         Choose Group (all groups if blank)
@@ -192,8 +192,9 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
             </MenuItem>
           ))}
       </Select>
-    </>;
-  };
+    </>
+  );
+
   CustomGroupsWidget.propTypes = {
     value: PropTypes.arrayOf(PropTypes.string).isRequired,
     onChange: PropTypes.func.isRequired,
