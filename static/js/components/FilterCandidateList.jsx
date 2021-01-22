@@ -215,8 +215,10 @@ const FilterCandidateList = ({
             <Controller
               render={({ onChange, value }) => (
                 <KeyboardDateTimePicker
-                  value={dayjs.utc(value)}
-                  onChange={(e, date) => onChange(dayjs.utc(date))}
+                  value={value ? dayjs.utc(value) : null}
+                  onChange={(e, date) =>
+                    date ? onChange(dayjs.utc(date)) : onChange(date)
+                  }
                   label="Start (UTC)"
                   format="YYYY/MM/DD HH:mm"
                   ampm={false}
