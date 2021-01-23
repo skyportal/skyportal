@@ -29,4 +29,5 @@ class EphemerisHandler(BaseHandler):
             )
 
         ephemeris = telescope.ephemeris(time)
+        self.check_permissions()
         return self.success(data=ephemeris)

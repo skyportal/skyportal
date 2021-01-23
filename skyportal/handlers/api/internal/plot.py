@@ -16,6 +16,7 @@ class PlotPhotometryHandler(BaseHandler):
         json = plot.photometry_plot(
             obj_id, self.current_user, height=int(height), width=int(width),
         )
+        self.check_permissions()
         self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
 
@@ -32,6 +33,7 @@ class PlotSpectroscopyHandler(BaseHandler):
             height=int(height),
             width=int(width),
         )
+        self.check_permissions()
         self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
 
@@ -68,6 +70,7 @@ class PlotAssignmentAirmassHandler(AirmassHandler):
             sunset = telescope.observer.sun_set_time(time, which='previous')
 
         json = self.calculate_airmass(obj, telescope, sunrise, sunset)
+        self.check_permissions()
         return self.success(data=json)
 
 
@@ -106,4 +109,5 @@ class PlotObjTelAirmassHandler(AirmassHandler):
             sunset = telescope.observer.sun_set_time(time, which='previous')
 
         json = self.calculate_airmass(obj, telescope, sunrise, sunset)
+        self.check_permissions()
         return self.success(data=json)

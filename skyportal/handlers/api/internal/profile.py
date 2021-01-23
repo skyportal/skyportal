@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 from ...base import BaseHandler
-from ....models import User, DBSession
+from ....models import User
 
 
 class ProfileHandler(BaseHandler):
@@ -92,6 +92,7 @@ class ProfileHandler(BaseHandler):
         user_info["gravatar_url"] = user.gravatar_url or None
         user_info["preferences"] = user.preferences or {}
         user_info["groupAdmissionRequests"] = user.group_admission_requests
+        self.check_permissions()
         return self.success(data=user_info)
 
     @auth_or_token
@@ -198,7 +199,7 @@ class ProfileHandler(BaseHandler):
         user.preferences = user_prefs
 
         try:
-            DBSession.commit()
+            self.finalize_transaction()
         except IntegrityError as e:
             if "duplicate key value violates unique constraint" in str(e):
                 return self.error(
@@ -213,5 +214,4 @@ class ProfileHandler(BaseHandler):
             self.push(action="skyportal/FETCH_RECENT_SOURCES")
         if "sourceCounts" in preferences:
             self.push(action="skyportal/FETCH_SOURCE_COUNTS")
-
         return self.success(action="skyportal/FETCH_USER_PROFILE")

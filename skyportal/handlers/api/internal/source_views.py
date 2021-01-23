@@ -66,6 +66,7 @@ class SourceViewsHandler(BaseHandler):
                 }
             )
 
+        self.check_permissions()
         return self.success(data=sources)
 
     @tornado.web.authenticated
@@ -78,6 +79,7 @@ class SourceViewsHandler(BaseHandler):
             username_or_token_id=self.current_user.username,
             is_token=False,
         )
+        self.finalize_transaction()
         return self.success()
 
 
@@ -86,4 +88,3 @@ def register_source_view(obj_id, username_or_token_id, is_token):
         obj_id=obj_id, username_or_token_id=username_or_token_id, is_token=is_token
     )
     DBSession.add(sv)
-    DBSession.commit()
