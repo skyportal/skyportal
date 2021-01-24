@@ -101,6 +101,7 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
     paddingBottom: "0.5rem",
+    overflowX: "scroll",
     "& div button": {
       margin: "0.5rem",
     },
@@ -175,7 +176,7 @@ export const useSourceStyles = makeStyles((theme) => ({
 }));
 
 const SourceMobile = WidthProvider(
-  withOrientationChange(({ source, isPortrait, width }) => {
+  withOrientationChange(({ source, isLandscape, width }) => {
     const matches = useMediaQuery("(min-width: 475px)");
     const centroidPlotSize = matches ? "21.875rem" : "17rem";
 
@@ -193,45 +194,23 @@ const SourceMobile = WidthProvider(
       (g) => !g.single_user_group
     );
 
-    // Browser defaults
-    let plotWidth = 600;
-    let photPlotHeight = 400;
-    let specPlotHeight = 600;
-
     let device = "browser";
     if (isMobileOnly) {
-      device = isPortrait ? "mobile_portrait" : "mobile_landscape";
+      device = isLandscape ? "mobile_landscape" : "mobile_portrait";
     } else if (isTablet) {
-      device = isPortrait ? "tablet_portrait" : "tablet_landscape";
+      device = isLandscape ? "tablet_landscape" : "tablet_portrait";
     }
 
-    switch (device) {
-      case "mobile_portrait":
-        plotWidth = 300;
-        photPlotHeight = 350;
-        specPlotHeight = 575;
-        break;
-      case "mobile_landscape":
-        plotWidth = 300;
-        photPlotHeight = 350;
-        specPlotHeight = 575;
-        break;
-      case "tablet_portrait":
-        plotWidth = 300;
-        photPlotHeight = 350;
-        specPlotHeight = 575;
-        break;
-      case "tablet_landscape":
-        plotWidth = width - 100;
-        photPlotHeight = Math.floor(plotWidth / 1.5) + 150;
-        specPlotHeight = Math.floor(plotWidth / 1.5) + 225;
-        break;
-      default:
-        break;
-    }
+    // Browser defaults
+    const aspectRatio = isMobileOnly && isLandscape ? 2.0 : 1.5;
+    const plotWidth = isBrowser ? 800 : width - 100;
+    const photPlotHeight = isBrowser
+      ? 500
+      : Math.floor(plotWidth / aspectRatio) + 150;
+    const specPlotHeight = isBrowser
+      ? 600
+      : Math.floor(plotWidth / aspectRatio) + 225;
 
-    console.log(device, plotWidth, photPlotHeight, specPlotHeight);
-    console.log(width);
     return (
       <div className={classes.source}>
         <div className={classes.mainColumn}>
