@@ -380,14 +380,12 @@ const CandidateList = () => {
     return returnObject;
   };
 
-  const filterAnnotationObjToChip = (annotationObj) => {
+  const filterAnnotationObjToChip = (annotationObj) =>
     // Convert an object representing an annotation filter to a formatted string
     // to be displayed by the MuiDataTable
-    return "value" in annotationObj
+    "value" in annotationObj
       ? `${annotationObj.key} (${annotationObj.origin}): ${annotationObj.value}`
       : `${annotationObj.key} (${annotationObj.origin}): ${annotationObj.min} - ${annotationObj.max}`;
-  };
-
   const handleFilterSubmit = async (filterListQueryString) => {
     setQueryInProgress(true);
 
@@ -440,8 +438,21 @@ const CandidateList = () => {
     handleFilterSubmit(newFilterListQueryStrings.join());
   };
 
+  const [
+    ps1GenerationInProgressList,
+    setPS1GenerationInProgressList,
+  ] = useState([]);
+  const generatePS1Thumbnail = (objID) => {
+    setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
+    dispatch(candidatesActions.generatePS1Thumbnail(objID));
+  };
+
   const renderThumbnails = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
+    const hasPS1 = candidateObj.thumbnails.map((t) => t.type).includes("ps1");
+    const displayTypes = hasPS1
+      ? ["new", "ref", "sub", "sdss", "dr8", "ps1"]
+      : ["new", "ref", "sub", "sdss", "dr8"];
     return (
       <div className={classes.thumbnails}>
         <ThumbnailList
@@ -449,8 +460,21 @@ const CandidateList = () => {
           dec={candidateObj.dec}
           thumbnails={candidateObj.thumbnails}
           size="9rem"
-          displayTypes={["new", "ref", "sub", "sdss", "dr8"]}
+          displayTypes={displayTypes}
         />
+        {!hasPS1 && (
+          <Button
+            disabled={ps1GenerationInProgressList.includes(candidateObj.id)}
+            size="small"
+            variant="contained"
+            onClick={() => {
+              generatePS1Thumbnail(candidateObj.id);
+            }}
+            data-testid={`generatePS1Button${candidateObj.id}`}
+          >
+            Generate PS1 Cutout
+          </Button>
+        )}
       </div>
     );
   };
@@ -615,49 +639,46 @@ const CandidateList = () => {
     );
   };
 
-  const renderAutoannotationsHeader = () => {
-    return (
-      <div>
-        Autoannotations
-        <IconButton
-          aria-label="help"
-          size="small"
-          onClick={handleClickAnnotationsHelp}
-          className={classes.helpButton}
+  const renderAutoannotationsHeader = () => (
+    <div>
+      Autoannotations
+      <IconButton
+        aria-label="help"
+        size="small"
+        onClick={handleClickAnnotationsHelp}
+        className={classes.helpButton}
+      >
+        <HelpOutlineIcon />
+      </IconButton>
+      <MuiThemeProvider theme={getMuiPopoverTheme(theme)}>
+        <Popover
+          id={annotationsHelpId}
+          open={annotationsHelpOpen}
+          anchorEl={annotationsHeaderAnchor}
+          onClose={handleCloseAnnotationsHelp}
+          className={classes.helpPopover}
+          anchorOrigin={{
+            vertical: "top",
+            horizontal: "right",
+          }}
+          transformOrigin={{
+            vertical: "top",
+            horizontal: "left",
+          }}
         >
-          <HelpOutlineIcon />
-        </IconButton>
-        <MuiThemeProvider theme={getMuiPopoverTheme(theme)}>
-          <Popover
-            id={annotationsHelpId}
-            open={annotationsHelpOpen}
-            anchorEl={annotationsHeaderAnchor}
-            onClose={handleCloseAnnotationsHelp}
-            className={classes.helpPopover}
-            anchorOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "left",
-            }}
-          >
-            <Typography className={classes.typography}>
-              Annotation fields are uniquely identified by the combination of
-              origin and key. That is, if two annotation values belong to a key
-              with the same name will be considered different if they come from
-              different origins. <br />
-              <b>Sorting: </b> Clicking on an annotation field will display it,
-              if available, in the Info column. You can then click on the sort
-              tool button at the top of the table to sort on that annotation
-              field.
-            </Typography>
-          </Popover>
-        </MuiThemeProvider>
-      </div>
-    );
-  };
+          <Typography className={classes.typography}>
+            Annotation fields are uniquely identified by the combination of
+            origin and key. That is, if two annotation values belong to a key
+            with the same name will be considered different if they come from
+            different origins. <br />
+            <b>Sorting: </b> Clicking on an annotation field will display it, if
+            available, in the Info column. You can then click on the sort tool
+            button at the top of the table to sort on that annotation field.
+          </Typography>
+        </Popover>
+      </MuiThemeProvider>
+    </div>
+  );
 
   const handlePageChange = async (page, numPerPage) => {
     setQueryInProgress(true);
@@ -818,15 +839,14 @@ const CandidateList = () => {
     });
   }
 
-  const annotationsFilterDisplay = () => {
-    return !queryInProgress ? (
+  const annotationsFilterDisplay = () =>
+    !queryInProgress ? (
       <div>
         <Form schema={filterFormSchema} onSubmit={handleFilterAdd} />
       </div>
     ) : (
       <div />
     );
-  };
 
   const columns = [
     {

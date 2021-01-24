@@ -840,7 +840,7 @@ class Obj(Base, ha.Point):
            The airmass of the Obj at the requested times
         """
 
-        output_shape = np.shape(time)
+        output_shape = time.shape
         time = np.atleast_1d(time)
         altitude = self.altitude(telescope, time).to('degree').value
         above = altitude > 0
@@ -3067,6 +3067,39 @@ class SourceNotification(Base):
     additional_notes = sa.Column(sa.String(), nullable=True)
     level = sa.Column(sa.String(), nullable=False)
 
+
+class UserNotification(Base):
+    user_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the associated User",
+    )
+    user = relationship(
+        "User", back_populates="notifications", doc="The associated User",
+    )
+    text = sa.Column(
+        sa.String(), nullable=False, doc="The notification text to display",
+    )
+    read = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        index=True,
+        doc="Boolean indicating whether notification has been viewed.",
+    )
+    url = sa.Column(
+        sa.String(),
+        nullable=True,
+        doc="URL to which to direct upon click, if relevant",
+    )
+
+
+User.notifications = relationship(
+    "UserNotification",
+    back_populates="user",
+    doc="Notifications to be displayed on front-end associated with User",
+)
 
 GroupSourceNotification = join_model('group_notifications', Group, SourceNotification)
 User.source_notifications = relationship(

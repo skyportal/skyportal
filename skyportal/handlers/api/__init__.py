@@ -3,7 +3,7 @@ from .allocation import AllocationHandler
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
-from .annotation import AnnotationHandler
+from .annotation import AnnotationHandler, ObjAnnotationHandler
 from .filter import FilterHandler
 from .followup_request import FollowupRequestHandler, AssignmentHandler
 from .facility_listener import FacilityMessageHandler
@@ -36,6 +36,7 @@ from .source import (
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,
+    PS1ThumbnailHandler,
 )
 from .source_groups import SourceGroupsHandler
 from .spectrum import (
