@@ -92,7 +92,7 @@ class ProfileHandler(BaseHandler):
         user_info["gravatar_url"] = user.gravatar_url or None
         user_info["preferences"] = user.preferences or {}
         user_info["groupAdmissionRequests"] = user.group_admission_requests
-        self.check_permissions()
+        self.verify_permissions()
         return self.success(data=user_info)
 
     @auth_or_token

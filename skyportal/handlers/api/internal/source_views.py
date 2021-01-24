@@ -66,7 +66,7 @@ class SourceViewsHandler(BaseHandler):
                 }
             )
 
-        self.check_permissions()
+        self.verify_permissions()
         return self.success(data=sources)
 
     @tornado.web.authenticated

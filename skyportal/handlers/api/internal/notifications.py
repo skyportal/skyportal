@@ -24,7 +24,7 @@ class NotificationHandler(BaseHandler):
             .order_by(UserNotification.created_at.desc())
             .all()
         )
-        self.check_permissions()
+        self.verify_permissions()
         return self.success(data=notifications)
 
     def patch(self, notification_id):

@@ -141,5 +141,5 @@ class StandardsHandler(BaseHandler):
             show_first_line=show_first_line,
         )
 
-        self.check_permissions()
+        self.verify_permissions()
         return self.success(data=data)
