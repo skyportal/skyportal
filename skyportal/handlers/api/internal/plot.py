@@ -8,13 +8,30 @@ from astropy import time as ap_time
 import pandas as pd
 
 
+device_types = [
+    "browser",
+    "mobile_landscape",
+    "mobile_portrait",
+    "tablet_landscape",
+    "tablet_portrait",
+]
+
+
 class PlotPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
         height = self.get_query_argument("height", 300)
         width = self.get_query_argument("width", 600)
+        device = self.get_query_argument("device", None)
+        # Just return browser by default if not one of accepted types
+        if device not in device_types:
+            device = "browser"
         json = plot.photometry_plot(
-            obj_id, self.current_user, height=int(height), width=int(width),
+            obj_id,
+            self.current_user,
+            height=int(height),
+            width=int(width),
+            device=device,
         )
         self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
@@ -24,6 +41,10 @@ class PlotSpectroscopyHandler(BaseHandler):
     def get(self, obj_id):
         height = self.get_query_argument("height", 300)
         width = self.get_query_argument("width", 600)
+        device = self.get_query_argument("device", None)
+        # Just return browser by default if not one of accepted types
+        if device not in device_types:
+            device = "browser"
         spec_id = self.get_query_argument("spectrumID", None)
         json = plot.spectroscopy_plot(
             obj_id,
@@ -31,6 +52,7 @@ class PlotSpectroscopyHandler(BaseHandler):
             spec_id,
             height=int(height),
             width=int(width),
+            device=device,
         )
         self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
