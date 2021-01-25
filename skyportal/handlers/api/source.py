@@ -32,8 +32,8 @@ from ...models import (
     Classification,
     Taxonomy,
     Spectrum,
+    SourceView,
 )
-from .internal.source_views import register_source_view
 from ...utils import (
     get_nearby_offset_stars,
     facility_parameters,
@@ -554,11 +554,13 @@ class SourceHandler(BaseHandler):
 
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
-                register_source_view(
+                sv = SourceView(
                     obj_id=obj_id,
                     username_or_token_id=self.current_user.id,
                     is_token=True,
                 )
+                DBSession.add(sv)
+                self.finalize_transaction()
 
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
