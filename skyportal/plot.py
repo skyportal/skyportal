@@ -950,7 +950,12 @@ def spectroscopy_plot(
         model_dict[f'el{i}'].visible = False
 
     # Split spectral line legend into columns
-    columns = 3 if "mobile" in device else 7
+    if device == "mobile_portrait":
+        columns = 3
+    elif device == "mobile_landscape":
+        columns = 5
+    else:
+        columns = 7
     element_dicts = zip(*itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns))
 
     elements_groups = []  # The Bokeh checkbox groups
