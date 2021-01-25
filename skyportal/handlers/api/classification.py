@@ -287,8 +287,10 @@ class ObjClassificationHandler(BaseHandler):
                 schema: Error
         """
 
-        classifications = Classification.query_records_accessible_by(
-            self.current_user
-        ).filter(Classification.obj_id == obj_id)
+        classifications = (
+            Classification.query_records_accessible_by(self.current_user)
+            .filter(Classification.obj_id == obj_id)
+            .all()
+        )
         self.verify_permissions()
         return self.success(data=classifications)
