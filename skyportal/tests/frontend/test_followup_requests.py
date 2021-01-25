@@ -423,7 +423,6 @@ def test_delete_followup_request_SEDM(
     )
     driver.scroll_to_element_and_click(delete_button)
 
-    driver.click_xpath("//div[@data-testid='SEDM-requests-header']")
     driver.wait_for_xpath_to_disappear(
         '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]'''
     )
@@ -448,7 +447,6 @@ def test_delete_followup_request_IOO(
         f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )
 
-    driver.click_xpath("//div[@data-testid='IOO-requests-header']")
     driver.wait_for_xpath_to_disappear(
         '//div[contains(@data-testid, "IOO_followupRequestsTable")]//div[contains(., "300")]'
     )
@@ -473,7 +471,6 @@ def test_delete_followup_request_IOI(
         f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )
 
-    driver.click_xpath("//div[@data-testid='IOI-requests-header']")
     driver.wait_for_xpath_to_disappear(
         '//div[contains(@data-testid, "IOI_followupRequestsTable")]//div[contains(., "300")]'
     )
@@ -498,7 +495,6 @@ def test_delete_followup_request_SPRAT(
         f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )
 
-    driver.click_xpath("//div[@data-testid='SPRAT-requests-header']")
     driver.wait_for_xpath_to_disappear(
         '//div[contains(@data-testid, "SPRAT_followupRequestsTable")]//div[contains(., "300")]'
     )
