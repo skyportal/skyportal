@@ -251,8 +251,10 @@ class ObjAnnotationHandler(BaseHandler):
                 schema: Error
         """
 
-        annotations = Annotation.query_records_accessible_by(self.current_user).filter(
-            Annotation.obj_id == obj_id
+        annotations = (
+            Annotation.query_records_accessible_by(self.current_user)
+            .filter(Annotation.obj_id == obj_id)
+            .all()
         )
         self.verify_permissions()
         return self.success(data=annotations)
