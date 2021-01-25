@@ -26,7 +26,7 @@ class InstrumentHandler(BaseHandler):
             )
         instrument.telescope = telescope
         DBSession().add(instrument)
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success(data={"id": instrument.id})
 
@@ -87,6 +87,7 @@ class InstrumentHandler(BaseHandler):
         query = Instrument.query
         if inst_name is not None:
             query = query.filter(Instrument.name == inst_name)
+        self.verify_permissions()
         return self.success(data=query.all())
 
     @permissions(['System admin'])
@@ -126,7 +127,7 @@ class InstrumentHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
             )
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success()
 
@@ -156,7 +157,7 @@ class InstrumentHandler(BaseHandler):
         DBSession().query(Instrument).filter(
             Instrument.id == int(instrument_id)
         ).delete()
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success()
 

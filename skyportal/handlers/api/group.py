@@ -167,6 +167,7 @@ class GroupHandler(BaseHandler):
             )
             group['filters'] = filters
 
+            self.verify_permissions()
             return self.success(data=group)
         group_name = self.get_query_argument("name", None)
         if group_name is not None:
@@ -176,6 +177,7 @@ class GroupHandler(BaseHandler):
                 [group in self.current_user.accessible_groups for group in groups]
             ):
                 return self.error("Insufficient permissions")
+            self.verify_permissions()
             return self.success(data=groups)
 
         include_single_user_groups = self.get_query_argument(
@@ -200,6 +202,7 @@ class GroupHandler(BaseHandler):
         info["all_groups"] = sorted(
             all_groups_query.all(), key=lambda g: g.name.lower()
         )
+        self.verify_permissions()
         return self.success(data=info)
 
     @auth_or_token
@@ -260,11 +263,12 @@ class GroupHandler(BaseHandler):
 
         g = Group(name=data["name"], nickname=data.get("nickname") or None)
         DBSession().add(g)
+        self.verify_permissions()
         DBSession().flush()
         DBSession().add_all(
             [GroupUser(group=g, user=user, admin=True) for user in group_admins]
         )
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success(data={"id": g.id})
 
@@ -319,7 +323,7 @@ class GroupHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success(action='skyportal/FETCH_GROUPS')
 
@@ -360,7 +364,7 @@ class GroupHandler(BaseHandler):
                 "Insufficient permissions. You must either be a group admin or have higher site-wide permissions."
             )
         DBSession().delete(g)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
@@ -455,6 +459,7 @@ class GroupUserHandler(BaseHandler):
         )
         if gu is not None:
             return self.error("Specified user is already a member of this group.")
+
         DBSession().add(GroupUser(group_id=group_id, user_id=user_id, admin=admin))
         DBSession().add(
             UserNotification(
@@ -463,8 +468,9 @@ class GroupUserHandler(BaseHandler):
                 url=f"/group/{group.id}",
             )
         )
-        DBSession().commit()
+        self.finalize_transaction()
         self.flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS", {})
+
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         return self.success(
             data={'group_id': group_id, 'user_id': user_id, 'admin': admin}
@@ -526,7 +532,7 @@ class GroupUserHandler(BaseHandler):
             return self.error("Missing required parameter: `admin`")
         admin = data.get("admin") in [True, "true", "True", "t", "T"]
         groupuser.admin = admin
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()
 
     @permissions(["Manage users"])
@@ -569,7 +575,7 @@ class GroupUserHandler(BaseHandler):
             .filter(GroupUser.user_id == user_id)
             .delete()
         )
-        DBSession().commit()
+        self.finalize_transaction()
         self.push_all(
             action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
         )
@@ -669,7 +675,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
                     )
                 )
 
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         for user_id in user_ids:
@@ -745,7 +751,7 @@ class GroupStreamHandler(BaseHandler):
             DBSession.add(GroupStream(group_id=group_id, stream_id=stream_id))
         else:
             return self.error("Specified stream is already associated with this group.")
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         return self.success(data={'group_id': group_id, 'stream_id': stream_id})
@@ -785,7 +791,7 @@ class GroupStreamHandler(BaseHandler):
                 .filter(GroupStream.stream_id == stream_id)
                 .delete()
             )
-            DBSession().commit()
+            self.finalize_transaction()
             self.push_all(
                 action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
             )
@@ -837,5 +843,5 @@ class ObjGroupsHandler(BaseHandler):
         )
         query = query.filter(or_(Source.requested.is_(True), Source.active.is_(True)))
         groups = [g.to_dict() for g in query.all()]
-
+        self.verify_permissions()
         return self.success(data=groups)

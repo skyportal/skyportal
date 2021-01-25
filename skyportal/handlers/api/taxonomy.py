@@ -60,6 +60,7 @@ class TaxonomyHandler(BaseHandler):
                 Group.id.in_([g.id for g in self.current_user.accessible_groups])
             )
         )
+        self.verify_permissions()
         return self.success(data=query.all())
 
     @permissions(['Post taxonomy'])
@@ -195,7 +196,7 @@ class TaxonomyHandler(BaseHandler):
         )
 
         DBSession().add(taxonomy)
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success(data={'taxonomy_id': taxonomy.id})
 
@@ -223,6 +224,6 @@ class TaxonomyHandler(BaseHandler):
             return self.error("Invalid taxonomy ID")
 
         Taxonomy.query.filter_by(id=taxonomy_id).delete()
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success()

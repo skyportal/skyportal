@@ -1,7 +1,7 @@
 from baselayer.app.access import auth_or_token, permissions
 
 from ..base import BaseHandler
-from ...models import DBSession, ACL, User, UserACL
+from ...models import ACL, User, UserACL
 
 
 class ACLHandler(BaseHandler):
@@ -26,6 +26,7 @@ class ACLHandler(BaseHandler):
                             type: string
                           description: List of all ACL IDs.
         """
+        self.verify_permissions()
         return self.success(data=[acl.id for acl in ACL.query.all()])
 
 
@@ -77,7 +78,7 @@ class UserACLHandler(BaseHandler):
             return self.error("Invalid user_id parameter.")
         new_acls = ACL.query.filter(ACL.id.in_(new_acl_ids)).all()
         user.acls = list(set(user.acls).union(set(new_acls)))
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()
 
     @permissions(["Manage users"])
@@ -115,5 +116,5 @@ class UserACLHandler(BaseHandler):
             .filter(UserACL.acl_id == acl_id)
             .delete()
         )
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()

@@ -1,11 +1,11 @@
-from baselayer.app.env import load_env
-from skyportal.tests import api
-import numpy as np
-import sncosmo
 import math
 
-from skyportal.models import DBSession, Token
+import numpy as np
+import sncosmo
 
+from baselayer.app.env import load_env
+from skyportal.models import DBSession, Token
+from skyportal.tests import api
 
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
