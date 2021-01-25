@@ -141,7 +141,7 @@ class InvitationHandler(BaseHandler):
             )
         )
         try:
-            DBSession().commit()
+            self.finalize_transaction()
         except python_http_client.exceptions.UnauthorizedError:
             return self.error(
                 "Twilio Sendgrid authorization error. Please ensure "
@@ -267,6 +267,7 @@ class InvitationHandler(BaseHandler):
 
         info["invitations"] = return_data
         info["totalMatches"] = int(total_matches)
+        self.verify_permissions()
         return self.success(data=info)
 
     @permissions(["Manage users"])
@@ -337,7 +338,7 @@ class InvitationHandler(BaseHandler):
         if stream_ids is not None:
             invitation.streams = streams
 
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()
 
     @permissions(["Manage users"])
@@ -363,5 +364,5 @@ class InvitationHandler(BaseHandler):
         if invitation is None:
             return self.error("Invalid invitation ID")
         DBSession().delete(invitation)
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()

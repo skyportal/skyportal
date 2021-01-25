@@ -21,6 +21,8 @@ const FETCH_ANNOTATIONS_INFO_OK = "skyportal/FETCH_ANNOTATIONS_INFO_OK";
 const SET_CANDIDATES_FILTER_FORM_DATA =
   "skyportal/SET_CANDIDATES_FILTER_FORM_DATA";
 
+const GENERATE_PS1_THUMBNAIL = "skyportal/GENERATE_PS1_THUMBNAIL";
+
 export const fetchCandidates = (filterParams = {}) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
@@ -28,23 +30,21 @@ export const fetchCandidates = (filterParams = {}) => {
   return API.GET("/api/candidates", FETCH_CANDIDATES, filterParams);
 };
 
-export const setCandidatesAnnotationSortOptions = (item) => {
-  return {
-    type: SET_CANDIDATES_ANNOTATION_SORT_OPTIONS,
-    item,
-  };
-};
+export const generatePS1Thumbnail = (objID) =>
+  API.POST("/api/internal/ps1_thumbnail", GENERATE_PS1_THUMBNAIL, { objID });
 
-export const fetchAnnotationsInfo = () => {
-  return API.GET("/api/internal/annotations_info", FETCH_ANNOTATIONS_INFO);
-};
+export const setCandidatesAnnotationSortOptions = (item) => ({
+  type: SET_CANDIDATES_ANNOTATION_SORT_OPTIONS,
+  item,
+});
 
-export const setFilterFormData = (formData) => {
-  return {
-    type: SET_CANDIDATES_FILTER_FORM_DATA,
-    formData,
-  };
-};
+export const fetchAnnotationsInfo = () =>
+  API.GET("/api/internal/annotations_info", FETCH_ANNOTATIONS_INFO);
+
+export const setFilterFormData = (formData) => ({
+  type: SET_CANDIDATES_FILTER_FORM_DATA,
+  formData,
+});
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

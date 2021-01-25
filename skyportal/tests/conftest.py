@@ -1,21 +1,35 @@
 """Test fixture configuration."""
 
-import pytest
 import os
 import uuid
-import pathlib
 from datetime import datetime, timedelta
 from pathlib import Path
+
+import astroplan
 import numpy as np
+import pytest
 
 from baselayer.app import models
-from baselayer.app.config import load_config
-from baselayer.app.test_util import (  # noqa: F401
-    driver,
-    set_server_url,
+from baselayer.app.test_util import driver  # noqa: F401
+from skyportal.model_util import create_token
+from skyportal.models import (
+    DBSession,
+    Source,
+    Candidate,
+    Role,
+    User,
+    GroupStream,
+    StreamUser,
+    GroupUser,
+    GroupTaxonomy,
+    GroupComment,
+    GroupAnnotation,
+    GroupClassification,
+    GroupPhotometry,
+    GroupSpectrum,
+    FollowupRequestTargetGroup,
+    Thumbnail,
 )
-
-from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 from skyportal.tests.fixtures import (
     ObjFactory,
     StreamFactory,
@@ -26,28 +40,18 @@ from skyportal.tests.fixtures import (
     ObservingRunFactory,
     TelescopeFactory,
     ClassicalAssignmentFactory,
+    TaxonomyFactory,
+    CommentFactory,
+    AnnotationFactory,
+    ClassificationFactory,
+    FollowupRequestFactory,
+    AllocationFactory,
+    InvitationFactory,
+    NotificationFactory,
+    UserNotificationFactory,
 )
-from skyportal.model_util import create_token
-from skyportal.models import (
-    DBSession,
-    Source,
-    Candidate,
-    Role,
-    User,
-    Allocation,
-    FollowupRequest,
-    Obj,
-)
-
-import astroplan
-
-
-print("Loading test configuration from _test_config.yaml")
-basedir = pathlib.Path(os.path.dirname(__file__))
-cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
-set_server_url(f'http://localhost:{cfg["ports.app"]}')
-print("Setting test database to:", cfg["database"])
-models.init_db(**cfg["database"])
+from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
+from skyportal.models import Obj
 
 # Add a "test factory" User so that all factory-generated comments have a
 # proper author, if it doesn't already exist (the user may already be in
@@ -157,12 +161,17 @@ def stream_with_users(super_admin_user, group_admin_user, user, view_only_user):
 
 
 @pytest.fixture()
-def public_group():
-    return GroupFactory()
+def public_group(public_stream):
+    return GroupFactory(streams=[public_stream])
 
 
 @pytest.fixture()
-def public_group2():
+def public_group2(public_stream):
+    return GroupFactory(streams=[public_stream])
+
+
+@pytest.fixture()
+def public_group_no_streams():
     return GroupFactory()
 
 
@@ -183,6 +192,29 @@ def group_with_stream_with_users(
     return GroupFactory(
         users=[super_admin_user, group_admin_user, user, view_only_user],
         streams=[stream_with_users],
+    )
+
+
+@pytest.fixture()
+def public_groupstream(public_group):
+    return (
+        DBSession()
+        .query(GroupStream)
+        .filter(
+            GroupStream.group_id == public_group.id,
+            GroupStream.stream_id == public_group.streams[0].id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_streamuser(public_stream, user):
+    return (
+        DBSession()
+        .query(StreamUser)
+        .filter(StreamUser.user_id == user.id, StreamUser.stream_id == public_stream.id)
+        .first()
     )
 
 
@@ -251,6 +283,16 @@ def public_candidate(public_filter, user):
     )
     DBSession.commit()
     return obj
+
+
+@pytest.fixture()
+def public_candidate_object(public_candidate):
+    return public_candidate.candidates[0]
+
+
+@pytest.fixture()
+def public_source_object(public_source):
+    return public_source.sources[0]
 
 
 @pytest.fixture()
@@ -410,8 +452,8 @@ def sedm(p60_telescope):
 
 
 @pytest.fixture()
-def red_transients_run():
-    return ObservingRunFactory()
+def red_transients_run(user):
+    return ObservingRunFactory(owner=user)
 
 
 @pytest.fixture()
@@ -440,16 +482,32 @@ def private_source():
 
 
 @pytest.fixture()
-def user(public_group):
+def user(public_group, public_stream):
     return UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("Full user")]
+        groups=[public_group],
+        roles=[models.Role.query.get("Full user")],
+        streams=[public_stream],
     )
 
 
 @pytest.fixture()
-def user_group2(public_group2):
+def user_group2(public_group2, public_stream):
     return UserFactory(
-        groups=[public_group2], roles=[models.Role.query.get("Full user")]
+        groups=[public_group2],
+        roles=[models.Role.query.get("Full user")],
+        streams=[public_stream],
+    )
+
+
+@pytest.fixture()
+def public_groupuser(public_group, user):
+    user.groups.append(public_group)
+    DBSession().commit()
+    return (
+        DBSession()
+        .query(GroupUser)
+        .filter(GroupUser.group_id == public_group.id, GroupUser.user_id == user.id)
+        .first()
     )
 
 
@@ -461,8 +519,10 @@ def user2(public_group):
 
 
 @pytest.fixture()
-def user_no_groups():
-    return UserFactory(roles=[models.Role.query.get("Full user")])
+def user_no_groups(public_stream):
+    return UserFactory(
+        roles=[models.Role.query.get("Full user")], streams=[public_stream]
+    )
 
 
 @pytest.fixture()
@@ -487,10 +547,21 @@ def view_only_user2(public_group):
 
 
 @pytest.fixture()
-def group_admin_user(public_group):
-    return UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("Group admin")]
+def group_admin_user(public_group, public_stream):
+    user = UserFactory(
+        groups=[public_group],
+        roles=[models.Role.query.get("Group admin")],
+        streams=[public_stream],
     )
+    group_user = (
+        DBSession()
+        .query(GroupUser)
+        .filter(GroupUser.group_id == public_group.id, GroupUser.user_id == user.id)
+        .first()
+    )
+    group_user.admin = True
+    DBSession().commit()
+    return user
 
 
 @pytest.fixture()
@@ -502,9 +573,11 @@ def group_admin_user_two_groups(public_group, public_group2):
 
 
 @pytest.fixture()
-def super_admin_user(public_group):
+def super_admin_user(public_group, public_stream):
     return UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("Super admin")]
+        groups=[public_group],
+        roles=[models.Role.query.get("Super admin")],
+        streams=[public_stream],
     )
 
 
@@ -676,35 +749,29 @@ def annotation_token_two_groups(user_two_groups):
 
 @pytest.fixture()
 def public_group_sedm_allocation(sedm, public_group):
-    allocation = Allocation(
+    return AllocationFactory(
         instrument=sedm,
         group=public_group,
         pi=str(uuid.uuid4()),
         proposal_id=str(uuid.uuid4()),
         hours_allocated=100,
     )
-    DBSession().add(allocation)
-    DBSession().commit()
-    return allocation
 
 
 @pytest.fixture()
 def public_group2_sedm_allocation(sedm, public_group2):
-    allocation = Allocation(
+    return AllocationFactory(
         instrument=sedm,
         group=public_group2,
         pi=str(uuid.uuid4()),
         proposal_id=str(uuid.uuid4()),
         hours_allocated=100,
     )
-    DBSession().add(allocation)
-    DBSession().commit()
-    return allocation
 
 
 @pytest.fixture()
 def public_source_followup_request(public_group_sedm_allocation, public_source, user):
-    fr = FollowupRequest(
+    return FollowupRequestFactory(
         obj=public_source,
         allocation=public_group_sedm_allocation,
         payload={
@@ -713,20 +780,17 @@ def public_source_followup_request(public_group_sedm_allocation, public_source, 
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
         },
-        requester_id=user.id,
-        last_modified_by_id=user.id,
+        requester=user,
+        last_modified_by_id=user,
+        target_groups=user.groups,
     )
-
-    DBSession().add(fr)
-    DBSession().commit()
-    return fr
 
 
 @pytest.fixture()
 def public_source_group2_followup_request(
     public_group2_sedm_allocation, public_source_group2, user_two_groups
 ):
-    fr = FollowupRequest(
+    return FollowupRequestFactory(
         obj=public_source_group2,
         allocation=public_group2_sedm_allocation,
         payload={
@@ -735,13 +799,10 @@ def public_source_group2_followup_request(
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
         },
-        requester_id=user_two_groups.id,
-        last_modified_by_id=user_two_groups.id,
+        requester=user_two_groups,
+        last_modified_by=user_two_groups,
+        target_groups=user_two_groups.groups,
     )
-
-    DBSession().add(fr)
-    DBSession().commit()
-    return fr
 
 
 @pytest.fixture()
@@ -777,3 +838,163 @@ def source_notification_user_token(source_notification_user):
         ACLs=[], user_id=source_notification_user.id, name=str(uuid.uuid4()),
     )
     return token_id
+
+
+@pytest.fixture()
+def public_taxonomy(public_group):
+    return TaxonomyFactory(groups=[public_group])
+
+
+@pytest.fixture()
+def public_group_taxonomy(public_taxonomy):
+    return (
+        DBSession()
+        .query(GroupTaxonomy)
+        .filter(
+            GroupTaxonomy.group_id == public_taxonomy.groups[0].id,
+            GroupTaxonomy.taxonomie_id == public_taxonomy.id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_comment(user_no_groups, public_source, public_group):
+    return CommentFactory(
+        obj=public_source, groups=[public_group], author=user_no_groups
+    )
+
+
+@pytest.fixture()
+def public_groupcomment(public_comment):
+    return (
+        DBSession()
+        .query(GroupComment)
+        .filter(
+            GroupComment.group_id == public_comment.groups[0].id,
+            GroupComment.comment_id == public_comment.id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_annotation(user_no_groups, public_source, public_group):
+    return AnnotationFactory(
+        obj=public_source, groups=[public_group], author=user_no_groups
+    )
+
+
+@pytest.fixture()
+def public_groupannotation(public_annotation):
+    return (
+        DBSession()
+        .query(GroupAnnotation)
+        .filter(
+            GroupAnnotation.group_id == public_annotation.groups[0].id,
+            GroupAnnotation.annotation_id == public_annotation.id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_classification(
+    public_taxonomy, user_two_groups, public_group, public_source
+):
+    return ClassificationFactory(
+        obj=public_source,
+        groups=[public_group],
+        author=user_two_groups,
+        taxonomy=public_taxonomy,
+    )
+
+
+@pytest.fixture()
+def public_groupclassification(public_classification):
+    return (
+        DBSession()
+        .query(GroupClassification)
+        .filter(
+            GroupClassification.group_id == public_classification.groups[0].id,
+            GroupClassification.classification_id == public_classification.id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_source_photometry_point(public_source):
+    return public_source.photometry[0]
+
+
+@pytest.fixture()
+def public_source_spectrum(public_source):
+    return public_source.spectra[0]
+
+
+@pytest.fixture()
+def public_source_groupphotometry(public_source_photometry_point):
+    return (
+        DBSession()
+        .query(GroupPhotometry)
+        .filter(
+            GroupPhotometry.group_id == public_source_photometry_point.groups[0].id,
+            GroupPhotometry.photometr_id == public_source_photometry_point.id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_source_groupspectrum(public_source_spectrum):
+    return (
+        DBSession()
+        .query(GroupSpectrum)
+        .filter(
+            GroupSpectrum.group_id == public_source_spectrum.groups[0].id,
+            GroupSpectrum.spectr_id == public_source_spectrum.id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_source_followup_request_target_group(public_source_followup_request):
+    return (
+        DBSession()
+        .query(FollowupRequestTargetGroup)
+        .filter(
+            FollowupRequestTargetGroup.followuprequest_id
+            == public_source_followup_request.id,
+            FollowupRequestTargetGroup.group_id
+            == public_source_followup_request.target_groups[0].id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_thumbnail(public_source):
+    return (
+        DBSession()
+        .query(Thumbnail)
+        .filter(Thumbnail.obj_id == public_source.id)
+        .order_by(Thumbnail.id.desc())
+        .first()
+    )
+
+
+@pytest.fixture()
+def invitation(user):
+    return InvitationFactory(invited_by=user)
+
+
+@pytest.fixture()
+def public_source_notification(source_notification_user, public_source):
+    return NotificationFactory(sent_by=source_notification_user, source=public_source)
+
+
+@pytest.fixture()
+def user_notification(user):
+    return UserNotificationFactory(user=user)

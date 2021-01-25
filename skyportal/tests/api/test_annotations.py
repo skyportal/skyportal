@@ -277,3 +277,30 @@ def test_delete_annotation(annotation_token, public_source):
 
     status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
     assert status == 400
+
+
+def test_obj_annotations(annotation_token, public_source, public_group):
+    origin = str(uuid.uuid4())
+
+    status, data = api(
+        'POST',
+        'annotation',
+        data={
+            'obj_id': public_source.id,
+            'origin': origin,
+            'data': {'offset_from_host_galaxy': 1.5},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+    annotation_id = data['data']['annotation_id']
+
+    status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
+    assert status == 200
+
+    status, data = api(
+        'GET', f'sources/{public_source.id}/annotations', token=annotation_token
+    )
+    assert status == 200
+    assert data['data'][0]['id'] == annotation_id
+    assert len(data['data']) == 1

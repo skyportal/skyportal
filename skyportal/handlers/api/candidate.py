@@ -76,6 +76,7 @@ class CandidateHandler(BaseHandler):
             .filter(Candidate.obj_id == obj_id, Filter.group_id.in_(user_group_ids))
             .count()
         )
+        self.verify_permissions()
         if num_c > 0:
             return self.success()
         else:
@@ -381,7 +382,7 @@ class CandidateHandler(BaseHandler):
             candidate_info["luminosity_distance"] = c.luminosity_distance
             candidate_info["dm"] = c.dm
             candidate_info["angular_diameter_distance"] = c.angular_diameter_distance
-
+            self.verify_permissions()
             return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -755,6 +756,7 @@ class CandidateHandler(BaseHandler):
                 ] = obj.angular_diameter_distance
 
         query_results["candidates"] = candidate_list
+        self.verify_permissions()
         return self.success(data=query_results)
 
     @permissions(["Upload data"])
@@ -864,7 +866,7 @@ class CandidateHandler(BaseHandler):
             for filter in filters
         ]
         DBSession().add_all(candidates)
-        DBSession().commit()
+        self.finalize_transaction()
         if not obj_already_exists:
             obj.add_linked_thumbnails()
 
@@ -896,7 +898,7 @@ class CandidateHandler(BaseHandler):
         ):
             return self.error("Insufficient permissions.")
         DBSession().delete(c)
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success()
 

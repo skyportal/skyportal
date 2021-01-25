@@ -33,6 +33,7 @@ class ClassificationHandler(BaseHandler):
         )
         if classification is None:
             return self.error('Invalid classification ID.')
+        self.verify_permissions()
         return self.success(data=classification)
 
     @permissions(['Classify'])
@@ -156,7 +157,7 @@ class ClassificationHandler(BaseHandler):
         )
 
         DBSession().add(classification)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -239,7 +240,7 @@ class ClassificationHandler(BaseHandler):
                     "not a member of."
                 )
             c.groups = groups
-        DBSession().commit()
+        self.finalize_transaction()
         self.push_all(
             action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key},
         )
@@ -277,7 +278,7 @@ class ClassificationHandler(BaseHandler):
         author = c.author
         if ("Super admin" in [role.id for role in roles]) or (user.id == author.id):
             Classification.query.filter_by(id=classification_id).delete()
-            DBSession().commit()
+            self.finalize_transaction()
         else:
             return self.error('Insufficient user permissions.')
         self.push_all(
@@ -298,12 +299,13 @@ class ObjClassificationHandler(BaseHandler):
         description: Retrieve an object's classifications
         tags:
           - classifications
+          - sources
         parameters:
           - in: path
             name: obj_id
             required: true
             schema:
-              type: integer
+              type: string
         responses:
           200:
             content:
@@ -323,4 +325,5 @@ class ObjClassificationHandler(BaseHandler):
         for classification in classifications:
             del classification.groups
 
+        self.verify_permissions()
         return self.success(data=classifications)

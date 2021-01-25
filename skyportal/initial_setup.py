@@ -1,3 +1,14 @@
+import os
+from pathlib import Path
+import argparse
+from email.utils import parseaddr
+from baselayer.app.env import load_env
+from baselayer.app.model_util import status, drop_tables, create_tables
+from social_tornado.models import TornadoStorage
+from skyportal.models import init_db, Base, User, DBSession
+
+import model_util
+
 """
 usage: initial_setup.py [-h] [--nodrop] [--adminusername ADMINUSER]
                         [--username USER]
@@ -20,11 +31,6 @@ If you just want to add a user to an existing database make sure you add the `--
 PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py  \
           --nodrop --user=<anotheremail>
 """
-
-import os
-from pathlib import Path
-import argparse
-from email.utils import parseaddr
 
 parser = argparse.ArgumentParser(description='Initialize Skyportal and add admin/users')
 parser.add_argument(
@@ -50,12 +56,6 @@ parser.add_argument(
 )
 
 results = parser.parse_args()
-from baselayer.app.env import load_env
-from baselayer.app.model_util import status, drop_tables, create_tables
-from social_tornado.models import TornadoStorage
-from skyportal.models import init_db, Base, User, DBSession
-
-import model_util
 
 
 if __name__ == "__main__":

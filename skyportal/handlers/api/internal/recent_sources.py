@@ -93,6 +93,7 @@ class RecentSourcesHandler(BaseHandler):
             # Delete bookkeeping recency_index key
             del source["recency_index"]
 
+        self.verify_permissions()
         return self.success(data=sources)
 
 

@@ -1,25 +1,30 @@
-import yaml
-import uuid
-import re
 import json
+import re
+import uuid
 import warnings
 from datetime import datetime, timezone, timedelta
-import requests
+
 import arrow
-
 import astroplan
+import healpix_alchemy as ha
 import numpy as np
-import timezonefinder
-from slugify import slugify
-
+import requests
 import sqlalchemy as sa
+import timezonefinder
+import yaml
+from astropy import coordinates as ap_coord
+from astropy import time as ap_time
+from astropy import units as u
+from astropy.io import fits, ascii
+from astropy.utils.exceptions import AstropyWarning
+from slugify import slugify
 from sqlalchemy import cast, event
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import relationship, joinedload
-from sqlalchemy.schema import UniqueConstraint
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import relationship, joinedload
+from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
@@ -27,14 +32,9 @@ from sqlalchemy import func
 
 from twilio.rest import Client as TwilioClient
 
-from astropy import units as u
-from astropy import time as ap_time
-from astropy.utils.exceptions import AstropyWarning
-from astropy import coordinates as ap_coord
-from astropy.io import fits, ascii
-import healpix_alchemy as ha
-
-from .utils.cosmology import establish_cosmology
+from baselayer.app.custom_exceptions import AccessError
+from baselayer.app.env import load_env
+from baselayer.app.json_util import to_json
 from baselayer.app.models import (  # noqa
     init_db,
     join_model,
@@ -46,12 +46,16 @@ from baselayer.app.models import (  # noqa
     Token,
     UserACL,
     UserRole,
+    UserAccessControl,
+    AccessibleIfUserMatches,
+    accessible_by_owner,
+    restricted,
+    public,
+    AccessibleIfRelatedRowsAreAccessible,
 )
-from baselayer.app.custom_exceptions import AccessError
-from baselayer.app.env import load_env
-from baselayer.app.json_util import to_json
-
+from skyportal import facility_apis
 from . import schema
+from .email_utils import send_email
 from .enum_types import (
     allowed_bandpasses,
     thumbnail_types,
@@ -60,9 +64,7 @@ from .enum_types import (
     api_classnames,
     listener_classnames,
 )
-from .email_utils import send_email
-
-from skyportal import facility_apis
+from .utils.cosmology import establish_cosmology
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
 # All DB fluxes are stored in microJy (AB).
@@ -158,6 +160,108 @@ def is_modifiable_by(self, user):
 
 Base.is_readable_by = is_readable_by
 
+accessible_by_groups_members = AccessibleIfUserMatches('groups.users')
+accessible_by_group_members = AccessibleIfUserMatches('group.users')
+accessible_by_members = AccessibleIfUserMatches('users')
+
+
+class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
+    def __init__(self, relationship_chain):
+        """A class that grants access to users related to a specific record
+        through a chain of relationships. The relationship chain must
+        contain a relationship called `group_users` and matches are only
+        valid if the `admin` property of the corresponding `group_users` rows
+        are true.
+
+        Parameters
+        ----------
+        relationship_chain: str
+            The chain of relationships to check the User or Token against in
+            `query_accessible_rows`. Should be specified as
+
+            >>>> f'{relationship1_name}.{relationship2_name}...{relationshipN_name}'
+
+            The first relationship should be defined on the target class, and
+            each subsequent relationship should be defined on the class pointed
+            to by the previous relationship. If the querying user matches any
+            record pointed to by the final relationship, the logic will grant
+            access to the querying user.
+
+        Examples
+        --------
+
+        Grant access if the querying user is an admin of any of the record's
+        groups:
+
+            >>>> AccessibleIfGroupUserIsAdminAndUserMatches('groups.group_users.user')
+
+        Grant access if the querying user is an admin of the record's group:
+
+            >>>> AccessibleIfUserMatches('group.group_users.user')
+        """
+        self.relationship_chain = relationship_chain
+
+    @property
+    def relationship_key(self):
+        return self._relationship_key
+
+    @relationship_key.setter
+    def relationship_chain(self, value):
+        if not isinstance(value, str):
+            raise ValueError(
+                f'Invalid value for relationship key: {value}, expected str, got {value.__class__.__name__}'
+            )
+        relationship_names = value.split('.')
+        if 'group_users' not in value:
+            raise ValueError('Relationship chain must contain "group_users".')
+        if len(relationship_names) < 1:
+            raise ValueError('Need at least 1 relationship to join on.')
+        self._relationship_key = value
+
+    def query_accessible_rows(self, cls, user_or_token, columns=None):
+        """Construct a Query object that, when executed, returns the rows of a
+        specified table that are accessible to a specified user or token.
+
+        Parameters
+        ----------
+        cls: `baselayer.app.models.DeclarativeMeta`
+            The mapped class of the target table.
+        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
+            The User or Token to check.
+        columns: list of sqlalchemy.Column, optional, default None
+            The columns to retrieve from the target table. If None, queries
+            the mapped class directly and returns mapped instances.
+
+        Returns
+        -------
+        query: sqlalchemy.Query
+            Query for the accessible rows.
+        """
+
+        query = super().query_accessible_rows(cls, user_or_token, columns=columns)
+        if not user_or_token.is_admin:
+            # this avoids name collisions
+            group_user_subq = (
+                DBSession()
+                .query(GroupUser)
+                .filter(GroupUser.admin.is_(True))
+                .subquery()
+            )
+            query = query.join(
+                group_user_subq,
+                sa.and_(
+                    Group.id == group_user_subq.c.group_id,
+                    User.id == group_user_subq.c.user_id,
+                ),
+            )
+        return query
+
+
+accessible_by_group_admins = AccessibleIfGroupUserIsAdminAndUserMatches(
+    'group.group_users.user'
+)
+accessible_by_admins = AccessibleIfGroupUserIsAdminAndUserMatches('group_users.user')
+
 
 class NumpyArray(sa.types.TypeDecorator):
     """SQLAlchemy representation of a NumPy array."""
@@ -175,6 +279,9 @@ class Group(Base):
     `Stream` permissions. In order for a `User` to join a `Group`, the `User`
     must have access to all of the `Group`'s data `Stream`s.
     """
+
+    update = delete = accessible_by_admins
+    member = accessible_by_members
 
     name = sa.Column(
         sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
@@ -265,6 +372,9 @@ class Group(Base):
 
 GroupUser = join_model('group_users', Group, User)
 GroupUser.__doc__ = "Join table mapping `Group`s to `User`s."
+GroupUser.create = GroupUser.update = GroupUser.delete = (
+    accessible_by_group_admins & GroupUser.read
+)
 
 GroupUser.admin = sa.Column(
     sa.Boolean,
@@ -326,7 +436,11 @@ class GroupAdmissionRequest(Base):
 
 
 class Stream(Base):
-    """A data stream producing alerts that can be programmatically filtered using a Filter."""
+    """A data stream producing alerts that can be programmatically filtered
+    using a Filter. """
+
+    read = AccessibleIfUserMatches('users')
+    create = update = delete = restricted
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
     altdata = sa.Column(
@@ -360,11 +474,14 @@ class Stream(Base):
 
 GroupStream = join_model('group_streams', Group, Stream)
 GroupStream.__doc__ = "Join table mapping Groups to Streams."
+GroupStream.create = GroupStream.update = GroupStream.delete = (
+    accessible_by_group_admins & GroupStream.read
+)
 
 
 StreamUser = join_model('stream_users', Stream, User)
 StreamUser.__doc__ = "Join table mapping Streams to Users."
-
+StreamUser.create = restricted
 
 User.groups = relationship(
     'Group',
@@ -373,7 +490,6 @@ User.groups = relationship(
     passive_deletes=True,
     doc="The Groups this User is a member of.",
 )
-
 
 User.streams = relationship(
     'Stream',
@@ -432,9 +548,9 @@ Token.groups = token_groups
 
 class Obj(Base, ha.Point):
     """A record of an astronomical Object and its metadata, such as position,
-    positional uncertainties, name, and redshift. Permissioning rules,
-    such as group ownership, user visibility, etc., are managed by other
-    entities, namely Source and Candidate."""
+    positional uncertainties, name, and redshift."""
+
+    update = public
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precison numeric
@@ -514,6 +630,7 @@ class Obj(Base, ha.Point):
         order_by="Candidate.passed_at",
         doc="Candidates associated with the object.",
     )
+
     comments = relationship(
         'Comment',
         back_populates='obj',
@@ -522,6 +639,7 @@ class Obj(Base, ha.Point):
         order_by="Comment.created_at",
         doc="Comments posted about the object.",
     )
+
     annotations = relationship(
         'Annotation',
         back_populates='obj',
@@ -840,7 +958,7 @@ class Obj(Base, ha.Point):
            The airmass of the Obj at the requested times
         """
 
-        output_shape = np.shape(time)
+        output_shape = time.shape
         time = np.atleast_1d(time)
         altitude = self.altitude(telescope, time).to('degree').value
         above = altitude > 0
@@ -884,6 +1002,9 @@ class Filter(Base):
     with exactly one Group, and a Group may have multiple operational Filters.
     """
 
+    # TODO: Track filter ownership and allow owners to update, delete filters
+    create = read = update = delete = accessible_by_group_members
+
     name = sa.Column(sa.String, nullable=False, unique=False, doc="Filter name.")
     stream_id = sa.Column(
         sa.ForeignKey("streams.id", ondelete="CASCADE"),
@@ -920,6 +1041,10 @@ class Filter(Base):
 
 class Candidate(Base):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
+    create = read = update = delete = AccessibleIfUserMatches(
+        'filter.group.group_users.user'
+    )
+
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
@@ -1044,6 +1169,10 @@ User.listings = relationship(
 
 
 Source = join_model("sources", Group, Obj)
+Source.create = Source.read = Source.update = Source.delete = (
+    accessible_by_group_members & Source.read
+)
+
 Source.__doc__ = (
     "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
     "the Obj is shielded in perpetuity from automatic database removal. "
@@ -1682,6 +1811,11 @@ class Instrument(Base):
 class Allocation(Base):
     """An allocation of observing time on a robotic instrument."""
 
+    create = read = update = delete = (
+        accessible_by_group_members
+        & AccessibleIfRelatedRowsAreAccessible(instrument='read')
+    )
+
     pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
     proposal_id = sa.Column(
         sa.String, doc="The ID of the proposal associated with this allocation."
@@ -1740,6 +1874,9 @@ class Allocation(Base):
 class Taxonomy(Base):
     """An ontology within which Objs can be classified."""
 
+    # TODO: Add ownership logic to taxonomy
+    read = accessible_by_groups_members
+
     __tablename__ = 'taxonomies'
     name = sa.Column(
         sa.String,
@@ -1792,6 +1929,9 @@ class Taxonomy(Base):
 
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
+GroupTaxonomy.delete = GroupTaxonomy.update = (
+    accessible_by_group_admins & GroupTaxonomy.read
+)
 
 
 def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
@@ -1829,6 +1969,14 @@ Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 class Comment(Base):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read'
+    )
+
+    update = delete = AccessibleIfUserMatches('author')
+
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
         sa.Enum('text', 'redshift', name='comment_types', validate_strings=True),
@@ -1847,7 +1995,11 @@ class Comment(Base):
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
     author = relationship(
-        "User", back_populates="comments", doc="Comment's author.", uselist=False,
+        "User",
+        back_populates="comments",
+        doc="Comment's author.",
+        uselist=False,
+        foreign_keys="Comment.author_id",
     )
     author_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -1891,19 +2043,34 @@ class Comment(Base):
 
 GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
+GroupComment.delete = GroupComment.update = (
+    accessible_by_group_admins & GroupComment.read
+)
 
-User.comments = relationship("Comment", back_populates="author")
+User.comments = relationship(
+    "Comment", back_populates="author", foreign_keys="Comment.author_id"
+)
 
 
 class Annotation(Base):
     """A sortable/searchable Annotation made by a filter or other robot,
     with a set of data as JSON"""
 
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read'
+    )
+    update = delete = AccessibleIfUserMatches('author')
+
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
     data = sa.Column(JSONB, default=None, doc="Searchable data in JSON format")
     author = relationship(
-        "User", back_populates="annotations", doc="Annotation's author.", uselist=False,
+        "User",
+        back_populates="annotations",
+        doc="Annotation's author.",
+        uselist=False,
+        foreign_keys="Annotation.author_id",
     )
     author_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -1964,12 +2131,28 @@ class Annotation(Base):
 
 GroupAnnotation = join_model("group_annotations", Group, Annotation)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
+GroupAnnotation.delete = GroupAnnotation.update = (
+    accessible_by_group_admins & GroupAnnotation.read
+)
 
-User.annotations = relationship("Annotation", back_populates="author")
+User.annotations = relationship(
+    "Annotation", back_populates="author", foreign_keys="Annotation.author_id"
+)
+
+# To create or read a classification, you must have read access to the
+# underlying taxonomy, and be a member of at least one of the
+# classification's target groups
+ok_if_tax_and_obj_readable = AccessibleIfRelatedRowsAreAccessible(
+    taxonomy='read', obj='read'
+)
 
 
 class Classification(Base):
     """Classification of an Obj."""
+
+    create = ok_if_tax_and_obj_readable
+    read = accessible_by_groups_members & ok_if_tax_and_obj_readable
+    update = delete = AccessibleIfUserMatches('author')
 
     classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
     taxonomy_id = sa.Column(
@@ -2019,14 +2202,20 @@ class Classification(Base):
     )
 
 
-GroupClassifications = join_model("group_classifications", Group, Classification)
-GroupClassifications.__doc__ = "Join table mapping Groups to Classifications."
+GroupClassification = join_model("group_classifications", Group, Classification)
+GroupClassification.__doc__ = "Join table mapping Groups to Classifications."
+GroupClassification.delete = GroupClassification.update = (
+    accessible_by_group_admins & GroupClassification.read
+)
 
 
-class Photometry(Base, ha.Point):
+class Photometry(ha.Point, Base):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
+
+    read = accessible_by_groups_members
+    update = delete = accessible_by_owner
 
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
     flux = sa.Column(
@@ -2233,16 +2422,25 @@ Photometry.__table_args__ = (
 
 
 User.photometry = relationship(
-    'Photometry', doc='Photometry uploaded by this User.', back_populates='owner'
+    'Photometry',
+    doc='Photometry uploaded by this User.',
+    back_populates='owner',
+    foreign_keys="Photometry.owner_id",
 )
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
+GroupPhotometry.delete = GroupPhotometry.update = (
+    accessible_by_group_admins & GroupPhotometry.read
+)
 
 
 class Spectrum(Base):
     """Wavelength-dependent measurement of the flux of an object through a
     dispersive element."""
+
+    read = accessible_by_groups_members
+    update = delete = accessible_by_owner
 
     __tablename__ = 'spectra'
     # TODO better numpy integration
@@ -2294,10 +2492,12 @@ class Spectrum(Base):
     )
 
     reducers = relationship(
-        "User", secondary="spectrum_reducers", doc="Users that reduced this spectrum."
+        "User", secondary="spectrum_reducers", doc="Users that reduced this spectrum.",
     )
     observers = relationship(
-        "User", secondary="spectrum_observers", doc="Users that observed this spectrum."
+        "User",
+        secondary="spectrum_observers",
+        doc="Users that observed this spectrum.",
     )
 
     followup_request_id = sa.Column(sa.ForeignKey('followuprequests.id'), nullable=True)
@@ -2515,9 +2715,20 @@ User.spectra = relationship(
 
 SpectrumReducer = join_model("spectrum_reducers", Spectrum, User)
 SpectrumObserver = join_model("spectrum_observers", Spectrum, User)
+SpectrumReducer.create = (
+    SpectrumReducer.delete
+) = SpectrumReducer.update = AccessibleIfUserMatches('spectrum.owner')
+SpectrumObserver.create = (
+    SpectrumObserver.delete
+) = SpectrumObserver.update = AccessibleIfUserMatches('spectrum.owner')
+
+# should be accessible only by spectrumowner ^^
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
+GroupSpectrum.update = GroupSpectrum.delete = (
+    accessible_by_group_admins & GroupSpectrum.read
+)
 
 
 # def format_public_url(context):
@@ -2536,6 +2747,13 @@ GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
+
+    # TODO: Make read-accessible via target groups
+    create = read = AccessibleIfRelatedRowsAreAccessible(obj="read", allocation="read")
+    update = delete = (
+        AccessibleIfUserMatches('allocation.group.users')
+        | AccessibleIfUserMatches('requester')
+    ) & read
 
     requester_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -2629,6 +2847,12 @@ class FollowupRequest(Base):
 
 
 FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
+FollowupRequestTargetGroup.create = (
+    FollowupRequestTargetGroup.update
+) = FollowupRequestTargetGroup.delete = (
+    AccessibleIfUserMatches('followuprequest.requester')
+    & FollowupRequestTargetGroup.read
+)
 
 
 class FacilityTransaction(Base):
@@ -2667,6 +2891,7 @@ class FacilityTransaction(Base):
         'User',
         back_populates='transactions',
         doc='The User who initiated the transaction.',
+        foreign_keys="FacilityTransaction.initiator_id",
     )
 
 
@@ -2681,6 +2906,7 @@ User.transactions = relationship(
     'FacilityTransaction',
     back_populates='initiator',
     doc="The FacilityTransactions initiated by this User.",
+    foreign_keys="FacilityTransaction.initiator_id",
 )
 
 
@@ -2738,6 +2964,8 @@ Listing.__table_args__ = (
 class Thumbnail(Base):
     """Thumbnail image centered on the location of an Obj."""
 
+    create = read = AccessibleIfRelatedRowsAreAccessible(obj='read')
+
     # TODO delete file after deleting row
     type = sa.Column(
         thumbnail_types, doc='Thumbnail type (e.g., ref, new, sub, dr8, ps1, ...)'
@@ -2770,6 +2998,8 @@ class Thumbnail(Base):
 
 class ObservingRun(Base):
     """A classical observing run with a target list (of Objs)."""
+
+    update = delete = accessible_by_owner
 
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete='CASCADE'),
@@ -2815,6 +3045,7 @@ class ObservingRun(Base):
         'User',
         back_populates='observing_runs',
         doc="The User who created this ObservingRun.",
+        foreign_keys="ObservingRun.owner_id",
     )
     owner_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -2889,11 +3120,16 @@ User.observing_runs = relationship(
     'ObservingRun',
     cascade='save-update, merge, refresh-expire, expunge',
     doc="Observing Runs this User has created.",
+    foreign_keys="ObservingRun.owner_id",
 )
 
 
 class ClassicalAssignment(Base):
     """Assignment of an Obj to an Observing Run as a target."""
+
+    create = read = update = delete = AccessibleIfRelatedRowsAreAccessible(
+        obj='read', run='read'
+    )
 
     requester_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
@@ -2991,6 +3227,9 @@ User.assignments = relationship(
 
 
 class Invitation(Base):
+
+    read = update = delete = AccessibleIfUserMatches('invited_by')
+
     token = sa.Column(sa.String(), nullable=False, unique=True)
     groups = relationship(
         "Group",
@@ -3036,6 +3275,10 @@ def send_user_invite_email(mapper, connection, target):
 
 
 class SourceNotification(Base):
+
+    create = read = AccessibleIfRelatedRowsAreAccessible(source='read')
+    update = delete = AccessibleIfUserMatches('sent_by')
+
     groups = relationship(
         "Group",
         secondary="group_notifications",
@@ -3068,7 +3311,52 @@ class SourceNotification(Base):
     level = sa.Column(sa.String(), nullable=False)
 
 
+class UserNotification(Base):
+
+    read = update = delete = AccessibleIfUserMatches('user')
+
+    user_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the associated User",
+    )
+    user = relationship(
+        "User", back_populates="notifications", doc="The associated User",
+    )
+    text = sa.Column(
+        sa.String(), nullable=False, doc="The notification text to display",
+    )
+
+    viewed = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        index=True,
+        doc="Boolean indicating whether notification has been viewed.",
+    )
+
+    url = sa.Column(
+        sa.String(),
+        nullable=True,
+        doc="URL to which to direct upon click, if relevant",
+    )
+
+
+User.notifications = relationship(
+    "UserNotification",
+    back_populates="user",
+    doc="Notifications to be displayed on front-end associated with User",
+)
+
 GroupSourceNotification = join_model('group_notifications', Group, SourceNotification)
+GroupSourceNotification.create = (
+    GroupSourceNotification.read
+) = accessible_by_group_members
+GroupSourceNotification.update = (
+    GroupSourceNotification.delete
+) = accessible_by_group_admins | AccessibleIfUserMatches('sourcenotification.sent_by')
+
 User.source_notifications = relationship(
     'SourceNotification',
     back_populates='sent_by',
