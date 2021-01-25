@@ -1,4 +1,4 @@
-"""rename usernotificaiton column to avoid collision with read permissions prop
+"""rename usernotification column to avoid collision with read permissions prop
 
 Revision ID: 99958ac9a5b1
 Revises: eb5ad7587e4e
