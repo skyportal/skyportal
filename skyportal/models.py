@@ -3327,13 +3327,15 @@ class UserNotification(Base):
     text = sa.Column(
         sa.String(), nullable=False, doc="The notification text to display",
     )
-    read = sa.Column(
+
+    viewed = sa.Column(
         sa.Boolean,
         nullable=False,
         default=False,
         index=True,
         doc="Boolean indicating whether notification has been viewed.",
     )
+
     url = sa.Column(
         sa.String(),
         nullable=True,

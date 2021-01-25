@@ -1,7 +1,7 @@
 """refactor  permissions
 
 Revision ID: eb5ad7587e4e
-Revises: 2a17ca9d5438
+Revises: 5f2ba5579a79
 Create Date: 2020-12-07 20:02:36.221787
 
 """
@@ -12,7 +12,7 @@ from baselayer.app.models import JoinModel
 
 # revision identifiers, used by Alembic.
 revision = 'eb5ad7587e4e'
-down_revision = '2a17ca9d5438'
+down_revision = '5f2ba5579a79'
 branch_labels = None
 depends_on = None
 
