@@ -3205,3 +3205,83 @@ def test_group_admin_user_delete_public_source_notification(group_admin_user, pu
     accessible = public_source_notification.is_accessible_by(group_admin_user, mode="delete")
     assert accessible  # must be notification sender
 """
+
+
+def test_user_create_user_notification(user, user_notification):
+    accessible = user_notification.is_accessible_by(user, mode="create")
+    assert accessible
+
+
+def test_user_read_user_notification(user, user_notification):
+    accessible = user_notification.is_accessible_by(user, mode="read")
+    assert accessible
+
+
+def test_user_update_user_notification(user, user_notification):
+    accessible = user_notification.is_accessible_by(user, mode="update")
+    assert accessible
+
+
+def test_user_delete_user_notification(user, user_notification):
+    accessible = user_notification.is_accessible_by(user, mode="delete")
+    assert accessible
+
+
+def test_user_group2_create_user_notification(user_group2, user_notification):
+    accessible = user_notification.is_accessible_by(user_group2, mode="create")
+    assert accessible
+
+
+def test_user_group2_read_user_notification(user_group2, user_notification):
+    accessible = user_notification.is_accessible_by(user_group2, mode="read")
+    assert not accessible  # must be target user
+
+
+def test_user_group2_update_user_notification(user_group2, user_notification):
+    accessible = user_notification.is_accessible_by(user_group2, mode="update")
+    assert not accessible  # must be target user
+
+
+def test_user_group2_delete_user_notification(user_group2, user_notification):
+    accessible = user_notification.is_accessible_by(user_group2, mode="delete")
+    assert not accessible  # must be target user
+
+
+def test_super_admin_user_create_user_notification(super_admin_user, user_notification):
+    accessible = user_notification.is_accessible_by(super_admin_user, mode="create")
+    assert accessible
+
+
+def test_super_admin_user_read_user_notification(super_admin_user, user_notification):
+    accessible = user_notification.is_accessible_by(super_admin_user, mode="read")
+    assert accessible
+
+
+def test_super_admin_user_update_user_notification(super_admin_user, user_notification):
+    accessible = user_notification.is_accessible_by(super_admin_user, mode="update")
+    assert accessible
+
+
+def test_super_admin_user_delete_user_notification(super_admin_user, user_notification):
+    accessible = user_notification.is_accessible_by(super_admin_user, mode="delete")
+    assert accessible
+
+
+def test_group_admin_user_create_user_notification(group_admin_user, user_notification):
+    accessible = user_notification.is_accessible_by(group_admin_user, mode="create")
+    assert accessible
+
+
+def test_group_admin_user_read_user_notification(group_admin_user, user_notification):
+    accessible = user_notification.is_accessible_by(group_admin_user, mode="read")
+    assert not accessible  # must be target user
+
+
+def test_group_admin_user_update_user_notification(group_admin_user, user_notification):
+    accessible = user_notification.is_accessible_by(group_admin_user, mode="update")
+    assert not accessible  # must be target user
+
+
+def test_group_admin_user_delete_user_notification(group_admin_user, user_notification):
+    accessible = user_notification.is_accessible_by(group_admin_user, mode="delete")
+    assert not accessible  # must be target user

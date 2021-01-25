@@ -35,6 +35,7 @@ from skyportal.models import (
     Allocation,
     Invitation,
     SourceNotification,
+    UserNotification,
 )
 
 import tdtax
@@ -450,3 +451,12 @@ class NotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
                 obj.groups.append(group)
                 DBSession().add(obj)
                 DBSession().commit()
+
+
+class UserNotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = UserNotification
+
+    user = factory.SubFactory(UserFactory)
+    text = 'abcd1234'
+    viewed = False

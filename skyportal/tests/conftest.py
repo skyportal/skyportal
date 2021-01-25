@@ -48,6 +48,7 @@ from skyportal.tests.fixtures import (
     AllocationFactory,
     InvitationFactory,
     NotificationFactory,
+    UserNotificationFactory,
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 from skyportal.models import Obj
@@ -992,3 +993,8 @@ def invitation(user):
 @pytest.fixture()
 def public_source_notification(source_notification_user, public_source):
     return NotificationFactory(sent_by=source_notification_user, source=public_source)
+
+
+@pytest.fixture()
+def user_notification(user):
+    return UserNotificationFactory(user=user)

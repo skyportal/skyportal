@@ -32,6 +32,7 @@ targets = [
     'red_transients_run',
     'problematic_assignment',
     'invitation',
+    'user_notification',
 ]
 
 
