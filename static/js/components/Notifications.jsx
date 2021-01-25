@@ -37,14 +37,14 @@ const Notifications = () => {
   const notifications = useSelector((state) => state.userNotifications);
 
   const [unreadCount, setUnreadCount] = useState(
-    notifications ? notifications.filter((n) => !n.read).length : 0
+    notifications ? notifications.filter((n) => !n.viewed).length : 0
   );
 
   useEffect(() => {
     if (notifications === null) {
       dispatch(userNotificationsActions.fetchNotifications());
     } else {
-      setUnreadCount(notifications.filter((n) => !n.read).length);
+      setUnreadCount(notifications.filter((n) => !n.viewed).length);
     }
   }, [dispatch, notifications]);
 
@@ -64,18 +64,20 @@ const Notifications = () => {
   };
 
   const markAllRead = () => {
-    dispatch(userNotificationsActions.updateAllNotifications({ read: true }));
+    dispatch(userNotificationsActions.updateAllNotifications({ viewed: true }));
   };
 
   const markAllUnread = () => {
-    dispatch(userNotificationsActions.updateAllNotifications({ read: false }));
+    dispatch(
+      userNotificationsActions.updateAllNotifications({ viewed: false })
+    );
   };
 
   const markRead = (notificationID) => {
     dispatch(
       userNotificationsActions.updateNotification({
         notificationID,
-        data: { read: true },
+        data: { viewed: true },
       })
     );
   };
@@ -84,7 +86,7 @@ const Notifications = () => {
     dispatch(
       userNotificationsActions.updateNotification({
         notificationID,
-        data: { read: false },
+        data: { viewed: false },
       })
     );
   };
@@ -133,7 +135,7 @@ const Notifications = () => {
                     component={notification.url ? "a" : "li"}
                     href={notification.url ? notification.url : "#"}
                     className={
-                      notification.read
+                      notification.viewed
                         ? classes.readMessage
                         : classes.unreadMessage
                     }
@@ -145,7 +147,7 @@ const Notifications = () => {
                     {notification.text}
                   </ListItem>
                   <ListItem className={classes.centered}>
-                    {!notification.read && (
+                    {!notification.viewed && (
                       <Button
                         data-testid={`markReadButton${notification.id}`}
                         size="small"
@@ -156,7 +158,7 @@ const Notifications = () => {
                         Mark read
                       </Button>
                     )}
-                    {notification.read && (
+                    {notification.viewed && (
                       <Button
                         data-testid={`markUnreadButton${notification.id}`}
                         size="small"

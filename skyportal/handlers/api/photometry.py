@@ -660,7 +660,7 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success(data={'ids': ids, 'upload_id': upload_id})
 
     @permissions(['Upload data'])
@@ -774,7 +774,7 @@ class PhotometryHandler(BaseHandler):
                 id_map[df_index] = id
 
         # release the lock
-        DBSession().commit()
+        self.finalize_transaction()
 
         # get ids in the correct order
         ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
@@ -792,6 +792,7 @@ class PhotometryHandler(BaseHandler):
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         output = serialize(phot, outsys, format)
+        self.verify_permissions()
         return self.success(data=output)
 
     @permissions(['Upload data'])
@@ -867,7 +868,7 @@ class PhotometryHandler(BaseHandler):
                 )
             photometry.groups = groups
 
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success()
 
     @permissions(['Upload data'])
@@ -902,7 +903,7 @@ class PhotometryHandler(BaseHandler):
         DBSession().query(Photometry).filter(
             Photometry.id == int(photometry_id)
         ).delete()
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success()
 
@@ -916,6 +917,7 @@ class ObjPhotometryHandler(BaseHandler):
         photometry = Obj.get_photometry_readable_by_user(obj_id, self.current_user)
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
+        self.verify_permissions()
         return self.success(
             data=[serialize(phot, outsys, format) for phot in photometry]
         )
@@ -955,7 +957,7 @@ class BulkDeletePhotometryHandler(BaseHandler):
             .filter(Photometry.upload_id == upload_id)
             .delete()
         )
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success(f"Deleted {n_deleted} photometry points.")
 
@@ -1004,6 +1006,7 @@ class PhotometryRangeHandler(BaseHandler):
             query = query.filter(Photometry.mjd <= mjd)
 
         output = [serialize(p, magsys, format) for p in query]
+        self.verify_permissions()
         return self.success(data=output)
 
 

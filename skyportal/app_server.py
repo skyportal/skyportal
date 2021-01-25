@@ -237,7 +237,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     )
 
     app = tornado.web.Application(handlers, **settings)
-    models.init_db(**cfg['database'])
+    models.init_db(**cfg['database'], autoflush=False)
 
     # If tables are found in the database, new tables will only be added
     # in debug mode.  In production, we leave the tables alone, since

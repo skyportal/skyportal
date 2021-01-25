@@ -15,7 +15,7 @@ def test_candidate_group_filtering(
     public_filter,
     public_group,
     upload_data_token,
-    manage_groups_token,
+    super_admin_token,
 ):
     candidate_id = str(uuid.uuid4())
     for i in range(5):
@@ -41,7 +41,7 @@ def test_candidate_group_filtering(
         "POST",
         "groups",
         data={"name": str(uuid.uuid4()), "group_admins": [user.id]},
-        token=manage_groups_token,
+        token=super_admin_token,
     )
     new_group_id = data['data']['id']
     assert status == 200

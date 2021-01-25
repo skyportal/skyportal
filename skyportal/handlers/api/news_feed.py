@@ -179,5 +179,5 @@ class NewsFeedHandler(BaseHandler):
 
         news_feed_items.sort(key=lambda x: x['time'], reverse=True)
         news_feed_items = news_feed_items[:n_items]
-
+        self.verify_permissions()
         return self.success(data=news_feed_items)

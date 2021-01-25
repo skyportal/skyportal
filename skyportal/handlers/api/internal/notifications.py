@@ -24,6 +24,7 @@ class NotificationHandler(BaseHandler):
             .order_by(UserNotification.created_at.desc())
             .all()
         )
+        self.verify_permissions()
         return self.success(data=notifications)
 
     def patch(self, notification_id):
@@ -34,7 +35,7 @@ class NotificationHandler(BaseHandler):
         data["id"] = notification_id
         schema = UserNotification.__schema__()
         schema.load(data, partial=True)
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success(action="skyportal/FETCH_NOTIFICATIONS")
 
     def delete(self, notification_id):
@@ -50,7 +51,7 @@ class NotificationHandler(BaseHandler):
         ):
             return self.error("Insufficient permissions")
         DBSession().delete(notification)
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success(action="skyportal/FETCH_NOTIFICATIONS")
 
 
@@ -64,7 +65,7 @@ class BulkNotificationHandler(BaseHandler):
         for notification in self.associated_user_object.notifications:
             for key in data:
                 setattr(notification, key, data[key])
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success(action="skyportal/FETCH_NOTIFICATIONS")
 
     def delete(self):
@@ -72,5 +73,5 @@ class BulkNotificationHandler(BaseHandler):
         DBSession().query(UserNotification).filter(
             UserNotification.user_id == self.associated_user_object.id
         ).delete()
-        DBSession().commit()
+        self.finalize_transaction()
         return self.success(action="skyportal/FETCH_NOTIFICATIONS")

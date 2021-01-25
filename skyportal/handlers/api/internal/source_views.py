@@ -73,17 +73,12 @@ class SourceViewsHandler(BaseHandler):
         # Ensure user has access to source
         Obj.get_if_readable_by(obj_id, self.current_user)
         # This endpoint will only be hit by front-end, so this will never be a token
-        register_source_view(
+
+        sv = SourceView(
             obj_id=obj_id,
             username_or_token_id=self.current_user.username,
             is_token=False,
         )
+        DBSession.add(sv)
+        self.finalize_transaction()
         return self.success()
-
-
-def register_source_view(obj_id, username_or_token_id, is_token):
-    sv = SourceView(
-        obj_id=obj_id, username_or_token_id=username_or_token_id, is_token=is_token
-    )
-    DBSession.add(sv)
-    DBSession.commit()

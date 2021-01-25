@@ -32,8 +32,8 @@ from ...models import (
     Classification,
     Taxonomy,
     Spectrum,
+    SourceView,
 )
-from .internal.source_views import register_source_view
 from ...utils import (
     get_nearby_offset_stars,
     facility_parameters,
@@ -108,6 +108,7 @@ class SourceHandler(BaseHandler):
             .filter(Source.group_id.in_(user_group_ids))
             .count()
         )
+        self.verify_permissions()
         if num_s > 0:
             return self.success()
         else:
@@ -553,11 +554,13 @@ class SourceHandler(BaseHandler):
 
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
-                register_source_view(
+                sv = SourceView(
                     obj_id=obj_id,
                     username_or_token_id=self.current_user.id,
                     is_token=True,
                 )
+                DBSession.add(sv)
+                self.finalize_transaction()
 
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
@@ -653,6 +656,7 @@ class SourceHandler(BaseHandler):
                 )
                 source_info["groups"][i]['saved_at'] = saved_at
 
+            self.verify_permissions()
             return self.success(data=source_info)
 
         # Fetch multiple sources
@@ -966,6 +970,7 @@ class SourceHandler(BaseHandler):
                     source_list[-1]["groups"][i]['saved_at'] = saved_at
             query_results["sources"] = source_list
 
+        self.verify_permissions()
         return self.success(data=query_results)
 
     @permissions(['Upload data'])
@@ -1063,7 +1068,7 @@ class SourceHandler(BaseHandler):
                 for group in groups
             ]
         )
-        DBSession().commit()
+        self.finalize_transaction()
         if not obj_already_exists:
             obj.add_linked_thumbnails()
 
@@ -1118,7 +1123,7 @@ class SourceHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-        DBSession().commit()
+        self.finalize_transaction()
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key},
         )
@@ -1160,7 +1165,7 @@ class SourceHandler(BaseHandler):
         )
         s.active = False
         s.unsaved_by = self.current_user
-        DBSession().commit()
+        self.finalize_transaction()
 
         return self.success(action='skyportal/FETCH_SOURCES')
 
@@ -1366,6 +1371,7 @@ class SourceOffsetsHandler(BaseHandler):
             [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
         )
 
+        self.verify_permissions()
         return self.success(
             data={
                 'facility': facility,
@@ -1576,6 +1582,8 @@ class SourceFinderHandler(BaseHandler):
             'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
         )
 
+        self.verify_permissions()
+
         for i in range(math.ceil(max_file_size / chunk_size)):
             chunk = image.read(chunk_size)
             if not chunk:
@@ -1716,7 +1724,7 @@ class SourceNotificationHandler(BaseHandler):
         )
         DBSession().add(new_notification)
         try:
-            DBSession().commit()
+            self.finalize_transaction()
         except python_http_client.exceptions.UnauthorizedError:
             return self.error(
                 "Twilio Sendgrid authorization error. Please ensure "

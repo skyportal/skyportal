@@ -32,6 +32,7 @@ class AnnotationHandler(BaseHandler):
         annotation = Annotation.get_if_readable_by(annotation_id, self.current_user)
         if annotation is None:
             return self.error('Invalid annotation ID.')
+        self.verify_permissions()
         return self.success(data=annotation)
 
     @permissions(['Annotate'])
@@ -164,7 +165,7 @@ class AnnotationHandler(BaseHandler):
         )
 
         DBSession().add(annotation)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -238,7 +239,7 @@ class AnnotationHandler(BaseHandler):
                     "Cannot associate an annotation with groups you are not a member of."
                 )
             a.groups = groups
-        DBSession().commit()
+        self.finalize_transaction()
         self.push_all(
             action='skyportal/REFRESH_SOURCE', payload={'obj_key': a.obj.internal_key}
         )
@@ -272,7 +273,7 @@ class AnnotationHandler(BaseHandler):
             a.author == user
         ):
             Annotation.query.filter_by(id=annotation_id).delete()
-            DBSession().commit()
+            self.finalize_transaction()
         else:
             return self.error('Insufficient user permissions.')
         self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})

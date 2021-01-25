@@ -55,6 +55,7 @@ class CommentHandler(BaseHandler):
         comment = Comment.get_if_readable_by(comment_id, self.current_user)
         if comment is None:
             return self.error('Invalid comment ID.')
+        self.verify_permissions()
         return self.success(data=comment)
 
     @permissions(['Comment'])
@@ -194,7 +195,7 @@ class CommentHandler(BaseHandler):
                 )
 
         DBSession().add(comment)
-        DBSession().commit()
+        self.finalize_transaction()
         if users_mentioned_in_comment:
             for user_mentioned in users_mentioned_in_comment:
                 self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
@@ -287,7 +288,7 @@ class CommentHandler(BaseHandler):
                     "Cannot associate comment with groups you are not a member of."
                 )
             c.groups = groups
-        DBSession().commit()
+        self.finalize_transaction()
         self.push_all(
             action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key}
         )
@@ -319,7 +320,7 @@ class CommentHandler(BaseHandler):
         obj_key = c.obj.internal_key
         if user.is_system_admin or c.author == user:
             Comment.query.filter_by(id=comment_id).delete()
-            DBSession().commit()
+            self.finalize_transaction()
         else:
             return self.error('Insufficient user permissions.')
         self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
@@ -376,6 +377,8 @@ class CommentAttachmentHandler(BaseHandler):
         comment = Comment.get_if_readable_by(comment_id, self.current_user)
         if comment is None:
             return self.error('Invalid comment ID.')
+
+        self.verify_permissions()
 
         if download:
             self.set_header(
