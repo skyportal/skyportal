@@ -23,7 +23,7 @@ def test_add_sources_two_groups(
     )  # TODO decorator/context manager?
     assert 'localhost' in driver.current_url
     driver.get('/sources')
-    driver.wait_for_xpath('//h6[contains(text(), "Sources")]')
+    driver.wait_for_xpath('//h6[contains(text(), "Sources")]', timeout=20)
 
     obj_id = str(uuid.uuid4())
     t1 = datetime.now(timezone.utc)

@@ -1,10 +1,17 @@
 import datetime
-from itertools import cycle, islice
-import uuid
-from tempfile import mkdtemp
-import numpy as np
-import factory
+import os
+import pathlib
 import random
+import uuid
+from itertools import cycle, islice
+from tempfile import mkdtemp
+
+import factory
+import numpy as np
+
+from baselayer.app.config import load_config
+from baselayer.app.env import load_env
+from baselayer.app.test_util import set_server_url
 from skyportal.models import (
     DBSession,
     User,
@@ -21,12 +28,27 @@ from skyportal.models import (
     Filter,
     ObservingRun,
     ClassicalAssignment,
+    Taxonomy,
+    Classification,
+    init_db,
+    FollowupRequest,
+    Allocation,
+    Invitation,
+    SourceNotification,
+    UserNotification,
 )
 
-from baselayer.app.env import load_env
+import tdtax
 
 TMP_DIR = mkdtemp()
 env, cfg = load_env()
+
+print("Loading test configuration from _test_config.yaml")
+basedir = pathlib.Path(os.path.dirname(__file__))
+cfg = load_config([(basedir / "../../test_config.yaml").absolute()])
+set_server_url(f'http://localhost:{cfg["ports.app"]}')
+print("Setting test database to:", cfg["database"])
+init_db(**cfg["database"])
 
 
 class BaseMeta:
@@ -90,21 +112,24 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().commit()
 
 
-class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
-    class Meta(BaseMeta):
-        model = Comment
-
-    text = f'Test comment {str(uuid.uuid4())}'
-    ctype = 'text'
-    author = factory.SubFactory(UserFactory)
-
-
 class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Annotation
 
     data = {'unique_id': str(uuid.uuid4())}
     author = factory.SubFactory(UserFactory)
+    origin = factory.LazyFunction(lambda: str(uuid.uuid4())[:10])
+
+    @factory.post_generation
+    def groups(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for group in extracted:
+                obj.groups.append(group)
+                DBSession().add(obj)
+                DBSession().commit()
 
 
 class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -185,6 +210,26 @@ class FilterFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Filter
 
     name = str(uuid.uuid4())
+
+
+class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Comment
+
+    text = f'Test comment {str(uuid.uuid4())}'
+    ctype = 'text'
+    author = factory.SubFactory(UserFactory)
+
+    @factory.post_generation
+    def groups(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for group in extracted:
+                obj.groups.append(group)
+                DBSession().add(obj)
+                DBSession().commit()
 
 
 class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -273,3 +318,145 @@ class ClassicalAssignmentFactory(factory.alchemy.SQLAlchemyModelFactory):
     requester = factory.SubFactory(UserFactory)
     last_modified_by = factory.SubFactory(UserFactory)
     priority = factory.LazyFunction(lambda: str(random.choice(range(1, 6))))
+
+
+class TaxonomyFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Taxonomy
+
+    name = factory.LazyFunction(lambda: str(uuid.uuid4())[:10])
+    hierarchy = tdtax.taxonomy
+    provenance = f"tdtax_{tdtax.__version__}"
+    version = tdtax.__version__
+    isLatest = True
+
+    @factory.post_generation
+    def groups(obj, create, passed_groups, *args, **kwargs):
+        if not passed_groups:
+            passed_groups = []
+
+        obj.groups = passed_groups
+        DBSession().add(obj)
+        DBSession().commit()
+
+
+class ClassificationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Classification
+
+    taxonomy = factory.SubFactory(TaxonomyFactory)
+    classification = factory.LazyFunction(lambda: str(uuid.uuid4())[:10])
+    author = factory.SubFactory(UserFactory)
+    author_name = factory.LazyFunction(lambda: str(uuid.uuid4())[:10])
+    obj = factory.SubFactory(ObjFactory)
+    probability = factory.LazyFunction(lambda: float(np.random.uniform()))
+
+    @factory.post_generation
+    def groups(obj, create, passed_groups, *args, **kwargs):
+        if not passed_groups:
+            passed_groups = []
+
+        obj.groups = passed_groups
+        DBSession().add(obj)
+        DBSession().commit()
+
+
+class AllocationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Allocation
+
+    instrument = factory.SubFactory(InstrumentFactory)
+    group = (factory.SubFactory(GroupFactory),)
+    pi = (factory.LazyFunction(lambda: str(uuid.uuid4())),)
+    proposal_id = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    hours_allocated = 100
+
+
+class FollowupRequestFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = FollowupRequest
+
+    obj = (factory.SubFactory(ObjFactory),)
+    allocation = (factory.SubFactory(AllocationFactory),)
+    payload = (
+        {
+            'priority': "5",
+            'start_date': '3020-09-01',
+            'end_date': '3022-09-01',
+            'observation_type': 'IFU',
+        },
+    )
+    requester = factory.SubFactory(UserFactory)
+    last_modified_by = factory.SubFactory(UserFactory)
+
+    @factory.post_generation
+    def target_groups(obj, create, passed_groups, *args, **kwargs):
+        if not passed_groups:
+            passed_groups = []
+
+        obj.target_groups = passed_groups
+        DBSession().add(obj)
+        DBSession().commit()
+
+
+class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = Invitation
+
+    token = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    admin_for_groups = []
+    user_email = 'user@email.com'
+    invited_by = factory.SubFactory(UserFactory)
+    used = False
+
+    @factory.post_generation
+    def groups(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for group in extracted:
+                obj.groups.append(group)
+                DBSession().add(obj)
+                DBSession().commit()
+
+    @factory.post_generation
+    def streams(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for stream in extracted:
+                obj.streams.append(stream)
+                DBSession().add(obj)
+                DBSession().commit()
+
+
+class NotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = SourceNotification
+
+    sent_by = factory.SubFactory(UserFactory)
+    source = factory.SubFactory(ObjFactory)
+    additional_notes = 'abcd'
+    level = 'hard'
+
+    @factory.post_generation
+    def groups(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for group in extracted:
+                obj.groups.append(group)
+                DBSession().add(obj)
+                DBSession().commit()
+
+
+class UserNotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = UserNotification
+
+    user = factory.SubFactory(UserFactory)
+    text = 'abcd1234'
+    viewed = False

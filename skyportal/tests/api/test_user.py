@@ -10,15 +10,15 @@ def test_get_user_info(manage_users_token, user):
     assert data['data']['id'] == user.id
 
 
-def test_delete_user(manage_users_token, user):
-    status, data = api('DELETE', f'user/{user.id}', token=manage_users_token)
+def test_delete_user(super_admin_token, user):
+    status, data = api('DELETE', f'user/{user.id}', token=super_admin_token)
     assert status == 200
 
-    status, data = api('GET', f'user/{user.id}', token=manage_users_token)
+    status, data = api('GET', f'user/{user.id}', token=super_admin_token)
     assert status == 400
 
 
-def test_delete_user_cascades_to_tokens(manage_users_token, user, public_group):
+def test_delete_user_cascades_to_tokens(super_admin_token, user, public_group):
     token_name = str(uuid.uuid4())
     token_id = create_token(ACLs=[], user_id=user.id, name=token_name)
     assert Token.query.get(token_id)
@@ -26,47 +26,47 @@ def test_delete_user_cascades_to_tokens(manage_users_token, user, public_group):
     # end the transaction on the test-side
     DBSession().commit()
 
-    status, data = api('DELETE', f'user/{user.id}', token=manage_users_token)
+    status, data = api('DELETE', f'user/{user.id}', token=super_admin_token)
     assert status == 200
 
-    status, data = api('GET', f'user/{user.id}', token=manage_users_token)
+    status, data = api('GET', f'user/{user.id}', token=super_admin_token)
     assert status == 400
 
     assert not Token.query.get(token_id)
 
 
 def test_delete_user_cascades_to_groupuser(
-    manage_users_token, manage_groups_token, user, public_group
+    super_admin_token, manage_groups_token, user, public_group
 ):
     status, data = api('GET', f'groups/{public_group.id}', token=manage_groups_token)
     orig_num_users = len(data['data']['users'])
 
-    status, data = api('DELETE', f'user/{user.id}', token=manage_users_token)
+    status, data = api('DELETE', f'user/{user.id}', token=super_admin_token)
     assert status == 200
 
-    status, data = api('GET', f'user/{user.id}', token=manage_users_token)
+    status, data = api('GET', f'user/{user.id}', token=super_admin_token)
     assert status == 400
 
     status, data = api('GET', f'groups/{public_group.id}', token=manage_groups_token)
     assert len(data['data']['users']) == orig_num_users - 1
 
 
-def test_add_basic_user_info(manage_groups_token, manage_users_token):
+def test_add_basic_user_info(manage_groups_token, super_admin_token):
 
     username = str(uuid.uuid4())
     status, data = api(
         "POST",
         "user",
         data={"username": username, "first_name": "Fritz"},
-        token=manage_users_token,
+        token=super_admin_token,
     )
     assert status == 200
     new_user_id = data["data"]["id"]
-    status, data = api('GET', f'user/{new_user_id}', token=manage_users_token)
+    status, data = api('GET', f'user/{new_user_id}', token=super_admin_token)
     assert status == 200
     assert data["data"]["first_name"] == "Fritz"
 
-    status, data = api('DELETE', f'user/{new_user_id}', token=manage_users_token)
+    status, data = api('DELETE', f'user/{new_user_id}', token=super_admin_token)
     assert status == 200
 
     # add a bad phone number, expecting an error
@@ -74,18 +74,18 @@ def test_add_basic_user_info(manage_groups_token, manage_users_token):
         "POST",
         "user",
         data={"username": username, "contact_phone": "blah"},
-        token=manage_users_token,
+        token=super_admin_token,
     )
     assert status == 400
     assert "Could not parse input" in data["message"]
 
 
 def test_add_delete_user_adds_deletes_single_user_group(
-    manage_groups_token, super_admin_user_two_groups, manage_users_token
+    manage_groups_token, super_admin_user_two_groups, super_admin_token
 ):
     username = str(uuid.uuid4())
     status, data = api(
-        "POST", "user", data={"username": username}, token=manage_users_token
+        "POST", "user", data={"username": username}, token=super_admin_token
     )
     assert status == 200
     new_user_id = data["data"]["id"]
@@ -101,7 +101,7 @@ def test_add_delete_user_adds_deletes_single_user_group(
         ]
     )
 
-    status, data = api('DELETE', f'user/{new_user_id}', token=manage_users_token)
+    status, data = api('DELETE', f'user/{new_user_id}', token=super_admin_token)
     assert status == 200
 
     status, data = api(
@@ -117,12 +117,12 @@ def test_add_delete_user_adds_deletes_single_user_group(
 
 
 def test_add_modify_user_adds_modifies_single_user_group(
-    manage_groups_token, super_admin_user_two_groups, manage_users_token
+    manage_groups_token, super_admin_user_two_groups, super_admin_token
 ):
     username = str(uuid.uuid4())
     token_name = str(uuid.uuid4())
     status, data = api(
-        "POST", "user", data={"username": username}, token=manage_users_token
+        "POST", "user", data={"username": username}, token=super_admin_token
     )
     assert status == 200
     new_user_id = data["data"]["id"]

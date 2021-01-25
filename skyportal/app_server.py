@@ -76,6 +76,8 @@ from skyportal.handlers.api.internal import (
     AnnotationsInfoHandler,
     EphemerisHandler,
     StandardsHandler,
+    NotificationHandler,
+    BulkNotificationHandler,
 )
 
 from . import models, model_util, openapi
@@ -155,6 +157,8 @@ skyportal_handlers = [
     (r'/api/internal/log', LogHandler),
     (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
     (r'/api/internal/annotations_info', AnnotationsInfoHandler),
+    (r'/api/internal/notifications(/[0-9]+)?', NotificationHandler),
+    (r'/api/internal/notifications/all', BulkNotificationHandler),
     (r'/api/internal/ps1_thumbnail', PS1ThumbnailHandler),
     (r'/api/.*', InvalidEndpointHandler),
     (r'/become_user(/.*)?', BecomeUserHandler),
@@ -233,7 +237,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     )
 
     app = tornado.web.Application(handlers, **settings)
-    models.init_db(**cfg['database'])
+    models.init_db(**cfg['database'], autoflush=False)
 
     # If tables are found in the database, new tables will only be added
     # in debug mode.  In production, we leave the tables alone, since

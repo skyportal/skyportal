@@ -5,7 +5,7 @@ from baselayer.app.env import load_env
 from ...utils.offset import get_url
 
 from ..base import BaseHandler
-from ...models import DBSession, Telescope
+from ...models import Telescope
 
 _, cfg = load_env()
 weather_refresh = cfg["weather"].get("refresh_time") if cfg.get("weather") else None
@@ -85,8 +85,9 @@ class WeatherHandler(BaseHandler):
                     weather = response.json()
                     t.weather = weather
                     t.weather_retrieved_at = datetime.datetime.utcnow()
-                    DBSession().commit()
+                    self.finalize_transaction()
                 else:
                     message = response.text
 
+        self.verify_permissions()
         return self.success(data={**t.to_dict(), "message": message})

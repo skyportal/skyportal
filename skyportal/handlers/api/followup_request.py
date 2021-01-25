@@ -98,6 +98,7 @@ class AssignmentHandler(BaseHandler):
         if assignment_id is not None:
             out_json = out_json[0]
 
+        self.verify_permissions()
         return self.success(data=out_json)
 
     @permissions(['Upload data'])
@@ -158,7 +159,7 @@ class AssignmentHandler(BaseHandler):
 
         assignment.requester_id = self.associated_user_object.id
         DBSession().add(assignment)
-        DBSession().commit()
+        self.finalize_transaction()
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_key": assignment.obj.internal_key},
@@ -212,7 +213,7 @@ class AssignmentHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
@@ -247,7 +248,7 @@ class AssignmentHandler(BaseHandler):
         obj_key = assignment.obj.internal_key
 
         DBSession().delete(assignment)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj_key},
@@ -323,10 +324,11 @@ class FollowupRequestHandler(BaseHandler):
             followup_request = followup_requests.first()
             if followup_request is None:
                 return self.error("Could not retrieve followup request.")
+            self.verify_permissions()
             return self.success(data=followup_request)
 
         followup_requests = followup_requests.all()
-
+        self.verify_permissions()
         return self.success(data=followup_requests)
 
     @auth_or_token
@@ -398,7 +400,7 @@ class FollowupRequestHandler(BaseHandler):
         followup_request = FollowupRequest.__schema__().load(data)
         followup_request.target_groups = target_groups
         DBSession().add(followup_request)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
@@ -411,7 +413,7 @@ class FollowupRequestHandler(BaseHandler):
             followup_request.status = 'failed to submit'
             raise
         finally:
-            DBSession().commit()
+            self.finalize_transaction()
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
                 payload={"obj_key": followup_request.obj.internal_key},
@@ -490,7 +492,7 @@ class FollowupRequestHandler(BaseHandler):
             setattr(followup_request, k, data[k])
 
         followup_request.instrument.api_class.update(followup_request)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
@@ -534,7 +536,7 @@ class FollowupRequestHandler(BaseHandler):
 
         followup_request.last_modified_by_id = self.associated_user_object.id
         api.delete(followup_request)
-        DBSession().commit()
+        self.finalize_transaction()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
