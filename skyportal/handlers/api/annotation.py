@@ -2,7 +2,7 @@ import re
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Annotation, Group, Obj
+from ...models import DBSession, Annotation, Group
 
 
 class AnnotationHandler(BaseHandler):
@@ -251,7 +251,6 @@ class ObjAnnotationHandler(BaseHandler):
                 schema: Error
         """
 
-        _ = Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
         annotations = Annotation.query_records_accessible_by(self.current_user).filter(
             Annotation.obj_id == obj_id
         )
