@@ -28,7 +28,7 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        classification = Classification.get_records_accessible_by(
+        classification = Classification.get_if_accessible_by(
             classification_id, self.current_user, raise_if_none=True
         )
         return self.success(data=classification)
@@ -96,7 +96,7 @@ class ClassificationHandler(BaseHandler):
 
         user_group_ids = [g.id for g in self.current_user.groups]
         group_ids = data.pop("group_ids", user_group_ids)
-        groups = Group.get_records_accessible_by(
+        groups = Group.get_if_accessible_by(
             group_ids, self.current_user, raise_if_none=True
         )
 
@@ -104,7 +104,7 @@ class ClassificationHandler(BaseHandler):
 
         # check the taxonomy
         taxonomy_id = data["taxonomy_id"]
-        taxonomy = Taxonomy.get_records_accessible_by(
+        taxonomy = Taxonomy.get_if_accessible_by(
             taxonomy_id, self.current_user, raise_if_none=True
         )
 
@@ -194,7 +194,7 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        c = Classification.get_records_accessible_by(
+        c = Classification.get_if_accessible_by(
             classification_id, self.current_user, mode="update", raise_if_none=True
         )
 
@@ -211,7 +211,7 @@ class ClassificationHandler(BaseHandler):
             )
 
         if group_ids is not None:
-            groups = Group.get_records_accessible_by(
+            groups = Group.get_if_accessible_by(
                 group_ids, self.current_user, raise_if_none=True
             )
             c.groups = groups
@@ -244,7 +244,7 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        c = Classification.get_records_accessible_by(
+        c = Classification.get_if_accessible_by(
             classification_id, self.current_user, mode="delete", raise_if_none=True
         )
         obj_key = c.obj.internal_key
