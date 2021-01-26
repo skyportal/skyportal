@@ -10,6 +10,7 @@ import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import Divider from "@material-ui/core/Divider";
 import Button from "@material-ui/core/Button";
+import ReactMarkdown from "react-markdown";
 
 import * as userNotificationsActions from "../ducks/userNotifications";
 
@@ -144,7 +145,10 @@ const Notifications = () => {
                     }}
                     data-testid={`notification${notification.id}`}
                   >
-                    {notification.text}
+                    <ReactMarkdown
+                      source={notification.text}
+                      escapeHtml={false}
+                    />
                   </ListItem>
                   <ListItem className={classes.centered}>
                     {!notification.viewed && (
