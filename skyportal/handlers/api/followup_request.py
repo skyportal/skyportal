@@ -5,7 +5,6 @@ from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from ...models import (
     DBSession,
-    Source,
     FollowupRequest,
     ClassicalAssignment,
     ObservingRun,
@@ -59,13 +58,7 @@ class AssignmentHandler(BaseHandler):
         """
 
         # get owned assignments
-        assignments = DBSession().query(ClassicalAssignment)
-        assignments = (
-            assignments.join(Obj)
-            .join(Source)
-            .join(Group)
-            .filter(Group.id.in_([g.id for g in self.current_user.accessible_groups]))
-        )
+        assignments = ClassicalAssignment.query_records_accessible_by(self.current_user)
 
         if assignment_id is not None:
             try:
@@ -143,19 +136,19 @@ class AssignmentHandler(BaseHandler):
         if run is None:
             return self.error(f'Invalid observing run: "{run_id}"')
 
-        predecessor = ClassicalAssignment.query.filter(
-            ClassicalAssignment.obj_id == assignment.obj_id,
-            ClassicalAssignment.run_id == run_id,
-        ).first()
+        predecessor = (
+            ClassicalAssignment.query_records_accessible_by(self.current_user)
+            .filter(
+                ClassicalAssignment.obj_id == assignment.obj_id,
+                ClassicalAssignment.run_id == run_id,
+            )
+            .first()
+        )
 
         if predecessor is not None:
             return self.error('Object is already assigned to this run.')
 
         assignment = ClassicalAssignment(**data)
-        source = Source.get_obj_if_readable_by(assignment.obj_id, self.current_user)
-
-        if source is None:
-            return self.error(f'Invalid obj_id: "{assignment.obj_id}"')
 
         assignment.requester_id = self.associated_user_object.id
         DBSession().add(assignment)
@@ -197,10 +190,9 @@ class AssignmentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        assignment = ClassicalAssignment.query.get(int(assignment_id))
-
-        if assignment is None:
-            return self.error('No such assignment')
+        assignment = ClassicalAssignment.get_if_accessible_by(
+            int(assignment_id), self.current_user, mode="update", raise_if_none=True
+        )
 
         data = self.get_json()
         data['id'] = assignment_id
@@ -244,9 +236,10 @@ class AssignmentHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        assignment = ClassicalAssignment.query.get(int(assignment_id))
+        assignment = ClassicalAssignment.get_if_accessible_by(
+            int(assignment_id), self.current_user, mode="delete", raise_if_none=True
+        )
         obj_key = assignment.obj.internal_key
-
         DBSession().delete(assignment)
         self.finalize_transaction()
 
@@ -300,12 +293,8 @@ class FollowupRequestHandler(BaseHandler):
         """
 
         # get owned assignments
-        followup_requests = DBSession().query(FollowupRequest)
-        followup_requests = (
-            followup_requests.join(Obj)
-            .join(Source)
-            .join(Group)
-            .filter(Group.id.in_([g.id for g in self.current_user.accessible_groups]))
+        followup_requests = FollowupRequest.query_records_accessible_by(
+            self.current_user
         )
 
         if followup_request_id is not None:
@@ -359,7 +348,6 @@ class FollowupRequestHandler(BaseHandler):
                               description: New follow-up request ID
         """
         data = self.get_json()
-        _ = Source.get_obj_if_readable_by(data["obj_id"], self.current_user)
 
         try:
             data = FollowupRequestPost.load(data)
@@ -372,14 +360,9 @@ class FollowupRequestHandler(BaseHandler):
         data["last_modified_by_id"] = self.associated_user_object.id
         data['allocation_id'] = int(data['allocation_id'])
 
-        allocation = Allocation.query.get(data['allocation_id'])
-        if allocation is None:
-            return self.error('No such allocation.')
-        if allocation.group_id not in [
-            g.id for g in self.current_user.accessible_groups
-        ]:
-            return self.error('User does not have access to this allocation.')
-
+        allocation = Allocation.get_if_accessible_by(
+            data['allocation_id'], self.current_user, raise_if_none=True
+        )
         instrument = allocation.instrument
         if instrument.api_classname is None:
             return self.error('Instrument has no remote API.')
@@ -389,9 +372,9 @@ class FollowupRequestHandler(BaseHandler):
 
         target_groups = []
         for group_id in data.pop('target_group_ids', []):
-            g = Group.query.get(group_id)
-            if g is None:
-                return self.error(f'Invalid group id: {group_id}')
+            g = Group.get_if_accessible_by(
+                group_id, self.current_user, raise_if_none=True
+            )
             target_groups.append(g)
 
         # validate the payload
@@ -449,8 +432,8 @@ class FollowupRequestHandler(BaseHandler):
                 schema: Error
         """
 
-        followup_request = FollowupRequest.get_if_readable_by(
-            request_id, self.current_user
+        followup_request = FollowupRequest.get_if_accessible_by(
+            request_id, self.current_user, mode="update", raise_if_none=True
         )
 
         data = self.get_json()
@@ -474,9 +457,9 @@ class FollowupRequestHandler(BaseHandler):
         if target_group_ids is not None:
             target_groups = []
             for group_id in target_group_ids:
-                g = Group.query.get(group_id)
-                if g is None:
-                    return self.error(f'Invalid group id: {group_id}')
+                g = Group.get_if_accessible_by.get(
+                    group_id, self.current_user, raise_if_none=True
+                )
                 target_groups.append(g)
             followup_request.target_groups = target_groups
 
@@ -519,16 +502,9 @@ class FollowupRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        followup_request = FollowupRequest.get_if_readable_by(
-            request_id, self.current_user
+        followup_request = FollowupRequest.get_if_accessible_by(
+            request_id, self.current_user, mode="delete", raise_if_none=True
         )
-        if not (
-            "Super admin" in [role.id for role in self.associated_user_object.roles]
-            or "Group admin" in [role.id for role in self.associated_user_object.roles]
-            or followup_request.requester.username
-            == self.associated_user_object.username
-        ):
-            return self.error("Insufficient permissions.")
 
         api = followup_request.instrument.api_class
         if not api.implements()['delete']:
