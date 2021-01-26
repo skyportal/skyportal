@@ -31,15 +31,11 @@ def test_mention_generates_notification_then_mark_read_and_delete(
 
     driver.wait_for_xpath("//span[text()='1']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath(
-        f'//*[text()="{user.username} mentioned you in a comment on {public_source.id}"]'
-    )
+    driver.wait_for_xpath('//*[text()=" mentioned you in a comment on "]')
     driver.click_xpath('//*[contains(@data-testid, "markReadButton")]')
     driver.wait_for_xpath_to_disappear("//span[text()='1']")
     driver.click_xpath('//*[contains(@data-testid, "deleteNotificationButton")]')
-    driver.wait_for_xpath_to_disappear(
-        f'//*[text()="{user.username} mentioned you in a comment on {public_source.id}"]'
-    )
+    driver.wait_for_xpath_to_disappear('//*[text()=" mentioned you in a comment on "]')
     driver.wait_for_xpath("//*[text()='No notifications']")
 
 
@@ -67,13 +63,9 @@ def test_group_admission_requests_notifications(
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/group/{public_group2.id}")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath(
-        f'//*[text()="{user.username} has requested to join {public_group2.name}"]'
-    )
+    driver.wait_for_xpath(f'//*[text()=" has requested to join "]')
     driver.click_xpath('//*[@data-testid="deleteAllNotificationsButton"]')
-    driver.wait_for_xpath_to_disappear(
-        f'//*[text()="{user.username} has requested to join {public_group2.name}"]'
-    )
+    driver.wait_for_xpath_to_disappear(f'//*[text()=" has requested to join "]')
 
     filter_for_value(driver, user.username, last=True)
     driver.wait_for_xpath('//div[text()="pending"]')
@@ -84,9 +76,5 @@ def test_group_admission_requests_notifications(
     driver.get(f'/become_user/{user.id}')
     driver.get("/")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath(
-        f'//*[text()="Your admission request to group {public_group2.name} has been accepted"]'
-    )
-    driver.wait_for_xpath(
-        f'//*[text()="You\'ve been added to group {public_group2.name}"]'
-    )
+    driver.wait_for_xpath('//em[text()="accepted"]')
+    driver.wait_for_xpath(f'//em[text()="{public_group2.name}"]')
