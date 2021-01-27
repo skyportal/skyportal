@@ -307,14 +307,14 @@ def test_regular_user_cannot_delete_unowned_comment(
     submit_button = driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
     submit_button.click()
     try:
-        comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
+        driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
     except TimeoutException:
         driver.refresh()
-        comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
+        driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
-    comment_div = comment_text_div.find_element_by_xpath("..")
+    comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+    comment_div = comment_text_p.find_element_by_xpath("../..")
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']"
