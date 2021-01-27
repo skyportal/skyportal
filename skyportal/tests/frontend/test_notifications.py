@@ -1,6 +1,7 @@
 import pytest
 
 from skyportal.tests import api
+from skyportal.tests.frontend.test_sources import add_comment_and_wait_for_display
 
 
 def filter_for_value(driver, value, last=False):
@@ -23,11 +24,8 @@ def test_mention_generates_notification_then_mark_read_and_delete(
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
 
-    comment_box = driver.wait_for_xpath("//input[@name='text']")
     comment_text = f"@{user.username}"
-    comment_box.send_keys(comment_text)
-    driver.click_xpath('//*[@name="submitCommentButton"]')
-    driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+    add_comment_and_wait_for_display(driver, comment_text)
 
     driver.wait_for_xpath("//span[text()='1']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
