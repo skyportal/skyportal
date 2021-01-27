@@ -154,7 +154,7 @@ def get_color(bandpass_name):
         return bandcolor
 
 
-def photometry_plot(obj_id, user, width=600, height=300):
+def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     """Create scatter plot of photometry for object.
     Parameters
     ----------
@@ -235,12 +235,22 @@ def photometry_plot(obj_id, user, width=600, height=300):
     lower = np.min(fdata['flux']) * 0.95
     upper = np.max(fdata['flux']) * 1.05
 
+    active_drag = None if "mobile" in device or "tablet" in device else "box_zoom"
+    tools = (
+        'box_zoom,pan,reset'
+        if "mobile" in device or "tablet" in device
+        else "box_zoom,wheel_zoom,pan,reset,save"
+    )
+
     plot = figure(
-        aspect_ratio=1.7,
+        aspect_ratio=2.0 if device == "mobile_landscape" else 1.5,
         sizing_mode='scale_both',
-        active_drag='box_zoom',
-        tools='box_zoom,wheel_zoom,pan,reset,save',
+        active_drag=active_drag,
+        tools=tools,
+        toolbar_location='above',
+        toolbar_sticky=True,
         y_range=(lower, upper),
+        min_border_right=16,
     )
     imhover = HoverTool(tooltips=tooltip_format)
     imhover.renderers = []
@@ -324,6 +334,8 @@ def photometry_plot(obj_id, user, width=600, height=300):
         )
 
     plot.xaxis.axis_label = 'MJD'
+    if device == "mobile_portrait":
+        plot.xaxis.ticker.desired_num_ticks = 5
     plot.yaxis.axis_label = 'Flux (μJy)'
     plot.toolbar.logo = None
 
@@ -334,6 +346,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         active=list(range(len(colors_labels))),
         colors=colors_labels.color.tolist(),
         width=width // 5,
+        inline=True if "tablet" in device else False,
     )
 
     # TODO replace `eval` with Namespaces
@@ -350,7 +363,13 @@ def photometry_plot(obj_id, user, width=600, height=300):
     )
 
     slider = Slider(
-        start=0.0, end=15.0, value=0.0, step=1.0, title='Binsize (days)', max_width=350
+        start=0.0,
+        end=15.0,
+        value=0.0,
+        step=1.0,
+        title='Binsize (days)',
+        max_width=350,
+        margin=(4, 10, 0, 10),
     )
 
     callback = CustomJS(
@@ -396,8 +415,12 @@ def photometry_plot(obj_id, user, width=600, height=300):
         plot.add_tools(
             HoverTool(tooltips=[("Last detection", f'{last}')], renderers=[last_r],)
         )
-
-    layout = column(slider, row(plot, toggle), sizing_mode='scale_width', width=width)
+    plot_layout = (
+        column(plot, toggle)
+        if "mobile" in device or "tablet" in device
+        else row(plot, toggle)
+    )
+    layout = column(slider, plot_layout, sizing_mode='scale_width', width=width)
 
     p1 = Panel(child=layout, title='Flux')
 
@@ -425,14 +448,15 @@ def photometry_plot(obj_id, user, width=600, height=300):
     xmax = data['mjd'].max() + 2
 
     plot = figure(
-        aspect_ratio=1.5,
+        aspect_ratio=2.0 if device == "mobile_landscape" else 1.5,
         sizing_mode='scale_both',
-        active_drag='box_zoom',
-        tools='box_zoom,wheel_zoom,pan,reset,save',
+        width=width,
+        active_drag=active_drag,
+        tools=tools,
         y_range=(ymax, ymin),
         x_range=(xmin, xmax),
         toolbar_location='above',
-        toolbar_sticky=False,
+        toolbar_sticky=True,
         x_axis_location='above',
     )
 
@@ -639,6 +663,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         active=list(range(len(colors_labels))),
         colors=colors_labels.color.tolist(),
         width=width // 5,
+        inline=True if "tablet" in device else False,
     )
 
     # TODO replace `eval` with Namespaces
@@ -654,7 +679,15 @@ def photometry_plot(obj_id, user, width=600, height=300):
         )
     )
 
-    slider = Slider(start=0.0, end=15.0, value=0.0, step=1.0, title='Binsize (days)')
+    slider = Slider(
+        start=0.0,
+        end=15.0,
+        value=0.0,
+        step=1.0,
+        title='Binsize (days)',
+        max_width=350,
+        margin=(4, 10, 0, 10),
+    )
 
     button = Button(label="Export Bold Light Curve to CSV")
     button.js_on_click(
@@ -671,7 +704,11 @@ def photometry_plot(obj_id, user, width=600, height=300):
         )
     )
 
-    toplay = row(slider, button)
+    # Don't need to expose CSV download on mobile
+    top_layout = (
+        slider if "mobile" in device or "tablet" in device else row(slider, button)
+    )
+
     callback = CustomJS(
         args={'slider': slider, 'toggle': toggle, **model_dict},
         code=open(
@@ -682,8 +719,12 @@ def photometry_plot(obj_id, user, width=600, height=300):
         .replace('detect_thresh', str(PHOT_DETECTION_THRESHOLD)),
     )
     slider.js_on_change('value', callback)
-
-    layout = column(toplay, row(plot, toggle), sizing_mode='scale_width', width=width)
+    plot_layout = (
+        column(plot, toggle)
+        if "mobile" in device or "tablet" in device
+        else row(plot, toggle)
+    )
+    layout = column(top_layout, plot_layout, sizing_mode='scale_width', width=width)
 
     p2 = Panel(child=layout, title='Mag')
 
@@ -896,7 +937,9 @@ def photometry_plot(obj_id, user, width=600, height=300):
     return bokeh_embed.json_item(tabs)
 
 
-def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
+def spectroscopy_plot(
+    obj_id, user, spec_id=None, width=600, height=300, device="browser"
+):
     obj = Obj.query.get(obj_id)
     spectra = (
         DBSession()
@@ -980,13 +1023,23 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     if obj.redshift is not None and obj.redshift > 0:
         xmin_rest = xmin / (1.0 + obj.redshift)
         xmax_rest = xmax / (1.0 + obj.redshift)
+
+    active_drag = None if "mobile" in device or "tablet" in device else "box_zoom"
+    tools = (
+        "box_zoom, pan, reset"
+        if "mobile" in device or "tablet" in device
+        else "box_zoom,wheel_zoom,pan,reset"
+    )
+    plot_width = None if device == "browser" else width
     plot = figure(
-        aspect_ratio=1.5,
-        sizing_mode='scale_width',
+        aspect_ratio=2.0 if device == "mobile_landscape" else 1.5,
+        sizing_mode='scale_both',
+        width=plot_width,
         y_range=(ymin, ymax),
         x_range=(xmin, xmax),
-        tools='box_zoom,wheel_zoom,pan,reset',
-        active_drag='box_zoom',
+        tools=tools,
+        toolbar_location="above",
+        active_drag=active_drag,
     )
     plot.add_tools(hover)
     model_dict = {}
@@ -1025,6 +1078,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         active=list(range(len(spectra))),
         colors=[color_map[k] for k, df in split],
         width=width // 5,
+        inline=True if "tablet" in device else False,
     )
     toggle.js_on_click(
         CustomJS(
@@ -1037,6 +1091,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         ),
     )
 
+    slider_width = width if "mobile" in device else int(width / 2)
     z_title = Div(text="Redshift (<i>z</i>): ")
     z_slider = Slider(
         value=obj.redshift if obj.redshift is not None else 0.0,
@@ -1059,7 +1114,9 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         """,
         ),
     )
-    z = column(z_title, z_slider, z_textinput)
+    z = column(
+        z_title, z_slider, z_textinput, width=slider_width, margin=(4, 10, 0, 10),
+    )
 
     v_title = Div(text="<i>V</i><sub>expansion</sub> (km/s): ")
     v_exp_slider = Slider(value=0.0, start=0.0, end=3e4, step=10.0, show_value=False,)
@@ -1074,7 +1131,13 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         """,
         ),
     )
-    v_exp = column(v_title, v_exp_slider, v_exp_textinput)
+    v_exp = column(
+        v_title,
+        v_exp_slider,
+        v_exp_textinput,
+        width=slider_width,
+        margin=(0, 10, 0, 10),
+    )
 
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
         el_data = pd.DataFrame({'wavelength': wavelengths})
@@ -1092,7 +1155,12 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         model_dict[f'el{i}'].visible = False
 
     # Split spectral line legend into columns
-    columns = 7
+    if device == "mobile_portrait":
+        columns = 3
+    elif device == "mobile_landscape":
+        columns = 5
+    else:
+        columns = 7
     element_dicts = zip(*itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns))
 
     elements_groups = []  # The Bokeh checkbox groups
@@ -1169,8 +1237,14 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         z_textinput.js_on_change('value', callback)
         v_exp_textinput.js_on_change('value', callback)
 
-    row1 = row(plot, toggle)
+    row1 = (
+        column(plot, toggle)
+        if "mobile" in device or "tablet" in device
+        else row(plot, toggle)
+    )
     row2 = row(elements_groups)
-    row3 = row(z, v_exp)
-    layout = column(row1, row2, row3, width=width)
+    row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
+    layout = column(
+        row1, row2, row3, sizing_mode='scale_height', width=width, height=height
+    )
     return bokeh_embed.json_item(layout)

@@ -51,15 +51,7 @@ class AllocationHandler(BaseHandler):
         """
 
         # get owned allocations
-        allocations = (
-            DBSession()
-            .query(Allocation)
-            .filter(
-                Allocation.group_id.in_(
-                    [g.id for g in self.current_user.accessible_groups]
-                )
-            )
-        )
+        allocations = Allocation.query_records_accessible_by(self.current_user)
 
         if allocation_id is not None:
             try:
@@ -115,11 +107,13 @@ class AllocationHandler(BaseHandler):
                 f'Error parsing posted allocation: "{e.normalized_messages()}"'
             )
 
-        group = Group.query.get(allocation.group_id)
+        group = Group.get_if_accessible_by(allocation.group_id, self.current_user)
         if group is None:
             return self.error(f'No group with specified ID: {allocation.group_id}')
 
-        instrument = Instrument.query.get(allocation.instrument_id)
+        instrument = Instrument.get_if_accessible_by(
+            allocation.instrument_id, self.current_user
+        )
         if instrument is None:
             return self.error(f'No group with specified ID: {allocation.instrument_id}')
 
@@ -154,7 +148,9 @@ class AllocationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        allocation = Allocation.query.get(int(allocation_id))
+        allocation = Allocation.get_if_accessible_by(
+            int(allocation_id), self.current_user, mode="update"
+        )
 
         if allocation is None:
             return self.error('No such allocation')
@@ -191,7 +187,9 @@ class AllocationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        allocation = Allocation.query.get(int(allocation_id))
+        allocation = Allocation.get_if_accessible_by(
+            int(allocation_id), self.current_user, mode='delete'
+        )
         DBSession().delete(allocation)
         self.finalize_transaction()
         return self.success()
