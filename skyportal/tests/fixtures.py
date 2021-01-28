@@ -241,7 +241,6 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
     def teardown(spectrum, ignore_subfactory=[]):
         if is_already_deleted(spectrum, Spectrum):
             return
-
         instrument = spectrum.instrument
         reducers = spectrum.reducers
         observers = spectrum.observers
@@ -406,7 +405,8 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         comment_authors = list(map(lambda x: x.author.id, obj.comments))
         for author in comment_authors:
             UserFactory.teardown(author)
-        for spectrum in obj.spectra:
+        spectra = DBSession().query(Spectrum).filter(Spectrum.obj_id == obj.id).all()
+        for spectrum in spectra:
             SpectrumFactory.teardown(spectrum, ignore_subfactory=["instrument"])
         DBSession().delete(obj)
         DBSession().commit()

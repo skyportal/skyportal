@@ -2024,12 +2024,7 @@ class Comment(Base):
         index=True,
         doc="ID of the Comment's Obj.",
     )
-    obj = relationship(
-        'Obj',
-        back_populates='comments',
-        doc="The Comment's Obj.",
-        passive_deletes=True,
-    )
+    obj = relationship('Obj', back_populates='comments', doc="The Comment's Obj.",)
     groups = relationship(
         "Group",
         secondary="group_comments",
