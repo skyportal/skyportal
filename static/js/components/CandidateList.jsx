@@ -266,10 +266,13 @@ CustomSortToolbar.defaultProps = {
   filterFormData: null,
 };
 
+const columnNames = ["Images", "Info", "Photometry", "Autoannotations"];
+
 const CandidateList = () => {
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [filterGroups, setFilterGroups] = useState([]);
+  const [viewColumns, setViewColumns] = useState(columnNames);
   // Maintain the three thumbnails in a row for larger screens
   const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
   const thumbnailsMinWidth = largeScreen ? "30rem" : 0;
@@ -445,6 +448,16 @@ const CandidateList = () => {
   const generatePS1Thumbnail = (objID) => {
     setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
     dispatch(candidatesActions.generatePS1Thumbnail(objID));
+  };
+
+  const handleViewColumnsChange = (changedColumn, action) => {
+    let selectedColumns = [];
+    if (action === "remove") {
+      selectedColumns = viewColumns.filter((col) => col !== changedColumn);
+    } else {
+      selectedColumns = [...viewColumns, changedColumn];
+    }
+    setViewColumns(selectedColumns);
   };
 
   const renderThumbnails = (dataIndex) => {
@@ -853,6 +866,7 @@ const CandidateList = () => {
       name: "Images",
       label: "Images",
       options: {
+        display: viewColumns.includes("Images"),
         customBodyRenderLite: renderThumbnails,
         sort: false,
         filter: false,
@@ -862,6 +876,7 @@ const CandidateList = () => {
       name: "Info",
       label: "Info",
       options: {
+        display: viewColumns.includes("Info"),
         customBodyRenderLite: renderInfo,
         filter: false,
       },
@@ -870,6 +885,7 @@ const CandidateList = () => {
       name: "Photometry",
       label: "Photometry",
       options: {
+        display: viewColumns.includes("Photometry"),
         customBodyRenderLite: renderPhotometry,
         sort: false,
         filter: false,
@@ -879,6 +895,7 @@ const CandidateList = () => {
       name: "Autoannotations",
       label: "Autoannotations",
       options: {
+        display: viewColumns.includes("Autoannotations"),
         customBodyRenderLite: renderAutoannotations,
         sort: false,
         filter: !queryInProgress,
@@ -924,6 +941,7 @@ const CandidateList = () => {
       />
     ),
     onFilterChange: handleTableFilterChipChange,
+    onViewColumnsChange: handleViewColumnsChange,
   };
 
   return (
