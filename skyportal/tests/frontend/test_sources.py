@@ -29,7 +29,7 @@ def add_comment(driver, comment_text):
 def add_comment_and_wait_for_display(driver, comment_text):
     add_comment(driver, comment_text)
     try:
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+        driver.wait_for_xpath(f'//p[text()="{comment_text}"]', timeout=20)
     except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
@@ -179,7 +179,7 @@ def test_comment_groups_validation(
     driver.click_xpath('//*[@name="submitCommentButton"]')
     driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
     try:
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+        driver.wait_for_xpath(f'//p[text()="{comment_text}"]', timeout=20)
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
     except TimeoutException:
         driver.refresh()
@@ -200,7 +200,9 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     )
     driver.click_xpath('//*[@name="submitCommentButton"]')
     try:
-        comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+        comment_text_p = driver.wait_for_xpath(
+            f'//p[text()="{comment_text}"]', timeout=20
+        )
     except TimeoutException:
         driver.refresh()
         comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
