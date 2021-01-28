@@ -82,6 +82,26 @@ def pytest_runtest_makereport(item, call):
     setattr(item, "rep_" + rep.when, rep)
 
 
+@pytest.fixture(scope="function", autouse=True)
+def test_driver_user(request):
+    """
+    If a frontend test becomes some fixture-generated user, and the fixture
+    user is subsequently deleted, than the driver will have no current_user.
+    So, default back to the testuser-cesium-ml-org user upon frontend test
+    completion.
+    """
+    yield  # Yield immediately since we only need to run teardown code
+    if 'driver' in request.node.funcargs:
+        testuser = (
+            DBSession()
+            .query(User)
+            .filter(User.username == "testuser-cesium-ml-org")
+            .first()
+        )
+        webdriver = request.node.funcargs['driver']
+        webdriver.get(f"/become_user/{testuser.id}")
+
+
 # check if a test has failed
 @pytest.fixture(scope="function", autouse=True)
 def test_failed_check(request):

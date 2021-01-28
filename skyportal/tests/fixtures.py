@@ -282,16 +282,15 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
     filters = []
     private = False
 
-    # @factory.post_generation
-    # def streams(obj, create, extracted, **kwargs):
-    #     if not create:
-    #         return
-    #
-    #     if extracted:
-    #         for stream in extracted:
-    #             obj.streams.append(stream)
-    #             DBSession().add(obj)
-    #             DBSession().commit()
+    @factory.post_generation
+    def streams(obj, create, extracted, **kwargs):
+        if not create:
+            return
+        if extracted:
+            for stream in extracted:
+                obj.streams.append(stream)
+                DBSession().add(obj)
+                DBSession().commit()
 
     @staticmethod
     def teardown(group_id):
