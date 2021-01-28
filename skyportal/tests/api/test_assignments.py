@@ -27,7 +27,6 @@ def test_token_user_post_classical_followup_request(
 def test_token_user_delete_owned_assignment(
     red_transients_run, public_source, upload_data_token
 ):
-
     request_data = {
         'run_id': red_transients_run.id,
         'obj_id': public_source.id,

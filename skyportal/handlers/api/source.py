@@ -1068,10 +1068,9 @@ class SourceHandler(BaseHandler):
                 for group in groups
             ]
         )
-        self.finalize_transaction()
         if not obj_already_exists:
             obj.add_linked_thumbnails()
-
+        self.finalize_transaction()
         # If we're updating a source
         if previously_saved is not None:
             self.push_all(

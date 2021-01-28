@@ -82,8 +82,7 @@ def make_super_user(username):
 
 
 def provision_token():
-    """Provision an initial administrative token.
-    """
+    """Provision an initial administrative token."""
     admin = add_user(
         'provisioned_admin',
         roles=['Super admin'],
@@ -139,3 +138,12 @@ def create_token(ACLs, user_id, name):
     DBSession().add(t)
     DBSession().commit()
     return t.id
+
+
+def delete_token(token_id):
+    t = Token.query.get(token_id)
+    if t is not None:
+        DBSession().expire(t)
+    if DBSession().query(Token).filter(Token.id == token_id).first():
+        DBSession().delete(t)
+        DBSession().commit()

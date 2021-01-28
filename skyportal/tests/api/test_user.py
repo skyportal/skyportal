@@ -10,12 +10,13 @@ def test_get_user_info(manage_users_token, user):
     assert data['data']['id'] == user.id
 
 
-def test_delete_user(super_admin_token, user):
-    status, data = api('DELETE', f'user/{user.id}', token=super_admin_token)
-    assert status == 200
+def test_delete_user(super_admin_token, user, capsys):
+    with capsys.disabled():
+        status, data = api('DELETE', f'user/{user.id}', token=super_admin_token)
+        assert status == 200
 
-    status, data = api('GET', f'user/{user.id}', token=super_admin_token)
-    assert status == 400
+        status, data = api('GET', f'user/{user.id}', token=super_admin_token)
+        assert status == 400
 
 
 def test_delete_user_cascades_to_tokens(super_admin_token, user, public_group):

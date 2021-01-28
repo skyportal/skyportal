@@ -437,7 +437,7 @@ class GroupAdmissionRequest(Base):
 
 class Stream(Base):
     """A data stream producing alerts that can be programmatically filtered
-    using a Filter. """
+    using a Filter."""
 
     read = AccessibleIfUserMatches('users')
     create = update = delete = restricted
@@ -634,7 +634,7 @@ class Obj(Base, ha.Point):
     comments = relationship(
         'Comment',
         back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
         passive_deletes=True,
         order_by="Comment.created_at",
         doc="Comments posted about the object.",
@@ -652,7 +652,7 @@ class Obj(Base, ha.Point):
     classifications = relationship(
         'Classification',
         back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade='save-update, merge, refresh-expire, expunge, delete-orphan',
         passive_deletes=True,
         order_by="Classification.created_at",
         doc="Classifications of the object.",
@@ -677,7 +677,7 @@ class Obj(Base, ha.Point):
     spectra = relationship(
         'Spectrum',
         back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
         single_parent=True,
         passive_deletes=True,
         order_by="Spectrum.observed_at",
@@ -694,17 +694,20 @@ class Obj(Base, ha.Point):
     followup_requests = relationship(
         'FollowupRequest',
         back_populates='obj',
+        passive_deletes=True,
         doc="Robotic follow-up requests of the object.",
     )
     assignments = relationship(
         'ClassicalAssignment',
         back_populates='obj',
+        passive_deletes=True,
         doc="Assignments of the object to classical observing runs.",
     )
 
     obj_notifications = relationship(
         "SourceNotification",
         back_populates="source",
+        passive_deletes=True,
         doc="Notifications regarding the object sent out by users",
     )
 
@@ -1034,6 +1037,7 @@ class Filter(Base):
         'Candidate',
         back_populates='filter',
         cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
         order_by="Candidate.passed_at",
         doc="Candidates that have passed the filter.",
     )
@@ -1229,11 +1233,15 @@ Source.unsaved_at = sa.Column(
 )
 
 Obj.sources = relationship(
-    Source, back_populates='obj', doc="Instances in which a group saved this Obj."
+    Source,
+    back_populates='obj',
+    passive_deletes=True,
+    doc="Instances in which a group saved this Obj.",
 )
 Obj.candidates = relationship(
     Candidate,
     back_populates='obj',
+    passive_deletes=True,
     doc="Instances in which this Obj passed a group's filter.",
 )
 
@@ -1506,8 +1514,8 @@ User.sources = relationship(
     backref='users',
     secondary='join(Group, sources).join(group_users)',
     primaryjoin='group_users.c.user_id == users.c.id',
-    passive_deletes=True,
     doc='The Sources accessible to this User.',
+    viewonly=True,
 )
 
 isadmin = property(lambda self: "System admin" in self.permissions)
@@ -1749,11 +1757,13 @@ class Instrument(Base):
     photometry = relationship(
         'Photometry',
         back_populates='instrument',
+        passive_deletes=True,
         doc="The Photometry produced by this instrument.",
     )
     spectra = relationship(
         'Spectrum',
         back_populates='instrument',
+        passive_deletes=True,
         doc="The Spectra produced by this instrument.",
     )
 
@@ -1774,6 +1784,7 @@ class Instrument(Base):
     observing_runs = relationship(
         'ObservingRun',
         back_populates='instrument',
+        passive_deletes=True,
         doc="List of ObservingRuns on the Instrument.",
     )
 
@@ -2013,7 +2024,12 @@ class Comment(Base):
         index=True,
         doc="ID of the Comment's Obj.",
     )
-    obj = relationship('Obj', back_populates='comments', doc="The Comment's Obj.")
+    obj = relationship(
+        'Obj',
+        back_populates='comments',
+        doc="The Comment's Obj.",
+        passive_deletes=True,
+    )
     groups = relationship(
         "Group",
         secondary="group_comments",
@@ -2048,7 +2064,11 @@ GroupComment.delete = GroupComment.update = (
 )
 
 User.comments = relationship(
-    "Comment", back_populates="author", foreign_keys="Comment.author_id"
+    "Comment",
+    back_populates="author",
+    foreign_keys="Comment.author_id",
+    cascade="delete",
+    passive_deletes=True,
 )
 
 
@@ -2281,7 +2301,7 @@ class Photometry(ha.Point, Base):
         doc="Groups that can access this Photometry.",
     )
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id'),
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
         doc="ID of the Instrument that took this Photometry.",
@@ -2500,10 +2520,14 @@ class Spectrum(Base):
         doc="Users that observed this spectrum.",
     )
 
-    followup_request_id = sa.Column(sa.ForeignKey('followuprequests.id'), nullable=True)
+    followup_request_id = sa.Column(
+        sa.ForeignKey('followuprequests.id', ondelete='SET NULL'), nullable=True
+    )
     followup_request = relationship('FollowupRequest', back_populates='spectra')
 
-    assignment_id = sa.Column(sa.ForeignKey('classicalassignments.id'), nullable=True)
+    assignment_id = sa.Column(
+        sa.ForeignKey('classicalassignments.id', ondelete='SET NULL'), nullable=True
+    )
     assignment = relationship('ClassicalAssignment', back_populates='spectra')
 
     altdata = sa.Column(
@@ -2756,8 +2780,8 @@ class FollowupRequest(Base):
     ) & read
 
     requester_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
+        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=True,
         index=True,
         doc="ID of the User who requested the follow-up.",
     )
@@ -2771,7 +2795,7 @@ class FollowupRequest(Base):
 
     last_modified_by_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='SET NULL'),
-        nullable=False,
+        nullable=True,
         doc="The ID of the User who last modified the request.",
     )
 
@@ -2809,6 +2833,7 @@ class FollowupRequest(Base):
     transactions = relationship(
         'FacilityTransaction',
         back_populates='followup_request',
+        passive_deletes=True,
         order_by="FacilityTransaction.created_at.desc()",
     )
 
@@ -2869,9 +2894,9 @@ class FacilityTransaction(Base):
     response = sa.Column(psql.JSONB, doc='Serialized HTTP response.')
 
     followup_request_id = sa.Column(
-        sa.ForeignKey('followuprequests.id', ondelete='CASCADE'),
+        sa.ForeignKey('followuprequests.id', ondelete='SET NULL'),
         index=True,
-        nullable=False,
+        nullable=True,
         doc="The ID of the FollowupRequest this message pertains to.",
     )
 
@@ -2884,7 +2909,7 @@ class FacilityTransaction(Base):
     initiator_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='SET NULL'),
         index=True,
-        nullable=False,
+        nullable=True,
         doc='The ID of the User who initiated the transaction.',
     )
     initiator = relationship(
@@ -2898,6 +2923,7 @@ class FacilityTransaction(Base):
 User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
+    passive_deletes=True,
     doc="The follow-up requests this User has made.",
     foreign_keys=[FollowupRequest.requester_id],
 )
@@ -3119,6 +3145,7 @@ class ObservingRun(Base):
 User.observing_runs = relationship(
     'ObservingRun',
     cascade='save-update, merge, refresh-expire, expunge',
+    passive_deletes=True,
     doc="Observing Runs this User has created.",
     foreign_keys="ObservingRun.owner_id",
 )
@@ -3221,6 +3248,7 @@ class ClassicalAssignment(Base):
 User.assignments = relationship(
     'ClassicalAssignment',
     back_populates='requester',
+    passive_deletes=True,
     doc="Objs the User has assigned to ObservingRuns.",
     foreign_keys="ClassicalAssignment.requester_id",
 )
@@ -3457,9 +3485,12 @@ def create_single_user_group(mapper, connection, target):
 
 @event.listens_for(User, 'before_delete')
 def delete_single_user_group(mapper, connection, target):
+    single_user_group = target.single_user_group
 
     # Delete single-user group
-    DBSession().delete(target.single_user_group)
+    @event.listens_for(DBSession(), "after_flush_postexec", once=True)
+    def receive_after_flush(session, context):
+        DBSession().delete(single_user_group)
 
 
 @event.listens_for(User, 'after_update')
