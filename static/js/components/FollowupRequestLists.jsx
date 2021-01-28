@@ -226,13 +226,15 @@ const FollowupRequestLists = ({
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls={`${instLookUp[instrument_id].name}-requests`}
-              id={`${instLookUp[instrument_id].name}-requests-header`}
+              data-testid={`${instLookUp[instrument_id].name}-requests-header`}
             >
               <Typography variant="subtitle1">
                 {instLookUp[instrument_id].name} Requests
               </Typography>
             </AccordionSummary>
-            <AccordionDetails data-testid="followupRequestTable">
+            <AccordionDetails
+              data-testid={`${instLookUp[instrument_id].name}_followupRequestsTable`}
+            >
               <MuiThemeProvider theme={getMuiTheme(theme)}>
                 <MUIDataTable
                   data={requestsGroupedByInstId[instrument_id]}
