@@ -345,6 +345,12 @@ annotation:
       some_boolean: false
     group_ids:
       - =program_A
+  - obj_id: 16fil
+    origin: "Program B"
+    data:
+      period: 0.5281475
+    group_ids:
+      - =program_B
 
 taxonomy:
   file: taxonomy_demo.yaml

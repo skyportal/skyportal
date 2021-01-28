@@ -5,7 +5,15 @@ import pandas as pd
 
 from bokeh.core.properties import List, String
 from bokeh.layouts import row, column
-from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button, LinearAxis
+from bokeh.models import (
+    CustomJS,
+    HoverTool,
+    Range1d,
+    Slider,
+    Button,
+    LinearAxis,
+    RadioGroup,
+)
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.plotting import figure, ColumnDataSource
 
@@ -730,18 +738,26 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
 
     # now make period plot
 
-    if obj.varstar:
+    # get periods from annotations
+    annotation_list = obj.get_annotations_readable_by(user)
+    period_labels = []
+    period_list = []
+    for an in annotation_list:
+        if 'period' in an.data:
+            period_list.append(an.data['period'])
+            period_labels.append(an.origin + ": %.9f" % an.data['period'])
 
-        # get period from annotations (any for now)
-        annotation_list = obj.get_annotations_readable_by(user)[0]
-        if 'period' in annotation_list.data:
-            period = annotation_list.data['period']
-        else:
-            period = 0.1
+    if len(period_list) > 0:
+        period = period_list[0]
+    else:
+        period = None
+
+    # don't generate if no period annotated
+    if period is not None:
 
         # bokeh figure for period plotting
         period_plot = figure(
-            aspect_ratio=1.7,
+            aspect_ratio=1.5,
             sizing_mode='scale_both',
             active_drag='box_zoom',
             tools='box_zoom,wheel_zoom,pan,reset,save',
@@ -771,6 +787,9 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
         period_imhover = HoverTool(tooltips=tooltip_format)
         period_imhover.renderers = []
         period_plot.add_tools(period_imhover)
+
+        # initiate period radio buttons
+        period_selection = RadioGroup(labels=period_labels, active=0)
 
         # store all the plot data
         period_model_dict = {}
@@ -906,25 +925,51 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                 ).read(),
             ),
         )
-        # a way to reset the period
-        period_button = Button(label="Reset Period")
-        period_button.js_on_click(
+        # a way to modify the period
+        period_double_button = Button(label="*2")
+        period_double_button.js_on_click(
             CustomJS(
-                args={'textinput': period_textinput, 'period': period},
+                args={'textinput': period_textinput},
                 code="""
-                    textinput.value = parseFloat(period).toFixed(13);
+                const period = parseFloat(textinput.value);
+                textinput.value = parseFloat(2.*period).toFixed(9);
+                """,
+            )
+        )
+        period_halve_button = Button(label="/2")
+        period_halve_button.js_on_click(
+            CustomJS(
+                args={'textinput': period_textinput},
+                code="""
+                        const period = parseFloat(textinput.value);
+                        textinput.value = parseFloat(period/2.).toFixed(9);
+                        """,
+            )
+        )
+        # a way to select the period
+        period_selection.js_on_click(
+            CustomJS(
+                args={'textinput': period_textinput, 'periods': period_list},
+                code="""
+                textinput.value = parseFloat(periods[this.active]).toFixed(13);
                 """,
             )
         )
 
         # layout
-        period_row = row(period_title, period_textinput, period_button)
+
+        period_column = column(
+            period_toggle,
+            period_title,
+            period_textinput,
+            period_selection,
+            period_double_button,
+            period_halve_button,
+            width=180,
+        )
 
         period_layout = column(
-            period_row,
-            row(period_plot, period_toggle),
-            sizing_mode='scale_width',
-            width=width,
+            row(period_plot, period_column), sizing_mode='scale_width', width=width,
         )
 
         # Period panel
