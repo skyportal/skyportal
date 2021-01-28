@@ -3374,6 +3374,7 @@ class UserNotification(Base):
 User.notifications = relationship(
     "UserNotification",
     back_populates="user",
+    passive_deletes=True,
     doc="Notifications to be displayed on front-end associated with User",
 )
 
