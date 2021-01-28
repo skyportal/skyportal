@@ -200,11 +200,11 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     )
     driver.click_xpath('//*[@name="submitCommentButton"]')
     try:
-        comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
+        comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
     except TimeoutException:
         driver.refresh()
-        comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
-    comment_div = comment_text_div.find_element_by_xpath("..")
+        comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+    comment_div = comment_text_p.find_element_by_xpath("../..")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
 
@@ -259,15 +259,15 @@ def test_delete_comment(driver, user, public_source):
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     comment_text = str(uuid.uuid4())
-    add_comment(driver, comment_text)
-    comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
-    comment_div = comment_text_div.find_element_by_xpath("..")
+    add_comment_and_wait_for_display(driver, comment_text)
+    comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+    comment_div = comment_text_p.find_element_by_xpath("../..")
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']"
     )
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-    ActionChains(driver).move_to_element(comment_div).perform()
+    ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
     driver.execute_script("arguments[0].click();", delete_button)
     try:
         driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
@@ -286,7 +286,7 @@ def test_delete_comment(driver, user, public_source):
                 f"//*[@name='deleteCommentButton{comment_id}']"
             )
             driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-            ActionChains(driver).move_to_element(comment_div).perform()
+            ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
             driver.execute_script("arguments[0].click();", delete_button)
             driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
 
@@ -309,7 +309,7 @@ def test_regular_user_cannot_delete_unowned_comment(
         f"//*[@name='deleteCommentButton{comment_id}']"
     )
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-    ActionChains(driver).move_to_element(comment_div).perform()
+    ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
     assert not delete_button.is_displayed()
 
 
@@ -326,13 +326,13 @@ def test_super_user_can_delete_unowned_comment(
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
 
-    comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
-    comment_div = comment_text_div.find_element_by_xpath("..")
+    comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+    comment_div = comment_text_p.find_element_by_xpath("../..")
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
 
     # wait for delete button to become interactible - hence pause 0.1
-    driver.scroll_to_element(comment_text_div)
-    ActionChains(driver).move_to_element(comment_text_div).pause(0.1).perform()
+    driver.scroll_to_element(comment_text_p)
+    ActionChains(driver).move_to_element(comment_text_p).pause(0.1).perform()
 
     delete_button = driver.wait_for_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']"
