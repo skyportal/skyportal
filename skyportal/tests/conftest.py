@@ -68,13 +68,6 @@ def pytest_runtest_setup(item):
     DBSession.close()
 
 
-def log(msg):
-    with open(
-        "/home/kshin/repositories/forks/skyportal/skyportal/tests/log.txt", "a"
-    ) as f:
-        f.write(msg + "\n")
-
-
 # set up a hook to be able to check if a test has failed
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
@@ -526,8 +519,6 @@ def sedm(p60_telescope):
         api_classname='SEDMAPI',
         listener_classname='SEDMListener',
     )
-    instrument_id = instrument.id
-    log(f"SEDM: {instrument_id}")
     yield instrument
     InstrumentFactory.teardown(instrument, ignore_subfactory=["telescope"])
 
@@ -582,7 +573,6 @@ def user(public_group, public_stream):
         streams=[public_stream],
     )
     user_id = user.id
-    log(f"User {user_id} created by fixture user")
     yield user
     UserFactory.teardown(user_id)
 
@@ -595,7 +585,6 @@ def user_group2(public_group2, public_stream):
         streams=[public_stream],
     )
     user_id = user.id
-    log(f"User {user_id} created by fixture user_group2")
     yield user
     UserFactory.teardown(user_id)
 
@@ -648,7 +637,6 @@ def view_only_user(public_group):
         groups=[public_group], roles=[models.Role.query.get("View only")]
     )
     user_id = user.id
-    log(f"User {user_id} created by fixture view_only_user")
     yield user
     UserFactory.teardown(user_id)
 
@@ -678,7 +666,6 @@ def group_admin_user(public_group, public_stream):
         .first()
     )
     group_user.admin = True
-    log(f"User {user_id} created by fixture group_admin_user")
     DBSession().commit()
     yield user
     UserFactory.teardown(user_id)

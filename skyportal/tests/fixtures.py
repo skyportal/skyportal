@@ -52,13 +52,6 @@ print("Setting test database to:", cfg["database"])
 init_db(**cfg["database"])
 
 
-def log(msg):
-    with open(
-        "/home/kshin/repositories/forks/skyportal/skyportal/tests/log.txt", "a"
-    ) as f:
-        f.write(msg + "\n")
-
-
 def is_already_deleted(instance, table):
     """
     Helper function to check if a given ORM instance has already been deleted previously,
