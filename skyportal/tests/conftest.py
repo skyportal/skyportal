@@ -50,6 +50,7 @@ from skyportal.tests.fixtures import (
     InvitationFactory,
     NotificationFactory,
     UserNotificationFactory,
+    ThumbnailFactory,
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 from skyportal.models import Obj
@@ -65,7 +66,6 @@ if not DBSession.query(User).filter(User.username == "test factory").scalar():
 def pytest_runtest_setup(item):
     # Print timestamp when running each test
     print(datetime.now().strftime('[%H:%M:%S] '), end='')
-    DBSession.close()
 
 
 # set up a hook to be able to check if a test has failed
@@ -327,6 +327,8 @@ def public_source_group2(public_group2):
 def public_source_no_data(public_group):
     obj = Obj(id=str(uuid.uuid4()), ra=0.0, dec=0.0, redshift=0.0,)
     DBSession.add(obj)
+    DBSession().add(ThumbnailFactory(obj_id=obj.id, type="new"))
+    DBSession().add(ThumbnailFactory(obj_id=obj.id, type="ps1"))
     source = Source(obj_id=obj.id, group_id=public_group.id)
     DBSession.add(source)
     DBSession.commit()

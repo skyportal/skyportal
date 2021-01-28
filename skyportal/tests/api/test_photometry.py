@@ -1348,7 +1348,6 @@ def test_token_user_retrieve_null_photometry(
 def test_token_user_big_post(
     upload_data_token, public_source, ztf_camera, public_group
 ):
-
     status, data = api(
         'POST',
         'photometry',
@@ -1367,12 +1366,6 @@ def test_token_user_big_post(
     )
     assert status == 200
     assert data['status'] == 'success'
-
-    # upload_id = data["data"]["upload_id"]
-    # status, data = api(
-    #     "DELETE", f"photometry/bulk_delete/{upload_id}", token=upload_data_token
-    # )
-    # assert status == 200
 
 
 def test_token_user_get_range_photometry(
