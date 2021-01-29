@@ -167,18 +167,15 @@ def take_screenshot_and_page_source(webdriver, nodeid):
 @pytest.fixture()
 def public_stream():
     stream = StreamFactory()
-    # Save ID of new DB row
-    stream_id = stream.id
     yield stream
-    StreamFactory.teardown(stream_id)
+    StreamFactory.teardown(stream)
 
 
 @pytest.fixture()
 def public_stream2():
     stream = StreamFactory()
-    stream_id = stream.id
     yield stream
-    StreamFactory.teardown(stream_id)
+    StreamFactory.teardown(stream)
 
 
 @pytest.fixture()
@@ -186,33 +183,29 @@ def stream_with_users(super_admin_user, group_admin_user, user, view_only_user):
     stream = StreamFactory(
         users=[super_admin_user, group_admin_user, user, view_only_user]
     )
-    stream_id = stream.id
     yield stream
-    StreamFactory.teardown(stream_id)
+    StreamFactory.teardown(stream)
 
 
 @pytest.fixture()
 def public_group(public_stream):
     group = GroupFactory(streams=[public_stream])
-    group_id = group.id
     yield group
-    GroupFactory.teardown(group_id)
+    GroupFactory.teardown(group)
 
 
 @pytest.fixture()
 def public_group2(public_stream):
     group = GroupFactory(streams=[public_stream])
-    group_id = group.id
     yield group
-    GroupFactory.teardown(group_id)
+    GroupFactory.teardown(group)
 
 
 @pytest.fixture()
 def public_group_no_streams():
     group = GroupFactory()
-    group_id = group.id
     yield group
-    GroupFactory.teardown(group_id)
+    GroupFactory.teardown(group)
 
 
 @pytest.fixture()
@@ -223,9 +216,8 @@ def group_with_stream(
         users=[super_admin_user, group_admin_user, user, view_only_user],
         streams=[public_stream],
     )
-    group_id = group.id
     yield group
-    GroupFactory.teardown(group_id)
+    GroupFactory.teardown(group)
 
 
 @pytest.fixture()
@@ -236,9 +228,8 @@ def group_with_stream_with_users(
         users=[super_admin_user, group_admin_user, user, view_only_user],
         streams=[stream_with_users],
     )
-    group_id = group.id
     yield group
-    GroupFactory.teardown(group_id)
+    GroupFactory.teardown(group)
 
 
 @pytest.fixture()
@@ -267,17 +258,15 @@ def public_streamuser(public_stream, user):
 @pytest.fixture()
 def public_filter(public_group, public_stream):
     filter_ = FilterFactory(group=public_group, stream=public_stream)
-    filter_id = filter_.id
     yield filter_
-    FilterFactory.teardown(filter_id)
+    FilterFactory.teardown(filter_)
 
 
 @pytest.fixture()
 def public_filter2(public_group2, public_stream):
     filter_ = FilterFactory(group=public_group2, stream=public_stream)
-    filter_id = filter_.id
     yield filter_
-    FilterFactory.teardown(filter_id)
+    FilterFactory.teardown(filter_)
 
 
 @pytest.fixture()
@@ -420,9 +409,8 @@ def red_transients_group(group_admin_user, view_only_user):
         name=f'red transients-{uuid.uuid4().hex}',
         users=[group_admin_user, view_only_user],
     )
-    group_id = group.id
     yield group
-    GroupFactory.teardown(group_id)
+    GroupFactory.teardown(group)
 
 
 @pytest.fixture()
@@ -443,9 +431,8 @@ def hst():
         diameter=2.0,
         fixed_location=False,
     )
-    telescope_id = telescope.id
     yield telescope
-    TelescopeFactory.teardown(telescope_id)
+    TelescopeFactory.teardown(telescope)
 
 
 @pytest.fixture()
@@ -459,9 +446,8 @@ def keck1_telescope():
         elevation=observer.location.height.to('m').value,
         diameter=10.0,
     )
-    telescope_id = telescope.id
     yield telescope
-    TelescopeFactory.teardown(telescope_id)
+    TelescopeFactory.teardown(telescope)
 
 
 @pytest.fixture()
@@ -474,9 +460,8 @@ def wise_18inch():
         elevation=875,
         diameter=0.46,
     )
-    telescope_id = telescope.id
     yield telescope
-    TelescopeFactory.teardown(telescope_id)
+    TelescopeFactory.teardown(telescope)
 
 
 @pytest.fixture()
@@ -489,9 +474,8 @@ def xinglong_216cm():
         elevation=950.0,
         diameter=2.16,
     )
-    telescope_id = telescope.id
     yield telescope
-    TelescopeFactory.teardown(telescope_id)
+    TelescopeFactory.teardown(telescope)
 
 
 @pytest.fixture()
@@ -505,9 +489,8 @@ def p60_telescope():
         elevation=observer.location.height.to('m').value,
         diameter=1.6,
     )
-    telescope_id = telescope.id
     yield telescope
-    TelescopeFactory.teardown(telescope_id)
+    TelescopeFactory.teardown(telescope)
 
 
 @pytest.fixture()
@@ -594,9 +577,8 @@ def user(public_group, public_stream):
         roles=[models.Role.query.get("Full user")],
         streams=[public_stream],
     )
-    user_id = user.id
     yield user
-    UserFactory.teardown(user_id)
+    UserFactory.teardown(user)
 
 
 @pytest.fixture()
@@ -606,9 +588,8 @@ def user_group2(public_group2, public_stream):
         roles=[models.Role.query.get("Full user")],
         streams=[public_stream],
     )
-    user_id = user.id
     yield user
-    UserFactory.teardown(user_id)
+    UserFactory.teardown(user)
 
 
 @pytest.fixture()
@@ -628,9 +609,8 @@ def user2(public_group):
     user = UserFactory(
         groups=[public_group], roles=[models.Role.query.get("Full user")]
     )
-    user_id = user.id
     yield user
-    UserFactory.teardown(user_id)
+    UserFactory.teardown(user)
 
 
 @pytest.fixture()
@@ -638,9 +618,8 @@ def user_no_groups(public_stream):
     user = UserFactory(
         roles=[models.Role.query.get("Full user")], streams=[public_stream]
     )
-    user_id = user.id
     yield user
-    UserFactory.teardown(user_id)
+    UserFactory.teardown(user)
 
 
 @pytest.fixture()
@@ -648,9 +627,8 @@ def user_two_groups(public_group, public_group2):
     user = UserFactory(
         groups=[public_group, public_group2], roles=[models.Role.query.get("Full user")]
     )
-    user_id = user.id
     yield user
-    UserFactory.teardown(user_id)
+    UserFactory.teardown(user)
 
 
 @pytest.fixture()
@@ -658,9 +636,8 @@ def view_only_user(public_group):
     user = UserFactory(
         groups=[public_group], roles=[models.Role.query.get("View only")]
     )
-    user_id = user.id
     yield user
-    UserFactory.teardown(user_id)
+    UserFactory.teardown(user)
 
 
 @pytest.fixture()
@@ -668,9 +645,8 @@ def view_only_user2(public_group):
     user = UserFactory(
         groups=[public_group], roles=[models.Role.query.get("View only")]
     )
-    user_id = user.id
     yield user
-    UserFactory.teardown(user_id)
+    UserFactory.teardown(user)
 
 
 @pytest.fixture()
@@ -680,7 +656,6 @@ def group_admin_user(public_group, public_stream):
         roles=[models.Role.query.get("Group admin")],
         streams=[public_stream],
     )
-    user_id = user.id
     group_user = (
         DBSession()
         .query(GroupUser)
@@ -690,7 +665,7 @@ def group_admin_user(public_group, public_stream):
     group_user.admin = True
     DBSession().commit()
     yield user
-    UserFactory.teardown(user_id)
+    UserFactory.teardown(user)
 
 
 @pytest.fixture()
@@ -699,9 +674,8 @@ def group_admin_user_two_groups(public_group, public_group2):
         groups=[public_group, public_group2],
         roles=[models.Role.query.get("Group admin")],
     )
-    user_id = user.id
     yield user
-    UserFactory.teardown(user_id)
+    UserFactory.teardown(user)
 
 
 @pytest.fixture()
@@ -711,9 +685,8 @@ def super_admin_user(public_group, public_stream):
         roles=[models.Role.query.get("Super admin")],
         streams=[public_stream],
     )
-    user_id = user.id
     yield user
-    UserFactory.teardown(user_id)
+    UserFactory.teardown(user)
 
 
 @pytest.fixture()
@@ -722,9 +695,8 @@ def super_admin_user_two_groups(public_group, public_group2):
         groups=[public_group, public_group2],
         roles=[models.Role.query.get("Super admin")],
     )
-    user_id = user.id
     yield user
-    UserFactory.teardown(user_id)
+    UserFactory.teardown(user)
 
 
 @pytest.fixture()
@@ -999,9 +971,8 @@ def source_notification_user(public_group):
         roles=[models.Role.query.get("Full user")],
         preferences={"allowEmailNotifications": True, "allowSMSNotifications": True},
     )
-    user_id = user.id
     yield user
-    UserFactory.teardown(user_id)
+    UserFactory.teardown(user)
 
 
 @pytest.fixture()
@@ -1018,9 +989,8 @@ def source_notification_user_token(source_notification_user):
 @pytest.fixture()
 def public_taxonomy(public_group):
     taxonomy = TaxonomyFactory(groups=[public_group])
-    taxonomy_id = taxonomy.id
     yield taxonomy
-    TaxonomyFactory.teardown(taxonomy_id)
+    TaxonomyFactory.teardown(taxonomy)
 
 
 @pytest.fixture()
