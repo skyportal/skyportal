@@ -212,54 +212,19 @@ const SourceMobile = WidthProvider(
       ? 600
       : Math.floor(plotWidth / aspectRatio) + 225;
 
-  return (
-    <div className={classes.source}>
-      <div className={classes.mainColumn}>
-        <div className={classes.topRow}>
-          <div className={classes.column}>
-            <div>
-              <div className={classes.alignRight}>
-                <SharePage />
-              </div>
-              <div className={classes.name}>
-                <span> {source.id} </span>
-                <span>
-                  <FavoritesButton sourceID={source.id} />
-                </span>
-              </div>
-            </div>
-            <div>
-              <div className={classes.sourceInfo}>
-                <div className={classes.infoLine}>
-                  <ShowClassification
-                    classifications={source.classifications}
-                    taxonomyList={taxonomyList}
-                  />
-                </div>
-                <div className={classes.infoLine}>
-                  <div className={classes.sourceInfo}>
-                    <div>
-                      <b>Position (J2000):&nbsp; &nbsp;</b>
-                    </div>
-                    <div>
-                      <span className={classes.position}>
-                        {ra_to_hours(source.ra, ":")} &nbsp;
-                        {dec_to_dms(source.dec, ":")} &nbsp;
-                      </span>
-                    </div>
-                  </div>
-                  <div className={classes.sourceInfo}>
-                    <div>
-                      (&alpha;,&delta;= {source.ra}, &nbsp;
-                      {source.dec}; &nbsp;
-                    </div>
-                    <div>
-                      <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
-                      {source.gal_lat.toFixed(6)})
-                    </div>
-                  </div>
+    return (
+      <div className={classes.source}>
+        <div className={classes.mainColumn}>
+          <div className={classes.topRow}>
+            <div className={classes.column}>
+              <div>
+                <div className={classes.alignRight}>
+                  <SharePage />
                 </div>
                 <div className={classes.name}>{source.id}</div>
+                <div className={classes.alignRight}>
+                    <FavoritesButton sourceID={source.id} />
+                </div>
               </div>
               <div>
                 <div className={classes.sourceInfo}>
