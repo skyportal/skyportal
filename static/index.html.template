@@ -13,7 +13,7 @@
   <body>
     <div id="content"></div>
     <script
-      src="/static/build/main.bundle.js?{{'static/build/main.bundle.js' | md5sum}}"
+      src="/static/build/main.bundle.js?{{ 'skyportal' | version | hash('md5') }}"
     >
     </script>
   </body>
