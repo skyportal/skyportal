@@ -167,7 +167,7 @@ class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
                 DBSession().commit()
 
     @staticmethod
-    def teardown(annotation, ignore_subfactory=[]):
+    def teardown(annotation):
         if is_already_deleted(annotation, Annotation):
             return
 
@@ -188,7 +188,7 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
     filters = ['ztfg', 'ztfr', 'ztfi']
 
     @staticmethod
-    def teardown(instrument, ignore_subfactory=[]):
+    def teardown(instrument):
         if is_already_deleted(instrument, Instrument):
             return
 
@@ -209,7 +209,7 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
     owner_id = 1
 
     @staticmethod
-    def teardown(photometry, ignore_subfactory=[]):
+    def teardown(photometry):
         if is_already_deleted(photometry, Photometry):
             return
 
@@ -238,7 +238,7 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
     observers = factory.LazyFunction(lambda: [UserFactory() for _ in range(1)])
 
     @staticmethod
-    def teardown(spectrum, ignore_subfactory=[]):
+    def teardown(spectrum):
         if is_already_deleted(spectrum, Spectrum):
             return
         instrument = spectrum.instrument
@@ -335,7 +335,7 @@ class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
                 DBSession().commit()
 
     @staticmethod
-    def teardown(comment, ignore_subfactory=[]):
+    def teardown(comment):
         if is_already_deleted(comment, Comment):
             return
 
@@ -396,7 +396,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().commit()
 
     @staticmethod
-    def teardown(obj, ignore_subfactory=[]):
+    def teardown(obj):
         if is_already_deleted(obj, Obj):
             return
 
@@ -406,7 +406,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
             UserFactory.teardown(author)
         spectra = DBSession().query(Spectrum).filter(Spectrum.obj_id == obj.id).all()
         for spectrum in spectra:
-            SpectrumFactory.teardown(spectrum, ignore_subfactory=["instrument"])
+            SpectrumFactory.teardown(spectrum)
         DBSession().delete(obj)
         DBSession().commit()
         for instrument in instruments:
@@ -441,7 +441,7 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
     owner = factory.SubFactory(UserFactory)
 
     @staticmethod
-    def teardown(run, ignore_subfactory=[]):
+    def teardown(run):
         if is_already_deleted(run, ObservingRun):
             return
 
@@ -465,7 +465,7 @@ class ClassicalAssignmentFactory(factory.alchemy.SQLAlchemyModelFactory):
     priority = factory.LazyFunction(lambda: str(random.choice(range(1, 6))))
 
     @staticmethod
-    def teardown(assignment, ignore_subfactory=[]):
+    def teardown(assignment):
         if is_already_deleted(assignment, ClassicalAssignment):
             return
 
@@ -533,7 +533,7 @@ class ClassificationFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().commit()
 
     @staticmethod
-    def teardown(classification, ignore_subfactory=[]):
+    def teardown(classification):
         if is_already_deleted(classification, Classification):
             return
 
@@ -560,7 +560,7 @@ class AllocationFactory(factory.alchemy.SQLAlchemyModelFactory):
     hours_allocated = 100
 
     @staticmethod
-    def teardown(allocation, ignore_subfactory=[]):
+    def teardown(allocation):
         if is_already_deleted(allocation, Allocation):
             return
 
@@ -600,7 +600,7 @@ class FollowupRequestFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().commit()
 
     @staticmethod
-    def teardown(request, ignore_subfactory=[]):
+    def teardown(request):
         if is_already_deleted(request, FollowupRequest):
             return
 
@@ -650,7 +650,7 @@ class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
                 DBSession().commit()
 
     @staticmethod
-    def teardown(invitation, ignore_subfactory=[]):
+    def teardown(invitation):
         if is_already_deleted(invitation, Invitation):
             return
 
@@ -683,7 +683,7 @@ class NotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
                 DBSession().commit()
 
     @staticmethod
-    def teardown(notification, ignore_subfactory=[]):
+    def teardown(notification):
         if is_already_deleted(notification, SourceNotification):
             return
 
@@ -706,7 +706,7 @@ class UserNotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
     viewed = False
 
     @staticmethod
-    def teardown(notification, ignore_subfactory=[]):
+    def teardown(notification):
         if is_already_deleted(notification, UserNotification):
             return
 

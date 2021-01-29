@@ -29,7 +29,6 @@ from skyportal.models import (
     GroupSpectrum,
     FollowupRequestTargetGroup,
     Thumbnail,
-    UserNotification,
 )
 from skyportal.tests.fixtures import (
     ObjFactory,
@@ -147,10 +146,10 @@ def take_screenshot_and_page_source(webdriver, nodeid):
     with open(file_name.replace('png', 'html'), 'w') as f:
         f.write(webdriver.page_source)
 
-    file_name = f'{nodeid}_{datetime.today().strftime("%Y-%m-%d_%H:%M")}.console.log'.replace(
-        "/", "_"
-    ).replace(
-        ":", "_"
+    file_name = (
+        f'{nodeid}_{datetime.today().strftime("%Y-%m-%d_%H:%M")}.console.log'.replace(
+            "/", "_"
+        ).replace(":", "_")
     )
     file_name = os.path.join(
         os.path.dirname(__file__), '../../webdriver-console', file_name
@@ -325,7 +324,12 @@ def public_source_group2(public_group2):
 
 @pytest.fixture()
 def public_source_no_data(public_group):
-    obj = Obj(id=str(uuid.uuid4()), ra=0.0, dec=0.0, redshift=0.0,)
+    obj = Obj(
+        id=str(uuid.uuid4()),
+        ra=0.0,
+        dec=0.0,
+        redshift=0.0,
+    )
     DBSession.add(obj)
     DBSession().add(ThumbnailFactory(obj_id=obj.id, type="new"))
     DBSession().add(ThumbnailFactory(obj_id=obj.id, type="ps1"))
@@ -527,7 +531,7 @@ def lris(keck1_telescope):
         ],
     )
     yield instrument
-    InstrumentFactory.teardown(instrument, ignore_subfactory=["telescope"])
+    InstrumentFactory.teardown(instrument)
 
 
 @pytest.fixture()
@@ -542,14 +546,14 @@ def sedm(p60_telescope):
         listener_classname='SEDMListener',
     )
     yield instrument
-    InstrumentFactory.teardown(instrument, ignore_subfactory=["telescope"])
+    InstrumentFactory.teardown(instrument)
 
 
 @pytest.fixture()
 def red_transients_run(user):
     run = ObservingRunFactory(owner=user)
     yield run
-    ObservingRunFactory.teardown(run, ignore_subfactory=["owner"])
+    ObservingRunFactory.teardown(run)
 
 
 @pytest.fixture()
@@ -561,9 +565,7 @@ def lris_run_20201118(lris, public_group, super_admin_user):
         owner=super_admin_user,
     )
     yield run
-    ObservingRunFactory.teardown(
-        run, ignore_subfactory=["instrument", "group", "owner"]
-    )
+    ObservingRunFactory.teardown(run)
 
 
 @pytest.fixture()
@@ -575,9 +577,7 @@ def problematic_assignment(lris_run_20201118, public_ZTF20acgrjqm):
         last_modified_by=lris_run_20201118.owner,
     )
     yield assignment
-    ClassicalAssignmentFactory.teardown(
-        assignment, ignore_subfactory=["run", "obj", "requester", "last_modified_by"]
-    )
+    ClassicalAssignmentFactory.teardown(assignment)
 
 
 @pytest.fixture()
@@ -758,7 +758,9 @@ def view_only_token_two_groups(user_two_groups):
 @pytest.fixture()
 def manage_sources_token(group_admin_user):
     token_id = create_token(
-        ACLs=["Manage sources"], user_id=group_admin_user.id, name=str(uuid.uuid4()),
+        ACLs=["Manage sources"],
+        user_id=group_admin_user.id,
+        name=str(uuid.uuid4()),
     )
     yield token_id
     delete_token(token_id)
@@ -787,7 +789,9 @@ def upload_data_token(user):
 @pytest.fixture()
 def upload_data_token_two_groups(user_two_groups):
     token_id = create_token(
-        ACLs=["Upload data"], user_id=user_two_groups.id, name=str(uuid.uuid4()),
+        ACLs=["Upload data"],
+        user_id=user_two_groups.id,
+        name=str(uuid.uuid4()),
     )
     yield token_id
     delete_token(token_id)
@@ -796,7 +800,9 @@ def upload_data_token_two_groups(user_two_groups):
 @pytest.fixture()
 def manage_groups_token(super_admin_user):
     token_id = create_token(
-        ACLs=["Manage groups"], user_id=super_admin_user.id, name=str(uuid.uuid4()),
+        ACLs=["Manage groups"],
+        user_id=super_admin_user.id,
+        name=str(uuid.uuid4()),
     )
     yield token_id
     delete_token(token_id)
@@ -805,7 +811,9 @@ def manage_groups_token(super_admin_user):
 @pytest.fixture()
 def manage_users_token(super_admin_user):
     token_id = create_token(
-        ACLs=["Manage users"], user_id=super_admin_user.id, name=str(uuid.uuid4()),
+        ACLs=["Manage users"],
+        user_id=super_admin_user.id,
+        name=str(uuid.uuid4()),
     )
     yield token_id
     delete_token(token_id)
@@ -915,7 +923,7 @@ def public_group_sedm_allocation(sedm, public_group):
         hours_allocated=100,
     )
     yield allocation
-    AllocationFactory.teardown(allocation, ignore_subfactory=["instrument", "group"])
+    AllocationFactory.teardown(allocation)
 
 
 @pytest.fixture()
@@ -928,7 +936,7 @@ def public_group2_sedm_allocation(sedm, public_group2):
         hours_allocated=100,
     )
     yield allocation
-    AllocationFactory.teardown(allocation, ignore_subfactory=["instrument", "group"])
+    AllocationFactory.teardown(allocation)
 
 
 @pytest.fixture()
@@ -947,10 +955,7 @@ def public_source_followup_request(public_group_sedm_allocation, public_source, 
         target_groups=user.groups,
     )
     yield request
-    FollowupRequestFactory.teardown(
-        request,
-        ignore_subfactory=["obj", "allocation", "requester", "last_modified_by"],
-    )
+    FollowupRequestFactory.teardown(request)
 
 
 @pytest.fixture()
@@ -971,10 +976,7 @@ def public_source_group2_followup_request(
         target_groups=user_two_groups.groups,
     )
     yield request
-    FollowupRequestFactory.teardown(
-        request,
-        ignore_subfactory=["obj", "allocation", "requester", "last_modified_by"],
-    )
+    FollowupRequestFactory.teardown(request)
 
 
 @pytest.fixture()
@@ -1005,7 +1007,9 @@ def source_notification_user(public_group):
 @pytest.fixture()
 def source_notification_user_token(source_notification_user):
     token_id = create_token(
-        ACLs=[], user_id=source_notification_user.id, name=str(uuid.uuid4()),
+        ACLs=[],
+        user_id=source_notification_user.id,
+        name=str(uuid.uuid4()),
     )
     yield token_id
     delete_token(token_id)
@@ -1038,7 +1042,7 @@ def public_comment(user_no_groups, public_source, public_group):
         obj=public_source, groups=[public_group], author=user_no_groups
     )
     yield comment
-    CommentFactory.teardown(comment, ignore_subfactory=["author"])
+    CommentFactory.teardown(comment)
 
 
 @pytest.fixture()
@@ -1060,7 +1064,7 @@ def public_annotation(user_no_groups, public_source, public_group):
         obj=public_source, groups=[public_group], author=user_no_groups
     )
     yield annotation
-    AnnotationFactory.teardown(annotation, ignore_subfactory=["author"])
+    AnnotationFactory.teardown(annotation)
 
 
 @pytest.fixture()
@@ -1087,9 +1091,7 @@ def public_classification(
         taxonomy=public_taxonomy,
     )
     yield classification
-    ClassificationFactory.teardown(
-        classification, ignore_subfactory=["obj", "author", "taxonomy"]
-    )
+    ClassificationFactory.teardown(classification)
 
 
 @pytest.fixture()
@@ -1171,7 +1173,7 @@ def public_thumbnail(public_source):
 def invitation(user):
     invitation = InvitationFactory(invited_by=user)
     yield invitation
-    InvitationFactory.teardown(invitation, ignore_subfactory=["invited_by"])
+    InvitationFactory.teardown(invitation)
 
 
 @pytest.fixture()
@@ -1180,11 +1182,11 @@ def public_source_notification(source_notification_user, public_source):
         sent_by=source_notification_user, source=public_source
     )
     yield notification
-    NotificationFactory.teardown(notification, ignore_subfactory=["sent_by", "source"])
+    NotificationFactory.teardown(notification)
 
 
 @pytest.fixture()
 def user_notification(user):
     user_notification = UserNotificationFactory(user=user)
     yield user_notification
-    UserNotification.teardown(user_notification, ignore_subfactory=["user"])
+    UserNotificationFactory.teardown(user_notification)
