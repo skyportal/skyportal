@@ -15,6 +15,14 @@ import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 
+import {
+  isBrowser,
+  isMobileOnly,
+  isTablet,
+  withOrientationChange,
+} from "react-device-detect";
+import { WidthProvider } from "react-grid-layout";
+
 import CommentListMobile from "./CommentListMobile";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
@@ -92,12 +100,16 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
   photometryContainer: {
     display: "flex",
-    overflowX: "scroll",
     flexDirection: "column",
     paddingBottom: "0.5rem",
+    overflowX: "scroll",
     "& div button": {
       margin: "0.5rem",
     },
+  },
+  plotButtons: {
+    display: "flex",
+    flexFlow: "row wrap",
   },
   comments: {
     marginLeft: "1rem",
@@ -164,23 +176,41 @@ export const useSourceStyles = makeStyles((theme) => ({
   },
 }));
 
-const SourceMobile = ({ source }) => {
-  const matches = useMediaQuery("(min-width: 475px)");
-  const centroidPlotSize = matches ? "21.875rem" : "17rem";
+const SourceMobile = WidthProvider(
+  withOrientationChange(({ source, isLandscape, width }) => {
+    const matches = useMediaQuery("(min-width: 475px)");
+    const centroidPlotSize = matches ? "21.875rem" : "17rem";
 
-  const classes = useSourceStyles();
+    const classes = useSourceStyles();
 
-  const [showStarList, setShowStarList] = useState(false);
-  const [showPhotometry, setShowPhotometry] = useState(false);
+    const [showStarList, setShowStarList] = useState(false);
+    const [showPhotometry, setShowPhotometry] = useState(false);
 
-  const { instrumentList, instrumentFormParams } = useSelector(
-    (state) => state.instruments
-  );
-  const { observingRunList } = useSelector((state) => state.observingRuns);
-  const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const groups = (useSelector((state) => state.groups.all) || []).filter(
-    (g) => !g.single_user_group
-  );
+    const { instrumentList, instrumentFormParams } = useSelector(
+      (state) => state.instruments
+    );
+    const { observingRunList } = useSelector((state) => state.observingRuns);
+    const { taxonomyList } = useSelector((state) => state.taxonomies);
+    const groups = (useSelector((state) => state.groups.all) || []).filter(
+      (g) => !g.single_user_group
+    );
+
+    let device = "browser";
+    if (isMobileOnly) {
+      device = isLandscape ? "mobile_landscape" : "mobile_portrait";
+    } else if (isTablet) {
+      device = isLandscape ? "tablet_landscape" : "tablet_portrait";
+    }
+
+    // Browser defaults
+    const aspectRatio = isMobileOnly && isLandscape ? 2.0 : 1.5;
+    const plotWidth = isBrowser ? 800 : width - 100;
+    const photPlotHeight = isBrowser
+      ? 500
+      : Math.floor(plotWidth / aspectRatio) + 150;
+    const specPlotHeight = isBrowser
+      ? 600
+      : Math.floor(plotWidth / aspectRatio) + 225;
 
   return (
     <div className={classes.source}>
@@ -229,319 +259,365 @@ const SourceMobile = ({ source }) => {
                     </div>
                   </div>
                 </div>
-                <div className={classes.infoLine}>
-                  <div className={classes.redshiftInfo}>
-                    <b>Redshift: &nbsp;</b>
-                    {source.redshift && source.redshift.toFixed(4)}
-                    <UpdateSourceRedshift source={source} />
-                    <SourceRedshiftHistory
-                      redshiftHistory={source.redshift_history}
+                <div className={classes.name}>{source.id}</div>
+              </div>
+              <div>
+                <div className={classes.sourceInfo}>
+                  <div className={classes.infoLine}>
+                    <ShowClassification
+                      classifications={source.classifications}
+                      taxonomyList={taxonomyList}
                     />
                   </div>
-                  <div className={classes.dmdlInfo}>
-                    {source.dm && (
+                  <div className={classes.infoLine}>
+                    <div className={classes.sourceInfo}>
                       <div>
-                        <b>DM: &nbsp;</b>
-                        {source.dm.toFixed(3)}
-                        &nbsp; mag
+                        <b>Position (J2000):&nbsp; &nbsp;</b>
                       </div>
-                    )}
-                    {source.luminosity_distance && (
                       <div>
-                        <b>
-                          <i>D</i>
-                          <sub>L</sub>: &nbsp;
-                        </b>
-                        {source.luminosity_distance.toFixed(2)}
-                        &nbsp; Mpc
+                        <span className={classes.position}>
+                          {ra_to_hours(source.ra, ":")} &nbsp;
+                          {dec_to_dms(source.dec, ":")} &nbsp;
+                        </span>
                       </div>
-                    )}
+                    </div>
+                    <div className={classes.sourceInfo}>
+                      <div>
+                        (&alpha;,&delta;= {source.ra}, &nbsp;
+                        {source.dec}; &nbsp;
+                      </div>
+                      <div>
+                        <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
+                        {source.gal_lat.toFixed(6)})
+                      </div>
+                    </div>
+                  </div>
+                  <div className={classes.infoLine}>
+                    <div className={classes.redshiftInfo}>
+                      <b>Redshift: &nbsp;</b>
+                      {source.redshift && source.redshift.toFixed(4)}
+                      <UpdateSourceRedshift source={source} />
+                      <SourceRedshiftHistory
+                        redshiftHistory={source.redshift_history}
+                      />
+                    </div>
+                    <div className={classes.dmdlInfo}>
+                      {source.dm && (
+                        <div>
+                          <b>DM: &nbsp;</b>
+                          {source.dm.toFixed(3)}
+                          &nbsp; mag
+                        </div>
+                      )}
+                      {source.luminosity_distance && (
+                        <div>
+                          <b>
+                            <i>D</i>
+                            <sub>L</sub>: &nbsp;
+                          </b>
+                          {source.luminosity_distance.toFixed(2)}
+                          &nbsp; Mpc
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div
+                    className={`${classes.infoLine} ${classes.findingChart}`}
+                  >
+                    <b>Finding Chart:&nbsp;</b>
+                    <Button
+                      href={`/api/sources/${source.id}/finder`}
+                      download="finder-chart-pdf"
+                      size="small"
+                    >
+                      PDF
+                    </Button>
+                    &nbsp;|&nbsp;
+                    <Link to={`/source/${source.id}/finder`} role="link">
+                      <Button size="small">Interactive</Button>
+                    </Link>
+                  </div>
+                  <div className={classes.infoLine}>
+                    <div className={classes.infoButton}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => setShowStarList(!showStarList)}
+                      >
+                        {showStarList ? "Hide Starlist" : "Show Starlist"}
+                      </Button>
+                    </div>
+                    <div className={classes.infoButton}>
+                      <Link to={`/observability/${source.id}`} role="link">
+                        <Button size="small" variant="contained">
+                          Observability
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 </div>
-                <div className={`${classes.infoLine} ${classes.findingChart}`}>
-                  <b>Finding Chart:&nbsp;</b>
-                  <Button
-                    href={`/api/sources/${source.id}/finder`}
-                    download="finder-chart-pdf"
-                    size="small"
+                <br />
+                {showStarList && <StarList sourceId={source.id} />}
+                {source.groups.map((group) => (
+                  <Tooltip
+                    title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
+                    key={group.id}
                   >
-                    PDF
-                  </Button>
-                  &nbsp;|&nbsp;
-                  <Link to={`/source/${source.id}/finder`} role="link">
-                    <Button size="small">Interactive</Button>
-                  </Link>
-                </div>
-                <div className={classes.infoLine}>
-                  <div className={classes.infoButton}>
-                    <Button
+                    <Chip
+                      label={
+                        group.nickname
+                          ? group.nickname.substring(0, 15)
+                          : group.name.substring(0, 15)
+                      }
                       size="small"
+                      className={classes.chip}
+                    />
+                  </Tooltip>
+                ))}
+                <EditSourceGroups
+                  source={{
+                    id: source.id,
+                    currentGroupIds: source.groups.map((g) => g.id),
+                  }}
+                  groups={groups}
+                  icon
+                />
+                <SourceSaveHistory groups={source.groups} />
+              </div>
+              <div className={classes.thumbnails}>
+                <ThumbnailList
+                  ra={source.ra}
+                  dec={source.dec}
+                  thumbnails={source.thumbnails}
+                  size="10rem"
+                />
+              </div>
+            </div>
+            <Paper className={classes.comments} variant="outlined">
+              <Typography className={classes.accordionHeading}>
+                Recent Comments
+              </Typography>
+              <CommentListMobile />
+            </Paper>
+          </div>
+          <div>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="surveys-content"
+                id="surveys-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Surveys
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <SurveyLinkList
+                  id={source.id}
+                  ra={source.ra}
+                  dec={source.dec}
+                />
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="annotations-content"
+                id="annotations-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Auto-annotations
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <ObjPageAnnotations annotations={source.annotations} />
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="photometry-content"
+                id="photometry-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Photometry
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.photometryContainer}>
+                  <Suspense fallback={<div>Loading photometry plot...</div>}>
+                    <Plot
+                      url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&height=${photPlotHeight}&device=${device}`}
+                    />
+                  </Suspense>
+                  <div className={classes.plotButtons}>
+                    {isBrowser && (
+                      <Link to={`/upload_photometry/${source.id}`} role="link">
+                        <Button variant="contained">
+                          Upload additional photometry
+                        </Button>
+                      </Link>
+                    )}
+                    <Link to={`/manage_data/${source.id}`} role="link">
+                      <Button variant="contained">Manage data</Button>
+                    </Link>
+                    <Button
                       variant="contained"
-                      onClick={() => setShowStarList(!showStarList)}
+                      onClick={() => {
+                        setShowPhotometry(true);
+                      }}
                     >
-                      {showStarList ? "Hide Starlist" : "Show Starlist"}
+                      Show Photometry Table
                     </Button>
                   </div>
-                  <div className={classes.infoButton}>
-                    <Link to={`/observability/${source.id}`} role="link">
-                      <Button size="small" variant="contained">
-                        Observability
-                      </Button>
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          </div>
+          <div>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="spectroscopy-content"
+                id="spectroscopy-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Spectroscopy
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.photometryContainer}>
+                  <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+                    <Plot
+                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&height=${specPlotHeight}&device=${device}`}
+                    />
+                  </Suspense>
+                  <div className={classes.plotButtons}>
+                    {isBrowser && (
+                      <Link to={`/upload_spectrum/${source.id}`} role="link">
+                        <Button variant="contained">
+                          Upload additional spectroscopy
+                        </Button>
+                      </Link>
+                    )}
+                    <Link to={`/manage_data/${source.id}`} role="link">
+                      <Button variant="contained">Manage data</Button>
                     </Link>
                   </div>
                 </div>
-              </div>
-              <br />
-              {showStarList && <StarList sourceId={source.id} />}
-              {source.groups.map((group) => (
-                <Tooltip
-                  title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
-                  key={group.id}
-                >
-                  <Chip
-                    label={
-                      group.nickname
-                        ? group.nickname.substring(0, 15)
-                        : group.name.substring(0, 15)
-                    }
-                    size="small"
-                    className={classes.chip}
-                  />
-                </Tooltip>
-              ))}
-              <EditSourceGroups
-                source={{
-                  id: source.id,
-                  currentGroupIds: source.groups.map((g) => g.id),
-                }}
-                groups={groups}
-                icon
-              />
-              <SourceSaveHistory groups={source.groups} />
-            </div>
-            <div className={classes.thumbnails}>
-              <ThumbnailList
-                ra={source.ra}
-                dec={source.dec}
-                thumbnails={source.thumbnails}
-                size="10rem"
-              />
-            </div>
+              </AccordionDetails>
+            </Accordion>
           </div>
-          <Paper className={classes.comments} variant="outlined">
-            <Typography className={classes.accordionHeading}>
-              Recent Comments
-            </Typography>
-            <CommentListMobile />
-          </Paper>
-        </div>
-        <div>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="surveys-content"
-              id="surveys-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Surveys
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
-            </AccordionDetails>
-          </Accordion>
-        </div>
-        <div>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="annotations-content"
-              id="annotations-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Auto-annotations
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <ObjPageAnnotations annotations={source.annotations} />
-            </AccordionDetails>
-          </Accordion>
-        </div>
-        <div>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="photometry-content"
-              id="photometry-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Photometry
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <div className={classes.photometryContainer}>
-                <Suspense fallback={<div>Loading photometry plot...</div>}>
-                  <Plot
-                    url={`/api/internal/plot/photometry/${source.id}?width=500&height=300`}
+          {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
+          <div>
+            <Accordion defaultExpanded>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="followup-content"
+                id="followup-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  Follow-up
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.followupContainer}>
+                  <FollowupRequestForm
+                    obj_id={source.id}
+                    action="createNew"
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
                   />
-                </Suspense>
-                <div>
-                  <Link to={`/upload_photometry/${source.id}`} role="link">
-                    <Button variant="contained">
-                      Upload additional photometry
-                    </Button>
-                  </Link>
-                  <Link to={`/manage_data/${source.id}`} role="link">
-                    <Button variant="contained">Manage data</Button>
-                  </Link>
-                  <Button
-                    variant="contained"
-                    onClick={() => {
-                      setShowPhotometry(true);
-                    }}
-                  >
-                    Show Photometry Table
-                  </Button>
+                  <FollowupRequestLists
+                    followupRequests={source.followup_requests}
+                    instrumentList={instrumentList}
+                    instrumentFormParams={instrumentFormParams}
+                  />
+                  <AssignmentForm
+                    obj_id={source.id}
+                    observingRunList={observingRunList}
+                  />
+                  <AssignmentList assignments={source.assignments} />
                 </div>
-              </div>
-            </AccordionDetails>
-          </Accordion>
-        </div>
-        <div>
+              </AccordionDetails>
+            </Accordion>
+            <PhotometryTable
+              obj_id={source.id}
+              open={showPhotometry}
+              onClose={() => {
+                setShowPhotometry(false);
+              }}
+              data-testid="show-photometry-table-button"
+            />
+          </div>
           <Accordion defaultExpanded>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
-              aria-controls="spectroscopy-content"
-              id="spectroscopy-header"
+              aria-controls="classifications-content"
+              id="classifications-header"
             >
               <Typography className={classes.accordionHeading}>
-                Spectroscopy
+                Classifications
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <div className={classes.photometryContainer}>
-                <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
-                  <Plot
-                    url={`/api/internal/plot/spectroscopy/${source.id}?width=500&height=300`}
-                  />
-                </Suspense>
-                <Link to={`/upload_spectrum/${source.id}`} role="link">
-                  <Button variant="contained">
-                    Upload additional spectroscopy
-                  </Button>
-                </Link>
-                <Link to={`/manage_data/${source.id}`} role="link">
-                  <Button variant="contained">Manage data</Button>
-                </Link>
-              </div>
-            </AccordionDetails>
-          </Accordion>
-        </div>
-        {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
-        <div>
-          <Accordion defaultExpanded>
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="followup-content"
-              id="followup-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Follow-up
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <div className={classes.followupContainer}>
-                <FollowupRequestForm
+              <div className={classes.classifications}>
+                <ClassificationList />
+                <ClassificationForm
                   obj_id={source.id}
                   action="createNew"
-                  instrumentList={instrumentList}
-                  instrumentFormParams={instrumentFormParams}
+                  taxonomyList={taxonomyList}
                 />
-                <FollowupRequestLists
-                  followupRequests={source.followup_requests}
-                  instrumentList={instrumentList}
-                  instrumentFormParams={instrumentFormParams}
-                />
-                <AssignmentForm
-                  obj_id={source.id}
-                  observingRunList={observingRunList}
-                />
-                <AssignmentList assignments={source.assignments} />
               </div>
             </AccordionDetails>
           </Accordion>
-          <PhotometryTable
-            obj_id={source.id}
-            open={showPhotometry}
-            onClose={() => {
-              setShowPhotometry(false);
-            }}
-            data-testid="show-photometry-table-button"
-          />
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="centroidplot-content"
+              id="centroidplot-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Centroid Plot
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <div className={classes.centroidPlot}>
+                <Suspense fallback={<div>Loading centroid plot...</div>}>
+                  <CentroidPlot
+                    className={classes.smallPlot}
+                    sourceId={source.id}
+                    size={centroidPlotSize}
+                  />
+                </Suspense>
+              </div>
+            </AccordionDetails>
+          </Accordion>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="notifications-content"
+              id="notifications-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Source Notification
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <div className={classes.sendAlert}>
+                <SourceNotification sourceId={source.id} />
+              </div>
+            </AccordionDetails>
+          </Accordion>
         </div>
-        <Accordion defaultExpanded>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="classifications-content"
-            id="classifications-header"
-          >
-            <Typography className={classes.accordionHeading}>
-              Classifications
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <div className={classes.classifications}>
-              <ClassificationList />
-              <ClassificationForm
-                obj_id={source.id}
-                action="createNew"
-                taxonomyList={taxonomyList}
-              />
-            </div>
-          </AccordionDetails>
-        </Accordion>
-        <Accordion defaultExpanded>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="centroidplot-content"
-            id="centroidplot-header"
-          >
-            <Typography className={classes.accordionHeading}>
-              Centroid Plot
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <div className={classes.centroidPlot}>
-              <Suspense fallback={<div>Loading centroid plot...</div>}>
-                <CentroidPlot
-                  className={classes.smallPlot}
-                  sourceId={source.id}
-                  size={centroidPlotSize}
-                />
-              </Suspense>
-            </div>
-          </AccordionDetails>
-        </Accordion>
-        <Accordion defaultExpanded>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="notifications-content"
-            id="notifications-header"
-          >
-            <Typography className={classes.accordionHeading}>
-              Source Notification
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <div className={classes.sendAlert}>
-              <SourceNotification sourceId={source.id} />
-            </div>
-          </AccordionDetails>
-        </Accordion>
       </div>
-    </div>
-  );
-};
+    );
+  })
+);
 
 SourceMobile.propTypes = {
   source: PropTypes.shape({

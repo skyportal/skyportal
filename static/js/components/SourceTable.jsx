@@ -1,6 +1,7 @@
 import React, { Suspense, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
+import { Link, useHistory } from "react-router-dom";
 
 import TableCell from "@material-ui/core/TableCell";
 import TableRow from "@material-ui/core/TableRow";
@@ -8,7 +9,6 @@ import IconButton from "@material-ui/core/IconButton";
 import Button from "@material-ui/core/Button";
 import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
-import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 import MUIDataTable from "mui-datatables";
 import {
@@ -330,20 +330,18 @@ const SourceTable = ({
   const renderObjId = (dataIndex) => {
     const objid = sources[dataIndex].id;
     return (
-      <>
-        <span className={classes.sourceName}>
-          <a
-            href={`/source/${objid}`}
-            key={`${objid}_objid`}
-            data-testid={`${objid}`}
-          >
-            {objid}
-          </a>
+      <Link
+        to={`/source/${objid}`}
+        key={`${objid}_objid`}
+        data-testid={`${objid}`}
+      >
+        <span>
+          {objid}
         </span>
         <span className={classes.starButton}>
           {!favoritesRemoveButton ? <FavoritesButton sourceID={objid} /> : ""}
         </span>
-      </>
+      </Link>
     );
   };
 
@@ -351,9 +349,9 @@ const SourceTable = ({
     const { id: objid, alias } = sources[dataIndex];
 
     return (
-      <a href={`/source/${objid}`} key={`${objid}_alias`}>
+      <Link to={`/source/${objid}`} key={`${objid}_alias`}>
         {alias}
-      </a>
+      </Link>
     );
   };
 
@@ -406,6 +404,7 @@ const SourceTable = ({
 
   // helper function to get the source groups
   const getGroups = (source) => source.groups.filter((group) => group.active);
+  const history = useHistory();
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderGroups = (dataIndex) => {
@@ -419,6 +418,7 @@ const SourceTable = ({
               key={group.id}
               size="small"
               className={classes.chip}
+              onClick={() => history.push(`/group/${group.id}`)}
             />
             <br />
           </div>
@@ -452,9 +452,9 @@ const SourceTable = ({
     const source = sources[dataIndex];
     return (
       <IconButton size="small" key={`${source.id}_actions`}>
-        <Link href={`/api/sources/${source.id}/finder`}>
+        <a href={`/api/sources/${source.id}/finder`}>
           <PictureAsPdfIcon />
-        </Link>
+        </a>
       </IconButton>
     );
   };

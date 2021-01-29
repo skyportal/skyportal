@@ -203,6 +203,7 @@ class GroupHandler(BaseHandler):
             all_groups_query.all(), key=lambda g: g.name.lower()
         )
         self.verify_permissions()
+        print(info)
         return self.success(data=info)
 
     @auth_or_token
@@ -464,7 +465,7 @@ class GroupUserHandler(BaseHandler):
         DBSession().add(
             UserNotification(
                 user=user,
-                text=f"You've been added to group {group.name}",
+                text=f"You've been added to group *{group.name}*",
                 url=f"/group/{group.id}",
             )
         )
@@ -670,7 +671,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
                 DBSession().add(
                     UserNotification(
                         user_id=user_id,
-                        text=f"You've been added to group {group.name}",
+                        text=f"You've been added to group *{group.name}*",
                         url=f"/group/{group.id}",
                     )
                 )
