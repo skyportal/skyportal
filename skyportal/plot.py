@@ -963,8 +963,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             period_title,
             period_textinput,
             period_selection,
-            period_double_button,
-            period_halve_button,
+            row(period_double_button, period_halve_button, width=180),
             width=180,
         )
 
