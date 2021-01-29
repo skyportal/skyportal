@@ -166,7 +166,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             DBSession().add(
                 UserNotification(
                     user=group_admin,
-                    text=f"{requesting_user.username} has requested to join {group.name}",
+                    text=f"*@{requesting_user.username}* has requested to join *{group.name}*",
                     url=f"/group/{group_id}",
                 )
             )
@@ -227,7 +227,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
         DBSession().add(
             UserNotification(
                 user=admission_request.user,
-                text=f"Your admission request to group {admission_request.group.name} has been {status}",
+                text=f"Your admission request to group *{admission_request.group.name}* has been *{status}*",
                 url="/groups",
             )
         )
