@@ -464,7 +464,7 @@ class GroupUserHandler(BaseHandler):
         DBSession().add(
             UserNotification(
                 user=user,
-                text=f"You've been added to group {group.name}",
+                text=f"You've been added to group *{group.name}*",
                 url=f"/group/{group.id}",
             )
         )
@@ -670,7 +670,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
                 DBSession().add(
                     UserNotification(
                         user_id=user_id,
-                        text=f"You've been added to group {group.name}",
+                        text=f"You've been added to group *{group.name}*",
                         url=f"/group/{group.id}",
                     )
                 )
