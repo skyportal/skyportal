@@ -9,7 +9,7 @@ def test_add_remove_favorites(driver, user, public_source):
 
     # go to source page, wait until it finishes loading
     driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
+    driver.wait_for_xpath('//span[contains(text(), "Fe III")]', timeout=20)
 
     # make sure an empty favorites button appears (exclude) then click it!
     driver.click_xpath(f'//*[@data-testid="favorites-exclude_{public_source.id}"]')
@@ -144,7 +144,11 @@ def test_remove_favorites_from_api(driver, super_admin_user, public_group):
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
 
     # remove this listing via API
-    status, data = api('DELETE', f'listing/{listing_id}', token=token_id,)
+    status, data = api(
+        'DELETE',
+        f'listing/{listing_id}',
+        token=token_id,
+    )
 
     assert status == 200
 
