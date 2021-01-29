@@ -335,9 +335,7 @@ const SourceTable = ({
         key={`${objid}_objid`}
         data-testid={`${objid}`}
       >
-        <span>
-          {objid}
-        </span>
+        <span>{objid}</span>
         <span className={classes.starButton}>
           {!favoritesRemoveButton ? <FavoritesButton sourceID={objid} /> : ""}
         </span>

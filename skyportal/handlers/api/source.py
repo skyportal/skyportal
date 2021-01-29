@@ -555,7 +555,9 @@ class SourceHandler(BaseHandler):
             ]
 
             s = Obj.get_if_readable_by(
-                obj_id, self.current_user, options=query_options,
+                obj_id,
+                self.current_user,
+                options=query_options,
             )
 
             if s is None:
@@ -1142,7 +1144,8 @@ class SourceHandler(BaseHandler):
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
         self.finalize_transaction()
         self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key},
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_key": obj.internal_key},
         )
 
         return self.success(action='skyportal/FETCH_SOURCES')
@@ -1311,7 +1314,9 @@ class SourceOffsetsHandler(BaseHandler):
                 schema: Error
         """
         source = Obj.get_if_readable_by(
-            obj_id, self.current_user, options=[joinedload(Obj.photometry)],
+            obj_id,
+            self.current_user,
+            options=[joinedload(Obj.photometry)],
         )
         if source is None:
             return self.error('Source not found', status=404)
@@ -1485,7 +1490,9 @@ class SourceFinderHandler(BaseHandler):
                 schema: Error
         """
         source = Obj.get_if_readable_by(
-            obj_id, self.current_user, options=[joinedload(Obj.photometry)],
+            obj_id,
+            self.current_user,
+            options=[joinedload(Obj.photometry)],
         )
         if source is None:
             return self.error('Source not found', status=404)

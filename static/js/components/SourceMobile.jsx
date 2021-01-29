@@ -223,7 +223,7 @@ const SourceMobile = WidthProvider(
                 </div>
                 <div className={classes.name}>{source.id}</div>
                 <div className={classes.alignRight}>
-                    <FavoritesButton sourceID={source.id} />
+                  <FavoritesButton sourceID={source.id} />
                 </div>
               </div>
               <div>
