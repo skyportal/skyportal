@@ -79,6 +79,13 @@ def test_add_favorites_from_api(driver, super_admin_user, public_group):
     # go to the groups sources page
     driver.get(f"/group_sources/{public_group.id}")
 
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    driver.click_xpath("//input[@name='sourceID']")
+    driver.wait_for_xpath("//input[@name='sourceID']").send_keys(obj_id)
+
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+    )
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
 
@@ -141,7 +148,7 @@ def test_remove_favorites_from_api(driver, super_admin_user, public_group):
     driver.get("/favorites")
 
     # find the name of the newly added source
-    driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
+    driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]", timeout=20)
 
     # remove this listing via API
     status, data = api(

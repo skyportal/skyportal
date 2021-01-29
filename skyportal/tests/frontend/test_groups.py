@@ -156,27 +156,27 @@ def test_add_stream_add_delete_filter_group(
 ):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
+    driver.click_xpath('//h6[text()="All Groups"]', scroll_parent=True)
     driver.click_xpath(
         f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
     # add stream
-    driver.click_xpath(f'//button[contains(.,"Add stream")]')
+    driver.click_xpath('//button[contains(.,"Add stream")]')
     driver.click_xpath('//input[@name="stream_id"]/..')
-    driver.click_xpath(f'//li[contains(.,"{public_stream.id}")]', scroll_parent=True)
-    driver.click_xpath(f'//button[@data-testid="add-stream-dialog-submit"]')
+    driver.click_xpath(f'//li[contains(.,"{public_stream.name}")]', scroll_parent=True)
+    driver.click_xpath('//button[@data-testid="add-stream-dialog-submit"]')
 
     # add filter
     filter_name = str(uuid.uuid4())
-    driver.click_xpath(f'//button[contains(.,"Add filter")]')
+    driver.click_xpath('//button[contains(.,"Add filter")]')
     driver.click_xpath('//input[@name="filter_name"]/..')
     driver.wait_for_xpath('//input[@name="filter_name"]').send_keys(filter_name)
     driver.click_xpath('//input[@name="filter_stream_id"]/..')
     driver.click_xpath(
-        f'//div[@id="menu-filter_stream_id"]//li[contains(.,"{public_stream.id}")]',
+        f'//div[@id="menu-filter_stream_id"]//li[contains(.,"{public_stream.name}")]',
         scroll_parent=True,
     )
-    driver.click_xpath(f'//button[@data-testid="add-filter-dialog-submit"]')
+    driver.click_xpath('//button[@data-testid="add-filter-dialog-submit"]')
     driver.wait_for_xpath(f'//span[contains(.,"{filter_name}")]')
     assert (
         len(driver.find_elements_by_xpath(f'//span[contains(.,"{filter_name}")]')) == 1
