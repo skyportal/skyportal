@@ -447,10 +447,11 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
 
         owner = run.owner.id
         instrument = run.instrument
+        group = run.group.id
         DBSession().delete(run)
         DBSession().commit()
         UserFactory.teardown(owner)
-        GroupFactory.teardown(run.group.id)
+        GroupFactory.teardown(group)
         InstrumentFactory.teardown(instrument)
 
 
@@ -472,12 +473,13 @@ class ClassicalAssignmentFactory(factory.alchemy.SQLAlchemyModelFactory):
         requester = assignment.requester.id
         run = assignment.run
         obj = assignment.obj
+        last_modified_by = assignment.last_modified_by.id
 
         DBSession().delete(assignment)
         DBSession().commit()
         ObservingRunFactory.teardown(run)
         ObjFactory.teardown(obj)
-        UserFactory.teardown(assignment.last_modified_by.id)
+        UserFactory.teardown(last_modified_by)
         UserFactory.teardown(requester)
 
 
