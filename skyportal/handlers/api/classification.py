@@ -324,6 +324,7 @@ class ObjClassificationHandler(BaseHandler):
         classifications = obj.get_classifications_readable_by(self.current_user)
         for classification in classifications:
             del classification.groups
+            classification.redshift = obj.redshift
 
         self.verify_permissions()
         return self.success(data=classifications)
