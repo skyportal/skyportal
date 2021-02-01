@@ -39,18 +39,14 @@ import ProfileDropdown from "./ProfileDropdown";
 import SidebarAndHeader from "./SidebarAndHeader";
 import ErrorBoundary from "./ErrorBoundary";
 
-// Main style
-import styles from "./Main.css";
-
-
 messageHandler.init(store.dispatch, store.getState);
 
 
-const useStyles = makeStyles((theme) => ({
+const useMainStyles = makeStyles((theme) => ({
   content: {
     flexGrow: 1,
     padding: theme.spacing(2),
-    transition: theme.transitions.create('margin', {
+    transition: theme.transitions.create("margin", {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
     }),
@@ -63,19 +59,26 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   contentShift: {
-    transition: theme.transitions.create('margin', {
+    transition: theme.transitions.create("margin", {
       easing: theme.transitions.easing.easeOut,
       duration: theme.transitions.duration.enteringScreen,
     }),
     marginLeft: 0,
-  }
+  },
+  main: {
+    fontFamily: "Roboto, sans-serif",
+  },
+  websocket: {
+    display: "none",
+  },
 }));
 
+export default useMainStyles;
 
 const MainContent = ({ root }) => {
   const { open } = useSelector((state) => state.sidebar);
 
-  const classes = useStyles();
+  const classes = useMainStyles();
 
   useEffect(() => {
     store.dispatch(hydrate());
@@ -90,7 +93,7 @@ const MainContent = ({ root }) => {
   return (
     <Theme {% if testing %} disableTransitions {% endif %}>
 
-      <div className={styles.websocket}>
+      <div className={classes.websocket}>
         <WebSocket
           url={`${window.location.protocol === "https:" ? "wss" :
           "ws"}://${root}websocket`}
