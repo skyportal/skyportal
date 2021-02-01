@@ -43,7 +43,7 @@ import ErrorBoundary from "./ErrorBoundary";
 messageHandler.init(store.dispatch, store.getState);
 
 
-const useStyles = makeStyles((theme) => ({
+const useMainStyles = makeStyles((theme) => ({
   content: {
     flexGrow: 1,
     padding: theme.spacing(2),
@@ -77,7 +77,7 @@ const useStyles = makeStyles((theme) => ({
 const MainContent = ({ root }) => {
   const { open } = useSelector((state) => state.sidebar);
 
-  const classes = useStyles();
+  const classes = useMainStyles();
 
   useEffect(() => {
     store.dispatch(hydrate());
