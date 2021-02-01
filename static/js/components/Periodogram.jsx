@@ -1,11 +1,10 @@
-import React, { useRef, useState, Suspense, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { Link, useParams } from "react-router-dom";
 import { makeStyles } from "@material-ui/core/styles";
 
 import Select from "@material-ui/core/Select";
-import Switch from "@material-ui/core/Switch";
 import MenuItem from "@material-ui/core/MenuItem";
 import InputLabel from "@material-ui/core/InputLabel";
 import CircularProgress from "@material-ui/core/CircularProgress";
@@ -16,17 +15,29 @@ import Grid from "@material-ui/core/Grid";
 import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
-import PrintIcon from "@material-ui/icons/Print";
+import Box from "@material-ui/core/Box";
+import Dygraph from "dygraphs";
 
 import TextLoop from "react-text-loop";
-import { useImage } from "react-image";
 import { useForm, Controller } from "react-hook-form";
-import { useReactToPrint } from "react-to-print";
+import { CopyToClipboard } from "react-copy-to-clipboard";
 
 import * as photometryActions from "../ducks/photometry";
-import Dygraph from 'dygraphs';
 
 const useStyles = makeStyles((theme) => ({
+  copyb: {
+    display: "block",
+    border: "1px solid blue",
+  },
+  dygraphChart: {
+    position: "relative",
+    left: "1px",
+    right: "1px",
+    top: "1px",
+    bottom: "1px",
+    minWidth: "100%",
+    maxHeight: "100%",
+  },
   media: {
     maxWidth: "100%",
     width: "95%",
@@ -60,202 +71,306 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-
-const isFloat = (x) =>
-  typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
-
 function transpose(mat) {
-// transpose matrix
-return mat[0].map(function(col, i) {
-  return mat.map(function(row) {
-    return row[i]
-  })
-});
-};
+  // transpose matrix
+  return mat[0].map((col, i) => mat.map((row) => row[i]));
+}
 
-function plotdata(xx,yy) {
-// Create graph with native array as data source
-//data =  [ [1,10], [2,20], [3,50], [4,70] ];
-  const g = new Dygraph(document.getElementById("dataplot"), transpose([xx, yy]), {drawPoints: true, strokeWidth: 0, labels: [ "t", "y" ],
-    axes: {y: {valueRange: [Math.max(yy) + 0.1, Math.min(yy) - 0.1] }}});
-};
+function plotdata(xx, yy, me) {
+  const dat = transpose([xx, yy])
+    .map((x, i) => [x[0], [x[1], me[i]]])
+    .sort((a, b) => b[0] - a[0]);
+  // eslint-disable-next-line no-new
+  new Dygraph(document.getElementById("dataplot"), dat, {
+    drawPoints: true,
+    strokeWidth: 0,
+    labels: ["time", "mag"],
+    errorBars: true,
+    valueRange: [Math.max(...yy) + 0.1, Math.min(...yy) - 0.1],
+    dateWindow: [Math.min(...xx) - 6, Math.max(...xx) + 6],
+  });
+}
 
-function glsclick(e, x, pts) {
-        s.innerHTML += "<b>Click</b> " + pts_info(e,x,pts) + "<br/>";
-};
+function plotphased(xx, yy, p, title) {
+  // Create graph with native array as data source
+  const pp = [...xx.map((x) => x % p), ...xx.map((x) => (x % p) + p)];
+  // eslint-disable-next-line no-new
+  new Dygraph(
+    document.getElementById("phased"),
+    transpose([pp, [...yy, ...yy]]),
+    {
+      drawPoints: true,
+      strokeWidth: 0,
+      labels: ["phase", "mag"],
+      valueRange: [Math.max(...yy) + 0.1, Math.min(...yy) - 0.1],
+      dateWindow: [0, 2 * p],
+      title,
+    }
+  );
+}
 
 function plotline(g, x) {
+  const lines = [
+    [1.0, "rgb(255,0,0,0.8)", 3],
+    [0.5, "rgb(200,50,50,0.2)", 1],
+    [3.0, "rgb(200,50,50,0.2)", 1],
+    [2.0, "rgb(200,50,50,0.2)", 1],
+    [4.0, "rgb(200,50,50,0.2)", 1],
+  ];
 
-  const area = g.getArea();
-  const range = g.xAxisRange();
-
-  const lines = [ [1.0, 'rgb(255,0,0,0.5)'], [0.5, 'rgb(200,15,15,0.8)'],
-          [3.0, 'rgb(200,0,0,0.5)'], [2.0, 'rgb(200,15,15,0.5)'],
-          [4.0, 'rgb(200,15,15,0.5)']];
-
-
-    g.updateOptions( {underlayCallback: function(canvas, area, gg) {
-          for (var i = 0; i < lines.length; i++) {
-            const loc = area.x + (Math.log10(x*lines[i][0]) - Math.log10(range[0])) / (Math.log10(range[1]) - Math.log10(range[0])) * area.w;
-            canvas.beginPath();
-            canvas.moveTo(loc,gg.toDomYCoord(0));
-            canvas.lineTo(loc,gg.toDomYCoord(10));
-            console.log(loc);
-            canvas.strokeStyle = lines[i][1];
-            canvas.lineWidth = 3;
-            canvas.stroke();
-          }
-    }});
-};
-
-function plotGLS(xx,yy, kwargs) {
-
-  // Create graph with native array as data source
-  const periods = xx.map(x => 1.0/x).reverse();
-  const power = yy.reverse();
-  console.log(kwargs.periodbest);
-  const g = new Dygraph(document.getElementById("GLSplot"), transpose([periods, power]),
-              {labels: [ "t", "p" ],
-               clickCallback: glsclick,
-               "axes": {
-                  "x": {"logscale": true},
-                }
-              });
-  plotline(g, kwargs.periodbest);
-};
+  g.updateOptions({
+    underlayCallback(canvas) {
+      for (let i = 0; i < lines.length; i += 1) {
+        const loc = Math.log10(x * lines[i][0]);
+        canvas.beginPath();
+        canvas.moveTo(g.toDomXCoord(loc), g.toDomYCoord(0));
+        canvas.lineTo(g.toDomXCoord(loc), g.toDomYCoord(10));
+        [canvas.strokeStyle, canvas.lineWidth] = [lines[i][1], lines[i][2]];
+        canvas.stroke();
+      }
+    },
+  });
+}
 
 function dot(x, y) {
-   var i=x.length, sum=0.;
-   while(i--) sum += x[i] * y[i];
-   return sum;
-};
+  let i = x.length;
+  let sum = 0;
+  // eslint-disable-next-line no-plusplus
+  while (i--) sum += x[i] * y[i];
+  return sum;
+}
 
 function add(x, a) {
-   var i=x.length, xa=[];
-   while(i--) xa[i] = x[i] + a;
-   return xa;
-};
+  let i = x.length;
+  const xa = [];
+  // eslint-disable-next-line no-plusplus
+  while (i--) xa[i] = x[i] + a;
+  return xa;
+}
 
 function mul(x, y) {
-   var i=y.length, xy=[];
-   if (x.length==i) {
-      while(i--) xy[i] = x[i] * y[i];
-   } else {
-      while(i--) xy[i] = x * y[i];
-   };
-   return xy;
-};
+  let i = y.length;
+  const xy = [];
+  if (x.length === i) {
+    // eslint-disable-next-line no-plusplus
+    while (i--) xy[i] = x[i] * y[i];
+  } else {
+    // eslint-disable-next-line no-plusplus
+    while (i--) xy[i] = x * y[i];
+  }
+  return xy;
+}
 
-function GLS(t_data, y_data, kwargs) {
-   var k, i, nt, t, tmin, tbase, ymean, y, w=[], wy, wsum=0.;
-   var df, delta_t, fbeg, fend, nf;
-   var f, p, kbest=0;
-   var kwargs = kwargs || {};
-   var ofac = kwargs.ofac || 20.;
-   var twopi = 2.0 * Math.PI;
-   var YY, C, D, S, YC, YS, CC, SS, CS, sinx, cosx, omega, wi;
+// Generalised Lomb-Scargle periodogram: https://github.com/mzechmeister/GLS/tree/master/javascript
+function GLS(t_data, y_data, kwa) {
+  let k;
+  let i;
+  const w = [];
+  let wsum = 0;
+  let kbest = 0;
+  const kwargs = kwa || {};
+  const ofac = kwargs.ofac || 20;
+  const twopi = 2.0 * Math.PI;
+  let C;
+  let D;
+  let S;
+  let YC;
+  let YS;
+  let CC;
+  let SS;
+  let CS;
+  let sinx;
+  let cosx;
+  let omega;
+  let wi;
 
-   tmin = Math.min.apply(null, t_data);
-   t = add(t_data, -tmin);
-   tbase = Math.max.apply(null, t);
+  const tmin = Math.min.apply(null, t_data);
+  const t = add(t_data, -tmin);
+  const tbase = Math.max.apply(null, t);
 
-   i = nt = t.length;
-   while(i--) wsum += w[i]= (kwargs.e_y? 1./kwargs.e_y[i]/kwargs.e_y[i] : 1.);
+  i = t.length;
+  const nt = t.length;
+  // eslint-disable-next-line no-plusplus
+  while (i--) {
+    w[i] = kwargs.e_y ? 1 / kwargs.e_y[i] / kwargs.e_y[i] : 1;
+    wsum += w[i];
+  }
 
-   // normalize weights, now "wsum=1"
-   i = nt;
-   while(i--) w[i] /= wsum;
+  // normalize weights, now "wsum=1"
+  i = nt;
+  // eslint-disable-next-line no-plusplus
+  while (i--) w[i] /= wsum;
 
-   ymean = dot(w, y_data);
-   y = add(y_data, -ymean);
-   wy = mul(w, y);
-   YY = dot(wy, y);    // Eq.(10), variance for the zero mean data
+  const ymean = dot(w, y_data);
+  const y = add(y_data, -ymean);
+  const wy = mul(w, y);
+  const YY = dot(wy, y); // Eq.(10), variance for the zero mean data
 
-   df = 1. / tbase / ofac;       // frequency sampling depends on the time span, default for start frequency
-   delta_t = tbase / (nt-1);     // mean time sampling
-   fbeg = parseFloat(kwargs.fbeg || df);
-   fend = parseFloat(kwargs.fend || 0.5 * ofac / delta_t);
-   console.log(fbeg);
-   console.log(fend);
-   console.log(tbase);
-   console.log(nt);
-   nf = Math.floor((fend-fbeg)/df)+1;  // size of frequency grid
+  const df = 1 / tbase / ofac; // frequency sampling depends on the time span, default for start frequency
+  const delta_t = tbase / (nt - 1); // mean time sampling
+  const fbeg = parseFloat(kwargs.fbeg || df);
+  const fend = parseFloat(kwargs.fend || (0.5 * ofac) / delta_t);
+  const nf = Math.floor((fend - fbeg) / df) + 1; // size of frequency grid
 
-   f = new Array(nf);
-   p = new Array(nf);
+  const f = new Array(nf);
+  const p = new Array(nf);
 
-   for(k=0; k<nf; k++) {
-      f[k] = fbeg + k * df;
-      omega = twopi * f[k];
-      C = 0.;
-      S = 0.;
-      YC = 0.;
-      YS = 0.;
-      CC = 0.;
-      SS = 0.;
-      CS = 0.;
-      for(i=0; i<nt; i++) {
-         wi = w[i];
-         cosx = Math.cos(omega * t[i]);
-         sinx = Math.sin(omega * t[i]);
-         if (!kwargs.ls) {
-         C += wi * cosx;         // Eq.(8)
-         S += wi * sinx;         // Eq.(9)
-         };
-         YC += wy[i] * cosx;     // Eq.(11) simplifies, since Y should be 0 (mean was subtracted)
-         YS += wy[i] * sinx;     // Eq.(12)   -"-
-         CC += wi * cosx * cosx; // Eq.(13)
-         CS += wi * cosx * sinx; // Eq.(15)
-      };
-      SS = 1. - CC;           // Eq.(14)
-      SS -= S * S;            // Eq.(14)
-      CC -= C * C;            // Eq.(13)
-      CS -= C * S;            // Eq.(15)
-      D = CC*SS - CS*CS;      // Eq.(6)
+  // eslint-disable-next-line no-plusplus
+  for (k = 0; k < nf; k++) {
+    f[k] = fbeg + k * df;
+    omega = twopi * f[k];
+    C = 0;
+    S = 0;
+    YC = 0;
+    YS = 0;
+    CC = 0;
+    SS = 0;
+    CS = 0;
+    // eslint-disable-next-line no-plusplus
+    for (i = 0; i < nt; i++) {
+      wi = w[i];
+      cosx = Math.cos(omega * t[i]);
+      sinx = Math.sin(omega * t[i]);
+      if (!kwargs.ls) {
+        C += wi * cosx; // Eq.(8)
+        S += wi * sinx; // Eq.(9)
+      }
+      YC += wy[i] * cosx; // Eq.(11) simplifies, since Y should be 0 (mean was subtracted)
+      YS += wy[i] * sinx; // Eq.(12)   -"-
+      CC += wi * cosx * cosx; // Eq.(13)
+      CS += wi * cosx * sinx; // Eq.(15)
+    }
+    SS = 1 - CC; // Eq.(14)
+    SS -= S * S; // Eq.(14)
+    CC -= C * C; // Eq.(13)
+    CS -= C * S; // Eq.(15)
+    D = CC * SS - CS * CS; // Eq.(6)
 
-// A[k] = (YC*SS-YS*CS) / D
-// B[k] = (YS*CC-YC*CS) / D
-// off[k] = -A[k]*C-B[k]*S
+    // A[k] = (YC*SS-YS*CS) / D
+    // B[k] = (YS*CC-YC*CS) / D
+    // off[k] = -A[k]*C-B[k]*S
 
-      p[k] = (SS*YC*YC/D + CC*YS*YS/D - 2.*CS*YC*YS/D) / YY;  // Eq.(5)
-      if (p[k]>p[kbest]) {kbest = k;}
-   };
-   return {p:p, f:f, k:kbest, fbest:f[kbest], tbase:tbase}
-};
+    p[k] =
+      ((SS * YC * YC) / D + (CC * YS * YS) / D - (2 * CS * YC * YS) / D) / YY; // Eq.(5)
+    if (p[k] > p[kbest]) {
+      kbest = k;
+    }
+  }
+  return { p, f, k: kbest, fbest: f[kbest], tbase };
+}
 
 const Periodogram = () => {
   const classes = useStyles();
-  const { handleSubmit, getValues, errors, control } = useForm();
+  const { handleSubmit, getValues, control } = useForm();
   const { id } = useParams();
   const dispatch = useDispatch();
   const photometry = useSelector((state) => state.photometry[id]);
-  const times = null;
-  const mag = null;
+  const [bestp, setBestp] = useState(null);
+  const [run, setRun] = useState(false);
+  const [instruments, setInstruments] = useState([]);
+  const [filters, setFilters] = useState([]);
 
   const [params, setParams] = useState({
-    imagesource: "desi",
-    useztfref: true,
-    findersize: 4.0,
-    numoffset: 3,
+    instrument: "P60 Camera",
+    filter: "ztfr",
+    ofac: "20",
   });
+
+  const placeholder = (
+    <div className={classes.spinner}>
+      <TextLoop>
+        <span>Downloading photometry</span>
+        <span>Determining filters</span>
+        <span>Showing selected filter</span>
+      </TextLoop>{" "}
+      <br /> <br />
+      <CircularProgress color="primary" />
+    </div>
+  );
+
+  function plotGLS(xx, yy, kwargs) {
+    // Create graph with native array as data source
+
+    // order by period ([day])
+    const periods_all = xx.map((x) => Math.log10(1.0 / x)).reverse();
+    const power_all = yy.reverse();
+
+    // select only the range we want (< periodmax)
+    const goodi = periods_all
+      .map((e, i) => (e < kwargs.periodmax ? i : undefined))
+      .filter((x) => x);
+    const periods = goodi.map((i) => periods_all[i]);
+    const power = goodi.map((i) => power_all[i]);
+
+    const g = new Dygraph(
+      document.getElementById("GLSplot"),
+      transpose([periods, power]),
+      {
+        clickCallback(e) {
+          const x = e.offsetX;
+          const y = e.offsetY;
+          const dataXY = g.toDataCoords(x, y);
+          setBestp(10 ** dataXY[0]);
+        },
+        axes: {
+          x: { logscale: false },
+          y: {},
+        },
+        strokeWidth: 2,
+        xlabel: "log Period [day]",
+        ylabel: "Power",
+        labels: ["log Period [day]", "Power"],
+      }
+    );
+
+    plotline(g, kwargs.periodbest);
+  }
 
   useEffect(() => {
     if (!photometry) {
       dispatch(photometryActions.fetchSourcePhotometry(id));
     }
     if (photometry) {
-      const data = photometry.filter(x => x.filter == 'ztfr');
+      setInstruments([...new Set(photometry.map((x) => x.instrument_name))]);
+      setFilters([...new Set(photometry.map((x) => x.filter))]);
+    }
+
+    if (photometry && !run) {
+      const data = photometry.filter(
+        (x) =>
+          x.filter === params.filter && x.instrument_name === params.instrument
+      );
       const times = data.map((x) => x.mjd);
       const mag = data.map((x) => x.mag);
       const magerr = data.map((x) => x.magerr);
-      plotdata(times, mag);
-      const gls = GLS(times,mag,{e_y: magerr, ofac:20, fbeg: null, fend: null, ls: null});
-      console.log(gls.k, gls.fbest);
-      plotGLS(gls.f,gls.p, {periodbest:1/gls.fbest, periodmax:gls.tbase/2});
+      plotdata(times, mag, magerr);
+      const gls = GLS(times, mag, {
+        e_y: magerr,
+        ofac: parseInt(params.ofac, 10),
+        fbeg: null,
+        fend: null,
+        ls: null,
+      });
+      plotGLS(gls.f, gls.p, {
+        periodbest: 1 / gls.fbest,
+        periodmax: gls.tbase / 3.5,
+      });
+      setBestp(1 / gls.fbest);
+      setRun(true);
     }
-  }, [id, photometry, dispatch]);
-
-
+    if (run) {
+      const data = photometry.filter(
+        (x) =>
+          x.filter === params.filter && x.instrument_name === params.instrument
+      );
+      const times = data.map((x) => x.mjd);
+      const mag = data.map((x) => x.mag);
+      const title = `P=${bestp?.toFixed(8)} d (${params.instrument}: ${
+        params.filter
+      })`;
+      plotphased(times, mag, bestp, title);
+    }
+  }, [id, photometry, bestp, run, dispatch]);
 
   const componentRef = useRef();
 
@@ -263,40 +378,16 @@ const Periodogram = () => {
     ...params,
   };
 
-  const url = new URL(`/api/sources/${id}/finder`, window.location.href);
-  url.search = new URLSearchParams({
-    type: "png",
-    image_source: `${params.imagesource}`,
-    use_ztfref: `${params.useztfref}`,
-    imsize: `${params.findersize}`,
-    num_offset_stars: `${params.numoffset}`,
-  });
-
-  const placeholder = (
-    <div id="dataplot">
-    </div>
-  );
-
-  function FinderImage() {
-    const { src } = useImage({
-      srcList: url,
-    });
-    return <img alt={`${id}`} src={src} className={classes.media} />;
-  }
-
   const onSubmit = () => {
-    console.log("here");
-
-    console.log("times", times)
     const formData = {
       ...initialFormState,
       ...getValues(),
     };
     setParams(formData);
-
+    setRun(false);
   };
 
-  const rules = { required: true, min: 2, max: 15, type: "number", step: 0.5 };
+  const rules = { required: true, min: 1, max: 25, type: "number", step: 1 };
 
   return (
     <>
@@ -320,11 +411,19 @@ const Periodogram = () => {
             <Card>
               <CardContent ref={componentRef}>
                 <div>
-                    <div id="dataplot"></div>
+                  {photometry ? (
+                    <div id="dataplot" className={classes.dygraphChart} />
+                  ) : (
+                    <div>{placeholder}</div>
+                  )}
                 </div>
                 <div>
-                    <p />
-                    <div id="GLSplot"></div>
+                  <p />
+                  <div id="GLSplot" className={classes.dygraphChart} />
+                </div>
+                <div>
+                  <p />
+                  <div id="phased" className={classes.dygraphChart} />
                 </div>
               </CardContent>
             </Card>
@@ -345,126 +444,84 @@ const Periodogram = () => {
                         <FormControl>
                           <InputLabel
                             className={classes.items}
-                            id="ImageSourceSelect"
+                            id="InstrumentSourceSelect"
                           >
-                            Primary Image Source
+                            Instrument
                           </InputLabel>
                           <p />
                           <Controller
                             as={Select}
-                            labelid="ImageSourceSelectLabel"
-                            name="imagesource"
+                            labelid="InstrumentSourceSelectLabel"
+                            name="instrument"
                             control={control}
-                            defaultValue={params.imagesource}
+                            defaultValue={params.instrument}
                             className={classes.items}
                           >
-                            <MenuItem value="desi">DESI DR8</MenuItem>
-                            <MenuItem value="ztfref">ZTF Ref Image</MenuItem>
-                            <MenuItem value="dss">DSS2</MenuItem>
+                            {instruments.map((instrument) => (
+                              <MenuItem key={instrument} value={instrument}>
+                                {instrument}
+                              </MenuItem>
+                            ))}
                           </Controller>
                         </FormControl>
                       </Grid>
                       <Grid item xs={12}>
-                        <InputLabel
-                          id="PositionLabel"
-                          className={classes.labels}
-                        >
-                          Offset Position Origin
-                        </InputLabel>
-                        <Grid
-                          container
-                          direction="row"
-                          justify="flex-start"
-                          alignItems="center"
-                          spacing={1}
-                        >
-                          <Grid item>
-                            <InputLabel
-                              id="PositionLabell"
-                              className={classes.labels}
-                            >
-                              Gaia DR2
-                            </InputLabel>
-                          </Grid>
-                          <Grid item>
-                            <Controller
-                              as={<Switch size="small" color="default" />}
-                              name="useztfref"
-                              labelid="OffsetTypeSelect"
-                              defaultValue={params.useztfref}
-                              control={control}
-                            />
-                          </Grid>
-                          <Grid item>
-                            <InputLabel
-                              id="PositionLabelr"
-                              className={classes.labels}
-                            >
-                              ZTF Ref
-                            </InputLabel>
-                          </Grid>
-                        </Grid>
-                      </Grid>
-                      <Grid item xs={12}>
                         <FormControl>
-                          <InputLabel className={classes.items} id="SizeSelect">
-                            Image Size (arcmin)
-                          </InputLabel>
-                          <Controller
-                            as={
-                              <Input
-                                type="number"
-                                margin="dense"
-                                inputProps={{
-                                  step: 0.5,
-                                  min: 2,
-                                  max: 15,
-                                  type: "number",
-                                  "aria-labelledby": "SizeSelect",
-                                }}
-                              />
-                            }
-                            name="findersize"
-                            control={control}
-                            defaultValue={params.findersize}
-                            rules={rules}
+                          <InputLabel
                             className={classes.items}
-                          />
-                          {errors.findersize && (
-                            <p>Enter a number between 2 and 15</p>
-                          )}
+                            id="FilterSourceSelect"
+                          >
+                            Filter
+                          </InputLabel>
+                          <p />
+                          <Controller
+                            as={Select}
+                            labelid="FilterSourceSelectLabel"
+                            name="filter"
+                            control={control}
+                            defaultValue={params.filter}
+                            className={classes.items}
+                          >
+                            {filters.map((filt) => (
+                              <MenuItem key={filt} value={filt}>
+                                {filt}
+                              </MenuItem>
+                            ))}
+                          </Controller>
                         </FormControl>
                       </Grid>
                       <Grid item xs={12}>
                         <FormControl>
-                          <InputLabel className={classes.items} id="HowMany">
-                            # of Offset Stars
+                          <InputLabel className={classes.items} id="OFACSelect">
+                            ofac
                           </InputLabel>
                           <Controller
-                            as={
-                              <Input
-                                type="number"
-                                margin="dense"
-                                inputProps={{
-                                  step: 1,
-                                  min: 0,
-                                  max: 4,
-                                  type: "number",
-                                  "aria-labelledby": "HowMany",
-                                }}
-                              />
-                            }
-                            name="numoffset"
+                            as={<Input type="number" rules={rules} />}
+                            name="ofac"
                             control={control}
-                            defaultValue={params.numoffset}
+                            defaultValue={params.ofac}
                             className={classes.items}
                           />
-                          {errors.numoffset && (
-                            <p>Enter an integer between 0 and 5</p>
-                          )}
                         </FormControl>
                       </Grid>
                       <p />
+                      <Grid item xs={8}>
+                        {bestp && (
+                          <>
+                            <Typography>
+                              <b>Period</b> = {bestp?.toFixed(6)} d
+                            </Typography>
+                            <CopyToClipboard text={bestp}>
+                              <Box
+                                bgcolor="text.secondary"
+                                color="background.paper"
+                              >
+                                Copy period to clipboard
+                              </Box>
+                            </CopyToClipboard>
+                          </>
+                        )}
+                      </Grid>
                       <Grid item xs={8}>
                         <Button
                           type="submit"
@@ -473,7 +530,7 @@ const Periodogram = () => {
                           variant="contained"
                           className={classes.button}
                         >
-                          Update
+                          Recalculate
                         </Button>
                       </Grid>
                       <p />
@@ -490,7 +547,3 @@ const Periodogram = () => {
 };
 
 export default Periodogram;
-
-
-
-

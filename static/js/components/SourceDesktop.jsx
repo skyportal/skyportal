@@ -355,9 +355,7 @@ const SourceDesktop = ({ source }) => {
                     Show Photometry Table
                   </Button>
                   <Link to={`/source/${source.id}/periodogram`} role="link">
-                    <Button variant="contained">
-                      Periodogram Analysis
-                    </Button>
+                    <Button variant="contained">Periodogram Analysis</Button>
                   </Link>
                 </div>
               </div>
