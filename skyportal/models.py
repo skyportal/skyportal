@@ -574,7 +574,9 @@ class Obj(Base, ha.Point):
     )
     redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
     redshift_history = sa.Column(
-        JSONB, nullable=True, doc="Record of who set which redshift values and when.",
+        JSONB,
+        nullable=True,
+        doc="Record of who set which redshift values and when.",
     )
 
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
@@ -1229,7 +1231,9 @@ Source.unsaved_by = relationship(
     "User", foreign_keys=[Source.unsaved_by_id], doc="User who unsaved the Source."
 )
 Source.unsaved_at = sa.Column(
-    sa.DateTime, nullable=True, doc="ISO UTC time when the Obj was unsaved from Group.",
+    sa.DateTime,
+    nullable=True,
+    doc="ISO UTC time when the Obj was unsaved from Group.",
 )
 
 Obj.sources = relationship(
@@ -1822,9 +1826,12 @@ class Instrument(Base):
 class Allocation(Base):
     """An allocation of observing time on a robotic instrument."""
 
-    create = read = update = delete = (
-        accessible_by_group_members
-        & AccessibleIfRelatedRowsAreAccessible(instrument='read')
+    create = (
+        read
+    ) = (
+        update
+    ) = delete = accessible_by_group_members & AccessibleIfRelatedRowsAreAccessible(
+        instrument='read'
     )
 
     pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
@@ -2024,7 +2031,11 @@ class Comment(Base):
         index=True,
         doc="ID of the Comment's Obj.",
     )
-    obj = relationship('Obj', back_populates='comments', doc="The Comment's Obj.",)
+    obj = relationship(
+        'Obj',
+        back_populates='comments',
+        doc="The Comment's Obj.",
+    )
     groups = relationship(
         "Group",
         secondary="group_comments",
@@ -2507,7 +2518,9 @@ class Spectrum(Base):
     )
 
     reducers = relationship(
-        "User", secondary="spectrum_reducers", doc="Users that reduced this spectrum.",
+        "User",
+        secondary="spectrum_reducers",
+        doc="Users that reduced this spectrum.",
     )
     observers = relationship(
         "User",
@@ -2954,7 +2967,10 @@ class Listing(Base):
         doc="The ID of the object that is on this Listing",
     )
 
-    obj = relationship("Obj", doc="The object referenced by this listing",)
+    obj = relationship(
+        "Obj",
+        doc="The object referenced by this listing",
+    )
 
     list_name = sa.Column(
         sa.String,
@@ -3007,7 +3023,10 @@ class Thumbnail(Base):
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the Thumbnail.")
     obj = relationship(
-        'Obj', back_populates='thumbnails', uselist=False, doc="The Thumbnail's Obj.",
+        'Obj',
+        back_populates='thumbnails',
+        uselist=False,
+        doc="The Thumbnail's Obj.",
     )
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
@@ -3345,10 +3364,14 @@ class UserNotification(Base):
         doc="ID of the associated User",
     )
     user = relationship(
-        "User", back_populates="notifications", doc="The associated User",
+        "User",
+        back_populates="notifications",
+        doc="The associated User",
     )
     text = sa.Column(
-        sa.String(), nullable=False, doc="The notification text to display",
+        sa.String(),
+        nullable=False,
+        doc="The notification text to display",
     )
 
     viewed = sa.Column(
