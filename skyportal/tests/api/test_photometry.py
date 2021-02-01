@@ -295,7 +295,9 @@ def test_post_photometry_all_groups(
 
     photometry_id = data['data']['ids'][0]
     status, data = api(
-        'GET', f'photometry/{photometry_id}?format=flux', token=super_admin_token,
+        'GET',
+        f'photometry/{photometry_id}?format=flux',
+        token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -1392,7 +1394,7 @@ def test_token_user_get_range_photometry(
 
     status, data = api(
         'GET',
-        f'photometry/range',
+        'photometry/range',
         token=upload_data_token,
         data={'instrument_ids': [ztf_camera.id], 'max_date': '2018-05-15T00:00:00'},
     )
@@ -1402,7 +1404,7 @@ def test_token_user_get_range_photometry(
 
     status, data = api(
         'GET',
-        f'photometry/range?format=flux&magsys=vega',
+        'photometry/range?format=flux&magsys=vega',
         token=upload_data_token,
         data={'instrument_ids': [ztf_camera.id], 'max_date': '2019-02-01T00:00:00'},
     )
@@ -1728,7 +1730,12 @@ def test_problematic_photometry_1263(
         ],
     }
 
-    status, data = api('POST', 'photometry', data=payload, token=upload_data_token,)
+    status, data = api(
+        'POST',
+        'photometry',
+        data=payload,
+        token=upload_data_token,
+    )
     assert status == 200
     assert data['status'] == 'success'
 
@@ -1914,13 +1921,23 @@ def test_problematic_photometry_1263(
         ],
     }
 
-    status, data = api('POST', 'photometry', data=payload, token=upload_data_token,)
+    status, data = api(
+        'POST',
+        'photometry',
+        data=payload,
+        token=upload_data_token,
+    )
     assert status == 200
     assert data['status'] == 'success'
 
     payload['group_ids'] = 'all'
 
-    status, data = api('PUT', 'photometry', data=payload, token=upload_data_token,)
+    status, data = api(
+        'PUT',
+        'photometry',
+        data=payload,
+        token=upload_data_token,
+    )
     assert status == 200
     assert data['status'] == 'success'
 
@@ -2160,6 +2177,11 @@ def test_problematic_photometry_1276(
         ],
     }
 
-    status, data = api('PUT', 'photometry', data=payload, token=super_admin_token,)
+    status, data = api(
+        'PUT',
+        'photometry',
+        data=payload,
+        token=super_admin_token,
+    )
     assert status == 400
     assert data['status'] == 'error'

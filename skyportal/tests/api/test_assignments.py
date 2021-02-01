@@ -141,6 +141,6 @@ def test_group1_user_cannot_see_group2_assignment(
     assert status == 400
     assert data['status'] == 'error'
 
-    status, data = api('GET', f'assignment/', token=view_only_token)
+    status, data = api('GET', 'assignment/', token=view_only_token)
     assert status == 200
     assert public_source_group2.id not in [a['id'] for a in data['data']]
