@@ -11,20 +11,10 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 
 import { GET } from "../API";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   root: {
-    background: "#9394c3",
-    "& label": {
-      color: "black",
-    },
-    "& label.Mui-focused": {
-      color: "white",
-    },
-  },
-  label: {
-    "& label": {
-      color: "white",
-    },
+    background: theme.colors.midBlue,
+    borderRadius: '4px',
   },
 }));
 
