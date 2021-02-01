@@ -84,7 +84,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   name: {
     fontSize: "200%",
     fontWeight: "900",
-    color: "darkgray",
+    color: theme.palette.gray[700],
     paddingBottom: "0.25em",
     display: "inline-block",
   },

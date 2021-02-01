@@ -9,12 +9,12 @@ import { ra_to_hours, dec_to_dms } from "../units";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   SurveyLinkList: {
     display: "inline-block",
   },
   SurveyLink: {
-    backgroundColor: "#eee",
+    backgroundColor: theme.colors.white,
     padding: "0.2em",
     margin: "0.2em",
     display: "inline-block",
@@ -26,7 +26,7 @@ const useStyles = makeStyles(() => ({
     padding: 0,
     margin: 0,
     fontWeight: "bold",
-    color: "gray",
+    color: theme.palette.gray[500],
     textDecoration: "none",
     fontFamily: ["Roboto", "Helvetica", "Arial", "sans-serif"],
   },

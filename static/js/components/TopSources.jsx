@@ -17,7 +17,7 @@ import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useSourceListStyles } from "./RecentSources";
 import SourceQuickView from "./SourceQuickView";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   header: {},
   timespanSelect: {
     display: "flex",
@@ -25,7 +25,7 @@ const useStyles = makeStyles(() => ({
     justifyContent: "center",
     marginBottom: "0.5rem",
     "& .MuiButton-label": {
-      color: "gray",
+      color: theme.palette.text.secondary,
     },
   },
   sourceListContainer: {

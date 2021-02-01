@@ -22,7 +22,7 @@ import * as sourceActions from "../ducks/source";
 const useStyles = makeStyles((theme) => ({
   linkButton: {
     textDecoration: "none",
-    color: "gray",
+    color: theme.colors.white,
     fontWeight: "bold",
     verticalAlign: "baseline",
     backgroundColor: "transparent",

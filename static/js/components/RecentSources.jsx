@@ -20,7 +20,7 @@ import SourceQuickView from "./SourceQuickView";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-export const useSourceListStyles = makeStyles(() => ({
+export const useSourceListStyles = makeStyles((theme) => ({
   stampContainer: {
     display: "contents",
   },
@@ -63,7 +63,7 @@ export const useSourceListStyles = makeStyles(() => ({
     fontSize: "1rem",
   },
   sourceTime: {
-    color: "gray",
+    color: theme.colors.white,
   },
   quickViewButton: {
     visibility: "hidden",
