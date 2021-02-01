@@ -316,6 +316,7 @@ annotation:
     origin: "Program A"
     data:
       numeric_field: 0.123456789
+      period: 1.107332
       some_boolean: true
       some_text: "some text auto-annotation"
     group_ids:
@@ -400,7 +401,7 @@ photometry:
   - obj_id: 14gqr
     instrument_id: =P60
     assignment_id: 1
-    file: phot.csv
+    file: phot3.csv
     group_ids:
       - =program_A
       - =program_B
