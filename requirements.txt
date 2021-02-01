@@ -1,7 +1,7 @@
 numpy==1.19.5
 scipy==1.6.0
 pandas==1.2.0
-dask==2020.12.0
+dask==2021.1.1
 joblib==1.0.0
 seaborn==0.11.1
 bokeh==2.2.3
