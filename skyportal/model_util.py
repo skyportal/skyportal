@@ -142,8 +142,6 @@ def create_token(ACLs, user_id, name):
 
 def delete_token(token_id):
     t = Token.query.get(token_id)
-    if t is not None:
-        DBSession().expire(t)
     if DBSession().query(Token).filter(Token.id == token_id).first():
         DBSession().delete(t)
         DBSession().commit()
