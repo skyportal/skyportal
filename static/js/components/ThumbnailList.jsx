@@ -100,7 +100,7 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
             loading="lazy"
           />
         </a>
-        {(name === "dr8" || name === "ps1") && (
+        {name !== "sdss" && (
           <img
             className={classes.crosshair}
             src="/static/images/crosshairs.png"
