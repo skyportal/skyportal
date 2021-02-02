@@ -11,6 +11,7 @@ import { BrowserRouter, Switch, useLocation } from "react-router-dom";
 
 import { MuiPickersUtilsProvider } from "@material-ui/pickers";
 import { makeStyles } from "@material-ui/core/styles";
+import { isMobile } from "react-device-detect";
 
 import DayJSUtils from "@date-io/dayjs";
 import clsx from "clsx";
@@ -30,7 +31,7 @@ import PropsRoute from "./Route";
 import NoMatchingRoute from "./NoMatchingRoute";
 import Responsive from "./Responsive";
 
-{% for route in app.routes %}
+{% for route in app.routes -%}
 import {{ route.component }} from "./{{ route.component }}";
 {% endfor %}
 
@@ -51,7 +52,7 @@ const useMainStyles = makeStyles((theme) => ({
       duration: theme.transitions.duration.leavingScreen,
     }),
     marginTop: "6em", // top bar height
-    marginLeft: "190px",
+    marginLeft: isMobile ? "0" : "190px",
     "& a": {
       textDecoration: "none",
       color: "gray",
@@ -72,8 +73,6 @@ const useMainStyles = makeStyles((theme) => ({
     display: "none",
   },
 }));
-
-export default useMainStyles;
 
 const MainContent = ({ root }) => {
   const { open } = useSelector((state) => state.sidebar);
