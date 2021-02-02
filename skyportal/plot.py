@@ -411,7 +411,10 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             line_width=2,
         )
         plot.add_tools(
-            HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
+            HoverTool(
+                tooltips=[("First detection", f'{first}')],
+                renderers=[first_r],
+            )
         )
         last_r = plot.line(
             x=np.full(5000, last),
@@ -421,7 +424,10 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             line_width=2,
         )
         plot.add_tools(
-            HoverTool(tooltips=[("Last detection", f'{last}')], renderers=[last_r],)
+            HoverTool(
+                tooltips=[("Last detection", f'{last}')],
+                renderers=[last_r],
+            )
         )
     plot_layout = (
         column(plot, toggle)
@@ -485,7 +491,10 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             line_width=2,
         )
         plot.add_tools(
-            HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
+            HoverTool(
+                tooltips=[("First detection", f'{first}')],
+                renderers=[first_r],
+            )
         )
         last_r = plot.line(
             x=np.full(5000, last),
@@ -762,7 +771,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             active_drag='box_zoom',
             tools='box_zoom,wheel_zoom,pan,reset,save',
             y_range=(ymax, ymin),
-            x_range=(-0.1, 2.1),  # cover two phases: a and b
+            x_range=(-0.1, 1.1),  # initially one phase
             toolbar_location='above',
             toolbar_sticky=False,
             x_axis_location='below',
@@ -790,6 +799,8 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
 
         # initiate period radio buttons
         period_selection = RadioGroup(labels=period_labels, active=0)
+
+        phase_selection = RadioGroup(labels=["One phase", "Two phases"], active=0)
 
         # store all the plot data
         period_model_dict = {}
@@ -824,6 +835,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                 marker='circle',
                 fill_color='color',
                 alpha='alpha',
+                visible=False,
                 source=ColumnDataSource(df[df['obs']]),  # only visible data
             )
             period_imhover.renderers.append(period_model_dict[key])
@@ -876,6 +888,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                 ys='ys',
                 color='color',
                 alpha='alpha',
+                visible=False,
                 source=ColumnDataSource(
                     data=dict(
                         xs=y_err_x,
@@ -898,7 +911,12 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
         # https://github.com/bokeh/bokeh/pull/6340
         period_toggle.js_on_click(
             CustomJS(
-                args={'toggle': period_toggle, **period_model_dict},
+                args={
+                    'toggle': period_toggle,
+                    'numphases': phase_selection,
+                    'p': period_plot,
+                    **period_model_dict,
+                },
                 code=open(
                     os.path.join(
                         os.path.dirname(__file__), '../static/js/plotjs', 'togglep.js'
@@ -916,6 +934,8 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                 args={
                     'textinput': period_textinput,
                     'toggle': period_toggle,
+                    'numphases': phase_selection,
+                    'p': period_plot,
                     **period_model_dict,
                 },
                 code=open(
@@ -951,8 +971,24 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             CustomJS(
                 args={'textinput': period_textinput, 'periods': period_list},
                 code="""
-                textinput.value = parseFloat(periods[this.active]).toFixed(13);
+                textinput.value = parseFloat(periods[this.active]).toFixed(9);
                 """,
+            )
+        )
+        phase_selection.js_on_click(
+            CustomJS(
+                args={
+                    'textinput': period_textinput,
+                    'toggle': period_toggle,
+                    'numphases': phase_selection,
+                    'p': period_plot,
+                    **period_model_dict,
+                },
+                code=open(
+                    os.path.join(
+                        os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
+                    )
+                ).read(),
             )
         )
 
@@ -964,11 +1000,14 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             period_textinput,
             period_selection,
             row(period_double_button, period_halve_button, width=180),
+            phase_selection,
             width=180,
         )
 
         period_layout = column(
-            row(period_plot, period_column), sizing_mode='scale_width', width=width,
+            row(period_plot, period_column),
+            sizing_mode='scale_width',
+            width=width,
         )
 
         # Period panel
@@ -1089,7 +1128,10 @@ def spectroscopy_plot(
     model_dict = {}
     for i, (key, df) in enumerate(split):
         model_dict['s' + str(i)] = plot.step(
-            x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(df),
+            x='wavelength',
+            y='flux',
+            color=color_map[key],
+            source=ColumnDataSource(df),
         )
         model_dict['l' + str(i)] = plot.line(
             x='wavelength',
@@ -1159,11 +1201,21 @@ def spectroscopy_plot(
         ),
     )
     z = column(
-        z_title, z_slider, z_textinput, width=slider_width, margin=(4, 10, 0, 10),
+        z_title,
+        z_slider,
+        z_textinput,
+        width=slider_width,
+        margin=(4, 10, 0, 10),
     )
 
     v_title = Div(text="<i>V</i><sub>expansion</sub> (km/s): ")
-    v_exp_slider = Slider(value=0.0, start=0.0, end=3e4, step=10.0, show_value=False,)
+    v_exp_slider = Slider(
+        value=0.0,
+        start=0.0,
+        end=3e4,
+        step=10.0,
+        show_value=False,
+    )
     v_exp_textinput = TextInput(value='0')
     v_exp_slider.js_on_change(
         'value',
