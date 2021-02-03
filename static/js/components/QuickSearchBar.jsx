@@ -13,7 +13,7 @@ import { GET } from "../API";
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    background: theme.colors.midBlue,
+    background: theme.palette.primary.light,
     borderRadius: '4px',
   },
 }));
