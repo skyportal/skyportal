@@ -63,7 +63,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
     fontSize: "1rem",
   },
   sourceTime: {
-    color: theme.colors.white,
+    color: theme.palette.info.main,
   },
   quickViewButton: {
     visibility: "hidden",

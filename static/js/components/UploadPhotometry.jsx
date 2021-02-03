@@ -35,7 +35,7 @@ const sampleMagSpaceText = `mjd,mag,magerr,limiting_mag,magsys,instrument_id,fil
 
 export const HtmlTooltip = withStyles((theme) => ({
   tooltip: {
-    backgroundColor: theme.colors.white,
+    backgroundColor: theme.palette.info.main,
     color: theme.palette.text.primary,
     maxWidth: 700,
     fontSize: theme.typography.pxToRem(12),

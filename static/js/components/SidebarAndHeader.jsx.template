@@ -38,7 +38,7 @@ const useStyles = makeStyles((theme) => ({
       duration: theme.transitions.duration.leavingScreen,
     }),
     height: "6em",
-    background: theme.colors.darkBlue,
+    background: theme.palette.primary.main,
   },
   appBarShift: {
     width: `calc(100% - ${drawerWidth}px)`,
@@ -65,7 +65,7 @@ const useStyles = makeStyles((theme) => ({
     zIndex: 140,
     width: drawerWidth,
     paddingLeft: "0.4em",
-    background: theme.colors.midBlue,
+    background: theme.palette.primary.light,
     fontSize: "1.2em",
     paddingTop: "1rem",
   },
@@ -85,15 +85,15 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: 'flex-end',
   },
   link: {
-    color: theme.colors.white,
+    color: theme.palette.info.main,
     textDecoration: "none",
   },
   bold: {
-    color: theme.colors.white,
+    color: theme.palette.info.main,
     fontWeight: "bold"
   },
   icon: {
-    color: theme.colors.white,
+    color: theme.palette.info.main,
   }
 }));
 
