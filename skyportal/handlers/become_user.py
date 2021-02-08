@@ -6,8 +6,8 @@ from ..models import User
 class BecomeUserHandler(BaseHandler):
     def get(self, new_user_id=None):
         if (
-            ACL.query.get('Become user') in self.current_user.permissions
-            or self.cfg['server.auth.debug_login']
+            self.cfg['server.auth.debug_login']
+            or ACL.query.get('Become user') in self.current_user.permissions
         ):
             user = User.query.get(new_user_id)
             sa = user.social_auth.first()

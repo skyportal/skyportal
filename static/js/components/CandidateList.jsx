@@ -26,6 +26,7 @@ import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
 import Form from "@rjsf/material-ui";
 import MUIDataTable from "mui-datatables";
 
+import { showNotification } from "baselayer/components/Notifications";
 import * as candidatesActions from "../ducks/candidates";
 import ThumbnailList from "./ThumbnailList";
 import SaveCandidateButton from "./SaveCandidateButton";
@@ -266,10 +267,13 @@ CustomSortToolbar.defaultProps = {
   filterFormData: null,
 };
 
+const columnNames = ["Images", "Info", "Photometry", "Autoannotations"];
+
 const CandidateList = () => {
   const [queryInProgress, setQueryInProgress] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [filterGroups, setFilterGroups] = useState([]);
+  const [viewColumns, setViewColumns] = useState(columnNames);
   // Maintain the three thumbnails in a row for larger screens
   const largeScreen = useMediaQuery((theme) => theme.breakpoints.up("md"));
   const thumbnailsMinWidth = largeScreen ? "30rem" : 0;
@@ -298,12 +302,6 @@ const CandidateList = () => {
   const allGroups = (useSelector((state) => state.groups.all) || []).filter(
     (g) => !g.single_user_group
   );
-
-  useEffect(() => {
-    if (userAccessibleGroups?.length && filterGroups.length === 0) {
-      setFilterGroups([...userAccessibleGroups]);
-    }
-  }, [setFilterGroups, filterGroups, userAccessibleGroups]);
 
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo
@@ -386,6 +384,7 @@ const CandidateList = () => {
     "value" in annotationObj
       ? `${annotationObj.key} (${annotationObj.origin}): ${annotationObj.value}`
       : `${annotationObj.key} (${annotationObj.origin}): ${annotationObj.min} - ${annotationObj.max}`;
+
   const handleFilterSubmit = async (filterListQueryString) => {
     setQueryInProgress(true);
 
@@ -423,6 +422,12 @@ const CandidateList = () => {
   };
 
   const handleFilterAdd = ({ formData }) => {
+    if (filterGroups.length === 0) {
+      dispatch(
+        showNotification("At least one program should be selected.", "warning")
+      );
+      return;
+    }
     // The key is actually a combination of `origin<>key`, so parse out the key part
     const key = formData.key.split("<>")[1];
     const annotationObj = { ...formData, key };
@@ -445,6 +450,16 @@ const CandidateList = () => {
   const generatePS1Thumbnail = (objID) => {
     setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
     dispatch(candidatesActions.generatePS1Thumbnail(objID));
+  };
+
+  const handleViewColumnsChange = (changedColumn, action) => {
+    let selectedColumns = [];
+    if (action === "remove") {
+      selectedColumns = viewColumns.filter((col) => col !== changedColumn);
+    } else {
+      selectedColumns = [...viewColumns, changedColumn];
+    }
+    setViewColumns(selectedColumns);
   };
 
   const renderThumbnails = (dataIndex) => {
@@ -853,6 +868,7 @@ const CandidateList = () => {
       name: "Images",
       label: "Images",
       options: {
+        display: viewColumns.includes("Images"),
         customBodyRenderLite: renderThumbnails,
         sort: false,
         filter: false,
@@ -862,6 +878,7 @@ const CandidateList = () => {
       name: "Info",
       label: "Info",
       options: {
+        display: viewColumns.includes("Info"),
         customBodyRenderLite: renderInfo,
         filter: false,
       },
@@ -870,6 +887,7 @@ const CandidateList = () => {
       name: "Photometry",
       label: "Photometry",
       options: {
+        display: viewColumns.includes("Photometry"),
         customBodyRenderLite: renderPhotometry,
         sort: false,
         filter: false,
@@ -879,6 +897,7 @@ const CandidateList = () => {
       name: "Autoannotations",
       label: "Autoannotations",
       options: {
+        display: viewColumns.includes("Autoannotations"),
         customBodyRenderLite: renderAutoannotations,
         sort: false,
         filter: !queryInProgress,
@@ -924,6 +943,7 @@ const CandidateList = () => {
       />
     ),
     onFilterChange: handleTableFilterChipChange,
+    onViewColumnsChange: handleViewColumnsChange,
   };
 
   return (
@@ -937,6 +957,7 @@ const CandidateList = () => {
           setQueryInProgress={setQueryInProgress}
           setFilterGroups={setFilterGroups}
           numPerPage={rowsPerPage}
+          annotationFilterList={filterListQueryStrings.join()}
         />
         <Box
           display={queryInProgress ? "block" : "none"}

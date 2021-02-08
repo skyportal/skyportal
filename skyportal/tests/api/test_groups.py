@@ -240,19 +240,25 @@ def test_add_stream_to_single_user_group_delete_stream(
 
     # check that stream is there
     status, data = api(
-        "GET", f"groups/{single_user_group['id']}", token=super_admin_token,
+        "GET",
+        f"groups/{single_user_group['id']}",
+        token=super_admin_token,
     )
     assert data["data"]["streams"][0]["id"] == public_stream.id
 
     # delete stream
     status, data = api(
-        "DELETE", f"streams/{public_stream.id}", token=super_admin_token,
+        "DELETE",
+        f"streams/{public_stream.id}",
+        token=super_admin_token,
     )
     assert status == 200
 
     # check it is deleted from group
     status, data = api(
-        "GET", f"groups/{single_user_group['id']}", token=super_admin_token,
+        "GET",
+        f"groups/{single_user_group['id']}",
+        token=super_admin_token,
     )
     assert len(data["data"]["streams"]) == 0
 
@@ -276,19 +282,25 @@ def test_add_stream_to_group_delete_stream(
 
     # check stream is there
     status, data = api(
-        "GET", f"groups/{public_group_no_streams.id}", token=super_admin_token,
+        "GET",
+        f"groups/{public_group_no_streams.id}",
+        token=super_admin_token,
     )
     assert data["data"]["streams"][0]["id"] == public_stream.id
 
     # delete stream
     status, data = api(
-        "DELETE", f"streams/{public_stream.id}", token=super_admin_token,
+        "DELETE",
+        f"streams/{public_stream.id}",
+        token=super_admin_token,
     )
     assert status == 200
 
     # check group still exists and stream is not there
     status, data = api(
-        "GET", f"groups/{public_group_no_streams.id}", token=super_admin_token,
+        "GET",
+        f"groups/{public_group_no_streams.id}",
+        token=super_admin_token,
     )
     assert len(data["data"]["streams"]) == 0
 

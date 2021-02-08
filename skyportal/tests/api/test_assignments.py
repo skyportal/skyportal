@@ -27,7 +27,6 @@ def test_token_user_post_classical_followup_request(
 def test_token_user_delete_owned_assignment(
     red_transients_run, public_source, upload_data_token
 ):
-
     request_data = {
         'run_id': red_transients_run.id,
         'obj_id': public_source.id,
@@ -142,6 +141,6 @@ def test_group1_user_cannot_see_group2_assignment(
     assert status == 400
     assert data['status'] == 'error'
 
-    status, data = api('GET', f'assignment/', token=view_only_token)
+    status, data = api('GET', 'assignment/', token=view_only_token)
     assert status == 200
     assert public_source_group2.id not in [a['id'] for a in data['data']]
