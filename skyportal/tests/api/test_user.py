@@ -142,7 +142,7 @@ def test_add_modify_user_adds_modifies_single_user_group(
     new_username = str(uuid.uuid4())
 
     status, data = api(
-        'PATCH', f'internal/profile', data={'username': new_username}, token=token_id
+        'PATCH', 'internal/profile', data={'username': new_username}, token=token_id
     )
     assert status == 200
 
@@ -169,7 +169,11 @@ def test_user_list_filtering(view_only_token, user, view_only_user):
     # logic so just these should be decent coverage
 
     # Username
-    status, data = api("GET", f'user/?username={user.username}', token=view_only_token,)
+    status, data = api(
+        "GET",
+        f'user/?username={user.username}',
+        token=view_only_token,
+    )
     assert status == 200
     assert len(data["data"]["users"]) == 1
     assert data["data"]["users"][0]["id"] == user.id
@@ -178,7 +182,9 @@ def test_user_list_filtering(view_only_token, user, view_only_user):
     # Make sure the result shows up among all the view_only_users provisioned across tests
     # by returning a huge page
     status, data = api(
-        "GET", f'user/?role=View+only&numPerPage=300', token=view_only_token,
+        "GET",
+        'user/?role=View+only&numPerPage=300',
+        token=view_only_token,
     )
     assert status == 200
     result_user_ids = list(map(lambda user: user["id"], data["data"]["users"]))
