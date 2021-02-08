@@ -242,10 +242,12 @@ class ClassificationHandler(BaseHandler):
             c.groups = groups
         self.finalize_transaction()
         self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key},
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': c.obj.internal_key},
         )
         self.push_all(
-            action='skyportal/REFRESH_CANDIDATE', payload={'id': c.obj.internal_key},
+            action='skyportal/REFRESH_CANDIDATE',
+            payload={'id': c.obj.internal_key},
         )
 
         return self.success()
@@ -282,10 +284,12 @@ class ClassificationHandler(BaseHandler):
         else:
             return self.error('Insufficient user permissions.')
         self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key},
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': obj_key},
         )
         self.push_all(
-            action='skyportal/REFRESH_CANDIDATE', payload={'id': obj_key},
+            action='skyportal/REFRESH_CANDIDATE',
+            payload={'id': obj_key},
         )
 
         return self.success()
@@ -306,6 +310,13 @@ class ObjClassificationHandler(BaseHandler):
             required: true
             schema:
               type: string
+          - in: query
+            name: includeRedshift
+            nullable: true
+            schema:
+              type: boolean
+              description: |
+                Option to include redshift output with classifications
         responses:
           200:
             content:
@@ -318,13 +329,15 @@ class ObjClassificationHandler(BaseHandler):
         """
 
         obj = Obj.get_if_readable_by(obj_id, self.current_user)
+        include_redshift = self.get_query_argument("includeRedshift", False)
         if obj is None:
             return self.error('Invalid obj_id.')
 
         classifications = obj.get_classifications_readable_by(self.current_user)
         for classification in classifications:
             del classification.groups
-            classification.redshift = obj.redshift
+            if include_redshift:
+                classification.obj_data = {'redshift': obj.redshift}
 
         self.verify_permissions()
         return self.success(data=classifications)

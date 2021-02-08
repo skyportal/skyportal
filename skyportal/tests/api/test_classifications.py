@@ -263,6 +263,7 @@ def test_obj_classifications(
     assert data['data'][0]['id'] == classification_id
     assert len(data['data']) == 1
 
+
 def test_classification_and_redshift_api_output(
     taxonomy_token, classification_token, public_source, public_group
 ):
@@ -296,7 +297,10 @@ def test_classification_and_redshift_api_output(
     classification_id = data['data']['classification_id']
 
     status, data = api(
-        'GET', f'sources/{public_source.id}/classifications', token=classification_token
+        'GET',
+        f'sources/{public_source.id}/classifications',
+        params={'includeRedshift': True},
+        token=classification_token,
     )
     assert status == 200
     status, objdata = api(
@@ -305,5 +309,5 @@ def test_classification_and_redshift_api_output(
     assert status == 200
     assert data['data'][0]['classification'] == 'Algol'
     assert data['data'][0]['id'] == classification_id
-    assert data['data'][0]['redshift'] == objdata['data']['redshift']
-    assert len(data['data']) == 1   
+    assert data['data'][0]['obj_data']['redshift'] == objdata['data']['redshift']
+    assert len(data['data']) == 1
