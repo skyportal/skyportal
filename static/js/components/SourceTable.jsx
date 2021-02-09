@@ -342,7 +342,7 @@ const SourceTable = ({
         key={`${objid}_objid`}
         data-testid={`${objid}`}
       >
-        {objid}
+        <span> {objid} </span>
       </Link>
     );
   };
