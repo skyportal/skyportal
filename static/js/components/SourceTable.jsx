@@ -88,8 +88,9 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const defaultDisplayedColumns = [
+let defaultDisplayedColumns = [
   "Source ID",
+  "Favorites",
   "RA (deg)",
   "Dec (deg)",
   "Redshift",
@@ -120,6 +121,12 @@ const SourceTable = ({
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
   const theme = useTheme();
+
+  if (favoritesRemoveButton) {
+    defaultDisplayedColumns = defaultDisplayedColumns.filter(
+      (c) => c !== "Favorites"
+    );
+  }
 
   const [displayedColumns, setDisplayedColumns] = useState(
     defaultDisplayedColumns
@@ -224,14 +231,6 @@ const SourceTable = ({
             justify="center"
             alignItems="center"
           >
-            {favoritesRemoveButton ? (
-              <div>
-                {" "}
-                <FavoritesButton sourceID={source.id} textMode />{" "}
-              </div>
-            ) : (
-              ""
-            )}
             <ThumbnailList
               thumbnails={source.thumbnails}
               ra={source.ra}
@@ -320,6 +319,14 @@ const SourceTable = ({
                 )}
               </div>
             </Grid>
+            {favoritesRemoveButton ? (
+              <div>
+                {" "}
+                <FavoritesButton sourceID={source.id} textMode />{" "}
+              </div>
+            ) : (
+              ""
+            )}
           </Grid>
         </TableCell>
       </TableRow>
@@ -335,12 +342,14 @@ const SourceTable = ({
         key={`${objid}_objid`}
         data-testid={`${objid}`}
       >
-        <span>{objid}</span>
-        <span className={classes.starButton}>
-          {!favoritesRemoveButton ? <FavoritesButton sourceID={objid} /> : ""}
-        </span>
+        {objid}
       </Link>
     );
+  };
+
+  const renderFavoritesStar = (dataIndex) => {
+    const objid = sources[dataIndex].id;
+    return <FavoritesButton sourceID={objid} />;
   };
 
   const renderAlias = (dataIndex) => {
@@ -608,6 +617,14 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Source ID"),
         customBodyRenderLite: renderObjId,
+      },
+    },
+    {
+      name: "favorites",
+      label: "Favorites",
+      options: {
+        display: displayedColumns.includes("Favorites"),
+        customBodyRenderLite: renderFavoritesStar,
       },
     },
     {
