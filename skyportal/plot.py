@@ -456,7 +456,16 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             line_alpha=0.5,
             line_width=2,
         )
-        plot.add_tools(HoverTool(tooltips=[("Spec", f'{s_x}')], renderers=[spec_r]))
+        plot.add_tools(
+            HoverTool(
+                tooltips=[
+                    ("Obs", f'{s.observed_at}'),
+                    ("Tel", f'{s.instrument.telescope.name}'),
+                    ("Inst", f'{s.instrument.name}'),
+                ],
+                renderers=[spec_r],
+            )
+        )
 
     plot_layout = (
         column(plot, toggle)
@@ -563,7 +572,16 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             line_alpha=0.5,
             line_width=2,
         )
-        plot.add_tools(HoverTool(tooltips=[("Spec", f'{s_x}')], renderers=[spec_r_mag]))
+        plot.add_tools(
+            HoverTool(
+                tooltips=[
+                    ("Obs", f'{s.observed_at}'),
+                    ("Tel", f'{s.instrument.telescope.name}'),
+                    ("Inst", f'{s.instrument.name}'),
+                ],
+                renderers=[spec_r_mag],
+            )
+        )
 
     imhover = HoverTool(tooltips=tooltip_format)
     imhover.renderers = []
