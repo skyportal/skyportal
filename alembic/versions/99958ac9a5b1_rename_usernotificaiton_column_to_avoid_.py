@@ -17,7 +17,18 @@ depends_on = None
 
 def upgrade():
     op.alter_column('usernotifications', 'read', new_column_name="viewed")
+    op.create_index(
+        op.f('ix_usernotifications_viewed'),
+        'usernotifications',
+        ['viewed'],
+        unique=False,
+    )
+    op.drop_index('ix_usernotifications_read', table_name='usernotifications')
 
 
 def downgrade():
     op.alter_column('usernotifications', 'viewed', new_column_name="read")
+    op.create_index(
+        'ix_usernotifications_read', 'usernotifications', ['viewed'], unique=False
+    )
+    op.drop_index(op.f('ix_usernotifications_viewed'), table_name='usernotifications')
