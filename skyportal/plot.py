@@ -827,7 +827,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                 # add to hover tool
                 period_imhover.renderers.append(period_model_dict[key])
 
-                # errorbars for phase a
+                # errorbars for phases
                 key = 'fold' + ph + f'err{i}'
                 y_err_x = []
                 y_err_y = []
@@ -840,7 +840,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                     # set up error tuples
                     y_err_x.append((px, px))
                     y_err_y.append((py - err, py + err))
-                # plot phase a errors
+                # plot phase errors
                 period_model_dict[key] = period_plot.multi_line(
                     xs='xs',
                     ys='ys',
