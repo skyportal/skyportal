@@ -812,92 +812,49 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             df['mjd_folda'] = (df['mjd'] % period) / period
             df['mjd_foldb'] = df['mjd_folda'] + 1.0
 
-            # phase a plotting
-            key = f'folda{i}'
-            period_model_dict[key] = period_plot.scatter(
-                x='mjd_folda',
-                y='mag',
-                color='color',
-                marker='circle',
-                fill_color='color',
-                alpha='alpha',
-                source=ColumnDataSource(df[df['obs']]),  # only visible data
-            )
-            # add to hover tool
-            period_imhover.renderers.append(period_model_dict[key])
+            # phase plotting
+            for ph in ['a', 'b']:
+                key = 'fold' + ph + f'{i}'
+                period_model_dict[key] = period_plot.scatter(
+                    x='mjd_fold' + ph,
+                    y='mag',
+                    color='color',
+                    marker='circle',
+                    fill_color='color',
+                    alpha='alpha',
+                    source=ColumnDataSource(df[df['obs']]),  # only visible data
+                )
+                # add to hover tool
+                period_imhover.renderers.append(period_model_dict[key])
 
-            # phase b plotting
-            key = f'foldb{i}'
-            period_model_dict[key] = period_plot.scatter(
-                x='mjd_foldb',
-                y='mag',
-                color='color',
-                marker='circle',
-                fill_color='color',
-                alpha='alpha',
-                visible=False,
-                source=ColumnDataSource(df[df['obs']]),  # only visible data
-            )
-            period_imhover.renderers.append(period_model_dict[key])
+                # errorbars for phase a
+                key = 'fold' + ph + f'err{i}'
+                y_err_x = []
+                y_err_y = []
 
-            # errorbars for phase a
-            key = f'foldaerr{i}'
-            y_err_x = []
-            y_err_y = []
-
-            # get each visible error value
-            for d, ro in df[df['obs']].iterrows():
-                px = ro['mjd_folda']
-                py = ro['mag']
-                err = ro['magerr']
-                # set up error tuples
-                y_err_x.append((px, px))
-                y_err_y.append((py - err, py + err))
-            # plot phase a errors
-            period_model_dict[key] = period_plot.multi_line(
-                xs='xs',
-                ys='ys',
-                color='color',
-                alpha='alpha',
-                source=ColumnDataSource(
-                    data=dict(
-                        xs=y_err_x,
-                        ys=y_err_y,
-                        color=df[df['obs']]['color'],
-                        alpha=[1.0] * len(df[df['obs']]),
-                    )
-                ),
-            )
-
-            # errorbars for phase b
-            key = f'foldberr{i}'
-            y_err_x = []
-            y_err_y = []
-
-            # get each visible error value
-            for d, ro in df[df['obs']].iterrows():
-                px = ro['mjd_foldb']
-                py = ro['mag']
-                err = ro['magerr']
-                # set up error tuples
-                y_err_x.append((px, px))
-                y_err_y.append((py - err, py + err))
-            # plot phase b errors
-            period_model_dict[key] = period_plot.multi_line(
-                xs='xs',
-                ys='ys',
-                color='color',
-                alpha='alpha',
-                visible=False,
-                source=ColumnDataSource(
-                    data=dict(
-                        xs=y_err_x,
-                        ys=y_err_y,
-                        color=df[df['obs']]['color'],
-                        alpha=[1.0] * len(df[df['obs']]),
-                    )
-                ),
-            )
+                # get each visible error value
+                for d, ro in df[df['obs']].iterrows():
+                    px = ro['mjd_fold' + ph]
+                    py = ro['mag']
+                    err = ro['magerr']
+                    # set up error tuples
+                    y_err_x.append((px, px))
+                    y_err_y.append((py - err, py + err))
+                # plot phase a errors
+                period_model_dict[key] = period_plot.multi_line(
+                    xs='xs',
+                    ys='ys',
+                    color='color',
+                    alpha='alpha',
+                    source=ColumnDataSource(
+                        data=dict(
+                            xs=y_err_x,
+                            ys=y_err_y,
+                            color=df[df['obs']]['color'],
+                            alpha=[1.0] * len(df[df['obs']]),
+                        )
+                    ),
+                )
 
         # toggle for folded photometry
         period_toggle = CheckboxWithLegendGroup(
