@@ -186,6 +186,17 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     if data.empty:
         return None, None, None
 
+    spectra = (
+        DBSession()
+        .query(Spectrum)
+        .join(Obj)
+        .join(GroupSpectrum)
+        .filter(
+            Spectrum.obj_id == obj_id,
+            GroupSpectrum.group_id.in_([g.id for g in user.accessible_groups]),
+        )
+    ).all()
+
     data['color'] = [get_color(f) for f in data['filter']]
 
     labels = []
@@ -403,7 +414,10 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             line_width=2,
         )
         plot.add_tools(
-            HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
+            HoverTool(
+                tooltips=[("First detection", f'{first}')],
+                renderers=[first_r],
+            )
         )
         last_r = plot.line(
             x=np.full(5000, last),
@@ -413,8 +427,37 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             line_width=2,
         )
         plot.add_tools(
-            HoverTool(tooltips=[("Last detection", f'{last}')], renderers=[last_r],)
+            HoverTool(
+                tooltips=[("Last detection", f'{last}')],
+                renderers=[last_r],
+            )
         )
+
+    # Mark when spectra were taken
+    for s in spectra:
+        s_x = Time(
+            '%d-%d-%dT%d:%d:%d'
+            % (
+                s.observed_at.year,
+                s.observed_at.month,
+                s.observed_at.day,
+                s.observed_at.hour,
+                s.observed_at.minute,
+                s.observed_at.second,
+            )
+        ).mjd
+        midpoint = (upper + lower) / 2
+        line_top = 5 * upper - 4 * midpoint
+        line_bottom = 5 * lower - 4 * midpoint
+        y = np.linspace(line_bottom, line_top, num=5000)
+        spec_r = plot.line(
+            x=np.full(5000, s_x),
+            y=y,
+            line_alpha=0.5,
+            line_width=2,
+        )
+        plot.add_tools(HoverTool(tooltips=[("Spec", f'{s_x}')], renderers=[spec_r]))
+
     plot_layout = (
         column(plot, toggle)
         if "mobile" in device or "tablet" in device
@@ -477,7 +520,10 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             line_width=2,
         )
         plot.add_tools(
-            HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
+            HoverTool(
+                tooltips=[("First detection", f'{first}')],
+                renderers=[first_r],
+            )
         )
         last_r = plot.line(
             x=np.full(5000, last),
@@ -493,6 +539,31 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                 point_policy='follow_mouse',
             )
         )
+
+    # Mark when spectra were taken
+    for s in spectra:
+        s_x = Time(
+            '%d-%d-%dT%d:%d:%d'
+            % (
+                s.observed_at.year,
+                s.observed_at.month,
+                s.observed_at.day,
+                s.observed_at.hour,
+                s.observed_at.minute,
+                s.observed_at.second,
+            )
+        ).mjd
+        midpoint = (upper + lower) / 2
+        line_top = 5 * upper - 4 * midpoint
+        line_bottom = 5 * lower - 4 * midpoint
+        y = np.linspace(line_bottom, line_top, num=5000)
+        spec_r_mag = plot.line(
+            x=np.full(5000, s_x),
+            y=y,
+            line_alpha=0.5,
+            line_width=2,
+        )
+        plot.add_tools(HoverTool(tooltips=[("Spec", f'{s_x}')], renderers=[spec_r_mag]))
 
     imhover = HoverTool(tooltips=tooltip_format)
     imhover.renderers = []
@@ -840,7 +911,10 @@ def spectroscopy_plot(
     model_dict = {}
     for i, (key, df) in enumerate(split):
         model_dict['s' + str(i)] = plot.step(
-            x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(df),
+            x='wavelength',
+            y='flux',
+            color=color_map[key],
+            source=ColumnDataSource(df),
         )
         model_dict['l' + str(i)] = plot.line(
             x='wavelength',
@@ -910,11 +984,21 @@ def spectroscopy_plot(
         ),
     )
     z = column(
-        z_title, z_slider, z_textinput, width=slider_width, margin=(4, 10, 0, 10),
+        z_title,
+        z_slider,
+        z_textinput,
+        width=slider_width,
+        margin=(4, 10, 0, 10),
     )
 
     v_title = Div(text="<i>V</i><sub>expansion</sub> (km/s): ")
-    v_exp_slider = Slider(value=0.0, start=0.0, end=3e4, step=10.0, show_value=False,)
+    v_exp_slider = Slider(
+        value=0.0,
+        start=0.0,
+        end=3e4,
+        step=10.0,
+        show_value=False,
+    )
     v_exp_textinput = TextInput(value='0')
     v_exp_slider.js_on_change(
         'value',
