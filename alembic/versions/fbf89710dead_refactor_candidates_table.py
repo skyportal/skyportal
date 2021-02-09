@@ -20,7 +20,13 @@ def upgrade():
     op.drop_constraint(op.f("candidates_pkey"), "candidates")
     op.add_column(
         "candidates",
-        sa.Column("id", sa.Integer, nullable=False, primary_key=True, index=True,),
+        sa.Column(
+            "id",
+            sa.Integer,
+            nullable=False,
+            primary_key=True,
+            index=True,
+        ),
     )
     op.create_index(op.f("candidates_pkey"), "candidates", ["id"], unique=True)
     op.create_index(
@@ -36,7 +42,12 @@ def upgrade():
         unique=False,
     )
     op.add_column(
-        "candidates", sa.Column("uploader_id", sa.Integer, nullable=True,),
+        "candidates",
+        sa.Column(
+            "uploader_id",
+            sa.Integer,
+            nullable=True,
+        ),
     )
     op.create_index(
         op.f("ix_candidates_uploader_id"), "candidates", ["uploader_id"], unique=False
@@ -57,6 +68,15 @@ def upgrade():
         None, 'candidates', 'users', ['uploader_id'], ['id'], ondelete='CASCADE'
     )
     op.alter_column("candidates", "uploader_id", nullable=False)
+    op.create_index(
+        op.f('ix_candidates_filter_id'), 'candidates', ['filter_id'], unique=False
+    )
+    op.create_index(
+        op.f('ix_candidates_obj_id'), 'candidates', ['obj_id'], unique=False
+    )
+    op.drop_index('candidates_pkey', table_name='candidates')
+    op.drop_index('candidates_reverse_ind', table_name='candidates')
+    op.drop_index('ix_candidates_id', table_name='candidates')
 
 
 def downgrade():
@@ -68,5 +88,15 @@ def downgrade():
     op.drop_column("candidates", "uploader_id")
     op.drop_index(op.f("candidates_pkey"), "candidates")
     op.create_index(
-        op.f("candidates_pkey"), "candidates", ["obj_id", "filter_id"], unique=True,
+        op.f("candidates_pkey"),
+        "candidates",
+        ["obj_id", "filter_id"],
+        unique=True,
     )
+    op.create_index('ix_candidates_id', 'candidates', ['id'], unique=False)
+    op.create_index(
+        'candidates_reverse_ind', 'candidates', ['obj_id', 'filter_id'], unique=False
+    )
+    op.create_index('candidates_pkey', 'candidates', ['id'], unique=True)
+    op.drop_index(op.f('ix_candidates_obj_id'), table_name='candidates')
+    op.drop_index(op.f('ix_candidates_filter_id'), table_name='candidates')
