@@ -30,6 +30,7 @@ import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
+import FavoritesButton from "./FavoritesButton";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
 import { filterOutEmptyValues } from "../API";
@@ -56,6 +57,12 @@ const useStyles = makeStyles((theme) => ({
   filterFormRow: {
     margin: "0.75rem 0",
   },
+  sourceName: {
+    verticalAlign: "middle",
+  },
+  starButton: {
+    verticalAlign: "middle",
+  },
 }));
 
 const getMuiTheme = (theme) =>
@@ -81,8 +88,9 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const defaultDisplayedColumns = [
+let defaultDisplayedColumns = [
   "Source ID",
+  "Favorites",
   "RA (deg)",
   "Dec (deg)",
   "Redshift",
@@ -93,7 +101,7 @@ const defaultDisplayedColumns = [
 ];
 
 // MUI data table with pull out rows containing a summary of each source.
-// This component is used in GroupSources and SourceList.
+// This component is used in GroupSources, SourceList and Favorites page.
 const SourceTable = ({
   sources,
   title,
@@ -104,6 +112,7 @@ const SourceTable = ({
   totalMatches,
   numPerPage,
   sortingCallback,
+  favoritesRemoveButton = false,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -112,6 +121,12 @@ const SourceTable = ({
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
   const theme = useTheme();
+
+  if (favoritesRemoveButton) {
+    defaultDisplayedColumns = defaultDisplayedColumns.filter(
+      (c) => c !== "Favorites"
+    );
+  }
 
   const [displayedColumns, setDisplayedColumns] = useState(
     defaultDisplayedColumns
@@ -304,6 +319,14 @@ const SourceTable = ({
                 )}
               </div>
             </Grid>
+            {favoritesRemoveButton ? (
+              <div>
+                {" "}
+                <FavoritesButton sourceID={source.id} textMode />{" "}
+              </div>
+            ) : (
+              ""
+            )}
           </Grid>
         </TableCell>
       </TableRow>
@@ -319,9 +342,14 @@ const SourceTable = ({
         key={`${objid}_objid`}
         data-testid={`${objid}`}
       >
-        {objid}
+        <span> {objid} </span>
       </Link>
     );
+  };
+
+  const renderFavoritesStar = (dataIndex) => {
+    const objid = sources[dataIndex].id;
+    return <FavoritesButton sourceID={objid} />;
   };
 
   const renderAlias = (dataIndex) => {
@@ -383,7 +411,6 @@ const SourceTable = ({
 
   // helper function to get the source groups
   const getGroups = (source) => source.groups.filter((group) => group.active);
-
   const history = useHistory();
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
@@ -590,6 +617,14 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Source ID"),
         customBodyRenderLite: renderObjId,
+      },
+    },
+    {
+      name: "favorites",
+      label: "Favorites",
+      options: {
+        display: displayedColumns.includes("Favorites"),
+        customBodyRenderLite: renderFavoritesStar,
       },
     },
     {
@@ -838,6 +873,7 @@ SourceTable.propTypes = {
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   sortingCallback: PropTypes.func,
+  favoritesRemoveButton: PropTypes.bool,
 };
 
 SourceTable.defaultProps = {
@@ -848,6 +884,7 @@ SourceTable.defaultProps = {
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,
+  favoritesRemoveButton: false,
 };
 
 export default SourceTable;

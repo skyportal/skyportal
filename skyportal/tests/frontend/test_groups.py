@@ -127,6 +127,7 @@ def test_delete_group_user(driver, super_admin_user, user, public_group):
     driver.click_xpath(
         f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
+
     driver.wait_for_xpath(f'//a[contains(.,"{user.username}")]')
     driver.click_xpath(f'//button[@data-testid="delete-{user.username}"]')
     driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{user.username}")]')
@@ -155,7 +156,7 @@ def test_add_stream_add_delete_filter_group(
 ):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
-    driver.wait_for_xpath('//h6[text()="All Groups"]')
+    driver.click_xpath('//h6[text()="All Groups"]', scroll_parent=True)
     driver.click_xpath(
         f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
@@ -163,7 +164,9 @@ def test_add_stream_add_delete_filter_group(
     # add stream
     driver.click_xpath('//button[contains(.,"Add stream")]')
     driver.click_xpath('//input[@name="stream_id"]/..')
+
     driver.click_xpath(f'//li[contains(.,"{public_stream2.name}")]', scroll_parent=True)
+
     driver.click_xpath('//button[@data-testid="add-stream-dialog-submit"]')
 
     # add filter

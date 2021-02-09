@@ -203,6 +203,7 @@ class GroupHandler(BaseHandler):
             all_groups_query.all(), key=lambda g: g.name.lower()
         )
         self.verify_permissions()
+
         return self.success(data=info)
 
     @auth_or_token

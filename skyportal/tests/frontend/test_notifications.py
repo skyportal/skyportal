@@ -39,7 +39,12 @@ def test_mention_generates_notification_then_mark_read_and_delete(
 
 @pytest.mark.flaky(reruns=2)
 def test_group_admission_requests_notifications(
-    driver, user, super_admin_user, public_group, public_group2, super_admin_token,
+    driver,
+    user,
+    super_admin_user,
+    public_group,
+    public_group2,
+    super_admin_token,
 ):
     # Make super_admin_user an admin member of group2
     status, data = api(
@@ -61,9 +66,9 @@ def test_group_admission_requests_notifications(
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/group/{public_group2.id}")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath(f'//*[text()=" has requested to join "]')
+    driver.wait_for_xpath('//*[text()=" has requested to join "]')
     driver.click_xpath('//*[@data-testid="deleteAllNotificationsButton"]')
-    driver.wait_for_xpath_to_disappear(f'//*[text()=" has requested to join "]')
+    driver.wait_for_xpath_to_disappear('//*[text()=" has requested to join "]')
 
     filter_for_value(driver, user.username, last=True)
     driver.wait_for_xpath('//div[text()="pending"]')

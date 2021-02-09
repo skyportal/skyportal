@@ -89,7 +89,7 @@ class UserObjListHandler(BaseHandler):
         """
 
         if user_id is None:
-            user_id = self.current_user
+            user_id = self.associated_user_object.id
 
         error_obj = check_user_and_permissions(user_id, self.associated_user_object)
         if error_obj is not None:
@@ -117,7 +117,10 @@ class UserObjListHandler(BaseHandler):
                 properties:
                   user_id:
                     type: integer
-                    required: true
+                    required: false
+                    description: |
+                      ID of user that you want to add the listing to.
+                      If not given, will default to the associated user object that is posting.
                   obj_id:
                     type: string
                     required: true
@@ -152,13 +155,16 @@ class UserObjListHandler(BaseHandler):
 
         data = self.get_json()
 
-        schema = Listing.__schema__()
+        schema = Listing.__schema__(exclude=['user_id'])
+        user_id = data.pop('user_id', None)
+
+        if user_id is None:
+            user_id = self.associated_user_object.id
+
         try:
             schema.load(data)
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
-
-        user_id = data.get('user_id')
 
         err_str = check_user_and_permissions(user_id, self.associated_user_object)
         if err_str is not None:
@@ -193,6 +199,9 @@ class UserObjListHandler(BaseHandler):
         listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
         DBSession().add(listing)
         DBSession().commit()
+
+        self.push(action='skyportal/REFRESH_FAVORITES')
+        self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
 
         return self.success(data={'id': listing.id})
 
@@ -285,19 +294,46 @@ class UserObjListHandler(BaseHandler):
 
         DBSession().commit()
 
+        self.push(action='skyportal/REFRESH_FAVORITES')
+        self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+
         return self.success()
 
     @auth_or_token
-    def delete(self, listing_id):
+    def delete(self, listing_id=None):
         """
         ---
         description: Remove an existing listing
         parameters:
         - in: path
           name: listing_id
-          required: true
+          required: false
+          description: |
+            ID of the listing object. If not given, must supply
+            the listing's obj_id and list_name (and user_id)
+            to find the correct listing id from that info.
           schema:
             type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: integer
+                    required: false
+                    description: |
+                      ID of user that you want to add the listing to.
+                      If not given, will default to the associated user object that is posting.
+                  obj_id:
+                    type: string
+                    required: true
+                  list_name:
+                    type: string
+                    required: true
+                    description: |
+                        Listing name for this item, e.g., "favorites".
         responses:
           200:
             content:
@@ -307,7 +343,34 @@ class UserObjListHandler(BaseHandler):
 
         """
 
-        listing = Listing.query.get(int(listing_id))
+        if listing_id is not None:
+            listing = Listing.query.get(int(listing_id))
+        else:
+            data = self.get_json()
+
+            schema = Listing.__schema__(exclude=['user_id'])
+            user_id = data.pop('user_id', None)
+
+            if user_id is None:
+                user_id = self.associated_user_object.id
+
+            try:
+                schema.load(data)
+            except ValidationError as e:
+                return self.error(
+                    f'Invalid/missing parameters: {e.normalized_messages()}'
+                )
+
+            obj_id = data.get('obj_id')
+            if Obj.query.get(obj_id) is None:  # verify that object exists!
+                return self.error(f'Object "{obj_id}" does not exist!')
+
+            list_name = data.get('list_name')
+            listing = Listing.query.filter(
+                Listing.user_id == user_id,
+                Listing.obj_id == obj_id,
+                Listing.list_name == list_name,
+            ).first()
 
         if listing is None:
             return self.error("Listing does not exist.")
@@ -321,5 +384,8 @@ class UserObjListHandler(BaseHandler):
 
         DBSession.delete(listing)
         DBSession.commit()
+
+        self.push(action='skyportal/REFRESH_FAVORITES')
+        self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
 
         return self.success()

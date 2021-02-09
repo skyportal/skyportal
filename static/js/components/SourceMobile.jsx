@@ -43,6 +43,7 @@ import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
+import FavoritesButton from "./FavoritesButton";
 
 const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
@@ -221,6 +222,9 @@ const SourceMobile = WidthProvider(
                   <SharePage />
                 </div>
                 <div className={classes.name}>{source.id}</div>
+                <div className={classes.alignRight}>
+                  <FavoritesButton sourceID={source.id} />
+                </div>
               </div>
               <div>
                 <div className={classes.sourceInfo}>

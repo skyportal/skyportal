@@ -31,6 +31,7 @@ from ...models import (
     SourceNotification,
     Classification,
     Taxonomy,
+    Listing,
     Spectrum,
     SourceView,
 )
@@ -247,6 +248,13 @@ class SourceHandler(BaseHandler):
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
               last_detected_at <= endDate
           - in: query
+            name: listName
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Get only sources saved to the querying user's list, e.g., "favorites".
+          - in: query
             name: group_ids
             nullable: true
             schema:
@@ -449,6 +457,7 @@ class SourceHandler(BaseHandler):
         radius = self.get_query_argument('radius', None)
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
+        list_name = self.get_query_argument('listName', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_requested = self.get_query_argument("includeRequested", False)
@@ -663,6 +672,7 @@ class SourceHandler(BaseHandler):
 
         # Fetch multiple sources
         query_options = [joinedload(Obj.thumbnails)]
+
         if not save_summary:
             q = (
                 DBSession()
@@ -683,6 +693,8 @@ class SourceHandler(BaseHandler):
                 .filter(Source.group_id.in_(user_accessible_group_ids))
             )
 
+        if list_name:
+            q = q.join(Listing)
         if classifications is not None or sort_by == "classification":
             q = q.join(Classification, isouter=True)
             if classifications is not None:
@@ -716,6 +728,11 @@ class SourceHandler(BaseHandler):
             q = q.filter(Source.saved_at <= saved_before)
         if saved_after:
             q = q.filter(Source.saved_at >= saved_after)
+        if list_name:
+            q = q.filter(
+                Listing.list_name == list_name,
+                Listing.user_id == self.associated_user_object.id,
+            )
         if simbad_class:
             q = q.filter(
                 func.lower(Obj.altdata['simbad']['class'].astext)
