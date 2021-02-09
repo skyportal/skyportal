@@ -68,6 +68,7 @@ const useStyles = makeStyles((theme) => ({
     paddingLeft: "0.4em",
     background: "#33345C",
     fontSize: "1.2em",
+    paddingTop: "1rem",
   },
   toolbar: {
     display: "flex",
@@ -81,7 +82,7 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(0, 1),
     // necessary for content to be below app bar
     ...theme.mixins.toolbar,
-    paddingTop: "6em",
+    paddingTop: "5em",
     justifyContent: 'flex-end',
   },
   link: {
@@ -165,7 +166,7 @@ const SidebarAndHeader = () => {
         onClose={isMobile ? handleToggleSidebarOpen : undefined}
         classes={{ "{{ paper: classes.drawerPaper }}" }}
       >
-        <div className={classes.drawerHeader} />
+        {!isMobile && <div className={classes.drawerHeader} />}
         <List>
           {%- for item in app.sidebar -%}
 
