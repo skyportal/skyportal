@@ -70,13 +70,12 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
 
   // Set-up members table
   // MUI DataTable functions
-  const renderName = (value) => {
-    return value
+  const renderName = (value) =>
+    value
       ? `${value.first_name ? value.first_name : ""} ${
           value.last_name ? value.last_name : ""
         }`
       : "";
-  };
 
   const renderUsername = (dataIndex) => {
     const user = group?.users[dataIndex];

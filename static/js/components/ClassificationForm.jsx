@@ -122,7 +122,6 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       })}
     </TextField>
   );
-
   CustomClassificationWidget.propTypes = {
     value: PropTypes.string.isRequired,
     onChange: PropTypes.func.isRequired,
@@ -195,7 +194,6 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       </Select>
     </>
   );
-
   CustomGroupsWidget.propTypes = {
     value: PropTypes.arrayOf(PropTypes.string).isRequired,
     onChange: PropTypes.func.isRequired,

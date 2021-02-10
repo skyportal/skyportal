@@ -80,14 +80,12 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const getMultiselectStyles = (value, selectedValues, theme) => {
-  return {
-    fontWeight:
-      selectedValues.indexOf(value) === -1
-        ? theme.typography.fontWeightRegular
-        : theme.typography.fontWeightMedium,
-  };
-};
+const getMultiselectStyles = (value, selectedValues, theme) => ({
+  fontWeight:
+    selectedValues.indexOf(value) === -1
+      ? theme.typography.fontWeightRegular
+      : theme.typography.fontWeightMedium,
+});
 
 const SourceTableFilterForm = ({ handleFilterSubmit }) => {
   const classes = useStyles();

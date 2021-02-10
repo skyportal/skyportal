@@ -27,23 +27,21 @@ const ObservabilityPage = ({ route }) => {
       <Grid container spacing={3}>
         {telescopeList
           .filter((telescope) => telescope.fixed_location)
-          .map((telescope) => {
-            return (
-              <Grid item key={telescope.id}>
-                <Paper>
-                  <div className={classes.inner}>
-                    <Typography variant="h6">{telescope.name}</Typography>
-                    <Suspense fallback={<div>Loading plot...</div>}>
-                      <AirMassPlotWithEphemURL
-                        dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
-                        ephemerisUrl={`/api/internal/ephemeris/${telescope.id}`}
-                      />
-                    </Suspense>
-                  </div>
-                </Paper>
-              </Grid>
-            );
-          })}
+          .map((telescope) => (
+            <Grid item key={telescope.id}>
+              <Paper>
+                <div className={classes.inner}>
+                  <Typography variant="h6">{telescope.name}</Typography>
+                  <Suspense fallback={<div>Loading plot...</div>}>
+                    <AirMassPlotWithEphemURL
+                      dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
+                      ephemerisUrl={`/api/internal/ephemeris/${telescope.id}`}
+                    />
+                  </Suspense>
+                </div>
+              </Paper>
+            </Grid>
+          ))}
       </Grid>
     </div>
   );
