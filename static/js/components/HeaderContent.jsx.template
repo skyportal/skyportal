@@ -10,14 +10,14 @@ import Notifications from "./Notifications";
 const useStyles = makeStyles((theme) => ({
   topBannerContent: {
     position: "relative",
-    paddingLeft: "1em",
-    paddingRight: "1em",
-    paddingTop: "1.5em",
+    paddingLeft: "1rem",
+    paddingRight: "1rem",
+    paddingTop: "1.5rem",
   },
   title: {
     textDecoration: "none",
     color: "white",
-    paddingLeft: "0.4em",
+    paddingLeft: "0.4rem",
     fontSize: "200%",
     fontWeight: "bold",
     verticalAlign: "middle",
@@ -31,7 +31,7 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   logoContainer: {
-    marginTop: "-0.5em",
+    marginTop: "-0.5rem",
     height: "50px",
     borderRight: "1px solid white",
     padding: "0 0.75rem",
