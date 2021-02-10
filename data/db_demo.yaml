@@ -420,7 +420,7 @@ spectrum:
   - obj_id: 14gqr
     file: spec1.csv
     instrument_id: =ALFOSC
-    observed_at: "2014-10-24T00:00:00"
+    observed_at: "2014-10-24T05:23:14"
     assignment_id: 1
     group_ids:
       - =program_A
@@ -436,8 +436,16 @@ spectrum:
   - obj_id: 16fil
     file: spec2.csv
     instrument_id: =ALFOSC
-    observed_at: "2014-10-24T00:00:00"
+    observed_at: "2014-10-24T06:18:53"
     assignment_id: 2
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 16fil
+    file: spec1.csv
+    instrument_id: =ALFOSC
+    observed_at: "2014-10-19T05:23:14"
+    assignment_id: 1
     group_ids:
       - =program_A
       - =program_B

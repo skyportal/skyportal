@@ -453,15 +453,17 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
         spec_r = plot.line(
             x=np.full(5000, s_x),
             y=y,
-            line_alpha=0.5,
+            line_alpha=0.1,
             line_width=2,
         )
         plot.add_tools(
             HoverTool(
                 tooltips=[
-                    ("Obs", f'{s.observed_at}'),
-                    ("Tel", f'{s.instrument.telescope.name}'),
-                    ("Inst", f'{s.instrument.name}'),
+                    ("Spectrum", ""),
+                    ("mjd", f'{s_x:.6f}'),
+                    ("date", f'{s.observed_at}'),
+                    ("tel", f'{s.instrument.telescope.name}'),
+                    ("inst", f'{s.instrument.name}'),
                 ],
                 renderers=[spec_r],
             )
@@ -569,15 +571,17 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
         spec_r_mag = plot.line(
             x=np.full(5000, s_x),
             y=y,
-            line_alpha=0.5,
+            line_alpha=0.1,
             line_width=2,
         )
         plot.add_tools(
             HoverTool(
                 tooltips=[
-                    ("Obs", f'{s.observed_at}'),
-                    ("Tel", f'{s.instrument.telescope.name}'),
-                    ("Inst", f'{s.instrument.name}'),
+                    ("Spectrum", ""),
+                    ("mjd", f'{s_x:.6f}'),
+                    ("date", f'{s.observed_at}'),
+                    ("tel", f'{s.instrument.telescope.name}'),
+                    ("inst", f'{s.instrument.name}'),
                 ],
                 renderers=[spec_r_mag],
             )
