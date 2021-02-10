@@ -151,6 +151,52 @@ const getMuiTheme = (theme) =>
           },
         },
       },
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
+          },
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0",
+            marginRight: "2rem",
+          },
+        },
+      },
+      MUIDataTableToolbar: {
+        filterPaper: {
+          // Use fullscreen dialog for small-screen filter form
+          width: "100%",
+          maxWidth: "100%",
+          margin: 0,
+          maxHeight: "100%",
+          borderRadius: 0,
+          top: "0 !important",
+          left: "0 !important",
+          [theme.breakpoints.up("sm")]: {
+            maxWidth: "50%",
+          },
+        },
+      },
+      MUIDataTableFilter: {
+        root: {
+          // Use fullscreen dialog for small-screen filter form
+          height: "100%",
+        },
+      },
+      MUIDataTableFilterList: {
+        chip: {
+          maxWidth: "100%",
+        },
+      },
     },
   });
 

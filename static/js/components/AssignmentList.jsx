@@ -72,7 +72,7 @@ const getMuiTheme = (theme) =>
         selectRoot: {
           marginRight: "0.5rem",
           [theme.breakpoints.up("sm")]: {
-            marginLeft: "0.rem",
+            marginLeft: "0",
             marginRight: "2rem",
           },
         },
