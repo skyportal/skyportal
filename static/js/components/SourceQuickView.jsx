@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 
-import { withStyles } from "@material-ui/core/styles";
+import { makeStyles, withStyles } from "@material-ui/core/styles";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogActions from "@material-ui/core/DialogActions";
@@ -20,7 +20,6 @@ import ThumbnailList from "./ThumbnailList";
 import ShowClassification from "./ShowClassification";
 import * as Action from "../ducks/source";
 import { ra_to_hours, dec_to_dms } from "../units";
-import styles from "./SourceQuickView.css";
 
 const dialogTitleStyles = (theme) => ({
   root: {
@@ -52,7 +51,35 @@ const DialogTitle = withStyles(dialogTitleStyles)(
   )
 );
 
+const useStyles = makeStyles(() => ({
+  textContent: {
+    marginTop: "1rem",
+    fontSize: "1.2em",
+  },
+  textContentItem: {
+    padding: "0.375rem 0",
+  },
+  chip: {
+    margin: "0.5em",
+  },
+  title: {
+    fontSize: "1.5rem",
+    fontFamily: "Roboto, Helvetica, Arial, sans-serif",
+    fontWeight: "500",
+    lineHeight: "1.6",
+    letterSpacing: "0.0075em",
+  },
+  dialogContent: {
+    padding: "1rem",
+  },
+  sourceLinkButton: {
+    marginTop: "1rem",
+    float: "right",
+  },
+}));
+
 const DialogContentDiv = ({ source, isCached, taxonomyList }) => {
+  const classes = useStyles();
   if (source.loadError) {
     return <div>{source.loadError}</div>;
   }
@@ -66,36 +93,39 @@ const DialogContentDiv = ({ source, isCached, taxonomyList }) => {
   }
 
   return (
-    <div id="source-quick-view-dialog-content" className={styles.dialogContent}>
+    <div
+      data-testid="source-quick-view-dialog-content"
+      className={classes.dialogContent}
+    >
       <ThumbnailList
         ra={source.ra}
         dec={source.dec}
         thumbnails={source.thumbnails}
       />
-      <div className={styles.textContent}>
+      <div className={classes.textContent}>
         <ShowClassification
           classifications={source.classifications}
           taxonomyList={taxonomyList}
         />
-        <div className={styles.textContentItem}>
+        <div className={classes.textContentItem}>
           <b>Position (J2000):</b>
           &nbsp;
           <br />
           {source.ra}, {source.dec} (&alpha;, &delta; =&nbsp;
           {ra_to_hours(source.ra)}, {dec_to_dms(source.dec)})
         </div>
-        <div className={styles.textContentItem}>
+        <div className={classes.textContentItem}>
           <b>Redshift: &nbsp;</b>
           {source.redshift}
         </div>
-        <div className={styles.textContentItem}>
+        <div className={classes.textContentItem}>
           <b>Groups: &nbsp;</b>
           {source.groups.map((group) => (
             <Chip
               label={group.name.substring(0, 15)}
               key={group.id}
               size="small"
-              className={styles.chip}
+              className={classes.chip}
             />
           ))}
         </div>
@@ -106,10 +136,10 @@ const DialogContentDiv = ({ source, isCached, taxonomyList }) => {
 
 DialogContentDiv.propTypes = {
   source: PropTypes.shape({
-    obj_id: PropTypes.string.isRequired,
+    obj_id: PropTypes.string,
     ra: PropTypes.number,
     dec: PropTypes.number,
-    loadError: PropTypes.bool,
+    loadError: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     redshift: PropTypes.number,
     groups: PropTypes.arrayOf(PropTypes.shape({})),
@@ -133,6 +163,7 @@ DialogContentDiv.propTypes = {
 
 const SourceQuickView = ({ sourceId, className }) => {
   const dispatch = useDispatch();
+  const classes = useStyles();
 
   const [open, setOpen] = useState(false);
   const handleClickOpen = () => {
@@ -191,7 +222,7 @@ const SourceQuickView = ({ sourceId, className }) => {
             />
           </DialogContent>
           <DialogActions>
-            <div className={styles.sourceLinkButton}>
+            <div className={classes.sourceLinkButton}>
               <Link
                 to={`/source/${source.id}`}
                 style={{ textDecoration: "none" }}
