@@ -433,11 +433,16 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             )
         )
 
-    # Mark when spectra were taken
-    for s in spectra:
-        s_x = Time(
-            '%d-%d-%dT%d:%d:%d'
-            % (
+        # Mark when spectra were taken
+        s_mjd = []
+        s_y = []
+        s_date = []
+        s_tel = []
+        s_inst = []
+        s_text = []
+        text_y = upper - (upper - lower) * 0.05
+        for s in spectra:
+            date = '%d-%d-%dT%d:%d:%d' % (
                 s.observed_at.year,
                 s.observed_at.month,
                 s.observed_at.day,
@@ -445,29 +450,42 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                 s.observed_at.minute,
                 s.observed_at.second,
             )
-        ).mjd
-        midpoint = (upper + lower) / 2
-        line_top = 5 * upper - 4 * midpoint
-        line_bottom = 5 * lower - 4 * midpoint
-        y = np.linspace(line_bottom, line_top, num=5000)
-        spec_r = plot.line(
-            x=np.full(5000, s_x),
-            y=y,
-            line_alpha=0.1,
-            line_width=2,
-        )
-        plot.add_tools(
-            HoverTool(
-                tooltips=[
-                    ("Spectrum", ""),
-                    ("mjd", f'{s_x:.6f}'),
-                    ("date", f'{s.observed_at}'),
-                    ("tel", f'{s.instrument.telescope.name}'),
-                    ("inst", f'{s.instrument.name}'),
-                ],
-                renderers=[spec_r],
+            s_mjd.append(Time(date).mjd)
+            s_y.append(text_y)
+            s_date.append(date)
+            s_tel.append(s.instrument.telescope.name)
+            s_inst.append(s.instrument.name)
+            s_text.append("S")
+        if len(s_mjd) > 0:
+            spec_r = plot.text(
+                x='s_mjd',
+                y='s_y',
+                text='s_text',
+                text_alpha=0.3,
+                text_align='center',
+                source=ColumnDataSource(
+                    data=dict(
+                        s_mjd=s_mjd,
+                        s_y=s_y,
+                        s_date=s_date,
+                        s_tel=s_tel,
+                        s_inst=s_inst,
+                        s_text=s_text,
+                    )
+                ),
             )
-        )
+            plot.add_tools(
+                HoverTool(
+                    tooltips=[
+                        ("Spectrum", ""),
+                        ("mjd", "@s_mjd{0.000000}"),
+                        ("date", "@s_date"),
+                        ("tel", "@s_tel"),
+                        ("inst", "@s_inst"),
+                    ],
+                    renderers=[spec_r],
+                )
+            )
 
     plot_layout = (
         column(plot, toggle)
@@ -552,36 +570,54 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
         )
 
     # Mark when spectra were taken
+    s_mjd = []
+    s_y = []
+    s_date = []
+    s_tel = []
+    s_inst = []
+    s_text = []
+    text_y = (ymax - ymin) * 0.05 + ymin
     for s in spectra:
-        s_x = Time(
-            '%d-%d-%dT%d:%d:%d'
-            % (
-                s.observed_at.year,
-                s.observed_at.month,
-                s.observed_at.day,
-                s.observed_at.hour,
-                s.observed_at.minute,
-                s.observed_at.second,
-            )
-        ).mjd
-        midpoint = (upper + lower) / 2
-        line_top = 5 * upper - 4 * midpoint
-        line_bottom = 5 * lower - 4 * midpoint
-        y = np.linspace(line_bottom, line_top, num=5000)
-        spec_r_mag = plot.line(
-            x=np.full(5000, s_x),
-            y=y,
-            line_alpha=0.1,
-            line_width=2,
+        date = '%d-%d-%dT%d:%d:%d' % (
+            s.observed_at.year,
+            s.observed_at.month,
+            s.observed_at.day,
+            s.observed_at.hour,
+            s.observed_at.minute,
+            s.observed_at.second,
+        )
+        s_mjd.append(Time(date).mjd)
+        s_y.append(text_y)
+        s_date.append(date)
+        s_tel.append(s.instrument.telescope.name)
+        s_inst.append(s.instrument.name)
+        s_text.append("S")
+    if len(s_mjd) > 0:
+        spec_r_mag = plot.text(
+            x='s_mjd',
+            y='s_y',
+            text='s_text',
+            text_alpha=0.3,
+            text_align='center',
+            source=ColumnDataSource(
+                data=dict(
+                    s_mjd=s_mjd,
+                    s_y=s_y,
+                    s_date=s_date,
+                    s_tel=s_tel,
+                    s_inst=s_inst,
+                    s_text=s_text,
+                )
+            ),
         )
         plot.add_tools(
             HoverTool(
                 tooltips=[
                     ("Spectrum", ""),
-                    ("mjd", f'{s_x:.6f}'),
-                    ("date", f'{s.observed_at}'),
-                    ("tel", f'{s.instrument.telescope.name}'),
-                    ("inst", f'{s.instrument.name}'),
+                    ("mjd", "@s_mjd{0.000000}"),
+                    ("date", "@s_date"),
+                    ("tel", "@s_tel"),
+                    ("inst", "@s_inst"),
                 ],
                 renderers=[spec_r_mag],
             )
