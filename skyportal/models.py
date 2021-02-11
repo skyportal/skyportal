@@ -578,7 +578,6 @@ class Obj(Base, ha.Point):
         nullable=True,
         doc="Record of who set which redshift values and when.",
     )
-
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(
         JSONB,
