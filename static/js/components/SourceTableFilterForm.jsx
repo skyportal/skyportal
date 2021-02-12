@@ -33,6 +33,8 @@ const useStyles = makeStyles((theme) => ({
   paper: {
     padding: "1rem",
     marginTop: "1rem",
+    maxHeight: "calc(100vh - 5rem)",
+    overflow: "scroll",
   },
   root: {
     display: "flex",
@@ -53,6 +55,12 @@ const useStyles = makeStyles((theme) => ({
   },
   positionField: {
     width: "33%",
+    "& > label": {
+      fontSize: "0.875rem",
+      [theme.breakpoints.up("sm")]: {
+        fontSize: "1rem",
+      },
+    },
   },
   formButtons: {
     width: "100%",

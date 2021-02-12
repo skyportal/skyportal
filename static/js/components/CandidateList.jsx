@@ -163,6 +163,13 @@ const getMuiTheme = (theme) =>
             flexFlow: "row nowrap",
           },
         },
+        navContainer: {
+          flexDirection: "column",
+          alignItems: "center",
+          [theme.breakpoints.up("sm")]: {
+            flexDirection: "row",
+          },
+        },
         selectRoot: {
           marginRight: "0.5rem",
           [theme.breakpoints.up("sm")]: {
@@ -177,19 +184,30 @@ const getMuiTheme = (theme) =>
           width: "100%",
           maxWidth: "100%",
           margin: 0,
-          maxHeight: "100%",
+          maxHeight: "calc(100vh - 1rem)",
           borderRadius: 0,
           top: "0 !important",
           left: "0 !important",
-          [theme.breakpoints.up("sm")]: {
-            maxWidth: "50%",
+          [theme.breakpoints.up("md")]: {
+            // Override the overrides above for bigger screens
+            maxWidth: "25%",
+            top: "unset !important",
+            left: "unset !important",
+            float: "right",
+            position: "unset",
+            margin: "1rem",
+          },
+        },
+        filterCloseIcon: {
+          [theme.breakpoints.up("md")]: {
+            top: "1rem !important",
+            right: "1rem !important",
           },
         },
       },
       MUIDataTableFilter: {
         root: {
-          // Use fullscreen dialog for small-screen filter form
-          height: "100%",
+          maxHeight: "calc(100vh - 5rem)",
         },
       },
       MUIDataTableFilterList: {
