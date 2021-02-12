@@ -822,6 +822,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                     marker='circle',
                     fill_color='color',
                     alpha='alpha',
+                    visible=('a' in ph),
                     source=ColumnDataSource(df[df['obs']]),  # only visible data
                 )
                 # add to hover tool
@@ -846,6 +847,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                     ys='ys',
                     color='color',
                     alpha='alpha',
+                    visible=('a' in ph),
                     source=ColumnDataSource(
                         data=dict(
                             xs=y_err_x,
