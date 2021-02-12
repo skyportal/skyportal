@@ -243,7 +243,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             render={({ onChange, value }) => (
               <Select
                 labelId="classifications-select-label"
-                id="classifications-select"
+                data-testid="classifications-select"
                 multiple
                 value={value}
                 onChange={(event) => {
