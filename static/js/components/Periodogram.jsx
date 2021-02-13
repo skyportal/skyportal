@@ -21,6 +21,7 @@ import Dygraph from "dygraphs";
 import TextLoop from "react-text-loop";
 import { useForm, Controller } from "react-hook-form";
 import { CopyToClipboard } from "react-copy-to-clipboard";
+import { dot, dotMultiply, add, transpose } from "mathjs";
 
 import * as photometryActions from "../ducks/photometry";
 
@@ -71,96 +72,6 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function transpose(mat) {
-  // transpose matrix
-  return mat[0].map((col, i) => mat.map((row) => row[i]));
-}
-
-function plotdata(xx, yy, me) {
-  const dat = transpose([xx, yy])
-    .map((x, i) => [x[0], [x[1], me[i]]])
-    .sort((a, b) => b[0] - a[0]);
-  // eslint-disable-next-line no-new
-  new Dygraph(document.getElementById("dataplot"), dat, {
-    drawPoints: true,
-    strokeWidth: 0,
-    labels: ["time", "mag"],
-    errorBars: true,
-    valueRange: [Math.max(...yy) + 0.1, Math.min(...yy) - 0.1],
-    dateWindow: [Math.min(...xx) - 6, Math.max(...xx) + 6],
-  });
-}
-
-function plotphased(xx, yy, p, title) {
-  // Create graph with native array as data source
-  const pp = [...xx.map((x) => x % p), ...xx.map((x) => (x % p) + p)];
-  // eslint-disable-next-line no-new
-  new Dygraph(
-    document.getElementById("phased"),
-    transpose([pp, [...yy, ...yy]]),
-    {
-      drawPoints: true,
-      strokeWidth: 0,
-      labels: ["phase", "mag"],
-      valueRange: [Math.max(...yy) + 0.1, Math.min(...yy) - 0.1],
-      dateWindow: [0, 2 * p],
-      title,
-    }
-  );
-}
-
-function plotline(g, x) {
-  const lines = [
-    [1.0, "rgb(255,0,0,0.8)", 3],
-    [0.5, "rgb(200,50,50,0.2)", 1],
-    [3.0, "rgb(200,50,50,0.2)", 1],
-    [2.0, "rgb(200,50,50,0.2)", 1],
-    [4.0, "rgb(200,50,50,0.2)", 1],
-  ];
-
-  g.updateOptions({
-    underlayCallback(canvas) {
-      for (let i = 0; i < lines.length; i += 1) {
-        const loc = Math.log10(x * lines[i][0]);
-        canvas.beginPath();
-        canvas.moveTo(g.toDomXCoord(loc), g.toDomYCoord(0));
-        canvas.lineTo(g.toDomXCoord(loc), g.toDomYCoord(10));
-        [canvas.strokeStyle, canvas.lineWidth] = [lines[i][1], lines[i][2]];
-        canvas.stroke();
-      }
-    },
-  });
-}
-
-function dot(x, y) {
-  let i = x.length;
-  let sum = 0;
-  // eslint-disable-next-line no-plusplus
-  while (i--) sum += x[i] * y[i];
-  return sum;
-}
-
-function add(x, a) {
-  let i = x.length;
-  const xa = [];
-  // eslint-disable-next-line no-plusplus
-  while (i--) xa[i] = x[i] + a;
-  return xa;
-}
-
-function mul(x, y) {
-  let i = y.length;
-  const xy = [];
-  if (x.length === i) {
-    // eslint-disable-next-line no-plusplus
-    while (i--) xy[i] = x[i] * y[i];
-  } else {
-    // eslint-disable-next-line no-plusplus
-    while (i--) xy[i] = x * y[i];
-  }
-  return xy;
-}
-
 // Generalised Lomb-Scargle periodogram: https://github.com/mzechmeister/GLS/tree/master/javascript
 function GLS(t_data, y_data, kwa) {
   let k;
@@ -203,7 +114,7 @@ function GLS(t_data, y_data, kwa) {
 
   const ymean = dot(w, y_data);
   const y = add(y_data, -ymean);
-  const wy = mul(w, y);
+  const wy = dotMultiply(w, y);
   const YY = dot(wy, y); // Eq.(10), variance for the zero mean data
 
   const df = 1 / tbase / ofac; // frequency sampling depends on the time span, default for start frequency
@@ -267,8 +178,12 @@ const Periodogram = () => {
   const photometry = useSelector((state) => state.photometry[id]);
   const [bestp, setBestp] = useState(null);
   const [run, setRun] = useState(false);
+  const [plotted, setPlotted] = useState(false);
+
   const [instruments, setInstruments] = useState([]);
   const [filters, setFilters] = useState([]);
+  const [mjdmin, setMjdmin] = useState(0);
+  const [mjdmax, setMjdmax] = useState(70000);
 
   const [params, setParams] = useState({
     instrument: "P60 Camera",
@@ -288,6 +203,69 @@ const Periodogram = () => {
     </div>
   );
 
+  const dataplotRef = useRef();
+  const glsplotRef = useRef();
+  const phaseplotRef = useRef();
+
+  // plotting functions
+  function plotline(g, x) {
+    const lines = [
+      [1.0, "rgb(255,0,0,0.8)", 3],
+      [0.5, "rgb(200,50,50,0.2)", 1],
+      [3.0, "rgb(200,50,50,0.2)", 1],
+      [2.0, "rgb(200,50,50,0.2)", 1],
+      [4.0, "rgb(200,50,50,0.2)", 1],
+    ];
+
+    g.updateOptions({
+      underlayCallback(canvas) {
+        for (let i = 0; i < lines.length; i += 1) {
+          const loc = Math.log10(x * lines[i][0]);
+          canvas.beginPath();
+          canvas.moveTo(g.toDomXCoord(loc), g.toDomYCoord(0));
+          canvas.lineTo(g.toDomXCoord(loc), g.toDomYCoord(10));
+          [canvas.strokeStyle, canvas.lineWidth] = [lines[i][1], lines[i][2]];
+          canvas.stroke();
+        }
+      },
+    });
+  }
+
+  function ma(minDate, maxDate) {
+    setMjdmin(Math.min(minDate, maxDate));
+    setMjdmax(Math.max(minDate, maxDate));
+  }
+
+  function plotdata(xx, yy, me) {
+    const dat = transpose([xx, yy])
+      .map((x, i) => [x[0], [x[1], me[i]]])
+      .sort((a, b) => b[0] - a[0]);
+    // eslint-disable-next-line no-new
+    new Dygraph(dataplotRef.current, dat, {
+      drawPoints: true,
+      strokeWidth: 0,
+      labels: ["time", "mag"],
+      errorBars: true,
+      valueRange: [Math.max(...yy) + 0.1, Math.min(...yy) - 0.1],
+      dateWindow: [Math.min(...xx) - 6, Math.max(...xx) + 6],
+      zoomCallback: ma,
+    });
+  }
+
+  function plotphased(xx, yy, p, title) {
+    // Create graph with native array as data source
+    const pp = [...xx.map((x) => x % p), ...xx.map((x) => (x % p) + p)];
+    // eslint-disable-next-line no-new
+    new Dygraph(phaseplotRef.current, transpose([pp, [...yy, ...yy]]), {
+      drawPoints: true,
+      strokeWidth: 0,
+      labels: ["phase", "mag"],
+      valueRange: [Math.max(...yy) + 0.1, Math.min(...yy) - 0.1],
+      dateWindow: [0, 2 * p],
+      title,
+    });
+  }
+
   function plotGLS(xx, yy, kwargs) {
     // Create graph with native array as data source
 
@@ -302,26 +280,22 @@ const Periodogram = () => {
     const periods = goodi.map((i) => periods_all[i]);
     const power = goodi.map((i) => power_all[i]);
 
-    const g = new Dygraph(
-      document.getElementById("GLSplot"),
-      transpose([periods, power]),
-      {
-        clickCallback(e) {
-          const x = e.offsetX;
-          const y = e.offsetY;
-          const dataXY = g.toDataCoords(x, y);
-          setBestp(10 ** dataXY[0]);
-        },
-        axes: {
-          x: { logscale: false },
-          y: {},
-        },
-        strokeWidth: 2,
-        xlabel: "log Period [day]",
-        ylabel: "Power",
-        labels: ["log Period [day]", "Power"],
-      }
-    );
+    const g = new Dygraph(glsplotRef.current, transpose([periods, power]), {
+      clickCallback(e) {
+        const x = e.offsetX;
+        const y = e.offsetY;
+        const dataXY = g.toDataCoords(x, y);
+        setBestp(10 ** dataXY[0]);
+      },
+      axes: {
+        x: { logscale: false },
+        y: {},
+      },
+      strokeWidth: 2,
+      xlabel: "log Period [day]",
+      ylabel: "Power",
+      labels: ["log Period [day]", "Power"],
+    });
 
     plotline(g, kwargs.periodbest);
   }
@@ -343,9 +317,22 @@ const Periodogram = () => {
       const times = data.map((x) => x.mjd);
       const mag = data.map((x) => x.mag);
       const magerr = data.map((x) => x.magerr);
-      plotdata(times, mag, magerr);
-      const gls = GLS(times, mag, {
-        e_y: magerr,
+      if (!plotted) {
+        plotdata(times, mag, magerr);
+        setPlotted(true);
+      }
+
+      // filtered times
+      const ftimes = times.filter((x) => x >= mjdmin && x <= mjdmax);
+      const fmag = mag.filter(
+        (x, i) => times[i] >= mjdmin && times[i] <= mjdmax
+      );
+      const fmagerr = magerr.filter(
+        (x, i) => times[i] >= mjdmin && times[i] <= mjdmax
+      );
+
+      const gls = GLS(ftimes, fmag, {
+        e_y: fmagerr,
         ofac: parseInt(params.ofac, 10),
         fbeg: null,
         fend: null,
@@ -361,7 +348,10 @@ const Periodogram = () => {
     if (run) {
       const data = photometry.filter(
         (x) =>
-          x.filter === params.filter && x.instrument_name === params.instrument
+          x.filter === params.filter &&
+          x.instrument_name === params.instrument &&
+          x.mjd >= mjdmin &&
+          x.mjd <= mjdmax
       );
       const times = data.map((x) => x.mjd);
       const mag = data.map((x) => x.mag);
@@ -412,18 +402,18 @@ const Periodogram = () => {
               <CardContent ref={componentRef}>
                 <div>
                   {photometry ? (
-                    <div id="dataplot" className={classes.dygraphChart} />
+                    <div ref={dataplotRef} className={classes.dygraphChart} />
                   ) : (
                     <div>{placeholder}</div>
                   )}
                 </div>
                 <div>
                   <p />
-                  <div id="GLSplot" className={classes.dygraphChart} />
+                  <div ref={glsplotRef} className={classes.dygraphChart} />
                 </div>
                 <div>
                   <p />
-                  <div id="phased" className={classes.dygraphChart} />
+                  <div ref={phaseplotRef} className={classes.dygraphChart} />
                 </div>
               </CardContent>
             </Card>
@@ -533,7 +523,10 @@ const Periodogram = () => {
                           Recalculate
                         </Button>
                       </Grid>
-                      <p />
+                      <Typography gutterBottom>
+                        Change the parameters or zoom to a new time range in the
+                        above plot, then recalculate.
+                      </Typography>
                     </Grid>
                   </form>
                 </div>
