@@ -14,7 +14,7 @@ import { GET } from "../API";
 const useStyles = makeStyles((theme) => ({
   root: {
     background: theme.palette.primary.light,
-    borderRadius: '4px',
+    borderRadius: "4px",
   },
 }));
 

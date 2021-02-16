@@ -12,25 +12,25 @@ const Theme = ({ disableTransitions, children }) => {
     palette: {
       type: theme || "light",
       primary: {
-        main: '#1d3557', // Prussian Blue
-        light: '#457b9d', // Celadon Blue
-        dark: '#000e2e',
-        contrastText: '#fff',
+        main: "#1d3557", // Prussian Blue
+        light: "#457b9d", // Celadon Blue
+        dark: "#000e2e",
+        contrastText: "#fff",
       },
       secondary: {
-        main: '#a8dadc', // Powder Blue
-        light: '#76aace',
-        dark: '#a8dadc',
-        contrastText: '#fff',
+        main: "#a8dadc", // Powder Blue
+        light: "#76aace",
+        dark: "#a8dadc",
+        contrastText: "#fff",
       },
       info: {
-        main: '#f1faee', // Honeydew
+        main: "#f1faee", // Honeydew
       },
       warning: {
-        main: '#fca311',
+        main: "#fca311",
       },
       error: {
-        main: '#e63946', // Imperial Red
+        main: "#e63946", // Imperial Red
       },
     },
     // Only added during testing; removes animations, transitions, and
