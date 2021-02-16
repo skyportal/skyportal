@@ -47,6 +47,13 @@ class GroupHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: includeGroupUsers
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include group users. Defaults to true.
           responses:
             200:
               content:
@@ -136,6 +143,9 @@ class GroupHandler(BaseHandler):
             ) and group.id not in [g.id for g in self.current_user.accessible_groups]:
                 return self.error('Insufficient permissions.')
 
+            include_group_users = self.get_query_argument(
+                "includeGroupUsers", True
+            )
             # Do not include User.groups to avoid circular reference
             users = [
                 {
@@ -149,9 +159,12 @@ class GroupHandler(BaseHandler):
                     "admin": has_admin_access_for_group(user, group_id),
                 }
                 for user in group.users
-            ]
+            ] if include_group_users else None
             group = group.to_dict()
-            group['users'] = users
+            if users is not None:
+                group['users'] = users
+            else:
+                group.pop("users", None)
             # grab streams:
             streams = (
                 DBSession()
