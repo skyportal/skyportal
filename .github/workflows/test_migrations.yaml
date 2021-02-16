@@ -1,0 +1,153 @@
+name: Test Skyportal Migrations
+
+on:
+  push:
+    branches:
+      - master
+      - migrations
+    # Run only if changes in Alembic versions
+    paths:
+      - "alembic/versions/**"
+  pull_request:
+    paths:
+      - "alembic/versions/**"
+
+jobs:
+  test:
+    name: Test SkyPortal
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: skyportal
+          POSTGRES_PASSWORD: anything
+        ports:
+          - 5432:5432
+        # needed because the postgres container does not provide a
+        # healthcheck
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/setup-python@v1
+        with:
+          python-version: "3.8"
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache
+            ~/.local
+            ~/.npm
+          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
+      - name: Checkout master
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: master
+          submodules: true
+
+      - name: Write SkyPortal configs
+        run: |
+          cat << EOF > config.yaml
+            database:
+              database: skyportal
+              host: localhost
+              port: 5432
+              user: skyportal
+              password: anything
+          EOF
+
+      - name: Install system dependencies
+        run: |
+          curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+
+          sudo apt install -y wget nodejs unzip firefox nginx
+
+          pip install --upgrade pip
+          pip install wheel numpy
+
+          export NPM_PACKAGES="${HOME}/.npm-packages"
+          export PATH=${NPM_PACKAGES}/bin:$PATH
+          export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
+
+          sudo npm -g install npm@6.14.11
+
+          which python; python --version
+          echo npm $(npm --version)
+          echo node $(node --version)
+          nginx -v
+          firefox --version
+
+      - name: Install SkyPortal dependencies
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          make dependencies
+
+      - name: Formatting and linting checks
+        if: github.ref != 'refs/heads/master'
+        run: |
+          pip install pre-commit
+          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
+
+      - name: Initialize SkyPortal
+        run: |
+          # Usually, we create databases on the local machine, so
+          # `createdb` just works out of the box.  However, when doing
+          # this on a server, as in our case, we need to specify extra
+          # options.
+          #
+          # db_init should not complain if the databases exist already
+          #
+          echo "localhost:5432:*:skyportal:anything" > ~/.pgpass
+          chmod 600 ~/.pgpass
+
+          createdb -h localhost -U skyportal skyportal
+          psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal TO skyportal;" skyportal
+
+          make db_init
+
+          pip list --format=columns
+          npm ls --depth 0
+
+          # Stamp Alembic HEAD
+          PYTHONPATH=. alembic -x config=config.yaml stamp head
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Run migration
+        run: |
+          PYTHONPATH=. alembic -x config=config.yaml upgrade head
+
+      - name: Check migration completeness
+        run: |
+          # Try generating a new migration
+          PYTHONPATH=. alembic -x config=config.yaml revision --autogenerate -m "Test migration"
+
+          # The generated migration should be empty if the migration script provided in the PR
+          # completely encompasses the changes in the database.
+          pass_lines=$( cat alembic/versions/*test_migration.py | grep -c pass )
+          if [[ $pass_lines -eq 0 ]]
+          then
+              echo "Additional migrations needed: see the generated migration script"
+              exit 1
+          fi
+          echo "All migrations included in script"
+
+      - name: Upload the generated migration script
+        uses: actions/upload-artifact@v2
+        if: ${{ always() }}
+        with:
+          name: migration-script
+          path: alembic/versions/**test_migration.py
