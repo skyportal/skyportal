@@ -55,7 +55,11 @@ def test_fetch_group_by_name(super_admin_token, super_admin_user):
 
 
 def test_fetch_group_exclude_users(super_admin_token, public_group):
-    status, data = api("GET", f"groups/{public_group.id}?includeGroupUsers=False", token=super_admin_token)
+    status, data = api(
+        "GET",
+        f"groups/{public_group.id}?includeGroupUsers=False",
+        token=super_admin_token,
+    )
     assert data["status"] == "success"
     assert "users" not in data["data"]
 
