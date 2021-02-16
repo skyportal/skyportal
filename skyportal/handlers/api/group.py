@@ -171,8 +171,6 @@ class GroupHandler(BaseHandler):
             group = group.to_dict()
             if users is not None:
                 group['users'] = users
-            else:
-                group.pop("users", None)
             # grab streams:
             streams = (
                 DBSession()
