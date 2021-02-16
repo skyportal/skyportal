@@ -46,8 +46,11 @@ Testing:
 
 Development:
 
-- lint : Run ESLint on all files.  Installs ESLint if necessary.
-- lint-unix : Same as above, but outputs in a format that most text editors can parse
 - lint-githook : Install a Git pre-commit hook that lints staged
                  chunks (this is done automatically when you lint
                  for the first time).
+
+
+## Code formatting / linters
+
+To set up `pre-commit` for automatically reformatting Python and JavaScript changes, run `pip install pre-commit && pre-commit install`.
