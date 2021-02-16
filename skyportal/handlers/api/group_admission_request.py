@@ -147,6 +147,26 @@ class GroupAdmissionRequestHandler(BaseHandler):
         requesting_user = User.query.get(user_id)
         if requesting_user is None:
             return self.error("Invalid user ID")
+        # Ensure user is not already a member of target group
+        gu = (
+            GroupUser.query.filter(GroupUser.group_id == group_id)
+            .filter(GroupUser.user_id == user_id)
+            .first()
+        )
+        if gu is not None:
+            return self.error(f"User {user_id} is already a member of group {group_id}")
+        # Ensure user has sufficient stream access for target group
+        if group.streams:
+            if not all(
+                [
+                    stream in requesting_user.accessible_streams
+                    for stream in group.streams
+                ]
+            ):
+                return self.error(
+                    f"User {user_id} does not have sufficient stream access "
+                    "to be added to group {group_id}."
+                )
         admission_request = GroupAdmissionRequest(
             user_id=user_id, group_id=group_id, status="pending"
         )
