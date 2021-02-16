@@ -54,6 +54,12 @@ def test_fetch_group_by_name(super_admin_token, super_admin_user):
     assert data["data"][0]["id"] == new_group_id
 
 
+def test_fetch_group_exclude_users(super_admin_token, public_group):
+    status, data = api("GET", f"groups/{public_group.id}?includeGroupUsers=False", token=super_admin_token)
+    assert data["status"] == "success"
+    assert "users" not in data["data"]
+
+
 def test_token_user_request_all_groups(super_admin_token, super_admin_user):
     group_name = str(uuid.uuid4())
     status, data = api(
