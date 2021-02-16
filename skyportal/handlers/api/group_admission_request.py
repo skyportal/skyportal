@@ -165,7 +165,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             ):
                 return self.error(
                     f"User {user_id} does not have sufficient stream access "
-                    "to be added to group {group_id}."
+                    f"to be added to group {group_id}."
                 )
         admission_request = GroupAdmissionRequest(
             user_id=user_id, group_id=group_id, status="pending"
