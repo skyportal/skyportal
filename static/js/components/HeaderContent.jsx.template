@@ -2,31 +2,67 @@ import React from "react";
 import { Link } from "react-router-dom";
 
 import Box from "@material-ui/core/Box";
+import { makeStyles } from "@material-ui/core/styles";
 import ProfileDropdown from "./ProfileDropdown";
 import Logo from "./Logo";
 import Notifications from "./Notifications";
-import styles from "./Main.css";
 
-const HeaderContent = () => (
-  <div className={styles.topBannerContent}>
-    <div style= {%- raw -%} {{display: "inline-flex", flexDirection: "row" }} {%- endraw -%} >
-      <div className={styles.logos}>
-        {%- for logo in app.logos %}
-        <div className={styles.logoContainer}>
-          <Logo src="{{ logo.src }}" altText="{{ logo.alt_text }}" />
+const useStyles = makeStyles((theme) => ({
+  topBannerContent: {
+    position: "relative",
+    paddingLeft: "1rem",
+    paddingRight: "1rem",
+    paddingTop: "1.5rem",
+  },
+  title: {
+    textDecoration: "none",
+    color: "white",
+    paddingLeft: "0.4rem",
+    fontSize: "200%",
+    fontWeight: "bold",
+    verticalAlign: "middle",
+  },
+  logos: {
+    display: "none",
+    // Only show on bigger screens
+    [theme.breakpoints.up("sm")]: {
+      display: "inline-flex",
+      flexDirection: "row",
+    },
+  },
+  logoContainer: {
+    marginTop: "-0.5rem",
+    height: "50px",
+    borderRight: "1px solid white",
+    padding: "0 0.75rem",
+    "&:last-of-type": {
+      borderRight: "none",
+      paddingRight: "0",
+    },
+  },
+}));
+const HeaderContent = () => {
+  const classes = useStyles();
+  return (
+    <div className={classes.topBannerContent}>
+      <div style= {%- raw -%} {{display: "inline-flex", flexDirection: "row" }} {%- endraw -%} >
+        <div className={classes.logos}>
+          {%- for logo in app.logos %}
+          <div className={classes.logoContainer}>
+            <Logo src="{{ logo.src }}" altText="{{ logo.alt_text }}" />
+          </div>
+          {%- endfor %}
         </div>
-        {%- endfor %}
+        <Link className={classes.title} to="/">
+          {{ app.title }}
+        </Link>
+        <Box p={2} />
       </div>
-      <Link className={styles.title} to="/">
-        {{ app.title }}
-      </Link>
-      <Box p={2} />
+      <div style= {%- raw -%} {{ position: "fixed", right: "1rem", top: "0.4rem", display: "flex" }} {%- endraw -%} >
+        <Notifications />
+        <ProfileDropdown />
+      </div>
     </div>
-    <div style= {%- raw -%} {{ position: "fixed", right: "1rem", top: "0.4rem", display: "flex" }} {%- endraw -%} >
-      <Notifications />
-      <ProfileDropdown />
-    </div>
-  </div>
-);
+)};
 
 export default HeaderContent;

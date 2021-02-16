@@ -216,6 +216,7 @@ candidates:
     ra: 353.36647
     dec: 33.646149
     redshift: 0.063
+    varstar: false
     altdata:
       simbad:
         class: RRLyr
@@ -227,6 +228,7 @@ candidates:
     ra: 353.36647
     dec: 33.646149
     redshift: 0.063
+    varstar: false
     altdata:
       simbad:
         class: RRLyr
@@ -237,6 +239,7 @@ candidates:
     ra: 322.718872
     dec: 27.574113
     redshift: 0.0
+    varstar: true
     altdata:
       simbad:
         class: RRLyr
@@ -247,6 +250,7 @@ candidates:
     ra: 322.718872
     dec: 27.574113
     redshift: 0.0
+    varstar: true
     altdata:
       simbad:
         class: RRLyr
@@ -312,6 +316,7 @@ annotation:
     origin: "Program A"
     data:
       numeric_field: 0.123456789
+      period: 1.107332
       some_boolean: true
       some_text: "some text auto-annotation"
     group_ids:
@@ -337,9 +342,16 @@ annotation:
     origin: "Program A"
     data:
       numeric_field: 0.98765
+      period: 0.5281217208459
       some_boolean: false
     group_ids:
       - =program_A
+  - obj_id: 16fil
+    origin: "Program B"
+    data:
+      period: 0.5281475
+    group_ids:
+      - =program_B
 
 taxonomy:
   file: taxonomy_demo.yaml
@@ -389,21 +401,21 @@ photometry:
   - obj_id: 14gqr
     instrument_id: =P60
     assignment_id: 1
-    file: phot.csv
+    file: phot3.csv
     group_ids:
       - =program_A
       - =program_B
   - obj_id: 16fil_unsaved_copy
     instrument_id: =P60
     assignment_id: 2
-    file: phot.csv
+    file: phot2.csv
     group_ids:
       - =program_A
       - =program_B
   - obj_id: 16fil
     instrument_id: =P60
     assignment_id: 2
-    file: phot.csv
+    file: phot2.csv
     group_ids:
       - =program_A
       - =program_B
@@ -412,7 +424,7 @@ spectrum:
   - obj_id: 14gqr_unsaved_copy
     file: spec1.csv
     instrument_id: =ALFOSC
-    observed_at: "2019-10-28T00:00:00"
+    observed_at: "2014-10-28T00:00:00"
     assignment_id: 1
     group_ids:
       - =program_A
@@ -420,7 +432,7 @@ spectrum:
   - obj_id: 14gqr
     file: spec1.csv
     instrument_id: =ALFOSC
-    observed_at: "2019-10-24T00:00:00"
+    observed_at: "2014-10-24T05:23:14"
     assignment_id: 1
     group_ids:
       - =program_A
@@ -428,7 +440,7 @@ spectrum:
   - obj_id: 16fil_unsaved_copy
     file: spec2.csv
     instrument_id: =ALFOSC
-    observed_at: "2019-10-28T00:00:00"
+    observed_at: "2014-10-28T00:00:00"
     assignment_id: 2
     group_ids:
       - =program_A
@@ -436,7 +448,7 @@ spectrum:
   - obj_id: 16fil
     file: spec2.csv
     instrument_id: =ALFOSC
-    observed_at: "2019-10-24T00:00:00"
+    observed_at: "2014-10-24T06:18:53"
     assignment_id: 2
     group_ids:
       - =program_A
