@@ -12,6 +12,7 @@ import AccordionSummary from "@material-ui/core/AccordionSummary";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
+import grey from "@material-ui/core/colors/grey";
 
 import CommentList from "./CommentList";
 import ClassificationList from "./ClassificationList";
@@ -84,7 +85,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   name: {
     fontSize: "200%",
     fontWeight: "900",
-    color: theme.palette.gray[700],
+    color: grey[700],
     paddingBottom: "0.25em",
     display: "inline-block",
   },

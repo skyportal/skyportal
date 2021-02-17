@@ -14,6 +14,7 @@ import MuiDialogTitle from "@material-ui/core/DialogTitle";
 import IconButton from "@material-ui/core/IconButton";
 import CloseIcon from "@material-ui/icons/Close";
 import Typography from "@material-ui/core/Typography";
+import grey from "@material-ui/core/colors/grey";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -52,7 +53,7 @@ const dialogTitleStyles = (theme) => ({
     position: "absolute",
     right: theme.spacing(1),
     top: theme.spacing(1),
-    color: theme.palette.grey[500],
+    color: grey[500],
   },
 });
 

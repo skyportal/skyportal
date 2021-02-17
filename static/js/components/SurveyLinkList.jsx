@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { makeStyles } from "@material-ui/core/styles";
+import grey from "@material-ui/core/colors/grey";
 
 import { ra_to_hours, dec_to_dms } from "../units";
 
@@ -26,7 +27,7 @@ const useStyles = makeStyles((theme) => ({
     padding: 0,
     margin: 0,
     fontWeight: "bold",
-    color: theme.palette.gray[500],
+    color: grey[500],
     textDecoration: "none",
     fontFamily: ["Roboto", "Helvetica", "Arial", "sans-serif"],
   },
