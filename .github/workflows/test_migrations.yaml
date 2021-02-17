@@ -109,8 +109,8 @@ jobs:
           echo "localhost:5432:*:skyportal:anything" > ~/.pgpass
           chmod 600 ~/.pgpass
 
-          createdb -h localhost -U skyportal skyportal
-          psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal TO skyportal;" skyportal
+          createdb -h localhost -U skyportal skyportal_test
+          psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
           make db_init
 
