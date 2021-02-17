@@ -148,7 +148,7 @@ jobs:
           pass_lines=$( cat alembic/versions/*test_migration.py | grep -c pass )
           if [[ $pass_lines -eq 0 ]]
           then
-              echo "Additional migrations needed: see the generated migration script"
+              echo "Additional migrations needed: see the generated migration script";
               exit 1
           fi
           echo "All migrations included in script"
