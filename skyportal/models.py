@@ -1605,7 +1605,7 @@ class Telescope(Base):
         doc="The Instruments on this telescope.",
     )
 
-    test = sa.Column(sa.Boolean, default=False, nullable=False, doc="Test column")
+    test = sa.Column(sa.Boolean, default=False, nullable=True, doc="Test column")
 
     @property
     def observer(self):
