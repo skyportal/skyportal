@@ -37,7 +37,7 @@
     "prop-types": "15.7.2",
     "qrcode.react": "1.0.0",
     "raw-loader": "4.0.2",
-    "react": "16.13.1",
+    "react": "17.0.1",
     "react-datepicker": "3.4.1",
     "react-device-detect": "1.15.0",
     "react-dnd": "7.7.0",
