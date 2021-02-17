@@ -148,10 +148,12 @@ jobs:
           pass_lines=$( cat alembic/versions/*test_migration.py | grep -c pass )
           if [[ $pass_lines -eq 0 ]]
           then
-              echo "Additional migrations needed: see the generated migration script";
-              exit 1
+            echo "Additional migrations needed: see the generated migration script"
+          else
+            echo "All migrations included in script"
           fi
-          echo "All migrations included in script"
+
+          exit [[ $pass_lines -gt 0 ]]
 
       - name: Upload the generated migration script
         uses: actions/upload-artifact@v2
