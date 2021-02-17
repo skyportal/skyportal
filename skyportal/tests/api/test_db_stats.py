@@ -1,3 +1,4 @@
+import arrow
 from skyportal.tests import api
 
 
@@ -8,4 +9,6 @@ def test_db_stats(view_only_token, public_source, public_group, public_candidate
     assert isinstance(data['data']['numCandidates'], int)
     assert isinstance(data['data']['numUsers'], int)
     assert isinstance(data['data']['oldestCandidateCreatedAt'], str)
+    arrow.get(data['data']['oldestCandidateCreatedAt'])
     assert isinstance(data['data']['newestCandidateCreatedAt'], str)
+    arrow.get(data['data']['newestCandidateCreatedAt'])
