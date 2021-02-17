@@ -1605,6 +1605,8 @@ class Telescope(Base):
         doc="The Instruments on this telescope.",
     )
 
+    test = sa.Column(sa.Boolean, default=False, nullable=False, doc="Test column")
+
     @property
     def observer(self):
         """Return an `astroplan.Observer` representing an observer at this
