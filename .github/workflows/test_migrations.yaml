@@ -91,6 +91,12 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           make dependencies
 
+      - name: Test loading demo data
+        run: |
+          make run &
+          sleep 10 && make load_demo_data
+          kill %1
+
       # - name: Formatting and linting checks
       #   if: github.ref != 'refs/heads/master'
       #   run: |
