@@ -40,7 +40,11 @@ const DBStats = () => {
               <TableCell>
                 <em>{key}</em>
               </TableCell>
-              <TableCell>{dbStats[key]}</TableCell>
+              <TableCell>
+                {!Number.isNaN(Number(dbStats[key]))
+                  ? Number(dbStats[key]).toLocaleString()
+                  : dbStats[key]}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
