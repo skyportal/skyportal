@@ -32,52 +32,56 @@ class StatsHandler(BaseHandler):
                         data:
                           type: object
                           properties:
-                            numCandidates:
+                            Number of candidates:
                               type: integer
                               description: Number of rows in candidates table
-                            numObjs:
+                            Number of objs:
                               type: integer
                               description: Number of rows in objs table
-                            numSources:
+                            Number of sources:
                               type: integer
                               description: Number of rows in sources table
-                            numPhotometry:
+                            Number of photometry:
                               type: integer
                               description: Number of rows in photometry table
-                            numSpectra:
+                            Number of spectra:
                               type: integer
                               description: Number of rows in spectra table
-                            numGroups:
+                            Number of groups:
                               type: integer
                               description: Number of rows in groups table
-                            numUsers:
+                            Number of users:
                               type: integer
                               description: Number of rows in users table
-                            numTokens:
+                            Number of tokens:
                               type: integer
                               description: Number of rows in tokens table
-                            oldestCandidateCreatedAt:
+                            Oldest candidate creation datetime:
                               type: string
                               description: |
                                 Datetime string corresponding to created_at column of
                                 the oldest row in the candidates table.
-                            newestCandidateCreatedAt:
+                            Newest candidate creation datetime:
                               type: string
                               description: |
                                 Datetime string corresponding to created_at column of
                                 the newest row in the candidates table.
         """
         data = {}
-        data["numCandidates"] = Candidate.query.count()
-        data["numSources"] = Source.query.count()
-        data["numObjs"] = Obj.query.count()
-        data["numPhotometry"] = Photometry.query.count()
-        data["numSpectra"] = Spectrum.query.count()
-        data["numGroups"] = Group.query.count()
-        data["numUsers"] = User.query.count()
-        data["numTokens"] = Token.query.count()
+        data["Number of candidates"] = Candidate.query.count()
+        data["Number of sources"] = Source.query.count()
+        data["Number of objs"] = Obj.query.count()
+        data["Number of photometry"] = Photometry.query.count()
+        data["Number of spectra"] = Spectrum.query.count()
+        data["Number of groups"] = Group.query.count()
+        data["Number of users"] = User.query.count()
+        data["Number of tokens"] = Token.query.count()
         cand = Candidate.query.order_by(Candidate.created_at).first()
-        data["oldestCandidateCreatedAt"] = cand.created_at if cand is not None else None
+        data["Oldest candidate creation datetime"] = (
+            cand.created_at if cand is not None else None
+        )
         cand = Candidate.query.order_by(Candidate.created_at.desc()).first()
-        data["newestCandidateCreatedAt"] = cand.created_at if cand is not None else None
+        data["Newest candidate creation datetime"] = (
+            cand.created_at if cand is not None else None
+        )
         return self.success(data=data)
