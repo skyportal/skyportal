@@ -1,6 +1,6 @@
 numpy==1.19.5
 scipy==1.6.0
-pandas==1.2.0
+pandas==1.2.2
 dask>=2020.12,<2021.3
 joblib==1.0.0
 seaborn==0.11.1
