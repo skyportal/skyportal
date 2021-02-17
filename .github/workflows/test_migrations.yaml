@@ -149,11 +149,10 @@ jobs:
           if [[ $pass_lines -eq 0 ]]
           then
             echo "Additional migrations needed: see the generated migration script"
+            return 1
           else
             echo "All migrations included in script"
           fi
-
-          exit [[ $pass_lines -gt 0 ]]
 
       - name: Upload the generated migration script
         uses: actions/upload-artifact@v2
