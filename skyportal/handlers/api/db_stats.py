@@ -16,6 +16,7 @@ class StatsHandler(BaseHandler):
     @auth_or_token
     def get(self):
         """
+        ---
         description: Retrieve basic DB statistics
         tags:
           - system_info
@@ -30,41 +31,41 @@ class StatsHandler(BaseHandler):
                       properties:
                         data:
                           type: object
-                        properties:
-                          numCandidates:
-                            type: integer
-                            description: Number of rows in candidates table
-                          numObjs:
-                            type: integer
-                            description: Number of rows in objs table
-                          numSources:
-                            type: integer
-                            description: Number of rows in sources table
-                          numPhotometry:
-                            type: integer
-                            description: Number of rows in photometry table
-                          numSpectra:
-                            type: integer
-                            description: Number of rows in spectra table
-                          numGroups:
-                            type: integer
-                            description: Number of rows in groups table
-                          numUsers:
-                            type: integer
-                            description: Number of rows in users table
-                          numTokens:
-                            type: integer
-                            description: Number of rows in tokens table
-                          oldestCandidateCreatedAt:
-                            type: string
-                            description: |
-                              Datetime string corresponding to created_at column of
-                              the oldest row in the candidates table.
-                          newestCandidateCreatedAt:
-                            type: string
-                            description: |
-                              Datetime string corresponding to created_at column of
-                              the newest row in the candidates table.
+                          properties:
+                            numCandidates:
+                              type: integer
+                              description: Number of rows in candidates table
+                            numObjs:
+                              type: integer
+                              description: Number of rows in objs table
+                            numSources:
+                              type: integer
+                              description: Number of rows in sources table
+                            numPhotometry:
+                              type: integer
+                              description: Number of rows in photometry table
+                            numSpectra:
+                              type: integer
+                              description: Number of rows in spectra table
+                            numGroups:
+                              type: integer
+                              description: Number of rows in groups table
+                            numUsers:
+                              type: integer
+                              description: Number of rows in users table
+                            numTokens:
+                              type: integer
+                              description: Number of rows in tokens table
+                            oldestCandidateCreatedAt:
+                              type: string
+                              description: |
+                                Datetime string corresponding to created_at column of
+                                the oldest row in the candidates table.
+                            newestCandidateCreatedAt:
+                              type: string
+                              description: |
+                                Datetime string corresponding to created_at column of
+                                the newest row in the candidates table.
         """
         data = {}
         data["numCandidates"] = Candidate.query.count()
