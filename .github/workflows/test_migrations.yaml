@@ -35,9 +35,9 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v1
         with:
-          python-version: "3.6"
+          python-version: "3.8"
 
       - uses: actions/cache@v2
         with:
@@ -138,6 +138,7 @@ jobs:
 
       - name: Check migration completeness
         run: |
+          pip install alembic==1.5.4
           # Try generating a new migration
           PYTHONPATH=. alembic -x config=config.yaml revision --autogenerate -m "Test migration"
 
