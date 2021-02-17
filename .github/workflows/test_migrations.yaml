@@ -91,6 +91,9 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           make dependencies
 
+          pip install pre-commit
+          pre-commit install
+
       - name: Test loading demo data
         run: |
           make run &
@@ -138,7 +141,6 @@ jobs:
 
       - name: Check migration completeness
         run: |
-          pip install alembic==1.5.4
           # Try generating a new migration
           PYTHONPATH=. alembic -x config=config.yaml revision --autogenerate -m "Test migration"
 
