@@ -644,6 +644,14 @@ def user_no_groups(public_stream):
 
 
 @pytest.fixture()
+def user_no_groups_no_streams():
+    user = UserFactory(roles=[models.Role.query.get("Full user")], streams=[])
+    user_id = user.id
+    yield user
+    UserFactory.teardown(user_id)
+
+
+@pytest.fixture()
 def user_two_groups(public_group, public_group2):
     user = UserFactory(
         groups=[public_group, public_group2], roles=[models.Role.query.get("Full user")]

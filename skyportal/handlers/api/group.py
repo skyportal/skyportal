@@ -47,6 +47,13 @@ class GroupHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: includeGroupUsers
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include group users. Defaults to true.
           responses:
             200:
               content:
@@ -136,22 +143,34 @@ class GroupHandler(BaseHandler):
             ) and group.id not in [g.id for g in self.current_user.accessible_groups]:
                 return self.error('Insufficient permissions.')
 
+            if self.get_query_argument("includeGroupUsers", "true").lower() in (
+                "f",
+                "false",
+            ):
+                include_group_users = False
+            else:
+                include_group_users = True
             # Do not include User.groups to avoid circular reference
-            users = [
-                {
-                    "id": user.id,
-                    "username": user.username,
-                    "first_name": user.first_name,
-                    "last_name": user.last_name,
-                    "contact_email": user.contact_email,
-                    "contact_phone": user.contact_phone,
-                    "oauth_uid": user.oauth_uid,
-                    "admin": has_admin_access_for_group(user, group_id),
-                }
-                for user in group.users
-            ]
+            users = (
+                [
+                    {
+                        "id": user.id,
+                        "username": user.username,
+                        "first_name": user.first_name,
+                        "last_name": user.last_name,
+                        "contact_email": user.contact_email,
+                        "contact_phone": user.contact_phone,
+                        "oauth_uid": user.oauth_uid,
+                        "admin": has_admin_access_for_group(user, group_id),
+                    }
+                    for user in group.users
+                ]
+                if include_group_users
+                else None
+            )
             group = group.to_dict()
-            group['users'] = users
+            if users is not None:
+                group['users'] = users
             # grab streams:
             streams = (
                 DBSession()
