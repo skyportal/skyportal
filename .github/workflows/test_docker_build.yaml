@@ -61,8 +61,12 @@ jobs:
         run: |
           docker-compose up -d
 
+      - name: Create database tables
+        run: |
+          PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py --username testuser@cesium-ml.org
+
       - name: Test loading demo data
         run: |
-          # Wait for containers to fully spin up
-          sleep 60
+          # Give plenty of time for containers to fully spin up
+          sleep 90
           docker exec skyportal_web_1 bash -c 'source /skyportal_env/bin/activate && make load_demo_data'

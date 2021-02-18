@@ -29,7 +29,7 @@ PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py  \
 If you just want to add a user to an existing database make sure you add the `--nodrop` flag:
 
 PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py  \
-          --nodrop --user=<anotheremail>
+          --nodrop --username=<anotheremail>
 """
 
 parser = argparse.ArgumentParser(description='Initialize Skyportal and add admin/users')
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     for model in Base.metadata.tables:
         print('    -', model)
 
-    with status(f"Creating permissions"):
+    with status("Creating permissions"):
         model_util.setup_permissions()
 
     if adminuser != '':
