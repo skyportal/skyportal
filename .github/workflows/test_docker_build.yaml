@@ -31,10 +31,6 @@ jobs:
           fetch-depth: 0
           submodules: true
 
-      - name: Install Python requirements
-        run: |
-          pip install -r requirements.txt
-
       - name: Install Docker and Docker Compose
         run: |
           sudo apt-get update
@@ -67,7 +63,7 @@ jobs:
 
       - name: Create database tables
         run: |
-          PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py --username testuser@cesium-ml.org
+          docker exec skyportal_web_1 bash -c 'PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py --username testuser@cesium-ml.org'
 
       - name: Test loading demo data
         run: |
