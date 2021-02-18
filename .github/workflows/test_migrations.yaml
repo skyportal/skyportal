@@ -1,12 +1,7 @@
 name: Test Skyportal Migrations
 
 on:
-  push:
-    branches:
-      - master
-    # Run only if changes in Alembic versions
-    paths:
-      - "alembic/versions/**"
+  # Run only if changes in Alembic versions
   pull_request:
     paths:
       - "alembic/versions/**"
