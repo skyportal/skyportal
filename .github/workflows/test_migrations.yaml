@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - migrations
     # Run only if changes in Alembic versions
     paths:
       - "alembic/versions/**"
@@ -14,7 +13,7 @@ on:
 
 jobs:
   test:
-    name: Test SkyPortal
+    name: Test SkyPortal migrations
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
@@ -99,11 +98,11 @@ jobs:
           sleep 10 && make load_demo_data
           kill %1
 
-      # - name: Formatting and linting checks
-      #   if: github.ref != 'refs/heads/master'
-      #   run: |
-      #     pip install pre-commit
-      #     pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
+      - name: Formatting and linting checks
+        if: github.ref != 'refs/heads/master'
+        run: |
+          pip install pre-commit
+          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Initialize SkyPortal
         run: |
@@ -148,7 +147,7 @@ jobs:
           pass_lines=$( cat alembic/versions/*test_migration.py | grep -c pass )
           if [[ $pass_lines -eq 0 ]]
           then
-            printf "Additional migrations needed: see the generated migration script"
+            echo "Additional migrations needed: see the generated migration script"
             exit 1
           else
             echo "All migrations included in script"
