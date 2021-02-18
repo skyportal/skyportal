@@ -1,4 +1,4 @@
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import permissions
 from ..base import BaseHandler
 from ...models import (
     Obj,
@@ -13,7 +13,7 @@ from ...models import (
 
 
 class StatsHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["System admin"])
     def get(self):
         """
         ---
