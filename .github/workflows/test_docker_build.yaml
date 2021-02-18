@@ -31,6 +31,10 @@ jobs:
           fetch-depth: 0
           submodules: true
 
+      - name: Install Python requirements
+        run: |
+          pip install -r requirements.txt
+
       - name: Install Docker and Docker Compose
         run: |
           sudo apt-get update
