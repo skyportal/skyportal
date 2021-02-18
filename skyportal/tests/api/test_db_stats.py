@@ -6,9 +6,9 @@ def test_db_stats(view_only_token, public_source, public_group, public_candidate
     status, data = api('GET', 'db_stats', token=view_only_token)
     assert status == 200
     assert data['status'] == 'success'
-    assert isinstance(data['data']['numCandidates'], int)
-    assert isinstance(data['data']['numUsers'], int)
-    assert isinstance(data['data']['oldestCandidateCreatedAt'], str)
-    arrow.get(data['data']['oldestCandidateCreatedAt'])
-    assert isinstance(data['data']['newestCandidateCreatedAt'], str)
-    arrow.get(data['data']['newestCandidateCreatedAt'])
+    assert isinstance(data['data']['Number of candidates'], int)
+    assert isinstance(data['data']['Number of users'], int)
+    assert isinstance(data['data']['Oldest candidate creation datetime'], str)
+    arrow.get(data['data']['Oldest candidate creation datetime'])
+    assert isinstance(data['data']['Newest candidate creation datetime'], str)
+    arrow.get(data['data']['Newest candidate creation datetime'])
