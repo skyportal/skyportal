@@ -46,4 +46,4 @@ EXPOSE 5000
 
 CMD bash -c "source /skyportal_env/bin/activate && \
              (make log &) && \
-             make run_production"
+             make run"
