@@ -63,4 +63,6 @@ jobs:
 
       - name: Test loading demo data
         run: |
-          docker-compose run web bash -c 'source /skyportal_env/bin/activate && make load_demo_data'
+          # Wait for containers to fully spin up
+          sleep 60
+          docker exec skyportal_web_1 bash -c 'source /skyportal_env/bin/activate && make load_demo_data'
