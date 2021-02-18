@@ -4,6 +4,7 @@ on:
   # Run only if changes in Alembic versions
   pull_request:
     paths:
+      - "skyportal/models.py"
       - "alembic/versions/**"
 
 jobs:
@@ -93,12 +94,6 @@ jobs:
           sleep 10 && make load_demo_data
           kill %1
 
-      - name: Formatting and linting checks
-        if: github.ref != 'refs/heads/master'
-        run: |
-          pip install pre-commit
-          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
-
       - name: Initialize SkyPortal
         run: |
           # Usually, we create databases on the local machine, so
@@ -127,6 +122,12 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
+
+      - name: Formatting and linting checks
+        if: github.ref != 'refs/heads/master'
+        run: |
+          pip install pre-commit
+          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Run migration
         run: |
