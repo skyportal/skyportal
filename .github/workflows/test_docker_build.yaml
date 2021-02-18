@@ -58,6 +58,7 @@ jobs:
           make docker-local
 
       - name: Start containers
+        run: |
           docker-compose up -d
 
       - name: Test loading demo data
