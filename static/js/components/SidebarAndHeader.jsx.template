@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, matchPath } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import Typography from "@material-ui/core/Typography";
 import Drawer from "@material-ui/core/Drawer";
@@ -101,9 +101,7 @@ const SidebarAndHeader = () => {
   const open = useSelector((state) => state.sidebar.open);
   const currentUser = useSelector((state) => state.profile);
 
-  const sideBarURLs = [{% for item in app.sidebar -%} "{{ item.url }}", {% endfor %}];
-  const matchedURL = sideBarURLs.filter(url => matchPath(window.location.pathname, {path: url, exact: true}));
-  const [selected, setSelected] = useState(matchedURL[0]);
+  const currentRoute = useLocation().pathname;
 
   const dispatch = useDispatch();
   const classes = useStyles();
@@ -172,9 +170,9 @@ const SidebarAndHeader = () => {
           {%- for item in app.sidebar -%}
 
           {%- if item.url.startswith('http') %}
-          <a href="{{ item.url }}" className={classes.link} onClick={() => setSelected("{{ item.url }}")}>
+          <a href="{{ item.url }}" className={classes.link}>
           {% else %}
-          <Link to="{{ item.url }}" className={classes.link} onClick={() => setSelected("{{ item.url }}")}>
+          <Link to="{{ item.url }}" className={classes.link}>
           {%- endif %}
             <ListItem button name="sidebar{{ item.name }}Button">
               <ListItemIcon>
@@ -182,7 +180,7 @@ const SidebarAndHeader = () => {
               </ListItemIcon>
               <ListItemText
                 primary={
-                  <Typography className={selected === "{{ item.url }}" ? classes.bold : null}>
+                  <Typography className={currentRoute === "{{ item.url }}" ? classes.bold : null}>
                     {{ item.name }}
                   </Typography>
                 }
@@ -196,14 +194,14 @@ const SidebarAndHeader = () => {
 
           {%- endfor %}
           {(currentUser.permissions?.includes("System admin") || currentUser.permissions?.includes("Manage users")) && (
-            <Link to="/user_management" className={classes.link} onClick={() => setSelected("/user_management")}>
+            <Link to="/user_management" className={classes.link}>
               <ListItem button name="userManagementButton">
                 <ListItemIcon>
                   <GroupIcon style={{ "{{ color: blue[200] }}" }} />
                 </ListItemIcon>
                 <ListItemText
                   primary={
-                    <Typography className={selected === "/user_management" ? classes.bold : null}>
+                    <Typography className={currentRoute === "/user_management" ? classes.bold : null}>
                       User Management
                     </Typography>
                   }
@@ -212,14 +210,14 @@ const SidebarAndHeader = () => {
             </Link>
           )}
           {currentUser.permissions?.includes("System admin") && (
-            <Link to="/db_stats" className={classes.link} onClick={() => setSelected("/db_stats")}>
+            <Link to="/db_stats" className={classes.link}>
               <ListItem button name="dbStatsButton">
                 <ListItemIcon>
                   <AssessmentIcon style={{ "{{ color: blue[200] }}" }} />
                 </ListItemIcon>
                 <ListItemText
                   primary={
-                    <Typography className={selected === "/db_stats" ? classes.bold : null}>
+                    <Typography className={currentRoute === "/db_stats" ? classes.bold : null}>
                       DB Stats
                     </Typography>
                   }
