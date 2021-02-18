@@ -63,7 +63,7 @@ jobs:
 
       - name: Create database tables
         run: |
-          docker exec skyportal_web_1 bash -c 'PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py --username testuser@cesium-ml.org'
+          docker exec skyportal_web_1 bash -c 'source /skyportal_env/bin/activate && PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py --username testuser@cesium-ml.org'
 
       - name: Test loading demo data
         run: |
