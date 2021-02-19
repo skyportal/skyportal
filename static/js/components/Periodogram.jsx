@@ -15,8 +15,8 @@ import Grid from "@material-ui/core/Grid";
 import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
-import Box from "@material-ui/core/Box";
 import Dygraph from "dygraphs";
+import { showNotification } from "baselayer/components/Notifications";
 
 import TextLoop from "react-text-loop";
 import { useForm, Controller } from "react-hook-form";
@@ -73,7 +73,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 // Generalised Lomb-Scargle periodogram: https://github.com/mzechmeister/GLS/tree/master/javascript
-function GLS(t_data, y_data, kwa) {
+function GLS(t_data_uf, y_data_uf, kwa) {
   let k;
   let i;
   const w = [];
@@ -95,6 +95,22 @@ function GLS(t_data, y_data, kwa) {
   let omega;
   let wi;
 
+  const goodi = t_data_uf
+    .map((e, ind) =>
+      !(
+        Number.isNaN(e) ||
+        e == null ||
+        Number.isNaN(y_data_uf[ind]) ||
+        y_data_uf[ind] == null
+      )
+        ? ind
+        : undefined
+    )
+    .filter((x) => x);
+  const t_data = goodi.map((ind) => t_data_uf[ind]);
+  const y_data = goodi.map((ind) => y_data_uf[ind]);
+  const e_y = goodi.map((ind) => kwa.e_y[ind]);
+
   const tmin = Math.min.apply(null, t_data);
   const t = add(t_data, -tmin);
   const tbase = Math.max.apply(null, t);
@@ -103,7 +119,7 @@ function GLS(t_data, y_data, kwa) {
   const nt = t.length;
   // eslint-disable-next-line no-plusplus
   while (i--) {
-    w[i] = kwargs.e_y ? 1 / kwargs.e_y[i] / kwargs.e_y[i] : 1;
+    w[i] = e_y ? 1 / e_y[i] / e_y[i] : 1;
     wsum += w[i];
   }
 
@@ -210,11 +226,11 @@ const Periodogram = () => {
   // plotting functions
   function plotline(g, x) {
     const lines = [
-      [1.0, "rgb(255,0,0,0.8)", 3],
-      [0.5, "rgb(200,50,50,0.2)", 1],
-      [3.0, "rgb(200,50,50,0.2)", 1],
-      [2.0, "rgb(200,50,50,0.2)", 1],
-      [4.0, "rgb(200,50,50,0.2)", 1],
+      [1.0, "rgb(255,0,0,0.9)", 3],
+      [0.5, "rgb(200,50,50,0.6)", 1],
+      [3.0, "rgb(200,50,50,0.5)", 1],
+      [2.0, "rgb(200,50,50,0.6)", 1],
+      [4.0, "rgb(200,50,50,0.4)", 1],
     ];
 
     g.updateOptions({
@@ -373,8 +389,9 @@ const Periodogram = () => {
       ...initialFormState,
       ...getValues(),
     };
-    setParams(formData);
+    setPlotted(false);
     setRun(false);
+    setParams(formData);
   };
 
   const rules = { required: true, min: 1, max: 25, type: "number", step: 1 };
@@ -499,15 +516,27 @@ const Periodogram = () => {
                         {bestp && (
                           <>
                             <Typography>
-                              <b>Period</b> = {bestp?.toFixed(6)} d
+                              <b>Period</b> = {bestp?.toFixed(8)} d
                             </Typography>
-                            <CopyToClipboard text={bestp}>
-                              <Box
-                                bgcolor="text.secondary"
-                                color="background.paper"
+                            <CopyToClipboard
+                              text={bestp}
+                              onCopy={() =>
+                                dispatch(
+                                  showNotification(
+                                    `Copied period (${bestp?.toFixed(
+                                      8
+                                    )} d) to clipboard.`
+                                  )
+                                )
+                              }
+                            >
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="primary"
                               >
                                 Copy period to clipboard
-                              </Box>
+                              </Button>
                             </CopyToClipboard>
                           </>
                         )}
@@ -524,8 +553,10 @@ const Periodogram = () => {
                         </Button>
                       </Grid>
                       <Typography gutterBottom>
-                        Change the parameters or zoom to a new time range in the
-                        above plot, then recalculate.
+                        Change the parameters above and/or zoom to a new time
+                        range in the top plot, then recalculate. The red
+                        vertical lines show the best peak and harmonics. Click
+                        the middle plot to fold on that frequency.
                       </Typography>
                     </Grid>
                   </form>
