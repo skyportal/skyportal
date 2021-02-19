@@ -5,7 +5,7 @@ from email.utils import parseaddr
 from baselayer.app.env import load_env
 from baselayer.app.model_util import status, drop_tables, create_tables
 from social_tornado.models import TornadoStorage
-from skyportal.models import init_db, User, DBSession
+from skyportal.models import init_db, Base, User, DBSession
 
 import model_util
 
@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
     with status(f"Connecting to database {cfg['database']['database']}"):
         init_db(**cfg['database'])
-    print(cfg['database'])
+
     if not results.nodrop:
         with status("Force dropping all tables"):
             drop_tables()
@@ -85,8 +85,8 @@ if __name__ == "__main__":
     ):
         create_tables()
 
-    # for model in Base.metadata.tables:
-    #     print('    -', model)
+    for model in Base.metadata.tables:
+        print('    -', model)
 
     with status("Creating permissions"):
         model_util.setup_permissions()
