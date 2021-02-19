@@ -70,6 +70,9 @@ app:
       component: FindingChart
     - path: "/source/:id/periodogram"
       component: Periodogram
+    - path: "/db_stats"
+      component: DBStats
+
 
   sidebar:
     # See https://material-ui.com/components/material-icons/

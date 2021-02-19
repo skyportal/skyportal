@@ -44,21 +44,21 @@ class SysInfoHandler(BaseHandler):
                       properties:
                         data:
                           type: object
-                        properties:
-                          invitationsEnabled:
-                            type: boolean
-                            description: |
-                              Boolean indicating whether new user invitation pipeline
-                              is enabled in current deployment.
-                          gitlog:
-                              type: array
-                              description: Recent git commit lines
-                          cosmology:
-                              type: string
-                              description: Details of the cosmology used here
-                          cosmoref:
-                              type: string
-                              description: Reference for the cosmology used.
+                          properties:
+                            invitationsEnabled:
+                              type: boolean
+                              description: |
+                                Boolean indicating whether new user invitation pipeline
+                                is enabled in current deployment.
+                            gitlog:
+                                type: array
+                                description: Recent git commit lines
+                            cosmology:
+                                type: string
+                                description: Details of the cosmology used here
+                            cosmoref:
+                                type: string
+                                description: Reference for the cosmology used.
         """
         # if another build system has written a gitlog file, use it
         loginfo = ""
