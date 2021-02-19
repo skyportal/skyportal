@@ -11,5 +11,5 @@ def test_db_stats_page_render(
         '//*[text()="Oldest candidate creation datetime"]'
     )
     oldest_cand_row = oldest_cand_em.find_element_by_xpath("../..")
-    created_at_td = oldest_cand_row.find_elements_by_xpath("//td")[-1]
+    created_at_td = oldest_cand_row.find_elements_by_xpath(".//td")[-1]
     arrow.get(created_at_td.text)
