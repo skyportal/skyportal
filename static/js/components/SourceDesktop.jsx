@@ -354,9 +354,6 @@ const SourceDesktop = ({ source }) => {
                   >
                     Show Photometry Table
                   </Button>
-                  <Link to={`/source/${source.id}/periodogram`} role="link">
-                    <Button variant="contained">Periodogram Analysis</Button>
-                  </Link>
                 </div>
               </div>
             </AccordionDetails>
@@ -436,6 +433,7 @@ const SourceDesktop = ({ source }) => {
           }}
         />
       </div>
+
       <div className={classes.rightColumn}>
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>
