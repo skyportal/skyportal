@@ -3,9 +3,9 @@ from pathlib import Path
 import argparse
 from email.utils import parseaddr
 from baselayer.app.env import load_env
-from baselayer.app.model_util import status, drop_tables, create_tables
+from baselayer.app import model_util as baselayer_model_util
 from social_tornado.models import TornadoStorage
-from skyportal.models import init_db, Base, User, DBSession
+from skyportal import models
 
 import model_util
 
@@ -72,47 +72,49 @@ if __name__ == "__main__":
     if user == '' and results.user is not None:
         print("Note: user is not a valid email address")
 
-    with status(f"Connecting to database {cfg['database']['database']}"):
-        init_db(**cfg['database'], autoflush=False)
+    with baselayer_model_util.status(
+        f"Connecting to database {cfg['database']['database']}"
+    ):
+        models.init_db(**cfg['database'])
 
     if not results.nodrop:
-        with status("Force dropping all tables"):
-            drop_tables()
+        with baselayer_model_util.status("Force dropping all tables"):
+            baselayer_model_util.drop_tables()
 
-    with status(
+    with baselayer_model_util.status(
         "Creating tables. If you really want to start from scratch,"
         " do a make db_clear; make db_init"
     ):
-        create_tables()
+        baselayer_model_util.create_tables()
 
-    for model in Base.metadata.tables:
+    for model in models.Base.metadata.tables:
         print('    -', model)
 
-    with status("Creating permissions"):
+    with baselayer_model_util.status("Creating permissions"):
         model_util.setup_permissions()
 
     if adminuser != '':
-        with status(f"Creating super admin ({adminuser})"):
-            super_admin_user = User(
+        with baselayer_model_util.status(f"Creating super admin ({adminuser})"):
+            super_admin_user = models.User(
                 username=results.adminuser, role_ids=['Super admin']
             )
 
-            DBSession().add_all([super_admin_user])
+            models.DBSession().add_all([super_admin_user])
 
             for u in [super_admin_user]:
-                DBSession().add(
+                models.DBSession().add(
                     TornadoStorage.user.create_social_auth(
                         u, u.username, 'google-oauth2'
                     )
                 )
     if user != '':
-        with status(f"Creating user ({user})"):
-            user = User(username=results.user, role_ids=['Full user'])
+        with baselayer_model_util.status(f"Creating user ({user})"):
+            user = models.User(username=results.user, role_ids=['Full user'])
 
-            DBSession().add_all([user])
+            models.DBSession().add_all([user])
 
             for u in [user]:
-                DBSession().add(
+                models.DBSession().add(
                     TornadoStorage.user.create_social_auth(
                         u, u.username, 'google-oauth2'
                     )
