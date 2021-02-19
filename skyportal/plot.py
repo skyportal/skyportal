@@ -1017,7 +1017,7 @@ def spectroscopy_plot(
                 'id': s.id,
                 'telescope': s.instrument.telescope.name,
                 'instrument': s.instrument.name,
-                'date_observed': s.observed_at.date().isoformat(),
+                'date_observed': s.observed_at.isoformat(sep=' ', timespec='seconds'),
                 'pi': (
                     s.assignment.run.pi
                     if s.assignment is not None
