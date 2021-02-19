@@ -73,7 +73,7 @@ if __name__ == "__main__":
         print("Note: user is not a valid email address")
 
     with status(f"Connecting to database {cfg['database']['database']}"):
-        init_db(**cfg['database'])
+        init_db(**cfg['database'], autoflush=False)
 
     if not results.nodrop:
         with status("Force dropping all tables"):
