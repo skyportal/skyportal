@@ -1032,6 +1032,8 @@ def spectroscopy_plot(
         data.append(df)
     data = pd.concat(data)
 
+    data.sort_values(by=['date_observed', 'wavelength'], inplace=True)
+
     dfs = []
     for i, s in enumerate(spectra):
         # Smooth the spectrum by using a rolling average
@@ -1045,7 +1047,8 @@ def spectroscopy_plot(
 
     smoothed_data = pd.concat(dfs)
 
-    split = data.groupby('id')
+    split = data.groupby('id', sort=False)
+
     hover = HoverTool(
         tooltips=[
             ('wavelength', '@wavelength{0,0.000}'),
