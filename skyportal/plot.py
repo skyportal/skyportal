@@ -1134,6 +1134,7 @@ def spectroscopy_plot(
             code="""
           for (let i = 0; i < toggle.labels.length; i++) {
               eval("s" + i).visible = (toggle.active.includes(i))
+              eval("l" + i).visible = (toggle.active.includes(i))
           }
     """,
         ),
