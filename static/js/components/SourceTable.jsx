@@ -37,6 +37,7 @@ import { filterOutEmptyValues } from "../API";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
+const VegaHR = React.lazy(() => import("./VegaHR"));
 
 const useStyles = makeStyles((theme) => ({
   chip: {
@@ -244,6 +245,13 @@ const SourceTable = ({
                 </Suspense>
               )}
               {!source.photometry_exists && <div> no photometry exists </div>}
+            </Grid>
+            <Grid item>
+              {source.photometry_exists && (
+                <Suspense fallback={<div>Loading HR diagram...</div>}>
+                  <VegaHR magG={10} color={-2} width={250} height={250} />
+                </Suspense>
+              )}
             </Grid>
             <Grid item>
               {source.spectrum_exists && (
