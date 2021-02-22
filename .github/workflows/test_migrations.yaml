@@ -123,12 +123,6 @@ jobs:
           fetch-depth: 0
           submodules: true
 
-      - name: Formatting and linting checks
-        if: github.ref != 'refs/heads/master'
-        run: |
-          pip install pre-commit
-          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
-
       - name: Run migration
         run: |
           PYTHONPATH=. alembic -x config=config.yaml upgrade head
@@ -141,7 +135,7 @@ jobs:
           # The generated migration should be empty if the migration script provided in the PR
           # completely encompasses the changes in the database.
           pass_lines=$( cat alembic/versions/*test_migration.py | grep -c pass )
-          if [[ $pass_lines -eq 0 ]]
+          if [[ $pass_lines -neq 2 ]]
           then
             echo "Additional migrations needed: see the generated migration script"
             exit 1
