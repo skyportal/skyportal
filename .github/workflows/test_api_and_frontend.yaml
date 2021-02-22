@@ -41,10 +41,11 @@ jobs:
             ~/.npm
           key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
 
-      - name: Checkout
+      - name: Checkout master
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+          ref: master
           submodules: true
 
       - name: Write SkyPortal configs
@@ -123,6 +124,9 @@ jobs:
           pip list --format=columns
           npm ls --depth 0
 
+          # Stamp Alembic HEAD
+          PYTHONPATH=. alembic -x config=config.yaml stamp head
+
       - name: Install Geckodriver / Selenium
         run: |
           GECKO_VER=0.27.0
@@ -142,6 +146,12 @@ jobs:
           make run &
           sleep 10 && make load_demo_data
           kill %1
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
 
       - name: Run test suite
         run: |
