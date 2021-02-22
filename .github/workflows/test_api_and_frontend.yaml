@@ -147,7 +147,7 @@ jobs:
           sleep 10 && make load_demo_data
           kill %1
 
-      - name: Checkout PR branch
+      - name: Checkout branch being tested
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
