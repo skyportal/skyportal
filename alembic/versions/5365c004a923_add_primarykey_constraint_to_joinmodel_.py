@@ -20,12 +20,14 @@ mapped_classes = JoinModel.__subclasses__()
 
 
 def upgrade():
+    op.create_primary_key("pk_candidates", "candidates", ["id"])
     for cls in mapped_classes:
         table = cls.__tablename__
         op.create_primary_key(f"pk_{table}", table, ["id"])
 
 
 def downgrade():
+    op.drop_constraint("pk_candidates", "candidates")
     for cls in mapped_classes:
         table = cls.__tablename__
         op.drop_constraint(f"pk_{table}", table)
