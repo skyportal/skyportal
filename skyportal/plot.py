@@ -163,7 +163,17 @@ def get_color(bandpass_name):
 
 
 def annotate_spec(plot, spectra, lower, upper):
-    """Annotate photometry plot with spectral markers that contain hover info"""
+    """Annotate photometry plot with spectral markers that contain hover info
+    Parameters
+    ----------
+    plot: bokeh figure object
+        Figure to be annotated
+    spectra: DBSession object
+        Results of query for spectra of object
+    lower: float
+    upper: float
+        Plot limits allowing calculation of annotation symbol y value
+    """
     s_mjd = []
     s_y = []
     s_date = []
