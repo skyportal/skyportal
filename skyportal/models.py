@@ -52,6 +52,7 @@ from baselayer.app.models import (  # noqa
     restricted,
     public,
     AccessibleIfRelatedRowsAreAccessible,
+    CronJobRun,
 )
 from skyportal import facility_apis
 from . import schema
