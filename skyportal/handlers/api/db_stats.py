@@ -1,6 +1,7 @@
 from baselayer.app.access import permissions
 from ..base import BaseHandler
 from ...models import (
+    DBSession,
     Obj,
     Source,
     Candidate,
@@ -9,6 +10,7 @@ from ...models import (
     Group,
     Photometry,
     Spectrum,
+    CronJobRun,
 )
 
 
@@ -84,4 +86,18 @@ class StatsHandler(BaseHandler):
         data["Newest candidate creation datetime"] = (
             cand.created_at if cand is not None else None
         )
+        data["Latest cron job run times & statuses"] = []
+        cron_job_scripts = DBSession().query(CronJobRun.script).distinct().all()
+        for script in cron_job_scripts:
+            cron_job_run = (
+                CronJobRun.query.filter(CronJobRun.script == script[0])
+                .order_by(CronJobRun.created_at.desc())
+                .first()
+            )
+            data["Latest cron job run times & statuses"].append(
+                {
+                    "summary": f"{script[0]} ran at {cron_job_run.created_at} with exit status {cron_job_run.exit_status}",
+                    "output": cron_job_run.output,
+                }
+            )
         return self.success(data=data)

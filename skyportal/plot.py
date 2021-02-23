@@ -1017,7 +1017,7 @@ def spectroscopy_plot(
                 'id': s.id,
                 'telescope': s.instrument.telescope.name,
                 'instrument': s.instrument.name,
-                'date_observed': s.observed_at.date().isoformat(),
+                'date_observed': s.observed_at.isoformat(sep=' ', timespec='seconds'),
                 'pi': (
                     s.assignment.run.pi
                     if s.assignment is not None
@@ -1032,6 +1032,8 @@ def spectroscopy_plot(
         data.append(df)
     data = pd.concat(data)
 
+    data.sort_values(by=['date_observed', 'wavelength'], inplace=True)
+
     dfs = []
     for i, s in enumerate(spectra):
         # Smooth the spectrum by using a rolling average
@@ -1045,7 +1047,8 @@ def spectroscopy_plot(
 
     smoothed_data = pd.concat(dfs)
 
-    split = data.groupby('id')
+    split = data.groupby('id', sort=False)
+
     hover = HoverTool(
         tooltips=[
             ('wavelength', '@wavelength{0,0.000}'),
@@ -1131,6 +1134,7 @@ def spectroscopy_plot(
             code="""
           for (let i = 0; i < toggle.labels.length; i++) {
               eval("s" + i).visible = (toggle.active.includes(i))
+              eval("l" + i).visible = (toggle.active.includes(i))
           }
     """,
         ),

@@ -41,6 +41,9 @@ const getMuiTheme = (theme) =>
             flexFlow: "row nowrap",
           },
         },
+        tableCellContainer: {
+          padding: "1rem",
+        },
         selectRoot: {
           marginRight: "0.5rem",
           [theme.breakpoints.up("sm")]: {

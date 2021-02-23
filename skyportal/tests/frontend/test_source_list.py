@@ -190,7 +190,12 @@ def test_add_sources_two_groups(
 
 
 def test_filter_by_classification(
-    driver, user, public_group, upload_data_token, taxonomy_token, classification_token,
+    driver,
+    user,
+    public_group,
+    upload_data_token,
+    taxonomy_token,
+    classification_token,
 ):
     # Post an object with a classification
     source_id = str(uuid.uuid4())
@@ -246,7 +251,10 @@ def test_filter_by_classification(
 
     # Filter for classification
     driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
-    driver.click_xpath("//div[@id='classifications-select']")
+    driver.click_xpath(
+        "//div[@data-testid='classifications-select']",
+        scroll_parent=True,
+    )
     driver.click_xpath(
         f"//li[@data-value='{taxonomy_name}: Algol']", scroll_parent=True
     )
@@ -259,9 +267,9 @@ def test_filter_by_classification(
 
     # Now search for a different classification
     driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
-    # Clear old classification selection
     driver.click_xpath(
-        f"//li[@data-value='{taxonomy_name}: Algol']", scroll_parent=True
+        "//div[@data-testid='classifications-select']",
+        scroll_parent=True,
     )
     driver.click_xpath(f"//li[@data-value='{taxonomy_name}: AGN']", scroll_parent=True)
     driver.click_xpath(
