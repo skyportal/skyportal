@@ -6,6 +6,7 @@ import TableCell from "@material-ui/core/TableCell";
 import TableRow from "@material-ui/core/TableRow";
 import Typography from "@material-ui/core/Typography";
 import CircularProgress from "@material-ui/core/CircularProgress";
+import Tooltip from "@material-ui/core/Tooltip";
 
 import * as dbStatsActions from "../ducks/dbStats";
 
@@ -45,7 +46,14 @@ const DBStats = () => {
                 {Array.isArray(dbStats[key]) ? (
                   <ul style={{ paddingLeft: "0.8rem" }}>
                     {dbStats[key].map((item) => (
-                      <li key={item}>{item}</li>
+                      <li key={item.summary}>
+                        {item.summary}
+                        {item.output && (
+                          <Tooltip title={item.output}>
+                            <em> (hover to see output)</em>
+                          </Tooltip>
+                        )}
+                      </li>
                     ))}
                   </ul>
                 ) : !Number.isNaN(Number(dbStats[key])) ? (
