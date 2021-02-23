@@ -42,8 +42,7 @@ const DBStats = () => {
                 <em>{key}</em>
               </TableCell>
               <TableCell>
-                {/* eslint-disable-next-line no-nested-ternary */}
-                {Array.isArray(dbStats[key]) ? (
+                {Array.isArray(dbStats[key]) && (
                   <ul style={{ paddingLeft: "0.8rem" }}>
                     {dbStats[key].map((item) => (
                       <li key={item.summary}>
@@ -56,11 +55,11 @@ const DBStats = () => {
                       </li>
                     ))}
                   </ul>
-                ) : !Number.isNaN(Number(dbStats[key])) ? (
-                  Number(dbStats[key]).toLocaleString()
-                ) : (
-                  dbStats[key]
                 )}
+                {!Array.isArray(dbStats[key]) &&
+                  (!Number.isNaN(Number(dbStats[key]))
+                    ? Number(dbStats[key]).toLocaleString()
+                    : dbStats[key])}
               </TableCell>
             </TableRow>
           ))}
