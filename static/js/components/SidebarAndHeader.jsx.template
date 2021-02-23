@@ -97,11 +97,25 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 
+const SidebarLinkText = ({ route, title }) => {
+  const classes = useStyles();
+  const currentRoute = useLocation().pathname;
+
+  return (
+    <ListItemText
+      primary={
+        <Typography className={currentRoute === route ? classes.bold : null}>
+          {title}
+        </Typography>
+      }
+    />
+  );
+};
+
+
 const SidebarAndHeader = () => {
   const open = useSelector((state) => state.sidebar.open);
   const currentUser = useSelector((state) => state.profile);
-
-  const currentRoute = useLocation().pathname;
 
   const dispatch = useDispatch();
   const classes = useStyles();
@@ -178,12 +192,9 @@ const SidebarAndHeader = () => {
               <ListItemIcon>
                 <{{ item.icon }}Icon style={{ "{{ color: blue[200] }}" }} />
               </ListItemIcon>
-              <ListItemText
-                primary={
-                  <Typography className={currentRoute === "{{ item.url }}" ? classes.bold : null}>
-                    {{ item.name }}
-                  </Typography>
-                }
+              <SidebarLinkText
+                route="{{ item.url }}"
+                title="{{ item.name }}"
               />
             </ListItem>
           {%- if item.url.startswith('http') %}
@@ -199,12 +210,9 @@ const SidebarAndHeader = () => {
                 <ListItemIcon>
                   <GroupIcon style={{ "{{ color: blue[200] }}" }} />
                 </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Typography className={currentRoute === "/user_management" ? classes.bold : null}>
-                      User Management
-                    </Typography>
-                  }
+                <SidebarLinkText
+                  route="/user_management"
+                  title="User Management"
                 />
               </ListItem>
             </Link>
@@ -215,12 +223,9 @@ const SidebarAndHeader = () => {
                 <ListItemIcon>
                   <AssessmentIcon style={{ "{{ color: blue[200] }}" }} />
                 </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Typography className={currentRoute === "/db_stats" ? classes.bold : null}>
-                      DB Stats
-                    </Typography>
-                  }
+                <SidebarLinkText
+                  route="/db_stats"
+                  title="DB Stats"
                 />
               </ListItem>
             </Link>
