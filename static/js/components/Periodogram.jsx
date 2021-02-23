@@ -196,14 +196,16 @@ const Periodogram = () => {
   const [run, setRun] = useState(false);
   const [plotted, setPlotted] = useState(false);
 
+  const [establishedfilters, setEstablishedfilters] = useState(false);
+
   const [instruments, setInstruments] = useState([]);
   const [filters, setFilters] = useState([]);
   const [mjdmin, setMjdmin] = useState(0);
   const [mjdmax, setMjdmax] = useState(70000);
 
   const [params, setParams] = useState({
-    instrument: "P60 Camera",
-    filter: "ztfr",
+    instrument: null,
+    filter: null,
     ofac: "20",
   });
 
@@ -250,19 +252,22 @@ const Periodogram = () => {
   function ma(minDate, maxDate) {
     setMjdmin(Math.min(minDate, maxDate));
     setMjdmax(Math.max(minDate, maxDate));
+    // rerun with the new time window
+    setRun(false);
   }
 
   function plotdata(xx, yy, me) {
     const dat = transpose([xx, yy])
       .map((x, i) => [x[0], [x[1], me[i]]])
       .sort((a, b) => b[0] - a[0]);
+    const filteredy = yy.filter((n) => n);
     // eslint-disable-next-line no-new
     new Dygraph(dataplotRef.current, dat, {
       drawPoints: true,
       strokeWidth: 0,
       labels: ["time", "mag"],
       errorBars: true,
-      valueRange: [Math.max(...yy) + 0.1, Math.min(...yy) - 0.1],
+      valueRange: [Math.max(...filteredy) + 0.1, Math.min(...filteredy) - 0.1],
       dateWindow: [Math.min(...xx) - 6, Math.max(...xx) + 6],
       zoomCallback: ma,
     });
@@ -320,46 +325,55 @@ const Periodogram = () => {
     if (!photometry) {
       dispatch(photometryActions.fetchSourcePhotometry(id));
     }
-    if (photometry) {
-      setInstruments([...new Set(photometry.map((x) => x.instrument_name))]);
-      setFilters([...new Set(photometry.map((x) => x.filter))]);
+    if (photometry && !establishedfilters) {
+      const insts = [...new Set(photometry.map((x) => x.instrument_name))];
+      const filts = [...new Set(photometry.map((x) => x.filter))];
+      setInstruments(insts);
+      setFilters(filts);
+      if (insts.length > 0 && filts.length > 0) {
+        setParams({ instrument: insts[0], filter: filts[0] });
+      }
+      setEstablishedfilters(true);
     }
 
-    if (photometry && !run) {
+    if (photometry && establishedfilters && !run) {
       const data = photometry.filter(
         (x) =>
           x.filter === params.filter && x.instrument_name === params.instrument
       );
-      const times = data.map((x) => x.mjd);
-      const mag = data.map((x) => x.mag);
-      const magerr = data.map((x) => x.magerr);
-      if (!plotted) {
-        plotdata(times, mag, magerr);
-        setPlotted(true);
+      if (data.length > 0) {
+        const times = data.map((x) => x.mjd);
+        const mag = data.map((x) => x.mag);
+        const magerr = data.map((x) => x.magerr);
+        if (!plotted) {
+          plotdata(times, mag, magerr);
+          setPlotted(true);
+        }
+
+        // filtered times
+        const ftimes = times.filter((x) => x >= mjdmin && x <= mjdmax);
+        const fmag = mag.filter(
+          (x, i) => times[i] >= mjdmin && times[i] <= mjdmax
+        );
+        const fmagerr = magerr.filter(
+          (x, i) => times[i] >= mjdmin && times[i] <= mjdmax
+        );
+
+        const gls = GLS(ftimes, fmag, {
+          e_y: fmagerr,
+          ofac: parseInt(params.ofac, 10),
+          fbeg: null,
+          fend: null,
+          ls: null,
+        });
+
+        plotGLS(gls.f, gls.p, {
+          periodbest: 1 / gls.fbest,
+          periodmax: gls.tbase / 3.5,
+        });
+        setBestp(1 / gls.fbest);
+        setRun(true);
       }
-
-      // filtered times
-      const ftimes = times.filter((x) => x >= mjdmin && x <= mjdmax);
-      const fmag = mag.filter(
-        (x, i) => times[i] >= mjdmin && times[i] <= mjdmax
-      );
-      const fmagerr = magerr.filter(
-        (x, i) => times[i] >= mjdmin && times[i] <= mjdmax
-      );
-
-      const gls = GLS(ftimes, fmag, {
-        e_y: fmagerr,
-        ofac: parseInt(params.ofac, 10),
-        fbeg: null,
-        fend: null,
-        ls: null,
-      });
-      plotGLS(gls.f, gls.p, {
-        periodbest: 1 / gls.fbest,
-        periodmax: gls.tbase / 3.5,
-      });
-      setBestp(1 / gls.fbest);
-      setRun(true);
     }
     if (run) {
       const data = photometry.filter(
@@ -374,9 +388,15 @@ const Periodogram = () => {
       const title = `P=${bestp?.toFixed(8)} d (${params.instrument}: ${
         params.filter
       })`;
-      plotphased(times, mag, bestp, title);
+      if (times.length > 0) {
+        plotphased(times, mag, bestp, title);
+      } else {
+        dispatch(
+          showNotification("No data for this combination of instrument/filter.")
+        );
+      }
     }
-  }, [id, photometry, bestp, run, dispatch]);
+  }, [id, photometry, params, establishedfilters, bestp, run, dispatch]);
 
   const componentRef = useRef();
 
@@ -389,6 +409,8 @@ const Periodogram = () => {
       ...initialFormState,
       ...getValues(),
     };
+    setMjdmin(0);
+    setMjdmax(70000);
     setPlotted(false);
     setRun(false);
     setParams(formData);
@@ -447,56 +469,60 @@ const Periodogram = () => {
                       alignItems="flex-start"
                       spacing={2}
                     >
-                      <Grid item xs={12}>
-                        <FormControl>
-                          <InputLabel
-                            className={classes.items}
-                            id="InstrumentSourceSelect"
-                          >
-                            Instrument
-                          </InputLabel>
-                          <p />
-                          <Controller
-                            as={Select}
-                            labelid="InstrumentSourceSelectLabel"
-                            name="instrument"
-                            control={control}
-                            defaultValue={params.instrument}
-                            className={classes.items}
-                          >
-                            {instruments.map((instrument) => (
-                              <MenuItem key={instrument} value={instrument}>
-                                {instrument}
-                              </MenuItem>
-                            ))}
-                          </Controller>
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <FormControl>
-                          <InputLabel
-                            className={classes.items}
-                            id="FilterSourceSelect"
-                          >
-                            Filter
-                          </InputLabel>
-                          <p />
-                          <Controller
-                            as={Select}
-                            labelid="FilterSourceSelectLabel"
-                            name="filter"
-                            control={control}
-                            defaultValue={params.filter}
-                            className={classes.items}
-                          >
-                            {filters.map((filt) => (
-                              <MenuItem key={filt} value={filt}>
-                                {filt}
-                              </MenuItem>
-                            ))}
-                          </Controller>
-                        </FormControl>
-                      </Grid>
+                      {params.instrument && (
+                        <Grid item xs={12}>
+                          <FormControl>
+                            <InputLabel
+                              className={classes.items}
+                              id="InstrumentSourceSelect"
+                            >
+                              Instrument
+                            </InputLabel>
+                            <p />
+                            <Controller
+                              as={Select}
+                              labelid="InstrumentSourceSelectLabel"
+                              name="instrument"
+                              control={control}
+                              defaultValue={params.instrument}
+                              className={classes.items}
+                            >
+                              {instruments.map((instrument) => (
+                                <MenuItem key={instrument} value={instrument}>
+                                  {instrument}
+                                </MenuItem>
+                              ))}
+                            </Controller>
+                          </FormControl>
+                        </Grid>
+                      )}
+                      {params.filter && (
+                        <Grid item xs={12}>
+                          <FormControl>
+                            <InputLabel
+                              className={classes.items}
+                              id="FilterSourceSelect"
+                            >
+                              Filter
+                            </InputLabel>
+                            <p />
+                            <Controller
+                              as={Select}
+                              labelid="FilterSourceSelectLabel"
+                              name="filter"
+                              control={control}
+                              defaultValue={params.filter}
+                              className={classes.items}
+                            >
+                              {filters.map((filt) => (
+                                <MenuItem key={filt} value={filt}>
+                                  {filt}
+                                </MenuItem>
+                              ))}
+                            </Controller>
+                          </FormControl>
+                        </Grid>
+                      )}
                       <Grid item xs={12}>
                         <FormControl>
                           <InputLabel className={classes.items} id="OFACSelect">

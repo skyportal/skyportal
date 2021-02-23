@@ -155,6 +155,9 @@ const SourceDesktop = ({ source }) => {
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
+
+  const photometry = useSelector((state) => state.photometry[source.id]);
+
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const groups = (useSelector((state) => state.groups.all) || []).filter(
@@ -354,9 +357,11 @@ const SourceDesktop = ({ source }) => {
                   >
                     Show Photometry Table
                   </Button>
-                  <Link to={`/source/${source.id}/periodogram`} role="link">
-                    <Button variant="contained">Periodogram Analysis</Button>
-                  </Link>
+                  {photometry && (
+                    <Link to={`/source/${source.id}/periodogram`} role="link">
+                      <Button variant="contained">Periodogram Analysis</Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             </AccordionDetails>
