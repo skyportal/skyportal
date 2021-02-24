@@ -1,4 +1,5 @@
 import uuid
+import smtplib
 import python_http_client.exceptions
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
@@ -147,6 +148,11 @@ class InvitationHandler(BaseHandler):
                 "Twilio Sendgrid authorization error. Please ensure "
                 "valid Sendgrid API key is set in server environment as "
                 "per their setup docs."
+            )
+        except smtplib.SMTPAuthenticationError:
+            return self.error(
+                "SMTP authentication failed. Please ensure valid "
+                "credentials are specified in the config file."
             )
         return self.success()
 
