@@ -242,10 +242,12 @@ class ClassificationHandler(BaseHandler):
             c.groups = groups
         self.finalize_transaction()
         self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key},
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': c.obj.internal_key},
         )
         self.push_all(
-            action='skyportal/REFRESH_CANDIDATE', payload={'id': c.obj.internal_key},
+            action='skyportal/REFRESH_CANDIDATE',
+            payload={'id': c.obj.internal_key},
         )
 
         return self.success()
@@ -282,10 +284,12 @@ class ClassificationHandler(BaseHandler):
         else:
             return self.error('Insufficient user permissions.')
         self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key},
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': obj_key},
         )
         self.push_all(
-            action='skyportal/REFRESH_CANDIDATE', payload={'id': obj_key},
+            action='skyportal/REFRESH_CANDIDATE',
+            payload={'id': obj_key},
         )
 
         return self.success()
