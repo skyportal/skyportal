@@ -33,6 +33,8 @@ const useStyles = makeStyles((theme) => ({
   paper: {
     padding: "1rem",
     marginTop: "1rem",
+    maxHeight: "calc(100vh - 5rem)",
+    overflow: "scroll",
   },
   root: {
     display: "flex",
@@ -53,6 +55,12 @@ const useStyles = makeStyles((theme) => ({
   },
   positionField: {
     width: "33%",
+    "& > label": {
+      fontSize: "0.875rem",
+      [theme.breakpoints.up("sm")]: {
+        fontSize: "1rem",
+      },
+    },
   },
   formButtons: {
     width: "100%",
@@ -80,14 +88,12 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const getMultiselectStyles = (value, selectedValues, theme) => {
-  return {
-    fontWeight:
-      selectedValues.indexOf(value) === -1
-        ? theme.typography.fontWeightRegular
-        : theme.typography.fontWeightMedium,
-  };
-};
+const getMultiselectStyles = (value, selectedValues, theme) => ({
+  fontWeight:
+    selectedValues.indexOf(value) === -1
+      ? theme.typography.fontWeightRegular
+      : theme.typography.fontWeightMedium,
+});
 
 const SourceTableFilterForm = ({ handleFilterSubmit }) => {
   const classes = useStyles();
@@ -237,7 +243,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             render={({ onChange, value }) => (
               <Select
                 labelId="classifications-select-label"
-                id="classifications-select"
+                data-testid="classifications-select"
                 multiple
                 value={value}
                 onChange={(event) => {

@@ -5,7 +5,7 @@
 SkyPortal requires the following software to be installed.  We show
 how to install them on MacOS and Debian-based systems below.
 
-- Python 3.6 or later
+- Python 3.8 or later
 - Supervisor (v>=3.0b2)
 - NGINX (v>=1.7)
 - PostgreSQL (v>=9.6)

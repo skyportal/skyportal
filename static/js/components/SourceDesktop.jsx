@@ -33,6 +33,7 @@ import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
+import FavoritesButton from "./FavoritesButton";
 
 const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
@@ -100,6 +101,12 @@ export const useSourceStyles = makeStyles((theme) => ({
   alignRight: {
     display: "inline-block",
     verticalAlign: "super",
+    align: "right",
+    justify: "flex-end",
+  },
+  alignLeft: {
+    display: "inline-block",
+    verticalAlign: "super",
   },
   followupContainer: {
     display: "flex",
@@ -142,7 +149,6 @@ export const useSourceStyles = makeStyles((theme) => ({
 
 const SourceDesktop = ({ source }) => {
   const classes = useSourceStyles();
-
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
 
@@ -159,10 +165,13 @@ const SourceDesktop = ({ source }) => {
     <div className={classes.source}>
       <div className={classes.leftColumn}>
         <div className={classes.leftColumnItem}>
-          <div className={classes.alignRight}>
+          <div className={classes.alignLeft}>
             <SharePage />
           </div>
           <div className={classes.name}>{source.id}</div>
+          <div className={classes.alignRight}>
+            <FavoritesButton sourceID={source.id} />
+          </div>
           <br />
           <div className={classes.sourceInfo}>
             <div className={classes.infoLine}>
@@ -365,7 +374,7 @@ const SourceDesktop = ({ source }) => {
               <div className={classes.photometryContainer}>
                 <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
                   <Plot
-                    url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=500`}
+                    url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600`}
                   />
                 </Suspense>
                 <div>

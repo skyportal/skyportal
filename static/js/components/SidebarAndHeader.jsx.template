@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, matchPath } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import Typography from "@material-ui/core/Typography";
 import Drawer from "@material-ui/core/Drawer";
@@ -13,12 +13,14 @@ import ListItemText from "@material-ui/core/ListItemText";
 import { blue } from "@material-ui/core/colors";
 import IconButton from "@material-ui/core/IconButton";
 import GroupIcon from "@material-ui/icons/Group";
+import AssessmentIcon from '@material-ui/icons/Assessment';
 import { makeStyles } from "@material-ui/core/styles";
 
-{% for item in app.sidebar %}
+{% for item in app.sidebar -%}
 import {{ item.icon }}Icon from "@material-ui/icons/{{ item.icon }}";
 {% endfor %}
 import MenuIcon from "@material-ui/icons/Menu";
+import { isMobile } from "react-device-detect";
 
 import QuickSearchBar from "./QuickSearchBar";
 import HeaderContent from "./HeaderContent";
@@ -67,6 +69,7 @@ const useStyles = makeStyles((theme) => ({
     paddingLeft: "0.4em",
     background: "#33345C",
     fontSize: "1.2em",
+    paddingTop: "1rem",
   },
   toolbar: {
     display: "flex",
@@ -80,7 +83,7 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(0, 1),
     // necessary for content to be below app bar
     ...theme.mixins.toolbar,
-    paddingTop: "6em",
+    paddingTop: "5em",
     justifyContent: 'flex-end',
   },
   link: {
@@ -94,13 +97,25 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 
+const SidebarLinkText = ({ route, title }) => {
+  const classes = useStyles();
+  const currentRoute = useLocation().pathname;
+
+  return (
+    <ListItemText
+      primary={
+        <Typography className={currentRoute === route ? classes.bold : null}>
+          {title}
+        </Typography>
+      }
+    />
+  );
+};
+
+
 const SidebarAndHeader = () => {
   const open = useSelector((state) => state.sidebar.open);
   const currentUser = useSelector((state) => state.profile);
-
-  const sideBarURLs = [{% for item in app.sidebar -%} "{{ item.url }}", {% endfor %}];
-  const matchedURL = sideBarURLs.filter(url => matchPath(window.location.pathname, {path: url, exact: true}));
-  const [selected, setSelected] = useState(matchedURL[0]);
 
   const dispatch = useDispatch();
   const classes = useStyles();
@@ -136,6 +151,8 @@ const SidebarAndHeader = () => {
     return cleanupListener;
   }, [open, dispatch]);
 
+  const drawerType = isMobile ? "temporary" : "persistent";
+
   return (
     <>
       <AppBar
@@ -156,30 +173,28 @@ const SidebarAndHeader = () => {
       </AppBar>
       <Drawer
         className={classes.drawer}
-        variant="persistent"
+        variant={drawerType}
         anchor="left"
         open={open}
+        onClose={isMobile ? handleToggleSidebarOpen : undefined}
         classes={{ "{{ paper: classes.drawerPaper }}" }}
       >
-        <div className={classes.drawerHeader} />
+        {!isMobile && <div className={classes.drawerHeader} />}
         <List>
           {%- for item in app.sidebar -%}
 
           {%- if item.url.startswith('http') %}
-          <a href="{{ item.url }}" className={classes.link} onClick={() => setSelected("{{ item.url }}")}>
+          <a href="{{ item.url }}" className={classes.link}>
           {% else %}
-          <Link to="{{ item.url }}" className={classes.link} onClick={() => setSelected("{{ item.url }}")}>
+          <Link to="{{ item.url }}" className={classes.link}>
           {%- endif %}
             <ListItem button name="sidebar{{ item.name }}Button">
               <ListItemIcon>
                 <{{ item.icon }}Icon style={{ "{{ color: blue[200] }}" }} />
               </ListItemIcon>
-              <ListItemText
-                primary={
-                  <Typography className={selected === "{{ item.url }}" ? classes.bold : null}>
-                    {{ item.name }}
-                  </Typography>
-                }
+              <SidebarLinkText
+                route="{{ item.url }}"
+                title="{{ item.name }}"
               />
             </ListItem>
           {%- if item.url.startswith('http') %}
@@ -190,17 +205,27 @@ const SidebarAndHeader = () => {
 
           {%- endfor %}
           {(currentUser.permissions?.includes("System admin") || currentUser.permissions?.includes("Manage users")) && (
-            <Link to="/user_management" className={classes.link} onClick={() => setSelected("/user_management")}>
+            <Link to="/user_management" className={classes.link}>
               <ListItem button name="userManagementButton">
                 <ListItemIcon>
                   <GroupIcon style={{ "{{ color: blue[200] }}" }} />
                 </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Typography className={selected === "/user_management" ? classes.bold : null}>
-                      User Management
-                    </Typography>
-                  }
+                <SidebarLinkText
+                  route="/user_management"
+                  title="User Management"
+                />
+              </ListItem>
+            </Link>
+          )}
+          {currentUser.permissions?.includes("System admin") && (
+            <Link to="/db_stats" className={classes.link}>
+              <ListItem button name="dbStatsButton">
+                <ListItemIcon>
+                  <AssessmentIcon style={{ "{{ color: blue[200] }}" }} />
+                </ListItemIcon>
+                <SidebarLinkText
+                  route="/db_stats"
+                  title="DB Stats"
                 />
               </ListItem>
             </Link>

@@ -62,7 +62,7 @@ def test_add_and_retrieve_comment_group_access(
     assert status == 200
     assert data['data']['text'] == 'Comment text'
 
-    # This token does not belnog to public_group2
+    # This token does not belong to public_group2
     status, data = api('GET', f'comment/{comment_id}', token=comment_token)
     assert status == 400
     assert "Insufficient permissions" in data["message"]
