@@ -8,7 +8,6 @@ from ...models import (
     User,
     Token,
     Group,
-    Photometry,
     Spectrum,
     CronJobRun,
 )
@@ -73,7 +72,11 @@ class StatsHandler(BaseHandler):
         data["Number of candidates"] = Candidate.query.count()
         data["Number of sources"] = Source.query.count()
         data["Number of objs"] = Obj.query.count()
-        data["Number of photometry"] = Photometry.query.count()
+        data["Number of photometry (approx)"] = list(
+            DBSession().execute(
+                "SELECT reltuples::bigint FROM pg_catalog.pg_class WHERE relname = 'photometry'"
+            )
+        )[0][0]
         data["Number of spectra"] = Spectrum.query.count()
         data["Number of groups"] = Group.query.count()
         data["Number of users"] = User.query.count()
