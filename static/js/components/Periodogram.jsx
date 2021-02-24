@@ -10,6 +10,7 @@ import InputLabel from "@material-ui/core/InputLabel";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import FormControl from "@material-ui/core/FormControl";
 import Button from "@material-ui/core/Button";
+import Slider from "@material-ui/core/Slider";
 import Input from "@material-ui/core/Input";
 import Grid from "@material-ui/core/Grid";
 import Card from "@material-ui/core/Card";
@@ -20,7 +21,6 @@ import { showNotification } from "baselayer/components/Notifications";
 
 import TextLoop from "react-text-loop";
 import { useForm, Controller } from "react-hook-form";
-import { CopyToClipboard } from "react-copy-to-clipboard";
 import { dot, dotMultiply, add, transpose } from "mathjs";
 
 import * as photometryActions from "../ducks/photometry";
@@ -197,6 +197,7 @@ const Periodogram = () => {
   const [plotted, setPlotted] = useState(false);
 
   const [establishedfilters, setEstablishedfilters] = useState(false);
+  const [periodmultiplier, setPeriodmultiplier] = useState(1.0);
 
   const [instruments, setInstruments] = useState([]);
   const [filters, setFilters] = useState([]);
@@ -385,18 +386,27 @@ const Periodogram = () => {
       );
       const times = data.map((x) => x.mjd);
       const mag = data.map((x) => x.mag);
-      const title = `P=${bestp?.toFixed(8)} d (${params.instrument}: ${
-        params.filter
-      })`;
+      const title = `P=${bestp * periodmultiplier.toFixed(8)} d (${
+        params.instrument
+      }: ${params.filter})`;
       if (times.length > 0) {
-        plotphased(times, mag, bestp, title);
+        plotphased(times, mag, bestp * periodmultiplier, title);
       } else {
         dispatch(
           showNotification("No data for this combination of instrument/filter.")
         );
       }
     }
-  }, [id, photometry, params, establishedfilters, bestp, run, dispatch]);
+  }, [
+    id,
+    photometry,
+    params,
+    establishedfilters,
+    bestp,
+    run,
+    periodmultiplier,
+    dispatch,
+  ]);
 
   const componentRef = useRef();
 
@@ -411,12 +421,53 @@ const Periodogram = () => {
     };
     setMjdmin(0);
     setMjdmax(70000);
+    setPeriodmultiplier(1.0);
     setPlotted(false);
     setRun(false);
     setParams(formData);
   };
 
   const rules = { required: true, min: 1, max: 25, type: "number", step: 1 };
+
+  function copyPeriod() {
+    try {
+      navigator.clipboard.writeText(
+        `${(periodmultiplier * bestp).toFixed(15)}`
+      );
+      dispatch(
+        showNotification(`Copied period (${bestp?.toFixed(8)} d) to clipboard.`)
+      );
+    } catch (err) {
+      dispatch(showNotification("Could not copy period to clipboard."));
+    }
+  }
+
+  const marks = [
+    {
+      value: 0.5,
+      label: "½×",
+    },
+    {
+      value: 1,
+      label: "1×",
+    },
+    {
+      value: 2.0,
+      label: "2×",
+    },
+    {
+      value: 3,
+      label: "3×",
+    },
+  ];
+
+  function valuetext(value) {
+    return `${value}`;
+  }
+
+  const handleMultiplierChange = (e, val) => {
+    setPeriodmultiplier(val);
+  };
 
   return (
     <>
@@ -497,93 +548,107 @@ const Periodogram = () => {
                         </Grid>
                       )}
                       {params.filter && (
-                        <Grid item xs={12}>
-                          <FormControl>
-                            <InputLabel
-                              className={classes.items}
-                              id="FilterSourceSelect"
-                            >
-                              Filter
-                            </InputLabel>
-                            <p />
-                            <Controller
-                              as={Select}
-                              labelid="FilterSourceSelectLabel"
-                              name="filter"
-                              control={control}
-                              defaultValue={params.filter}
-                              className={classes.items}
-                            >
-                              {filters.map((filt) => (
-                                <MenuItem key={filt} value={filt}>
-                                  {filt}
-                                </MenuItem>
-                              ))}
-                            </Controller>
-                          </FormControl>
-                        </Grid>
-                      )}
-                      <Grid item xs={12}>
-                        <FormControl>
-                          <InputLabel className={classes.items} id="OFACSelect">
-                            ofac
-                          </InputLabel>
-                          <Controller
-                            as={<Input type="number" rules={rules} />}
-                            name="ofac"
-                            control={control}
-                            defaultValue={params.ofac}
-                            className={classes.items}
-                          />
-                        </FormControl>
-                      </Grid>
-                      <p />
-                      <Grid item xs={8}>
-                        {bestp && (
-                          <>
-                            <Typography>
-                              <b>Period</b> = {bestp?.toFixed(8)} d
-                            </Typography>
-                            <CopyToClipboard
-                              text={bestp}
-                              onCopy={() =>
-                                dispatch(
-                                  showNotification(
-                                    `Copied period (${bestp?.toFixed(
-                                      8
-                                    )} d) to clipboard.`
-                                  )
-                                )
-                              }
-                            >
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                color="primary"
+                        <>
+                          <Grid item xs={12}>
+                            <FormControl>
+                              <InputLabel
+                                className={classes.items}
+                                id="FilterSourceSelect"
                               >
-                                Copy period to clipboard
-                              </Button>
-                            </CopyToClipboard>
-                          </>
-                        )}
-                      </Grid>
-                      <Grid item xs={8}>
-                        <Button
-                          type="submit"
-                          color="primary"
-                          name="finderButton"
-                          variant="contained"
-                          className={classes.button}
-                        >
-                          Recalculate
-                        </Button>
-                      </Grid>
-                      <Typography gutterBottom>
-                        Change the parameters above and/or zoom to a new time
-                        range in the top plot, then recalculate. The red
-                        vertical lines show the best peak and harmonics. Click
-                        the middle plot to fold on that frequency.
-                      </Typography>
+                                Filter
+                              </InputLabel>
+                              <p />
+                              <Controller
+                                as={Select}
+                                labelid="FilterSourceSelectLabel"
+                                name="filter"
+                                control={control}
+                                defaultValue={params.filter}
+                                className={classes.items}
+                              >
+                                {filters.map((filt) => (
+                                  <MenuItem key={filt} value={filt}>
+                                    {filt}
+                                  </MenuItem>
+                                ))}
+                              </Controller>
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <FormControl>
+                              <InputLabel
+                                className={classes.items}
+                                id="OFACSelect"
+                              >
+                                ofac
+                              </InputLabel>
+                              <Controller
+                                as={<Input type="number" rules={rules} />}
+                                name="ofac"
+                                control={control}
+                                defaultValue={params.ofac || "20"}
+                                className={classes.items}
+                              />
+                            </FormControl>
+                          </Grid>
+                          <Grid item xs={8}>
+                            <Typography id="period-slider" gutterBottom>
+                              Period multiplier
+                            </Typography>
+                            <Slider
+                              value={periodmultiplier}
+                              getAriaValueText={valuetext}
+                              aria-labelledby="period-slider"
+                              step={null}
+                              max={3}
+                              min={0.5}
+                              marks={marks}
+                              valueLabelDisplay="auto"
+                              onChange={handleMultiplierChange}
+                            />
+                          </Grid>
+                          <Grid item xs={8}>
+                            {bestp && (
+                              <>
+                                <Typography>
+                                  P=
+                                  <span className="bestp">
+                                    {(periodmultiplier * bestp).toFixed(6)}
+                                  </span>{" "}
+                                  d
+                                </Typography>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="secondary"
+                                  onClick={() => copyPeriod()}
+                                >
+                                  Copy period to clipboard
+                                </Button>
+                              </>
+                            )}
+                          </Grid>
+                          <Grid item xs={8}>
+                            <Button
+                              type="submit"
+                              color="primary"
+                              name="finderButton"
+                              variant="contained"
+                              className={classes.button}
+                            >
+                              Recalculate
+                            </Button>
+                          </Grid>
+                          <Typography gutterBottom>
+                            Change the parameters above and/or zoom to a new
+                            time range in the top plot, then recalculate. The
+                            red vertical lines show the best peak and harmonics.
+                            Click the middle plot to fold on that frequency.
+                          </Typography>
+                        </>
+                      )}
+
+                      <p />
                     </Grid>
                   </form>
                 </div>
