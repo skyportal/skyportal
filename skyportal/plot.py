@@ -174,28 +174,18 @@ def annotate_spec(plot, spectra, lower, upper):
     upper: float
         Plot limits allowing calculation of annotation symbol y value
     """
-    s_mjd = []
-    s_y = []
-    s_date = []
-    s_tel = []
-    s_inst = []
-    s_text = []
+    # get y position of annotation
     text_y = upper - (upper - lower) * 0.05
-    for s in spectra:
-        date = '%d-%d-%dT%02d:%02d:%02d' % (
-            s.observed_at.year,
-            s.observed_at.month,
-            s.observed_at.day,
-            s.observed_at.hour,
-            s.observed_at.minute,
-            s.observed_at.second,
-        )
-        s_mjd.append(Time(date).mjd)
-        s_y.append(text_y)
-        s_date.append(date)
-        s_tel.append(s.instrument.telescope.name)
-        s_inst.append(s.instrument.name)
-        s_text.append("S")
+    s_y = [text_y] * len(spectra)
+    s_text = ['S'] * len(spectra)
+
+    # get data from spectra
+    s_mjd = [Time(s.observed_at, format='datetime').mjd for s in spectra]
+    s_date = [s.observed_at.isoformat() for s in spectra]
+    s_tel = [s.instrument.telescope.name for s in spectra]
+    s_inst = [s.instrument.name for s in spectra]
+
+    # plot the annotation using data for hover
     if len(s_mjd) > 0:
         spec_r = plot.text(
             x='s_mjd',
@@ -262,15 +252,10 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
 
     # get spectra to annotate on phot plots
     spectra = (
-        DBSession()
-        .query(Spectrum)
-        .join(Obj)
-        .join(GroupSpectrum)
-        .filter(
-            Spectrum.obj_id == obj_id,
-            GroupSpectrum.group_id.in_([g.id for g in user.accessible_groups]),
-        )
-    ).all()
+        Spectrum.query_records_accessible_by(user)
+        .filter(Spectrum.obj_id == obj_id)
+        .all()
+    )
 
     data['color'] = [get_color(f) for f in data['filter']]
 
