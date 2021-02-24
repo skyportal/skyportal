@@ -25,6 +25,7 @@ def upgrade():
         sa.Column('modified', sa.DateTime(), nullable=False),
         sa.Column('script', sa.String(), nullable=False),
         sa.Column('exit_status', sa.Integer(), nullable=True),
+        sa.Column('output', sa.String(), nullable=True),
         sa.PrimaryKeyConstraint('id'),
     )
     # ### end Alembic commands ###
