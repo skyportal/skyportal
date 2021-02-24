@@ -163,16 +163,16 @@ def get_color(bandpass_name):
 
 
 def annotate_spec(plot, spectra, lower, upper):
-    """Annotate photometry plot with spectral markers that contain hover info
+    """Annotate photometry plot with spectral markers.
+
     Parameters
     ----------
-    plot: bokeh figure object
-        Figure to be annotated
-    spectra: DBSession object
-        Results of query for spectra of object
-    lower: float
-    upper: float
-        Plot limits allowing calculation of annotation symbol y value
+    plot : bokeh figure object
+        Figure to be annotated.
+    spectra : DBSession object
+        Results of query for spectra of object.
+    lower, upper : float
+        Plot limits allowing calculation of annotation symbol y value.
     """
     # get y position of annotation
     text_y = upper - (upper - lower) * 0.05
@@ -219,15 +219,17 @@ def annotate_spec(plot, spectra, lower, upper):
 
 
 def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
-    """Create scatter plot of photometry for object.
+    """Create object photometry scatter plot.
+
     Parameters
     ----------
     obj_id : str
         ID of Obj to be plotted.
+
     Returns
     -------
-    (str, str)
-        Returns (docs_json, render_items) json for the desired plot.
+    dict
+        Returns Bokeh JSON embedding for the desired plot.
     """
 
     data = pd.read_sql(
