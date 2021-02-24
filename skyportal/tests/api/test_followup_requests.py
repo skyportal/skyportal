@@ -126,8 +126,8 @@ def test_regular_user_delete_super_admin_followup_request(
     id = data['data']['id']
 
     status, data = api('DELETE', f'followup_request/{id}', token=upload_data_token)
-    assert status == 400
-    assert data['status'] == 'error'
+    assert status == 200
+    assert data['status'] == 'success'
 
 
 def test_group1_user_cannot_see_group2_followup_request(
@@ -159,6 +159,6 @@ def test_group1_user_cannot_see_group2_followup_request(
     assert status == 400
     assert data['status'] == 'error'
 
-    status, data = api('GET', f'followup_request/', token=view_only_token)
+    status, data = api('GET', 'followup_request/', token=view_only_token)
     assert status == 200
     assert id not in [a['id'] for a in data['data']]

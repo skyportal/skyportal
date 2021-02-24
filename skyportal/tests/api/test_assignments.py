@@ -106,7 +106,7 @@ def test_regular_user_can_modify_super_admin_assignment(
     assert data['data']['requester_id'] == super_admin_user.id
 
 
-def test_group1_user_cannot_see_group2_assignment(
+def test_group1_user_can_see_group2_assignment(
     red_transients_run,
     public_source_group2,
     public_source,
@@ -138,9 +138,5 @@ def test_group1_user_cannot_see_group2_assignment(
     assert data['status'] == 'success'
 
     status, data = api('GET', f'assignment/{id}', token=view_only_token)
-    assert status == 400
-    assert data['status'] == 'error'
-
-    status, data = api('GET', 'assignment/', token=view_only_token)
     assert status == 200
-    assert public_source_group2.id not in [a['id'] for a in data['data']]
+    assert data['status'] == 'success'
