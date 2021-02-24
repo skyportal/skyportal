@@ -5,7 +5,15 @@ import pandas as pd
 
 from bokeh.core.properties import List, String
 from bokeh.layouts import row, column
-from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button, LinearAxis
+from bokeh.models import (
+    CustomJS,
+    HoverTool,
+    Range1d,
+    Slider,
+    Button,
+    LinearAxis,
+    RadioGroup,
+)
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.plotting import figure, ColumnDataSource
 
@@ -154,7 +162,7 @@ def get_color(bandpass_name):
         return bandcolor
 
 
-def photometry_plot(obj_id, user, width=600, height=300):
+def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     """Create scatter plot of photometry for object.
     Parameters
     ----------
@@ -235,12 +243,22 @@ def photometry_plot(obj_id, user, width=600, height=300):
     lower = np.min(fdata['flux']) * 0.95
     upper = np.max(fdata['flux']) * 1.05
 
+    active_drag = None if "mobile" in device or "tablet" in device else "box_zoom"
+    tools = (
+        'box_zoom,pan,reset'
+        if "mobile" in device or "tablet" in device
+        else "box_zoom,wheel_zoom,pan,reset,save"
+    )
+
     plot = figure(
-        aspect_ratio=1.7,
+        aspect_ratio=2.0 if device == "mobile_landscape" else 1.5,
         sizing_mode='scale_both',
-        active_drag='box_zoom',
-        tools='box_zoom,wheel_zoom,pan,reset,save',
+        active_drag=active_drag,
+        tools=tools,
+        toolbar_location='above',
+        toolbar_sticky=True,
         y_range=(lower, upper),
+        min_border_right=16,
     )
     imhover = HoverTool(tooltips=tooltip_format)
     imhover.renderers = []
@@ -324,6 +342,8 @@ def photometry_plot(obj_id, user, width=600, height=300):
         )
 
     plot.xaxis.axis_label = 'MJD'
+    if device == "mobile_portrait":
+        plot.xaxis.ticker.desired_num_ticks = 5
     plot.yaxis.axis_label = 'Flux (μJy)'
     plot.toolbar.logo = None
 
@@ -334,6 +354,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         active=list(range(len(colors_labels))),
         colors=colors_labels.color.tolist(),
         width=width // 5,
+        inline=True if "tablet" in device else False,
     )
 
     # TODO replace `eval` with Namespaces
@@ -350,7 +371,13 @@ def photometry_plot(obj_id, user, width=600, height=300):
     )
 
     slider = Slider(
-        start=0.0, end=15.0, value=0.0, step=1.0, title='Binsize (days)', max_width=350
+        start=0.0,
+        end=15.0,
+        value=0.0,
+        step=1.0,
+        title='Binsize (days)',
+        max_width=350,
+        margin=(4, 10, 0, 10),
     )
 
     callback = CustomJS(
@@ -384,7 +411,10 @@ def photometry_plot(obj_id, user, width=600, height=300):
             line_width=2,
         )
         plot.add_tools(
-            HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
+            HoverTool(
+                tooltips=[("First detection", f'{first}')],
+                renderers=[first_r],
+            )
         )
         last_r = plot.line(
             x=np.full(5000, last),
@@ -394,10 +424,17 @@ def photometry_plot(obj_id, user, width=600, height=300):
             line_width=2,
         )
         plot.add_tools(
-            HoverTool(tooltips=[("Last detection", f'{last}')], renderers=[last_r],)
+            HoverTool(
+                tooltips=[("Last detection", f'{last}')],
+                renderers=[last_r],
+            )
         )
-
-    layout = column(slider, row(plot, toggle), sizing_mode='scale_width', width=width)
+    plot_layout = (
+        column(plot, toggle)
+        if "mobile" in device or "tablet" in device
+        else row(plot, toggle)
+    )
+    layout = column(slider, plot_layout, sizing_mode='scale_width', width=width)
 
     p1 = Panel(child=layout, title='Flux')
 
@@ -425,14 +462,15 @@ def photometry_plot(obj_id, user, width=600, height=300):
     xmax = data['mjd'].max() + 2
 
     plot = figure(
-        aspect_ratio=1.5,
+        aspect_ratio=2.0 if device == "mobile_landscape" else 1.5,
         sizing_mode='scale_both',
-        active_drag='box_zoom',
-        tools='box_zoom,wheel_zoom,pan,reset,save',
+        width=width,
+        active_drag=active_drag,
+        tools=tools,
         y_range=(ymax, ymin),
         x_range=(xmin, xmax),
         toolbar_location='above',
-        toolbar_sticky=False,
+        toolbar_sticky=True,
         x_axis_location='above',
     )
 
@@ -453,7 +491,10 @@ def photometry_plot(obj_id, user, width=600, height=300):
             line_width=2,
         )
         plot.add_tools(
-            HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
+            HoverTool(
+                tooltips=[("First detection", f'{first}')],
+                renderers=[first_r],
+            )
         )
         last_r = plot.line(
             x=np.full(5000, last),
@@ -639,6 +680,7 @@ def photometry_plot(obj_id, user, width=600, height=300):
         active=list(range(len(colors_labels))),
         colors=colors_labels.color.tolist(),
         width=width // 5,
+        inline=True if "tablet" in device else False,
     )
 
     # TODO replace `eval` with Namespaces
@@ -654,7 +696,15 @@ def photometry_plot(obj_id, user, width=600, height=300):
         )
     )
 
-    slider = Slider(start=0.0, end=15.0, value=0.0, step=1.0, title='Binsize (days)')
+    slider = Slider(
+        start=0.0,
+        end=15.0,
+        value=0.0,
+        step=1.0,
+        title='Binsize (days)',
+        max_width=350,
+        margin=(4, 10, 0, 10),
+    )
 
     button = Button(label="Export Bold Light Curve to CSV")
     button.js_on_click(
@@ -671,7 +721,11 @@ def photometry_plot(obj_id, user, width=600, height=300):
         )
     )
 
-    toplay = row(slider, button)
+    # Don't need to expose CSV download on mobile
+    top_layout = (
+        slider if "mobile" in device or "tablet" in device else row(slider, button)
+    )
+
     callback = CustomJS(
         args={'slider': slider, 'toggle': toggle, **model_dict},
         code=open(
@@ -682,16 +736,252 @@ def photometry_plot(obj_id, user, width=600, height=300):
         .replace('detect_thresh', str(PHOT_DETECTION_THRESHOLD)),
     )
     slider.js_on_change('value', callback)
-
-    layout = column(toplay, row(plot, toggle), sizing_mode='scale_width', width=width)
+    plot_layout = (
+        column(plot, toggle)
+        if "mobile" in device or "tablet" in device
+        else row(plot, toggle)
+    )
+    layout = column(top_layout, plot_layout, sizing_mode='scale_width', width=width)
 
     p2 = Panel(child=layout, title='Mag')
 
-    tabs = Tabs(tabs=[p2, p1], width=width, height=height, sizing_mode='fixed')
+    # now make period plot
+
+    # get periods from annotations
+    annotation_list = obj.get_annotations_readable_by(user)
+    period_labels = []
+    period_list = []
+    for an in annotation_list:
+        if 'period' in an.data:
+            period_list.append(an.data['period'])
+            period_labels.append(an.origin + ": %.9f" % an.data['period'])
+
+    if len(period_list) > 0:
+        period = period_list[0]
+    else:
+        period = None
+
+    # don't generate if no period annotated
+    if period is not None:
+
+        # bokeh figure for period plotting
+        period_plot = figure(
+            aspect_ratio=1.5,
+            sizing_mode='scale_both',
+            active_drag='box_zoom',
+            tools='box_zoom,wheel_zoom,pan,reset,save',
+            y_range=(ymax, ymin),
+            x_range=(-0.1, 1.1),  # initially one phase
+            toolbar_location='above',
+            toolbar_sticky=False,
+            x_axis_location='below',
+        )
+
+        # axis labels
+        period_plot.xaxis.axis_label = 'phase'
+        period_plot.yaxis.axis_label = 'mag'
+        period_plot.toolbar.logo = None
+
+        # do we have a distance modulus (dm)?
+        obj = DBSession().query(Obj).get(obj_id)
+        if obj.dm is not None:
+            period_plot.extra_y_ranges = {
+                "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
+            }
+            period_plot.add_layout(
+                LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
+            )
+
+        # initiate hover tool
+        period_imhover = HoverTool(tooltips=tooltip_format)
+        period_imhover.renderers = []
+        period_plot.add_tools(period_imhover)
+
+        # initiate period radio buttons
+        period_selection = RadioGroup(labels=period_labels, active=0)
+
+        phase_selection = RadioGroup(labels=["One phase", "Two phases"], active=0)
+
+        # store all the plot data
+        period_model_dict = {}
+
+        # iterate over each filter
+        for i, (label, df) in enumerate(split):
+
+            # fold x-axis on period in days
+            df['mjd_folda'] = (df['mjd'] % period) / period
+            df['mjd_foldb'] = df['mjd_folda'] + 1.0
+
+            # phase plotting
+            for ph in ['a', 'b']:
+                key = 'fold' + ph + f'{i}'
+                period_model_dict[key] = period_plot.scatter(
+                    x='mjd_fold' + ph,
+                    y='mag',
+                    color='color',
+                    marker='circle',
+                    fill_color='color',
+                    alpha='alpha',
+                    visible=('a' in ph),
+                    source=ColumnDataSource(df[df['obs']]),  # only visible data
+                )
+                # add to hover tool
+                period_imhover.renderers.append(period_model_dict[key])
+
+                # errorbars for phases
+                key = 'fold' + ph + f'err{i}'
+                y_err_x = []
+                y_err_y = []
+
+                # get each visible error value
+                for d, ro in df[df['obs']].iterrows():
+                    px = ro['mjd_fold' + ph]
+                    py = ro['mag']
+                    err = ro['magerr']
+                    # set up error tuples
+                    y_err_x.append((px, px))
+                    y_err_y.append((py - err, py + err))
+                # plot phase errors
+                period_model_dict[key] = period_plot.multi_line(
+                    xs='xs',
+                    ys='ys',
+                    color='color',
+                    alpha='alpha',
+                    visible=('a' in ph),
+                    source=ColumnDataSource(
+                        data=dict(
+                            xs=y_err_x,
+                            ys=y_err_y,
+                            color=df[df['obs']]['color'],
+                            alpha=[1.0] * len(df[df['obs']]),
+                        )
+                    ),
+                )
+
+        # toggle for folded photometry
+        period_toggle = CheckboxWithLegendGroup(
+            labels=colors_labels.label.tolist(),
+            active=list(range(len(colors_labels))),
+            colors=colors_labels.color.tolist(),
+            width=width // 5,
+        )
+        # use javascript to perform toggling on click
+        # TODO replace `eval` with Namespaces
+        # https://github.com/bokeh/bokeh/pull/6340
+        period_toggle.js_on_click(
+            CustomJS(
+                args={
+                    'toggle': period_toggle,
+                    'numphases': phase_selection,
+                    'p': period_plot,
+                    **period_model_dict,
+                },
+                code=open(
+                    os.path.join(
+                        os.path.dirname(__file__), '../static/js/plotjs', 'togglep.js'
+                    )
+                ).read(),
+            )
+        )
+
+        # set up period adjustment text box
+        period_title = Div(text="Period (days): ")
+        period_textinput = TextInput(value=str(period if period is not None else 0.0))
+        period_textinput.js_on_change(
+            'value',
+            CustomJS(
+                args={
+                    'textinput': period_textinput,
+                    'toggle': period_toggle,
+                    'numphases': phase_selection,
+                    'p': period_plot,
+                    **period_model_dict,
+                },
+                code=open(
+                    os.path.join(
+                        os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
+                    )
+                ).read(),
+            ),
+        )
+        # a way to modify the period
+        period_double_button = Button(label="*2")
+        period_double_button.js_on_click(
+            CustomJS(
+                args={'textinput': period_textinput},
+                code="""
+                const period = parseFloat(textinput.value);
+                textinput.value = parseFloat(2.*period).toFixed(9);
+                """,
+            )
+        )
+        period_halve_button = Button(label="/2")
+        period_halve_button.js_on_click(
+            CustomJS(
+                args={'textinput': period_textinput},
+                code="""
+                        const period = parseFloat(textinput.value);
+                        textinput.value = parseFloat(period/2.).toFixed(9);
+                        """,
+            )
+        )
+        # a way to select the period
+        period_selection.js_on_click(
+            CustomJS(
+                args={'textinput': period_textinput, 'periods': period_list},
+                code="""
+                textinput.value = parseFloat(periods[this.active]).toFixed(9);
+                """,
+            )
+        )
+        phase_selection.js_on_click(
+            CustomJS(
+                args={
+                    'textinput': period_textinput,
+                    'toggle': period_toggle,
+                    'numphases': phase_selection,
+                    'p': period_plot,
+                    **period_model_dict,
+                },
+                code=open(
+                    os.path.join(
+                        os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
+                    )
+                ).read(),
+            )
+        )
+
+        # layout
+
+        period_column = column(
+            period_toggle,
+            period_title,
+            period_textinput,
+            period_selection,
+            row(period_double_button, period_halve_button, width=180),
+            phase_selection,
+            width=180,
+        )
+
+        period_layout = column(
+            row(period_plot, period_column),
+            sizing_mode='scale_width',
+            width=width,
+        )
+
+        # Period panel
+        p3 = Panel(child=period_layout, title='Period')
+        # tabs for mag, flux, period
+        tabs = Tabs(tabs=[p2, p1, p3], width=width, height=height, sizing_mode='fixed')
+    else:
+        # tabs for mag, flux
+        tabs = Tabs(tabs=[p2, p1], width=width, height=height, sizing_mode='fixed')
     return bokeh_embed.json_item(tabs)
 
 
-def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
+def spectroscopy_plot(
+    obj_id, user, spec_id=None, width=600, height=300, device="browser"
+):
     obj = Obj.query.get(obj_id)
     spectra = (
         DBSession()
@@ -727,7 +1017,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
                 'id': s.id,
                 'telescope': s.instrument.telescope.name,
                 'instrument': s.instrument.name,
-                'date_observed': s.observed_at.date().isoformat(),
+                'date_observed': s.observed_at.isoformat(sep=' ', timespec='seconds'),
                 'pi': (
                     s.assignment.run.pi
                     if s.assignment is not None
@@ -742,6 +1032,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         data.append(df)
     data = pd.concat(data)
 
+    data.sort_values(by=['date_observed', 'wavelength'], inplace=True)
+
     dfs = []
     for i, s in enumerate(spectra):
         # Smooth the spectrum by using a rolling average
@@ -755,7 +1047,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
 
     smoothed_data = pd.concat(dfs)
 
-    split = data.groupby('id')
+    split = data.groupby('id', sort=False)
+
     hover = HoverTool(
         tooltips=[
             ('wavelength', '@wavelength{0,0.000}'),
@@ -775,19 +1068,32 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
     if obj.redshift is not None and obj.redshift > 0:
         xmin_rest = xmin / (1.0 + obj.redshift)
         xmax_rest = xmax / (1.0 + obj.redshift)
+
+    active_drag = None if "mobile" in device or "tablet" in device else "box_zoom"
+    tools = (
+        "box_zoom, pan, reset"
+        if "mobile" in device or "tablet" in device
+        else "box_zoom,wheel_zoom,pan,reset"
+    )
+    plot_width = None if device == "browser" else width
     plot = figure(
-        aspect_ratio=1.5,
-        sizing_mode='scale_width',
+        aspect_ratio=2.0 if device == "mobile_landscape" else 1.5,
+        sizing_mode='scale_both',
+        width=plot_width,
         y_range=(ymin, ymax),
         x_range=(xmin, xmax),
-        tools='box_zoom,wheel_zoom,pan,reset',
-        active_drag='box_zoom',
+        tools=tools,
+        toolbar_location="above",
+        active_drag=active_drag,
     )
     plot.add_tools(hover)
     model_dict = {}
     for i, (key, df) in enumerate(split):
         model_dict['s' + str(i)] = plot.step(
-            x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(df),
+            x='wavelength',
+            y='flux',
+            color=color_map[key],
+            source=ColumnDataSource(df),
         )
         model_dict['l' + str(i)] = plot.line(
             x='wavelength',
@@ -820,6 +1126,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         active=list(range(len(spectra))),
         colors=[color_map[k] for k, df in split],
         width=width // 5,
+        inline=True if "tablet" in device else False,
     )
     toggle.js_on_click(
         CustomJS(
@@ -827,11 +1134,13 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
             code="""
           for (let i = 0; i < toggle.labels.length; i++) {
               eval("s" + i).visible = (toggle.active.includes(i))
+              eval("l" + i).visible = (toggle.active.includes(i))
           }
     """,
         ),
     )
 
+    slider_width = width if "mobile" in device else int(width / 2)
     z_title = Div(text="Redshift (<i>z</i>): ")
     z_slider = Slider(
         value=obj.redshift if obj.redshift is not None else 0.0,
@@ -854,10 +1163,22 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         """,
         ),
     )
-    z = column(z_title, z_slider, z_textinput)
+    z = column(
+        z_title,
+        z_slider,
+        z_textinput,
+        width=slider_width,
+        margin=(4, 10, 0, 10),
+    )
 
     v_title = Div(text="<i>V</i><sub>expansion</sub> (km/s): ")
-    v_exp_slider = Slider(value=0.0, start=0.0, end=3e4, step=10.0, show_value=False,)
+    v_exp_slider = Slider(
+        value=0.0,
+        start=0.0,
+        end=3e4,
+        step=10.0,
+        show_value=False,
+    )
     v_exp_textinput = TextInput(value='0')
     v_exp_slider.js_on_change(
         'value',
@@ -869,7 +1190,13 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         """,
         ),
     )
-    v_exp = column(v_title, v_exp_slider, v_exp_textinput)
+    v_exp = column(
+        v_title,
+        v_exp_slider,
+        v_exp_textinput,
+        width=slider_width,
+        margin=(0, 10, 0, 10),
+    )
 
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
         el_data = pd.DataFrame({'wavelength': wavelengths})
@@ -887,7 +1214,12 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         model_dict[f'el{i}'].visible = False
 
     # Split spectral line legend into columns
-    columns = 7
+    if device == "mobile_portrait":
+        columns = 3
+    elif device == "mobile_landscape":
+        columns = 5
+    else:
+        columns = 7
     element_dicts = zip(*itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns))
 
     elements_groups = []  # The Bokeh checkbox groups
@@ -964,8 +1296,14 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, height=300):
         z_textinput.js_on_change('value', callback)
         v_exp_textinput.js_on_change('value', callback)
 
-    row1 = row(plot, toggle)
+    row1 = (
+        column(plot, toggle)
+        if "mobile" in device or "tablet" in device
+        else row(plot, toggle)
+    )
     row2 = row(elements_groups)
-    row3 = row(z, v_exp)
-    layout = column(row1, row2, row3, width=width)
+    row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
+    layout = column(
+        row1, row2, row3, sizing_mode='scale_height', width=width, height=height
+    )
     return bokeh_embed.json_item(layout)

@@ -32,6 +32,8 @@ app:
       exact: True
     - path: "/source/:id"
       component: Source
+    - path: "/favorites"
+      component: FavoritesPage
     - path: "/groups"
       component: Groups
     - path: "/group/:id"
@@ -66,6 +68,8 @@ app:
       component: Observability
     - path: "/source/:id/finder"
       component: FindingChart
+    - path: "/db_stats"
+      component: DBStats
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -81,6 +85,10 @@ app:
     - name: Candidates
       icon: Search
       url: /candidates
+
+    - name: Favorites
+      icon: Star
+      url: /favorites
 
     - name: Groups
       icon: GroupWork

@@ -4,14 +4,56 @@ import { useDispatch } from "react-redux";
 
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
+import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
-import Table from "@material-ui/core/Table";
-import TableHead from "@material-ui/core/TableHead";
-import TableBody from "@material-ui/core/TableBody";
-import TableRow from "@material-ui/core/TableRow";
-import TableCell from "@material-ui/core/TableCell";
+import {
+  makeStyles,
+  createMuiTheme,
+  MuiThemeProvider,
+  useTheme,
+} from "@material-ui/core/styles";
+
+import MUIDataTable from "mui-datatables";
 
 import * as Action from "../ducks/profile";
+
+const useStyles = makeStyles(() => ({
+  container: {
+    width: "100%",
+    overflow: "scroll",
+  },
+}));
+
+// Tweak responsive styling
+const getMuiTheme = (theme) =>
+  createMuiTheme({
+    palette: theme.palette,
+    overrides: {
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
+          },
+        },
+        tableCellContainer: {
+          padding: "1rem",
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0",
+            marginRight: "2rem",
+          },
+        },
+      },
+    },
+  });
 
 const copyToken = (elementID) => {
   const el = document.getElementById(elementID);
@@ -20,6 +62,8 @@ const copyToken = (elementID) => {
 };
 
 const TokenList = ({ tokens }) => {
+  const classes = useStyles();
+  const theme = useTheme();
   const dispatch = useDispatch();
   if (!tokens) {
     return <div />;
@@ -29,49 +73,73 @@ const TokenList = ({ tokens }) => {
     dispatch(Action.deleteToken(token_id));
   };
 
+  const renderValue = (value) => (
+    <div>
+      <TextField id={value} value={value} readOnly={1} />
+      <Button variant="contained" size="small" onClick={() => copyToken(value)}>
+        Copy to Clipboard
+      </Button>
+    </div>
+  );
+
+  const renderACLs = (value) => value.join(", ");
+
+  const renderDelete = (dataIndex) => {
+    const tokenId = tokens[dataIndex].id;
+    return (
+      <Button
+        variant="contained"
+        size="small"
+        onClick={() => deleteToken(tokenId)}
+      >
+        Delete
+      </Button>
+    );
+  };
+
+  const columns = [
+    {
+      name: "id",
+      label: "Value",
+      options: {
+        customBodyRender: renderValue,
+      },
+    },
+    { name: "name", label: "Name" },
+    {
+      name: "acls",
+      label: "ACLs",
+      options: {
+        customBodyRender: renderACLs,
+      },
+    },
+    { name: "created_at", label: "Created" },
+    {
+      name: "delete",
+      label: "Delete",
+      options: {
+        customBodyRenderLite: renderDelete,
+      },
+    },
+  ];
+
+  const options = {
+    filter: false,
+    sort: false,
+    print: true,
+    download: true,
+    search: true,
+    selectableRows: "none",
+    elevation: 0,
+  };
+
   return (
     <div>
-      <h3>My Tokens</h3>
-      <Paper>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Value</TableCell>
-              <TableCell />
-              <TableCell>Name</TableCell>
-              <TableCell>ACLS</TableCell>
-              <TableCell>Created</TableCell>
-              <TableCell>Delete</TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {tokens.map((token) => (
-              <TableRow key={token.id}>
-                <TableCell>
-                  <TextField id={token.id} value={token.id} readOnly={1} />
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    onClick={() => copyToken(token.id)}
-                  >
-                    Copy to Clipboard
-                  </Button>
-                </TableCell>
-                <TableCell>{token.name}</TableCell>
-                <TableCell>{token.acls.join(", ")}</TableCell>
-                <TableCell>{token.created_at}</TableCell>
-                <TableCell>
-                  <a href="#top" onClick={() => deleteToken(token.id)}>
-                    Delete
-                  </a>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <Typography variant="h5">My Tokens</Typography>
+      <Paper className={classes.container}>
+        <MuiThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable data={tokens} options={options} columns={columns} />
+        </MuiThemeProvider>
       </Paper>
     </div>
   );

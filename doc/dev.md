@@ -11,7 +11,7 @@ pre-commit install
 
 This will check your changes before each commit to ensure that they
 conform with our code style standards. We use black to reformat Python
-code, and PrettierJS for JavaScript.  We also run ESLint to catch
+code, and PrettierJS for JavaScript. We also run ESLint to catch
 several common Redux usage bugs.
 
 ## Testing
@@ -20,7 +20,7 @@ To execute the test suite:
 
 - Install geckodriver and Firefox
 - To run all tests: `make test`
-- To run a single test: `./tools/test_frontend.py skportal/tests/frontend/<test_file>.py::test_<specific_test>`
+- To run a single test: `./tools/test_frontend.py skyportal/tests/frontend/<test_file>.py::test_<specific_test>`
 
 This fires up the test server and runs that test. To make things
 faster you can also run the test server separately:
@@ -45,6 +45,16 @@ xvfb-run pytest skyportal/tests/frontend/test_user.py
 ```
 
 It is not noticeably faster to run the test suite headlessly.
+
+### Test fixtures
+
+The SkyPortal test suite leverages pytest fixtures to generate and isolate test data for each test. Fixtures are declared in the `skyportal/tests/conftest.py` file, and they utilize factories implemented in `skyportal/tests/fixtures.py` to generate new instances of fixtures as needed.
+
+Each test will request any fixtures that it requires, and as part of the set-up for that test, new test instances of the fixtures are created. This means that each test is guaranteed to work with fresh, isolated test data in order to avoid any unintended dependencies on other tests. Fixtures should be used when possible in writing new tests to promote safe, repeatable test results.
+
+SkyPortal test fixtures are implemented with teardown logic, such that any database records generated for that fixture are deleted from the test database upon completion of a test. This serves to avoid bloating of the test database as more tests are run. Note that each fixture defined in `conftest.py` uses the `yield` keyword to return its test object. Any code following `yield` in a pytest fixture is run as teardown logic when that fixture goes out of scope; you will find that in SkyPortal this involves calling the relevant `teardown()` functions on the fixture objects created. These `teardown()` functions are implemented for each SQLAlchemyModelFactory subclass defined in `fixtures.py`.
+
+Any new fixtures and fixture factories being added should follow this same structure, taking care to delete all fixture data (including SubFactory-generated records, i.e. a new User created to be the author of a new Comment). Foreign key constraints and cascade behavior defined on the database models can be used to simplify this logic but can also lead to subtle errors in tearing down fixtures and should be taken into careful consideration.
 
 ## Debugging
 
@@ -95,8 +105,8 @@ Run `make docker-images` to build and push to Docker hub.
 You can insert the following step to debug your workflow:
 
 ```yaml
-  - name: Setup tmate session
-    uses: mxschmitt/action-tmate@v2
+- name: Setup tmate session
+  uses: mxschmitt/action-tmate@v2
 ```
 
 It will print a command that you can use to SSH into the runner.

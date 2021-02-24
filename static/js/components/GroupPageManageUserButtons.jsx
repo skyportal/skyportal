@@ -77,7 +77,12 @@ ManageUserButtons.propTypes = {
     username: PropTypes.string,
   }).isRequired,
   isAdmin: PropTypes.func.isRequired,
-  group: PropTypes.shape(PropTypes.object).isRequired,
+  group: PropTypes.shape({
+    id: PropTypes.number,
+    users: PropTypes.arrayOf(
+      PropTypes.shape({ admin: PropTypes.bool.isRequired })
+    ),
+  }).isRequired,
 };
 
 export default ManageUserButtons;

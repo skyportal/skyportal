@@ -114,7 +114,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={5} sm={3}>
+              <Grid item xs={12} sm={5}>
                 <InputLabel htmlFor="email_id">
                   Preferred Contact Email
                 </InputLabel>
@@ -135,7 +135,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={6} sm={3}>
+              <Grid item xs={12} sm={3}>
                 <InputLabel htmlFor="phone_id">
                   Contact Phone (Include Country Code)
                 </InputLabel>

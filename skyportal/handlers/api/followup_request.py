@@ -1,6 +1,7 @@
 import jsonschema
 from marshmallow.exceptions import ValidationError
 
+
 from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from ...models import (
@@ -244,7 +245,8 @@ class AssignmentHandler(BaseHandler):
         self.finalize_transaction()
 
         self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj_key},
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_key": obj_key},
         )
         self.push_all(
             action="skyportal/REFRESH_OBSERVING_RUN",

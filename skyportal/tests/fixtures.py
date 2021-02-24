@@ -8,6 +8,7 @@ from tempfile import mkdtemp
 
 import factory
 import numpy as np
+from sqlalchemy import inspect
 
 from baselayer.app.config import load_config
 from baselayer.app.env import load_env
@@ -51,6 +52,24 @@ print("Setting test database to:", cfg["database"])
 init_db(**cfg["database"])
 
 
+def is_already_deleted(instance, table):
+    """
+    Helper function to check if a given ORM instance has already been deleted previously,
+    either by earlier teardown functions or by a test itself through the API.
+    """
+    # If the instance is marked detached, that means it was deleted earlier in the
+    # current transaction.
+    if instance in DBSession() and inspect(instance).detached:
+        return True
+
+    if instance not in DBSession():
+        return DBSession().query(table).filter(table.id == instance.id).first() is None
+
+    # If the instance is in the session and has not been detached (deleted + committed)
+    # then it still requires some teardown actions.
+    return False
+
+
 class BaseMeta:
     sqlalchemy_session = DBSession()
     sqlalchemy_session_persistence = 'commit'
@@ -67,6 +86,15 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     elevation = 1712.0
     diameter = 1.2
     robotic = True
+
+    @staticmethod
+    def teardown(telescope_id):
+        telescope = (
+            DBSession().query(Telescope).filter(Telescope.id == telescope_id).first()
+        )
+        if telescope is not None:
+            DBSession().delete(telescope)
+            DBSession().commit()
 
 
 class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -93,7 +121,6 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
     def groups(obj, create, extracted, **kwargs):
         if not create:
             return
-
         if extracted:
             for group in extracted:
                 obj.groups.append(group)
@@ -110,6 +137,14 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
 
         obj.groups.append(sitewide_group)
         DBSession().commit()
+
+    @staticmethod
+    def teardown(user_id):
+        user = DBSession().query(User).filter(User.id == user_id).first()
+        if user is not None:
+            # If it is, delete it
+            DBSession().delete(user)
+            DBSession().commit()
 
 
 class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -131,6 +166,16 @@ class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
                 DBSession().add(obj)
                 DBSession().commit()
 
+    @staticmethod
+    def teardown(annotation):
+        if is_already_deleted(annotation, Annotation):
+            return
+
+        author = annotation.author.id
+        DBSession().delete(annotation)
+        DBSession().commit()
+        UserFactory.teardown(author)
+
 
 class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
@@ -142,6 +187,16 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
     telescope = factory.SubFactory(TelescopeFactory)
     filters = ['ztfg', 'ztfr', 'ztfi']
 
+    @staticmethod
+    def teardown(instrument):
+        if is_already_deleted(instrument, Instrument):
+            return
+
+        telescope = instrument.telescope.id
+        DBSession().delete(instrument)
+        DBSession().commit()
+        TelescopeFactory.teardown(telescope)
+
 
 class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
@@ -152,6 +207,16 @@ class PhotometryFactory(factory.alchemy.SQLAlchemyModelFactory):
     flux = factory.LazyFunction(lambda: 20 + 10 * np.random.random())
     fluxerr = factory.LazyFunction(lambda: 2 * np.random.random())
     owner_id = 1
+
+    @staticmethod
+    def teardown(photometry):
+        if is_already_deleted(photometry, Photometry):
+            return
+
+        instrument = photometry.instrument
+        DBSession().delete(photometry)
+        DBSession().commit()
+        DBSession().delete(instrument)
 
 
 class ThumbnailFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -172,6 +237,21 @@ class SpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
     reducers = factory.LazyFunction(lambda: [UserFactory() for _ in range(2)])
     observers = factory.LazyFunction(lambda: [UserFactory() for _ in range(1)])
 
+    @staticmethod
+    def teardown(spectrum):
+        if is_already_deleted(spectrum, Spectrum):
+            return
+        instrument = spectrum.instrument
+        reducers = spectrum.reducers
+        observers = spectrum.observers
+        for reducer in reducers:
+            UserFactory.teardown(reducer.id)
+        for observer in observers:
+            UserFactory.teardown(observer.id)
+        DBSession().delete(spectrum)
+        DBSession().commit()
+        InstrumentFactory.teardown(instrument)
+
 
 class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
@@ -181,6 +261,15 @@ class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):
     users = []
     groups = []
     filters = []
+
+    @staticmethod
+    def teardown(stream_id):
+        # Fetch fresh instance of stream
+        stream = DBSession().query(Stream).filter(Stream.id == stream_id).first()
+        if stream is not None:
+            # If it is, delete it
+            DBSession().delete(stream)
+            DBSession().commit()
 
 
 class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -193,16 +282,23 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
     filters = []
     private = False
 
-    # @factory.post_generation
-    # def streams(obj, create, extracted, **kwargs):
-    #     if not create:
-    #         return
-    #
-    #     if extracted:
-    #         for stream in extracted:
-    #             obj.streams.append(stream)
-    #             DBSession().add(obj)
-    #             DBSession().commit()
+    @factory.post_generation
+    def streams(obj, create, extracted, **kwargs):
+        if not create:
+            return
+        if extracted:
+            for stream in extracted:
+                obj.streams.append(stream)
+                DBSession().add(obj)
+                DBSession().commit()
+
+    @staticmethod
+    def teardown(group_id):
+        group = DBSession().query(Group).filter(Group.id == group_id).first()
+        if group is not None:
+            # If it is, delete it
+            DBSession().delete(group)
+            DBSession().commit()
 
 
 class FilterFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -210,6 +306,14 @@ class FilterFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Filter
 
     name = str(uuid.uuid4())
+
+    @staticmethod
+    def teardown(filter_id):
+        filter_ = DBSession().query(Filter).filter(Filter.id == filter_id).first()
+        if filter_ is not None:
+            # If it is, delete it
+            DBSession().delete(filter_)
+            DBSession().commit()
 
 
 class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -224,12 +328,21 @@ class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
     def groups(obj, create, extracted, **kwargs):
         if not create:
             return
-
         if extracted:
             for group in extracted:
                 obj.groups.append(group)
                 DBSession().add(obj)
                 DBSession().commit()
+
+    @staticmethod
+    def teardown(comment):
+        if is_already_deleted(comment, Comment):
+            return
+
+        author = comment.author.id
+        DBSession().delete(comment)
+        DBSession().commit()
+        UserFactory.teardown(author)
 
 
 class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -247,6 +360,8 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         if not passed_groups:
             passed_groups = []
         instruments = [InstrumentFactory(), InstrumentFactory()]
+        # Save the generated instruments so they can be cleaned up later
+        obj.instruments = instruments
         filters = ['ztfg', 'ztfr', 'ztfi']
         for instrument, filter in islice(zip(cycle(instruments), cycle(filters)), 10):
             np.random.seed()
@@ -280,6 +395,23 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         )
         DBSession().commit()
 
+    @staticmethod
+    def teardown(obj):
+        if is_already_deleted(obj, Obj):
+            return
+
+        instruments = obj.instruments
+        comment_authors = list(map(lambda x: x.author.id, obj.comments))
+        for author in comment_authors:
+            UserFactory.teardown(author)
+        spectra = DBSession().query(Spectrum).filter(Spectrum.obj_id == obj.id).all()
+        for spectrum in spectra:
+            SpectrumFactory.teardown(spectrum)
+        DBSession().delete(obj)
+        DBSession().commit()
+        for instrument in instruments:
+            InstrumentFactory.teardown(instrument)
+
 
 class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
@@ -308,6 +440,20 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
     calendar_date = '3021-02-27'
     owner = factory.SubFactory(UserFactory)
 
+    @staticmethod
+    def teardown(run):
+        if is_already_deleted(run, ObservingRun):
+            return
+
+        owner = run.owner.id
+        instrument = run.instrument
+        group = run.group.id
+        DBSession().delete(run)
+        DBSession().commit()
+        UserFactory.teardown(owner)
+        GroupFactory.teardown(group)
+        InstrumentFactory.teardown(instrument)
+
 
 class ClassicalAssignmentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
@@ -318,6 +464,23 @@ class ClassicalAssignmentFactory(factory.alchemy.SQLAlchemyModelFactory):
     requester = factory.SubFactory(UserFactory)
     last_modified_by = factory.SubFactory(UserFactory)
     priority = factory.LazyFunction(lambda: str(random.choice(range(1, 6))))
+
+    @staticmethod
+    def teardown(assignment):
+        if is_already_deleted(assignment, ClassicalAssignment):
+            return
+
+        requester = assignment.requester.id
+        run = assignment.run
+        obj = assignment.obj
+        last_modified_by = assignment.last_modified_by.id
+
+        DBSession().delete(assignment)
+        DBSession().commit()
+        ObservingRunFactory.teardown(run)
+        ObjFactory.teardown(obj)
+        UserFactory.teardown(last_modified_by)
+        UserFactory.teardown(requester)
 
 
 class TaxonomyFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -338,6 +501,15 @@ class TaxonomyFactory(factory.alchemy.SQLAlchemyModelFactory):
         obj.groups = passed_groups
         DBSession().add(obj)
         DBSession().commit()
+
+    @staticmethod
+    def teardown(taxonomy_id):
+        taxonomy = (
+            DBSession().query(Taxonomy).filter(Taxonomy.id == taxonomy_id).first()
+        )
+        if taxonomy is not None:
+            DBSession().delete(taxonomy)
+            DBSession().commit()
 
 
 class ClassificationFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -360,6 +532,22 @@ class ClassificationFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().add(obj)
         DBSession().commit()
 
+    @staticmethod
+    def teardown(classification):
+        if is_already_deleted(classification, Classification):
+            return
+
+        author = classification.author.id
+        obj = classification.obj
+        taxonomy = classification.taxonomy.id
+
+        DBSession().delete(classification)
+        DBSession().commit()
+
+        UserFactory.teardown(author)
+        ObjFactory.teardown(obj)
+        TaxonomyFactory.teardown(taxonomy)
+
 
 class AllocationFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
@@ -370,6 +558,20 @@ class AllocationFactory(factory.alchemy.SQLAlchemyModelFactory):
     pi = (factory.LazyFunction(lambda: str(uuid.uuid4())),)
     proposal_id = factory.LazyFunction(lambda: str(uuid.uuid4()))
     hours_allocated = 100
+
+    @staticmethod
+    def teardown(allocation):
+        if is_already_deleted(allocation, Allocation):
+            return
+
+        instrument = allocation.instrument
+        group = allocation.group.id
+
+        DBSession().delete(allocation)
+        DBSession().commit()
+
+        InstrumentFactory.teardown(instrument)
+        GroupFactory.teardown(group)
 
 
 class FollowupRequestFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -393,10 +595,25 @@ class FollowupRequestFactory(factory.alchemy.SQLAlchemyModelFactory):
     def target_groups(obj, create, passed_groups, *args, **kwargs):
         if not passed_groups:
             passed_groups = []
-
         obj.target_groups = passed_groups
         DBSession().add(obj)
         DBSession().commit()
+
+    @staticmethod
+    def teardown(request):
+        if is_already_deleted(request, FollowupRequest):
+            return
+
+        requester = request.requester.id
+        allocation = request.allocation
+        obj = request.obj
+
+        DBSession().delete(request)
+        DBSession().commit()
+        UserFactory.teardown(request.last_modified_by.id)
+        UserFactory.teardown(requester)
+        AllocationFactory.teardown(allocation)
+        ObjFactory.teardown(obj)
 
 
 class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -431,6 +648,18 @@ class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
                 DBSession().add(obj)
                 DBSession().commit()
 
+    @staticmethod
+    def teardown(invitation):
+        if is_already_deleted(invitation, Invitation):
+            return
+
+        invited_by = invitation.invited_by.id
+
+        DBSession().delete(invitation)
+        DBSession().commit()
+
+        UserFactory.teardown(invited_by)
+
 
 class NotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
@@ -452,6 +681,20 @@ class NotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
                 DBSession().add(obj)
                 DBSession().commit()
 
+    @staticmethod
+    def teardown(notification):
+        if is_already_deleted(notification, SourceNotification):
+            return
+
+        source = notification.source
+        sent_by = notification.sent_by.id
+
+        DBSession().delete(notification)
+        DBSession().commit()
+
+        ObjFactory.teardown(source)
+        UserFactory.teardown(sent_by)
+
 
 class UserNotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
@@ -460,3 +703,15 @@ class UserNotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
     user = factory.SubFactory(UserFactory)
     text = 'abcd1234'
     viewed = False
+
+    @staticmethod
+    def teardown(notification):
+        if is_already_deleted(notification, UserNotification):
+            return
+
+        user = notification.user.id
+
+        DBSession().delete(notification)
+        DBSession().commit()
+
+        UserFactory.teardown(user)

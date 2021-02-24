@@ -1,6 +1,7 @@
 import React, { Suspense, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
+import { Link, useHistory } from "react-router-dom";
 
 import TableCell from "@material-ui/core/TableCell";
 import TableRow from "@material-ui/core/TableRow";
@@ -8,7 +9,6 @@ import IconButton from "@material-ui/core/IconButton";
 import Button from "@material-ui/core/Button";
 import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
-import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 import MUIDataTable from "mui-datatables";
 import {
@@ -21,8 +21,10 @@ import Tooltip from "@material-ui/core/Tooltip";
 import GroupIcon from "@material-ui/icons/Group";
 import CheckIcon from "@material-ui/icons/Check";
 import ClearIcon from "@material-ui/icons/Clear";
+import InfoIcon from "@material-ui/icons/Info";
 
 import dayjs from "dayjs";
+import { isMobileOnly } from "react-device-detect";
 
 import { ra_to_hours, dec_to_dms, time_relative_to_local } from "../units";
 import styles from "./CommentList.css";
@@ -30,6 +32,7 @@ import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
+import FavoritesButton from "./FavoritesButton";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
 import { filterOutEmptyValues } from "../API";
@@ -56,6 +59,18 @@ const useStyles = makeStyles((theme) => ({
   filterFormRow: {
     margin: "0.75rem 0",
   },
+  sourceName: {
+    verticalAlign: "middle",
+  },
+  starButton: {
+    verticalAlign: "middle",
+  },
+  filterAlert: {
+    marginTop: "1rem",
+    display: "flex",
+    alignItems: "center",
+    fontSize: "1rem",
+  },
 }));
 
 const getMuiTheme = (theme) =>
@@ -74,15 +89,78 @@ const getMuiTheme = (theme) =>
         },
       },
       MUIDataTableFilter: {
+        root: {
+          height: "100%",
+        },
         header: {
           display: "none",
+        },
+      },
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
+          },
+        },
+        navContainer: {
+          flexDirection: "column",
+          alignItems: "center",
+          [theme.breakpoints.up("sm")]: {
+            flexDirection: "row",
+          },
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0",
+            marginRight: "2rem",
+          },
+        },
+      },
+      MUIDataTableToolbar: {
+        filterPaper: {
+          // Use fullscreen dialog for small-screen filter form
+          width: "100%",
+          maxWidth: "100%",
+          margin: 0,
+          maxHeight: "calc(100vh - 1rem)",
+          borderRadius: 0,
+          top: "0 !important",
+          left: "0 !important",
+          [theme.breakpoints.up("md")]: {
+            // Override the overrides above for bigger screens
+            maxWidth: "50%",
+            top: "unset !important",
+            left: "unset !important",
+            float: "right",
+            position: "unset",
+            margin: "1rem",
+          },
+        },
+        filterCloseIcon: {
+          [theme.breakpoints.up("md")]: {
+            top: "1rem !important",
+            right: "1rem !important",
+          },
+        },
+      },
+      MUIDataTableFilterList: {
+        chip: {
+          maxWidth: "100%",
         },
       },
     },
   });
 
-const defaultDisplayedColumns = [
+let defaultDisplayedColumns = [
   "Source ID",
+  "Favorites",
   "RA (deg)",
   "Dec (deg)",
   "Redshift",
@@ -93,7 +171,7 @@ const defaultDisplayedColumns = [
 ];
 
 // MUI data table with pull out rows containing a summary of each source.
-// This component is used in GroupSources and SourceList.
+// This component is used in GroupSources, SourceList and Favorites page.
 const SourceTable = ({
   sources,
   title,
@@ -104,6 +182,7 @@ const SourceTable = ({
   totalMatches,
   numPerPage,
   sortingCallback,
+  favoritesRemoveButton = false,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -113,9 +192,17 @@ const SourceTable = ({
   const classes = useStyles();
   const theme = useTheme();
 
+  if (favoritesRemoveButton) {
+    defaultDisplayedColumns = defaultDisplayedColumns.filter(
+      (c) => c !== "Favorites"
+    );
+  }
+
   const [displayedColumns, setDisplayedColumns] = useState(
     defaultDisplayedColumns
   );
+
+  const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
 
   const [tableFilterList, setTableFilterList] = useState([]);
   const [filterFormData, setFilterFormData] = useState(null);
@@ -203,6 +290,10 @@ const SourceTable = ({
 
     const comments = source.comments || [];
 
+    const plotWidth = isMobileOnly ? 200 : 400;
+    const specPlotHeight = isMobileOnly ? 150 : 200;
+    const legendOrient = isMobileOnly ? "bottom" : "right";
+
     return (
       <TableRow data-testid={`groupSourceExpand_${source.id}`}>
         <TableCell
@@ -235,6 +326,9 @@ const SourceTable = ({
                 <Suspense fallback={<div>Loading spectra...</div>}>
                   <VegaSpectrum
                     dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
+                    width={plotWidth}
+                    height={specPlotHeight}
+                    legendOrient={legendOrient}
                   />
                 </Suspense>
               )}
@@ -304,6 +398,14 @@ const SourceTable = ({
                 )}
               </div>
             </Grid>
+            {favoritesRemoveButton ? (
+              <div>
+                {" "}
+                <FavoritesButton sourceID={source.id} textMode />{" "}
+              </div>
+            ) : (
+              ""
+            )}
           </Grid>
         </TableCell>
       </TableRow>
@@ -314,23 +416,28 @@ const SourceTable = ({
   const renderObjId = (dataIndex) => {
     const objid = sources[dataIndex].id;
     return (
-      <a
-        href={`/source/${objid}`}
+      <Link
+        to={`/source/${objid}`}
         key={`${objid}_objid`}
         data-testid={`${objid}`}
       >
-        {objid}
-      </a>
+        <span> {objid} </span>
+      </Link>
     );
+  };
+
+  const renderFavoritesStar = (dataIndex) => {
+    const objid = sources[dataIndex].id;
+    return <FavoritesButton sourceID={objid} />;
   };
 
   const renderAlias = (dataIndex) => {
     const { id: objid, alias } = sources[dataIndex];
 
     return (
-      <a href={`/source/${objid}`} key={`${objid}_alias`}>
+      <Link to={`/source/${objid}`} key={`${objid}_alias`}>
         {alias}
-      </a>
+      </Link>
     );
   };
 
@@ -360,11 +467,9 @@ const SourceTable = ({
   // helper function to get the classifications
   const getClassifications = (source) => {
     if (groupID !== undefined) {
-      return source.classifications.filter((cls) => {
-        return cls.groups.find((g) => {
-          return g.id === groupID;
-        });
-      });
+      return source.classifications.filter((cls) =>
+        cls.groups.find((g) => g.id === groupID)
+      );
     }
     return source.classifications;
   };
@@ -384,9 +489,8 @@ const SourceTable = ({
   };
 
   // helper function to get the source groups
-  const getGroups = (source) => {
-    return source.groups.filter((group) => group.active);
-  };
+  const getGroups = (source) => source.groups.filter((group) => group.active);
+  const history = useHistory();
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderGroups = (dataIndex) => {
@@ -400,6 +504,7 @@ const SourceTable = ({
               key={group.id}
               size="small"
               className={classes.chip}
+              onClick={() => history.push(`/group/${group.id}`)}
             />
             <br />
           </div>
@@ -411,16 +516,10 @@ const SourceTable = ({
   // helper function to get the source saved_at date
   const getDate = (source) => {
     if (groupID !== undefined) {
-      const group = source.groups.find((g) => {
-        return g.id === groupID;
-      });
+      const group = source.groups.find((g) => g.id === groupID);
       return group?.saved_at;
     }
-    const dates = source.groups
-      .map((g) => {
-        return g.saved_at;
-      })
-      .sort();
+    const dates = source.groups.map((g) => g.saved_at).sort();
     return dates[dates.length - 1];
   };
 
@@ -439,9 +538,9 @@ const SourceTable = ({
     const source = sources[dataIndex];
     return (
       <IconButton size="small" key={`${source.id}_actions`}>
-        <Link href={`/api/sources/${source.id}/finder`}>
+        <a href={`/api/sources/${source.id}/finder`}>
           <PictureAsPdfIcon />
-        </Link>
+        </a>
       </IconButton>
     );
   };
@@ -554,6 +653,7 @@ const SourceTable = ({
 
     setFilterFormData(data);
     paginateCallback(1, rowsPerPage, {}, data);
+    setFilterFormSubmitted(true);
   };
 
   const handleTableFilterChipChange = (column, filterList, type) => {
@@ -576,10 +676,14 @@ const SourceTable = ({
     }
   };
 
-  const customFilterDisplay = () => (
-    <SourceTableFilterForm handleFilterSubmit={handleFilterSubmit} />
-  );
-
+  const customFilterDisplay = () =>
+    filterFormSubmitted ? (
+      <div className={classes.filterAlert}>
+        <InfoIcon /> &nbsp; Filters submitted to server!
+      </div>
+    ) : (
+      <SourceTableFilterForm handleFilterSubmit={handleFilterSubmit} />
+    );
   const columns = [
     {
       name: "id",
@@ -597,6 +701,14 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Source ID"),
         customBodyRenderLite: renderObjId,
+      },
+    },
+    {
+      name: "favorites",
+      label: "Favorites",
+      options: {
+        display: displayedColumns.includes("Favorites"),
+        customBodyRenderLite: renderFavoritesStar,
       },
     },
     {
@@ -758,6 +870,7 @@ const SourceTable = ({
     filter: true,
     customFilterDialogFooter: customFilterDisplay,
     onFilterChange: handleTableFilterChipChange,
+    onFilterDialogOpen: () => setFilterFormSubmitted(false),
     search: false,
   };
 
@@ -845,6 +958,7 @@ SourceTable.propTypes = {
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   sortingCallback: PropTypes.func,
+  favoritesRemoveButton: PropTypes.bool,
 };
 
 SourceTable.defaultProps = {
@@ -855,6 +969,7 @@ SourceTable.defaultProps = {
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,
+  favoritesRemoveButton: false,
 };
 
 export default SourceTable;

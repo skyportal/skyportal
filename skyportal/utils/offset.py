@@ -394,7 +394,11 @@ def _calculate_best_position_for_offset_stars(
     # remove observations with distances more than max_offset away
     # from the median
     try:
-        med_ra, med_dec = np.median(df["ra"]), np.median(df["dec"])
+        # use nanmedian so that med_ra, med_dec are not returned as
+        # nan when df['ra'] or df['dec'] contains `None`s (can happen
+        # when there is no position information for a photometry
+        # point)
+        med_ra, med_dec = np.nanmedian(df["ra"]), np.nanmedian(df["dec"])
     except TypeError:
         log(
             "Warning: could not find the median of the positions"
@@ -910,8 +914,7 @@ def fits_image(
     cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
 
     def get_hdu(url):
-        """Try to get HDU from cache, otherwise fetch.
-        """
+        """Try to get HDU from cache, otherwise fetch."""
         hash_name = f'{center_ra}{center_dec}{imsize}{image_source}'
         hdu_fn = cache[hash_name]
 
