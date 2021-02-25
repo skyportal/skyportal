@@ -70,6 +70,9 @@ const useStyles = makeStyles((theme) => ({
   labels: {
     fontSize: "0.75rem",
   },
+  clipboard: {
+    fontSize: "0.5rem",
+  },
 }));
 
 // Generalised Lomb-Scargle periodogram: https://github.com/mzechmeister/GLS/tree/master/javascript
@@ -188,7 +191,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
 
 const Periodogram = () => {
   const classes = useStyles();
-  const { handleSubmit, getValues, control } = useForm();
+  const { handleSubmit, control } = useForm();
   const { id } = useParams();
   const dispatch = useDispatch();
   const photometry = useSelector((state) => state.photometry[id]);
@@ -210,24 +213,12 @@ const Periodogram = () => {
     ofac: "20",
   });
 
-  const placeholder = (
-    <div className={classes.spinner}>
-      <TextLoop>
-        <span>Downloading photometry</span>
-        <span>Determining filters</span>
-        <span>Showing selected filter</span>
-      </TextLoop>{" "}
-      <br /> <br />
-      <CircularProgress color="primary" />
-    </div>
-  );
-
   const dataplotRef = useRef();
   const glsplotRef = useRef();
   const phaseplotRef = useRef();
 
   // plotting functions
-  function plotline(g, x) {
+  function plotline(graph, x) {
     const lines = [
       [1.0, "rgb(255,0,0,0.9)", 3],
       [0.5, "rgb(200,50,50,0.6)", 1],
@@ -236,13 +227,13 @@ const Periodogram = () => {
       [4.0, "rgb(200,50,50,0.4)", 1],
     ];
 
-    g.updateOptions({
+    graph.updateOptions({
       underlayCallback(canvas) {
         for (let i = 0; i < lines.length; i += 1) {
           const loc = Math.log10(x * lines[i][0]);
           canvas.beginPath();
-          canvas.moveTo(g.toDomXCoord(loc), g.toDomYCoord(0));
-          canvas.lineTo(g.toDomXCoord(loc), g.toDomYCoord(10));
+          canvas.moveTo(graph.toDomXCoord(loc), graph.toDomYCoord(0));
+          canvas.lineTo(graph.toDomXCoord(loc), graph.toDomYCoord(10));
           [canvas.strokeStyle, canvas.lineWidth] = [lines[i][1], lines[i][2]];
           canvas.stroke();
         }
@@ -250,18 +241,20 @@ const Periodogram = () => {
     });
   }
 
-  function ma(minDate, maxDate) {
+  function onZoom(minDate, maxDate) {
+    // capture the time range of the zoom, so that we can
+    // run L-S on only data in this range
     setMjdmin(Math.min(minDate, maxDate));
     setMjdmax(Math.max(minDate, maxDate));
     // rerun with the new time window
     setRun(false);
   }
 
-  function plotdata(xx, yy, me) {
-    const dat = transpose([xx, yy])
+  function plotdata(times, mags, me) {
+    const dat = transpose([times, mags])
       .map((x, i) => [x[0], [x[1], me[i]]])
       .sort((a, b) => b[0] - a[0]);
-    const filteredy = yy.filter((n) => n);
+    const filteredy = mags.filter((n) => n);
     // eslint-disable-next-line no-new
     new Dygraph(dataplotRef.current, dat, {
       drawPoints: true,
@@ -269,31 +262,31 @@ const Periodogram = () => {
       labels: ["time", "mag"],
       errorBars: true,
       valueRange: [Math.max(...filteredy) + 0.1, Math.min(...filteredy) - 0.1],
-      dateWindow: [Math.min(...xx) - 6, Math.max(...xx) + 6],
-      zoomCallback: ma,
+      dateWindow: [Math.min(...times) - 6, Math.max(...times) + 6],
+      zoomCallback: onZoom,
     });
   }
 
-  function plotphased(xx, yy, p, title) {
+  function plotphased(times, mags, p, title) {
     // Create graph with native array as data source
-    const pp = [...xx.map((x) => x % p), ...xx.map((x) => (x % p) + p)];
+    const pp = [...times.map((x) => x % p), ...times.map((x) => (x % p) + p)];
     // eslint-disable-next-line no-new
-    new Dygraph(phaseplotRef.current, transpose([pp, [...yy, ...yy]]), {
+    new Dygraph(phaseplotRef.current, transpose([pp, [...mags, ...mags]]), {
       drawPoints: true,
       strokeWidth: 0,
       labels: ["phase", "mag"],
-      valueRange: [Math.max(...yy) + 0.1, Math.min(...yy) - 0.1],
+      valueRange: [Math.max(...mags) + 0.1, Math.min(...mags) - 0.1],
       dateWindow: [0, 2 * p],
       title,
     });
   }
 
-  function plotGLS(xx, yy, kwargs) {
+  function plotGLS(linear_freqs, linear_power, kwargs) {
     // Create graph with native array as data source
 
     // order by period ([day])
-    const periods_all = xx.map((x) => Math.log10(1.0 / x)).reverse();
-    const power_all = yy.reverse();
+    const periods_all = linear_freqs.map((x) => Math.log10(1.0 / x)).reverse();
+    const power_all = linear_power.reverse();
 
     // select only the range we want (< periodmax)
     const goodi = periods_all
@@ -302,11 +295,11 @@ const Periodogram = () => {
     const periods = goodi.map((i) => periods_all[i]);
     const power = goodi.map((i) => power_all[i]);
 
-    const g = new Dygraph(glsplotRef.current, transpose([periods, power]), {
+    const graph = new Dygraph(glsplotRef.current, transpose([periods, power]), {
       clickCallback(e) {
         const x = e.offsetX;
         const y = e.offsetY;
-        const dataXY = g.toDataCoords(x, y);
+        const dataXY = graph.toDataCoords(x, y);
         setBestp(10 ** dataXY[0]);
       },
       axes: {
@@ -319,7 +312,7 @@ const Periodogram = () => {
       labels: ["log Period [day]", "Power"],
     });
 
-    plotline(g, kwargs.periodbest);
+    plotline(graph, kwargs.periodbest);
   }
 
   useEffect(() => {
@@ -414,10 +407,10 @@ const Periodogram = () => {
     ...params,
   };
 
-  const onSubmit = () => {
+  const onSubmit = (formstate) => {
     const formData = {
       ...initialFormState,
-      ...getValues(),
+      ...formstate,
     };
     setMjdmin(0);
     setMjdmax(70000);
@@ -435,7 +428,11 @@ const Periodogram = () => {
         `${(periodmultiplier * bestp).toFixed(15)}`
       );
       dispatch(
-        showNotification(`Copied period (${bestp?.toFixed(8)} d) to clipboard.`)
+        showNotification(
+          `Copied period (${(periodmultiplier * bestp).toFixed(
+            8
+          )} d) to clipboard.`
+        )
       );
     } catch (err) {
       dispatch(showNotification("Could not copy period to clipboard."));
@@ -462,7 +459,7 @@ const Periodogram = () => {
   ];
 
   function valuetext(value) {
-    return `${value}`;
+    return `${value}×`;
   }
 
   const handleMultiplierChange = (e, val) => {
@@ -494,7 +491,15 @@ const Periodogram = () => {
                   {photometry ? (
                     <div ref={dataplotRef} className={classes.dygraphChart} />
                   ) : (
-                    <div>{placeholder}</div>
+                    <div className={classes.spinner}>
+                      <TextLoop>
+                        <span>Downloading photometry</span>
+                        <span>Determining filters</span>
+                        <span>Showing selected filter</span>
+                      </TextLoop>{" "}
+                      <br /> <br />
+                      <CircularProgress color="primary" />
+                    </div>
                   )}
                 </div>
                 <div>
@@ -525,14 +530,14 @@ const Periodogram = () => {
                           <FormControl>
                             <InputLabel
                               className={classes.items}
-                              id="InstrumentSourceSelect"
+                              id="InstrumentSourceSelectLabel"
                             >
                               Instrument
                             </InputLabel>
                             <p />
                             <Controller
                               as={Select}
-                              labelid="InstrumentSourceSelectLabel"
+                              labelId="InstrumentSourceSelectLabel"
                               name="instrument"
                               control={control}
                               defaultValue={params.instrument}
@@ -553,14 +558,14 @@ const Periodogram = () => {
                             <FormControl>
                               <InputLabel
                                 className={classes.items}
-                                id="FilterSourceSelect"
+                                id="FilterSourceSelectLabel"
                               >
                                 Filter
                               </InputLabel>
                               <p />
                               <Controller
                                 as={Select}
-                                labelid="FilterSourceSelectLabel"
+                                labelId="FilterSourceSelectLabel"
                                 name="filter"
                                 control={control}
                                 defaultValue={params.filter}
@@ -591,7 +596,7 @@ const Periodogram = () => {
                               />
                             </FormControl>
                           </Grid>
-                          <Grid item xs={8}>
+                          <Grid item xs={12}>
                             <Typography id="period-slider" gutterBottom>
                               Period multiplier
                             </Typography>
@@ -607,7 +612,7 @@ const Periodogram = () => {
                               onChange={handleMultiplierChange}
                             />
                           </Grid>
-                          <Grid item xs={8}>
+                          <Grid item xs={12}>
                             {bestp && (
                               <>
                                 <Typography>
@@ -618,10 +623,10 @@ const Periodogram = () => {
                                   d
                                 </Typography>
                                 <Button
-                                  size="small"
                                   variant="outlined"
                                   color="secondary"
                                   onClick={() => copyPeriod()}
+                                  className={classes.clipboard}
                                 >
                                   Copy period to clipboard
                                 </Button>
