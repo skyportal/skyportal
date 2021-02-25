@@ -89,6 +89,16 @@ class StatsHandler(BaseHandler):
         data["Newest candidate creation datetime"] = (
             cand.created_at if cand is not None else None
         )
+        cand = (
+            DBSession()
+            .query(Candidate)
+            .filter(Candidate.obj_id.notin_(DBSession.query(Source.obj_id)))
+            .order_by(Candidate.created_at)
+            .first()
+        )
+        data["Oldest unsaved candidate creation datetime"] = (
+            cand.created_at if cand is not None else None
+        )
         data["Latest cron job run times & statuses"] = []
         cron_job_scripts = DBSession().query(CronJobRun.script).distinct().all()
         for script in cron_job_scripts:
