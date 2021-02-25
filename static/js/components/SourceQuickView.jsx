@@ -64,7 +64,6 @@ const useStyles = makeStyles(() => ({
   },
   title: {
     fontSize: "1.5rem",
-    fontFamily: "Roboto, Helvetica, Arial, sans-serif",
     fontWeight: "500",
     lineHeight: "1.6",
     letterSpacing: "0.0075em",

@@ -66,12 +66,9 @@ const useStyles = makeStyles((theme) => ({
     }),
     marginLeft: 0,
   },
-  main: {
-    fontFamily: "Roboto, sans-serif",
-  },
   websocket: {
     display: "none",
-  },
+  }
 }));
 
 const MainContent = ({ root }) => {
