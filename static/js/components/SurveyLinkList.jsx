@@ -28,7 +28,6 @@ const useStyles = makeStyles(() => ({
     fontWeight: "bold",
     color: "gray",
     textDecoration: "none",
-    fontFamily: ["Roboto", "Helvetica", "Arial", "sans-serif"],
   },
 }));
 
