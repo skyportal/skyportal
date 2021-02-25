@@ -508,7 +508,11 @@ const Periodogram = () => {
                 </div>
                 <div>
                   <p />
-                  <div ref={phaseplotRef} className={classes.dygraphChart} />
+                  <div
+                    data-testid="phaseplot"
+                    ref={phaseplotRef}
+                    className={classes.dygraphChart}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -617,7 +621,7 @@ const Periodogram = () => {
                               <>
                                 <Typography>
                                   P=
-                                  <span className="bestp">
+                                  <span data-testid="bestp" className="bestp">
                                     {(periodmultiplier * bestp).toFixed(6)}
                                   </span>{" "}
                                   d
