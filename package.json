@@ -40,7 +40,6 @@
     "qrcode.react": "1.0.1",
     "raw-loader": "4.0.2",
     "react": "16.13.1",
-    "react-copy-to-clipboard": "5.0.3",
     "react-datepicker": "3.4.1",
     "react-device-detect": "1.15.0",
     "react-dnd": "7.7.0",
