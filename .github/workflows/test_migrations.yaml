@@ -49,17 +49,6 @@ jobs:
           ref: master
           submodules: true
 
-      - name: Write SkyPortal configs
-        run: |
-          cat << EOF > config.yaml
-            database:
-              database: skyportal
-              host: localhost
-              port: 5432
-              user: skyportal
-              password: anything
-          EOF
-
       - name: Install system dependencies
         run: |
           curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
@@ -88,11 +77,34 @@ jobs:
 
           pip install black
 
-      - name: Test loading demo data
+      - name: Save current Alembic head on master
         run: |
-          make run &
-          sleep 10 && make load_demo_data
-          kill %1
+          # Get the head line from Alembic history output
+          head=$( PYTHONPATH=. alembic history | grep '(head)' )
+
+          # Split by space; index 2 should be latest revision
+          tokens=($head)
+          current_head=${tokens[2]}
+          echo ${current_head}
+          echo "CURRENT_HEAD=${current_head}" >> $GITHUB_ENV
+
+      - name: Checkout commit before the very first migration
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: c48fa7f040aa83a494a365f80a8dffeaa0af9a1f
+          submodules: true
+
+      - name: Write SkyPortal configs
+        run: |
+          cat << EOF > config.yaml
+            database:
+              database: skyportal
+              host: localhost
+              port: 5432
+              user: skyportal
+              password: anything
+          EOF
 
       - name: Initialize SkyPortal
         run: |
@@ -117,35 +129,118 @@ jobs:
           # Stamp Alembic HEAD
           PYTHONPATH=. alembic -x config=config.yaml stamp head
 
+      - name: Test loading demo data
+        run: |
+          make run &
+          sleep 10 && make load_demo_data
+          kill %1
+
       - name: Checkout PR branch
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
           submodules: true
+          clean: false
+
+      - name: Check for migration branching
+        run: |
+          # Make sure latest revision on master is included in Alembic history
+          n_current_head=$( PYTHONPATH=. alembic history | grep -c $CURRENT_HEAD )
+          if [[ $n_current_head -eq 0 ]]
+          then
+            cat << EOF
+              The current head Alembic revision on master is not present in this branch's
+              Alembic history. Please merge in the latest commit on master.
+          EOF
+            exit 1
+          else
+            echo "Alembic history includes the latest on master."
+          fi
+
+          # Make sure there are not multiple heads to the Alembic history
+          num_heads=$( PYTHONPATH=. alembic history | grep -c '(head)' )
+          if [[ $num_heads -ne 1 ]]
+          then
+            cat << EOF
+              There is more than one head revision in this branch's Alembic history.
+              Please resolve the branching revisions.
+          EOF
+            exit 1
+          else
+            echo "Alembic history has no conflicts in branch."
+          fi
 
       - name: Run migration
         run: |
+          # Update dependencies that may break migrations since the first commit, i.e. deepdiff
+          make dependencies
           PYTHONPATH=. alembic -x config=config.yaml upgrade head
+          PYTHONPATH=. alembic current
 
-      - name: Check migration completeness
+      - name: Check migration completeness with Alembic
         run: |
+          psql -U skyportal -h localhost -c "ALTER TABLE candidates DROP CONSTRAINT candidates_pkey;" skyportal
+
           # Try generating a new migration
           PYTHONPATH=. alembic -x config=config.yaml revision --autogenerate -m "Test migration"
 
           # The generated migration should be empty if the migration script provided in the PR
           # completely encompasses the changes in the database.
-          pass_lines=$( cat alembic/versions/*test_migration.py | grep -c pass )
-          if [[ $pass_lines -neq 2 ]]
+          pass_lines=$( cat alembic/versions/*test_migration.py | grep -c pass ) || true
+          if [[ $pass_lines -ne 2 ]]
           then
-            echo "Additional migrations needed: see the generated migration script"
+            echo "Additional migrations needed: see the alembic-difference artifact."
             exit 1
           else
-            echo "All migrations included in script"
+            echo "All migrations included in script."
           fi
 
-      - name: Upload the generated migration script
+      - name: Create a fresh database
+        run: |
+          # Make new configs
+          cat << EOF > config.yaml
+            database:
+              database: skyportal2
+              host: localhost
+              port: 5432
+              user: skyportal
+              password: anything
+          EOF
+
+          createdb -h localhost -U skyportal skyportal2
+          psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal2 TO skyportal;" skyportal2
+
+          make db_init
+
+          make run &
+          sleep 10 && make load_demo_data
+          kill %1
+          PYTHONPATH=. alembic -x config=config.yaml stamp head
+
+      - name: Compare databases with migra
+        run: |
+          pip install migra
+
+          # SQL needed to go from migrated database to fresh database
+          migra --unsafe postgresql://skyportal:anything@localhost:5432/skyportal postgresql://skyportal:anything@localhost:5432/skyportal2 > migra.sql || true
+          if [[ $(wc -l migra.sql | awk '{ print $1 }') ]]
+          then
+            echo "Differences found between migrated database and fresh database. See the migra-difference artifact."
+            exit 1
+          else
+            echo "Migrated database and fresh database match."
+          fi
+
+      - name: Upload the Alembic diff
         uses: actions/upload-artifact@v2
         if: ${{ always() }}
         with:
-          name: migration-script
+          name: alembic-difference
           path: alembic/versions/**test_migration.py
+
+      - name: Upload migra diff
+        uses: actions/upload-artifact@v2
+        if: ${{ always() }}
+        with:
+          name: migra-difference
+          path: migra.sql
