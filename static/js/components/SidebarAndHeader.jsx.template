@@ -64,7 +64,6 @@ const useStyles = makeStyles((theme) => ({
   drawerPaper: {
     zIndex: 140,
     width: drawerWidth,
-    paddingLeft: "0.4em",
     background: theme.palette.primary.light,
     fontSize: "1.2em",
     paddingTop: "1rem",
