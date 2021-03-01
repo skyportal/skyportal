@@ -54,3 +54,7 @@ needs-migration?:
 # Add 'python' label to any change to *.py files in the skyportal folder
 python:
   - skyportal/**/*.py
+
+# Add 'workflows' label to any changes to GA workflows (.github folder)
+workflows:
+  - .github/**/*
