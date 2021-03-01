@@ -31,7 +31,7 @@ documentation:
 formatting-and-linting:
   - ".eslintignore"
   - ".eslintrc.yaml"
-  - ".flake8"
+  - "./.flake8"
   - ".git-pre-commit"
   - ".pep8speaks.yml"
   - ".pre-commit-config.yaml"
