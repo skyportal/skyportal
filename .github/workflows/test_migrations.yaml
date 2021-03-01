@@ -150,7 +150,7 @@ jobs:
           then
             cat << EOF
               The current head Alembic revision on master is not present in this branch's
-              Alembic history. Please merge in the latest commit on master.
+              Alembic history. Please merge in the latest commit from master into this PR.
           EOF
             exit 1
           else
@@ -179,8 +179,6 @@ jobs:
 
       - name: Check migration completeness with Alembic
         run: |
-          psql -U skyportal -h localhost -c "ALTER TABLE candidates DROP CONSTRAINT candidates_pkey;" skyportal
-
           # Try generating a new migration
           PYTHONPATH=. alembic -x config=config.yaml revision --autogenerate -m "Test migration"
 
@@ -223,7 +221,7 @@ jobs:
 
           # SQL needed to go from migrated database to fresh database
           migra --unsafe postgresql://skyportal:anything@localhost:5432/skyportal postgresql://skyportal:anything@localhost:5432/skyportal2 > migra.sql || true
-          if [[ $(wc -l migra.sql | awk '{ print $1 }') ]]
+          if [[ $(cat migra.sql | wc -l) -ne 0 ]]
           then
             echo "Differences found between migrated database and fresh database. See the migra-difference artifact."
             exit 1
