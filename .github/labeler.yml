@@ -2,7 +2,8 @@
 
 # Add 'config-change' label to any change to default config files
 config-change:
-  - any: ["./config.yaml.defaults", "./test_config.yaml"]
+  - "config.yaml.defaults"
+  - "test_config.yaml"
 
 # Add 'demo-data' label to any change to provided demo data
 demo-data:
@@ -10,11 +11,16 @@ demo-data:
 
 # Add 'dependencies' label to any change to dependencies
 dependencies:
-  - any: ["requirements.txt", "requirements.docs.txt", "package.json"]
+  - "requirements.txt"
+  - "requirements.docs.txt"
+  - "package.json"
 
 # Add 'docker' label to any change to files related to Docker deployment
 docker:
-  - any: ["Dockerfile", "docker.yaml", "docker-compose.yaml", ".dockerignore"]
+  - "Dockerfile"
+  - "docker.yaml"
+  - "docker-compose.yaml"
+  - ".dockerignore"
 
 # Add 'documentation' label to any change to the doc directory
 documentation:
@@ -23,19 +29,17 @@ documentation:
 # Add 'formatting-and-linting' label to any changes to the formatting and
 # linting checks, and the pre-commit hooks that run them
 formatting-and-linting:
-  - any:
-      [
-        "./.eslintignore",
-        "./.eslintrc.yaml",
-        "./.flake8",
-        "./.git-pre-commit",
-        "./.pep8speaks.yml",
-        "./.pre-commit-config.yaml",
-      ]
+  - ".eslintignore"
+  - ".eslintrc.yaml"
+  - ".flake8"
+  - ".git-pre-commit"
+  - ".pep8speaks.yml"
+  - ".pre-commit-config.yaml"
 
 # Add 'javascript' label to any change to *.js files in the static folder
 javascript:
-  - any: ["static/js/**/*.js", "static/js/**/*.jsx"]
+  - "static/js/**/*.js"
+  - "static/js/**/*.jsx"
 
 # Add 'migration' label to any change within the 'alembic' directory
 migration:
