@@ -162,16 +162,74 @@ def get_color(bandpass_name):
         return bandcolor
 
 
+def annotate_spec(plot, spectra, lower, upper):
+    """Annotate photometry plot with spectral markers.
+
+    Parameters
+    ----------
+    plot : bokeh figure object
+        Figure to be annotated.
+    spectra : DBSession object
+        Results of query for spectra of object.
+    lower, upper : float
+        Plot limits allowing calculation of annotation symbol y value.
+    """
+    # get y position of annotation
+    text_y = upper - (upper - lower) * 0.05
+    s_y = [text_y] * len(spectra)
+    s_text = ['S'] * len(spectra)
+
+    # get data from spectra
+    s_mjd = [Time(s.observed_at, format='datetime').mjd for s in spectra]
+    s_date = [s.observed_at.isoformat() for s in spectra]
+    s_tel = [s.instrument.telescope.name for s in spectra]
+    s_inst = [s.instrument.name for s in spectra]
+
+    # plot the annotation using data for hover
+    if len(s_mjd) > 0:
+        spec_r = plot.text(
+            x='s_mjd',
+            y='s_y',
+            text='s_text',
+            text_alpha=0.3,
+            text_align='center',
+            source=ColumnDataSource(
+                data=dict(
+                    s_mjd=s_mjd,
+                    s_y=s_y,
+                    s_date=s_date,
+                    s_tel=s_tel,
+                    s_inst=s_inst,
+                    s_text=s_text,
+                )
+            ),
+        )
+        plot.add_tools(
+            HoverTool(
+                tooltips=[
+                    ("Spectrum", ""),
+                    ("mjd", "@s_mjd{0.000000}"),
+                    ("date", "@s_date"),
+                    ("tel", "@s_tel"),
+                    ("inst", "@s_inst"),
+                ],
+                renderers=[spec_r],
+            )
+        )
+
+
 def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
-    """Create scatter plot of photometry for object.
+    """Create object photometry scatter plot.
+
     Parameters
     ----------
     obj_id : str
         ID of Obj to be plotted.
+
     Returns
     -------
-    (str, str)
-        Returns (docs_json, render_items) json for the desired plot.
+    dict
+        Returns Bokeh JSON embedding for the desired plot.
     """
 
     data = pd.read_sql(
@@ -193,6 +251,13 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
 
     if data.empty:
         return None, None, None
+
+    # get spectra to annotate on phot plots
+    spectra = (
+        Spectrum.query_records_accessible_by(user)
+        .filter(Spectrum.obj_id == obj_id)
+        .all()
+    )
 
     data['color'] = [get_color(f) for f in data['filter']]
 
@@ -429,6 +494,10 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                 renderers=[last_r],
             )
         )
+
+    # Mark when spectra were taken
+    annotate_spec(plot, spectra, lower, upper)
+
     plot_layout = (
         column(plot, toggle)
         if "mobile" in device or "tablet" in device
@@ -510,6 +579,9 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                 point_policy='follow_mouse',
             )
         )
+
+    # Mark when spectra were taken
+    annotate_spec(plot, spectra, ymax, ymin)
 
     imhover = HoverTool(tooltips=tooltip_format)
     imhover.renderers = []
@@ -822,6 +894,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                     marker='circle',
                     fill_color='color',
                     alpha='alpha',
+                    visible=('a' in ph),
                     source=ColumnDataSource(df[df['obs']]),  # only visible data
                 )
                 # add to hover tool
@@ -846,6 +919,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                     ys='ys',
                     color='color',
                     alpha='alpha',
+                    visible=('a' in ph),
                     source=ColumnDataSource(
                         data=dict(
                             xs=y_err_x,
@@ -1015,7 +1089,7 @@ def spectroscopy_plot(
                 'id': s.id,
                 'telescope': s.instrument.telescope.name,
                 'instrument': s.instrument.name,
-                'date_observed': s.observed_at.date().isoformat(),
+                'date_observed': s.observed_at.isoformat(sep=' ', timespec='seconds'),
                 'pi': (
                     s.assignment.run.pi
                     if s.assignment is not None
@@ -1030,6 +1104,8 @@ def spectroscopy_plot(
         data.append(df)
     data = pd.concat(data)
 
+    data.sort_values(by=['date_observed', 'wavelength'], inplace=True)
+
     dfs = []
     for i, s in enumerate(spectra):
         # Smooth the spectrum by using a rolling average
@@ -1043,7 +1119,8 @@ def spectroscopy_plot(
 
     smoothed_data = pd.concat(dfs)
 
-    split = data.groupby('id')
+    split = data.groupby('id', sort=False)
+
     hover = HoverTool(
         tooltips=[
             ('wavelength', '@wavelength{0,0.000}'),
@@ -1129,6 +1206,7 @@ def spectroscopy_plot(
             code="""
           for (let i = 0; i < toggle.labels.length; i++) {
               eval("s" + i).visible = (toggle.active.includes(i))
+              eval("l" + i).visible = (toggle.active.includes(i))
           }
     """,
         ),

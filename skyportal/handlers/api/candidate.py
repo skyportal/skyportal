@@ -320,7 +320,9 @@ class CandidateHandler(BaseHandler):
                     .joinedload(Spectrum.instrument)
                 )
             c = Candidate.get_obj_if_readable_by(
-                obj_id, self.current_user, options=query_options,
+                obj_id,
+                self.current_user,
+                options=query_options,
             )
             if c is None:
                 return self.error("Invalid ID")
@@ -483,7 +485,7 @@ class CandidateHandler(BaseHandler):
             # Don't apply the order by just yet. Save it so we can pass it to
             # the LIMT/OFFSET helper function down the line once other query
             # params are set.
-            order_by = [Obj.last_detected_at.desc().nullslast(), Obj.id]
+            order_by = [Candidate.passed_at.desc().nullslast(), Obj.id]
 
         if saved_status in [
             "savedToAllSelected",
@@ -663,7 +665,9 @@ class CandidateHandler(BaseHandler):
             # Define a custom sort order to have annotations from the correct
             # origin first, all others afterwards
             origin_sort_order = case(
-                value=Annotation.origin, whens={sort_by_origin: 1}, else_=None,
+                value=Annotation.origin,
+                whens={sort_by_origin: 1},
+                else_=None,
             )
             annotation_sort_criterion = (
                 Annotation.data[sort_by_key].desc().nullslast()
@@ -675,7 +679,7 @@ class CandidateHandler(BaseHandler):
             order_by = [
                 origin_sort_order.nullslast(),
                 annotation_sort_criterion,
-                Obj.last_detected_at.desc().nullslast(),
+                Candidate.passed_at.desc().nullslast(),
                 Obj.id,
             ]
         try:

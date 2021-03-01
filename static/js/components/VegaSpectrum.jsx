@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
 
-const spec = (url) => ({
+const spec = (url, width, height, legendOrient) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   data: {
     url,
@@ -61,20 +61,23 @@ const spec = (url) => ({
     color: {
       field: "observed_at",
       type: "nominal",
+      legend: {
+        orient: legendOrient,
+      },
     },
   },
-  width: 400,
-  height: 200,
+  width,
+  height,
   background: "transparent",
 });
 
 const VegaSpectrum = React.memo((props) => {
-  const { dataUrl } = props;
+  const { dataUrl, width, height, legendOrient } = props;
   return (
     <div
       ref={(node) => {
         if (node) {
-          embed(node, spec(dataUrl), {
+          embed(node, spec(dataUrl, width, height, legendOrient), {
             actions: false,
           });
         }
@@ -85,6 +88,15 @@ const VegaSpectrum = React.memo((props) => {
 
 VegaSpectrum.propTypes = {
   dataUrl: PropTypes.string.isRequired,
+  width: PropTypes.number,
+  height: PropTypes.number,
+  legendOrient: PropTypes.string,
+};
+
+VegaSpectrum.defaultProps = {
+  width: 400,
+  height: 200,
+  legendOrient: "right",
 };
 
 VegaSpectrum.displayName = "VegaSpectrum";

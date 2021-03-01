@@ -44,7 +44,9 @@ def test_recent_sources(driver, user, public_group, upload_data_token):
     ActionChains(driver).move_to_element(recent_source_item).perform()
     driver.click_xpath("//div[contains(@data-testid, 'quickViewButton')]")
 
-    driver.wait_for_xpath_to_appear("//*[@id='source-quick-view-dialog-content']")
+    driver.wait_for_xpath_to_appear(
+        "//*[@data-testid='source-quick-view-dialog-content']"
+    )
 
     # Check dialog content
     driver.wait_for_xpath(f'//h4[text()="{obj_id}"]')

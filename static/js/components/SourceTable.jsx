@@ -21,8 +21,10 @@ import Tooltip from "@material-ui/core/Tooltip";
 import GroupIcon from "@material-ui/icons/Group";
 import CheckIcon from "@material-ui/icons/Check";
 import ClearIcon from "@material-ui/icons/Clear";
+import InfoIcon from "@material-ui/icons/Info";
 
 import dayjs from "dayjs";
+import { isMobileOnly } from "react-device-detect";
 
 import { ra_to_hours, dec_to_dms, time_relative_to_local } from "../units";
 import styles from "./CommentList.css";
@@ -63,6 +65,12 @@ const useStyles = makeStyles((theme) => ({
   starButton: {
     verticalAlign: "middle",
   },
+  filterAlert: {
+    marginTop: "1rem",
+    display: "flex",
+    alignItems: "center",
+    fontSize: "1rem",
+  },
 }));
 
 const getMuiTheme = (theme) =>
@@ -81,8 +89,70 @@ const getMuiTheme = (theme) =>
         },
       },
       MUIDataTableFilter: {
+        root: {
+          height: "100%",
+        },
         header: {
           display: "none",
+        },
+      },
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
+          },
+        },
+        navContainer: {
+          flexDirection: "column",
+          alignItems: "center",
+          [theme.breakpoints.up("sm")]: {
+            flexDirection: "row",
+          },
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0",
+            marginRight: "2rem",
+          },
+        },
+      },
+      MUIDataTableToolbar: {
+        filterPaper: {
+          // Use fullscreen dialog for small-screen filter form
+          width: "100%",
+          maxWidth: "100%",
+          margin: 0,
+          maxHeight: "calc(100vh - 1rem)",
+          borderRadius: 0,
+          top: "0 !important",
+          left: "0 !important",
+          [theme.breakpoints.up("md")]: {
+            // Override the overrides above for bigger screens
+            maxWidth: "50%",
+            top: "unset !important",
+            left: "unset !important",
+            float: "right",
+            position: "unset",
+            margin: "1rem",
+          },
+        },
+        filterCloseIcon: {
+          [theme.breakpoints.up("md")]: {
+            top: "1rem !important",
+            right: "1rem !important",
+          },
+        },
+      },
+      MUIDataTableFilterList: {
+        chip: {
+          maxWidth: "100%",
         },
       },
     },
@@ -131,6 +201,8 @@ const SourceTable = ({
   const [displayedColumns, setDisplayedColumns] = useState(
     defaultDisplayedColumns
   );
+
+  const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
 
   const [tableFilterList, setTableFilterList] = useState([]);
   const [filterFormData, setFilterFormData] = useState(null);
@@ -218,6 +290,10 @@ const SourceTable = ({
 
     const comments = source.comments || [];
 
+    const plotWidth = isMobileOnly ? 200 : 400;
+    const specPlotHeight = isMobileOnly ? 150 : 200;
+    const legendOrient = isMobileOnly ? "bottom" : "right";
+
     return (
       <TableRow data-testid={`groupSourceExpand_${source.id}`}>
         <TableCell
@@ -250,6 +326,9 @@ const SourceTable = ({
                 <Suspense fallback={<div>Loading spectra...</div>}>
                   <VegaSpectrum
                     dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
+                    width={plotWidth}
+                    height={specPlotHeight}
+                    legendOrient={legendOrient}
                   />
                 </Suspense>
               )}
@@ -574,6 +653,7 @@ const SourceTable = ({
 
     setFilterFormData(data);
     paginateCallback(1, rowsPerPage, {}, data);
+    setFilterFormSubmitted(true);
   };
 
   const handleTableFilterChipChange = (column, filterList, type) => {
@@ -596,10 +676,14 @@ const SourceTable = ({
     }
   };
 
-  const customFilterDisplay = () => (
-    <SourceTableFilterForm handleFilterSubmit={handleFilterSubmit} />
-  );
-
+  const customFilterDisplay = () =>
+    filterFormSubmitted ? (
+      <div className={classes.filterAlert}>
+        <InfoIcon /> &nbsp; Filters submitted to server!
+      </div>
+    ) : (
+      <SourceTableFilterForm handleFilterSubmit={handleFilterSubmit} />
+    );
   const columns = [
     {
       name: "id",
@@ -786,6 +870,7 @@ const SourceTable = ({
     filter: true,
     customFilterDialogFooter: customFilterDisplay,
     onFilterChange: handleTableFilterChipChange,
+    onFilterDialogOpen: () => setFilterFormSubmitted(false),
     search: false,
   };
 

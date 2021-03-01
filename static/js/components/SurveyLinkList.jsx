@@ -29,7 +29,6 @@ const useStyles = makeStyles((theme) => ({
     fontWeight: "bold",
     color: grey[500],
     textDecoration: "none",
-    fontFamily: ["Roboto", "Helvetica", "Arial", "sans-serif"],
   },
 }));
 

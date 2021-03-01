@@ -151,6 +151,70 @@ const getMuiTheme = (theme) =>
           },
         },
       },
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
+          },
+        },
+        navContainer: {
+          flexDirection: "column",
+          alignItems: "center",
+          [theme.breakpoints.up("sm")]: {
+            flexDirection: "row",
+          },
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0",
+            marginRight: "2rem",
+          },
+        },
+      },
+      MUIDataTableToolbar: {
+        filterPaper: {
+          // Use fullscreen dialog for small-screen filter form
+          width: "100%",
+          maxWidth: "100%",
+          margin: 0,
+          maxHeight: "calc(100vh - 1rem)",
+          borderRadius: 0,
+          top: "0 !important",
+          left: "0 !important",
+          [theme.breakpoints.up("md")]: {
+            // Override the overrides above for bigger screens
+            maxWidth: "25%",
+            top: "unset !important",
+            left: "unset !important",
+            float: "right",
+            position: "unset",
+            margin: "1rem",
+          },
+        },
+        filterCloseIcon: {
+          [theme.breakpoints.up("md")]: {
+            top: "1rem !important",
+            right: "1rem !important",
+          },
+        },
+      },
+      MUIDataTableFilter: {
+        root: {
+          maxHeight: "calc(100vh - 5rem)",
+        },
+      },
+      MUIDataTableFilterList: {
+        chip: {
+          maxWidth: "100%",
+        },
+      },
     },
   });
 

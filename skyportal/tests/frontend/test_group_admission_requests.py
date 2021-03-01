@@ -31,3 +31,18 @@ def test_group_admission_request_and_acceptance(
     driver.click_xpath(f'//*[@data-testid="acceptRequestButton{user.id}"]')
     driver.wait_for_xpath('//div[text()="accepted"]')
     driver.wait_for_xpath(f'//a[text()="{user.username}"]')
+
+
+def test_group_admission_request_insufficient_stream_access(
+    driver,
+    user_no_groups_no_streams,
+    public_group,
+):
+    driver.get(f'/become_user/{user_no_groups_no_streams.id}')
+    driver.get('/groups')
+    driver.wait_for_xpath('//h6[text()="My Groups"]')
+    filter_for_value(driver, public_group.name)
+    driver.click_xpath(f'//*[@data-testid="requestAdmissionButton{public_group.id}"]')
+    driver.wait_for_xpath(
+        f'//*[text()="User {user_no_groups_no_streams.id} does not have sufficient stream access to be added to group {public_group.id}."]'
+    )
