@@ -1,0 +1,15 @@
+name: Add labels to SkyPortal PRs
+
+on:
+  # Note: https://github.com/actions/labeler/issues/121
+  - pull_request_target
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    # Add labels based on contents of .github/labeler.yml
+    steps:
+      - uses: actions/labeler@main
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          sync-labels: true

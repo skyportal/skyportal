@@ -1,0 +1,52 @@
+# Labels to be automatically added to PRs
+
+# Add 'config-change' label to any change to default config files
+config-change:
+  - any: ["config.yaml.defaults", "test_config.yaml"]
+
+# Add 'demo-data' label to any change to provided demo data
+demo-data:
+  - data/**/*
+
+# Add 'dependencies' label to any change to dependencies
+dependencies:
+  - any: ["requirements.txt", "requirements.docs.txt", "package.json"]
+
+# Add 'docker' label to any change to files related to Docker deployment
+docker:
+  - any: ["Dockerfile", "docker.yaml", "docker-compose.yaml", ".dockerignore"]
+
+# Add 'documentation' label to any change to the doc directory
+documentation:
+  - doc/**/*
+
+# Add 'formatting-and-linting' label to any changes to the formatting and
+# linting checks, and the pre-commit hooks that run them
+formatting-and-linting:
+  - any:
+      [
+        ".eslintignore",
+        ".eslintrc.yaml",
+        ".flake8",
+        ".git-pre-commit",
+        ".pep8speaks.yml",
+        ".pre-commit-config.yaml",
+      ]
+
+# Add 'javascript' label to any change to *.js files in the static folder
+javascript:
+  - static/js/**/*.js
+
+# Add 'migration' label to any change within the 'alembic' directory
+migration:
+  - alembic/versions/*
+
+# Add 'needs-migration?' label to any change to models.py without changes to
+# the Alembic versions
+needs-migration?:
+  - any: ["skyportal/models.py"]
+    all: ["!alembic/versions/*"]
+
+# Add 'python' label to any change to *.py files in the skyportal folder
+python:
+  - skyportal/**/*.py
