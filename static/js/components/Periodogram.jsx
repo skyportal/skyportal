@@ -32,12 +32,17 @@ const useStyles = makeStyles((theme) => ({
   },
   dygraphChart: {
     position: "relative",
-    left: "1px",
-    right: "1px",
-    top: "1px",
-    bottom: "1px",
+    left: "1rem",
+    right: "1rem",
+    top: "1rem",
+    bottom: "1rem",
     minWidth: "100%",
     maxHeight: "100%",
+  },
+  dygraphLegend: {
+    left: "10rem !important",
+    textAlign: "right",
+    background: "none",
   },
   media: {
     maxWidth: "100%",
@@ -259,25 +264,29 @@ const Periodogram = () => {
     new Dygraph(dataplotRef.current, dat, {
       drawPoints: true,
       strokeWidth: 0,
+      animatedZooms: true,
       labels: ["time", "mag"],
       errorBars: true,
       valueRange: [Math.max(...filteredy) + 0.1, Math.min(...filteredy) - 0.1],
       dateWindow: [Math.min(...times) - 6, Math.max(...times) + 6],
       zoomCallback: onZoom,
+      legend: "never",
     });
   }
 
   function plotphased(times, mags, p, title) {
     // Create graph with native array as data source
     const pp = [...times.map((x) => x % p), ...times.map((x) => (x % p) + p)];
+    const filteredy = mags.filter((n) => n);
     // eslint-disable-next-line no-new
     new Dygraph(phaseplotRef.current, transpose([pp, [...mags, ...mags]]), {
       drawPoints: true,
       strokeWidth: 0,
       labels: ["phase", "mag"],
-      valueRange: [Math.max(...mags) + 0.1, Math.min(...mags) - 0.1],
+      valueRange: [Math.max(...filteredy) + 0.1, Math.min(...filteredy) - 0.1],
       dateWindow: [0, 2 * p],
       title,
+      legend: "never",
     });
   }
 
@@ -307,8 +316,10 @@ const Periodogram = () => {
         y: {},
       },
       strokeWidth: 2,
+      animatedZooms: true,
       xlabel: "log Period [day]",
       ylabel: "Power",
+      legend: "never",
       labels: ["log Period [day]", "Power"],
     });
 
@@ -600,6 +611,27 @@ const Periodogram = () => {
                               />
                             </FormControl>
                           </Grid>
+                          <Grid item xs={8}>
+                            <Button
+                              type="submit"
+                              color="primary"
+                              name="finderButton"
+                              variant="contained"
+                              className={classes.button}
+                            >
+                              Recalculate
+                            </Button>
+                          </Grid>
+                          <Grid item xs={12}>
+                            <Typography gutterBottom>
+                              Change the parameters above then recalculate. When
+                              you zoom to a new time range in the top plot the
+                              L-S periodogram is calculated for that range. The
+                              red vertical lines show the best peak and
+                              harmonics. Click the middle plot to fold on that
+                              frequency.
+                            </Typography>
+                          </Grid>
                           <Grid item xs={12}>
                             <Typography id="period-slider" gutterBottom>
                               Period multiplier
@@ -637,23 +669,6 @@ const Periodogram = () => {
                               </>
                             )}
                           </Grid>
-                          <Grid item xs={8}>
-                            <Button
-                              type="submit"
-                              color="primary"
-                              name="finderButton"
-                              variant="contained"
-                              className={classes.button}
-                            >
-                              Recalculate
-                            </Button>
-                          </Grid>
-                          <Typography gutterBottom>
-                            Change the parameters above and/or zoom to a new
-                            time range in the top plot, then recalculate. The
-                            red vertical lines show the best peak and harmonics.
-                            Click the middle plot to fold on that frequency.
-                          </Typography>
                         </>
                       )}
 
