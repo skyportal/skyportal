@@ -172,7 +172,7 @@ jobs:
 
       - name: Run migration
         run: |
-          # Update dependencies that may break migrations since the first commit, i.e. deepdiff
+          # Update to latest dependencies
           make dependencies
           PYTHONPATH=. alembic -x config=config.yaml upgrade head
           PYTHONPATH=. alembic current
