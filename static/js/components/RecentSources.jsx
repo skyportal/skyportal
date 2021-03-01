@@ -36,7 +36,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
   },
   sourceListContainer: {
     height: "calc(100% - 3rem)",
-    overflowY: "scroll",
+    overflowY: "auto",
     marginTop: "0.625rem",
     paddingTop: "0.625rem",
   },
@@ -55,17 +55,29 @@ export const useSourceListStyles = makeStyles((theme) => ({
   },
   sourceInfo: {
     display: "flex",
-    flexFlow: "column wrap",
-    margin: "1rem 2rem",
-    flex: "0 1 50%",
+    flexDirection: "row",
+    margin: "10px",
+    width: "100%",
+  },
+  sourceNameContainer: {
+    display: "flex",
+    flexDirection: "column",
   },
   sourceName: {
     fontSize: "1rem",
   },
-  sourceTime: {
-    color: theme.palette.secondary,
+  link: {
+    color: theme.palette.warning.main,
+  },
+  quickViewContainer: {
+    display: "flex",
+    flexDirection: "column",
+    width: "45%",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   quickViewButton: {
+    minHeight: "30px",
     visibility: "hidden",
     textAlign: "center",
     display: "none",
@@ -74,11 +86,10 @@ export const useSourceListStyles = makeStyles((theme) => ({
     display: "flex",
     flexFlow: "column nowrap",
     justifyContent: "center",
-    marginBottom: "1rem",
-    marginLeft: "0.625rem",
+    // marginBottom: "1rem",
     transition: "all 0.3s ease",
     "&:hover": {
-      backgroundColor: "#ddd",
+      backgroundColor: theme.palette.secondary.main,
     },
     "&:hover $quickViewButton": {
       visibility: "visible",
@@ -138,28 +149,30 @@ const RecentSourcesList = ({ sources, styles }) => {
                     />
                   </Link>
                   <div className={styles.sourceInfo}>
-                    <span className={styles.sourceName}>
-                      <Link to={`/source/${source.obj_id}`}>
-                        {`${recentSourceName}`}
-                      </Link>
-                    </span>
-                    <span>
-                      {`\u03B1, \u03B4: ${ra_to_hours(source.ra)} ${dec_to_dms(
-                        source.dec
-                      )}`}
-                    </span>
-                    {source.resaved && <span>(Source was re-saved)</span>}
-                  </div>
-                  <div className={styles.sourceTime}>
-                    <span>
-                      {dayjs().to(dayjs.utc(`${source.created_at}Z`))}
-                    </span>
+                    <div className={styles.sourceNameContainer}>
+                      <span className={styles.sourceName}>
+                        <Link to={`/source/${source.obj_id}`}>
+                          {recentSourceName}
+                        </Link>
+                      </span>
+                      <span>
+                        {`\u03B1, \u03B4: ${ra_to_hours(
+                          source.ra
+                        )} ${dec_to_dms(source.dec)}`}
+                      </span>
+                      {source.resaved && <span>(Source was re-saved)</span>}
+                    </div>
+                    <div className={styles.quickViewContainer}>
+                      <span>
+                        {dayjs().to(dayjs.utc(`${source.created_at}Z`))}
+                      </span>
+                      <SourceQuickView
+                        sourceId={source.obj_id}
+                        className={styles.quickViewButton}
+                      />
+                    </div>
                   </div>
                 </div>
-                <SourceQuickView
-                  sourceId={source.obj_id}
-                  className={styles.quickViewButton}
-                />
               </div>
             </li>
           );
