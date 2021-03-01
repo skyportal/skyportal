@@ -19,7 +19,7 @@
     "check-dependencies": "1.1.0",
     "clsx": "1.1.1",
     "convert-css-length": "2.0.1",
-    "core-js": "3.8.1",
+    "core-js": "3.9.1",
     "css-loader": "4.2.0",
     "d3": "6.5.0",
     "data-uri-to-buffer": "3.0.1",
