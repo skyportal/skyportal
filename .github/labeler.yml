@@ -45,6 +45,8 @@ migration:
 needs-migration?:
   - any: ["skyportal/models.py"]
     all: ["!alembic/versions/*"]
+  - any: ["baselayer"]
+    all: ["!alembic/versions/*"]
 
 # Add 'workflows' label to any changes to GA workflows (.github folder)
 workflows:
