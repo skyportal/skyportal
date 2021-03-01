@@ -35,7 +35,7 @@ formatting-and-linting:
 
 # Add 'javascript' label to any change to *.js files in the static folder
 javascript:
-  - static/js/**/*.js
+  - any: ["static/js/**/*.js", "static/js/**/*.jsx"]
 
 # Add 'migration' label to any change within the 'alembic' directory
 migration:
