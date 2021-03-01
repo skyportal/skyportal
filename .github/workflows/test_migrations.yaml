@@ -1,9 +1,10 @@
 name: Test Skyportal Migrations
 
 on:
-  # Run only if changes in Alembic versions
+  # Run only if potential changes in database schema
   pull_request:
     paths:
+      - "baselayer"
       - "skyportal/models.py"
       - "alembic/versions/**"
 
