@@ -2,7 +2,7 @@
 
 # Add 'config-change' label to any change to default config files
 config-change:
-  - any: ["config.yaml.defaults", "test_config.yaml"]
+  - any: ["./config.yaml.defaults", "./test_config.yaml"]
 
 # Add 'demo-data' label to any change to provided demo data
 demo-data:
@@ -25,12 +25,12 @@ documentation:
 formatting-and-linting:
   - any:
       [
-        ".eslintignore",
-        ".eslintrc.yaml",
-        ".flake8",
-        ".git-pre-commit",
-        ".pep8speaks.yml",
-        ".pre-commit-config.yaml",
+        "./.eslintignore",
+        "./.eslintrc.yaml",
+        "./.flake8",
+        "./.git-pre-commit",
+        "./.pep8speaks.yml",
+        "./.pre-commit-config.yaml",
       ]
 
 # Add 'javascript' label to any change to *.js files in the static folder
