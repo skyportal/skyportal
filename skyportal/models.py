@@ -52,6 +52,7 @@ from baselayer.app.models import (  # noqa
     restricted,
     public,
     AccessibleIfRelatedRowsAreAccessible,
+    CronJobRun,
 )
 from skyportal import facility_apis
 from . import schema
@@ -578,7 +579,6 @@ class Obj(Base, ha.Point):
         nullable=True,
         doc="Record of who set which redshift values and when.",
     )
-
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(
         JSONB,

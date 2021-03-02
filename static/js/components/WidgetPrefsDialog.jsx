@@ -140,7 +140,9 @@ const WidgetPrefsDialog = ({
 };
 
 WidgetPrefsDialog.propTypes = {
-  initialValues: PropTypes.objectOf(PropTypes.string).isRequired,
+  initialValues: PropTypes.objectOf(
+    PropTypes.oneOfType([PropTypes.string, PropTypes.shape({})])
+  ).isRequired,
   stateBranchName: PropTypes.string.isRequired,
   onSubmit: PropTypes.func.isRequired,
   title: PropTypes.string.isRequired,

@@ -124,6 +124,7 @@ const Notifications = () => {
           vertical: "top",
           horizontal: "center",
         }}
+        disableScrollLock
       >
         <div className={classes.root}>
           <List className={classes.root}>

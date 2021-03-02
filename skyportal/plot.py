@@ -5,7 +5,15 @@ import pandas as pd
 
 from bokeh.core.properties import List, String
 from bokeh.layouts import row, column
-from bokeh.models import CustomJS, HoverTool, Range1d, Slider, Button, LinearAxis
+from bokeh.models import (
+    CustomJS,
+    HoverTool,
+    Range1d,
+    Slider,
+    Button,
+    LinearAxis,
+    RadioGroup,
+)
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.plotting import figure, ColumnDataSource
 
@@ -154,16 +162,74 @@ def get_color(bandpass_name):
         return bandcolor
 
 
+def annotate_spec(plot, spectra, lower, upper):
+    """Annotate photometry plot with spectral markers.
+
+    Parameters
+    ----------
+    plot : bokeh figure object
+        Figure to be annotated.
+    spectra : DBSession object
+        Results of query for spectra of object.
+    lower, upper : float
+        Plot limits allowing calculation of annotation symbol y value.
+    """
+    # get y position of annotation
+    text_y = upper - (upper - lower) * 0.05
+    s_y = [text_y] * len(spectra)
+    s_text = ['S'] * len(spectra)
+
+    # get data from spectra
+    s_mjd = [Time(s.observed_at, format='datetime').mjd for s in spectra]
+    s_date = [s.observed_at.isoformat() for s in spectra]
+    s_tel = [s.instrument.telescope.name for s in spectra]
+    s_inst = [s.instrument.name for s in spectra]
+
+    # plot the annotation using data for hover
+    if len(s_mjd) > 0:
+        spec_r = plot.text(
+            x='s_mjd',
+            y='s_y',
+            text='s_text',
+            text_alpha=0.3,
+            text_align='center',
+            source=ColumnDataSource(
+                data=dict(
+                    s_mjd=s_mjd,
+                    s_y=s_y,
+                    s_date=s_date,
+                    s_tel=s_tel,
+                    s_inst=s_inst,
+                    s_text=s_text,
+                )
+            ),
+        )
+        plot.add_tools(
+            HoverTool(
+                tooltips=[
+                    ("Spectrum", ""),
+                    ("mjd", "@s_mjd{0.000000}"),
+                    ("date", "@s_date"),
+                    ("tel", "@s_tel"),
+                    ("inst", "@s_inst"),
+                ],
+                renderers=[spec_r],
+            )
+        )
+
+
 def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
-    """Create scatter plot of photometry for object.
+    """Create object photometry scatter plot.
+
     Parameters
     ----------
     obj_id : str
         ID of Obj to be plotted.
+
     Returns
     -------
-    (str, str)
-        Returns (docs_json, render_items) json for the desired plot.
+    dict
+        Returns Bokeh JSON embedding for the desired plot.
     """
 
     data = pd.read_sql(
@@ -185,6 +251,13 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
 
     if data.empty:
         return None, None, None
+
+    # get spectra to annotate on phot plots
+    spectra = (
+        Spectrum.query_records_accessible_by(user)
+        .filter(Spectrum.obj_id == obj_id)
+        .all()
+    )
 
     data['color'] = [get_color(f) for f in data['filter']]
 
@@ -403,7 +476,10 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             line_width=2,
         )
         plot.add_tools(
-            HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
+            HoverTool(
+                tooltips=[("First detection", f'{first}')],
+                renderers=[first_r],
+            )
         )
         last_r = plot.line(
             x=np.full(5000, last),
@@ -413,8 +489,15 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             line_width=2,
         )
         plot.add_tools(
-            HoverTool(tooltips=[("Last detection", f'{last}')], renderers=[last_r],)
+            HoverTool(
+                tooltips=[("Last detection", f'{last}')],
+                renderers=[last_r],
+            )
         )
+
+    # Mark when spectra were taken
+    annotate_spec(plot, spectra, lower, upper)
+
     plot_layout = (
         column(plot, toggle)
         if "mobile" in device or "tablet" in device
@@ -477,7 +560,10 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             line_width=2,
         )
         plot.add_tools(
-            HoverTool(tooltips=[("First detection", f'{first}')], renderers=[first_r],)
+            HoverTool(
+                tooltips=[("First detection", f'{first}')],
+                renderers=[first_r],
+            )
         )
         last_r = plot.line(
             x=np.full(5000, last),
@@ -493,6 +579,9 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                 point_policy='follow_mouse',
             )
         )
+
+    # Mark when spectra were taken
+    annotate_spec(plot, spectra, ymax, ymin)
 
     imhover = HoverTool(tooltips=tooltip_format)
     imhover.renderers = []
@@ -728,7 +817,237 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
 
     p2 = Panel(child=layout, title='Mag')
 
-    tabs = Tabs(tabs=[p2, p1], width=width, height=height, sizing_mode='fixed')
+    # now make period plot
+
+    # get periods from annotations
+    annotation_list = obj.get_annotations_readable_by(user)
+    period_labels = []
+    period_list = []
+    for an in annotation_list:
+        if 'period' in an.data:
+            period_list.append(an.data['period'])
+            period_labels.append(an.origin + ": %.9f" % an.data['period'])
+
+    if len(period_list) > 0:
+        period = period_list[0]
+    else:
+        period = None
+
+    # don't generate if no period annotated
+    if period is not None:
+
+        # bokeh figure for period plotting
+        period_plot = figure(
+            aspect_ratio=1.5,
+            sizing_mode='scale_both',
+            active_drag='box_zoom',
+            tools='box_zoom,wheel_zoom,pan,reset,save',
+            y_range=(ymax, ymin),
+            x_range=(-0.1, 1.1),  # initially one phase
+            toolbar_location='above',
+            toolbar_sticky=False,
+            x_axis_location='below',
+        )
+
+        # axis labels
+        period_plot.xaxis.axis_label = 'phase'
+        period_plot.yaxis.axis_label = 'mag'
+        period_plot.toolbar.logo = None
+
+        # do we have a distance modulus (dm)?
+        obj = DBSession().query(Obj).get(obj_id)
+        if obj.dm is not None:
+            period_plot.extra_y_ranges = {
+                "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
+            }
+            period_plot.add_layout(
+                LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
+            )
+
+        # initiate hover tool
+        period_imhover = HoverTool(tooltips=tooltip_format)
+        period_imhover.renderers = []
+        period_plot.add_tools(period_imhover)
+
+        # initiate period radio buttons
+        period_selection = RadioGroup(labels=period_labels, active=0)
+
+        phase_selection = RadioGroup(labels=["One phase", "Two phases"], active=0)
+
+        # store all the plot data
+        period_model_dict = {}
+
+        # iterate over each filter
+        for i, (label, df) in enumerate(split):
+
+            # fold x-axis on period in days
+            df['mjd_folda'] = (df['mjd'] % period) / period
+            df['mjd_foldb'] = df['mjd_folda'] + 1.0
+
+            # phase plotting
+            for ph in ['a', 'b']:
+                key = 'fold' + ph + f'{i}'
+                period_model_dict[key] = period_plot.scatter(
+                    x='mjd_fold' + ph,
+                    y='mag',
+                    color='color',
+                    marker='circle',
+                    fill_color='color',
+                    alpha='alpha',
+                    visible=('a' in ph),
+                    source=ColumnDataSource(df[df['obs']]),  # only visible data
+                )
+                # add to hover tool
+                period_imhover.renderers.append(period_model_dict[key])
+
+                # errorbars for phases
+                key = 'fold' + ph + f'err{i}'
+                y_err_x = []
+                y_err_y = []
+
+                # get each visible error value
+                for d, ro in df[df['obs']].iterrows():
+                    px = ro['mjd_fold' + ph]
+                    py = ro['mag']
+                    err = ro['magerr']
+                    # set up error tuples
+                    y_err_x.append((px, px))
+                    y_err_y.append((py - err, py + err))
+                # plot phase errors
+                period_model_dict[key] = period_plot.multi_line(
+                    xs='xs',
+                    ys='ys',
+                    color='color',
+                    alpha='alpha',
+                    visible=('a' in ph),
+                    source=ColumnDataSource(
+                        data=dict(
+                            xs=y_err_x,
+                            ys=y_err_y,
+                            color=df[df['obs']]['color'],
+                            alpha=[1.0] * len(df[df['obs']]),
+                        )
+                    ),
+                )
+
+        # toggle for folded photometry
+        period_toggle = CheckboxWithLegendGroup(
+            labels=colors_labels.label.tolist(),
+            active=list(range(len(colors_labels))),
+            colors=colors_labels.color.tolist(),
+            width=width // 5,
+        )
+        # use javascript to perform toggling on click
+        # TODO replace `eval` with Namespaces
+        # https://github.com/bokeh/bokeh/pull/6340
+        period_toggle.js_on_click(
+            CustomJS(
+                args={
+                    'toggle': period_toggle,
+                    'numphases': phase_selection,
+                    'p': period_plot,
+                    **period_model_dict,
+                },
+                code=open(
+                    os.path.join(
+                        os.path.dirname(__file__), '../static/js/plotjs', 'togglep.js'
+                    )
+                ).read(),
+            )
+        )
+
+        # set up period adjustment text box
+        period_title = Div(text="Period (days): ")
+        period_textinput = TextInput(value=str(period if period is not None else 0.0))
+        period_textinput.js_on_change(
+            'value',
+            CustomJS(
+                args={
+                    'textinput': period_textinput,
+                    'toggle': period_toggle,
+                    'numphases': phase_selection,
+                    'p': period_plot,
+                    **period_model_dict,
+                },
+                code=open(
+                    os.path.join(
+                        os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
+                    )
+                ).read(),
+            ),
+        )
+        # a way to modify the period
+        period_double_button = Button(label="*2")
+        period_double_button.js_on_click(
+            CustomJS(
+                args={'textinput': period_textinput},
+                code="""
+                const period = parseFloat(textinput.value);
+                textinput.value = parseFloat(2.*period).toFixed(9);
+                """,
+            )
+        )
+        period_halve_button = Button(label="/2")
+        period_halve_button.js_on_click(
+            CustomJS(
+                args={'textinput': period_textinput},
+                code="""
+                        const period = parseFloat(textinput.value);
+                        textinput.value = parseFloat(period/2.).toFixed(9);
+                        """,
+            )
+        )
+        # a way to select the period
+        period_selection.js_on_click(
+            CustomJS(
+                args={'textinput': period_textinput, 'periods': period_list},
+                code="""
+                textinput.value = parseFloat(periods[this.active]).toFixed(9);
+                """,
+            )
+        )
+        phase_selection.js_on_click(
+            CustomJS(
+                args={
+                    'textinput': period_textinput,
+                    'toggle': period_toggle,
+                    'numphases': phase_selection,
+                    'p': period_plot,
+                    **period_model_dict,
+                },
+                code=open(
+                    os.path.join(
+                        os.path.dirname(__file__), '../static/js/plotjs', 'foldphase.js'
+                    )
+                ).read(),
+            )
+        )
+
+        # layout
+
+        period_column = column(
+            period_toggle,
+            period_title,
+            period_textinput,
+            period_selection,
+            row(period_double_button, period_halve_button, width=180),
+            phase_selection,
+            width=180,
+        )
+
+        period_layout = column(
+            row(period_plot, period_column),
+            sizing_mode='scale_width',
+            width=width,
+        )
+
+        # Period panel
+        p3 = Panel(child=period_layout, title='Period')
+        # tabs for mag, flux, period
+        tabs = Tabs(tabs=[p2, p1, p3], width=width, height=height, sizing_mode='fixed')
+    else:
+        # tabs for mag, flux
+        tabs = Tabs(tabs=[p2, p1], width=width, height=height, sizing_mode='fixed')
     return bokeh_embed.json_item(tabs)
 
 
@@ -770,7 +1089,7 @@ def spectroscopy_plot(
                 'id': s.id,
                 'telescope': s.instrument.telescope.name,
                 'instrument': s.instrument.name,
-                'date_observed': s.observed_at.date().isoformat(),
+                'date_observed': s.observed_at.isoformat(sep=' ', timespec='seconds'),
                 'pi': (
                     s.assignment.run.pi
                     if s.assignment is not None
@@ -785,6 +1104,8 @@ def spectroscopy_plot(
         data.append(df)
     data = pd.concat(data)
 
+    data.sort_values(by=['date_observed', 'wavelength'], inplace=True)
+
     dfs = []
     for i, s in enumerate(spectra):
         # Smooth the spectrum by using a rolling average
@@ -798,7 +1119,8 @@ def spectroscopy_plot(
 
     smoothed_data = pd.concat(dfs)
 
-    split = data.groupby('id')
+    split = data.groupby('id', sort=False)
+
     hover = HoverTool(
         tooltips=[
             ('wavelength', '@wavelength{0,0.000}'),
@@ -840,7 +1162,10 @@ def spectroscopy_plot(
     model_dict = {}
     for i, (key, df) in enumerate(split):
         model_dict['s' + str(i)] = plot.step(
-            x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(df),
+            x='wavelength',
+            y='flux',
+            color=color_map[key],
+            source=ColumnDataSource(df),
         )
         model_dict['l' + str(i)] = plot.line(
             x='wavelength',
@@ -881,6 +1206,7 @@ def spectroscopy_plot(
             code="""
           for (let i = 0; i < toggle.labels.length; i++) {
               eval("s" + i).visible = (toggle.active.includes(i))
+              eval("l" + i).visible = (toggle.active.includes(i))
           }
     """,
         ),
@@ -910,11 +1236,21 @@ def spectroscopy_plot(
         ),
     )
     z = column(
-        z_title, z_slider, z_textinput, width=slider_width, margin=(4, 10, 0, 10),
+        z_title,
+        z_slider,
+        z_textinput,
+        width=slider_width,
+        margin=(4, 10, 0, 10),
     )
 
     v_title = Div(text="<i>V</i><sub>expansion</sub> (km/s): ")
-    v_exp_slider = Slider(value=0.0, start=0.0, end=3e4, step=10.0, show_value=False,)
+    v_exp_slider = Slider(
+        value=0.0,
+        start=0.0,
+        end=3e4,
+        step=10.0,
+        show_value=False,
+    )
     v_exp_textinput = TextInput(value='0')
     v_exp_slider.js_on_change(
         'value',
