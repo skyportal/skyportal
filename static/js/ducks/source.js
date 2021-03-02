@@ -10,6 +10,8 @@ const FETCH_LOADED_SOURCE_OK = "skyportal/FETCH_LOADED_SOURCE_OK";
 const FETCH_LOADED_SOURCE_ERROR = "skyportal/FETCH_LOADED_SOURCE_ERROR";
 const FETCH_LOADED_SOURCE_FAIL = "skyportal/FETCH_LOADED_SOURCE_FAIL";
 
+const FETCH_COLOR_MAG = "skyportal/FETCH_COLOR_MAG";
+
 const ADD_CLASSIFICATION = "skyportal/ADD_CLASSIFICATION";
 
 const DELETE_CLASSIFICATION = "skyportal/DELETE_CLASSIFICATION";
@@ -100,6 +102,10 @@ export function fetchSource(id) {
     `/api/sources/${id}?includeComments=true`,
     FETCH_LOADED_SOURCE
   );
+}
+
+export function fetchColorMag(id) {
+  return API.GET(`/api/sources/${id}/color_mag`, FETCH_COLOR_MAG);
 }
 
 export function addSourceView(id) {

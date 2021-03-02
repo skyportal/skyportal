@@ -8,9 +8,105 @@ from ...models import (
 )
 
 
-def convertKey(str):
+def convert_key(str):
     # convert the string to lowercase and remove underscores
     return str.lower().replace('_', '')
+
+
+def get_color_mag(annotations, **kwargs):
+    # please refer to the handler GET command below
+
+    # ignore None inputs from e.g., query arguments
+    inputs = {k: v for k, v in kwargs.items() if v is not None}
+
+    catalog = inputs.get('catalog', 'gaia')
+    mag_key = inputs.get('apparentMagKey', 'Mag_G')
+    parallax_key = inputs.get('parallaxKey', 'Plx')
+    absorption_key = inputs.get('absorptionKey', 'A_G')
+    abs_mag_key = inputs.get('absoluteMagKey', None)
+    blue_mag_key = inputs.get('blueMagKey', 'Mag_Bp')
+    red_mag_key = inputs.get('redMagKey', 'Mag_Rp')
+    color_key = inputs.get('color', None)
+
+    output = []
+
+    for an in annotations:
+        print(an)
+        abs_mag = None
+        color = None
+        absorption = None
+        origin = an.origin
+
+        for (
+            key,
+            xmatch,
+        ) in (
+            an.data.items()
+        ):  # go over all items in the data (e.g., different catalog matches)
+            if convert_key(key) == convert_key(
+                catalog
+            ):  # found the right catalog, but does it have the right keys?
+
+                # get the absolute magnitude
+                if abs_mag_key is not None:  # get the absolute magnitude directly
+                    for k in xmatch.keys():
+                        if convert_key(abs_mag_key) == convert_key(k):
+                            abs_mag = xmatch[k]  # found it!
+                            break  # no need to scan the rest of the cross match
+                else:  # we need to look for the apparent magnitude and parallax
+                    mag = None
+                    plx = None
+                    for k in xmatch.keys():
+                        if convert_key(mag_key) == convert_key(k):
+                            mag = xmatch[k]
+                        if convert_key(parallax_key) == convert_key(k):
+                            plx = xmatch[k]
+                        if mag is not None and plx is not None:
+                            abs_mag = mag - 2.5 * np.log10(plx / 100)
+                            break  # no need to scan the rest of the cross match
+
+                # get the color data
+                if color_key is not None:  # get the color value directly
+                    for k in xmatch.keys():
+                        if convert_key(color_key) == convert_key(k.lower):
+                            color = float(xmatch[k])  # found it!
+                            break  # no need to scan the rest of the cross match
+                else:
+                    blue = None
+                    red = None
+                    for k in xmatch.keys():
+                        if convert_key(blue_mag_key) == convert_key(k):
+                            blue = xmatch[k]
+                        if convert_key(red_mag_key) == convert_key(k):
+                            red = xmatch[k]
+                        if blue is not None and red is not None:
+                            color = float(blue) - float(
+                                red
+                            )  # calculate the color between these two magnitudes
+                            break  # no need to scan the rest of the cross match
+
+                if (
+                    absorption_key is not None
+                ):  # only check this if given an absorption term
+                    for k in xmatch.keys():
+                        if convert_key(absorption_key) == convert_key(k):
+                            absorption = xmatch[k]
+                            break  # no need to scan the rest of the cross match
+
+            if (
+                abs_mag is not None
+                and not np.isnan(abs_mag)
+                and color is not None
+                and not np.isnan(color)
+            ):
+
+                if absorption is not None and not np.isnan(absorption):
+                    abs_mag = abs_mag + absorption  # apply the absorption term
+
+                output.append({'origin': origin, 'abs_mag': abs_mag, 'color': color})
+                break  # found all the data we need for this annotation/origin
+
+    return output
 
 
 class ObjColorMagHandler(BaseHandler):
@@ -138,94 +234,26 @@ class ObjColorMagHandler(BaseHandler):
         )
         self.verify_permissions()
 
-        catalog = self.get_query_argument('catalog', 'gaia')
-        mag_key = self.get_query_argument('apparentMagKey', 'Mag_G')
-        parallax_key = self.get_query_argument('parallaxKey', 'Plx')
-        absorption_key = self.get_query_argument('absorptionKey', 'A_G')
-        abs_mag_key = self.get_query_argument('absoluteMagKey', None)
-        blue_mag_key = self.get_query_argument('blueMagKey', 'Mag_Bp')
-        red_mag_key = self.get_query_argument('redMagKey', 'Mag_Rp')
-        color_key = self.get_query_argument('color', None)
+        catalog = self.get_query_argument('catalog', None)  # "GAIA"
+        mag_key = self.get_query_argument('apparentMagKey', None)  # "Mag_G"
+        parallax_key = self.get_query_argument('parallaxKey', None)  # "Plx"
+        absorption_key = self.get_query_argument('absorptionKey', None)  # "A_G"
+        abs_mag_key = self.get_query_argument('absoluteMagKey', None)  # None
+        blue_mag_key = self.get_query_argument('blueMagKey', None)  # "Mag_Bp"
+        red_mag_key = self.get_query_argument('redMagKey', None)  # "Mag_Rp"
+        color_key = self.get_query_argument('color', None)  # None
 
-        output = []
-
-        for an in annotations:
-            print(an)
-            abs_mag = None
-            color = None
-            absorption = None
-            origin = an.origin
-
-            for (
-                key,
-                xmatch,
-            ) in (
-                an.data.items()
-            ):  # go over all items in the data (e.g., different catalog matches)
-                if convertKey(key) == convertKey(
-                    catalog
-                ):  # found the right catalog, but does it have the right keys?
-
-                    # get the absolute magnitude
-                    if abs_mag_key is not None:  # get the absolute magnitude directly
-                        for k in xmatch.keys():
-                            if convertKey(abs_mag_key) == convertKey(k):
-                                abs_mag = xmatch[k]  # found it!
-                                break  # no need to scan the rest of the cross match
-                    else:  # we need to look for the apparent magnitude and parallax
-                        mag = None
-                        plx = None
-                        for k in xmatch.keys():
-                            if convertKey(mag_key) == convertKey(k):
-                                mag = xmatch[k]
-                            if convertKey(parallax_key) == convertKey(k):
-                                plx = xmatch[k]
-                            if mag is not None and plx is not None:
-                                abs_mag = mag - 2.5 * np.log10(plx / 100)
-                                break  # no need to scan the rest of the cross match
-
-                    # get the color data
-                    if color_key is not None:  # get the color value directly
-                        for k in xmatch.keys():
-                            if convertKey(color_key) == convertKey(k.lower):
-                                color = float(xmatch[k])  # found it!
-                                break  # no need to scan the rest of the cross match
-                    else:
-                        blue = None
-                        red = None
-                        for k in xmatch.keys():
-                            if convertKey(blue_mag_key) == convertKey(k):
-                                blue = xmatch[k]
-                            if convertKey(red_mag_key) == convertKey(k):
-                                red = xmatch[k]
-                            if blue is not None and red is not None:
-                                color = float(blue) - float(
-                                    red
-                                )  # calculate the color between these two magnitudes
-                                break  # no need to scan the rest of the cross match
-
-                    if (
-                        absorption_key is not None
-                    ):  # only check this if given an absorption term
-                        for k in xmatch.keys():
-                            if convertKey(absorption_key) == convertKey(k):
-                                absorption = xmatch[k]
-                                break  # no need to scan the rest of the cross match
-
-                if (
-                    abs_mag is not None
-                    and not np.isnan(abs_mag)
-                    and color is not None
-                    and not np.isnan(color)
-                ):
-
-                    if absorption is not None and not np.isnan(absorption):
-                        abs_mag = abs_mag + absorption  # apply the absorption term
-
-                    output.append(
-                        {'origin': origin, 'abs_mag': abs_mag, 'color': color}
-                    )
-                    break  # found all the data we need for this annotation/origin
+        output = get_color_mag(
+            annotations,
+            catalog=catalog,
+            mag_key=mag_key,
+            parallax_key=parallax_key,
+            absorption_key=absorption_key,
+            abs_mag_key=abs_mag_key,
+            blue_mag_key=blue_mag_key,
+            red_mag_key=red_mag_key,
+            color_key=color_key,
+        )
 
         self.verify_permissions()
 

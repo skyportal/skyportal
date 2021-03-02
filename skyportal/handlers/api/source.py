@@ -44,7 +44,7 @@ from ...utils import (
 )
 from .candidate import grab_query_results, update_redshift_history_if_relevant
 from .photometry import serialize
-
+from .color_mag import get_color_mag
 
 SOURCES_PER_PAGE = 100
 
@@ -654,6 +654,8 @@ class SourceHandler(BaseHandler):
                     else None
                 )
 
+            source_info["color_magnitude"] = get_color_mag(source_info["annotations"])
+
             # add the date(s) this source was saved to each of these groups
             for i, g in enumerate(source_info["groups"]):
                 saved_at = (
@@ -973,6 +975,10 @@ class SourceHandler(BaseHandler):
                         if source_table_row.saved_by is not None
                         else None
                     )
+
+                source_list[-1]["color_magnitude"] = get_color_mag(
+                    source_list[-1]["annotations"]
+                )
 
                 # add the date(s) this source was saved to each of these groups
                 for i, g in enumerate(source_list[-1]["groups"]):

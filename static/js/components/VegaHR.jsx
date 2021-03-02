@@ -79,7 +79,7 @@ const spec = (data, width = 200, height = 200) => ({
           },
         },
         y: {
-          field: "mag",
+          field: "abs_mag",
           type: "quantitative",
           scale: {
             zero: false,
@@ -128,7 +128,7 @@ const spec = (data, width = 200, height = 200) => ({
           },
         },
         y: {
-          field: "mag",
+          field: "abs_mag",
           type: "quantitative",
           scale: {
             zero: false,
@@ -163,6 +163,7 @@ const spec = (data, width = 200, height = 200) => ({
 
 const VegaHR = React.memo((props) => {
   const { data, width, height } = props;
+
   return (
     <div
       ref={(node) => {
@@ -179,7 +180,7 @@ const VegaHR = React.memo((props) => {
 VegaHR.propTypes = {
   data: PropTypes.arrayOf(
     PropTypes.shape({
-      mag: PropTypes.number.isRequired,
+      abs_mag: PropTypes.number.isRequired,
       color: PropTypes.number.isRequired,
       origin: PropTypes.string.isRequired,
     })
