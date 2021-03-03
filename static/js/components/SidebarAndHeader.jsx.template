@@ -14,7 +14,6 @@ import IconButton from "@material-ui/core/IconButton";
 import GroupIcon from "@material-ui/icons/Group";
 import AssessmentIcon from '@material-ui/icons/Assessment';
 import { makeStyles } from "@material-ui/core/styles";
-import blue from "@material-ui/core/colors/blue";
 
 {% for item in app.sidebar -%}
 import {{ item.icon }}Icon from "@material-ui/icons/{{ item.icon }}";
@@ -40,7 +39,7 @@ const useStyles = makeStyles((theme) => ({
       duration: theme.transitions.duration.leavingScreen,
     }),
     height: "6em",
-    background: theme.palette.primary.main,
+    background: theme.palette.primary.dark,
   },
   appBarShift: {
     width: `calc(100% - ${drawerWidth}px)`,
@@ -223,7 +222,7 @@ const SidebarAndHeader = () => {
             <Link to="/db_stats" className={classes.link}>
               <ListItem button name="dbStatsButton">
                 <ListItemIcon>
-                  <AssessmentIcon style={{ "{{ color: blue[200] }}" }} />
+                  <AssessmentIcon className={classes.icon} />
                 </ListItemIcon>
                 <SidebarLinkText
                   route="/db_stats"
