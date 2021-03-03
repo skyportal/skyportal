@@ -89,7 +89,7 @@ export const useSourceListStyles = makeStyles((theme) => ({
     // marginBottom: "1rem",
     transition: "all 0.3s ease",
     "&:hover": {
-      backgroundColor: theme.palette.secondary.main,
+      backgroundColor: theme.palette.secondary.light,
     },
     "&:hover $quickViewButton": {
       visibility: "visible",
