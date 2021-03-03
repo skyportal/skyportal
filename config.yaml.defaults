@@ -289,9 +289,9 @@ external_logging:
     excluded_log_files: ["log/websocket_server.log"]
 
 cron:
-  - interval: 1440
-    script: jobs/delete_unsaved_candidates.py
-    limit: ["01:00", "02:00"]
+  # - interval: 1440
+  #   script: jobs/delete_unsaved_candidates.py
+  #   limit: ["01:00", "02:00"]
 
 twilio:
   # Twilio Sendgrid API configs
