@@ -46,6 +46,11 @@ const useStyles = makeStyles((theme) => ({
   },
   sourceNameLink: {
     color: theme.palette.primary.main,
+    border: "none",
+    background: "transparent",
+    fontSize: "14px",
+    fontWeight: "bold",
+    padding: "0",
   },
   quickViewContainer: {
     display: "flex",
@@ -132,9 +137,12 @@ const TopSourcesList = ({ sources, styles }) => {
                     <div className={styles.sourceNameContainer}>
                       <span className={styles.sourceName}>
                         <Link to={`/source/${source.obj_id}`}>
-                          <span className={styles.sourceNameLink}>
+                          <button
+                            type="submit"
+                            className={styles.sourceNameLink}
+                          >
                             {topsourceName}
-                          </span>
+                          </button>
                         </Link>
                       </span>
                       <span>
