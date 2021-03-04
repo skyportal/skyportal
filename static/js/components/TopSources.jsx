@@ -44,6 +44,9 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     flexDirection: "column",
   },
+  sourceNameLink: {
+    color: theme.palette.primary.main,
+  },
   quickViewContainer: {
     display: "flex",
     flexDirection: "column",
@@ -129,7 +132,9 @@ const TopSourcesList = ({ sources, styles }) => {
                     <div className={styles.sourceNameContainer}>
                       <span className={styles.sourceName}>
                         <Link to={`/source/${source.obj_id}`}>
-                          {topsourceName}
+                          <span className={styles.sourceNameLink}>
+                            {topsourceName}
+                          </span>
                         </Link>
                       </span>
                       <span>

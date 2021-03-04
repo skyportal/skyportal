@@ -66,6 +66,9 @@ export const useSourceListStyles = makeStyles((theme) => ({
   sourceName: {
     fontSize: "1rem",
   },
+  sourceNameLink: {
+    color: theme.palette.primary.main,
+  },
   link: {
     color: theme.palette.warning.main,
   },
@@ -152,7 +155,9 @@ const RecentSourcesList = ({ sources, styles }) => {
                     <div className={styles.sourceNameContainer}>
                       <span className={styles.sourceName}>
                         <Link to={`/source/${source.obj_id}`}>
-                          {recentSourceName}
+                          <span className={styles.sourceNameLink}>
+                            {recentSourceName}
+                          </span>
                         </Link>
                       </span>
                       <span>
