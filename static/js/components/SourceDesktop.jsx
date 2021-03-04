@@ -34,6 +34,7 @@ import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
+const VegaHR = React.lazy(() => import("./VegaHR"));
 
 const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
@@ -301,6 +302,18 @@ const SourceDesktop = ({ source }) => {
             thumbnails={source.thumbnails}
             size="12.875rem"
           />
+        </div>
+        <div className={classes.columnItem}>
+          {source.color_magnitude.length ? (
+            <Suspense fallback={<div>Loading HR diagram...</div>}>
+              <VegaHR
+                data={source.color_magnitude}
+                width={200}
+                height={200}
+                data-testid={`hr_diagram_${source.id}`}
+              />
+            </Suspense>
+          ) : null}
         </div>
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>

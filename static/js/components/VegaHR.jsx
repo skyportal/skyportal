@@ -12,10 +12,10 @@ const spec = (data, width = 200, height = 200) => ({
     {
       data: {
         url: "static/HR_density.json",
-        property: "data",
         format: {
           type: "json",
         },
+        //         property: "data",
       },
       background: "transparent",
       encoding: {

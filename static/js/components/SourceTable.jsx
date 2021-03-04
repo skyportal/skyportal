@@ -323,7 +323,7 @@ const SourceTable = ({
               {!source.photometry_exists && <div> no photometry exists </div>}
             </Grid>
             <Grid item>
-              {source.color_magnitude.length && (
+              {source.color_magnitude.length ? (
                 <Suspense fallback={<div>Loading HR diagram...</div>}>
                   <VegaHR
                     data={source.color_magnitude}
@@ -332,7 +332,7 @@ const SourceTable = ({
                     data-testid={`hr_diagram_${source.id}`}
                   />
                 </Suspense>
-              )}
+              ) : null}
             </Grid>
             <Grid item>
               {source.spectrum_exists && (

@@ -103,6 +103,18 @@ def test_post_retrieve_color_mag_data(annotation_token, public_source):
     assert abs(data['data'][0]['abs_mag'] - 19.5) < 0.1
     assert abs(data['data'][0]['color'] - 1.8) < 0.1
 
+    # check that the source also provides the same info (with default keys!)
+    status, data = api(
+        'GET',
+        f'sources/{public_source.id}',
+        token=annotation_token,
+    )
+
+    assert status == 200
+    assert data['data']['color_magnitude'][0]['origin'] == 'cross_match1'
+    assert abs(data['data']['color_magnitude'][0]['abs_mag'] - 18.6) < 0.1
+    assert abs(data['data']['color_magnitude'][0]['color'] - 2.1) < 0.1
+
 
 def test_change_color_mag_keys(annotation_token, public_source):
 
