@@ -15,8 +15,8 @@ const useStyles = makeStyles((theme) => ({
   },
   SurveyLink: {
     backgroundColor: theme.palette.primary.main,
-    padding: "0.2em",
-    margin: "0.2em",
+    padding: "2px 15px",
+    margin: "3px",
     display: "inline-block",
     color: theme.palette.secondary.main,
     borderRadius: "5px",
