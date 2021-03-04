@@ -199,6 +199,12 @@ JOBLIB_CACHE_SIZE = 100e6  # 100 MB
 offsets_memory = Memory("./cache/offsets/", verbose=0, bytes_limit=JOBLIB_CACHE_SIZE)
 
 
+def memcache(f):
+    """Ensure that joblib memory cache stays within bytes limit."""
+    offsets_memory.reduce_size()
+    return offsets_memory.cache(f)
+
+
 def get_url(*args, **kwargs):
     # Connect and read timeouts
     kwargs['timeout'] = (6.05, 20)
@@ -208,7 +214,7 @@ def get_url(*args, **kwargs):
         return None
 
 
-@offsets_memory.cache
+@memcache
 def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
     """
     From:
@@ -300,7 +306,7 @@ source_image_parameters = {
 }
 
 
-@offsets_memory.cache
+@memcache
 def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=1000):
     """Finds the ZTF public catalog data around this position
 
@@ -563,7 +569,7 @@ def get_formatted_standards_list(
 
 @warningfilter(action="ignore", category=DeprecationWarning)
 @warningfilter(action="ignore", category=AstropyWarning)
-@offsets_memory.cache
+@memcache
 def get_nearby_offset_stars(
     source_ra,
     source_dec,
