@@ -8,13 +8,13 @@ from ...models import (
 )
 
 
-def convert_key(str):
+def normalize_key(str):
     # convert the string to lowercase and remove underscores
     return str.lower().replace('_', '')
 
 
 def get_color_mag(annotations, **kwargs):
-    # please refer to the handler GET command below
+    # please refer to `ObjColorMagHandler.get` below
 
     # ignore None inputs from e.g., query arguments
     inputs = {k: v for k, v in kwargs.items() if v is not None}
@@ -26,70 +26,66 @@ def get_color_mag(annotations, **kwargs):
     abs_mag_key = inputs.get('absoluteMagKey', None)
     blue_mag_key = inputs.get('blueMagKey', 'Mag_Bp')
     red_mag_key = inputs.get('redMagKey', 'Mag_Rp')
-    color_key = inputs.get('color', None)
+    color_key = inputs.get('colorKey', None)
 
     output = []
 
     for an in annotations:
-        print(an)
+
         abs_mag = None
         color = None
         absorption = None
         origin = an.origin
 
+        # go over all items in the data (e.g., different catalog matches)
         for (
             key,
             xmatch,
-        ) in (
-            an.data.items()
-        ):  # go over all items in the data (e.g., different catalog matches)
-            if convert_key(key) == convert_key(
-                catalog
-            ):  # found the right catalog, but does it have the right keys?
+        ) in an.data.items():
+            # found the right catalog, but does it have the right keys?
+            if normalize_key(key) == normalize_key(catalog):
 
                 # get the absolute magnitude
                 if abs_mag_key is not None:  # get the absolute magnitude directly
                     for k in xmatch.keys():
-                        if convert_key(abs_mag_key) == convert_key(k):
+                        if normalize_key(abs_mag_key) == normalize_key(k):
                             abs_mag = xmatch[k]  # found it!
                             break  # no need to scan the rest of the cross match
                 else:  # we need to look for the apparent magnitude and parallax
                     mag = None
                     plx = None
                     for k in xmatch.keys():
-                        if convert_key(mag_key) == convert_key(k):
+                        if normalize_key(mag_key) == normalize_key(k):
                             mag = xmatch[k]
-                        if convert_key(parallax_key) == convert_key(k):
+                        if normalize_key(parallax_key) == normalize_key(k):
                             plx = xmatch[k]
                         if mag is not None and plx is not None:
-                            abs_mag = mag - 2.5 * np.log10(plx / 100)
+                            abs_mag = mag - 5 * np.log10(plx / 100)
                             break  # no need to scan the rest of the cross match
 
                 # get the color data
                 if color_key is not None:  # get the color value directly
                     for k in xmatch.keys():
-                        if convert_key(color_key) == convert_key(k.lower):
+                        if normalize_key(color_key) == normalize_key(k):
                             color = float(xmatch[k])  # found it!
                             break  # no need to scan the rest of the cross match
                 else:
                     blue = None
                     red = None
                     for k in xmatch.keys():
-                        if convert_key(blue_mag_key) == convert_key(k):
+                        if normalize_key(blue_mag_key) == normalize_key(k):
                             blue = xmatch[k]
-                        if convert_key(red_mag_key) == convert_key(k):
+                        if normalize_key(red_mag_key) == normalize_key(k):
                             red = xmatch[k]
                         if blue is not None and red is not None:
-                            color = float(blue) - float(
-                                red
-                            )  # calculate the color between these two magnitudes
+                            # calculate the color between these two magnitudes
+                            color = float(blue) - float(red)
                             break  # no need to scan the rest of the cross match
 
-                if (
-                    absorption_key is not None
-                ):  # only check this if given an absorption term
+                # only check this if given an absorption term
+                if absorption_key is not None:
                     for k in xmatch.keys():
-                        if convert_key(absorption_key) == convert_key(k):
+                        if normalize_key(absorption_key) == normalize_key(k):
                             absorption = xmatch[k]
                             break  # no need to scan the rest of the cross match
 
@@ -212,7 +208,19 @@ class ObjColorMagHandler(BaseHandler):
       200:
         content:
           application/json:
-            schema: ArrayOfObjects
+            schema:
+              allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: array
+                    items:
+                      type: object
+                      properties:
+                          origin:
+                            type: string
+                          color:
+                            type: float
+                          abs_mag:
+                            type: float
 
       400:
         content:
@@ -232,7 +240,6 @@ class ObjColorMagHandler(BaseHandler):
             .filter(Annotation.obj_id == obj_id)
             .all()
         )
-        self.verify_permissions()
 
         catalog = self.get_query_argument('catalog', None)  # "GAIA"
         mag_key = self.get_query_argument('apparentMagKey', None)  # "Mag_G"
@@ -241,18 +248,18 @@ class ObjColorMagHandler(BaseHandler):
         abs_mag_key = self.get_query_argument('absoluteMagKey', None)  # None
         blue_mag_key = self.get_query_argument('blueMagKey', None)  # "Mag_Bp"
         red_mag_key = self.get_query_argument('redMagKey', None)  # "Mag_Rp"
-        color_key = self.get_query_argument('color', None)  # None
+        color_key = self.get_query_argument('colorKey', None)  # None
 
         output = get_color_mag(
             annotations,
             catalog=catalog,
-            mag_key=mag_key,
-            parallax_key=parallax_key,
-            absorption_key=absorption_key,
-            abs_mag_key=abs_mag_key,
-            blue_mag_key=blue_mag_key,
-            red_mag_key=red_mag_key,
-            color_key=color_key,
+            apparentMagKey=mag_key,
+            parallaxKey=parallax_key,
+            absorptionKey=absorption_key,
+            absoluteMagKey=abs_mag_key,
+            blueMagKey=blue_mag_key,
+            redMagKey=red_mag_key,
+            colorKey=color_key,
         )
 
         self.verify_permissions()

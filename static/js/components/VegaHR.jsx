@@ -6,9 +6,9 @@ const spec = (data, width = 200, height = 200) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   width,
   height,
-  padding: 5,
+  padding: 0.025 * Math.min(width, height),
   layer: [
-    // draw the GAIA data for main sequence etc.
+    // draw the Gaia data for main sequence etc.
     {
       data: {
         url: "static/HR_density.json",
@@ -35,7 +35,7 @@ const spec = (data, width = 200, height = 200) => ({
             reverse: true,
           },
           axis: {
-            title: "mag G",
+            title: "Abs. Mag. G",
             grid: false,
           },
         },

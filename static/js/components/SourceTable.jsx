@@ -329,6 +329,7 @@ const SourceTable = ({
                     data={source.color_magnitude}
                     width={200}
                     height={200}
+                    data-testid={`hr_diagram_${source.id}`}
                   />
                 </Suspense>
               )}
