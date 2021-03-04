@@ -31,6 +31,9 @@ const useStyles = makeStyles((theme) => ({
   icon: {
     color: theme.palette.info.main,
   },
+  paper: {
+    backgroundColor: "#fff",
+  },
   // These rules help keep the progress wheel centered. Taken from the first example: https://material-ui.com/components/progress/
   progress: {
     display: "flex",
@@ -116,7 +119,7 @@ const QuickSearchBar = () => {
       color="primary"
       id="quick-search-bar"
       style={{ padding: "0.3rem" }}
-      className={classes.root}
+      classes={{ root: classes.root, paper: classes.paper }}
       getOptionSelected={(option, val) => option.name === val.name}
       getOptionLabel={(option) => option}
       onInputChange={(e, val) => setInputValue(val)}
