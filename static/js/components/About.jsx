@@ -37,7 +37,7 @@ const useStyles = makeStyles((theme) => ({
   bibtex: {
     marginTop: "2rem",
     marginBottom: 0,
-    color: theme.palette.info.dark,
+    color: theme.palette.secondary.dark,
   },
   hidden: {
     display: "none",
@@ -50,10 +50,10 @@ const useStyles = makeStyles((theme) => ({
     fontFamily: "monospace",
   },
   gitlogSHA: {
-    color: `${theme.palette.secondary.dark} !important`,
+    color: `${theme.palette.error.main} !important`,
   },
   gitlogPR: {
-    color: theme.palette.primary.dark,
+    color: theme.palette.secondary.dark,
   },
 }));
 

@@ -17,7 +17,7 @@ import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useSourceListStyles } from "./RecentSources";
 import SourceQuickView from "./SourceQuickView";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   header: {},
   timespanSelect: {
     display: "flex",
@@ -25,14 +25,40 @@ const useStyles = makeStyles(() => ({
     justifyContent: "center",
     marginBottom: "0.5rem",
     "& .MuiButton-label": {
-      color: "gray",
+      color: theme.palette.text.secondary,
     },
   },
   sourceListContainer: {
     height: "calc(100% - 5rem)",
-    overflowY: "scroll",
+    overflowY: "auto",
     marginTop: "0.625rem",
     paddingTop: "0.625rem",
+  },
+  sourceInfo: {
+    display: "flex",
+    flexDirection: "row",
+    margin: "10px",
+    width: "100%",
+  },
+  sourceNameContainer: {
+    display: "flex",
+    flexDirection: "column",
+  },
+  sourceNameLink: {
+    color: theme.palette.primary.main,
+  },
+  quickViewContainer: {
+    display: "flex",
+    flexDirection: "column",
+    width: "45%",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  quickViewButton: {
+    minHeight: "30px",
+    visibility: "hidden",
+    textAlign: "center",
+    display: "none",
   },
 }));
 
@@ -103,27 +129,31 @@ const TopSourcesList = ({ sources, styles }) => {
                     />
                   </Link>
                   <div className={styles.sourceInfo}>
-                    <span className={styles.sourceName}>
-                      <Link to={`/source/${source.obj_id}`}>
-                        {`${topsourceName}`}
-                      </Link>
-                    </span>
-                    <span>
-                      {`\u03B1, \u03B4: ${ra_to_hours(source.ra)} ${dec_to_dms(
-                        source.dec
-                      )}`}
-                    </span>
-                  </div>
-                  <div className={styles.sourceTime}>
-                    <span>
-                      <em>{`${source.views} view(s)`}</em>
-                    </span>
+                    <div className={styles.sourceNameContainer}>
+                      <span className={styles.sourceName}>
+                        <Link to={`/source/${source.obj_id}`}>
+                          <span className={styles.sourceNameLink}>
+                            {topsourceName}
+                          </span>
+                        </Link>
+                      </span>
+                      <span>
+                        {`\u03B1, \u03B4: ${ra_to_hours(
+                          source.ra
+                        )} ${dec_to_dms(source.dec)}`}
+                      </span>
+                    </div>
+                    <div className={styles.quickViewContainer}>
+                      <span>
+                        <em>{`${source.views} view(s)`}</em>
+                      </span>
+                      <SourceQuickView
+                        sourceId={source.obj_id}
+                        className={styles.quickViewButton}
+                      />
+                    </div>
                   </div>
                 </div>
-                <SourceQuickView
-                  sourceId={source.obj_id}
-                  className={styles.quickViewButton}
-                />
               </div>
             </li>
           );

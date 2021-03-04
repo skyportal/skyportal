@@ -11,7 +11,6 @@ import { GET } from "../API";
 
 const useStyles = makeStyles(() => ({
   starListDiv: {
-    background: "#eee",
     padding: "1rem",
     margin: "1rem",
     lineHeight: "0.8rem",

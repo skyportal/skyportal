@@ -113,14 +113,14 @@ const WeatherView = ({ weather }) => {
         <CardActions className={styles.weatherLinks}>
           {weather?.weather_link && (
             <a href={weather.weather_link} rel="noreferrer" target="_blank">
-              <Button size="small" color="primary">
+              <Button size="small" color="secondary">
                 Forecast
               </Button>
             </a>
           )}
           {weather?.skycam_link && (
             <a href={weather.skycam_link} rel="noreferrer" target="_blank">
-              <Button size="small" color="primary">
+              <Button size="small" color="secondary">
                 Webcam
               </Button>
             </a>

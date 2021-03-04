@@ -31,6 +31,7 @@ const useStyles = makeStyles((theme) => ({
 // Tweak responsive column widths
 const getMuiTheme = (theme) =>
   createMuiTheme({
+    palette: theme.palette,
     overrides: {
       MUIDataTableBodyCell: {
         root: {

@@ -123,7 +123,6 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
   },
   idButton: {
-    // color: theme.palette.primary.main,
     textTransform: "none",
     marginBottom: theme.spacing(1),
   },
