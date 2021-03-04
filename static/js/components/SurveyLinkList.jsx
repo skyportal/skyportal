@@ -4,7 +4,6 @@ import PropTypes from "prop-types";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { makeStyles } from "@material-ui/core/styles";
-import grey from "@material-ui/core/colors/grey";
 
 import { ra_to_hours, dec_to_dms } from "../units";
 
@@ -15,20 +14,23 @@ const useStyles = makeStyles((theme) => ({
     display: "inline-block",
   },
   SurveyLink: {
-    backgroundColor: theme.palette.info.main,
+    backgroundColor: theme.palette.primary.main,
     padding: "0.2em",
     margin: "0.2em",
     display: "inline-block",
+    color: theme.palette.secondary.main,
+    borderRadius: "5px",
   },
   submitButton: {
     border: "none",
-    backgroundColor: "transparent",
+    backgroundColor: theme.palette.primary.main,
     cursor: "pointer",
     padding: 0,
     margin: 0,
     fontWeight: "bold",
-    color: grey[500],
+    color: theme.palette.secondary.main,
     textDecoration: "none",
+    borderRadius: "5px",
   },
 }));
 
