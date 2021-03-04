@@ -11,6 +11,8 @@ import DialogContent from "@material-ui/core/DialogContent";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import Box from "@material-ui/core/Box";
 import Button from "@material-ui/core/Button";
+import List from "@material-ui/core/List";
+import ListItem from "@material-ui/core/ListItem";
 
 import * as dbStatsActions from "../ducks/dbStats";
 
@@ -55,9 +57,9 @@ const DBStats = () => {
               <TableCell>
                 {Array.isArray(dbStats[key]) && (
                   <>
-                    <ul style={{ paddingLeft: "0.8rem" }}>
+                    <List>
                       {dbStats[key].map((item) => (
-                        <li key={item.summary}>
+                        <ListItem key={item.summary}>
                           {item.summary}
                           {item.output && (
                             <>
@@ -73,9 +75,9 @@ const DBStats = () => {
                               </Button>
                             </>
                           )}
-                        </li>
+                        </ListItem>
                       ))}
-                    </ul>
+                    </List>
                     <Dialog
                       open={dialogOpen}
                       style={{ position: "fixed" }}
