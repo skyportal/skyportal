@@ -117,7 +117,8 @@ class CandidateHandler(BaseHandler):
             schema:
               type: integer
             description: |
-              Number of candidates to return per paginated request. Defaults to 25
+              Number of candidates to return per paginated request. Defaults to 25.
+              Capped at 500.
           - in: query
             name: pageNumber
             nullable: true
@@ -454,6 +455,7 @@ class CandidateHandler(BaseHandler):
             n_per_page = int(n_per_page)
         except ValueError:
             return self.error("Invalid numPerPage value.")
+        n_per_page = min(n_per_page, 500)
 
         initial_candidate_filter_criteria = [Candidate.filter_id.in_(filter_ids)]
         if start_date is not None and start_date.strip() not in [
