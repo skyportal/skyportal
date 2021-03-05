@@ -34,9 +34,9 @@ def downgrade():
     # Create a new type with just the SEDM
     op.execute("CREATE TYPE followup_apis AS ENUM('SEDMAPI')")
 
-    # Delete any database rows referring to the LT instruments
+    # Set the API classname for any database rows referring to the LT instruments to NULL
     op.execute(
-        "DELETE FROM instruments WHERE api_classname IN ('IOOAPI', 'IOIAPI', 'SPRATAPI')"
+        "UPDATE instruments SET api_classname = NULL WHERE api_classname IN ('IOOAPI', 'IOIAPI', 'SPRATAPI')"
     )
 
     # Designate the new ENUM type as the type for instruments.api_classname
