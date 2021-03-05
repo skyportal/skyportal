@@ -1008,7 +1008,13 @@ class Filter(Base):
     """
 
     # TODO: Track filter ownership and allow owners to update, delete filters
-    create = read = update = delete = accessible_by_group_members
+    create = (
+        read
+    ) = (
+        update
+    ) = delete = accessible_by_group_members & AccessibleIfRelatedRowsAreAccessible(
+        stream="read"
+    )
 
     name = sa.Column(sa.String, nullable=False, unique=False, doc="Filter name.")
     stream_id = sa.Column(
