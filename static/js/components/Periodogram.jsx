@@ -21,7 +21,7 @@ import { showNotification } from "baselayer/components/Notifications";
 
 import TextLoop from "react-text-loop";
 import { useForm, Controller } from "react-hook-form";
-import { dot, dotMultiply, add, transpose } from "mathjs";
+import { dot, dotMultiply, add, transpose, quantileSeq } from "mathjs";
 
 import * as photometryActions from "../ducks/photometry";
 
@@ -121,10 +121,23 @@ function GLS(t_data_uf, y_data_uf, kwa) {
 
   const tmin = Math.min.apply(null, t_data);
   const t = add(t_data, -tmin);
+
+  // sorted time vector and the time differences between successive obs
+  const tsort = [...t].sort((a, b) => a - b);
+  const diffs = tsort
+    .slice(1)
+    .map((x, q) => x - tsort[q])
+    .filter((val) => val !== 0);
   const tbase = Math.max.apply(null, t);
 
   i = t.length;
   const nt = t.length;
+
+  // not enough data to determine a periodogram. Send back something
+  // so we do not render the plots
+  if (nt < 10) {
+    return { p: [], f: [], k: 1, fbest: null, tbase };
+  }
   // eslint-disable-next-line no-plusplus
   while (i--) {
     w[i] = e_y ? 1 / e_y[i] / e_y[i] : 1;
@@ -141,11 +154,26 @@ function GLS(t_data_uf, y_data_uf, kwa) {
   const wy = dotMultiply(w, y);
   const YY = dot(wy, y); // Eq.(10), variance for the zero mean data
 
-  const df = 1 / tbase / ofac; // frequency sampling depends on the time span, default for start frequency
-  const delta_t = tbase / (nt - 1); // mean time sampling
-  const fbeg = parseFloat(kwargs.fbeg || df);
-  const fend = parseFloat(kwargs.fend || (0.5 * ofac) / delta_t);
-  const nf = Math.floor((fend - fbeg) / df) + 1; // size of frequency grid
+  // frequency sampling depends on the time span, default for start frequency
+  let df = 1 / tbase / ofac;
+  // chose as delta_t which is the min of mean time sampling, 75%-tile of the time differences, or fixed low-end
+  const delta_t = Math.min(
+    tbase / (nt - 1),
+    quantileSeq(diffs, 0.75, false),
+    0.05 * ofac
+  );
+  let fbeg = parseFloat(kwargs.fbeg || (df * ofac) / 2);
+  let fend = parseFloat(kwargs.fend || (0.5 * ofac) / delta_t);
+  let nf = Math.floor((fend - fbeg) / df) + 1; // size of frequency grid
+
+  // ensure that we're only doing as many as 300,000 calculations (~<5 seconds)
+  // bump down the frequency binning (df) and shrink the start and ending limits
+  while (nf > 3e5) {
+    df *= 1.05;
+    fbeg *= 1.25;
+    fend /= 1.05;
+    nf = Math.floor((fend - fbeg) / df) + 1;
+  }
 
   const f = new Array(nf);
   const p = new Array(nf);
@@ -366,18 +394,20 @@ const Periodogram = () => {
 
         const gls = GLS(ftimes, fmag, {
           e_y: fmagerr,
-          ofac: parseInt(params.ofac, 10),
+          ofac: parseInt(params.ofac, 20),
           fbeg: null,
           fend: null,
           ls: null,
         });
 
-        plotGLS(gls.f, gls.p, {
-          periodbest: 1 / gls.fbest,
-          periodmax: gls.tbase / 3.5,
-        });
-        setBestp(1 / gls.fbest);
-        setRun(true);
+        if (gls.fbest != null) {
+          plotGLS(gls.f, gls.p, {
+            periodbest: 1 / gls.fbest,
+            periodmax: gls.tbase / 3.5,
+          });
+          setBestp(1 / gls.fbest);
+          setRun(true);
+        }
       }
     }
     if (run) {
@@ -426,9 +456,9 @@ const Periodogram = () => {
     setMjdmin(0);
     setMjdmax(70000);
     setPeriodmultiplier(1.0);
+    setParams(formData);
     setPlotted(false);
     setRun(false);
-    setParams(formData);
   };
 
   const rules = { required: true, min: 1, max: 25, type: "number", step: 1 };
