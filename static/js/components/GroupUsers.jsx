@@ -96,7 +96,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
     return (
       <div>
         {group &&
-          currentUser.permissions?.includes("Manage users") &&
+          isAdmin(currentUser) &&
           (mobile ? (
             <div>
               <IconButton
@@ -126,6 +126,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
                     user={user}
                     isAdmin={isAdmin}
                     group={group}
+                    currentUser={currentUser}
                   />
                 </div>
               </Popover>
@@ -136,6 +137,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
               user={user}
               isAdmin={isAdmin}
               group={group}
+              currentUser={currentUser}
             />
           ))}
       </div>
