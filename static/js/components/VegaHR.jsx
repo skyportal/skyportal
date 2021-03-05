@@ -2,6 +2,8 @@ import React from "react";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
 
+const rootURL = `${window.location.protocol}//${window.location.host}`;
+
 const spec = (data, width = 200, height = 200) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   width,
@@ -11,7 +13,7 @@ const spec = (data, width = 200, height = 200) => ({
     // draw the Gaia data for main sequence etc.
     {
       data: {
-        url: "static/HR_density.json",
+        url: `${rootURL}/static/HR_density.json`,
         format: {
           type: "json",
         },
