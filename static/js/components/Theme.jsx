@@ -10,8 +10,30 @@ const Theme = ({ disableTransitions, children }) => {
   const theme = useSelector((state) => state.profile.preferences.theme);
   const dark = theme === "dark";
   const materialTheme = createMuiTheme({
+    // Color palette inspired from: https://coolors.co/e63946-f1faee-a8dadc-457b9d-1d3557
     palette: {
       type: theme || "light",
+      primary: {
+        main: "#457b9d",
+        light: "#457b9d",
+        dark: "#1d3557",
+        contrastText: "#fff",
+      },
+      secondary: {
+        main: "#b1dae9",
+        light: "#b1dae9",
+        dark: "#76aace",
+        contrastText: "#fff",
+      },
+      info: {
+        main: "#f1faee",
+      },
+      warning: {
+        main: "#fca311",
+      },
+      error: {
+        main: "#e63946",
+      },
       background: dark ? { default: "#303030" } : { default: "#f0f2f5" },
     },
     overrides: {

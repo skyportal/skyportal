@@ -654,7 +654,7 @@ class Obj(Base, ha.Point):
     classifications = relationship(
         'Classification',
         back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete-orphan',
+        cascade='save-update, merge, refresh-expire, expunge, delete-orphan, delete',
         passive_deletes=True,
         order_by="Classification.created_at",
         doc="Classifications of the object.",
@@ -1008,7 +1008,13 @@ class Filter(Base):
     """
 
     # TODO: Track filter ownership and allow owners to update, delete filters
-    create = read = update = delete = accessible_by_group_members
+    create = (
+        read
+    ) = (
+        update
+    ) = delete = accessible_by_group_members & AccessibleIfRelatedRowsAreAccessible(
+        stream="read"
+    )
 
     name = sa.Column(sa.String, nullable=False, unique=False, doc="Filter name.")
     stream_id = sa.Column(

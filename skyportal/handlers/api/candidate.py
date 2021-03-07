@@ -117,7 +117,8 @@ class CandidateHandler(BaseHandler):
             schema:
               type: integer
             description: |
-              Number of candidates to return per paginated request. Defaults to 25
+              Number of candidates to return per paginated request. Defaults to 25.
+              Capped at 500.
           - in: query
             name: pageNumber
             nullable: true
@@ -454,7 +455,19 @@ class CandidateHandler(BaseHandler):
             n_per_page = int(n_per_page)
         except ValueError:
             return self.error("Invalid numPerPage value.")
+        n_per_page = min(n_per_page, 500)
 
+        initial_candidate_filter_criteria = [Candidate.filter_id.in_(filter_ids)]
+        if start_date is not None and start_date.strip() not in [
+            "",
+            "null",
+            "undefined",
+        ]:
+            start_date = arrow.get(start_date).datetime
+            initial_candidate_filter_criteria.append(Candidate.passed_at >= start_date)
+        if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
+            end_date = arrow.get(end_date).datetime
+            initial_candidate_filter_criteria.append(Candidate.passed_at <= end_date)
         # We'll join in the nested data for Obj (like photometry) later
         q = (
             DBSession()
@@ -464,7 +477,7 @@ class CandidateHandler(BaseHandler):
                 Obj.id.in_(
                     DBSession()
                     .query(Candidate.obj_id)
-                    .filter(Candidate.filter_id.in_(filter_ids))
+                    .filter(*initial_candidate_filter_criteria)
                 )
             )
             .outerjoin(Annotation)
@@ -541,16 +554,6 @@ class CandidateHandler(BaseHandler):
                 f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
             )
 
-        if start_date is not None and start_date.strip() not in [
-            "",
-            "null",
-            "undefined",
-        ]:
-            start_date = arrow.get(start_date).datetime
-            q = q.filter(Candidate.passed_at >= start_date)
-        if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
-            end_date = arrow.get(end_date).datetime
-            q = q.filter(Candidate.passed_at <= end_date)
         if redshift_range_str is not None:
             redshift_range = ast.literal_eval(redshift_range_str)
             if not (

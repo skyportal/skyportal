@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import PropTypes from "prop-types";
@@ -12,12 +12,17 @@ import * as Actions from "../ducks/favorites";
 
 const ButtonInclude = (sourceID, textMode) => {
   const dispatch = useDispatch();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    await dispatch(Actions.removeFromFavorites(sourceID));
+    setIsSubmitting(false);
+  };
   if (textMode) {
     return (
       <Button
-        onClick={() => {
-          dispatch(Actions.removeFromFavorites(sourceID));
-        }}
+        onClick={handleSubmit}
+        disabled={isSubmitting}
         color="default"
         variant="contained"
         data-testid={`favorites-text-include_${sourceID}`}
@@ -28,10 +33,9 @@ const ButtonInclude = (sourceID, textMode) => {
   }
   return (
     <IconButton
-      onClick={() => {
-        dispatch(Actions.removeFromFavorites(sourceID));
-      }}
+      onClick={handleSubmit}
       data-testid={`favorites-include_${sourceID}`}
+      disabled={isSubmitting}
     >
       <StarIcon />
     </IconButton>
@@ -40,12 +44,17 @@ const ButtonInclude = (sourceID, textMode) => {
 
 const ButtonExclude = (sourceID, textMode) => {
   const dispatch = useDispatch();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    await dispatch(Actions.addToFavorites(sourceID));
+    setIsSubmitting(false);
+  };
   if (textMode) {
     return (
       <Button
-        onClick={() => {
-          dispatch(Actions.addToFavorites(sourceID));
-        }}
+        onClick={handleSubmit}
+        disabled={isSubmitting}
         color="default"
         variant="contained"
         data-testid={`favorites-text-exclude_${sourceID}`}
@@ -56,10 +65,9 @@ const ButtonExclude = (sourceID, textMode) => {
   }
   return (
     <IconButton
-      onClick={() => {
-        dispatch(Actions.addToFavorites(sourceID));
-      }}
+      onClick={handleSubmit}
       data-testid={`favorites-exclude_${sourceID}`}
+      disabled={isSubmitting}
     >
       <StarBorderIcon />
     </IconButton>

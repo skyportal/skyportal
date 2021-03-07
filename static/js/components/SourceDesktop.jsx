@@ -86,7 +86,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   name: {
     fontSize: "200%",
     fontWeight: "900",
-    color: "darkgray",
+    color: theme.palette.primary.main,
     paddingBottom: "0.25em",
     display: "inline-block",
   },
@@ -158,6 +158,9 @@ const SourceDesktop = ({ source }) => {
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
+
+  const photometry = useSelector((state) => state.photometry[source.id]);
+
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const groups = (useSelector((state) => state.groups.all) || []).filter(
@@ -357,6 +360,11 @@ const SourceDesktop = ({ source }) => {
                   >
                     Show Photometry Table
                   </Button>
+                  {photometry && (
+                    <Link to={`/source/${source.id}/periodogram`} role="link">
+                      <Button variant="contained">Periodogram Analysis</Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             </AccordionDetails>
@@ -436,7 +444,6 @@ const SourceDesktop = ({ source }) => {
           }}
         />
       </div>
-
       <div className={classes.rightColumn}>
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>

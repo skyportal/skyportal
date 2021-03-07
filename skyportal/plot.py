@@ -1190,7 +1190,7 @@ def spectroscopy_plot(
     spec_labels = []
     for k, _ in split:
         s = Spectrum.query.get(k)
-        label = f'{s.instrument.telescope.nickname}/{s.instrument.name} ({s.observed_at.date().isoformat()})'
+        label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
         spec_labels.append(label)
 
     toggle = CheckboxWithLegendGroup(
