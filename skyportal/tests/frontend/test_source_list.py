@@ -277,3 +277,74 @@ def test_filter_by_classification(
     )
     # Should no longer see the source
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
+
+
+def test_hr_diagram(
+    driver,
+    user,
+    public_group,
+    upload_data_token,
+    annotation_token,
+):
+
+    # Post an object with Gaia data
+    source_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": source_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+
+    status, data = api(
+        'POST',
+        'annotation',
+        data={
+            'obj_id': source_id,
+            'origin': 'cross_match1',
+            'data': {
+                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20},
+                'author_id': user.id,
+            },
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    driver.get("/sources")
+
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
+    obj_button.clear()
+    obj_button.send_keys(source_id)
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+    )
+
+    # find the name of the newly added source
+    driver.wait_for_xpath(f"//a[contains(@href, '/source/{source_id}')]")
+
+    # Close filter form
+    driver.click_xpath(
+        "//button[contains(@class, 'MUIDataTableToolbar-filterCloseIcon')]",
+        wait_clickable=False,
+    )
+
+    # little triangle you push to expand the table
+    driver.click_xpath("//*[@id='expandable-button']")
+
+    # make sure the div containing the individual source appears
+    driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{source_id}"]')
+
+    driver.wait_for_xpath('//div[@class="vega-embed"]')

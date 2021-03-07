@@ -572,7 +572,7 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
             'obj_id': public_source.id,
             'origin': 'cross_match1',
             'data': {
-                'gaia': {'Mag_G': 15.1, 'Mag_Bp': 16.1, 'Mag_Rp': 14.0, 'Plx': 20}
+                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20}
             },
         },
         token=annotation_token,
@@ -584,4 +584,4 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
     driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
     driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
 
-    driver.wait_for_xpath(f'//*[@data-testid=hr_diagram_{public_source.id}')
+    driver.wait_for_xpath('//*[@id="hr-diagram-content"]')

@@ -1,7 +1,7 @@
 from skyportal.tests import api
 
 
-def test_post_retrieve_color_mag_data(annotation_token, public_source):
+def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
 
     status, data = api(
         'POST',
@@ -10,7 +10,8 @@ def test_post_retrieve_color_mag_data(annotation_token, public_source):
             'obj_id': public_source.id,
             'origin': 'cross_match1',
             'data': {
-                'gaia': {'Mag_G': 15.1, 'Mag_Bp': 16.1, 'Mag_Rp': 14.0, 'Plx': 20}
+                'gaia': {'Mag_G': 15.1, 'Mag_Bp': 16.1, 'Mag_Rp': 14.0, 'Plx': 20},
+                'author_id': user.id,
             },
         },
         token=annotation_token,
@@ -19,7 +20,10 @@ def test_post_retrieve_color_mag_data(annotation_token, public_source):
     annotation_id = data['data']['annotation_id']
 
     status, data = api(
-        'GET', f'sources/{public_source.id}/color_mag', token=annotation_token
+        'GET',
+        f'sources/{public_source.id}/color_mag',
+        token=annotation_token,
+        params={'includeColorMagnitude': True},
     )
 
     assert status == 200
@@ -41,7 +45,8 @@ def test_post_retrieve_color_mag_data(annotation_token, public_source):
                     'Mag_Rp': 14.0,
                     'Plx': 20,
                     'A_G': 0.3,
-                }
+                },
+                'author_id': user.id,
             },
         },
         token=annotation_token,
@@ -72,7 +77,8 @@ def test_post_retrieve_color_mag_data(annotation_token, public_source):
                     'Plx': 20,
                     'Abs_mag_G': 19.5,
                     'color': 1.8,
-                }
+                },
+                'author_id': user.id,
             },
             # note the additional keys should override the existing data only when asking for them in the query
         },
@@ -108,6 +114,7 @@ def test_post_retrieve_color_mag_data(annotation_token, public_source):
         'GET',
         f'sources/{public_source.id}',
         token=annotation_token,
+        params={'includeColorMagnitude': True},
     )
 
     assert status == 200
@@ -116,7 +123,7 @@ def test_post_retrieve_color_mag_data(annotation_token, public_source):
     assert abs(data['data']['color_magnitude'][0]['color'] - 2.1) < 0.1
 
 
-def test_change_color_mag_keys(annotation_token, public_source):
+def test_change_color_mag_keys(annotation_token, user, public_source):
 
     status, data = api(
         'POST',
@@ -124,7 +131,10 @@ def test_change_color_mag_keys(annotation_token, public_source):
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
-            'data': {'GAIA': {'MagG': 15.1, 'MagBp': 16.1, 'MagRp': 14.0, 'Plx': 20}},
+            'data': {
+                'GAIA': {'MagG': 15.1, 'MagBp': 16.1, 'MagRp': 14.0, 'Plx': 20},
+                'author_id': user.id,
+            },
         },
         token=annotation_token,
     )
@@ -148,7 +158,8 @@ def test_change_color_mag_keys(annotation_token, public_source):
             'obj_id': public_source.id,
             'origin': 'cross_match1',
             'data': {
-                'gaia': {'mag_g': 15.1, 'mag_bp': 16.1, 'mag_rp': 14.0, 'plx': 20}
+                'gaia': {'mag_g': 15.1, 'mag_bp': 16.1, 'mag_rp': 14.0, 'plx': 20},
+                'author_id': user.id,
             },
         },
         token=annotation_token,
@@ -197,14 +208,17 @@ def test_change_color_mag_keys(annotation_token, public_source):
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
 
-def test_add_multiple_color_mag_annotations(annotation_token, public_source):
+def test_add_multiple_color_mag_annotations(annotation_token, user, public_source):
     status, data = api(
         'POST',
         'annotation',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
-            'data': {'GAIA': {'MagG': 15.1, 'MagBp': 16.1, 'MagRp': 14.0, 'Plx': 20}},
+            'data': {
+                'GAIA': {'MagG': 15.1, 'MagBp': 16.1, 'MagRp': 14.0, 'Plx': 20},
+                'author_id': user.id,
+            },
         },
         token=annotation_token,
     )
@@ -226,7 +240,10 @@ def test_add_multiple_color_mag_annotations(annotation_token, public_source):
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match2',
-            'data': {'GAIA': {'MagG': 15.2, 'MagBp': 16.2, 'MagRp': 14.0, 'Plx': 20}},
+            'data': {
+                'GAIA': {'MagG': 15.2, 'MagBp': 16.2, 'MagRp': 14.0, 'Plx': 20},
+                'author_id': user.id,
+            },
         },
         token=annotation_token,
     )
@@ -239,7 +256,10 @@ def test_add_multiple_color_mag_annotations(annotation_token, public_source):
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match3',
-            'data': {'gaia': {'MagG': 15.3, 'MagBp': 16.3, 'MagRp': 14.0, 'Plx': 5}},
+            'data': {
+                'gaia': {'MagG': 15.3, 'MagBp': 16.3, 'MagRp': 14.0, 'Plx': 5},
+                'author_id': user.id,
+            },
         },
         token=annotation_token,
     )
