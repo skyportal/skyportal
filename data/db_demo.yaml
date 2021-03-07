@@ -331,6 +331,15 @@ annotation:
         flag: true
     group_ids:
       - =program_B
+  - obj_id: 14gqr
+    origin: "cross_match"
+    data:
+      gaia:
+        Plx: 20
+        Mag_G: 6.5
+        Mag_Bp: 7.6
+        Mag_Rp: 5.1
+        A_G: 0.3
   - obj_id: 16fil_unsaved_copy
     origin: "Program A"
     data:

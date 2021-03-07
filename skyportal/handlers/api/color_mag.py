@@ -32,16 +32,20 @@ def get_color_mag(annotations, **kwargs):
 
     for an in annotations:
 
+        if not isinstance(an.data, dict):
+            continue
+
         abs_mag = None
         color = None
         absorption = None
         origin = an.origin
 
         # go over all items in the data (e.g., different catalog matches)
-        for (
-            key,
-            xmatch,
-        ) in an.data.items():
+        for key, xmatch in an.data.items():
+
+            if not isinstance(xmatch, dict):
+                continue
+
             # found the right catalog, but does it have the right keys?
             if normalize_key(key) == normalize_key(catalog):
 
