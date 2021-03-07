@@ -34,6 +34,7 @@ import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
+
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
 const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
@@ -99,6 +100,7 @@ export const useSourceStyles = makeStyles((theme) => ({
     flexDirection: "column",
     width: "100%",
   },
+  hr_diagram: {},
   alignRight: {
     display: "inline-block",
     verticalAlign: "super",
@@ -304,18 +306,6 @@ const SourceDesktop = ({ source }) => {
           />
         </div>
         <div className={classes.columnItem}>
-          {source.color_magnitude.length ? (
-            <Suspense fallback={<div>Loading HR diagram...</div>}>
-              <VegaHR
-                data={source.color_magnitude}
-                width={200}
-                height={200}
-                data-testid={`hr_diagram_${source.id}`}
-              />
-            </Suspense>
-          ) : null}
-        </div>
-        <div className={classes.columnItem}>
           <Accordion defaultExpanded>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
@@ -504,6 +494,33 @@ const SourceDesktop = ({ source }) => {
           </Accordion>
         </div>
         <div className={classes.columnItem}>
+          {source.color_magnitude.length ? (
+            <Accordion defaultExpanded className={classes.classifications}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="hr-diagram-content"
+                id="hr-diagram-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  HR Diagram
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div className={classes.hr_diagram}>
+                  <Suspense fallback={<div>Loading HR diagram...</div>}>
+                    <VegaHR
+                      data={source.color_magnitude}
+                      width={300}
+                      height={300}
+                      data-testid={`hr_diagram_${source.id}`}
+                    />
+                  </Suspense>
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          ) : null}
+        </div>
+        <div className={classes.columnItem}>
           <Accordion defaultExpanded>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
@@ -581,6 +598,13 @@ SourceDesktop.propTypes = {
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
     redshift_history: PropTypes.arrayOf(PropTypes.any),
+    color_magnitude: PropTypes.arrayOf(
+      PropTypes.shape({
+        abs_mag: PropTypes.number,
+        color: PropTypes.number,
+        origin: PropTypes.string,
+      })
+    ),
   }).isRequired,
 };
 

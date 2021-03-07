@@ -272,6 +272,14 @@ class SourceHandler(BaseHandler):
               Boolean indicating whether to include associated photometry. Defaults to
               false.
           - in: query
+            name: includeColorMagnitude
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated photometry. Defaults to
+              false.
+          - in: query
             name: includeRequested
             nullable: true
             schema:
@@ -460,6 +468,7 @@ class SourceHandler(BaseHandler):
         list_name = self.get_query_argument('listName', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         include_photometry = self.get_query_argument("includePhotometry", False)
+        include_color_mag = self.get_query_argument("includeColorMagnitude", False)
         include_requested = self.get_query_argument("includeRequested", False)
         requested_only = self.get_query_argument("pendingOnly", False)
         saved_after = self.get_query_argument('savedAfter', None)
@@ -653,8 +662,10 @@ class SourceHandler(BaseHandler):
                     if source_table_row.saved_by is not None
                     else None
                 )
-
-            source_info["color_magnitude"] = get_color_mag(source_info["annotations"])
+            if include_color_mag:
+                source_info["color_magnitude"] = get_color_mag(
+                    source_info["annotations"]
+                )
 
             # add the date(s) this source was saved to each of these groups
             for i, g in enumerate(source_info["groups"]):
@@ -975,10 +986,10 @@ class SourceHandler(BaseHandler):
                         if source_table_row.saved_by is not None
                         else None
                     )
-
-                source_list[-1]["color_magnitude"] = get_color_mag(
-                    source_list[-1]["annotations"]
-                )
+                if include_color_mag:
+                    source_list[-1]["color_magnitude"] = get_color_mag(
+                        source_list[-1]["annotations"]
+                    )
 
                 # add the date(s) this source was saved to each of these groups
                 for i, g in enumerate(source_list[-1]["groups"]):
