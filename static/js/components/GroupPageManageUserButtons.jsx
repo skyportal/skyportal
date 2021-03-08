@@ -11,7 +11,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import * as groupActions from "../ducks/group";
 import * as groupsActions from "../ducks/groups";
 
-const ManageUserButtons = ({ currentUser, group, loadedId, user, isAdmin }) => {
+const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
   const dispatch = useDispatch();
 
   let numAdmins = 0;
@@ -44,13 +44,7 @@ const ManageUserButtons = ({ currentUser, group, loadedId, user, isAdmin }) => {
         onClick={() => {
           toggleUserAdmin(user);
         }}
-        disabled={
-          (isAdmin(user) && numAdmins === 1) ||
-          (isAdmin(user) &&
-            ["System admin", "Group admin", "Manage users"].filter((acl) =>
-              currentUser.permissions?.includes(acl)
-            ).length === 0)
-        }
+        disabled={isAdmin(user) && numAdmins === 1}
       >
         <span style={{ whiteSpace: "nowrap" }}>
           {isAdmin(user) ? "Revoke admin status" : "Grant admin status"}
@@ -68,12 +62,7 @@ const ManageUserButtons = ({ currentUser, group, loadedId, user, isAdmin }) => {
             })
           )
         }
-        disabled={
-          (isAdmin(user) && numAdmins === 1) ||
-          ["System admin", "Group admin", "Manage users"].filter((acl) =>
-            currentUser.permissions?.includes(acl)
-          ).length === 0
-        }
+        disabled={isAdmin(user) && numAdmins === 1}
       >
         <DeleteIcon />
       </IconButton>
@@ -93,13 +82,6 @@ ManageUserButtons.propTypes = {
     users: PropTypes.arrayOf(
       PropTypes.shape({ admin: PropTypes.bool.isRequired })
     ),
-  }).isRequired,
-  currentUser: PropTypes.shape({
-    username: PropTypes.string,
-    id: PropTypes.number,
-    first_name: PropTypes.string,
-    last_name: PropTypes.string,
-    permissions: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
 };
 

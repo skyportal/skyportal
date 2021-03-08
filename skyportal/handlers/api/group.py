@@ -28,7 +28,9 @@ def has_admin_access_for_group(user, group_id):
         .first()
     )
     return len(
-        {"System admin", "Manage groups"}.intersection(set(user.permissions))
+        {"System admin", "Manage groups", "Manage_users"}.intersection(
+            set(user.permissions)
+        )
     ) > 0 or (groupuser is not None and groupuser.admin)
 
 
@@ -500,10 +502,7 @@ class GroupUserHandler(BaseHandler):
     def patch(self, group_id, *ignored_args):
         """
         ---
-        description: |
-          Update a group user's admin status.
-          Group admins can grant other group members admin status, but cannot
-          revoke it or remove members unless they have sufficient ACLs.
+        description: Update a group user's admin status
         tags:
           - groups
           - users
@@ -537,6 +536,8 @@ class GroupUserHandler(BaseHandler):
             group_id = int(group_id)
         except ValueError:
             return self.error("Invalid group ID")
+        if not has_admin_access_for_group(self.associated_user_object, group_id):
+            return self.error("Insufficient permissions.")
         user_id = data.get("userID")
         try:
             user_id = int(user_id)
@@ -554,33 +555,11 @@ class GroupUserHandler(BaseHandler):
         if data.get("admin") is None:
             return self.error("Missing required parameter: `admin`")
         admin = data.get("admin") in [True, "true", "True", "t", "T"]
-        if (
-            len(
-                set(self.current_user.permissions).intersection(
-                    {"Manage users", "Group admin", "System admin"}
-                )
-            )
-            == 0
-        ):
-            # Current user doesn't have ACL-based access; check if group admin:
-            current_groupuser = (
-                DBSession()
-                .query(GroupUser)
-                .filter(GroupUser.group_id == group_id)
-                .filter(GroupUser.user_id == self.current_user.id)
-                .first()
-            )
-            if current_groupuser is None or not current_groupuser.admin:
-                return self.error("Insufficient permissions.")
-            # Current user is  a group admin, so they can only grant admin status
-            # to other users, but not revoke it:
-            if not admin:
-                return self.error("Insufficient permissions.")
         groupuser.admin = admin
         self.finalize_transaction()
         return self.success()
 
-    @permissions(["Manage users"])
+    @auth_or_token
     def delete(self, group_id, user_id):
         """
         ---

@@ -126,7 +126,6 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
                     user={user}
                     isAdmin={isAdmin}
                     group={group}
-                    currentUser={currentUser}
                   />
                 </div>
               </Popover>
@@ -137,7 +136,6 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
               user={user}
               isAdmin={isAdmin}
               group={group}
-              currentUser={currentUser}
             />
           ))}
       </div>
