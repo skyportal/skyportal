@@ -178,6 +178,12 @@ jobs:
           PYTHONPATH=. alembic -x config=config.yaml upgrade head
           PYTHONPATH=. alembic current
 
+          # Run make run to run the refresh_enums logic.
+          # Give it plenty of time to get to the refresh_enums step.
+          make run &
+          sleep 30
+          kill %1
+
       - name: Check migration completeness with Alembic
         run: |
           # Try generating a new migration
