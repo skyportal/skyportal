@@ -752,6 +752,16 @@ const CandidateList = () => {
             <b>Sorting: </b> Clicking on an annotation field will display it, if
             available, in the Info column. You can then click on the sort tool
             button at the top of the table to sort on that annotation field.
+            <br />
+            <b>Filtering: </b> Filtering on annotations is available through the
+            filtering tool at the top right of the table. <br />
+            <i>
+              Warning: applying multiple filters on annotations from different
+              origins is not supported currently and will return zero results.
+              For example, you cannot filter for a specific annotation value in
+              annotations from both &quot;orgin_a&quot; and &quot;origin_b&quot;
+              at the same time.
+            </i>
           </Typography>
         </Popover>
       </MuiThemeProvider>
