@@ -96,7 +96,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
     return (
       <div>
         {group &&
-          currentUser.permissions?.includes("Manage users") &&
+          isAdmin(currentUser) &&
           (mobile ? (
             <div>
               <IconButton
