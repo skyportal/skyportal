@@ -18,7 +18,7 @@ from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.plotting import figure, ColumnDataSource
 
 import bokeh.embed as bokeh_embed
-
+from bokeh.transform import factor_mark
 
 from astropy.time import Time
 
@@ -134,6 +134,8 @@ tooltip_format = [
 cmap_opt = cm.get_cmap('nipy_spectral')
 cmap_uv = cm.get_cmap('cool')
 cmap_ir = cm.get_cmap('autumn')
+
+phot_markers = ["circle", "diamond", "square", "triangle", "star", "plus", "hex"]
 
 
 def get_color(bandpass_name):
@@ -261,6 +263,12 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
 
     data['color'] = [get_color(f) for f in data['filter']]
 
+    # get marker for each unique instrument
+    instruments = list(data.instrument.unique())
+    markers = []
+    for i, inst in enumerate(instruments):
+        markers.append(phot_markers[i])
+
     labels = []
     for i, datarow in data.iterrows():
         label = f'{datarow["instrument"]}/{datarow["filter"]}'
@@ -341,7 +349,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             x='mjd',
             y='flux',
             color='color',
-            marker='circle',
+            marker=factor_mark('instrument', markers, instruments),
             fill_color='color',
             alpha='alpha',
             source=ColumnDataSource(df),
@@ -354,7 +362,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             x='mjd',
             y='flux',
             color='color',
-            marker='circle',
+            marker=factor_mark('instrument', markers, instruments),
             fill_color='color',
             source=ColumnDataSource(
                 data=dict(
@@ -596,7 +604,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             x='mjd',
             y='mag',
             color='color',
-            marker='circle',
+            marker=factor_mark('instrument', markers, instruments),
             fill_color='color',
             alpha='alpha',
             source=ColumnDataSource(df[df['obs']]),
@@ -626,7 +634,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             x='mjd',
             y='mag',
             color='color',
-            marker='circle',
+            marker=factor_mark('instrument', markers, instruments),
             fill_color='color',
             source=ColumnDataSource(
                 data=dict(
@@ -891,7 +899,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                     x='mjd_fold' + ph,
                     y='mag',
                     color='color',
-                    marker='circle',
+                    marker=factor_mark('instrument', markers, instruments),
                     fill_color='color',
                     alpha='alpha',
                     visible=('a' in ph),
