@@ -759,7 +759,7 @@ const CandidateList = () => {
               Warning: applying multiple filters on annotations from different
               origins is not supported currently and will return zero results.
               For example, you cannot filter for a specific annotation value in
-              annotations from both &quot;orgin_a&quot; and &quot;origin_b&quot;
+              annotations from both &quot;origin_a&quot; and &quot;origin_b&quot;
               at the same time.
             </i>
           </Typography>
