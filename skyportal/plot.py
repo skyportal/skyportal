@@ -135,7 +135,7 @@ cmap_opt = cm.get_cmap('nipy_spectral')
 cmap_uv = cm.get_cmap('cool')
 cmap_ir = cm.get_cmap('autumn')
 
-phot_markers = ["circle", "diamond", "square", "triangle", "star", "plus", "hex"]
+phot_markers = ["circle", "triangle", "square", "diamond", "star", "plus", "hex"]
 
 
 def get_color(bandpass_name):
