@@ -315,7 +315,6 @@ def test_hr_diagram(
             'origin': 'cross_match1',
             'data': {
                 'gaia': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20},
-                'author_id': user.id,
             },
         },
         token=annotation_token,
@@ -347,4 +346,4 @@ def test_hr_diagram(
     # make sure the div containing the individual source appears
     driver.wait_for_xpath(f'//tr[@data-testid="groupSourceExpand_{source_id}"]')
 
-    driver.wait_for_xpath('//div[@class="vega-embed"]')
+    driver.wait_for_xpath(f'//div[@data-testid="hr_diagram_{source_id}"]')

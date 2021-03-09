@@ -11,7 +11,6 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
             'origin': 'cross_match1',
             'data': {
                 'gaia': {'Mag_G': 15.1, 'Mag_Bp': 16.1, 'Mag_Rp': 14.0, 'Plx': 20},
-                'author_id': user.id,
             },
         },
         token=annotation_token,
@@ -46,7 +45,6 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
                     'Plx': 20,
                     'A_G': 0.3,
                 },
-                'author_id': user.id,
             },
         },
         token=annotation_token,
@@ -78,7 +76,6 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
                     'Abs_mag_G': 19.5,
                     'color': 1.8,
                 },
-                'author_id': user.id,
             },
             # note the additional keys should override the existing data only when asking for them in the query
         },
@@ -133,7 +130,6 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
             'origin': 'cross_match1',
             'data': {
                 'GAIA': {'MagG': 15.1, 'MagBp': 16.1, 'MagRp': 14.0, 'Plx': 20},
-                'author_id': user.id,
             },
         },
         token=annotation_token,
@@ -159,7 +155,6 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
             'origin': 'cross_match1',
             'data': {
                 'gaia': {'mag_g': 15.1, 'mag_bp': 16.1, 'mag_rp': 14.0, 'plx': 20},
-                'author_id': user.id,
             },
         },
         token=annotation_token,
@@ -217,7 +212,6 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
             'origin': 'cross_match1',
             'data': {
                 'GAIA': {'MagG': 15.1, 'MagBp': 16.1, 'MagRp': 14.0, 'Plx': 20},
-                'author_id': user.id,
             },
         },
         token=annotation_token,
@@ -242,7 +236,6 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
             'origin': 'cross_match2',
             'data': {
                 'GAIA': {'MagG': 15.2, 'MagBp': 16.2, 'MagRp': 14.0, 'Plx': 20},
-                'author_id': user.id,
             },
         },
         token=annotation_token,
@@ -258,7 +251,6 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
             'origin': 'cross_match3',
             'data': {
                 'gaia': {'MagG': 15.3, 'MagBp': 16.3, 'MagRp': 14.0, 'Plx': 5},
-                'author_id': user.id,
             },
         },
         token=annotation_token,

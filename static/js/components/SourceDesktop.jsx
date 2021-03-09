@@ -513,13 +513,15 @@ const SourceDesktop = ({ source }) => {
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <div className={classes.hr_diagram}>
+                <div
+                  className={classes.hr_diagram}
+                  data-testid={`hr_diagram_${source.id}`}
+                >
                   <Suspense fallback={<div>Loading HR diagram...</div>}>
                     <VegaHR
                       data={source.color_magnitude}
                       width={300}
                       height={300}
-                      data-testid={`hr_diagram_${source.id}`}
                     />
                   </Suspense>
                 </div>

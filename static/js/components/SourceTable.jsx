@@ -324,14 +324,15 @@ const SourceTable = ({
             </Grid>
             <Grid item>
               {source.color_magnitude.length ? (
-                <Suspense fallback={<div>Loading HR diagram...</div>}>
-                  <VegaHR
-                    data={source.color_magnitude}
-                    width={200}
-                    height={200}
-                    data-testid={`hr_diagram_${source.id}`}
-                  />
-                </Suspense>
+                <div data-testid={`hr_diagram_${source.id}`}>
+                  <Suspense fallback={<div>Loading HR diagram...</div>}>
+                    <VegaHR
+                      data={source.color_magnitude}
+                      width={200}
+                      height={200}
+                    />
+                  </Suspense>
+                </div>
               ) : null}
             </Grid>
             <Grid item>
