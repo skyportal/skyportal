@@ -25,27 +25,7 @@ def upgrade():
 
 
 def downgrade():
-    # PostgreSQL does not support directly dropping values from ENUM types.
-    # Instead, we create a new type and replace it as the column's typing.
-
-    # Rename current ENUM so it can be replaced
-    op.execute("ALTER TYPE followup_apis RENAME TO followup_apis_old")
-
-    # Create a new type with just the SEDM
-    op.execute("CREATE TYPE followup_apis AS ENUM('SEDMAPI')")
-
-    # Set the API classname for any database rows referring to the LT instruments to NULL
-    op.execute(
-        "UPDATE instruments SET api_classname = NULL WHERE api_classname IN ('IOOAPI', 'IOIAPI', 'SPRATAPI')"
-    )
-
-    # Designate the new ENUM type as the type for instruments.api_classname
-    op.execute(
-        (
-            "ALTER TABLE instruments ALTER COLUMN api_classname TYPE followup_apis USING "
-            "api_classname::text::followup_apis"
-        )
-    )
-
-    # Drop old ENUM
-    op.execute("DROP TYPE followup_apis_old")
+    # There is no action taken to downgrade this migration.
+    # Values should only be added and never removed from ENUM types in order to
+    # avoid having to delete relevant data.
+    pass
