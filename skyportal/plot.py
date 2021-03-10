@@ -752,6 +752,8 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     height = (
         500
         if device == "browser"
+        # The 18 is the height of one row in the CheckboxWithLegendGroup
+        # (the colored box next to the checkbox, to be precise)
         else math.floor(width / aspect_ratio) + 18 * len(colors_labels) + 100
     )
 
