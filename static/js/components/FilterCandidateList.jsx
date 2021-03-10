@@ -77,6 +77,11 @@ function getStyles(classification, selectedClassifications, theme) {
   };
 }
 
+const rejectedStatusSelectOptions = [
+  { value: "hide", label: "Hide rejected candidates" },
+  { value: "show", label: "Show rejected candidates" },
+];
+
 const savedStatusSelectOptions = [
   { value: "all", label: "regardless of saved status" },
   { value: "savedToAllSelected", label: "and is saved to all selected groups" },
@@ -195,6 +200,10 @@ const FilterCandidateList = ({
       groupIDs: selectedGroupIDs,
       savedStatus: formData.savedStatus,
     };
+    // decide if to show rejected candidates
+    if (formData.rejectedStatus === "hide") {
+      data.listNameReject = "rejected_candidates";
+    }
     // Convert dates to ISO for parsing on back-end
     if (formData.startDate) {
       data.startDate = formData.startDate.toISOString();
@@ -387,6 +396,25 @@ const FilterCandidateList = ({
                 defaultValue=""
               />
             </div>
+          </div>
+          <div className={classes.formRow}>
+            <InputLabel id="rejectedCandidatesLabel">
+              Show/hide rejected candidates
+            </InputLabel>
+            <Controller
+              labelId="rejectedCandidatesLabel"
+              as={Select}
+              name="rejectedStatus"
+              control={control}
+              input={<Input data-testid="rejectedStatusSelect" />}
+              defaultValue="hide"
+            >
+              {rejectedStatusSelectOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Controller>
           </div>
           <div>
             <Responsive

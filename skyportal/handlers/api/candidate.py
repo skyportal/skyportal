@@ -514,8 +514,6 @@ class CandidateHandler(BaseHandler):
             .outerjoin(Annotation)
         )  # Join in annotations info for sort/filter
 
-        if list_name is not None or list_name_reject is not None:
-            q = q.join(Listing)
         if classifications is not None:
             if isinstance(classifications, str) and "," in classifications:
                 classifications = [c.strip() for c in classifications.split(",")]
@@ -628,6 +626,25 @@ class CandidateHandler(BaseHandler):
 
             q = q.outerjoin(right, Obj.id == right.c.id).filter(right.c.id.is_(None))
 
+        if list_name is not None:
+            q = q.filter(
+                Listing.list_name == list_name,
+                Listing.user_id == self.associated_user_object.id,
+            )
+        if list_name_reject is not None:
+            right = (
+                DBSession()
+                .query(Obj.id)
+                .join(Listing)
+                .filter(
+                    Listing.list_name == list_name_reject,
+                    Listing.user_id == self.associated_user_object.id,
+                )
+                .subquery()
+            )
+
+            q = q.outerjoin(right, Obj.id == right.c.id).filter(right.c.id.is_(None))
+
         if annotation_filter_list is not None:
             # Parse annotation filter list objects from the query string
             # and apply the filters to the query
@@ -719,17 +736,6 @@ class CandidateHandler(BaseHandler):
                 Candidate.passed_at.desc().nullslast(),
                 Obj.id,
             ]
-
-        if list_name is not None:
-            q = q.filter(
-                Listing.list_name == list_name,
-                Listing.user_id == self.associated_user_object.id,
-            )
-        if list_name_reject is not None:
-            q = q.filter(
-                Listing.list_name != list_name,
-                Listing.user_id == self.associated_user_object.id,
-            )
 
         try:
             query_results = grab_query_results(
