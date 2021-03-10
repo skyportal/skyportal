@@ -623,14 +623,41 @@ const CandidateList = () => {
               label="NOT SAVED"
               className={classes.itemPaddingBottom}
             />
-            <br />
-            <div className={classes.saveCandidateButton}>
-              <SaveCandidateButton
-                candidate={candidateObj}
-                userGroups={userAccessibleGroups}
-                filterGroups={filterGroups}
-              />
-            </div>
+          </div>
+        )}
+        {Boolean(
+          !candidateObj.is_source ||
+            (candidateObj.is_source &&
+              filterGroups.filter(
+                (g) =>
+                  !candidateObj.saved_groups.map((x) => x.id).includes(g.id)
+              ).length)
+        ) && (
+          // eslint-disable-next-line react/jsx-indent
+          <div className={classes.saveCandidateButton}>
+            <SaveCandidateButton
+              candidate={candidateObj}
+              userGroups={
+                candidateObj.is_source
+                  ? userAccessibleGroups.filter(
+                      (g) =>
+                        !candidateObj.saved_groups
+                          .map((x) => x.id)
+                          .includes(g.id)
+                    )
+                  : userAccessibleGroups
+              }
+              filterGroups={
+                candidateObj.is_source
+                  ? filterGroups.filter(
+                      (g) =>
+                        !candidateObj.saved_groups
+                          .map((x) => x.id)
+                          .includes(g.id)
+                    )
+                  : filterGroups
+              }
+            />
           </div>
         )}
         {candidateObj.last_detected_at && (
