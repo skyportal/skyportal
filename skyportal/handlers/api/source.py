@@ -277,8 +277,14 @@ class SourceHandler(BaseHandler):
             schema:
               type: boolean
             description: |
-              Boolean indicating whether to include associated photometry. Defaults to
-              false.
+              Boolean indicating whether to include the color-magnitude data from Gaia.
+              This will only include data for objects that have an annotation
+              with the appropriate format: a key named Gaia that contains a dictionary
+              with keys named Mag_G, Mag_Bp, Mag_Rp, and Plx
+              (underscores and case are ignored when matching all the above keys).
+              The result is saved in a field named 'color_magnitude'.
+              If no data is available, returns an empty array.
+              Defaults to false (do not search for nor include this info).
           - in: query
             name: includeRequested
             nullable: true
