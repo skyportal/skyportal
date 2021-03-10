@@ -44,7 +44,7 @@ const UpdateSourceRedshift = ({ source }) => {
   const handleChange = (e) => {
     const value = String(e.target.value).trim();
     // eslint-disable-next-line no-restricted-globals
-    setInvalid(!value || isNaN(value));
+    setInvalid(!value || (isNaN(value) && value !== "null"));
     setState(value);
   };
 
@@ -77,7 +77,9 @@ const UpdateSourceRedshift = ({ source }) => {
         }}
         style={{ position: "fixed" }}
       >
-        <DialogTitle>Update Redshift</DialogTitle>
+        <DialogTitle>
+          Update Redshift (use &quot;null&quot; w/out quotes to clear)
+        </DialogTitle>
         <DialogContent>
           <div>
             {invalid && (
