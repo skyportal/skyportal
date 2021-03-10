@@ -75,10 +75,12 @@ const HomePage = () => {
     (state) => state.dbInfo.source_table_empty
   );
 
-  const preferences = useSelector((state) => state.profile.preferences);
+  const profile = useSelector((state) => state.profile);
 
   let currentLayouts =
-    preferences?.layouts == null ? defaultLayouts : preferences.layouts;
+    profile?.preferences.layouts == null
+      ? defaultLayouts
+      : profile.preferences.layouts;
 
   const dispatch = useDispatch();
 
@@ -102,8 +104,8 @@ const HomePage = () => {
   };
 
   return (
-    preferences &&
-    Object.keys(preferences).length !== 0 && (
+    profile &&
+    profile.username !== "" &&  (
       <div>
         <ResponsiveGridLayout
           className="layout"
