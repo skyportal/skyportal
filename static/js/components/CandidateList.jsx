@@ -36,6 +36,7 @@ import ScanningPageCandidateAnnotations, {
 } from "./ScanningPageCandidateAnnotations";
 import EditSourceGroups from "./EditSourceGroups";
 import { ra_to_hours, dec_to_dms } from "../units";
+import RejectButton from "./RejectButton";
 
 const VegaPlot = React.lazy(() =>
   import(/* webpackChunkName: "VegaPlot" */ "./VegaPlot")
@@ -584,6 +585,7 @@ const CandidateList = () => {
             </Button>
           </a>
         </span>
+        <RejectButton objID={candidateObj.id} />
         {candidateObj.is_source ? (
           <div>
             <div className={classes.itemPaddingBottom}>

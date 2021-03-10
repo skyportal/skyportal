@@ -202,6 +202,7 @@ class UserObjListHandler(BaseHandler):
 
         self.push(action='skyportal/REFRESH_FAVORITES')
         self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+        self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
 
         return self.success(data={'id': listing.id})
 
@@ -296,6 +297,7 @@ class UserObjListHandler(BaseHandler):
 
         self.push(action='skyportal/REFRESH_FAVORITES')
         self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+        self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
 
         return self.success()
 
@@ -387,5 +389,6 @@ class UserObjListHandler(BaseHandler):
 
         self.push(action='skyportal/REFRESH_FAVORITES')
         self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+        self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
 
         return self.success()
