@@ -202,15 +202,7 @@ const SourceMobile = WidthProvider(
       device = isLandscape ? "tablet_landscape" : "tablet_portrait";
     }
 
-    // Browser defaults
-    const aspectRatio = isMobileOnly && isLandscape ? 2.0 : 1.5;
     const plotWidth = isBrowser ? 800 : width - 100;
-    const photPlotHeight = isBrowser
-      ? 500
-      : Math.floor(plotWidth / aspectRatio) + 150;
-    const specPlotHeight = isBrowser
-      ? 600
-      : Math.floor(plotWidth / aspectRatio) + 225;
 
     return (
       <div className={classes.source}>
@@ -416,7 +408,7 @@ const SourceMobile = WidthProvider(
                 <div className={classes.photometryContainer}>
                   <Suspense fallback={<div>Loading photometry plot...</div>}>
                     <Plot
-                      url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&height=${photPlotHeight}&device=${device}`}
+                      url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
                     />
                   </Suspense>
                   <div className={classes.plotButtons}>
@@ -458,7 +450,7 @@ const SourceMobile = WidthProvider(
                 <div className={classes.photometryContainer}>
                   <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
                     <Plot
-                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&height=${specPlotHeight}&device=${device}`}
+                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}`}
                     />
                   </Suspense>
                   <div className={classes.plotButtons}>

@@ -1,4 +1,5 @@
 import itertools
+import math
 
 import numpy as np
 import pandas as pd
@@ -218,7 +219,7 @@ def annotate_spec(plot, spectra, lower, upper):
         )
 
 
-def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
+def photometry_plot(obj_id, user, width=600, device="browser"):
     """Create object photometry scatter plot.
 
     Parameters
@@ -315,8 +316,10 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
         else "box_zoom,wheel_zoom,pan,reset,save"
     )
 
+    aspect_ratio = 2.0 if device == "mobile_landscape" else 1.5
+
     plot = figure(
-        aspect_ratio=2.0 if device == "mobile_landscape" else 1.5,
+        aspect_ratio=aspect_ratio,
         sizing_mode='scale_both',
         active_drag=active_drag,
         tools=tools,
@@ -531,7 +534,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     xmax = data['mjd'].max() + 2
 
     plot = figure(
-        aspect_ratio=2.0 if device == "mobile_landscape" else 1.5,
+        aspect_ratio=aspect_ratio,
         sizing_mode='scale_both',
         width=width,
         active_drag=active_drag,
@@ -746,6 +749,11 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
 
     colors_labels = data[['color', 'label']].drop_duplicates()
+    height = (
+        500
+        if device == "browser"
+        else math.floor(width / aspect_ratio) + 18 * len(colors_labels) + 100
+    )
 
     toggle = CheckboxWithLegendGroup(
         labels=colors_labels.label.tolist(),
@@ -838,10 +846,11 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
 
         # bokeh figure for period plotting
         period_plot = figure(
-            aspect_ratio=1.5,
+            aspect_ratio=aspect_ratio,
             sizing_mode='scale_both',
-            active_drag='box_zoom',
-            tools='box_zoom,wheel_zoom,pan,reset,save',
+            active_drag=active_drag,
+            tools=tools,
+            width=width,
             y_range=(ymax, ymin),
             x_range=(-0.1, 1.1),  # initially one phase
             toolbar_location='above',
@@ -1025,24 +1034,42 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
 
         # layout
 
-        period_column = column(
-            period_toggle,
-            period_title,
-            period_textinput,
-            period_selection,
-            row(period_double_button, period_halve_button, width=180),
-            phase_selection,
-            width=180,
+        period_column = (
+            column(
+                period_title,
+                period_textinput,
+                period_selection,
+                period_double_button,
+                period_halve_button,
+                phase_selection,
+                width=int(width / 2),
+            )
+            if device == "mobile_portrait"
+            else column(
+                period_title,
+                period_textinput,
+                period_selection,
+                row(period_double_button, period_halve_button, width=180),
+                phase_selection,
+                width=180,
+            )
         )
 
-        period_layout = column(
-            row(period_plot, period_column),
-            sizing_mode='scale_width',
-            width=width,
+        period_column = (
+            row(period_toggle, period_column, width=width, sizing_mode="scale_width")
+            if "mobile" in device or "tablet" in device
+            else column(period_toggle, period_column)
+        )
+
+        period_layout = (
+            column(period_plot, period_column, width=width)
+            if "mobile" in device or "tablet" in device
+            else row(period_plot, period_column)
         )
 
         # Period panel
         p3 = Panel(child=period_layout, title='Period')
+
         # tabs for mag, flux, period
         tabs = Tabs(tabs=[p2, p1, p3], width=width, height=height, sizing_mode='fixed')
     else:
@@ -1051,9 +1078,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     return bokeh_embed.json_item(tabs)
 
 
-def spectroscopy_plot(
-    obj_id, user, spec_id=None, width=600, height=300, device="browser"
-):
+def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     obj = Obj.query.get(obj_id)
     spectra = (
         DBSession()
@@ -1375,7 +1400,5 @@ def spectroscopy_plot(
     )
     row2 = row(elements_groups)
     row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
-    layout = column(
-        row1, row2, row3, sizing_mode='scale_height', width=width, height=height
-    )
+    layout = column(row1, row2, row3, sizing_mode='scale_height', width=width)
     return bokeh_embed.json_item(layout)
