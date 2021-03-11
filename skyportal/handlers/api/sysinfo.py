@@ -1,27 +1,24 @@
-import os
-import subprocess
+import glob
+import json
+import itertools
 
 from baselayer.app.env import load_env
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 
 from skyportal.models import cosmo
-from skyportal.utils import gitlog
+from skyportal.utils.gitlog import get_gitlog, parse_gitlog
 
 
 _, cfg = load_env()
 
-# This file is generated with
-#
-#   git log --no-merges --first-parent \
-#           --pretty='format:[%cI %h %cE] %s' -1000
+# This file is generated with `utils.get_gitlog`.
 #
 # We query for more than the number desired (1000 instead of 100), because
 # we filter out all commits by noreply@github.com and hope to end up
 # with 100 commits still.
 
-
-gitlog_file = "data/gitlog.txt"
+gitlog_files = "data/gitlog*.json"
 max_log_lines = 100
 
 
@@ -61,33 +58,24 @@ class SysInfoHandler(BaseHandler):
                                 description: Reference for the cosmology used.
         """
         # if another build system has written a gitlog file, use it
-        loginfo = ""
-        if os.path.exists(gitlog_file):
-            with open(gitlog_file, "r") as spgl:
-                loginfo = spgl.read()
-        if loginfo == "":
-            p = subprocess.run(
-                [
-                    "git",
-                    "--git-dir=.git",
-                    "log",
-                    "--no-merges",
-                    "--first-parent",
-                    "--pretty=format:[%cI %h %cE] %s",
-                    f"-{max_log_lines * 10}",
-                ],
-                capture_output=True,
-                universal_newlines=True,
-            )
-            loginfo = p.stdout
+        gitlogs = []
+        for gitlog in glob.glob(gitlog_files):
+            with open(gitlog, "r") as f:
+                gitlogs.append(json.load(f))
+        if not gitlogs:
+            gitlogs = [get_gitlog()]
 
-        parsed_log = gitlog.parse_gitlog(loginfo.splitlines())
+        parsed_logs = [parse_gitlog(gitlog) for gitlog in gitlogs]
+        parsed_log = list(itertools.chain(*parsed_logs))
+        parsed_log = list(sorted(parsed_log, key=lambda x: x['time'], reverse=True))
+        parsed_log = parsed_log[:max_log_lines]
         parsed_log = [
             entry
             for entry in parsed_log
             if not (entry['description'].lower().startswith(('bump', 'pin')))
         ]
-        parsed_log = parsed_log[:max_log_lines]
+
+        print(parsed_log)
 
         return self.success(
             data={
