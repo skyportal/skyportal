@@ -49,22 +49,10 @@ const UpdateSourceRedshift = ({ source }) => {
     setState(value);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (value) => {
     setIsSubmitting(true);
     const result = await dispatch(
-      sourceActions.updateSource(source.id, { redshift: state })
-    );
-    setIsSubmitting(false);
-    if (result.status === "success") {
-      dispatch(showNotification("Source redshift successfully updated."));
-      setDialogOpen(false);
-    }
-  };
-
-  const handleNullify = async () => {
-    setIsSubmitting(true);
-    const result = await dispatch(
-      sourceActions.updateSource(source.id, { redshift: null })
+      sourceActions.updateSource(source.id, { redshift: value })
     );
     setIsSubmitting(false);
     if (result.status === "success") {
@@ -108,7 +96,9 @@ const UpdateSourceRedshift = ({ source }) => {
           <div className={classes.saveButton}>
             <Button
               color="primary"
-              onClick={handleSubmit}
+              onClick={() => {
+                handleSubmit(state);
+              }}
               startIcon={<SaveIcon />}
               size="large"
               data-testid="updateRedshiftSubmitButton"
@@ -120,13 +110,15 @@ const UpdateSourceRedshift = ({ source }) => {
           <div className={classes.saveButton}>
             <Button
               color="primary"
-              onClick={handleNullify}
+              onClick={() => {
+                handleSubmit(null);
+              }}
               startIcon={<ClearIcon />}
               size="large"
-              data-testid="updateRedshiftSubmitButton"
+              data-testid="nullifyRedshiftButton"
               disabled={isSubmitting || invalid}
             >
-              Nullify
+              Set null
             </Button>
           </div>
         </DialogContent>
