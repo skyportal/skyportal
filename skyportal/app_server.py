@@ -1,4 +1,5 @@
 import tornado.web
+from tornado.log import access_log
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app import model_util as baselayer_model_util
@@ -86,6 +87,35 @@ from . import models, model_util, openapi
 
 
 log = make_log('app_server')
+
+
+class CustomApplication(tornado.web.Application):
+    def log_request(self, handler):
+        """Writes a completed HTTP request to the logs.
+        By default writes to the python root logger.  To change
+        this behavior either subclass Application and override this method,
+        or pass a function in the application settings dictionary as
+        ``log_function``.
+        """
+        if "google-oauth2" in str(handler._request_summary()):
+            return
+        if "log_function" in self.settings:
+            self.settings["log_function"](handler)
+            return
+        if handler.get_status() < 400:
+            log_method = access_log.info
+        elif handler.get_status() < 500:
+            log_method = access_log.warning
+        else:
+            log_method = access_log.error
+        request_time = 1000.0 * handler.request.request_time()
+        log_method(
+            "%d %s %.2fms",
+            handler.get_status(),
+            handler._request_summary(),
+            request_time,
+        )
+
 
 skyportal_handlers = [
     # API endpoints
@@ -248,7 +278,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         }
     )
 
-    app = tornado.web.Application(handlers, **settings)
+    app = CustomApplication(handlers, **settings)
     models.init_db(
         **cfg['database'],
         autoflush=False,
