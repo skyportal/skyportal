@@ -91,6 +91,7 @@ skyportal_handlers = [
     (r'/api/acls', ACLHandler),
     (r'/api/allocation(/.*)?', AllocationHandler),
     (r'/api/assignment(/.*)?', AssignmentHandler),
+    (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
     (r'/api/comment(/[0-9]+)?', CommentHandler),
