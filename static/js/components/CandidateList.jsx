@@ -625,6 +625,7 @@ const CandidateList = () => {
             />
           </div>
         )}
+        {/* If candidate is either unsaved or is not yet saved to all groups being filtered on, show the "Save to..." button */}
         {Boolean(
           !candidateObj.is_source ||
             (candidateObj.is_source &&
@@ -638,6 +639,7 @@ const CandidateList = () => {
             <SaveCandidateButton
               candidate={candidateObj}
               userGroups={
+                // Filter out groups the candidate is already saved to
                 candidateObj.is_source
                   ? userAccessibleGroups.filter(
                       (g) =>
@@ -648,6 +650,7 @@ const CandidateList = () => {
                   : userAccessibleGroups
               }
               filterGroups={
+                // Filter out groups the candidate is already saved to
                 candidateObj.is_source
                   ? filterGroups.filter(
                       (g) =>
