@@ -1,12 +1,12 @@
 /* eslint-disable */
 if (numphases.active == 1) {
   /* two phases */
-  p.x_range.end = 2.1;
+  p.x_range.end = 2.01;
 } else {
-  p.x_range.end = 1.1;
+  p.x_range.end = 1.01;
 }
 const period = parseFloat(textinput.value);
-for (let i = 0; i < toggle.labels.length; i++) {
+for (let i = 0; i < n_labels; i++) {
   const folda = eval(`folda${i}`).data_source;
   const foldaerr = eval(`foldaerr${i}`).data_source;
   const foldb = eval(`foldb${i}`).data_source;
@@ -22,12 +22,4 @@ for (let i = 0; i < toggle.labels.length; i++) {
   foldaerr.change.emit();
   foldb.change.emit();
   foldberr.change.emit();
-  if (numphases.active == 1) {
-    /* two phases */
-    eval(`foldb${i}`).visible = true && toggle.active.includes(i);
-    eval(`foldberr${i}`).visible = true && toggle.active.includes(i);
-  } else {
-    eval(`foldb${i}`).visible = false;
-    eval(`foldberr${i}`).visible = false;
-  }
 }
