@@ -116,7 +116,7 @@ const UpdateSourceRedshift = ({ source }) => {
               startIcon={<ClearIcon />}
               size="large"
               data-testid="nullifyRedshiftButton"
-              disabled={isSubmitting || invalid}
+              disabled={isSubmitting || source.redshift === null}
             >
               Set null
             </Button>
