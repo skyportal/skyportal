@@ -8,6 +8,7 @@ import DialogTitle from "@material-ui/core/DialogTitle";
 import Button from "@material-ui/core/Button";
 import { makeStyles } from "@material-ui/core/styles";
 import SaveIcon from "@material-ui/icons/Save";
+import ClearIcon from "@material-ui/icons/Clear";
 import TextField from "@material-ui/core/TextField";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -44,7 +45,7 @@ const UpdateSourceRedshift = ({ source }) => {
   const handleChange = (e) => {
     const value = String(e.target.value).trim();
     // eslint-disable-next-line no-restricted-globals
-    setInvalid(!value || (isNaN(value) && value !== "null"));
+    setInvalid(!value || isNaN(value));
     setState(value);
   };
 
@@ -52,6 +53,18 @@ const UpdateSourceRedshift = ({ source }) => {
     setIsSubmitting(true);
     const result = await dispatch(
       sourceActions.updateSource(source.id, { redshift: state })
+    );
+    setIsSubmitting(false);
+    if (result.status === "success") {
+      dispatch(showNotification("Source redshift successfully updated."));
+      setDialogOpen(false);
+    }
+  };
+
+  const handleNullify = async () => {
+    setIsSubmitting(true);
+    const result = await dispatch(
+      sourceActions.updateSource(source.id, { redshift: null })
     );
     setIsSubmitting(false);
     if (result.status === "success") {
@@ -77,9 +90,7 @@ const UpdateSourceRedshift = ({ source }) => {
         }}
         style={{ position: "fixed" }}
       >
-        <DialogTitle>
-          Update Redshift (use &quot;null&quot; w/out quotes to clear)
-        </DialogTitle>
+        <DialogTitle>Update Redshift (or Nullify)</DialogTitle>
         <DialogContent>
           <div>
             {invalid && (
@@ -104,6 +115,18 @@ const UpdateSourceRedshift = ({ source }) => {
               disabled={isSubmitting || invalid}
             >
               Save
+            </Button>
+          </div>
+          <div className={classes.saveButton}>
+            <Button
+              color="primary"
+              onClick={handleNullify}
+              startIcon={<ClearIcon />}
+              size="large"
+              data-testid="updateRedshiftSubmitButton"
+              disabled={isSubmitting || invalid}
+            >
+              Nullify
             </Button>
           </div>
         </DialogContent>

@@ -1164,12 +1164,6 @@ class SourceHandler(BaseHandler):
         _ = Obj.get_if_readable_by(obj_id, self.current_user)
         data = self.get_json()
         data['id'] = obj_id
-        if (
-            "redshift" in data
-            and isinstance(data["redshift"], str)
-            and data["redshift"].strip().lower() == "null"
-        ):
-            data["redshift"] = None
 
         schema = Obj.__schema__()
         try:
