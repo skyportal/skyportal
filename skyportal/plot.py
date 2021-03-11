@@ -281,11 +281,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     instruments = list(data.instrument.unique())
     markers = []
     for i, inst in enumerate(instruments):
-        if i >= len(phot_markers):
-            pmi = i - len(phot_markers)
-        else:
-            pmi = i
-        markers.append(phot_markers[pmi])
+        markers.append(phot_markers[i % len(phot_markers)])
 
     filters = list(set(data['filter']))
     colors = [get_color(f) for f in filters]
