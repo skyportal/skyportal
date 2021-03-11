@@ -908,12 +908,20 @@ class CandidateHandler(BaseHandler):
             .filter(Candidate.filter_id == filter_id)
             .all()
         )
+        if not cands:
+            return self.error(
+                "Invalid (obj_id, filter_id) combination - "
+                "no matching candidates found."
+            )
         for c in cands:
             if not (
                 self.associated_user_object.is_system_admin
                 or c.uploader_id == self.associated_user_object.id
             ):
-                return self.error("Insufficient permissions.")
+                return self.error(
+                    "Insufficient permissions for candidate w/ "
+                    f"passed_at={c.passed_at}"
+                )
         DBSession().query(Candidate).filter(Candidate.obj_id == obj_id).filter(
             Candidate.filter_id == filter_id
         ).delete(synchronize_session="fetch")
