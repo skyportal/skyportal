@@ -38,8 +38,8 @@ const useStyles = makeStyles((theme) => ({
   media: (props) => ({
     height: props.size,
     width: props.size,
-    filter: props.invertImages ? "invert(1)" : "unset",
-    WebkitFilter: props.invertImages ? "invert(1)" : "unset",
+    filter: props.invertThumbnails ? "invert(1)" : "unset",
+    WebkitFilter: props.invertThumbnails ? "invert(1)" : "unset",
   }),
   crosshair: (props) => ({
     position: "absolute",
@@ -55,11 +55,11 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
-  const invertImages = useSelector(
-    (state) => state.profile.preferences.invertImages
+  const invertThumbnails = useSelector(
+    (state) => state.profile.preferences.invertThumbnails
   );
 
-  const classes = useStyles({ size, invertImages });
+  const classes = useStyles({ size, invertThumbnails });
 
   let alt = null;
   let link = null;

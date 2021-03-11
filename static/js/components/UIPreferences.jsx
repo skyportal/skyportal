@@ -13,7 +13,7 @@ import * as profileActions from "../ducks/profile";
 const UIPreferences = () => {
   const preferences = useSelector((state) => state.profile.preferences);
   const currentTheme = preferences?.theme;
-  const invertImages = preferences?.invertImages || false;
+  const invertThumbnails = preferences?.invertThumbnails || false;
   const dispatch = useDispatch();
 
   const themeToggled = (event) => {
@@ -24,9 +24,9 @@ const UIPreferences = () => {
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
-  const imageInvertToggled = (event) => {
+  const thumbnailInvertToggled = (event) => {
     const prefs = {
-      invertImages: event.target.checked,
+      invertThumbnails: event.target.checked,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
@@ -39,11 +39,11 @@ const UIPreferences = () => {
     />
   );
 
-  const imageInvertSwitch = (
+  const thumbnailInvertSwitch = (
     <Switch
-      value="Invert images"
-      checked={invertImages}
-      onChange={imageInvertToggled}
+      value="Invert thumbnails"
+      checked={invertThumbnails}
+      onChange={thumbnailInvertToggled}
     />
   );
 
@@ -59,7 +59,10 @@ const UIPreferences = () => {
       <Typography variant="h6">UI Preferences</Typography>
       <FormGroup row>
         <FormControlLabel control={themeSwitch} label="Dark mode" />
-        <FormControlLabel control={imageInvertSwitch} label="Invert images" />
+        <FormControlLabel
+          control={thumbnailInvertSwitch}
+          label="Invert thumbnails"
+        />
       </FormGroup>
     </div>
   );
