@@ -1,5 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
+import { useSelector } from "react-redux";
 
 import dayjs from "dayjs";
 import calendar from "dayjs/plugin/calendar";
@@ -37,6 +38,8 @@ const useStyles = makeStyles((theme) => ({
   media: (props) => ({
     height: props.size,
     width: props.size,
+    filter: props.invertImages ? "invert(1)" : "unset",
+    WebkitFilter: props.invertImages ? "invert(1)" : "unset",
   }),
   crosshair: (props) => ({
     position: "absolute",
@@ -52,7 +55,11 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
-  const classes = useStyles({ size });
+  const invertImages = useSelector(
+    (state) => state.profile.preferences.invertImages
+  );
+
+  const classes = useStyles({ size, invertImages });
 
   let alt = null;
   let link = null;
