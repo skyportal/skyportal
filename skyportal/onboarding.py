@@ -24,7 +24,9 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     if cfg["invitations.enabled"]:
 
         if existing_user is None and invite_token is None:
-            raise Exception("Missing invite token. A valid invite token is required.")
+            raise Exception(
+                "Authentication Error: Missing invite token. A valid invite token is required."
+            )
         elif existing_user is not None:
             return {"is_new": False, "user": existing_user}
 
@@ -37,13 +39,15 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
 
         invitation = Invitation.query.filter(Invitation.token == invite_token).first()
         if invitation is None:
-            raise Exception("Invalid invite token. A valid invite token is required.")
+            raise Exception(
+                "Authentication Error: Invalid invite token. A valid invite token is required."
+            )
 
         cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
         if invitation.created_at < cutoff_datetime:
-            raise Exception("Invite token expired.")
+            raise Exception("Authentication Error: Invite token expired.")
         if invitation.used:
-            raise Exception("Invite token has already been used.")
+            raise Exception("Authentication Error: Invite token has already been used.")
 
         user = User(
             username=details["username"],
@@ -106,16 +110,20 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
 
     invite_token = strategy.session_get("invite_token")
     if invite_token is None and existing_user is None:
-        raise Exception("Missing invite token. A valid invite token is required.")
+        raise Exception(
+            "Authentication Error: Missing invite token. A valid invite token is required."
+        )
     elif existing_user is not None and invite_token is None:
         return
 
     invitation = Invitation.query.filter(Invitation.token == invite_token).first()
     if invitation is None:
-        raise Exception("Invalid invite token. A valid invite token is required.")
+        raise Exception(
+            "Authentication Error: Invalid invite token. A valid invite token is required."
+        )
 
     if invitation.used:
-        raise Exception("Invitation has already been used.")
+        raise Exception("Authentication Error: Invitation has already been used.")
 
     group_ids = [g.id for g in invitation.groups]
     stream_ids = [stream.id for stream in invitation.streams]
@@ -128,8 +136,7 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
         ]
     ):
         raise Exception(
-            "User has not been granted sufficient stream access to be added "
-            "to specified groups."
+            "Authentication Error: User has not been granted sufficient stream access to be added to specified groups."
         )
 
     # Add user to specified streams
