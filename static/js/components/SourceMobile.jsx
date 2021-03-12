@@ -45,6 +45,8 @@ import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
 
+const VegaHR = React.lazy(() => import("./VegaHR"));
+
 const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
 const CentroidPlot = React.lazy(() =>
@@ -133,6 +135,8 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "inline-block",
     verticalAlign: "super",
   },
+  HRDiagramContainer: {},
+  followuphrDiagramContainer: {},
   followupContainer: {
     display: "flex",
     overflow: "hidden",
@@ -479,6 +483,41 @@ const SourceMobile = WidthProvider(
           </div>
           {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
           <div>
+            {source.color_magnitude.length ? (
+              <Accordion defaultExpanded>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="hr_diagram_content"
+                  id="hr-diagram-header"
+                >
+                  <Typography className={classes.accordionHeading}>
+                    HR Diagram
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <div className={classes.HRDiagramContainer}>
+                    <Suspense fallback={<div>Loading HR diagram...</div>}>
+                      <VegaHR
+                        data={source.color_magnitude}
+                        width={300}
+                        height={300}
+                        data-testid={`hr_diagram_${source.id}`}
+                      />
+                    </Suspense>
+                  </div>
+                </AccordionDetails>
+              </Accordion>
+            ) : null}
+            <PhotometryTable
+              obj_id={source.id}
+              open={showPhotometry}
+              onClose={() => {
+                setShowPhotometry(false);
+              }}
+              data-testid="show-photometry-table-button"
+            />
+          </div>
+          <div>
             <Accordion defaultExpanded>
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
@@ -619,6 +658,13 @@ SourceMobile.propTypes = {
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
     redshift_history: PropTypes.arrayOf(PropTypes.any),
+    color_magnitude: PropTypes.arrayOf(
+      PropTypes.shape({
+        abs_mag: PropTypes.number,
+        color: PropTypes.number,
+        origin: PropTypes.string,
+      })
+    ),
   }).isRequired,
 };
 
