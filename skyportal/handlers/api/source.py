@@ -1104,12 +1104,21 @@ class SourceHandler(BaseHandler):
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
 
         DBSession().add(obj)
-        DBSession().add_all(
-            [
-                Source(obj=obj, group=group, saved_by_id=self.associated_user_object.id)
-                for group in groups
-            ]
-        )
+        for group in groups:
+            source = (
+                Source.query.filter(Source.obj_id == obj.id)
+                .filter(Source.group_id == group.id)
+                .first()
+            )
+            if source is not None:
+                source.active = True
+                source.saved_by = self.associated_user_object
+            else:
+                DBSession().add(
+                    Source(
+                        obj=obj, group=group, saved_by_id=self.associated_user_object.id
+                    )
+                )
         self.finalize_transaction()
         if not obj_already_exists:
             obj.add_linked_thumbnails()
