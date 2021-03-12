@@ -2,7 +2,7 @@
 const binsize = slider.value;
 const fluxalph = binsize === 0 ? 1.0 : 0.1;
 
-for (let i = 0; i < n_labels; i++) {
+for (let i = 0; i < toggle.labels.length; i++) {
   const fluxsource = eval(`obs${i}`).data_source;
   const binsource = eval(`bin${i}`).data_source;
 
