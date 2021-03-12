@@ -75,7 +75,7 @@ class GaiaQuery:
             self.is_backup = False
             self.connection = g
             return True
-        except HTTPError:
+        except (HTTPError, ConnectionResetError):
             log("Warning: main Gaia TAP+ server failed")
             self.is_backup = True
 
@@ -673,11 +673,12 @@ def get_nearby_offset_stars(
                   AND phot_rp_mean_mag < {mag_limit + fainter_diff}
                   AND phot_rp_mean_mag > {mag_min}
                   AND parallax < 250
-                  ORDER BY phot_rp_mean_mag ASC
                 """
 
     g = GaiaQuery()
     r = g.query(query_string)
+    # get brighter stars at top:
+    r.sort("phot_rp_mean_mag")
     queries_issued += 1
 
     catalog = SkyCoord.guess_from_table(r)
