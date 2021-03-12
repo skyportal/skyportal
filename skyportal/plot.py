@@ -401,7 +401,17 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     legend_orientation = (
         "vertical" if device in ["browser", "mobile_portrait"] else "horizontal"
     )
-    # Compute an aspect ratio based on rough number of legend rows added below the plot
+    # Compute a plot component height based on rough number of legend rows added below the plot
+    # Values are based on default sizing of bokeh components and an estimate of how many
+    # legend items would fit on the average device screen. Note that the legend items per
+    # row is computed more exactly later once labels are extracted from the data (with the
+    # add_plot_legend() function).
+    #
+    # The height is manually computed like this instead of using built in aspect_ratio/sizing options
+    # because with the new Interactive Legend approach (instead of the legacy CheckboxLegendGroup), the
+    # Legend component is considered part of the plot and plays into the sizing computations. Since the
+    # number of items in the legend can alter the needed heights of the plot, using built-in Bokeh options
+    # for sizing does not allow for keeping the actual graph part of the plot at a consistent aspect ratio.
     if device == "mobile_portrait":
         legend_items_per_row = 1
         legend_row_height = 24
@@ -418,12 +428,13 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         legend_items_per_row = 7
         legend_row_height = 50
         aspect_ratio = 1.8
+
     height = (
         500
         if device == "browser"
         else math.floor(width / aspect_ratio)
         + legend_row_height * int(len(split) / legend_items_per_row)
-        + 30
+        + 30  # 30 is the height of the toolbar
     )
     aspect_ratio = math.floor(width / height)
 
@@ -696,6 +707,11 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     model_dict = {}
 
+    # Legend items are individually stored instead of being applied
+    # directly when plotting so that they can be separated into multiple
+    # Legend() components if needed (to simulate horizontal row wrapping).
+    # This is necessary because Bokeh does not support row wrapping with
+    # horizontally-oriented legends out-of-the-box.
     legend_items = []
     for i, (label, df) in enumerate(split):
         renderers = []
@@ -1095,6 +1111,9 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                 width=width,
             )
             # Add extra height to plot based on period control components added
+            # 18 is the height of each period selection radio option (per default font size)
+            # and the 130 encompasses the other components which are consistent no matter
+            # the data size.
             height += 130 + 18 * len(period_labels)
         else:
             period_controls = column(
@@ -1111,6 +1130,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                 margin=10,
             )
             # Add extra height to plot based on period control components added
+            # Numbers are derived in similar manner to the "mobile_portrait" case above
             height += 90 + 18 * len(period_labels)
 
         period_layout = column(period_plot, period_controls, width=width, height=height)
