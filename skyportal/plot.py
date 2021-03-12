@@ -13,14 +13,12 @@ from bokeh.models import (
     Button,
     LinearAxis,
     RadioGroup,
-    CategoricalColorMapper,
-    Legend,
 )
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.plotting import figure, ColumnDataSource
 
 import bokeh.embed as bokeh_embed
-from bokeh.transform import factor_mark
+
 
 from astropy.time import Time
 
@@ -44,7 +42,7 @@ from skyportal.models import (
 import sncosmo
 
 _, cfg = load_env()
-# The minimum signal-to-noise ratio to consider a photometry point as detected
+# The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 SPEC_LINES = {
@@ -136,20 +134,6 @@ tooltip_format = [
 cmap_opt = cm.get_cmap('nipy_spectral')
 cmap_uv = cm.get_cmap('cool')
 cmap_ir = cm.get_cmap('autumn')
-
-phot_markers = [
-    "circle",
-    "triangle",
-    "square",
-    "diamond",
-    "star",
-    "plus",
-    "x",
-    "cross",
-    "y",
-    "triangle_pin",
-    "square_pin",
-]
 
 
 def get_color(bandpass_name):
@@ -277,18 +261,6 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
 
     data['color'] = [get_color(f) for f in data['filter']]
 
-    # get marker for each unique instrument
-    instruments = list(data.instrument.unique())
-    markers = []
-    for i, inst in enumerate(instruments):
-        markers.append(phot_markers[i % len(phot_markers)])
-
-    filters = list(set(data['filter']))
-    colors = [get_color(f) for f in filters]
-
-    color_mapper = CategoricalColorMapper(factors=filters, palette=colors)
-    color_dict = {'field': 'filter', 'transform': color_mapper}
-
     labels = []
     for i, datarow in data.iterrows():
         label = f'{datarow["instrument"]}/{datarow["filter"]}'
@@ -336,9 +308,6 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     lower = np.min(fdata['flux']) * 0.95
     upper = np.max(fdata['flux']) * 1.05
 
-    xmin = data['mjd'].min() - 2
-    xmax = data['mjd'].max() + 2
-
     active_drag = None if "mobile" in device or "tablet" in device else "box_zoom"
     tools = (
         'box_zoom,pan,reset'
@@ -355,13 +324,10 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
         toolbar_sticky=True,
         y_range=(lower, upper),
         min_border_right=16,
-        x_axis_location='above',
     )
     imhover = HoverTool(tooltips=tooltip_format)
     imhover.renderers = []
     plot.add_tools(imhover)
-
-    plot.add_layout(Legend(), 'right')
 
     model_dict = {}
 
@@ -375,10 +341,9 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             x='mjd',
             y='flux',
             color='color',
-            marker=factor_mark('instrument', markers, instruments),
-            fill_color=color_dict,
+            marker='circle',
+            fill_color='color',
             alpha='alpha',
-            legend_label=label,
             source=ColumnDataSource(df),
         )
 
@@ -389,9 +354,8 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             x='mjd',
             y='flux',
             color='color',
-            marker=factor_mark('instrument', markers, instruments),
-            fill_color=color_dict,
-            legend_label=label,
+            marker='circle',
+            fill_color='color',
             source=ColumnDataSource(
                 data=dict(
                     mjd=[],
@@ -427,7 +391,6 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             ys='ys',
             color='color',
             alpha='alpha',
-            legend_label=label,
             source=ColumnDataSource(
                 data=dict(
                     xs=y_err_x, ys=y_err_y, color=df['color'], alpha=[1.0] * len(df)
@@ -440,7 +403,6 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             xs='xs',
             ys='ys',
             color='color',
-            legend_label=label,
             source=ColumnDataSource(data=dict(xs=[], ys=[], color=[])),
         )
 
@@ -450,11 +412,28 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     plot.yaxis.axis_label = 'Flux (μJy)'
     plot.toolbar.logo = None
 
-    plot.legend.click_policy = "hide"
+    colors_labels = data[['color', 'label']].drop_duplicates()
 
-    now = Time.now().mjd
-    plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
-    plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
+    toggle = CheckboxWithLegendGroup(
+        labels=colors_labels.label.tolist(),
+        active=list(range(len(colors_labels))),
+        colors=colors_labels.color.tolist(),
+        width=width // 5,
+        inline=True if "tablet" in device else False,
+    )
+
+    # TODO replace `eval` with Namespaces
+    # https://github.com/bokeh/bokeh/pull/6340
+    toggle.js_on_click(
+        CustomJS(
+            args={'toggle': toggle, **model_dict},
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__), '../static/js/plotjs', 'togglef.js'
+                )
+            ).read(),
+        )
+    )
 
     slider = Slider(
         start=0.0,
@@ -467,7 +446,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     )
 
     callback = CustomJS(
-        args={'slider': slider, 'n_labels': len(split), **model_dict},
+        args={'slider': slider, 'toggle': toggle, **model_dict},
         code=open(
             os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'stackf.js')
         )
@@ -519,7 +498,12 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     # Mark when spectra were taken
     annotate_spec(plot, spectra, lower, upper)
 
-    layout = column(slider, plot, sizing_mode='scale_width', width=width)
+    plot_layout = (
+        column(plot, toggle)
+        if "mobile" in device or "tablet" in device
+        else row(plot, toggle)
+    )
+    layout = column(slider, plot_layout, sizing_mode='scale_width', width=width)
 
     p1 = Panel(child=layout, title='Flux')
 
@@ -543,6 +527,9 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
         - 0.1
     )
 
+    xmin = data['mjd'].min() - 2
+    xmax = data['mjd'].max() + 2
+
     plot = figure(
         aspect_ratio=2.0 if device == "mobile_landscape" else 1.5,
         sizing_mode='scale_both',
@@ -555,17 +542,6 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
         toolbar_sticky=True,
         x_axis_location='above',
     )
-
-    obj = DBSession().query(Obj).get(obj_id)
-    if obj.dm is not None:
-        plot.extra_y_ranges = {
-            "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
-        }
-        plot.add_layout(
-            LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
-        )
-
-    plot.add_layout(Legend(), 'right')
 
     # Mark the first and last detections again
     detection_dates = data[obsind]['mjd']
@@ -620,10 +596,9 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             x='mjd',
             y='mag',
             color='color',
-            marker=factor_mark('instrument', markers, instruments),
-            fill_color=color_dict,
+            marker='circle',
+            fill_color='color',
             alpha='alpha',
-            legend_label=label,
             source=ColumnDataSource(df[df['obs']]),
         )
 
@@ -636,12 +611,11 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
         model_dict[key] = plot.scatter(
             x='mjd',
             y='lim_mag',
-            color=color_dict,
+            color='color',
             marker='inverted_triangle',
             fill_color='white',
             line_color='color',
             alpha='alpha',
-            legend_label=label,
             source=ColumnDataSource(unobs_source),
         )
 
@@ -651,10 +625,9 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
         model_dict[key] = plot.scatter(
             x='mjd',
             y='mag',
-            color=color_dict,
-            marker=factor_mark('instrument', markers, instruments),
+            color='color',
+            marker='circle',
             fill_color='color',
-            legend_label=label,
             source=ColumnDataSource(
                 data=dict(
                     mjd=[],
@@ -690,7 +663,6 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             ys='ys',
             color='color',
             alpha='alpha',
-            legend_label=label,
             source=ColumnDataSource(
                 data=dict(
                     xs=y_err_x,
@@ -706,7 +678,6 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             xs='xs',
             ys='ys',
             color='color',
-            legend_label=label,
             source=ColumnDataSource(data=dict(xs=[], ys=[], color=[])),
         )
 
@@ -717,9 +688,8 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             color='color',
             marker='inverted_triangle',
             fill_color='white',
-            line_color=color_dict,
+            line_color='color',
             alpha=0.8,
-            legend_label=label,
             source=ColumnDataSource(
                 data=dict(
                     mjd=[],
@@ -758,15 +728,45 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             ]
         )
 
-    plot.legend.click_policy = "hide"
-
     plot.xaxis.axis_label = 'MJD'
     plot.yaxis.axis_label = 'AB mag'
     plot.toolbar.logo = None
 
+    obj = DBSession().query(Obj).get(obj_id)
+    if obj.dm is not None:
+        plot.extra_y_ranges = {
+            "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
+        }
+        plot.add_layout(
+            LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
+        )
+
     now = Time.now().mjd
     plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
     plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
+
+    colors_labels = data[['color', 'label']].drop_duplicates()
+
+    toggle = CheckboxWithLegendGroup(
+        labels=colors_labels.label.tolist(),
+        active=list(range(len(colors_labels))),
+        colors=colors_labels.color.tolist(),
+        width=width // 5,
+        inline=True if "tablet" in device else False,
+    )
+
+    # TODO replace `eval` with Namespaces
+    # https://github.com/bokeh/bokeh/pull/6340
+    toggle.js_on_click(
+        CustomJS(
+            args={'toggle': toggle, **model_dict},
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__), '../static/js/plotjs', 'togglem.js'
+                )
+            ).read(),
+        )
+    )
 
     slider = Slider(
         start=0.0,
@@ -781,7 +781,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     button = Button(label="Export Bold Light Curve to CSV")
     button.js_on_click(
         CustomJS(
-            args={'slider': slider, 'n_labels': len(split), **model_dict},
+            args={'slider': slider, 'toggle': toggle, **model_dict},
             code=open(
                 os.path.join(
                     os.path.dirname(__file__), '../static/js/plotjs', "download.js"
@@ -799,7 +799,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
     )
 
     callback = CustomJS(
-        args={'slider': slider, 'n_labels': len(split), **model_dict},
+        args={'slider': slider, 'toggle': toggle, **model_dict},
         code=open(
             os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'stackm.js')
         )
@@ -808,7 +808,12 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
         .replace('detect_thresh', str(PHOT_DETECTION_THRESHOLD)),
     )
     slider.js_on_change('value', callback)
-    layout = column(top_layout, plot, sizing_mode='scale_width', width=width)
+    plot_layout = (
+        column(plot, toggle)
+        if "mobile" in device or "tablet" in device
+        else row(plot, toggle)
+    )
+    layout = column(top_layout, plot_layout, sizing_mode='scale_width', width=width)
 
     p2 = Panel(child=layout, title='Mag')
 
@@ -838,7 +843,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             active_drag='box_zoom',
             tools='box_zoom,wheel_zoom,pan,reset,save',
             y_range=(ymax, ymin),
-            x_range=(-0.01, 2.01),  # initially one phase
+            x_range=(-0.1, 1.1),  # initially one phase
             toolbar_location='above',
             toolbar_sticky=False,
             x_axis_location='below',
@@ -859,19 +864,15 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                 LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
             )
 
-        period_plot.add_layout(Legend(), 'right')
-
         # initiate hover tool
         period_imhover = HoverTool(tooltips=tooltip_format)
         period_imhover.renderers = []
         period_plot.add_tools(period_imhover)
 
         # initiate period radio buttons
-        period_selection = RadioGroup(labels=period_labels, active=0, width=150)
+        period_selection = RadioGroup(labels=period_labels, active=0)
 
-        phase_selection = RadioGroup(
-            labels=["One phase", "Two phases"], active=1, width=180
-        )
+        phase_selection = RadioGroup(labels=["One phase", "Two phases"], active=0)
 
         # store all the plot data
         period_model_dict = {}
@@ -890,11 +891,10 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                     x='mjd_fold' + ph,
                     y='mag',
                     color='color',
-                    marker=factor_mark('instrument', markers, instruments),
-                    fill_color=color_dict,
+                    marker='circle',
+                    fill_color='color',
                     alpha='alpha',
-                    legend_label=label,
-                    # visible=('a' in ph),
+                    visible=('a' in ph),
                     source=ColumnDataSource(df[df['obs']]),  # only visible data
                 )
                 # add to hover tool
@@ -919,8 +919,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                     ys='ys',
                     color='color',
                     alpha='alpha',
-                    legend_label=label,
-                    # visible=('a' in ph),
+                    visible=('a' in ph),
                     source=ColumnDataSource(
                         data=dict(
                             xs=y_err_x,
@@ -931,20 +930,42 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                     ),
                 )
 
-        period_plot.legend.click_policy = "hide"
+        # toggle for folded photometry
+        period_toggle = CheckboxWithLegendGroup(
+            labels=colors_labels.label.tolist(),
+            active=list(range(len(colors_labels))),
+            colors=colors_labels.color.tolist(),
+            width=width // 5,
+        )
+        # use javascript to perform toggling on click
+        # TODO replace `eval` with Namespaces
+        # https://github.com/bokeh/bokeh/pull/6340
+        period_toggle.js_on_click(
+            CustomJS(
+                args={
+                    'toggle': period_toggle,
+                    'numphases': phase_selection,
+                    'p': period_plot,
+                    **period_model_dict,
+                },
+                code=open(
+                    os.path.join(
+                        os.path.dirname(__file__), '../static/js/plotjs', 'togglep.js'
+                    )
+                ).read(),
+            )
+        )
 
         # set up period adjustment text box
         period_title = Div(text="Period (days): ")
-        period_textinput = TextInput(
-            value=str(period if period is not None else 0.0), width=150
-        )
+        period_textinput = TextInput(value=str(period if period is not None else 0.0))
         period_textinput.js_on_change(
             'value',
             CustomJS(
                 args={
                     'textinput': period_textinput,
+                    'toggle': period_toggle,
                     'numphases': phase_selection,
-                    'n_labels': len(split),
                     'p': period_plot,
                     **period_model_dict,
                 },
@@ -956,7 +977,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             ),
         )
         # a way to modify the period
-        period_double_button = Button(label="*2", width=30)
+        period_double_button = Button(label="*2")
         period_double_button.js_on_click(
             CustomJS(
                 args={'textinput': period_textinput},
@@ -966,7 +987,7 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
                 """,
             )
         )
-        period_halve_button = Button(label="/2", width=30)
+        period_halve_button = Button(label="/2")
         period_halve_button.js_on_click(
             CustomJS(
                 args={'textinput': period_textinput},
@@ -989,8 +1010,8 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
             CustomJS(
                 args={
                     'textinput': period_textinput,
+                    'toggle': period_toggle,
                     'numphases': phase_selection,
-                    'n_labels': len(split),
                     'p': period_plot,
                     **period_model_dict,
                 },
@@ -1004,16 +1025,21 @@ def photometry_plot(obj_id, user, width=600, height=300, device="browser"):
 
         # layout
 
-        period_row = row(
+        period_column = column(
+            period_toggle,
             period_title,
             period_textinput,
-            period_double_button,
-            period_halve_button,
-            phase_selection,
             period_selection,
+            row(period_double_button, period_halve_button, width=180),
+            phase_selection,
+            width=180,
         )
 
-        period_layout = column(period_plot, period_row)
+        period_layout = column(
+            row(period_plot, period_column),
+            sizing_mode='scale_width',
+            width=width,
+        )
 
         # Period panel
         p3 = Panel(child=period_layout, title='Period')
