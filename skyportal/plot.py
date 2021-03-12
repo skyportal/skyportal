@@ -1,4 +1,5 @@
 import itertools
+import math
 
 import numpy as np
 import pandas as pd
@@ -15,6 +16,7 @@ from bokeh.models import (
     RadioGroup,
     CategoricalColorMapper,
     Legend,
+    LegendItem,
 )
 from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
 from bokeh.plotting import figure, ColumnDataSource
@@ -234,6 +236,55 @@ def annotate_spec(plot, spectra, lower, upper):
         )
 
 
+def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
+    """ Helper function to add responsive legends to a photometry plot tab """
+    if legend_orientation == "horizontal":
+        width_remaining = width - 120
+        current_legend_items = []
+        for item in legend_items:
+            # 0.52 is the aspect ratio of the Helvetica font (the default Bokeh
+            # label font) and 13 is the default label font size. The 30 is the
+            # pixel width of the label shape. The 6 is the spacing between label entries
+            item_width = len(item.label["value"]) * 0.52 * 13 + 30 + 6
+            # We've hit the end of the line, wrap to a new one
+            if item_width > width_remaining:
+                plot.add_layout(
+                    Legend(
+                        orientation=legend_orientation,
+                        items=current_legend_items,
+                        click_policy="hide",
+                        location="top_center",
+                        margin=3,
+                    ),
+                    "below",
+                )
+                width_remaining = width - 120
+                current_legend_items = [item]
+            else:
+                current_legend_items.append(item)
+                width_remaining -= item_width
+        # Add remaining
+        plot.add_layout(
+            Legend(
+                orientation=legend_orientation,
+                items=current_legend_items,
+                click_policy="hide",
+                location="top_center",
+                margin=3,
+            ),
+            "below",
+        )
+    else:
+        plot.add_layout(
+            Legend(
+                click_policy="hide",
+                items=legend_items,
+                location="top_center",
+            ),
+            legend_loc,
+        )
+
+
 def photometry_plot(obj_id, user, width=600, device="browser"):
     """Create object photometry scatter plot.
 
@@ -339,18 +390,46 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     xmin = data['mjd'].min() - 2
     xmax = data['mjd'].max() + 2
 
+    # Layout parameters based on device type
     active_drag = None if "mobile" in device or "tablet" in device else "box_zoom"
     tools = (
         'box_zoom,pan,reset'
         if "mobile" in device or "tablet" in device
         else "box_zoom,wheel_zoom,pan,reset,save"
     )
-
-    aspect_ratio = 2.0 if device == "mobile_landscape" else 1.5
+    legend_loc = "below" if "mobile" in device or "tablet" in device else "right"
+    legend_orientation = (
+        "vertical" if device in ["browser", "mobile_portrait"] else "horizontal"
+    )
+    # Compute an aspect ratio based on rough number of legend rows added below the plot
+    if device == "mobile_portrait":
+        legend_items_per_row = 1
+        legend_row_height = 24
+        aspect_ratio = 1
+    elif device == "mobile_landscape":
+        legend_items_per_row = 4
+        legend_row_height = 50
+        aspect_ratio = 1.8
+    elif device == "tablet_portrait":
+        legend_items_per_row = 5
+        legend_row_height = 50
+        aspect_ratio = 1.5
+    elif device == "tablet_landscape":
+        legend_items_per_row = 7
+        legend_row_height = 50
+        aspect_ratio = 1.8
+    height = (
+        500
+        if device == "browser"
+        else math.floor(width / aspect_ratio)
+        + legend_row_height * int(len(split) / legend_items_per_row)
+        + 30
+    )
+    aspect_ratio = math.floor(width / height)
 
     plot = figure(
-        aspect_ratio=aspect_ratio,
-        sizing_mode='scale_both',
+        width=width,
+        height=height,
         active_drag=active_drag,
         tools=tools,
         toolbar_location='above',
@@ -359,15 +438,20 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         min_border_right=16,
         x_axis_location='above',
     )
+
+    plot.xaxis.axis_label = 'MJD'
+    now = Time.now().mjd
+    plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
+    plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
+
     imhover = HoverTool(tooltips=tooltip_format)
     imhover.renderers = []
     plot.add_tools(imhover)
 
-    plot.add_layout(Legend(), 'right')
-
     model_dict = {}
-
+    legend_items = []
     for i, (label, sdf) in enumerate(split):
+        renderers = []
 
         # for the flux plot, we only show things that have a flux value
         df = sdf[sdf['hasflux']]
@@ -380,10 +464,9 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             marker=factor_mark('instrument', markers, instruments),
             fill_color=color_dict,
             alpha='alpha',
-            legend_label=label,
             source=ColumnDataSource(df),
         )
-
+        renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
         key = f'bin{i}'
@@ -393,7 +476,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             color='color',
             marker=factor_mark('instrument', markers, instruments),
             fill_color=color_dict,
-            legend_label=label,
             source=ColumnDataSource(
                 data=dict(
                     mjd=[],
@@ -409,7 +491,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                 )
             ),
         )
-
+        renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
         key = 'obserr' + str(i)
@@ -429,34 +511,32 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             ys='ys',
             color='color',
             alpha='alpha',
-            legend_label=label,
             source=ColumnDataSource(
                 data=dict(
                     xs=y_err_x, ys=y_err_y, color=df['color'], alpha=[1.0] * len(df)
                 )
             ),
         )
+        renderers.append(model_dict[key])
 
         key = f'binerr{i}'
         model_dict[key] = plot.multi_line(
             xs='xs',
             ys='ys',
             color='color',
-            legend_label=label,
+            # legend_label=label,
             source=ColumnDataSource(data=dict(xs=[], ys=[], color=[])),
         )
+        renderers.append(model_dict[key])
 
-    plot.xaxis.axis_label = 'MJD'
+        legend_items.append(LegendItem(label=label, renderers=renderers))
+
     if device == "mobile_portrait":
         plot.xaxis.ticker.desired_num_ticks = 5
     plot.yaxis.axis_label = 'Flux (μJy)'
     plot.toolbar.logo = None
 
-    plot.legend.click_policy = "hide"
-
-    now = Time.now().mjd
-    plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
-    plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
+    add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
 
     slider = Slider(
         start=0.0,
@@ -520,8 +600,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     # Mark when spectra were taken
     annotate_spec(plot, spectra, lower, upper)
-
-    layout = column(slider, plot, sizing_mode='scale_width', width=width)
+    layout = column(slider, plot, width=width, height=height)
 
     p1 = Panel(child=layout, title='Flux')
 
@@ -546,9 +625,8 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     )
 
     plot = figure(
-        aspect_ratio=aspect_ratio,
-        sizing_mode='scale_both',
         width=width,
+        height=height,
         active_drag=active_drag,
         tools=tools,
         y_range=(ymax, ymin),
@@ -558,6 +636,11 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         x_axis_location='above',
     )
 
+    plot.xaxis.axis_label = 'MJD'
+    now = Time.now().mjd
+    plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
+    plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
+
     obj = DBSession().query(Obj).get(obj_id)
     if obj.dm is not None:
         plot.extra_y_ranges = {
@@ -566,8 +649,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         plot.add_layout(
             LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
         )
-
-    plot.add_layout(Legend(), 'right')
 
     # Mark the first and last detections again
     detection_dates = data[obsind]['mjd']
@@ -615,7 +696,9 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     model_dict = {}
 
+    legend_items = []
     for i, (label, df) in enumerate(split):
+        renderers = []
 
         key = f'obs{i}'
         model_dict[key] = plot.scatter(
@@ -625,10 +708,9 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             marker=factor_mark('instrument', markers, instruments),
             fill_color=color_dict,
             alpha='alpha',
-            legend_label=label,
             source=ColumnDataSource(df[df['obs']]),
         )
-
+        renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
         unobs_source = df[~df['obs']].copy()
@@ -643,10 +725,9 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             fill_color='white',
             line_color='color',
             alpha='alpha',
-            legend_label=label,
             source=ColumnDataSource(unobs_source),
         )
-
+        renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
         key = f'bin{i}'
@@ -656,7 +737,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             color=color_dict,
             marker=factor_mark('instrument', markers, instruments),
             fill_color='color',
-            legend_label=label,
             source=ColumnDataSource(
                 data=dict(
                     mjd=[],
@@ -672,7 +752,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                 )
             ),
         )
-
+        renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
         key = 'obserr' + str(i)
@@ -692,7 +772,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             ys='ys',
             color='color',
             alpha='alpha',
-            legend_label=label,
             source=ColumnDataSource(
                 data=dict(
                     xs=y_err_x,
@@ -702,15 +781,16 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                 )
             ),
         )
+        renderers.append(model_dict[key])
 
         key = f'binerr{i}'
         model_dict[key] = plot.multi_line(
             xs='xs',
             ys='ys',
             color='color',
-            legend_label=label,
             source=ColumnDataSource(data=dict(xs=[], ys=[], color=[])),
         )
+        renderers.append(model_dict[key])
 
         key = f'unobsbin{i}'
         model_dict[key] = plot.scatter(
@@ -721,7 +801,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             fill_color='white',
             line_color=color_dict,
             alpha=0.8,
-            legend_label=label,
             source=ColumnDataSource(
                 data=dict(
                     mjd=[],
@@ -738,6 +817,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             ),
         )
         imhover.renderers.append(model_dict[key])
+        renderers.append(model_dict[key])
 
         key = f'all{i}'
         model_dict[key] = ColumnDataSource(df)
@@ -760,15 +840,12 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             ]
         )
 
-    plot.legend.click_policy = "hide"
+        legend_items.append(LegendItem(label=label, renderers=renderers))
 
-    plot.xaxis.axis_label = 'MJD'
+    add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
+
     plot.yaxis.axis_label = 'AB mag'
     plot.toolbar.logo = None
-
-    now = Time.now().mjd
-    plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
-    plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
 
     slider = Slider(
         start=0.0,
@@ -810,7 +887,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         .replace('detect_thresh', str(PHOT_DETECTION_THRESHOLD)),
     )
     slider.js_on_change('value', callback)
-    layout = column(top_layout, plot, sizing_mode='scale_width', width=width)
+    layout = column(top_layout, plot, width=width, height=height)
 
     p2 = Panel(child=layout, title='Mag')
 
@@ -832,14 +909,12 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     # don't generate if no period annotated
     if period is not None:
-
         # bokeh figure for period plotting
         period_plot = figure(
-            aspect_ratio=aspect_ratio,
-            sizing_mode='scale_both',
+            width=width,
+            height=height,
             active_drag=active_drag,
             tools=tools,
-            width=width,
             y_range=(ymax, ymin),
             x_range=(-0.01, 2.01),  # initially one phase
             toolbar_location='above',
@@ -862,26 +937,23 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                 LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'
             )
 
-        period_plot.add_layout(Legend(), 'right')
-
         # initiate hover tool
         period_imhover = HoverTool(tooltips=tooltip_format)
         period_imhover.renderers = []
         period_plot.add_tools(period_imhover)
 
         # initiate period radio buttons
-        period_selection = RadioGroup(labels=period_labels, active=0, width=150)
+        period_selection = RadioGroup(labels=period_labels, active=0)
 
-        phase_selection = RadioGroup(
-            labels=["One phase", "Two phases"], active=1, width=180
-        )
+        phase_selection = RadioGroup(labels=["One phase", "Two phases"], active=1)
 
         # store all the plot data
         period_model_dict = {}
 
         # iterate over each filter
+        legend_items = []
         for i, (label, df) in enumerate(split):
-
+            renderers = []
             # fold x-axis on period in days
             df['mjd_folda'] = (df['mjd'] % period) / period
             df['mjd_foldb'] = df['mjd_folda'] + 1.0
@@ -896,12 +968,12 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                     marker=factor_mark('instrument', markers, instruments),
                     fill_color=color_dict,
                     alpha='alpha',
-                    legend_label=label,
                     # visible=('a' in ph),
                     source=ColumnDataSource(df[df['obs']]),  # only visible data
                 )
                 # add to hover tool
                 period_imhover.renderers.append(period_model_dict[key])
+                renderers.append(period_model_dict[key])
 
                 # errorbars for phases
                 key = 'fold' + ph + f'err{i}'
@@ -922,7 +994,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                     ys='ys',
                     color='color',
                     alpha='alpha',
-                    legend_label=label,
                     # visible=('a' in ph),
                     source=ColumnDataSource(
                         data=dict(
@@ -933,14 +1004,17 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                         )
                     ),
                 )
+                renderers.append(period_model_dict[key])
 
-        period_plot.legend.click_policy = "hide"
+            legend_items.append(LegendItem(label=label, renderers=renderers))
+
+        add_plot_legend(
+            period_plot, legend_items, width, legend_orientation, legend_loc
+        )
 
         # set up period adjustment text box
         period_title = Div(text="Period (days): ")
-        period_textinput = TextInput(
-            value=str(period if period is not None else 0.0), width=150
-        )
+        period_textinput = TextInput(value=str(period if period is not None else 0.0))
         period_textinput.js_on_change(
             'value',
             CustomJS(
@@ -1006,32 +1080,49 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         )
 
         # layout
+        if device == "mobile_portrait":
+            period_controls = column(
+                row(
+                    period_title,
+                    period_textinput,
+                    period_double_button,
+                    period_halve_button,
+                    width=width,
+                    sizing_mode="scale_width",
+                ),
+                phase_selection,
+                period_selection,
+                width=width,
+            )
+            # Add extra height to plot based on period control components added
+            height += 130 + 18 * len(period_labels)
+        else:
+            period_controls = column(
+                row(
+                    period_title,
+                    period_textinput,
+                    period_double_button,
+                    period_halve_button,
+                    phase_selection,
+                    width=width,
+                    sizing_mode="scale_width",
+                ),
+                period_selection,
+                margin=10,
+            )
+            # Add extra height to plot based on period control components added
+            height += 90 + 18 * len(period_labels)
 
-        period_row = row(
-            period_title,
-            period_textinput,
-            period_double_button,
-            period_halve_button,
-            phase_selection,
-            period_selection,
-        )
-
-        period_layout = column(period_plot, period_row)
-
-        # period_layout = (
-        #     column(period_plot, period_column, width=width)
-        #     if "mobile" in device or "tablet" in device
-        #     else row(period_plot, period_column)
-        # )
+        period_layout = column(period_plot, period_controls, width=width, height=height)
 
         # Period panel
         p3 = Panel(child=period_layout, title='Period')
 
         # tabs for mag, flux, period
-        tabs = Tabs(tabs=[p2, p1, p3], width=width, sizing_mode='fixed')
+        tabs = Tabs(tabs=[p2, p1, p3], width=width, height=height, sizing_mode='fixed')
     else:
         # tabs for mag, flux
-        tabs = Tabs(tabs=[p2, p1], width=width, sizing_mode='fixed')
+        tabs = Tabs(tabs=[p2, p1], width=width, height=height, sizing_mode='fixed')
     return bokeh_embed.json_item(tabs)
 
 
