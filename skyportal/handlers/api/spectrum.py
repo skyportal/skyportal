@@ -336,7 +336,14 @@ class ASCIIHandler:
             raise ValueError('File must be smaller than 10MB.')
 
         # pass ascii in as a file-like object
-        file = io.BytesIO(ascii.encode('ascii'))
+        try:
+            file = io.BytesIO(ascii.encode('ascii'))
+        except UnicodeEncodeError:
+            raise ValueError(
+                'Unable to parse uploaded spectrum file as ascii. '
+                'Ensure the file is not a FITS file and retry.'
+            )
+
         spec = Spectrum.from_ascii(
             file,
             obj_id=json.get('obj_id', None),
