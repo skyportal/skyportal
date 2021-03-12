@@ -34,6 +34,23 @@ if response.status_code in (200, 400):
 curl -s -H 'Authorization: token ea70a5f0-b321-43c6-96a1-b2de225e0339' http://localhost:5000/api/sysinfo
 ```
 
+#### Using query parameters
+
+```python
+import requests
+
+token = 'ea70a5f0-b321-43c6-96a1-b2de225e0339'
+
+response = requests.get(
+    'http://localhost:5000/api/candidates?numPerPage=100&pageNumber=1',
+    headers={'Authorization': f'token {token}'}
+)
+
+print(f'HTTP code: {response.status_code}, {response.reason}')
+if response.status_code in (200, 400):
+    print(f'JSON response: {response.json()}')
+```
+
 ### Response
 
 In the above examples, the SkyPortal server is located at

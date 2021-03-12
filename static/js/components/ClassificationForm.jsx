@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import TextField from "@material-ui/core/TextField";
@@ -61,6 +61,9 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);
+  const [submissionRequestInProcess, setSubmissionRequestInProcess] = useState(
+    false
+  );
   const groupIDToName = {};
   groups.forEach((g) => {
     groupIDToName[g.id] = g.name;
@@ -78,6 +81,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
 
   const handleSubmit = async ({ formData }) => {
+    setSubmissionRequestInProcess(true);
     // Get the classification without the context
     const classification = formData.classification.split(" <> ")[0];
     const data = {
@@ -90,6 +94,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       data.group_ids = formData.groupIDs.map((id) => parseInt(id, 10));
     }
     const result = await dispatch(Actions.addClassification(data));
+    setSubmissionRequestInProcess(false);
     if (result.status === "success") {
       dispatch(showNotification("Classification saved"));
     }
@@ -277,6 +282,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       uiSchema={uiSchema}
       widgets={widgets}
       onSubmit={handleSubmit}
+      disabled={submissionRequestInProcess}
     />
   );
 };

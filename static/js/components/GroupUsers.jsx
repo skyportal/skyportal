@@ -70,14 +70,6 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
 
   // Set-up members table
   // MUI DataTable functions
-  const renderName = (value) => {
-    return value
-      ? `${value.first_name ? value.first_name : ""} ${
-          value.last_name ? value.last_name : ""
-        }`
-      : "";
-  };
-
   const renderUsername = (dataIndex) => {
     const user = group?.users[dataIndex];
     return (
@@ -104,7 +96,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
     return (
       <div>
         {group &&
-          currentUser.permissions?.includes("Manage users") &&
+          isAdmin(currentUser) &&
           (mobile ? (
             <div>
               <IconButton
@@ -150,12 +142,19 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
     );
   };
 
+  // Map first and last name into a single name field
+  const groupUsers = group?.users?.map((user) => ({
+    name: `${user.first_name ? user.first_name : ""} ${
+      user.last_name ? user.last_name : ""
+    }`,
+    ...user,
+  }));
+
   const columns = [
     {
-      name: "first_name",
+      name: "name",
       label: "Name",
       options: {
-        customBodyRender: renderName,
         filter: true,
         // Display only if there's at least one user with a first/last name
         display: !!group?.users?.filter(
@@ -167,7 +166,6 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
       name: "username",
       label: "Username",
       options: {
-        // Turn off default filtering for custom form
         filter: true,
         customBodyRenderLite: renderUsername,
       },
@@ -229,7 +227,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
         <MuiThemeProvider theme={getMuiTheme(theme)}>
           <MUIDataTable
             columns={columns}
-            data={group?.users ? group.users : []}
+            data={group?.users ? groupUsers : []}
             options={options}
           />
         </MuiThemeProvider>

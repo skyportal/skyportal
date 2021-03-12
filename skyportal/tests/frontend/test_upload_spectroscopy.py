@@ -19,26 +19,24 @@ def test_upload_spectroscopy(
 
     driver.wait_for_xpath('//*[contains(., "application/octet-stream")]')
 
-    mjd_element = driver.wait_for_xpath(f'//*[@id="root_mjd"]')
+    mjd_element = driver.wait_for_xpath('//*[@id="root_mjd"]')
     driver.scroll_to_element_and_click(mjd_element)
     mjd_element.send_keys('51232.')
 
-    instrument_id_element_xpath = f'//*[@id="root_instrument_id"]'
+    instrument_id_element_xpath = '//*[@id="root_instrument_id"]'
     driver.click_xpath(instrument_id_element_xpath)
 
     sedm_element_xpath = f'//li[@data-value="{inst_id}"]'
     driver.click_xpath(sedm_element_xpath, scroll_parent=True)
 
-    preview_button_xpath = f'//button[contains(.,"Preview")]'
+    preview_button_xpath = '//button[contains(.,"Preview")]'
     driver.click_xpath(preview_button_xpath)
 
-    submit_button_xpath = f'//button[contains(.,"Upload Spectrum")]'
+    submit_button_xpath = '//button[contains(.,"Upload Spectrum")]'
     driver.click_xpath(submit_button_xpath)
 
     driver.wait_for_xpath('//*[contains(.,"successful")]')
 
     driver.get(f"/source/{public_source.id}")
 
-    driver.wait_for_xpath(
-        f'//*[contains(.,"{sedm.telescope.nickname}/{sedm.name}")]', 20
-    )
+    driver.wait_for_xpath(f'//*[contains(.,"{sedm.name}")]', 20)

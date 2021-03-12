@@ -9,25 +9,28 @@ import { ra_to_hours, dec_to_dms } from "../units";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   SurveyLinkList: {
     display: "inline-block",
   },
   SurveyLink: {
-    backgroundColor: "#eee",
-    padding: "0.2em",
-    margin: "0.2em",
+    backgroundColor: theme.palette.primary.main,
+    padding: "2px 15px",
+    margin: "3px",
     display: "inline-block",
+    color: theme.palette.secondary.main,
+    borderRadius: "5px",
   },
   submitButton: {
     border: "none",
-    backgroundColor: "transparent",
+    backgroundColor: theme.palette.primary.main,
     cursor: "pointer",
     padding: 0,
     margin: 0,
     fontWeight: "bold",
-    color: "gray",
+    color: theme.palette.secondary.main,
     textDecoration: "none",
+    borderRadius: "5px",
   },
 }));
 

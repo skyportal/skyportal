@@ -28,7 +28,9 @@ def has_admin_access_for_group(user, group_id):
         .first()
     )
     return len(
-        {"System admin", "Manage groups"}.intersection(set(user.permissions))
+        {"System admin", "Manage groups", "Manage_users"}.intersection(
+            set(user.permissions)
+        )
     ) > 0 or (groupuser is not None and groupuser.admin)
 
 
@@ -496,7 +498,7 @@ class GroupUserHandler(BaseHandler):
             data={'group_id': group_id, 'user_id': user_id, 'admin': admin}
         )
 
-    @permissions(["Manage users"])
+    @auth_or_token
     def patch(self, group_id, *ignored_args):
         """
         ---
@@ -534,6 +536,8 @@ class GroupUserHandler(BaseHandler):
             group_id = int(group_id)
         except ValueError:
             return self.error("Invalid group ID")
+        if not has_admin_access_for_group(self.associated_user_object, group_id):
+            return self.error("Insufficient permissions.")
         user_id = data.get("userID")
         try:
             user_id = int(user_id)
@@ -555,7 +559,7 @@ class GroupUserHandler(BaseHandler):
         self.finalize_transaction()
         return self.success()
 
-    @permissions(["Manage users"])
+    @auth_or_token
     def delete(self, group_id, user_id):
         """
         ---

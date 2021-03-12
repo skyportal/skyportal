@@ -10,7 +10,6 @@ import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import ListItemIcon from "@material-ui/core/ListItemIcon";
 import ListItemText from "@material-ui/core/ListItemText";
-import { blue } from "@material-ui/core/colors";
 import IconButton from "@material-ui/core/IconButton";
 import GroupIcon from "@material-ui/icons/Group";
 import AssessmentIcon from '@material-ui/icons/Assessment';
@@ -40,7 +39,7 @@ const useStyles = makeStyles((theme) => ({
       duration: theme.transitions.duration.leavingScreen,
     }),
     height: "6em",
-    background: "#141b44",
+    background: theme.palette.primary.dark,
   },
   appBarShift: {
     width: `calc(100% - ${drawerWidth}px)`,
@@ -66,8 +65,7 @@ const useStyles = makeStyles((theme) => ({
   drawerPaper: {
     zIndex: 140,
     width: drawerWidth,
-    paddingLeft: "0.4em",
-    background: "#33345C",
+    background: theme.palette.primary.light,
     fontSize: "1.2em",
     paddingTop: "1rem",
   },
@@ -87,12 +85,15 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: 'flex-end',
   },
   link: {
-    color: "#B8D2FF",
+    color: theme.palette.info.main,
     textDecoration: "none",
   },
   bold: {
-    color: "white",
+    color: theme.palette.info.main,
     fontWeight: "bold"
+  },
+  icon: {
+    color: theme.palette.info.main,
   }
 }));
 
@@ -190,7 +191,7 @@ const SidebarAndHeader = () => {
           {%- endif %}
             <ListItem button name="sidebar{{ item.name }}Button">
               <ListItemIcon>
-                <{{ item.icon }}Icon style={{ "{{ color: blue[200] }}" }} />
+                <{{ item.icon }}Icon className={classes.icon} />
               </ListItemIcon>
               <SidebarLinkText
                 route="{{ item.url }}"
@@ -208,7 +209,7 @@ const SidebarAndHeader = () => {
             <Link to="/user_management" className={classes.link}>
               <ListItem button name="userManagementButton">
                 <ListItemIcon>
-                  <GroupIcon style={{ "{{ color: blue[200] }}" }} />
+                  <GroupIcon className={classes.icon} />
                 </ListItemIcon>
                 <SidebarLinkText
                   route="/user_management"
@@ -221,7 +222,7 @@ const SidebarAndHeader = () => {
             <Link to="/db_stats" className={classes.link}>
               <ListItem button name="dbStatsButton">
                 <ListItemIcon>
-                  <AssessmentIcon style={{ "{{ color: blue[200] }}" }} />
+                  <AssessmentIcon className={classes.icon} />
                 </ListItemIcon>
                 <SidebarLinkText
                   route="/db_stats"

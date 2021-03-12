@@ -11,19 +11,36 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 
 import { GET } from "../API";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   root: {
-    background: "#9394c3",
-    "& label": {
-      color: "black",
-    },
-    "& label.Mui-focused": {
-      color: "white",
+    "& .MuiOutlinedInput-root": {
+      "& fieldset": {
+        borderColor: theme.palette.info.main,
+      },
+      "&:hover fieldset": {
+        borderColor: theme.palette.info.main,
+      },
+      "&.Mui-focused fieldset": {
+        borderColor: theme.palette.info.main,
+      },
     },
   },
-  label: {
-    "& label": {
-      color: "white",
+  textField: {
+    color: theme.palette.info.main,
+  },
+  icon: {
+    color: theme.palette.info.main,
+  },
+  paper: {
+    backgroundColor: "#fff",
+  },
+  // These rules help keep the progress wheel centered. Taken from the first example: https://material-ui.com/components/progress/
+  progress: {
+    display: "flex",
+    // The below color rule is not for the progress container, but for CircularProgress. This component only accepts 'primary', 'secondary', or 'inherit'.
+    color: theme.palette.info.main,
+    "& > * + *": {
+      marginLeft: theme.spacing(2),
     },
   },
 }));
@@ -99,13 +116,13 @@ const QuickSearchBar = () => {
 
   return (
     <Autocomplete
+      color="primary"
       id="quick-search-bar"
-      style={{ width: "100%", padding: "0.5rem" }}
+      style={{ padding: "0.3rem" }}
+      classes={{ root: classes.root, paper: classes.paper }}
       getOptionSelected={(option, val) => option.name === val.name}
       getOptionLabel={(option) => option}
-      onInputChange={(e, val) => {
-        setInputValue(val);
-      }}
+      onInputChange={(e, val) => setInputValue(val)}
       onChange={(event, newValue, reason) => {
         setValue(newValue);
         if (reason === "select-option") {
@@ -115,9 +132,7 @@ const QuickSearchBar = () => {
           setOpen(false);
         }
       }}
-      onClose={() => {
-        setOpen(false);
-      }}
+      onClose={() => setOpen(false)}
       size="small"
       noOptionsText="No matching sources."
       options={options}
@@ -132,7 +147,7 @@ const QuickSearchBar = () => {
       renderOption={(option) => {
         const v = `/source/${option}`;
         return (
-          <Link to={v} id={`quickSearchLinkTo${option}`} color="inherit">
+          <Link to={v} id={`quickSearchLinkTo${option}`}>
             {option}
           </Link>
         );
@@ -141,24 +156,23 @@ const QuickSearchBar = () => {
         <TextField
           // eslint-disable-next-line react/jsx-props-no-spreading
           {...params}
-          className={classes.root}
           variant="outlined"
           placeholder="Source"
           fullWidth
           InputProps={{
             ...params.InputProps,
+            className: classes.textField,
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon fontSize="small" color="inherit" />
+                <SearchIcon fontSize="small" className={classes.icon} />
               </InputAdornment>
             ),
             endAdornment: (
-              <>
+              <div className={classes.progress}>
                 {loading ? (
-                  <CircularProgress color="inherit" size={15} />
+                  <CircularProgress size={20} color="inherit" />
                 ) : null}
-                {params.InputProps.endAdornment}
-              </>
+              </div>
             ),
           }}
         />

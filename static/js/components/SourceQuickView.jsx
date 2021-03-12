@@ -15,6 +15,7 @@ import Chip from "@material-ui/core/Chip";
 import IconButton from "@material-ui/core/IconButton";
 import CloseIcon from "@material-ui/icons/Close";
 import Typography from "@material-ui/core/Typography";
+import grey from "@material-ui/core/colors/grey";
 
 import ThumbnailList from "./ThumbnailList";
 import ShowClassification from "./ShowClassification";
@@ -30,7 +31,7 @@ const dialogTitleStyles = (theme) => ({
     position: "absolute",
     right: theme.spacing(1),
     top: theme.spacing(1),
-    color: theme.palette.grey[500],
+    color: grey[500],
   },
 });
 

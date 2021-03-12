@@ -100,7 +100,7 @@ const Notifications = () => {
     <>
       <IconButton
         onClick={handleClickOpen}
-        style={{ marginTop: "0.1rem", marginRight: "0.5rem" }}
+        style={{ margin: "0.5rem" }}
         data-testid="notificationsButton"
       >
         <Badge

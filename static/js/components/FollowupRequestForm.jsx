@@ -155,6 +155,7 @@ const FollowupRequestForm = ({
             ].uiSchema
           }
           onSubmit={handleSubmit}
+          disabled={isSubmitting}
         />
         {isSubmitting && (
           <div className={classes.marginTop}>

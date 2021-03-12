@@ -6,12 +6,8 @@ from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession,
-    Source,
     Comment,
     Group,
-    Candidate,
-    Filter,
-    Obj,
     User,
     UserNotification,
 )
@@ -52,10 +48,9 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        comment = Comment.get_if_readable_by(comment_id, self.current_user)
-        if comment is None:
-            return self.error('Invalid comment ID.')
-        self.verify_permissions()
+        comment = Comment.get_if_accessible_by(
+            comment_id, self.current_user, raise_if_none=True
+        )
         return self.success(data=comment)
 
     @permissions(['Comment'])
@@ -118,47 +113,14 @@ class CommentHandler(BaseHandler):
             return self.error("Missing required field `obj_id`")
         comment_text = data.get("text")
 
-        # Ensure user/token has access to associated Obj
-        _ = Obj.get_if_readable_by(obj_id, self.current_user)
-        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
-        user_accessible_filter_ids = [
-            filtr.id
-            for g in self.current_user.accessible_groups
-            for filtr in g.filters
-            if g.filters is not None
-        ]
-        group_ids = [int(id) for id in data.pop("group_ids", user_accessible_group_ids)]
-        group_ids = set(group_ids).intersection(user_accessible_group_ids)
+        group_ids = data.pop('group_ids', None)
         if not group_ids:
-            return self.error(
-                f"Invalid group IDs field ({group_ids}): "
-                "You must provide one or more valid group IDs."
+            groups = self.current_user.accessible_groups
+        else:
+            groups = Group.get_if_accessible_by(
+                group_ids, self.current_user, raise_if_none=True
             )
 
-        # Only post to groups source/candidate is actually associated with
-        candidate_group_ids = [
-            f.group_id
-            for f in (
-                DBSession()
-                .query(Filter)
-                .join(Candidate)
-                .filter(Filter.id.in_(user_accessible_filter_ids))
-                .filter(Candidate.obj_id == obj_id)
-                .all()
-            )
-        ]
-        source_group_ids = [
-            source.group_id
-            for source in DBSession()
-            .query(Source)
-            .filter(Source.obj_id == obj_id)
-            .all()
-        ]
-        group_ids = set(group_ids).intersection(candidate_group_ids + source_group_ids)
-        if not group_ids:
-            return self.error("Obj is not associated with any of the specified groups.")
-
-        groups = Group.query.filter(Group.id.in_(group_ids)).all()
         if 'attachment' in data:
             if (
                 isinstance(data['attachment'], dict)
@@ -244,9 +206,9 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        c = Comment.get_if_readable_by(comment_id, self.current_user)
-        if c is None:
-            return self.error('Invalid comment ID.')
+        c = Comment.get_if_accessible_by(
+            comment_id, self.current_user, mode="update", raise_if_none=True
+        )
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
@@ -273,21 +235,12 @@ class CommentHandler(BaseHandler):
                 'filled, or both must be null.'
             )
 
-        DBSession().flush()
         if group_ids is not None:
-            c = Comment.get_if_readable_by(comment_id, self.current_user)
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
-            if not groups:
-                return self.error(
-                    "Invalid group_ids field. Specify at least one valid group ID."
-                )
-            if not all(
-                [group in self.current_user.accessible_groups for group in groups]
-            ):
-                return self.error(
-                    "Cannot associate comment with groups you are not a member of."
-                )
+            groups = Group.get_if_accessible_by(
+                group_ids, self.current_user, raise_if_none=True
+            )
             c.groups = groups
+
         self.finalize_transaction()
         self.push_all(
             action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key}
@@ -313,16 +266,12 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = self.associated_user_object
-        c = Comment.query.get(comment_id)
-        if c is None:
-            return self.error("Invalid comment ID")
+        c = Comment.get_if_accessible_by(
+            comment_id, self.current_user, mode="delete", raise_if_none=True
+        )
         obj_key = c.obj.internal_key
-        if user.is_system_admin or c.author == user:
-            Comment.query.filter_by(id=comment_id).delete()
-            self.finalize_transaction()
-        else:
-            return self.error('Insufficient user permissions.')
+        DBSession().delete(c)
+        self.finalize_transaction()
         self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
         return self.success()
 
@@ -374,10 +323,9 @@ class CommentAttachmentHandler(BaseHandler):
         """
         download = strtobool(self.get_query_argument('download', "True").lower())
 
-        comment = Comment.get_if_readable_by(comment_id, self.current_user)
-        if comment is None:
-            return self.error('Invalid comment ID.')
-
+        comment = Comment.get_if_accessible_by(
+            comment_id, self.current_user, raise_if_none=True
+        )
         self.verify_permissions()
 
         if download:
