@@ -880,15 +880,20 @@ class CandidateHandler(BaseHandler):
         return self.success(data={"ids": [c.id for c in candidates]})
 
     @auth_or_token
-    def delete(self, candidate_id):
+    def delete(self, obj_id, filter_id):
         """
         ---
-        description: Delete a candidate
+        description: Delete candidate(s)
         tags:
           - candidates
         parameters:
           - in: path
-            name: candidate_id
+            name: obj_id
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: filter_id
             required: true
             schema:
               type: integer
@@ -898,13 +903,28 @@ class CandidateHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        c = Candidate.query.get(candidate_id)
-        if not (
-            self.associated_user_object.is_system_admin
-            or c.uploader_id == self.associated_user_object.id
-        ):
-            return self.error("Insufficient permissions.")
-        DBSession().delete(c)
+        cands = (
+            Candidate.query.filter(Candidate.obj_id == obj_id)
+            .filter(Candidate.filter_id == filter_id)
+            .all()
+        )
+        if not cands:
+            return self.error(
+                "Invalid (obj_id, filter_id) combination - "
+                "no matching candidates found."
+            )
+        for c in cands:
+            if not (
+                self.associated_user_object.is_system_admin
+                or c.uploader_id == self.associated_user_object.id
+            ):
+                return self.error(
+                    "Insufficient permissions for candidate w/ "
+                    f"passed_at={c.passed_at}"
+                )
+        DBSession().query(Candidate).filter(Candidate.obj_id == obj_id).filter(
+            Candidate.filter_id == filter_id
+        ).delete(synchronize_session="fetch")
         self.finalize_transaction()
 
         return self.success()
