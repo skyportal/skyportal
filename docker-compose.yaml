@@ -1,13 +1,38 @@
 version: "3.7"
 
+networks:
+  default:
+    external:
+      name: fritz_net
+
 services:
   web:
     image: skyportal/web
-    ports:
-      - "9000:5000"
-      - "9001:5001"
+    expose:
+      - "5000"
     volumes:
+      # fritz takes care of making a docker-appropriate config.yaml with Fritz-specific additions
+      - ${PWD}/skyportal/config.yaml:/skyportal/config.yaml
+      - ${PWD}/skyportal/data/db_fritz.yaml:/skyportal/data/db_seed.yaml
       - thumbnails:/skyportal/static/thumbnails
+    labels:
+#      # Explicitly tell Traefik to expose this container
+      - "traefik.enable=true"
+      - "traefik.docker.network=default"
+      - "traefik.http.routers.fritz.rule=Host(`<host>`)"
+      - "traefik.http.routers.fritz.entrypoints=websecure"
+      - "traefik.http.routers.fritz.tls.certresolver=myresolver"
+      - "traefik.http.services.fritz.loadBalancer.server.port=5000"
+#      # middleware redirect
+      - "traefik.http.middlewares.https_redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.https_redirect.redirectscheme.permanent=true"
+#      # global redirect to https
+      - "traefik.http.routers.http_catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http_catchall.entrypoints=web"
+      - "traefik.http.routers.http_catchall.middlewares=https_redirect"
+    restart: on-failure:3
+    depends_on:
+      - db
 
   db:
     image: postgres:12.2
