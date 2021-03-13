@@ -5,3 +5,6 @@ sphinx-rtd-theme
 notedown
 jsx-lexer
 eralchemy==1.2.10
+sphinx<3
+sphinx_press_theme
+myst-parser
