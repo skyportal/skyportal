@@ -43,7 +43,7 @@ function table_to_csv(source, write_header) {
 
 const filename = "objname.csv";
 let filetext = "";
-for (let i = 0; i < toggle.labels.length; i++) {
+for (let i = 0; i < n_labels; i++) {
   const write_header = i === 0;
   filetext += table_to_csv(eval(`bold${i}`), write_header);
 }

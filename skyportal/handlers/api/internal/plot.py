@@ -20,7 +20,6 @@ device_types = [
 class PlotPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
-        height = self.get_query_argument("height", 300)
         width = self.get_query_argument("width", 600)
         device = self.get_query_argument("device", None)
         # Just return browser by default if not one of accepted types
@@ -29,7 +28,6 @@ class PlotPhotometryHandler(BaseHandler):
         json = plot.photometry_plot(
             obj_id,
             self.current_user,
-            height=int(height),
             width=int(width),
             device=device,
         )
@@ -40,7 +38,6 @@ class PlotPhotometryHandler(BaseHandler):
 class PlotSpectroscopyHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
-        height = self.get_query_argument("height", 300)
         width = self.get_query_argument("width", 600)
         device = self.get_query_argument("device", None)
         # Just return browser by default if not one of accepted types
@@ -51,7 +48,6 @@ class PlotSpectroscopyHandler(BaseHandler):
             obj_id,
             self.associated_user_object,
             spec_id,
-            height=int(height),
             width=int(width),
             device=device,
         )
