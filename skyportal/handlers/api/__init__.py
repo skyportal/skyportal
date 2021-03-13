@@ -1,5 +1,6 @@
 from .acls import ACLHandler, UserACLHandler
 from .allocation import AllocationHandler
+from .alert import ZTFAlertHandler, ZTFAlertAuxHandler, ZTFAlertCutoutHandler
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
@@ -21,6 +22,7 @@ from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
+from .kowalski_filter import KowalskiFilterHandler
 from .news_feed import NewsFeedHandler
 from .observingrun import ObservingRunHandler
 from .photometry import (
