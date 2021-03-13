@@ -19,12 +19,6 @@ from ...models import (
 
 
 _, cfg = load_env()
-kowalski = Kowalski(
-    token=cfg["app.kowalski.token"],
-    protocol=cfg["app.kowalski.protocol"],
-    host=cfg["app.kowalski.host"],
-    port=int(cfg["app.kowalski.port"]),
-)
 
 
 class StatsHandler(BaseHandler):
@@ -141,6 +135,14 @@ class StatsHandler(BaseHandler):
                 },
             },
         }
+
+        kowalski = Kowalski(
+            token=cfg["app.kowalski.token"],
+            protocol=cfg["app.kowalski.protocol"],
+            host=cfg["app.kowalski.host"],
+            port=int(cfg["app.kowalski.port"]),
+        )
+
         response = kowalski.query(query=k_query)
         data["Number of alerts ingested since 0h UTC today"] = response.get("data")
         return self.success(data=data)
