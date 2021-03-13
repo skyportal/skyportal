@@ -1,0 +1,289 @@
+user:
+  - username: fritz.astro.marshal@gmail.com
+    roles:
+      - Super admin
+    =id: fritz
+    oauth_uid: fritz.astro.marshal@gmail.com
+  - username: kowalski.astro.bot@gmail.com
+    roles:
+      - Super admin
+    =id: kowalski
+    oauth_uid: kowalski.astro.bot@gmail.com
+
+streams:
+  - name: ZTF Public
+    altdata:
+      collection: ZTF_alerts
+      selector: [1]
+    =id: ztf_public
+  - name: ZTF Public+Partnership
+    altdata:
+      collection: ZTF_alerts
+      selector: [1, 2]
+    =id: ztf_partnership
+  - name: ZTF Public+Partnership+Caltech
+    altdata:
+      collection: ZTF_alerts
+      selector: [0, 1, 2, 3]
+    =id: ztf_caltech
+
+groups:
+  - name: ZTF Science Validation
+    group_admins:
+      - =kowalski
+    =id: ztf_science_validation
+  - name: Redshift Completeness Factor
+    =id: rcf
+  - name: Census of the Local Universe
+    =id: clu
+  - name: Young SNe Ia
+    =id: young_sne_ia
+  - name: EM + GW
+    =id: em_gw
+  - name: Short GRB
+    =id: short_grb
+  - name: Infant SNe
+    =id: infant_sne
+  - name: Fast Transients
+    =id: fast_transients
+  - name: Red Transients
+    =id: red_transients
+  - name: Superluminous Supernovae
+    =id: superluminous_sne
+  - name: X-ray Counterparts
+    =id: xray_counterparts
+  - name: Outbursting Stars
+    =id: outbursting_stars
+
+streams/=ztf_public/users:
+  - user_id: =fritz
+  - user_id: =kowalski
+
+streams/=ztf_partnership/users:
+  - user_id: =fritz
+  - user_id: =kowalski
+
+streams/=ztf_caltech/users:
+  - user_id: =fritz
+  - user_id: =kowalski
+
+groups/=ztf_science_validation/streams:
+  - stream_id: =ztf_public
+  - stream_id: =ztf_partnership
+
+groups/=rcf/streams:
+  - stream_id: =ztf_public
+
+groups/=clu/streams:
+  - stream_id: =ztf_caltech
+
+groups/=young_sne_ia/streams:
+  - stream_id: =ztf_partnership
+
+groups/=em_gw/streams:
+  - stream_id: =ztf_caltech
+
+groups/=short_grb/streams:
+  - stream_id: =ztf_partnership
+
+groups/=infant_sne/streams:
+  - stream_id: =ztf_partnership
+
+groups/=fast_transients/streams:
+  - stream_id: =ztf_caltech
+
+groups/=red_transients/streams:
+  - stream_id: =ztf_caltech
+
+groups/=superluminous_sne/streams:
+  - stream_id: =ztf_caltech
+
+groups/=xray_counterparts/streams:
+  - stream_id: =ztf_partnership
+
+groups/=outbursting_stars/streams:
+  - stream_id: =ztf_partnership
+
+filters:
+  - name: Public Transients
+    group_id: =ztf_science_validation
+    stream_id: =ztf_public
+
+  - name: RCF
+    group_id: =rcf
+    stream_id: =ztf_public
+
+  - name: CLU
+    group_id: =clu
+    stream_id: =ztf_caltech
+
+  - name: EM + GW
+    group_id: =em_gw
+    stream_id: =ztf_caltech
+
+  - name: Short GRB
+    group_id: =short_grb
+    stream_id: =ztf_partnership
+
+  - name: Infant SNe
+    group_id: =infant_sne
+    stream_id: =ztf_partnership
+
+  - name: Fast Transients
+    group_id: =fast_transients
+    stream_id: =ztf_caltech
+
+  - name: Red Transients
+    group_id: =red_transients
+    stream_id: =ztf_caltech
+
+  - name: SLSNe
+    group_id: =superluminous_sne
+    stream_id: =ztf_caltech
+
+  - name: X-ray Counterparts
+    group_id: =xray_counterparts
+    stream_id: =ztf_partnership
+
+  - name: Outbursting Stars
+    group_id: =outbursting_stars
+    stream_id: =ztf_partnership
+
+telescope:
+  file: telescopes_fritz.yaml
+
+instrument:
+  file: instruments_fritz.yaml
+
+taxonomy:
+  file: taxonomy_fritz.yaml
+
+allocation:
+  - pi: none, test allocation only, targets will not be observed
+    proposal_id: SEDM-001
+    start_date: "2020-09-15T00:00:00"
+    end_date: "2020-10-15T00:00:00"
+    hours_allocated: 100
+    group_id: =public_group_id
+    instrument_id: =SEDM
+  - pi: none, test allocation only, targets will not be observed
+    proposal_id: SEDM-001
+    start_date: "2020-09-15T00:00:00"
+    end_date: "2020-10-15T00:00:00"
+    hours_allocated: 100
+    group_id: =ztf_science_validation
+    instrument_id: =SEDM
+  - pi: none, test allocation only, targets will not be observed
+    proposal_id: SEDM-001
+    start_date: "2020-09-15T00:00:00"
+    end_date: "2020-10-15T00:00:00"
+    hours_allocated: 100
+    group_id: =rcf
+    instrument_id: =SEDM
+  - pi: none, test allocation only, targets will not be observed
+    proposal_id: SEDM-001
+    start_date: "2020-09-15T00:00:00"
+    end_date: "2020-10-15T00:00:00"
+    hours_allocated: 100
+    group_id: =clu
+    instrument_id: =SEDM
+  - pi: none, test allocation only, targets will not be observed
+    proposal_id: SEDM-001
+    start_date: "2020-09-15T00:00:00"
+    end_date: "2020-10-15T00:00:00"
+    hours_allocated: 100
+    group_id: =em_gw
+    instrument_id: =SEDM
+  - pi: none, test allocation only, targets will not be observed
+    proposal_id: SEDM-001
+    start_date: "2020-09-15T00:00:00"
+    end_date: "2020-10-15T00:00:00"
+    hours_allocated: 100
+    group_id: =short_grb
+    instrument_id: =SEDM
+  - pi: none, test allocation only, targets will not be observed
+    proposal_id: SEDM-001
+    start_date: "2020-09-15T00:00:00"
+    end_date: "2020-10-15T00:00:00"
+    hours_allocated: 100
+    group_id: =infant_sne
+    instrument_id: =SEDM
+  - pi: none, test allocation only, targets will not be observed
+    proposal_id: SEDM-001
+    start_date: "2020-09-15T00:00:00"
+    end_date: "2020-10-15T00:00:00"
+    hours_allocated: 100
+    group_id: =fast_transients
+    instrument_id: =SEDM
+  - pi: none, test allocation only, targets will not be observed
+    proposal_id: SEDM-001
+    start_date: "2020-09-15T00:00:00"
+    end_date: "2020-10-15T00:00:00"
+    hours_allocated: 100
+    group_id: =red_transients
+    instrument_id: =SEDM
+  - pi: none, test allocation only, targets will not be observed
+    proposal_id: SEDM-001
+    start_date: "2020-09-15T00:00:00"
+    end_date: "2020-10-15T00:00:00"
+    hours_allocated: 100
+    group_id: =superluminous_sne
+    instrument_id: =SEDM
+  - pi: none, test allocation only, targets will not be observed
+    proposal_id: SEDM-001
+    start_date: "2020-09-15T00:00:00"
+    end_date: "2020-10-15T00:00:00"
+    hours_allocated: 100
+    group_id: =xray_counterparts
+    instrument_id: =SEDM
+  - pi: none, test allocation only, targets will not be observed
+    proposal_id: SEDM-001
+    start_date: "2020-09-15T00:00:00"
+    end_date: "2020-10-15T00:00:00"
+    hours_allocated: 100
+    group_id: =outbursting_stars
+    instrument_id: =SEDM
+
+observing_run:
+  - pi: Mansi Kasliwal
+    instrument_id: =TSPEC
+    calendar_date: "2020-09-03"
+  - pi: Kishore Patra
+    instrument_id: =KAST
+    calendar_date: "2020-09-10"
+  - pi: Suvi Gezari
+    instrument_id: =Deveny+LMI
+    calendar_date: "2020-09-12"
+  - pi: Mansi Kasliwal
+    instrument_id: =LRIS
+    calendar_date: "2020-09-14"
+  - pi: Melissa Graham
+    instrument_id: =DIS
+    calendar_date: "2020-09-14"
+  - pi: Lin Yan
+    instrument_id: =DBSP
+    calendar_date: "2020-09-14"
+  - pi: Shri Kulkarni
+    instrument_id: =DBSP
+    calendar_date: "2020-09-16"
+  - pi: Kishore Patra
+    instrument_id: =KAST
+    calendar_date: "2020-09-18"
+  - pi: Shri Kulkarni
+    instrument_id: =LRIS
+    calendar_date: "2020-09-19"
+  - pi: Melissa Graham
+    instrument_id: =DIS
+    calendar_date: "2020-09-21"
+  - pi: Kishore Patra
+    instrument_id: =KAST
+    calendar_date: "2020-09-24"
+  - pi: Mansi Kasliwal
+    instrument_id: =TSPEC
+    calendar_date: "2020-09-28"
+  - pi: Mansi Kasliwal
+    instrument_id: =LRIS
+    calendar_date: "2020-11-19"
+  - pi: Mansi Kasliwal
+    instrument_id: =NIRES
+    calendar_date: "2020-10-30"

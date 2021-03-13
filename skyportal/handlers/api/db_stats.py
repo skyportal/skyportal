@@ -1,4 +1,9 @@
+import datetime
+from astropy.time import Time
+from penquins import Kowalski
+
 from baselayer.app.access import permissions
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -10,6 +15,15 @@ from ...models import (
     Group,
     Spectrum,
     CronJobRun,
+)
+
+
+_, cfg = load_env()
+kowalski = Kowalski(
+    token=cfg["app.kowalski.token"],
+    protocol=cfg["app.kowalski.protocol"],
+    host=cfg["app.kowalski.host"],
+    port=int(cfg["app.kowalski.port"]),
 )
 
 
@@ -113,4 +127,20 @@ class StatsHandler(BaseHandler):
                     "output": cron_job_run.output,
                 }
             )
+
+        utc_now = datetime.datetime.utcnow()
+        jd_start = Time(datetime.datetime(utc_now.year, utc_now.month, utc_now.day)).jd
+        k_query = {
+            "query_type": "count_documents",
+            "query": {
+                "catalog": "ZTF_alerts",
+                "filter": {
+                    "candidate.jd": {
+                        "$gt": jd_start,
+                    }
+                },
+            },
+        }
+        response = kowalski.query(query=k_query)
+        data["Number of alerts ingested since 0h UTC today"] = response.get("data")
         return self.success(data=data)
