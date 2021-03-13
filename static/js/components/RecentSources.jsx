@@ -24,13 +24,13 @@ export const useSourceListStyles = makeStyles((theme) => ({
   stampContainer: {
     display: "contents",
   },
-  stamp: (props) => ({
+  stamp: ({ invertThumbnails }) => ({
     transition: "transform 0.1s",
     width: "5em",
     height: "auto",
     display: "block",
-    filter: props.invertThumbnails ? "invert(1)" : "unset",
-    WebkitFilter: props.invertThumbnails ? "invert(1)" : "unset",
+    filter: invertThumbnails ? "invert(1)" : "unset",
+    WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
     "&:hover": {
       color: "rgba(255, 255, 255, 1)",
       boxShadow: "0 5px 15px rgba(51, 52, 92, 0.6)",

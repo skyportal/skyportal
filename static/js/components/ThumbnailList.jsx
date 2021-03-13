@@ -15,8 +15,8 @@ import Typography from "@material-ui/core/Typography";
 dayjs.extend(calendar);
 
 const useStyles = makeStyles((theme) => ({
-  root: (props) => ({
-    width: props.size,
+  root: ({ size }) => ({
+    width: size,
     margin: "0.5rem auto",
     maxHeight: "31rem",
     flexGrow: 1,
@@ -35,18 +35,18 @@ const useStyles = makeStyles((theme) => ({
   mediaDiv: {
     position: "relative",
   },
-  media: (props) => ({
-    height: props.size,
-    width: props.size,
-    filter: props.invertThumbnails ? "invert(1)" : "unset",
-    WebkitFilter: props.invertThumbnails ? "invert(1)" : "unset",
+  media: ({ size, invertThumbnails }) => ({
+    height: size,
+    width: size,
+    filter: invertThumbnails ? "invert(1)" : "unset",
+    WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
   }),
-  crosshair: (props) => ({
+  crosshair: ({ size }) => ({
     position: "absolute",
     top: 0,
     left: 0,
-    width: props.size,
-    height: props.size,
+    width: size,
+    height: size,
     paddingBottom: "0.2em",
   }),
 }));
