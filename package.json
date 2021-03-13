@@ -94,7 +94,10 @@
     "json-loader": "0.5.7",
     "webpack": "4.46.0",
     "webpack-bundle-analyzer": "3.8.0",
-    "webpack-cli": "3.3.12"
+    "webpack-cli": "3.3.12",
+    "react-copy-to-clipboard": "5.0.3",
+    "react-diff-viewer": "3.1.1",
+    "react-json-view": "1.19.1"
   },
   "repository": {
     "type": "git",
