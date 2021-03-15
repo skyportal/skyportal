@@ -63,6 +63,9 @@ const useStyles = makeStyles((theme) => ({
   sourceName: {
     verticalAlign: "middle",
   },
+  objId: {
+    color: theme.palette.primary.main,
+  },
   starButton: {
     verticalAlign: "middle",
   },
@@ -435,7 +438,7 @@ const SourceTable = ({
         key={`${objid}_objid`}
         data-testid={`${objid}`}
       >
-        <span> {objid} </span>
+        <span className={classes.objId}>{objid}</span>
       </Link>
     );
   };
