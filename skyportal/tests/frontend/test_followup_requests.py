@@ -20,7 +20,7 @@ else:
     sedm_isonline = True
 
 url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
-lt_isonline = True
+lt_isonline = False
 # try:
 #     requests.get(url, timeout=5)
 # except requests.exceptions.ConnectTimeout:
