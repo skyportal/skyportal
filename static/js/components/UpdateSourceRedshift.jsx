@@ -9,6 +9,7 @@ import Button from "@material-ui/core/Button";
 import { makeStyles } from "@material-ui/core/styles";
 import SaveIcon from "@material-ui/icons/Save";
 import ClearIcon from "@material-ui/icons/Clear";
+import Tooltip from "@material-ui/core/Tooltip";
 import TextField from "@material-ui/core/TextField";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -108,18 +109,20 @@ const UpdateSourceRedshift = ({ source }) => {
             </Button>
           </div>
           <div className={classes.saveButton}>
-            <Button
-              color="primary"
-              onClick={() => {
-                handleSubmit(null);
-              }}
-              startIcon={<ClearIcon />}
-              size="large"
-              data-testid="nullifyRedshiftButton"
-              disabled={isSubmitting || source.redshift === null}
-            >
-              Set null
-            </Button>
+            <Tooltip title="Clears source redshift value (sets to null)">
+              <Button
+                color="primary"
+                onClick={() => {
+                  handleSubmit(null);
+                }}
+                startIcon={<ClearIcon />}
+                size="large"
+                data-testid="nullifyRedshiftButton"
+                disabled={isSubmitting || source.redshift === null}
+              >
+                Set null
+              </Button>
+            </Tooltip>
           </div>
         </DialogContent>
       </Dialog>
