@@ -332,3 +332,6 @@ notifications:
 standard_stars:
   ZTF: data/ztf_standards.csv
   ESO: data/eso_standards.csv
+
+misc:
+  photometry_detection_threshold_nsigma: 3.0
