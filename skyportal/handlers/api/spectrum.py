@@ -505,7 +505,10 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
                 schema: Error
         """
 
-        spec = self.spec_from_ascii_request(validator=SpectrumAsciiFileParseJSON)
+        try:
+            spec = self.spec_from_ascii_request(validator=SpectrumAsciiFileParseJSON)
+        except Exception as e:
+            return self.error(f'Error parsing spectrum: {e.args[0]}')
         return self.success(data=spec)
 
 
