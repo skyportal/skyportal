@@ -37,7 +37,7 @@ def update_redshift_history_if_relevant(request_data, obj, user):
             {
                 "set_by_user_id": user.id,
                 "set_at_utc": datetime.datetime.utcnow().isoformat(),
-                "value": float(request_data["redshift"]),
+                "value": request_data["redshift"],
             }
         )
         obj.redshift_history = redshift_history
