@@ -79,7 +79,7 @@ const UpdateSourceRedshift = ({ source }) => {
         }}
         style={{ position: "fixed" }}
       >
-        <DialogTitle>Update Redshift (or Nullify)</DialogTitle>
+        <DialogTitle>Update Redshift</DialogTitle>
         <DialogContent>
           <div>
             {invalid && (
@@ -109,7 +109,7 @@ const UpdateSourceRedshift = ({ source }) => {
             </Button>
           </div>
           <div className={classes.saveButton}>
-            <Tooltip title="Clears source redshift value (sets to null)">
+            <Tooltip title="Clear source redshift value (set to null)">
               <Button
                 color="primary"
                 onClick={() => {
@@ -120,7 +120,7 @@ const UpdateSourceRedshift = ({ source }) => {
                 data-testid="nullifyRedshiftButton"
                 disabled={isSubmitting || source.redshift === null}
               >
-                Set null
+                Clear
               </Button>
             </Tooltip>
           </div>
