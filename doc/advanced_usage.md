@@ -1,36 +1,47 @@
 # Advanced usage
 
-## Posting color-magnitude data
+## Posting color-magnitude data to generate an HR diagram
 
 For stellar targets we are interested in showing the HR diagram
 based on the color-magnitude data from a cross match to, e.g., the Gaia catalog.
-This is done by posting an `Annotation` to the source, with correctly formatted data.
+Currently we support only Gaia inputs on the front-end,
+but in a future release we may expand the notion of the HR diagram
+to arbitrary catalogs.
 
-First lets see how to post an `Annotation` using the `request` package.
+This is done by posting an `Annotation` to the source, with correctly formatted data.
+If at least one properly formatted `Annotation` exists on the source,
+an HR diagram will be rendered for it.
+
+First let's see how to post an `Annotation` using the `request` package.
 Here is a working example:
 
 ```
 import requests
 import json
 
-url = http://localhost:5000
+url = 'http://localhost:5000'
 token = '239868fa-8307-41ad-983f-4a8180609df6'
 header = {"Authorization": f"token {token}", "content_type": "application/json"}
 parameters = {}
 data = {'obj_id': '2021example',
         'origin': 'cross_match_robot',
-        'Gaia': {'Mag_G', 10.2, 'Mag_Bp': 9.8, 'Mag_Rp': 10.5, 'Plx': 8.5}
+        'Gaia': {'Mag_G', 10.2,
+                 'Mag_Bp': 9.8,
+                 'Mag_Rp': 10.5,
+                 'Plx': 8.5
+                 }
         }
 
-r = requests.post(
-    f'{url}/api/annotation',
-    header=header,
-    params=parameters,
-    data=json.dumps(data))
+response = requests.post(
+      f'{url}/api/annotation',
+      header=header,
+      params=parameters,
+      data=json.dumps(data)
+    )
 
 ```
 
-Lets look at this one by one.
+Let's look at this line by line.
 
 The `url` should point to the SkyPortal instance,
 in this case running on a local machine.
@@ -73,16 +84,16 @@ with a specific schema:
 - That dictionary must contain the following entries:
 - `Mag_G', 'Mag_Bp', 'Mag_Rp', 'Plx'.
 - All these names (including the catalog name) will be made customizable
-  on a future release. Currently the HR diagram is drawn only for Gaia data.
+  in a future release. Currently the HR diagram is drawn only for Gaia data.
 - The names are searched ignoring case, and removing underscores.
   So, for example, the dictionary can contain `mag_g` or `MagG`,
   and would still be accepted as data for an HR diagram.
   Please do not include multiple data keys with indistinguishable names,
   i.e., both `mag_g` and `Mag_G` in the same `Annotation` as this will
-  cause undefinced behavior.
+  cause undefined behavior.
 
-Finally, the return value `r` from the request
-should contain a `status==200` and a return data dictionary
+Finally, the return value `response` from the request
+should contain a `status==200` and a data dictionary
 with the data that was posted.
 If the posting was unsuccessful,
 the status would be 400.
