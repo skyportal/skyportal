@@ -358,16 +358,6 @@ class CandidateHandler(BaseHandler):
             )
             filter_ids = [cand.filter_id for cand in accessible_candidates]
 
-            is_rejected = (
-                DBSession()
-                .query(Candidate)
-                .join(Listing)
-                .filter(
-                    Candidate.obj_id == obj_id,
-                    Listing.list_name == 'rejected_candidates',
-                )
-                .first()
-            )
             passing_alerts = [
                 {
                     "filter_id": cand.filter_id,
@@ -412,7 +402,7 @@ class CandidateHandler(BaseHandler):
             candidate_info["luminosity_distance"] = c.luminosity_distance
             candidate_info["dm"] = c.dm
             candidate_info["angular_diameter_distance"] = c.angular_diameter_distance
-            candidate_info["is_rejected"] = is_rejected is not None
+
             self.verify_permissions()
             return self.success(data=candidate_info)
 
