@@ -2168,7 +2168,11 @@ GroupAnnotation.delete = GroupAnnotation.update = (
 )
 
 User.annotations = relationship(
-    "Annotation", back_populates="author", foreign_keys="Annotation.author_id"
+    "Annotation",
+    back_populates="author",
+    foreign_keys="Annotation.author_id",
+    cascade="delete",
+    passive_deletes=True,
 )
 
 # To create or read a classification, you must have read access to the

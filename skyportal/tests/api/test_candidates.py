@@ -56,7 +56,9 @@ def test_token_user_retrieving_candidate_with_spec(view_only_token, public_candi
 
 
 def test_token_user_post_delete_new_candidate(
-    upload_data_token, view_only_token, public_filter,
+    upload_data_token,
+    view_only_token,
+    public_filter,
 ):
     obj_id = str(uuid.uuid4())
     status, data = api(
@@ -75,14 +77,17 @@ def test_token_user_post_delete_new_candidate(
         token=upload_data_token,
     )
     assert status == 200
-    candidate_id = data["data"]["ids"][0]
 
     status, data = api("GET", f"candidates/{obj_id}", token=view_only_token)
     assert status == 200
     assert data["data"]["id"] == obj_id
     npt.assert_almost_equal(data["data"]["ra"], 234.22)
 
-    status, data = api("DELETE", f"candidates/{candidate_id}", token=upload_data_token,)
+    status, data = api(
+        "DELETE",
+        f"candidates/{obj_id}/{public_filter.id}",
+        token=upload_data_token,
+    )
     assert status == 200
 
 
@@ -245,7 +250,7 @@ def test_candidate_list_sorting_basic(
     # instead of by last_detected_at (which would put public_candidate2 first)
     status, data = api(
         "GET",
-        f"candidates",
+        "candidates",
         params={
             "sortByAnnotationOrigin": f"{origin}",
             "sortByAnnotationKey": "numeric_field",
@@ -291,7 +296,7 @@ def test_candidate_list_sorting_different_origins(
     # public_candidate annotation) public_candidate2 is returned first
     status, data = api(
         "GET",
-        f"candidates",
+        "candidates",
         params={
             "sortByAnnotationOrigin": f"{origin2}",
             "sortByAnnotationKey": "numeric_field",
@@ -342,7 +347,7 @@ def test_candidate_list_sorting_hidden_group(
     # seen in the response
     status, data = api(
         "GET",
-        f"candidates",
+        "candidates",
         params={
             "sortByAnnotationOrigin": f"{public_group2.id}",
             "sortByAnnotationKey": "numeric_field",
@@ -388,7 +393,7 @@ def test_candidate_list_sorting_null_value(
     # latest
     status, data = api(
         "GET",
-        f"candidates",
+        "candidates",
         params={
             "sortByAnnotationOrigin": f"{origin}",
             "sortByAnnotationKey": "numeric_field",
@@ -433,7 +438,7 @@ def test_candidate_list_filtering_numeric(
     # is returned
     status, data = api(
         "GET",
-        f"candidates",
+        "candidates",
         params={
             "annotationFilterList": f'{{"origin":"{origin}","key":"numeric_field","min":0,"max":1.5}}',
         },
@@ -476,7 +481,7 @@ def test_candidate_list_filtering_boolean(
     # is returned
     status, data = api(
         "GET",
-        f"candidates",
+        "candidates",
         params={
             "annotationFilterList": f'{{"origin": "{origin}", "key": "bool_field", "value": "true"}}',
         },
@@ -519,7 +524,7 @@ def test_candidate_list_filtering_string(
     # is returned
     status, data = api(
         "GET",
-        f"candidates",
+        "candidates",
         params={
             "annotationFilterList": f'{{"origin": "{origin}", "key": "string_field", "value": "a"}}',
         },
@@ -575,7 +580,10 @@ def test_candidate_list_classifications(
     assert status == 200
 
     status, data = api(
-        "POST", "sources", data={"id": obj_id1}, token=upload_data_token,
+        "POST",
+        "sources",
+        data={"id": obj_id1},
+        token=upload_data_token,
     )
     assert status == 200
     status, data = api(
@@ -809,7 +817,7 @@ def test_candidate_list_saved_to_all_selected_groups(
     # Should not get obj_id3 back since it was not saved
     status, data = api(
         "GET",
-        f"candidates/",
+        "candidates",
         params={
             "groupIDs": f"{public_group.id},{public_group2.id}",
             "savedStatus": "savedToAllSelected",
@@ -906,7 +914,7 @@ def test_candidate_list_saved_to_any_selected_groups(
     # Should not get obj_id3 back since it was not saved
     status, data = api(
         "GET",
-        f"candidates/",
+        "candidates",
         params={
             "groupIDs": f"{public_group.id},{public_group2.id}",
             "savedStatus": "savedToAnySelected",
@@ -985,7 +993,7 @@ def test_candidate_list_saved_to_any_accessible_groups(
     # Should not get obj_id2 back since it was not saved
     status, data = api(
         "GET",
-        f"candidates/",
+        "candidates",
         params={
             "groupIDs": f"{public_group.id}",
             "savedStatus": "savedToAnyAccessible",
@@ -1084,7 +1092,7 @@ def test_candidate_list_not_saved_to_any_accessible_groups(
     # Should not get back obj_id3 since it is saved to public_group
     status, data = api(
         "GET",
-        f"candidates/",
+        "candidates",
         params={
             "groupIDs": f"{public_group.id}",
             "savedStatus": "notSavedToAnyAccessible",
@@ -1190,7 +1198,7 @@ def test_candidate_list_not_saved_to_any_selected_groups(
     # Should not get back obj_id3 since it is saved to public_group
     status, data = api(
         "GET",
-        f"candidates/",
+        "candidates",
         params={
             "groupIDs": f"{public_group.id},{public_group2.id}",
             "savedStatus": "notSavedToAnySelected",
@@ -1289,7 +1297,7 @@ def test_candidate_list_not_saved_to_all_selected_groups(
     # Should get back obj_id3 since it is saved to only public_group
     status, data = api(
         "GET",
-        f"candidates/",
+        "candidates",
         params={
             "groupIDs": f"{public_group.id},{public_group2.id}",
             "savedStatus": "notSavedToAllSelected",

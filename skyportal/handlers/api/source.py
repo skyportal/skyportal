@@ -44,7 +44,7 @@ from ...utils import (
 )
 from .candidate import grab_query_results, update_redshift_history_if_relevant
 from .photometry import serialize
-
+from .color_mag import get_color_mag
 
 SOURCES_PER_PAGE = 100
 
@@ -272,6 +272,20 @@ class SourceHandler(BaseHandler):
               Boolean indicating whether to include associated photometry. Defaults to
               false.
           - in: query
+            name: includeColorMagnitude
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include the color-magnitude data from Gaia.
+              This will only include data for objects that have an annotation
+              with the appropriate format: a key named Gaia that contains a dictionary
+              with keys named Mag_G, Mag_Bp, Mag_Rp, and Plx
+              (underscores and case are ignored when matching all the above keys).
+              The result is saved in a field named 'color_magnitude'.
+              If no data is available, returns an empty array.
+              Defaults to false (do not search for nor include this info).
+          - in: query
             name: includeRequested
             nullable: true
             schema:
@@ -460,6 +474,7 @@ class SourceHandler(BaseHandler):
         list_name = self.get_query_argument('listName', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         include_photometry = self.get_query_argument("includePhotometry", False)
+        include_color_mag = self.get_query_argument("includeColorMagnitude", False)
         include_requested = self.get_query_argument("includeRequested", False)
         requested_only = self.get_query_argument("pendingOnly", False)
         saved_after = self.get_query_argument('savedAfter', None)
@@ -652,6 +667,10 @@ class SourceHandler(BaseHandler):
                     source_table_row.saved_by.to_dict()
                     if source_table_row.saved_by is not None
                     else None
+                )
+            if include_color_mag:
+                source_info["color_magnitude"] = get_color_mag(
+                    source_info["annotations"]
                 )
 
             # add the date(s) this source was saved to each of these groups
@@ -973,6 +992,10 @@ class SourceHandler(BaseHandler):
                         if source_table_row.saved_by is not None
                         else None
                     )
+                if include_color_mag:
+                    source_list[-1]["color_magnitude"] = get_color_mag(
+                        source_list[-1]["annotations"]
+                    )
 
                 # add the date(s) this source was saved to each of these groups
                 for i, g in enumerate(source_list[-1]["groups"]):
@@ -1081,12 +1104,21 @@ class SourceHandler(BaseHandler):
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
 
         DBSession().add(obj)
-        DBSession().add_all(
-            [
-                Source(obj=obj, group=group, saved_by_id=self.associated_user_object.id)
-                for group in groups
-            ]
-        )
+        for group in groups:
+            source = (
+                Source.query.filter(Source.obj_id == obj.id)
+                .filter(Source.group_id == group.id)
+                .first()
+            )
+            if source is not None:
+                source.active = True
+                source.saved_by = self.associated_user_object
+            else:
+                DBSession().add(
+                    Source(
+                        obj=obj, group=group, saved_by_id=self.associated_user_object.id
+                    )
+                )
         self.finalize_transaction()
         if not obj_already_exists:
             obj.add_linked_thumbnails()

@@ -1,5 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
+import { useSelector } from "react-redux";
 
 import dayjs from "dayjs";
 import calendar from "dayjs/plugin/calendar";
@@ -14,8 +15,8 @@ import Typography from "@material-ui/core/Typography";
 dayjs.extend(calendar);
 
 const useStyles = makeStyles((theme) => ({
-  root: (props) => ({
-    width: props.size,
+  root: ({ size }) => ({
+    width: size,
     margin: "0.5rem auto",
     maxHeight: "31rem",
     flexGrow: 1,
@@ -34,16 +35,18 @@ const useStyles = makeStyles((theme) => ({
   mediaDiv: {
     position: "relative",
   },
-  media: (props) => ({
-    height: props.size,
-    width: props.size,
+  media: ({ size, invertThumbnails }) => ({
+    height: size,
+    width: size,
+    filter: invertThumbnails ? "invert(1)" : "unset",
+    WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
   }),
-  crosshair: (props) => ({
+  crosshair: ({ size }) => ({
     position: "absolute",
     top: 0,
     left: 0,
-    width: props.size,
-    height: props.size,
+    width: size,
+    height: size,
     paddingBottom: "0.2em",
   }),
 }));
@@ -52,7 +55,11 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
-  const classes = useStyles({ size });
+  const invertThumbnails = useSelector(
+    (state) => state.profile.preferences.invertThumbnails
+  );
+
+  const classes = useStyles({ size, invertThumbnails });
 
   let alt = null;
   let link = null;

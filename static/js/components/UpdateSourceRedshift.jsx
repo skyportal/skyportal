@@ -8,6 +8,8 @@ import DialogTitle from "@material-ui/core/DialogTitle";
 import Button from "@material-ui/core/Button";
 import { makeStyles } from "@material-ui/core/styles";
 import SaveIcon from "@material-ui/icons/Save";
+import ClearIcon from "@material-ui/icons/Clear";
+import Tooltip from "@material-ui/core/Tooltip";
 import TextField from "@material-ui/core/TextField";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -48,10 +50,10 @@ const UpdateSourceRedshift = ({ source }) => {
     setState(value);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (value) => {
     setIsSubmitting(true);
     const result = await dispatch(
-      sourceActions.updateSource(source.id, { redshift: state })
+      sourceActions.updateSource(source.id, { redshift: value })
     );
     setIsSubmitting(false);
     if (result.status === "success") {
@@ -95,7 +97,9 @@ const UpdateSourceRedshift = ({ source }) => {
           <div className={classes.saveButton}>
             <Button
               color="primary"
-              onClick={handleSubmit}
+              onClick={() => {
+                handleSubmit(state);
+              }}
               startIcon={<SaveIcon />}
               size="large"
               data-testid="updateRedshiftSubmitButton"
@@ -103,6 +107,22 @@ const UpdateSourceRedshift = ({ source }) => {
             >
               Save
             </Button>
+          </div>
+          <div className={classes.saveButton}>
+            <Tooltip title="Clear source redshift value (set to null)">
+              <Button
+                color="primary"
+                onClick={() => {
+                  handleSubmit(null);
+                }}
+                startIcon={<ClearIcon />}
+                size="large"
+                data-testid="nullifyRedshiftButton"
+                disabled={isSubmitting || source.redshift === null}
+              >
+                Clear
+              </Button>
+            </Tooltip>
           </div>
         </DialogContent>
       </Dialog>

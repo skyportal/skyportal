@@ -45,6 +45,8 @@ import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
 
+const VegaHR = React.lazy(() => import("./VegaHR"));
+
 const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
 const CentroidPlot = React.lazy(() =>
@@ -133,6 +135,8 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "inline-block",
     verticalAlign: "super",
   },
+  HRDiagramContainer: {},
+  followuphrDiagramContainer: {},
   followupContainer: {
     display: "flex",
     overflow: "hidden",
@@ -202,15 +206,7 @@ const SourceMobile = WidthProvider(
       device = isLandscape ? "tablet_landscape" : "tablet_portrait";
     }
 
-    // Browser defaults
-    const aspectRatio = isMobileOnly && isLandscape ? 2.0 : 1.5;
     const plotWidth = isBrowser ? 800 : width - 100;
-    const photPlotHeight = isBrowser
-      ? 500
-      : Math.floor(plotWidth / aspectRatio) + 150;
-    const specPlotHeight = isBrowser
-      ? 600
-      : Math.floor(plotWidth / aspectRatio) + 225;
 
     return (
       <div className={classes.source}>
@@ -416,7 +412,7 @@ const SourceMobile = WidthProvider(
                 <div className={classes.photometryContainer}>
                   <Suspense fallback={<div>Loading photometry plot...</div>}>
                     <Plot
-                      url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&height=${photPlotHeight}&device=${device}`}
+                      url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
                     />
                   </Suspense>
                   <div className={classes.plotButtons}>
@@ -458,7 +454,7 @@ const SourceMobile = WidthProvider(
                 <div className={classes.photometryContainer}>
                   <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
                     <Plot
-                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&height=${specPlotHeight}&device=${device}`}
+                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}`}
                     />
                   </Suspense>
                   <div className={classes.plotButtons}>
@@ -478,6 +474,41 @@ const SourceMobile = WidthProvider(
             </Accordion>
           </div>
           {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
+          <div>
+            {source.color_magnitude.length ? (
+              <Accordion defaultExpanded>
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  aria-controls="hr_diagram_content"
+                  id="hr-diagram-header"
+                >
+                  <Typography className={classes.accordionHeading}>
+                    HR Diagram
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <div className={classes.HRDiagramContainer}>
+                    <Suspense fallback={<div>Loading HR diagram...</div>}>
+                      <VegaHR
+                        data={source.color_magnitude}
+                        width={300}
+                        height={300}
+                        data-testid={`hr_diagram_${source.id}`}
+                      />
+                    </Suspense>
+                  </div>
+                </AccordionDetails>
+              </Accordion>
+            ) : null}
+            <PhotometryTable
+              obj_id={source.id}
+              open={showPhotometry}
+              onClose={() => {
+                setShowPhotometry(false);
+              }}
+              data-testid="show-photometry-table-button"
+            />
+          </div>
           <div>
             <Accordion defaultExpanded>
               <AccordionSummary
@@ -619,6 +650,13 @@ SourceMobile.propTypes = {
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
     redshift_history: PropTypes.arrayOf(PropTypes.any),
+    color_magnitude: PropTypes.arrayOf(
+      PropTypes.shape({
+        abs_mag: PropTypes.number,
+        color: PropTypes.number,
+        origin: PropTypes.string,
+      })
+    ),
   }).isRequired,
 };
 

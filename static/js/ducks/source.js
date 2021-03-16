@@ -97,7 +97,7 @@ export function getCommentAttachment(comment_id) {
 
 export function fetchSource(id) {
   return API.GET(
-    `/api/sources/${id}?includeComments=true`,
+    `/api/sources/${id}?includeComments=true&includeColorMagnitude=true`,
     FETCH_LOADED_SOURCE
   );
 }

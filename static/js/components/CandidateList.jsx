@@ -625,14 +625,44 @@ const CandidateList = () => {
               label="NOT SAVED"
               className={classes.itemPaddingBottom}
             />
-            <br />
-            <div className={classes.saveCandidateButton}>
-              <SaveCandidateButton
-                candidate={candidateObj}
-                userGroups={userAccessibleGroups}
-                filterGroups={filterGroups}
-              />
-            </div>
+          </div>
+        )}
+        {/* If candidate is either unsaved or is not yet saved to all groups being filtered on, show the "Save to..." button */}
+        {Boolean(
+          !candidateObj.is_source ||
+            (candidateObj.is_source &&
+              filterGroups.filter(
+                (g) =>
+                  !candidateObj.saved_groups.map((x) => x.id).includes(g.id)
+              ).length)
+        ) && (
+          // eslint-disable-next-line react/jsx-indent
+          <div className={classes.saveCandidateButton}>
+            <SaveCandidateButton
+              candidate={candidateObj}
+              userGroups={
+                // Filter out groups the candidate is already saved to
+                candidateObj.is_source
+                  ? userAccessibleGroups.filter(
+                      (g) =>
+                        !candidateObj.saved_groups
+                          .map((x) => x.id)
+                          .includes(g.id)
+                    )
+                  : userAccessibleGroups
+              }
+              filterGroups={
+                // Filter out groups the candidate is already saved to
+                candidateObj.is_source
+                  ? filterGroups.filter(
+                      (g) =>
+                        !candidateObj.saved_groups
+                          .map((x) => x.id)
+                          .includes(g.id)
+                    )
+                  : filterGroups
+              }
+            />
           </div>
         )}
         {candidateObj.last_detected_at && (
