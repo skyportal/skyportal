@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import PropTypes from "prop-types";
-
 import IconButton from "@material-ui/core/IconButton";
 import VisibilityIcon from "@material-ui/icons/Visibility";
 import VisibilityOffIcon from "@material-ui/icons/VisibilityOff";
@@ -24,6 +23,7 @@ const ButtonVisible = (objID) => {
         onClick={handleSubmit}
         data-testid={`rejected-visible_${objID}`}
         disabled={isSubmitting}
+        size="small"
       >
         <VisibilityIcon />
       </IconButton>
@@ -46,6 +46,7 @@ const ButtonInvisible = (objID) => {
         onClick={handleSubmit}
         data-testid={`rejected_invisible_${objID}`}
         disabled={isSubmitting}
+        size="small"
       >
         <VisibilityOffIcon />
       </IconButton>

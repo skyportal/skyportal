@@ -585,11 +585,11 @@ const CandidateList = () => {
             </Button>
           </a>
         </span>
-        <RejectButton objID={candidateObj.id} />
         {candidateObj.is_source ? (
           <div>
             <div className={classes.itemPaddingBottom}>
               <Chip size="small" label="Previously Saved" color="primary" />
+              <RejectButton objID={candidateObj.id} />
             </div>
             <div className={classes.saveCandidateButton}>
               <EditSourceGroups
@@ -625,6 +625,7 @@ const CandidateList = () => {
               label="NOT SAVED"
               className={classes.itemPaddingBottom}
             />
+            <RejectButton objID={candidateObj.id} />
           </div>
         )}
         {/* If candidate is either unsaved or is not yet saved to all groups being filtered on, show the "Save to..." button */}
