@@ -1241,8 +1241,14 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         else "box_zoom,wheel_zoom,pan,reset"
     )
     plot_width = None if device == "browser" else width
+    if device == "mobile_portrait":
+        aspect_ratio = 1
+    elif device == "tablet_portrait":
+        aspect_ratio = 1.5
+    else:
+        aspect_ratio = 1.8
     plot = figure(
-        aspect_ratio=2.0 if device == "mobile_landscape" else 1.5,
+        aspect_ratio=aspect_ratio,
         sizing_mode='scale_both',
         width=plot_width,
         y_range=(ymin, ymax),
@@ -1253,13 +1259,19 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     )
     plot.add_tools(hover)
     model_dict = {}
+    legend_items = []
     for i, (key, df) in enumerate(split):
+        renderers = []
+        s = Spectrum.query.get(key)
+        label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
         model_dict['s' + str(i)] = plot.step(
             x='wavelength',
             y='flux',
             color=color_map[key],
             source=ColumnDataSource(df),
         )
+        renderers.append(model_dict['s' + str(i)])
+        legend_items.append(LegendItem(label=label, renderers=renderers))
         model_dict['l' + str(i)] = plot.line(
             x='wavelength',
             y='flux',
@@ -1280,30 +1292,12 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     # TODO how to choose a good default?
     plot.y_range = Range1d(0, 1.03 * data.flux.max())
 
-    spec_labels = []
-    for k, _ in split:
-        s = Spectrum.query.get(k)
-        label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
-        spec_labels.append(label)
+    legend_loc = "below" if "mobile" in device or "tablet" in device else "right"
+    legend_orientation = (
+        "vertical" if device in ["browser", "mobile_portrait"] else "horizontal"
+    )
 
-    toggle = CheckboxWithLegendGroup(
-        labels=spec_labels,
-        active=list(range(len(spectra))),
-        colors=[color_map[k] for k, df in split],
-        width=width // 5,
-        inline=True if "tablet" in device else False,
-    )
-    toggle.js_on_click(
-        CustomJS(
-            args={'toggle': toggle, **model_dict},
-            code="""
-          for (let i = 0; i < toggle.labels.length; i++) {
-              eval("s" + i).visible = (toggle.active.includes(i))
-              eval("l" + i).visible = (toggle.active.includes(i))
-          }
-    """,
-        ),
-    )
+    add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
 
     slider_width = width if "mobile" in device else int(width / 2)
     z_title = Div(text="Redshift (<i>z</i>): ")
@@ -1461,12 +1455,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         z_textinput.js_on_change('value', callback)
         v_exp_textinput.js_on_change('value', callback)
 
-    row1 = (
-        column(plot, toggle)
-        if "mobile" in device or "tablet" in device
-        else row(plot, toggle)
-    )
     row2 = row(elements_groups)
     row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
-    layout = column(row1, row2, row3, sizing_mode='scale_height', width=width)
+    layout = column(plot, row2, row3, sizing_mode='scale_height', width=width)
     return bokeh_embed.json_item(layout)
