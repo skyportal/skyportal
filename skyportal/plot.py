@@ -1142,7 +1142,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         tabs = Tabs(tabs=[p2, p1, p3], width=width, height=height, sizing_mode='fixed')
     else:
         # tabs for mag, flux
-        tabs = Tabs(tabs=[p2, p1], width=width, height=height, sizing_mode='fixed')
+        tabs = Tabs(tabs=[p2, p1], width=width, height=height + 90, sizing_mode='fixed')
     return bokeh_embed.json_item(tabs)
 
 
