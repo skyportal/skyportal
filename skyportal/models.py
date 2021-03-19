@@ -52,6 +52,7 @@ from baselayer.app.models import (  # noqa
     restricted,
     public,
     AccessibleIfRelatedRowsAreAccessible,
+    CustomUserAccessControl,
     CronJobRun,
 )
 from skyportal import facility_apis
@@ -1951,6 +1952,30 @@ class Taxonomy(Base):
     )
 
 
+def taxonomy_update_delete_logic(cls, user_or_token):
+
+    if len({'Delete taxonomy', 'System admin'} & set(user_or_token.permissions)) == 0:
+        # nothing accessible
+        return restricted.query_accessible_rows(cls, user_or_token)
+
+    # dont allow deletion of any taxonomies that have classifications attached
+    return (
+        DBSession()
+        .query(cls)
+        .outerjoin(Classification)
+        .group_by(cls.id)
+        .having(sa.func.bool_and(Classification.id.is_(None)))
+    )
+
+
+# system admins can delete any taxonomy that has no classifications attached
+# people with the delete taxonomy ACL can delete any taxonomy that has no
+# classifications attached and is shared with at least one of their groups
+Taxonomy.update = Taxonomy.delete = (
+    CustomUserAccessControl(taxonomy_update_delete_logic) & Taxonomy.read
+)
+
+
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 GroupTaxonomy.delete = GroupTaxonomy.update = (
@@ -2082,6 +2107,22 @@ User.comments = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+
+
+def user_update_delete_logic(cls, user_or_token):
+    """A user can update or delete themselves, and a super admin can delete
+    or update any user."""
+
+    if user_or_token.is_admin:
+        return public.query_accessible_rows(cls, user_or_token)
+
+    # non admin users can only update or delete themselves
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+
+    return DBSession().query(cls).filter(cls.id == user_id)
+
+
+User.update = User.delete = CustomUserAccessControl(user_update_delete_logic)
 
 
 class Annotation(Base):

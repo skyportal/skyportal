@@ -302,6 +302,7 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_spectra = self.get_query_argument("includeSpectra", False)
@@ -580,6 +581,8 @@ class CandidateHandler(BaseHandler):
                     .subquery()
                 )
             else:
+                # import pdb
+                # pdb.set_trace()
                 expire_date = arrow.get(annotation_exclude_date).datetime
                 right = (
                     DBSession()

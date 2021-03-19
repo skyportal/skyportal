@@ -5,7 +5,7 @@ from skyportal.tests import api
 from tdtax import taxonomy, __version__
 
 
-def test_add_retrieve_delete_taxonomy(taxonomy_token, public_group):
+def test_add_retrieve_delete_taxonomy(taxonomy_token, public_group, super_admin_token):
     name = str(uuid.uuid4())
     status, data = api(
         'POST',
