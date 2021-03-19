@@ -40,3 +40,18 @@ notifications:
   enabled: True
 
 testing: true
+
+test_server:
+  module: test_server
+  path: skyportal/tests/test_server.py
+  redirects:
+    # List of routes listened for by the test server, and the real URLs that
+    # requests should be redirected to. Requests will be forwarded by the
+    # test server, cached, and responses played back to the API as if it came
+    # from the real server.
+    /node_agent2/node_agent: http://localhost:64503 # LT
+    # real_url: 161.72.57.3:8080
+
+app:
+  lt_host: localhost
+  lt_port: 64502
