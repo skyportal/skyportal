@@ -61,8 +61,11 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 )
                 for k, v in response["headers"].items():
                     # Content Length may change (for the SOAP call) as we overwrite the host
-                    # in the response WSDL
-                    if k != "Content-Length":
+                    # in the response WSDL. Similarly, the response from this test server
+                    # will not be chunked even if the real response was.
+                    if k != "Content-Length" and not (
+                        k == "Transfer-Encoding" and "chunked" in v
+                    ):
                         self.set_header(k, v[0])
 
                 if is_wsdl is not None:
@@ -118,7 +121,10 @@ class TestRouteHandler(tornado.web.RequestHandler):
                     response["status"]["code"], response["status"]["message"]
                 )
                 for k, v in response["headers"].items():
-                    self.set_header(k, v[0])
+                    # The response from this test server will not be chunked even if
+                    # the real response was
+                    if not (k == "Transfer-Encoding" and "chunked" in v):
+                        self.set_header(k, v[0])
                 self.write(response["body"]["string"])
 
             else:
