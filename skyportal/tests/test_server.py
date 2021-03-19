@@ -1,21 +1,6 @@
-import uuid
-
 import vcr
 
 import tornado.web
-import tornado.wsgi
-from tornado.web import RequestHandler
-
-# from spyne.application import Application
-from spyne.decorator import srpc
-from spyne.service import ServiceBase
-
-# from spyne.server.wsgi import WsgiApplication
-from spyne.model.primitive import String
-
-# from spyne.protocol.soap import Soap11
-
-from lxml import etree
 
 from suds import Client
 import requests
@@ -27,37 +12,28 @@ env, cfg = load_env()
 log = make_log("testserver")
 
 
-class LTService(ServiceBase):
+class TestRouteHandler(tornado.web.RequestHandler):
     """
-    This is a mock LT server for LT Telescope API follow-up tests
-    """
-
-    @srpc(String, _returns=String)
-    def handle_rtml(name):
-        # Build mock success response
-        log("External Service: received")
-        response = etree.Element("RTML", mode="confirm", uid=str(uuid.uuid4()))
-        return etree.tostring(
-            response, doctype='<?xml version="1.0" encoding="ISO-8859-1"?>'
-        )
-
-
-class TestRouteHandler(RequestHandler):
-    """
-    This is a simple example REST API service to be included
-    in the example test server.
+    This handler intercepts calls coming from SkyPortal API handlers which make
+    requests to external web services (like the LT telescope) and wraps them in a
+    vcr context so that requests are cached and played back. The handler will forward
+    the request to the approriate "real" host, cache the results, and pass them back
+    to the SkyPortal test API server.
     """
 
     def get(self):
-        log("Get!")
-        log(self.request.uri)
         is_wsdl = self.get_query_argument('wsdl', None)
-        if is_wsdl is not None:
-            log("Intercepting a WSDL call")
-            with vcr.use_cassette(
-                'cache/test_server_recordings.yaml', record_mode="new_episodes"
-            ) as cass:
-                base_route = self.request.uri.split("?")[0]
+
+        with vcr.use_cassette(
+            'cache/test_server_recordings.yaml', record_mode="new_episodes"
+        ) as cass:
+            base_route = self.request.uri.split("?")[0]
+
+            if (
+                "test_server" in cfg
+                and "redirects" in cfg["test_server"]
+                and base_route in cfg["test_server.redirects"]
+            ):
                 real_host = cfg["test_server.redirects"][base_route]
                 url = real_host + self.request.uri
 
@@ -69,9 +45,14 @@ class TestRouteHandler(RequestHandler):
                     else:
                         headers[k] = [v]
 
-                Client(url=url, headers=headers, cache=None)
+                if is_wsdl is not None:
+                    log(f"Forwarding WSDL call {url}")
+                    Client(url=url, headers=headers, cache=None)
+                else:
+                    log(f"Forwarding GET call: {url}")
+                    requests.get(url, headers=headers)
 
-                # Get recorded document
+                # Get recorded document and pass it back
                 response = cass.responses_of(
                     vcr.request.Request("GET", url, "", headers)
                 )[0]
@@ -79,66 +60,75 @@ class TestRouteHandler(RequestHandler):
                     response["status"]["code"], response["status"]["message"]
                 )
                 for k, v in response["headers"].items():
+                    # Content Length may change (for the SOAP call) as we overwrite the host
+                    # in the response WSDL
                     if k != "Content-Length":
                         self.set_header(k, v[0])
 
-                # Override service location so we can intercept the followup POST call
-                response_body = (
-                    response["body"]["string"]
-                    .decode("utf-8")
-                    .replace(real_host, f"http://localhost:{cfg['ports.test_server']}")
-                )
+                if is_wsdl is not None:
+                    # Override service location in the service definition
+                    # so we can intercept the followup POST call
+                    response_body = (
+                        response["body"]["string"]
+                        .decode("utf-8")
+                        .replace(
+                            real_host, f"http://localhost:{cfg['ports.test_server']}"
+                        )
+                    )
+                else:
+                    response_body = response["body"]["string"]
+
                 self.write(response_body)
-        else:
-            self.set_status(200)
-            self.write("Hello from REST server!")
+
+            else:
+                self.set_status(500)
+                self.write("Could not find test route redirect")
 
     def post(self):
-        log("Post!")
-        log(self.request.uri)
         is_soap_action = "Soapaction" in self.request.headers
-        if is_soap_action is not None:
-            log("Intercepting a SOAP action call")
 
         with vcr.use_cassette(
             'cache/test_server_recordings.yaml',
             record_mode="new_episodes",
             match_on=['uri', 'method', 'body'],
         ) as cass:
-            url = "http://localhost:64503" + self.request.uri
+            if (
+                "test_server" in cfg
+                and "redirects" in cfg["test_server"]
+                and self.request.uri in cfg["test_server.redirects"]
+            ):
+                real_host = cfg["test_server.redirects"][self.request.uri]
+                url = real_host + self.request.uri
 
-            # Convert Tornado HTTPHeaders object to a regular dict
-            headers = {}
-            for k, v in self.request.headers.get_all():
-                headers[k] = v
+                if is_soap_action:
+                    log(f"Forwarding SOAP method call {url}")
 
-            requests.post(url, data=self.request.body, headers=headers)
-            log("Posted to real server! Trying to get record now")
-            # Get recorded document
-            response = cass.responses_of(
-                vcr.request.Request("POST", url, self.request.body, headers)
-            )[0]
-            self.set_status(response["status"]["code"], response["status"]["message"])
-            for k, v in response["headers"].items():
-                self.set_header(k, v[0])
-            self.write(response["body"]["string"])
+                # Convert Tornado HTTPHeaders object to a regular dict
+                headers = {}
+                for k, v in self.request.headers.get_all():
+                    headers[k] = v
+
+                requests.post(url, data=self.request.body, headers=headers)
+
+                # Get recorded document and pass it back
+                response = cass.responses_of(
+                    vcr.request.Request("POST", url, self.request.body, headers)
+                )[0]
+                self.set_status(
+                    response["status"]["code"], response["status"]["message"]
+                )
+                for k, v in response["headers"].items():
+                    self.set_header(k, v[0])
+                self.write(response["body"]["string"])
+
+            else:
+                self.set_status(500)
+                self.write("Could not find test route redirect")
 
 
 def make_app():
-    # app = Application(
-    #     [LTService],
-    #     "mock_soap_server.http",
-    #     in_protocol=Soap11(validator="lxml"),
-    #     out_protocol=Soap11(),
-    # )
-    # wsgi_app = tornado.wsgi.WSGIContainer(WsgiApplication(app))
     return tornado.web.Application(
         [
             (".*", TestRouteHandler),
-            # (
-            #     "/node_agent2/node_agent",
-            #     tornado.web.FallbackHandler,
-            #     dict(fallback=wsgi_app),
-            # ),
         ]
     )
