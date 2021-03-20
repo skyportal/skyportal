@@ -957,7 +957,7 @@ class SourceHandler(BaseHandler):
                 if include_photometry:
                     photometry = Photometry.query_records_accessible_by(
                         self.current_user
-                    ).filter(Photometry.obj_id == source.obj_id)
+                    ).filter(Photometry.obj_id == source.id)
                     source_list[-1]["photometry"] = [
                         serialize(phot, 'ab', 'flux') for phot in photometry
                     ]
@@ -965,7 +965,7 @@ class SourceHandler(BaseHandler):
                     source_list[-1]["photometry_exists"] = (
                         len(
                             Photometry.query_records_accessible_by(self.current_user)
-                            .filter(Photometry.obj_id == source.obj_id)
+                            .filter(Photometry.obj_id == source.id)
                             .all()
                         )
                         > 0
@@ -974,7 +974,7 @@ class SourceHandler(BaseHandler):
                     source_list[-1]["spectrum_exists"] = (
                         len(
                             Spectrum.query_records_accessible_by(self.current_user)
-                            .filter(Spectrum.obj_id == source.obj_id)
+                            .filter(Spectrum.obj_id == source.id)
                             .all()
                         )
                         > 0
@@ -1370,7 +1370,7 @@ class SourceOffsetsHandler(BaseHandler):
         try:
             best_ra, best_dec = _calculate_best_position_for_offset_stars(
                 Photometry.query_records_accessible_by(self.current_user)
-                .filter(Photometry.obj_id == source.obj_id)
+                .filter(Photometry.obj_id == source.id)
                 .all(),
                 fallback=(initial_pos[0], initial_pos[1]),
                 how="snr2",
@@ -1560,7 +1560,7 @@ class SourceFinderHandler(BaseHandler):
         try:
             best_ra, best_dec = _calculate_best_position_for_offset_stars(
                 Photometry.query_records_accessible_by(self.current_user)
-                .filter(Photometry.obj_id == source.obj_id)
+                .filter(Photometry.obj_id == source.id)
                 .all(),
                 fallback=(initial_pos[0], initial_pos[1]),
                 how="snr2",

@@ -2831,7 +2831,7 @@ GroupSpectrum.update = GroupSpectrum.delete = (
 #        return '/' + file_uri.lstrip('./')
 
 
-def updatable_from_token_with_listener_acl(cls, user_or_token):
+def updatable_by_token_with_listener_acl(cls, user_or_token):
     if user_or_token.is_admin:
         return public.query_accessible_rows(cls, user_or_token)
 
@@ -2873,7 +2873,7 @@ class FollowupRequest(Base):
             | AccessibleIfUserMatches('requester')
         )
         & read
-    ) | CustomUserAccessControl(updatable_from_token_with_listener_acl)
+    ) | CustomUserAccessControl(updatable_by_token_with_listener_acl)
 
     requester_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='SET NULL'),

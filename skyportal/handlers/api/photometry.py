@@ -660,7 +660,8 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
-        self.finalize_transaction()
+        # self.finalize_transaction()
+        DBSession().commit()
         return self.success(data={'ids': ids, 'upload_id': upload_id})
 
     @permissions(['Upload data'])
@@ -774,7 +775,8 @@ class PhotometryHandler(BaseHandler):
                 id_map[df_index] = id
 
         # release the lock
-        self.finalize_transaction()
+        # self.finalize_transaction()
+        DBSession().commit()
 
         # get ids in the correct order
         ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
@@ -868,7 +870,8 @@ class PhotometryHandler(BaseHandler):
                 )
             photometry.groups = groups
 
-        self.finalize_transaction()
+        # self.finalize_transaction()
+        DBSession().commit()
         return self.success()
 
     @permissions(['Upload data'])
