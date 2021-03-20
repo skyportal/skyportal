@@ -584,8 +584,6 @@ class CandidateHandler(BaseHandler):
                     .subquery()
                 )
             else:
-                # import pdb
-                # pdb.set_trace()
                 expire_date = arrow.get(annotation_exclude_date).datetime
                 right = (
                     DBSession()
