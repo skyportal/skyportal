@@ -309,18 +309,6 @@ class CandidateHandler(BaseHandler):
 
         if obj_id is not None:
             query_options = [joinedload(Candidate.obj).joinedload(Obj.thumbnails)]
-            if include_photometry:
-                query_options.append(
-                    joinedload(Candidate.obj)
-                    .joinedload(Obj.photometry)
-                    .joinedload(Photometry.instrument)
-                )
-            if include_spectra:
-                query_options.append(
-                    joinedload(Candidate.obj)
-                    .joinedload(Obj.spectra)
-                    .joinedload(Spectrum.instrument)
-                )
             c = Candidate.get_obj_if_readable_by(
                 obj_id,
                 self.current_user,
@@ -362,6 +350,21 @@ class CandidateHandler(BaseHandler):
                 key=lambda x: x["created_at"],
                 reverse=True,
             )
+
+            if include_photometry:
+                candidate_info['photometry'] = Photometry.get_records_accessible_by(
+                    self.current_user,
+                    mode='read',
+                    options=[joinedload(Photometry.instrument)],
+                )
+
+            if include_spectra:
+                candidate_info['spectra'] = Spectrum.get_records_accessible_by(
+                    self.current_user,
+                    mode='read',
+                    options=[joinedload(Spectrum.instrument)],
+                )
+
             candidate_info["annotations"] = sorted(
                 c.get_annotations_readable_by(self.current_user),
                 key=lambda x: x.origin,
@@ -696,8 +699,6 @@ class CandidateHandler(BaseHandler):
                 n_per_page,
                 "candidates",
                 order_by=order_by,
-                include_photometry=include_photometry,
-                include_spectra=include_spectra,
             )
         except ValueError as e:
             if "Page number out of range" in str(e):
@@ -744,6 +745,23 @@ class CandidateHandler(BaseHandler):
                     )
                 ]
                 candidate_list.append(obj.to_dict())
+
+                if include_photometry:
+                    candidate_list[-1][
+                        "photometry"
+                    ] = Photometry.get_records_accessible_by(
+                        self.current_user,
+                        mode='read',
+                        options=[joinedload(Photometry.instrument)],
+                    )
+
+                if include_spectra:
+                    candidate_list[-1]["spectra"] = Spectrum.get_records_accessible_by(
+                        self.current_user,
+                        mode='read',
+                        options=[joinedload(Spectrum.instrument)],
+                    )
+
                 candidate_list[-1]["comments"] = sorted(
                     [
                         cmt.to_dict()
@@ -940,8 +958,6 @@ def grab_query_results(
     n_items_per_page,
     items_name,
     order_by=None,
-    include_photometry=False,
-    include_spectra=False,
 ):
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
@@ -1022,12 +1038,6 @@ def grab_query_results(
 
     items = []
     query_options = [joinedload(Obj.thumbnails)]
-    if include_photometry:
-        query_options.append(
-            joinedload(Obj.photometry).joinedload(Photometry.instrument)
-        )
-    if include_spectra:
-        query_options.append(joinedload(Obj.spectra).joinedload(Spectrum.instrument))
     for item_id in page_ids:
         items.append(Obj.query.options(query_options).get(item_id))
     info[items_name] = items

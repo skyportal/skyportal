@@ -1570,6 +1570,8 @@ class SourceView(Base):
 class Telescope(Base):
     """A ground or space-based observational facility that can host Instruments."""
 
+    create = restricted
+
     name = sa.Column(
         sa.String,
         unique=True,
@@ -1741,6 +1743,8 @@ class ArrayOfEnum(ARRAY):
 
 class Instrument(Base):
     """An instrument attached to a telescope."""
+
+    create = restricted
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Instrument name.")
     type = sa.Column(
@@ -2827,6 +2831,36 @@ GroupSpectrum.update = GroupSpectrum.delete = (
 #        return '/' + file_uri.lstrip('./')
 
 
+def updatable_from_token_with_listener_acl(cls, user_or_token):
+    if user_or_token.is_admin:
+        return public.query_accessible_rows(cls, user_or_token)
+
+    instruments_with_apis = (
+        Instrument.query_records_accessible_by(user_or_token)
+        .filter(Instrument.listener_classname.isnot(None))
+        .all()
+    )
+
+    api_map = {
+        instrument.id: instrument.listener_class.get_acl_id()
+        for instrument in instruments_with_apis
+    }
+
+    accessible_instrument_ids = [
+        instrument_id
+        for instrument_id, acl_id in api_map.items()
+        if acl_id in user_or_token.permissions
+    ]
+
+    return (
+        DBSession()
+        .query(cls)
+        .join(Allocation)
+        .join(Instrument)
+        .filter(Instrument.id.in_(accessible_instrument_ids))
+    )
+
+
 class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
@@ -2834,9 +2868,12 @@ class FollowupRequest(Base):
     # TODO: Make read-accessible via target groups
     create = read = AccessibleIfRelatedRowsAreAccessible(obj="read", allocation="read")
     update = delete = (
-        AccessibleIfUserMatches('allocation.group.users')
-        | AccessibleIfUserMatches('requester')
-    ) & read
+        (
+            AccessibleIfUserMatches('allocation.group.users')
+            | AccessibleIfUserMatches('requester')
+        )
+        & read
+    ) | CustomUserAccessControl(updatable_from_token_with_listener_acl)
 
     requester_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='SET NULL'),

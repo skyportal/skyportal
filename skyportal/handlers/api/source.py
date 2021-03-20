@@ -24,6 +24,7 @@ from ...models import (
     Obj,
     Source,
     Token,
+    Photometry,
     Group,
     FollowupRequest,
     ClassicalAssignment,
@@ -628,20 +629,31 @@ class SourceHandler(BaseHandler):
                 f for f in s.followup_requests if f.status != 'deleted'
             ]
             if include_photometry:
-                photometry = Obj.get_photometry_readable_by_user(
-                    obj_id, self.current_user
+                photometry = (
+                    Photometry.query_records_accessible_by(self.current_user)
+                    .filter(Photometry.obj_id == obj_id)
+                    .all()
                 )
                 source_info["photometry"] = [
                     serialize(phot, 'ab', 'flux') for phot in photometry
                 ]
             if include_photometry_exists:
                 source_info["photometry_exists"] = (
-                    len(Obj.get_photometry_readable_by_user(obj_id, self.current_user))
+                    len(
+                        Photometry.query_records_accessible_by(self.current_user)
+                        .filter(Photometry.obj_id == obj_id)
+                        .all()
+                    )
                     > 0
                 )
             if include_spectrum_exists:
                 source_info["spectrum_exists"] = (
-                    len(Obj.get_spectra_readable_by(obj_id, self.current_user)) > 0
+                    len(
+                        Spectrum.query_records_accessible_by(self.current_user)
+                        .filter(Spectrum.obj_id == obj_id)
+                        .all()
+                    )
+                    > 0
                 )
             query = (
                 DBSession()
@@ -890,7 +902,6 @@ class SourceHandler(BaseHandler):
                     num_per_page,
                     "sources",
                     order_by=order_by,
-                    include_photometry=include_photometry,
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
@@ -906,7 +917,6 @@ class SourceHandler(BaseHandler):
                 None,
                 "sources",
                 order_by=order_by,
-                include_photometry=include_photometry,
             )
 
         if not save_summary:
@@ -945,24 +955,28 @@ class SourceHandler(BaseHandler):
                     "angular_diameter_distance"
                 ] = source.angular_diameter_distance
                 if include_photometry:
-                    photometry = Obj.get_photometry_readable_by_user(
-                        source.id, self.current_user
-                    )
+                    photometry = Photometry.query_records_accessible_by(
+                        self.current_user
+                    ).filter(Photometry.obj_id == source.obj_id)
                     source_list[-1]["photometry"] = [
                         serialize(phot, 'ab', 'flux') for phot in photometry
                     ]
                 if include_photometry_exists:
                     source_list[-1]["photometry_exists"] = (
                         len(
-                            Obj.get_photometry_readable_by_user(
-                                source.id, self.current_user
-                            )
+                            Photometry.query_records_accessible_by(self.current_user)
+                            .filter(Photometry.obj_id == source.obj_id)
+                            .all()
                         )
                         > 0
                     )
                 if include_spectrum_exists:
                     source_list[-1]["spectrum_exists"] = (
-                        len(Obj.get_spectra_readable_by(source.id, self.current_user))
+                        len(
+                            Spectrum.query_records_accessible_by(self.current_user)
+                            .filter(Spectrum.obj_id == source.obj_id)
+                            .all()
+                        )
                         > 0
                     )
 
@@ -1347,7 +1361,6 @@ class SourceOffsetsHandler(BaseHandler):
         source = Obj.get_if_readable_by(
             obj_id,
             self.current_user,
-            options=[joinedload(Obj.photometry)],
         )
         if source is None:
             return self.error('Source not found', status=404)
@@ -1356,7 +1369,9 @@ class SourceOffsetsHandler(BaseHandler):
 
         try:
             best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                source.photometry,
+                Photometry.query_records_accessible_by(self.current_user)
+                .filter(Photometry.obj_id == source.obj_id)
+                .all(),
                 fallback=(initial_pos[0], initial_pos[1]),
                 how="snr2",
             )
@@ -1523,7 +1538,6 @@ class SourceFinderHandler(BaseHandler):
         source = Obj.get_if_readable_by(
             obj_id,
             self.current_user,
-            options=[joinedload(Obj.photometry)],
         )
         if source is None:
             return self.error('Source not found', status=404)
@@ -1545,7 +1559,9 @@ class SourceFinderHandler(BaseHandler):
         initial_pos = (source.ra, source.dec)
         try:
             best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                source.photometry,
+                Photometry.query_records_accessible_by(self.current_user)
+                .filter(Photometry.obj_id == source.obj_id)
+                .all(),
                 fallback=(initial_pos[0], initial_pos[1]),
                 how="snr2",
             )
