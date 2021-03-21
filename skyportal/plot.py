@@ -439,7 +439,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     aspect_ratio = math.floor(width / height)
 
     plot = figure(
-        width=width,
+        frame_width=width,
         height=height,
         active_drag=active_drag,
         tools=tools,
@@ -636,7 +636,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     )
 
     plot = figure(
-        width=width,
+        frame_width=width,
         height=height,
         active_drag=active_drag,
         tools=tools,
@@ -927,7 +927,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     if period is not None:
         # bokeh figure for period plotting
         period_plot = figure(
-            width=width,
+            frame_width=width,
             height=height,
             active_drag=active_drag,
             tools=tools,
