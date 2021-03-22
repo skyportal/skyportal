@@ -261,8 +261,8 @@ services:
 
 test_server:
     port: 64502
-    module: test_server
-    path: skyportal/tests/test_server.py
+    # Reset the cache every * days
+    refresh_cache_days: 7
 
 misc:
   days_to_keep_unsaved_candidates: 7

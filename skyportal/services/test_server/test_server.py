@@ -1,3 +1,8 @@
+import glob
+import datetime
+import re
+import os
+
 import vcr
 import tornado.ioloop
 import tornado.httpserver
@@ -9,8 +14,26 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 
-env, cfg = load_env()
-log = make_log("testserver")
+def get_cache_file():
+    files = glob.glob("cache/test_server_recordings_*.yaml")
+    today = datetime.date.today().isoformat()
+
+    # If no cache files, just return a fresh one stamped for today
+    if len(files) == 0:
+        return f"cache/test_server_recordings_{today}.yaml"
+
+    current_file = files[0]
+    current_file_date = datetime.date.fromisoformat(
+        re.findall(r"\d+-\d+-\d+", current_file)[0]
+    )
+    # Cache should be refreshed
+    if (today - current_file_date).days > refresh_cache_days:
+        # Delete old cache and return new file path
+        os.remove(current_file)
+        return f"cache/test_server_recordings_{today}.yaml"
+
+    # Cache is still valid
+    return current_file
 
 
 class TestRouteHandler(tornado.web.RequestHandler):
@@ -24,10 +47,8 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
     def get(self):
         is_wsdl = self.get_query_argument('wsdl', None)
-
-        with vcr.use_cassette(
-            'cache/test_server_recordings.yaml', record_mode="new_episodes"
-        ) as cass:
+        cache = get_cache_file()
+        with vcr.use_cassette(cache, record_mode="new_episodes") as cass:
             base_route = self.request.uri.split("?")[0]
 
             if (
@@ -90,9 +111,9 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
     def post(self):
         is_soap_action = "Soapaction" in self.request.headers
-
+        cache = get_cache_file()
         with vcr.use_cassette(
-            'cache/test_server_recordings.yaml',
+            cache,
             record_mode="new_episodes",
             match_on=['uri', 'method', 'body'],
         ) as cass:
@@ -150,6 +171,8 @@ if __name__ == "__main__":
         server = tornado.httpserver.HTTPServer(app)
         port = cfg["test_server.port"]
         server.listen(port)
+
+        refresh_cache_days = cfg["test_server.refresh_cache_days"]
 
         log(f"Listening for test HTTP requests on port {port}")
         tornado.ioloop.IOLoop.current().start()
