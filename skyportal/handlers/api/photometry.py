@@ -963,8 +963,8 @@ class BulkDeletePhotometryHandler(BaseHandler):
         for phot in photometry_to_delete:
             DBSession().delete(phot)
 
-        # this will raise if the user does not have access to delete any of
-        # the photometry points
+        # this will return self.error if the user does not have access
+        # to delete any of the photometry points
         self.finalize_transaction()
         return self.success(f"Deleted {n} photometry points.")
 
