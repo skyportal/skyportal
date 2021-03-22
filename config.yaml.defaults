@@ -255,8 +255,12 @@ server:
 
 services:
   dask: False
+  paths:
+    - ./baselayer/services
+    - ./skyportal/services
 
 test_server:
+    port: 64502
     module: test_server
     path: skyportal/tests/test_server.py
 

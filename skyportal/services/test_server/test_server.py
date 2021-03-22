@@ -1,12 +1,13 @@
 import vcr
-
+import tornado.ioloop
+import tornado.httpserver
 import tornado.web
-
 from suds import Client
 import requests
 
-from baselayer.log import make_log
 from baselayer.app.env import load_env
+from baselayer.log import make_log
+
 
 env, cfg = load_env()
 log = make_log("testserver")
@@ -138,3 +139,17 @@ def make_app():
             (".*", TestRouteHandler),
         ]
     )
+
+
+if __name__ == "__main__":
+    env, cfg = load_env()
+    log = make_log("testserver")
+
+    if "test_server" in cfg:
+        app = make_app()
+        server = tornado.httpserver.HTTPServer(app)
+        port = cfg["test_server.port"]
+        server.listen(port)
+
+        log(f"Listening for test HTTP requests on port {port}")
+        tornado.ioloop.IOLoop.current().start()
