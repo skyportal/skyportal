@@ -1,11 +1,11 @@
 # Access controls
 
 ## Introduction
-Astronomical data is often subject to complex data rights policies. As a data platform designed to ingest and serve data from multiple experiments and groups simultaneously, SkyPortal must be able to enforce complex policies governing who can see, interact with, and modify what. SkyPortal  enforces such policies using a custom row-level security (RLS) framework in the API layer.
+Astronomical data is often subject to complex data rights policies. As a data platform designed to ingest and serve data from multiple sources, each potentially with different access policies, simultaneously, SkyPortal must be able to enforce complex policies governing who can see, interact with, and modify what. SkyPortal  enforces such policies using a custom row-level security (RLS) framework in the API layer.
 
-RLS allows SkyPortal developers to define policies that restrict, with row- and user / token-level granularity, which rows of a table (e.g., photometry, spectra, groups, followup requests, data streams, etc.) a user can read, update, create, and delete. SkyPortal uses baselayer's ORM-based framework for RLS within API transactions. With baselayer's RLS framework, SkyPortal developers can
+RLS allows SkyPortal developers to define policies that restrict, with row- and user / token-level granularity, which rows of a table (e.g., photometry, spectra, groups, followup requests, data streams, etc.) that a user can read, update, create, and delete. SkyPortal uses baselayer's ORM-based framework for RLS within API transactions. With baselayer's RLS framework, SkyPortal developers can
 
-* Rest assured that access policies will be automatically and consistently enforced whenever a protected record is accessed in an API transaction
+* Be sure that access policies will be automatically and consistently enforced whenever a protected record is accessed in an API transaction
 * Efficiently filter database queries by RLS accessibility to ensure that API endpoints only return records that users can access
 * Take advantage of vectorization to efficiently apply policy checks and filters to bulk queries of records
 * Define arbitrarily complex, relational, and scalable row-level CRUD access policies on any SkyPortal table
@@ -88,10 +88,34 @@ from baselayer.app.models import AccessibleIfUserMatches
 accessible_to_owner_or_last_modified_by = AccessibleIfUserMatches('owner') | AccessibleIfUserMatches('last_modified_by')
 ```
 
-Policies can be custom (potentially complex and relational) database queries. This policy only allows access to a record if :
+Policies can be custom (potentially complex and relational) database queries. This policy allows adding a user to a group only if that user has access to all of the group's streams:
 
 ```
-
+from baselayer.app.env import CustomserAccessControl
+GroupUser.create = (
+    CustomUserAccessControl(
+        # Can only add a user to a group if they have all the requisite
+        # streams required for entry to the group
+        lambda cls, user_or_token: DBSession()
+        .query(cls)
+        .join(Group)
+        .outerjoin(Stream, Group.streams)
+        .outerjoin(
+            StreamUser,
+            sa.and_(
+                StreamUser.user_id == cls.user_id,
+                StreamUser.stream_id == Stream.id,
+            ),
+        )
+        .group_by(cls.id)
+        .having(
+            sa.or_(
+                sa.func.bool_and(StreamUser.stream_id.isnot(None)),
+                sa.func.bool_and(Stream.id.is_(None)),  # group has no streams
+            )
+        )
+    )
+)
 ```
 
 ## Binding Policies to Classes
@@ -104,27 +128,46 @@ Spectrum.delete = accessible_by_owner
 
 The above will ensure that only the owner of a spectrum (or anyone with the "System admin" ACL) can delete the spectrum.
 
-### Convenience Methods
+## Convenience Methods
 
-Instances of `Base` provide convenience methods to (a) check if an instance of a mapped class is accessible to a specified user, (b) retrieve all records of a mapped class accessible to a specified user, and (c) generate a query object that returns records in a table that are accessible to a given user:
+Instances of `Base` provide convenience methods to (a) check if an instance of a mapped class is accessible to a specified user, (b) retrieve specific records of a mapped class (identified by a primary key), if they are accessible by a specified user, otherwise raise an AccessError (c) retrieve all records of a mapped class accessible to a specified user, and (d) generate a query object that returns records in a table that are accessible to a given user:
+
+(a) Can the `User` `user` read the `Spectrum` `spectrum`?
 
 ```python
-
-    def is_accessible_by(self, user_or_token, mode="read"):
-        """Check if a User or Token has a specified type of access to this
-        database record.
-
-        Parameters
-        ----------
-        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-            The User or Token to check.
-        mode: string
-            Type of access to check.
-        Returns
-        -------
-        accessible: bool
-            Whether the User or Token has the specified type of access to
-            the record.
-        """
-
+spectrum.is_accessible_by(user, mode="read")
 ```
+
+Can the `User` `user` update the `Spectrum` `spectrum`?
+
+```python
+spectrum.is_accessible_by(user, mode='update')
+```
+
+(b) Retrieve spectra with IDs [1, 3] if they are updatable by the `User` `user`, raising an AccessError if either does not exist:
+
+```python
+Spectrum.get_if_accessible_by([1, 3], user, raise_if_none=True, mode="update")
+```
+
+(c) Retrieve all photometry that `User` `user` can read
+
+```python
+Photometry.get_records_accessible_by(user, mode="read")
+```
+
+(d) Query for all photometry that `User` `user` can delete with a signal-to-noise ratio of at least 10:
+
+```python
+deletable_phot_query = Photometry.query_records_accessible_by(user, mode="delete")
+filtered_deletable_query = deletable_phot_query.filter(Photometry.snr > 10).all()
+```
+
+
+## Enforcing Permissions in Handlers
+
+Calling `self.verify_permissions()` within a SkyPortal API handler will trigger the RLS permission checker to introspect the current database session and verify that all of the records it currently is tracking are being accessed in an allowable way.  If it encounters any permissions violations during this process, it causes the handler to rollback the transaction and return an HTTP status code of 400 with a message that identifies the specific row where an access policy was violated. If no access policies are violated, then the transaction will finish successfully.
+
+Calling `self.finalize_transaction()` within a SkyPortal API handler will call `self.verify_permissions()` and then commit the current transaction to the database.
+
+If neither of these methods is called in an API handler, the handler will not automatically check for permissions violations. The best practice is to call these methods at the end of a handler's transaction, immediately before `self.success` or `self.error`.
