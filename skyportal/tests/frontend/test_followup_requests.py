@@ -345,11 +345,9 @@ def test_submit_new_followup_request_SEDM(
 def test_submit_new_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group, capsys
 ):
-    with capsys.disabled():
-        print(url)
-        add_followup_request_using_frontend_and_verify_IOO(
-            driver, super_admin_user, public_source, super_admin_token, public_group
-        )
+    add_followup_request_using_frontend_and_verify_IOO(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
 
 
 @pytest.mark.flaky(reruns=2)

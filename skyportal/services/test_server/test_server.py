@@ -16,11 +16,11 @@ from baselayer.log import make_log
 
 def get_cache_file():
     files = glob.glob("cache/test_server_recordings_*.yaml")
-    today = datetime.date.today().isoformat()
+    today = datetime.date.today()
 
     # If no cache files, just return a fresh one stamped for today
     if len(files) == 0:
-        return f"cache/test_server_recordings_{today}.yaml"
+        return f"cache/test_server_recordings_{today.isoformat()}.yaml"
 
     current_file = files[0]
     current_file_date = datetime.date.fromisoformat(
@@ -30,10 +30,38 @@ def get_cache_file():
     if (today - current_file_date).days > refresh_cache_days:
         # Delete old cache and return new file path
         os.remove(current_file)
-        return f"cache/test_server_recordings_{today}.yaml"
+        return f"cache/test_server_recordings_{today.isoformat()}.yaml"
 
     # Cache is still valid
     return current_file
+
+
+def lt_request_matcher(r1, r2):
+    """
+    Helper function to help determine if two requests to the LT API are equivalent
+    """
+    r1_request_mode = re.findall(
+        r"mode=&quot;[a-zA-Z]+&quot;", r1.body.decode("utf-8")
+    )[0]
+    r2_request_mode = (
+        re.findall(r"mode=&quot;[a-zA-Z]+&quot;", r2.body.decode("utf-8"))[0]
+        if r2.body is not None
+        else None
+    )
+    r1_device = re.findall(r"&lt;Device name=&quot;.+?&quot;", r1.body.decode("utf-8"))[
+        0
+    ]
+    r2_device = (
+        re.findall(r"&lt;Device name=&quot;.+?&quot;", r2.body.decode("utf-8"))[0]
+        if r2.body is not None
+        else None
+    )
+    assert (
+        r1.uri == r2.uri
+        and r1.method == r2.method
+        and r1_request_mode == r2_request_mode
+        and r1_device == r2_device
+    )
 
 
 class TestRouteHandler(tornado.web.RequestHandler):
@@ -48,14 +76,10 @@ class TestRouteHandler(tornado.web.RequestHandler):
     def get(self):
         is_wsdl = self.get_query_argument('wsdl', None)
         cache = get_cache_file()
-        with vcr.use_cassette(cache, record_mode="new_episodes") as cass:
+        with my_vcr.use_cassette(cache, record_mode="new_episodes") as cass:
             base_route = self.request.uri.split("?")[0]
 
-            if (
-                "test_server" in cfg
-                and "redirects" in cfg["test_server"]
-                and base_route in cfg["test_server.redirects"]
-            ):
+            if base_route in cfg["test_server.redirects"]:
                 real_host = cfg["test_server.redirects"][base_route]
                 url = real_host + self.request.uri
 
@@ -97,12 +121,11 @@ class TestRouteHandler(tornado.web.RequestHandler):
                         response["body"]["string"]
                         .decode("utf-8")
                         .replace(
-                            real_host, f"http://localhost:{cfg['ports.test_server']}"
+                            real_host, f"http://localhost:{cfg['test_server.port']}"
                         )
                     )
                 else:
                     response_body = response["body"]["string"]
-
                 self.write(response_body)
 
             else:
@@ -112,16 +135,17 @@ class TestRouteHandler(tornado.web.RequestHandler):
     def post(self):
         is_soap_action = "Soapaction" in self.request.headers
         cache = get_cache_file()
-        with vcr.use_cassette(
+        match_on = ['uri', 'method', 'body']
+
+        if self.request.uri == "/node_agent2/node_agent":
+            match_on = ["lt"]
+
+        with my_vcr.use_cassette(
             cache,
             record_mode="new_episodes",
-            match_on=['uri', 'method', 'body'],
+            match_on=match_on,
         ) as cass:
-            if (
-                "test_server" in cfg
-                and "redirects" in cfg["test_server"]
-                and self.request.uri in cfg["test_server.redirects"]
-            ):
+            if self.request.uri in cfg["test_server.redirects"]:
                 real_host = cfg["test_server.redirects"][self.request.uri]
                 url = real_host + self.request.uri
 
@@ -165,7 +189,8 @@ def make_app():
 if __name__ == "__main__":
     env, cfg = load_env()
     log = make_log("testserver")
-
+    my_vcr = vcr.VCR()
+    my_vcr.register_matcher("lt", lt_request_matcher)
     if "test_server" in cfg:
         app = make_app()
         server = tornado.httpserver.HTTPServer(app)

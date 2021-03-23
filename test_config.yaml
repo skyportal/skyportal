@@ -41,9 +41,15 @@ notifications:
 
 testing: true
 
+services:
+  paths:
+    - ./baselayer/services
+    - ./skyportal/services
+
 test_server:
-  module: test_server
-  path: skyportal/tests/test_server.py
+  port: 64502
+  # Reset the cache every * days
+  refresh_cache_days: 7
   redirects:
     # List of routes listened for by the test server, and the real URLs that
     # requests should be redirected to. Requests will be forwarded by the
