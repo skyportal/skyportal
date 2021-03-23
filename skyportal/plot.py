@@ -342,7 +342,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     labels = []
     for i, datarow in data.iterrows():
-        label = f'{datarow["instrument"]}/{datarow["filter"]}'
+        label = f'{datarow["instrument"]}/{datarow["filter"]}asfasdfasfsafdsa'
         if datarow['origin'] is not None:
             label += f'/{datarow["origin"]}'
         labels.append(label)
@@ -456,6 +456,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         y_range=(lower, upper),
         min_border_right=16,
         x_axis_location='above',
+        sizing_mode="stretch_width",
     )
 
     plot.xaxis.axis_label = 'MJD'
@@ -556,7 +557,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     plot.toolbar.logo = None
 
     add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
-    plot.sizing_mode = "stretch_width"
     slider = Slider(
         start=0.0,
         end=15.0,
@@ -653,6 +653,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         toolbar_location='above',
         toolbar_sticky=True,
         x_axis_location='above',
+        sizing_mode="stretch_width",
     )
 
     plot.xaxis.axis_label = 'MJD'
@@ -930,7 +931,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         period = period_list[0]
     else:
         period = None
-
+    period = None
     # don't generate if no period annotated
     if period is not None:
         # bokeh figure for period plotting
@@ -944,6 +945,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             toolbar_location='above',
             toolbar_sticky=False,
             x_axis_location='below',
+            sizing_mode="stretch_width",
         )
 
         # axis labels
