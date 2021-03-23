@@ -1,7 +1,7 @@
 # Access controls
 
 ## Introduction
-Astronomical data is often subject to complex data rights policies. As a data platform designed to ingest and serve data from multiple sources, each potentially with different access policies, simultaneously, SkyPortal must be able to enforce complex policies governing who can see, interact with, and modify what. SkyPortal  enforces such policies using a custom row-level security (RLS) framework in the API layer.
+Astronomical data is often subject to complex data rights policies. As a data platform designed to ingest and serve data from multiple experiments and groups, each potentially with different access policies, SkyPortal must be able to enforce arbitrary logic governing who can see, interact with, and modify data. SkyPortal enforces such policies using a custom row-level security (RLS) framework in the API layer.
 
 RLS allows SkyPortal developers to define policies that restrict, with row- and user / token-level granularity, which rows of a table (e.g., photometry, spectra, groups, followup requests, data streams, etc.) that a user can read, update, create, and delete. SkyPortal uses baselayer's ORM-based framework for RLS within API transactions. With baselayer's RLS framework, SkyPortal developers can
 
