@@ -342,7 +342,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     labels = []
     for i, datarow in data.iterrows():
-        label = f'{datarow["instrument"]}/{datarow["filter"]}asfasdfasfsafdsa'
+        label = f'{datarow["instrument"]}/{datarow["filter"]}'
         if datarow['origin'] is not None:
             label += f'/{datarow["origin"]}'
         labels.append(label)
