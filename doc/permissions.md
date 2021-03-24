@@ -3,22 +3,22 @@
 ## Introduction
 Astronomical data is often subject to complex data rights policies. As a data platform designed to ingest and serve data from multiple experiments and groups, each potentially with different access policies, SkyPortal must be able to enforce arbitrary logic governing who can see, interact with, and modify data. SkyPortal enforces such policies using a custom row-level security (RLS) framework in the API layer.
 
-RLS allows SkyPortal developers to define policies that restrict, with row- and user / token-level granularity, which rows of a table (e.g., photometry, spectra, groups, followup requests, data streams, etc.) that a user can read, update, create, and delete. SkyPortal uses baselayer's ORM-based framework for RLS within API transactions. With baselayer's RLS framework, SkyPortal developers can
+RLS allows SkyPortal developers to define policies that restrict, with row- and user-level granularity, which rows of a table (e.g., photometry, spectra, groups, followup requests, data streams, etc.) a user can read, update, create, and delete. SkyPortal uses baselayer's ORM-based framework for RLS within API transactions. With baselayer's RLS framework, SkyPortal developers can
 
 * Be sure that access policies will be consistently enforced when protected records are accessed in an API transaction
 * Efficiently filter database queries by RLS accessibility to ensure that API endpoints only return records that users can access
-* Take advantage of vectorization to efficiently apply policy checks and filters to bulk queries of records
+* Take advantage of vectorization to efficiently apply policy checks and filters to bulk record queries
 * Define arbitrarily complex, relational, and scalable row-level CRUD access policies on any SkyPortal table
 * Use predefined access patterns to restrict access to records by stream access, group membership, user ACLs, and more
 * Implement different policies for different types of access on a single type of record
 
-**Note:** Although SkyPortal uses PostgreSQL as the database backend, SkyPortal does not use PostgrteSQL's RLS implementation for row level security.
+**Note:** Although SkyPortal uses PostgreSQL as the database backend, SkyPortal does not use PostgrteSQL's RLS implementation for row-level security.
 
 ## RLS Architecture and Design
 
 In SkyPortal, RLS policies are defined on SQLAlchemy mapped classes. Each class has a single policy for each of the create, delete, update, and read access modes. Records are read- and create-public by default, and update- and delete-restricted (i.e., only accessible to users with the "System admin" ACL) by default. Join table classes are also update- and delete-restricted by default, but they can (by default) be created or read by any user that can read both their left and right records. These defaults can be overridden on any mapped class.
 
-When an API handler brings an instance of a mapped class into the session, either by a database query or by creating a new instance within the handler and adding it to the session, the SQLalchemy ORM tracks changes to the intsance's state. At the end of a transaction, if the handler calls either `verify_permissions` or `finalize_transaction`, the RLS permission checker will introspect the database session and get the sets of records that were read, updated, deleted, or created during the current transaction. It will then iterate through each of these collections and check that every record was accessed in an allowable way. If it encounters any permissions violations during this process, it causes the handler to rollback the transaction and return an HTTP status code of 400 with a message that identifies the specific row where an access policy was violated. If no access policies are violated, then the transaction will finish successfully.
+When an API handler brings an instance of a mapped class into the session, either by a database query or by creating a new instance within the handler and adding it to the session, the SQLalchemy ORM tracks changes to the instance's state. At the end of a transaction, if the handler calls either `verify_permissions` or `finalize_transaction`, the RLS permission checker will introspect the database session and get the sets of records that were read, updated, deleted, or created during the current transaction. It will then iterate through each of these collections and check that every record was accessed in an allowable way. If it encounters any permissions violations during this process, it causes the handler to rollback the transaction and return an HTTP status code of 400 with a message that identifies the specific row where an access policy was violated. If no access policies are violated, then the transaction will finish successfully.
 
 This design ensures that every object pulled into the handler's session during an API transaction has its access policy checked in a consistent way, automatically preventing leaks of sensitive information to the end user. In most cases, the developer only needs to define a policy on a mapped class, then call `verify_permissions` at the end of an API handler call to ensure that the policy is applied.
 
