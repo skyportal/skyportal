@@ -7,7 +7,7 @@ RLS allows SkyPortal developers to define policies that restrict, with row- and 
 
 * Be sure that access policies will be automatically and consistently enforced whenever a protected record is accessed in an API transaction
 * Efficiently filter database queries by RLS accessibility to ensure that API endpoints only return records that users can access
-* Take advantage of vectorization to efficiently apply policy checks and filters to bulk queries of records
+* Take advantage of vectorization to efficiently apply policy checks and filters to bulk record queries
 * Define arbitrarily complex, relational, and scalable row-level CRUD access policies on any SkyPortal table
 * Use predefined access patterns to restrict access to records by stream access, group membership, user ACLs, and more
 * Implement different policies for different types of access on a single type of record
