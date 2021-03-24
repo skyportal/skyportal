@@ -214,6 +214,9 @@ const FilterCandidateList = ({
     setFilterGroups(
       userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
     );
+
+    // Clear annotation sort params
+    await dispatch(candidatesActions.setCandidatesAnnotationSortOptions(null));
     // Save form-specific data, formatted for the API query
     await dispatch(candidatesActions.setFilterFormData(data));
 
