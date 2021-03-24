@@ -547,13 +547,30 @@ def token_groups(self):
 Token.groups = token_groups
 
 
-class Obj(Base, ha.Point):
+class CommentableBase(Base):
+    """
+    A base class for all other classes that can be assigned comments and annotations.
+    E.g., Obj, Spectrum, Photometry, Thumbnails
+    """
+
+    # id should be defined by the baselayer BaseMixin
+    commentable_type = sa.Column(sa.String)
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'commentable_base',
+        'polymorphic_on': 'commentable_type',
+    }
+
+
+class Obj(CommentableBase, ha.Point):
     """A record of an astronomical Object and its metadata, such as position,
     positional uncertainties, name, and redshift."""
 
     update = public
 
-    id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
+    # id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
+    name = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
+    id = sa.Column(sa.Integer, sa.ForeignKey('commentablebases.id'), primary_key=True)
     # TODO should this column type be decimal? fixed-precison numeric
 
     ra_dis = sa.Column(sa.Float, doc="J2000 Right Ascension at discovery time [deg].")
@@ -2001,6 +2018,10 @@ class Comment(Base):
 
     update = delete = AccessibleIfUserMatches('author')
 
+    on_type = sa.Column(
+        sa.String, doc="type of data that is commented, e.g., Obj, Spectra, Photometry"
+    )
+
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
         sa.Enum('text', 'redshift', name='comment_types', validate_strings=True),
@@ -2041,6 +2062,17 @@ class Comment(Base):
         'Obj',
         back_populates='comments',
         doc="The Comment's Obj.",
+    )
+    target_id = sa.Column(
+        sa.ForeignKey('commentablebases.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the data being commented. Can be Obj, Spectrum, etc",
+    )
+    target = relationship(
+        'CommentableBase',
+        back_populates='comments',
+        doc="The data being commented, e.g., Obj, Spectrum, Photometry, etc.",
     )
     groups = relationship(
         "Group",
@@ -2096,6 +2128,10 @@ class Annotation(Base):
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
+    on_type = sa.Column(
+        sa.String, doc="type of data that is annotated, e.g., Obj, Spectra, Photometry"
+    )
+
     data = sa.Column(JSONB, default=None, doc="Searchable data in JSON format")
     author = relationship(
         "User",
@@ -2130,8 +2166,27 @@ class Annotation(Base):
         index=True,
         doc="ID of the Annotation's Obj.",
     )
-
     obj = relationship('Obj', back_populates='annotations', doc="The Annotation's Obj.")
+
+    target_id = sa.Column(
+        sa.ForeignKey('commentablebases.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the data being annotated. Can be Obj, Spectrum, etc",
+    )
+    target = relationship(
+        'CommentableBase',
+        back_populates='annotations',
+        doc="The data being annoptated, e.g., Obj, Spectrum, Photometry, etc.",
+    )
+    groups = relationship(
+        "Group",
+        secondary="group_comments",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="Groups that can see the comment.",
+    )
+
     groups = relationship(
         "Group",
         secondary="group_annotations",
@@ -2245,13 +2300,17 @@ GroupClassification.delete = GroupClassification.update = (
 )
 
 
-class Photometry(ha.Point, Base):
+class Photometry(ha.Point, CommentableBase):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
-
+    __mapper_args__ = {
+        'polymorphic_identity': 'photometry',
+    }
     read = accessible_by_groups_members
     update = delete = accessible_by_owner
+
+    id = sa.Column(sa.Integer, sa.ForeignKey('commentablebases.id'), primary_key=True)
 
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
     flux = sa.Column(
@@ -2479,6 +2538,12 @@ class Spectrum(Base):
     update = delete = accessible_by_owner
 
     __tablename__ = 'spectra'
+    __mapper_args = {
+        'polymorphic_identity': 'spectrum',
+    }
+
+    id = sa.Column(sa.Integer, sa.ForeignKey('commentablebases.id'), primary_key=True)
+
     # TODO better numpy integration
     wavelengths = sa.Column(
         NumpyArray, nullable=False, doc="Wavelengths of the spectrum [Angstrom]."
@@ -3011,7 +3076,13 @@ Listing.__table_args__ = (
 class Thumbnail(Base):
     """Thumbnail image centered on the location of an Obj."""
 
+    __mapper_args = {
+        'polymorphic_identity': 'thumbnail',
+    }
+
     create = read = AccessibleIfRelatedRowsAreAccessible(obj='read')
+
+    id = sa.Column(sa.Integer, sa.ForeignKey('commentablebases.id'), primary_key=True)
 
     # TODO delete file after deleting row
     type = sa.Column(
