@@ -15,6 +15,10 @@ from baselayer.log import make_log
 
 
 def get_cache_file():
+    """
+    Helper function to get the path to the VCR cache file.
+    The function will also delete the existing cache if it is too old.
+    """
     files = glob.glob("cache/test_server_recordings_*.yaml")
     today = datetime.date.today()
 
@@ -48,14 +52,20 @@ def lt_request_matcher(r1, r2):
         if r2.body is not None
         else None
     )
-    r1_device = re.findall(r"&lt;Device name=&quot;.+?&quot;", r1.body.decode("utf-8"))[
-        0
-    ]
-    r2_device = (
-        re.findall(r"&lt;Device name=&quot;.+?&quot;", r2.body.decode("utf-8"))[0]
-        if r2.body is not None
-        else None
+
+    r1_device_matches = (
+        re.findall(r"&lt;Device name=&quot;.+?&quot;", r1.body.decode("utf-8"))
+        if r1.body is not None
+        else []
     )
+    r1_device = r1_device_matches[0] if (len(r1_device_matches) != 0) else None
+    r2_device_matches = (
+        re.findall(r"&lt;Device name=&quot;.+?&quot;", r2.body.decode("utf-8"))
+        if r2.body is not None
+        else []
+    )
+    r2_device = r2_device_matches[0] if (len(r2_device_matches) != 0) else None
+
     assert (
         r1.uri == r2.uri
         and r1.method == r2.method
@@ -135,8 +145,8 @@ class TestRouteHandler(tornado.web.RequestHandler):
     def post(self):
         is_soap_action = "Soapaction" in self.request.headers
         cache = get_cache_file()
-        match_on = ['uri', 'method', 'body']
 
+        match_on = ['uri', 'method', 'body']
         if self.request.uri == "/node_agent2/node_agent":
             match_on = ["lt"]
 
