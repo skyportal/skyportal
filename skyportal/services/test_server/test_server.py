@@ -44,6 +44,8 @@ def lt_request_matcher(r1, r2):
     """
     Helper function to help determine if two requests to the LT API are equivalent
     """
+
+    # Check that the request modes are matching (should be either "request" or "abort")
     r1_request_mode = re.findall(
         r"mode=&quot;[a-zA-Z]+&quot;", r1.body.decode("utf-8")
     )[0]
@@ -53,6 +55,7 @@ def lt_request_matcher(r1, r2):
         else None
     )
 
+    # For "request" calls, check that the "Device" parameters match up
     r1_device_matches = (
         re.findall(r"&lt;Device name=&quot;.+?&quot;", r1.body.decode("utf-8"))
         if r1.body is not None
@@ -66,6 +69,8 @@ def lt_request_matcher(r1, r2):
     )
     r2_device = r2_device_matches[0] if (len(r2_device_matches) != 0) else None
 
+    # A request matches an LT request if the URL matches, the POST/GET matches,
+    # the mode ("request" or "abort") matches, and the instrument ("Device") matches.
     assert (
         r1.uri == r2.uri
         and r1.method == r2.method
