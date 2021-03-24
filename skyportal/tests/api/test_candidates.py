@@ -1337,8 +1337,8 @@ def test_correct_spectra_and_photometry_returned_by_candidate(
 
     phot_ids_db = sorted([p.id for p in public_candidate.photometry])
     phot_ids_api = sorted([p['id'] for p in data['data']['photometry']])
-    assert all([id1 == id2 for id1, id2 in zip(phot_ids_db, phot_ids_api)])
+    assert phot_ids_db == phot_ids_api
 
     spec_ids_db = sorted([p.id for p in public_candidate.spectra])
     spec_ids_api = sorted([p['id'] for p in data['data']['spectra']])
-    assert all([id1 == id2 for id1, id2 in zip(spec_ids_db, spec_ids_api)])
+    assert spec_ids_db == spec_ids_api
