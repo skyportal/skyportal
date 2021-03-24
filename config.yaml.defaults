@@ -21,8 +21,6 @@ app:
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://pharos.caltech.edu/add_fritz
 
-  # lt_host: localhost
-  # lt_port: 64502
   lt_host: 161.72.57.3
   lt_port: 8080
 
