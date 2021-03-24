@@ -2,7 +2,6 @@ import tornado.web
 
 from baselayer.app.app_server import MainPageHandler
 from baselayer.app import model_util as baselayer_model_util
-from baselayer.app.models import DBSession
 from baselayer.log import make_log
 
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
@@ -271,8 +270,5 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
 
     model_util.provision_public_group()
     app.openapi_spec = openapi.spec_from_handlers(handlers)
-
-    # clear any objects that remain in the session
-    DBSession.remove()
 
     return app
