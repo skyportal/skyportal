@@ -5,7 +5,7 @@ Astronomical data is often subject to complex data rights policies. As a data pl
 
 RLS allows SkyPortal developers to define policies that restrict, with row- and user / token-level granularity, which rows of a table (e.g., photometry, spectra, groups, followup requests, data streams, etc.) that a user can read, update, create, and delete. SkyPortal uses baselayer's ORM-based framework for RLS within API transactions. With baselayer's RLS framework, SkyPortal developers can
 
-* Be sure that access policies will be automatically and consistently enforced whenever a protected record is accessed in an API transaction
+* Be sure that access policies will be consistently enforced when protected records are accessed in an API transaction
 * Efficiently filter database queries by RLS accessibility to ensure that API endpoints only return records that users can access
 * Take advantage of vectorization to efficiently apply policy checks and filters to bulk queries of records
 * Define arbitrarily complex, relational, and scalable row-level CRUD access policies on any SkyPortal table
@@ -156,11 +156,12 @@ Spectrum.get_if_accessible_by([1, 3], user, raise_if_none=True, mode="update")
 Photometry.get_records_accessible_by(user, mode="read")
 ```
 
-(d) Query for all photometry that `User` `user` can delete with a signal-to-noise ratio of at least 10:
+(d) Construct a query object for all photometry that `User` `user` can delete
+ with a signal-to-noise ratio of at least 10:
 
 ```python
 deletable_phot_query = Photometry.query_records_accessible_by(user, mode="delete")
-filtered_deletable_query = deletable_phot_query.filter(Photometry.snr > 10).all()
+filtered_deletable_query = deletable_phot_query.filter(Photometry.snr > 10)
 ```
 
 
@@ -171,3 +172,22 @@ Calling `self.verify_permissions()` within a SkyPortal API handler will trigger 
 Calling `self.finalize_transaction()` within a SkyPortal API handler will call `self.verify_permissions()` and then commit the current transaction to the database.
 
 If neither of these methods is called in an API handler, the handler will not automatically check for permissions violations. The best practice is to call these methods at the end of a handler's transaction, immediately before `self.success` or `self.error`.
+
+###  Further examples of policies:
+
+ * [Policy requiring that a user be in a comment's groups and able to read the comment's obj to read the comment](https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/models.py#L1998)
+ * [Policy that allows a user to read a classification if the user can read the
+  corresponding taxonomy and Obj](https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/models.py#L2181)
+ * [Policy that allows tokens with the "Post from {facility} ACL" to update
+  (but not read) requests made with that facility's API](https://github.com/skyportal/skyportal/pull/1793/files#diff-1a72b97ee4bbd072128056c510aed307d63349171ef041ffe2ed256cf1286547R2828)
+  * [Policy that allows group admins of a particular group to add a new user
+   to the group if and only if the new user has access to all of the group's
+    streams](https://github.com/skyportal/skyportal/pull/1793/files#diff-1a72b97ee4bbd072128056c510aed307d63349171ef041ffe2ed256cf1286547R3621)
+
+###  Examples of permissions being checked in an API handler:
+
+ * [Pattern for retrieving a specified record(s) if a user has access, otherwise
+  erroring](https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/handlers/api/comment.py#L51)
+ * [Pattern for checking permissions on all the records in a session and
+  erroring if any violations are detected](https://github.com/skyportal/skyportal/blob/c7ab07bd04d26e9f66938a05b4c70172a9364c82/skyportal/handlers/api/allocation.py#L71)
+ * [Pattern for constructing a query for all records accessible to a user, then filtering that query](https://github.com/skyportal/skyportal/pull/1801/files#diff-0200612f282483e1172207de90a4db4788b3ca5ce55ab5105938d876e11eb2e0R1562)
