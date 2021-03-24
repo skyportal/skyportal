@@ -343,7 +343,7 @@ def test_submit_new_followup_request_SEDM(
 @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lt_isonline, reason="LT server down")
 def test_submit_new_followup_request_IOO(
-    driver, super_admin_user, public_source, super_admin_token, public_group, capsys
+    driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     add_followup_request_using_frontend_and_verify_IOO(
         driver, super_admin_user, public_source, super_admin_token, public_group
