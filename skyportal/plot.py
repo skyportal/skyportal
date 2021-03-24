@@ -242,10 +242,10 @@ def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
         width_remaining = width - 120
         current_legend_items = []
         for item in legend_items:
-            # 0.52 is the aspect ratio of the Helvetica font (the default Bokeh
-            # label font) and 13 is the default label font size. The 30 is the
-            # pixel width of the label shape. The 6 is the spacing between label entries
-            item_width = len(item.label["value"]) * 0.52 * 13 + 30 + 6
+            # 0.65 is an estimate of the average aspect ratio of the characters in the Helvetica
+            # font (the default Bokeh label font) and 13 is the default label font size.
+            # The 30 is the pixel width of the label shape. The 6 is the spacing between label entries
+            item_width = len(item.label["value"]) * 0.65 * 13 + 30 + 6
             # We've hit the end of the line, wrap to a new one
             if item_width > width_remaining:
                 plot.add_layout(
@@ -401,6 +401,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     legend_orientation = (
         "vertical" if device in ["browser", "mobile_portrait"] else "horizontal"
     )
+
     # Compute a plot component height based on rough number of legend rows added below the plot
     # Values are based on default sizing of bokeh components and an estimate of how many
     # legend items would fit on the average device screen. Note that the legend items per
@@ -412,6 +413,10 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     # Legend component is considered part of the plot and plays into the sizing computations. Since the
     # number of items in the legend can alter the needed heights of the plot, using built-in Bokeh options
     # for sizing does not allow for keeping the actual graph part of the plot at a consistent aspect ratio.
+    #
+    # For the frame width, by default we take the desired plot width minus 64 for the y-axis/label taking
+    # up horizontal space
+    frame_width = width - 64
     if device == "mobile_portrait":
         legend_items_per_row = 1
         legend_row_height = 24
@@ -428,6 +433,10 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         legend_items_per_row = 7
         legend_row_height = 50
         aspect_ratio = 1.8
+    elif device == "browser":
+        # Width minus some base width for the legend, which is only a column to the right
+        # for browser mode
+        frame_width = width - 200
 
     height = (
         500
@@ -436,10 +445,9 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         + legend_row_height * int(len(split) / legend_items_per_row)
         + 30  # 30 is the height of the toolbar
     )
-    aspect_ratio = math.floor(width / height)
 
     plot = figure(
-        width=width,
+        frame_width=frame_width,
         height=height,
         active_drag=active_drag,
         tools=tools,
@@ -448,6 +456,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         y_range=(lower, upper),
         min_border_right=16,
         x_axis_location='above',
+        sizing_mode="stretch_width",
     )
 
     plot.xaxis.axis_label = 'MJD'
@@ -548,7 +557,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     plot.toolbar.logo = None
 
     add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
-
     slider = Slider(
         start=0.0,
         end=15.0,
@@ -636,7 +644,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     )
 
     plot = figure(
-        width=width,
+        frame_width=frame_width,
         height=height,
         active_drag=active_drag,
         tools=tools,
@@ -645,6 +653,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         toolbar_location='above',
         toolbar_sticky=True,
         x_axis_location='above',
+        sizing_mode="stretch_width",
     )
 
     plot.xaxis.axis_label = 'MJD'
@@ -922,12 +931,12 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         period = period_list[0]
     else:
         period = None
-
+    period = None
     # don't generate if no period annotated
     if period is not None:
         # bokeh figure for period plotting
         period_plot = figure(
-            width=width,
+            frame_width=frame_width,
             height=height,
             active_drag=active_drag,
             tools=tools,
@@ -936,6 +945,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             toolbar_location='above',
             toolbar_sticky=False,
             x_axis_location='below',
+            sizing_mode="stretch_width",
         )
 
         # axis labels
@@ -1240,17 +1250,38 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         if "mobile" in device or "tablet" in device
         else "box_zoom,wheel_zoom,pan,reset"
     )
-    plot_width = None if device == "browser" else width
+
+    # These values are equivalent from the photometry plot values
+    frame_width = width - 64
     if device == "mobile_portrait":
+        legend_items_per_row = 1
+        legend_row_height = 24
         aspect_ratio = 1
-    elif device == "tablet_portrait":
-        aspect_ratio = 1.5
-    else:
+    elif device == "mobile_landscape":
+        legend_items_per_row = 4
+        legend_row_height = 50
         aspect_ratio = 1.8
+    elif device == "tablet_portrait":
+        legend_items_per_row = 5
+        legend_row_height = 50
+        aspect_ratio = 1.5
+    elif device == "tablet_landscape":
+        legend_items_per_row = 7
+        legend_row_height = 50
+        aspect_ratio = 1.8
+    elif device == "browser":
+        frame_width = width - 200
+    plot_height = (
+        400
+        if device == "browser"
+        else math.floor(width / aspect_ratio)
+        + legend_row_height * int(len(split) / legend_items_per_row)
+        + 30  # 30 is the height of the toolbar
+    )
+
     plot = figure(
-        aspect_ratio=aspect_ratio,
-        sizing_mode='scale_both',
-        width=plot_width,
+        frame_width=frame_width,
+        height=plot_height,
         y_range=(ymin, ymax),
         x_range=(xmin, xmax),
         tools=tools,
@@ -1299,7 +1330,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
 
     add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
 
-    slider_width = width if "mobile" in device else int(width / 2)
+    # 20 is for padding
+    slider_width = width if "mobile" in device else int(width / 2) - 20
     z_title = Div(text="Redshift (<i>z</i>): ")
     z_slider = Slider(
         value=obj.redshift if obj.redshift is not None else 0.0,
@@ -1455,7 +1487,22 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         z_textinput.js_on_change('value', callback)
         v_exp_textinput.js_on_change('value', callback)
 
+    # Add some height for the checkboxes and sliders
+    if device == "mobile_portrait":
+        height = plot_height + 400
+    elif device == "mobile_landscape":
+        height = plot_height + 350
+    else:
+        height = plot_height + 200
+
     row2 = row(elements_groups)
     row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
-    layout = column(plot, row2, row3, sizing_mode='scale_height', width=width)
+    layout = column(
+        plot,
+        row2,
+        row3,
+        sizing_mode='stretch_width',
+        width=width,
+        height=height,
+    )
     return bokeh_embed.json_item(layout)
