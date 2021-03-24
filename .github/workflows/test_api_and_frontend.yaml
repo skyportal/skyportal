@@ -39,6 +39,7 @@ jobs:
             ~/.cache
             ~/.local
             ~/.npm
+            cache
           key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
 
       - name: Checkout master
