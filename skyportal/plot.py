@@ -146,9 +146,7 @@ phot_markers = [
     "diamond",
     "star",
     "plus",
-    "x",
     "cross",
-    "y",
     "triangle_pin",
     "square_pin",
 ]
@@ -733,6 +731,23 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     for i, (label, df) in enumerate(split):
         renderers = []
 
+        unobs_source = df[~df['obs']].copy()
+        unobs_source.loc[:, 'alpha'] = 0.8
+
+        key = f'unobs{i}'
+        model_dict[key] = plot.scatter(
+            x='mjd',
+            y='lim_mag',
+            color=color_dict,
+            marker=factor_mark('instrument', markers, instruments),
+            fill_alpha=0.0,
+            line_color=color_dict,
+            alpha='alpha',
+            source=ColumnDataSource(unobs_source),
+        )
+        renderers.append(model_dict[key])
+        imhover.renderers.append(model_dict[key])
+
         key = f'obs{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
@@ -742,23 +757,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             fill_color=color_dict,
             alpha='alpha',
             source=ColumnDataSource(df[df['obs']]),
-        )
-        renderers.append(model_dict[key])
-        imhover.renderers.append(model_dict[key])
-
-        unobs_source = df[~df['obs']].copy()
-        unobs_source.loc[:, 'alpha'] = 0.8
-
-        key = f'unobs{i}'
-        model_dict[key] = plot.scatter(
-            x='mjd',
-            y='lim_mag',
-            color=color_dict,
-            marker='inverted_triangle',
-            fill_color='white',
-            line_color='color',
-            alpha='alpha',
-            source=ColumnDataSource(unobs_source),
         )
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
