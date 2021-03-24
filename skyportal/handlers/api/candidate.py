@@ -352,17 +352,25 @@ class CandidateHandler(BaseHandler):
             )
 
             if include_photometry:
-                candidate_info['photometry'] = Photometry.get_records_accessible_by(
-                    self.current_user,
-                    mode='read',
-                    options=[joinedload(Photometry.instrument)],
+                candidate_info['photometry'] = (
+                    Photometry.query_records_accessible_by(
+                        self.current_user,
+                        mode='read',
+                        options=[joinedload(Photometry.instrument)],
+                    )
+                    .filter(Photometry.obj_id == obj_id)
+                    .all()
                 )
 
             if include_spectra:
-                candidate_info['spectra'] = Spectrum.get_records_accessible_by(
-                    self.current_user,
-                    mode='read',
-                    options=[joinedload(Spectrum.instrument)],
+                candidate_info['spectra'] = (
+                    Spectrum.query_records_accessible_by(
+                        self.current_user,
+                        mode='read',
+                        options=[joinedload(Spectrum.instrument)],
+                    )
+                    .filter(Spectrum.obj_id == obj_id)
+                    .all()
                 )
 
             candidate_info["annotations"] = sorted(
@@ -745,19 +753,25 @@ class CandidateHandler(BaseHandler):
                 candidate_list.append(obj.to_dict())
 
                 if include_photometry:
-                    candidate_list[-1][
-                        "photometry"
-                    ] = Photometry.get_records_accessible_by(
-                        self.current_user,
-                        mode='read',
-                        options=[joinedload(Photometry.instrument)],
+                    candidate_list[-1]["photometry"] = (
+                        Photometry.query_records_accessible_by(
+                            self.current_user,
+                            mode='read',
+                            options=[joinedload(Photometry.instrument)],
+                        )
+                        .filter(Photometry.obj_id == obj.id)
+                        .all()
                     )
 
                 if include_spectra:
-                    candidate_list[-1]["spectra"] = Spectrum.get_records_accessible_by(
-                        self.current_user,
-                        mode='read',
-                        options=[joinedload(Spectrum.instrument)],
+                    candidate_list[-1]["spectra"] = (
+                        Spectrum.query_records_accessible_by(
+                            self.current_user,
+                            mode='read',
+                            options=[joinedload(Spectrum.instrument)],
+                        )
+                        .filter(Spectrum.obj_id == obj.id)
+                        .all()
                     )
 
                 candidate_list[-1]["comments"] = sorted(

@@ -1315,3 +1315,30 @@ def test_candidate_list_not_saved_to_all_selected_groups(
         )
         == 0
     )
+
+
+def test_correct_spectra_and_photometry_returned_by_candidate(
+    public_candidate,
+    public_candidate2,  # just to add additional photometry to the DB that the API handler shouldn't return
+    view_only_token_two_groups,
+):
+
+    status, data = api(
+        'GET',
+        f"candidates/{public_candidate.id}?includePhotometry=t&includeSpectra=t",
+        token=view_only_token_two_groups,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    assert len(public_candidate.photometry) == len(data['data']['photometry'])
+    assert len(public_candidate.spectra) == len(data['data']['spectra'])
+
+    phot_ids_db = sorted([p.id for p in public_candidate.photometry])
+    phot_ids_api = sorted([p['id'] for p in data['data']['photometry']])
+    assert all([id1 == id2 for id1, id2 in zip(phot_ids_db, phot_ids_api)])
+
+    spec_ids_db = sorted([p.id for p in public_candidate.spectra])
+    spec_ids_api = sorted([p['id'] for p in data['data']['spectra']])
+    assert all([id1 == id2 for id1, id2 in zip(spec_ids_db, spec_ids_api)])
