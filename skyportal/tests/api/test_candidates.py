@@ -1319,7 +1319,7 @@ def test_candidate_list_not_saved_to_all_selected_groups(
 
 def test_correct_spectra_and_photometry_returned_by_candidate(
     public_candidate,
-    public_candidate2,  # just to add additional photometry to the DB that the API handler shouldn't return
+    public_candidate2,  # adds phot and spec that should not be returned
     view_only_token_two_groups,
 ):
 
