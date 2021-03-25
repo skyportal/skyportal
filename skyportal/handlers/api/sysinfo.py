@@ -75,8 +75,6 @@ class SysInfoHandler(BaseHandler):
             if not (entry['description'].lower().startswith(('bump', 'pin')))
         ]
 
-        print(parsed_log)
-
         return self.success(
             data={
                 "invitationsEnabled": cfg["invitations.enabled"],
