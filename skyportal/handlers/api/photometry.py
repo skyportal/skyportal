@@ -660,7 +660,6 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
-        # DBSession().commit()
         self.finalize_transaction()
         return self.success(data={'ids': ids, 'upload_id': upload_id})
 
