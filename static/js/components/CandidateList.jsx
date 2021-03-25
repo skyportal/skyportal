@@ -36,6 +36,7 @@ import ScanningPageCandidateAnnotations, {
 } from "./ScanningPageCandidateAnnotations";
 import EditSourceGroups from "./EditSourceGroups";
 import { ra_to_hours, dec_to_dms } from "../units";
+import RejectButton from "./RejectButton";
 
 const VegaPlot = React.lazy(() =>
   import(/* webpackChunkName: "VegaPlot" */ "./VegaPlot")
@@ -588,6 +589,7 @@ const CandidateList = () => {
           <div>
             <div className={classes.itemPaddingBottom}>
               <Chip size="small" label="Previously Saved" color="primary" />
+              <RejectButton objID={candidateObj.id} />
             </div>
             <div className={classes.saveCandidateButton}>
               <EditSourceGroups
@@ -623,6 +625,7 @@ const CandidateList = () => {
               label="NOT SAVED"
               className={classes.itemPaddingBottom}
             />
+            <RejectButton objID={candidateObj.id} />
           </div>
         )}
         {/* If candidate is either unsaved or is not yet saved to all groups being filtered on, show the "Save to..." button */}

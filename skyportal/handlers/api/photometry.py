@@ -69,6 +69,7 @@ def serialize(phot, outsys, format):
         'origin': phot.origin,
         'id': phot.id,
         'groups': phot.groups,
+        'altdata': phot.altdata,
     }
 
     filter = phot.filter
