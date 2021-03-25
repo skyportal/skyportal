@@ -285,8 +285,6 @@ class GroupHandler(BaseHandler):
 
         g = Group(name=data["name"], nickname=data.get("nickname") or None)
         DBSession().add(g)
-        self.verify_and_commit()
-        DBSession().flush()
         DBSession().add_all(
             [GroupUser(group=g, user=user, admin=True) for user in group_admins]
         )
