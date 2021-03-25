@@ -35,7 +35,7 @@ class FacilityMessageHandler(BaseHandler):
 
         jsonschema.validate(data, instrument.listener_class.complete_schema())
         instrument.listener_class.process_message(self)
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",

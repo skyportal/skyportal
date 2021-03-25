@@ -109,7 +109,7 @@ class SourceHandler(BaseHandler):
             .filter(Source.group_id.in_(user_group_ids))
             .count()
         )
-        self.verify_permissions()
+        self.verify_and_commit()
         if num_s > 0:
             return self.success()
         else:
@@ -586,7 +586,7 @@ class SourceHandler(BaseHandler):
                     is_token=True,
                 )
                 DBSession.add(sv)
-                self.finalize_transaction()
+                self.verify_and_commit()
 
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
@@ -686,7 +686,7 @@ class SourceHandler(BaseHandler):
                 )
                 source_info["groups"][i]['saved_at'] = saved_at
 
-            self.verify_permissions()
+            self.verify_and_commit()
             return self.success(data=source_info)
 
         # Fetch multiple sources
@@ -1012,7 +1012,7 @@ class SourceHandler(BaseHandler):
                     source_list[-1]["groups"][i]['saved_at'] = saved_at
             query_results["sources"] = source_list
 
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=query_results)
 
     @permissions(['Upload data'])
@@ -1119,7 +1119,7 @@ class SourceHandler(BaseHandler):
                         obj=obj, group=group, saved_by_id=self.associated_user_object.id
                     )
                 )
-        self.finalize_transaction()
+        self.verify_and_commit()
         if not obj_already_exists:
             obj.add_linked_thumbnails()
         # If we're updating a source
@@ -1173,7 +1173,7 @@ class SourceHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_key": obj.internal_key},
@@ -1216,7 +1216,7 @@ class SourceHandler(BaseHandler):
         )
         s.active = False
         s.unsaved_by = self.current_user
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         return self.success(action='skyportal/FETCH_SOURCES')
 
@@ -1424,7 +1424,7 @@ class SourceOffsetsHandler(BaseHandler):
             [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
         )
 
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(
             data={
                 'facility': facility,
@@ -1637,7 +1637,7 @@ class SourceFinderHandler(BaseHandler):
             'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
         )
 
-        self.verify_permissions()
+        self.verify_and_commit()
 
         for i in range(math.ceil(max_file_size / chunk_size)):
             chunk = image.read(chunk_size)
@@ -1779,7 +1779,7 @@ class SourceNotificationHandler(BaseHandler):
         )
         DBSession().add(new_notification)
         try:
-            self.finalize_transaction()
+            self.verify_and_commit()
         except python_http_client.exceptions.UnauthorizedError:
             return self.error(
                 "Twilio Sendgrid authorization error. Please ensure "

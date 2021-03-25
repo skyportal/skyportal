@@ -29,5 +29,5 @@ class SourceCountHandler(BaseHandler):
         )
         result = q.first()[0]
         data = {"count": result, "sinceDaysAgo": since_days_ago}
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=data)

@@ -80,5 +80,5 @@ class SourceViewsHandler(BaseHandler):
             is_token=False,
         )
         DBSession.add(sv)
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success()

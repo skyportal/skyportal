@@ -26,7 +26,7 @@ class ACLHandler(BaseHandler):
                             type: string
                           description: List of all ACL IDs.
         """
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=[acl.id for acl in ACL.query.all()])
 
 
@@ -78,7 +78,7 @@ class UserACLHandler(BaseHandler):
             return self.error("Invalid user_id parameter.")
         new_acls = ACL.query.filter(ACL.id.in_(new_acl_ids)).all()
         user.acls = list(set(user.acls).union(set(new_acls)))
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success()
 
     @permissions(["Manage users"])
@@ -116,5 +116,5 @@ class UserACLHandler(BaseHandler):
             .filter(UserACL.acl_id == acl_id)
             .delete()
         )
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success()

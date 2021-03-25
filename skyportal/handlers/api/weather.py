@@ -85,9 +85,9 @@ class WeatherHandler(BaseHandler):
                     weather = response.json()
                     t.weather = weather
                     t.weather_retrieved_at = datetime.datetime.utcnow()
-                    self.finalize_transaction()
+                    self.verify_and_commit()
                 else:
                     message = response.text
 
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data={**t.to_dict(), "message": message})
