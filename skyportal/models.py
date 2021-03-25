@@ -1957,6 +1957,13 @@ class Taxonomy(Base):
 
 
 def taxonomy_update_delete_logic(cls, user_or_token):
+    """This function generates the query for taxonomies that the current user
+    can update or delete. If the querying user doesn't have System admin or
+    Delete taxonomy acl, then no taxonomies are accessible to that user under
+    this policy . Otherwise, the only taxonomies that the user can delete are
+    those that have no associated classifications, preventing classifications
+    from getting deleted in a cascade when their parent taxonomy is deleted.
+    """
 
     if len({'Delete taxonomy', 'System admin'} & set(user_or_token.permissions)) == 0:
         # nothing accessible
