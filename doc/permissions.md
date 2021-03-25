@@ -12,7 +12,7 @@ RLS allows SkyPortal developers to define policies that restrict, with row- and 
 * Use predefined access patterns to restrict access to records by stream access, group membership, user ACLs, and more
 * Implement different policies for different types of access on a single type of record
 
-**Note:** Although SkyPortal uses PostgreSQL as the database backend, SkyPortal does not use PostgrteSQL's RLS implementation for row-level security.
+**Note:** Although SkyPortal uses PostgreSQL as the database backend, SkyPortal does not use PostgreSQL's RLS implementation for row-level security.
 
 ## RLS Architecture and Design
 
