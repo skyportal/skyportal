@@ -27,6 +27,7 @@ def test_token_user_post_get_photometry_data(
             'magsys': 'ab',
             'filter': 'ztfg',
             'group_ids': [public_group.id],
+            'altdata': {'some_key': 'some_value'},
         },
         token=upload_data_token,
     )
@@ -44,10 +45,96 @@ def test_token_user_post_get_photometry_data(
     assert data['data']['dec'] is None
     assert data['data']['ra_unc'] is None
     assert data['data']['dec_unc'] is None
+    assert data['data']['altdata'] == {'some_key': 'some_value'}
 
     np.testing.assert_allclose(
         data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
     )
+
+
+def test_post_multiple_photometry_vector_altdata(
+    upload_data_token, public_source, public_group, ztf_camera
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'instrument_id': ztf_camera.id,
+            "mjd": [59408, 59409, 59410],
+            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
+            "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
+            "limiting_mag": [20.0, 20.1, 20.2],
+            "magsys": ["ab", "ab", "ab"],
+            "filter": ["ztfr", "ztfg", "ztfr"],
+            "ra": [42.01, 42.01, 42.02],
+            "dec": [42.02, 42.01, 42.03],
+            "origin": [None, "lol", "lol"],
+            'group_ids': [public_group.id],
+            "altdata": [{"key1": "value1"}, {"key2": "value2"}, {"key3": "value3"}],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    ids = data["data"]["ids"]
+    assert len(ids) == 3
+
+    keys = []
+    values = []
+    for id in ids:
+        status, data = api(
+            'GET', f'photometry/{id}?format=flux', token=upload_data_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+        assert data["data"]["altdata"] in [
+            {"key1": "value1"},
+            {"key2": "value2"},
+            {"key3": "value3"},
+        ]
+        keys.append(list(data["data"]["altdata"].keys())[0])
+        values.append(list(data["data"]["altdata"].values())[0])
+    # Ensure each phot record was assigned associated distinct aldata value
+    assert sorted(keys) == ["key1", "key2", "key3"]
+    assert sorted(values) == ["value1", "value2", "value3"]
+
+
+def test_post_multiple_photometry_scalar_altdata(
+    upload_data_token, public_source, public_group, ztf_camera
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'instrument_id': ztf_camera.id,
+            "mjd": [59410, 59411, 59412],
+            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
+            "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
+            "limiting_mag": [20.0, 20.1, 20.2],
+            "magsys": ["ab", "ab", "ab"],
+            "filter": ["ztfr", "ztfg", "ztfr"],
+            "ra": [42.01, 42.01, 42.02],
+            "dec": [42.02, 42.01, 42.03],
+            "origin": [None, "lol", "lol"],
+            'group_ids': [public_group.id],
+            "altdata": {"key1": "value1"},
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    ids = data["data"]["ids"]
+    assert len(ids) == 3
+
+    for id in ids:
+        status, data = api(
+            'GET', f'photometry/{id}?format=flux', token=upload_data_token
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+        assert data["data"]["altdata"] == {"key1": "value1"}
 
 
 def test_token_user_post_put_photometry_data(

@@ -353,10 +353,10 @@ def test_submit_annotations_sorting(
     driver.click_xpath('//span[text()="Search"]')
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
 
-    driver.click_xpath(f"//p[text()='numeric_field: 1.0000']")
+    driver.click_xpath("//p[text()='numeric_field: 1.0000']")
     # Check to see that selected annotation appears in info column
     driver.wait_for_xpath(
-        f'//td[contains(@data-testid, "MuiDataTableBodyCell")][.//span[text()=1.0000]]'
+        '//td[contains(@data-testid, "MuiDataTableBodyCell")][.//span[text()=1.0000]]'
     )
 
     # Check to see that sorting button has become enabled, and click
@@ -368,11 +368,11 @@ def test_submit_annotations_sorting(
     # Check that results come back as expected
     # Col 1, Row 0 should be the first candidate's info (MuiDataTableBodyCell-1-0)
     driver.wait_for_xpath(
-        f'//td[contains(@data-testid, "MuiDataTableBodyCell-1-0")][.//span[text()="1.0000"]]'
+        '//td[contains(@data-testid, "MuiDataTableBodyCell-1-0")][.//span[text()="1.0000"]]'
     )
     # Col 1, Row 1 should be the second candidate's info (MuiDataTableBodyCell-1-1)
     driver.wait_for_xpath(
-        f'//td[contains(@data-testid, "MuiDataTableBodyCell-1-1")][.//span[text()="2.0000"]]'
+        '//td[contains(@data-testid, "MuiDataTableBodyCell-1-1")][.//span[text()="2.0000"]]'
     )
 
 
@@ -480,7 +480,10 @@ def test_candidate_classifications_filtering(
     assert status == 200
 
     status, data = api(
-        "POST", "sources", data={"id": candidate_id}, token=upload_data_token,
+        "POST",
+        "sources",
+        data={"id": candidate_id},
+        token=upload_data_token,
     )
     assert status == 200
     status, data = api(
@@ -536,7 +539,11 @@ def test_candidate_classifications_filtering(
 
 
 def test_candidate_redshift_filtering(
-    driver, user, public_filter, public_group, upload_data_token,
+    driver,
+    user,
+    public_filter,
+    public_group,
+    upload_data_token,
 ):
     # Post candidates with different redshifts
     obj_id1 = str(uuid.uuid4())
@@ -590,3 +597,57 @@ def test_candidate_redshift_filtering(
     # Should see the obj_id1 but not obj_id2
     driver.wait_for_xpath(f'//a[@data-testid="{obj_id1}"]')
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{obj_id2}"]')
+
+
+def test_candidate_rejection_filtering(
+    driver,
+    user,
+    public_group,
+    upload_data_token,
+    public_filter,
+):
+
+    candidate_id = str(uuid.uuid4())
+
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": candidate_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/candidates")
+    driver.click_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
+        wait_clickable=False,
+    )
+
+    driver.click_xpath('//span[text()="Search"]')
+
+    # make sure candidate appears and click the icon to reject it
+    driver.click_xpath(f'//*[@data-testid="rejected-visible_{candidate_id}"]')
+
+    driver.click_xpath('//span[text()="Search"]')
+
+    # now the candidate doesn't show up anymore
+    driver.wait_for_xpath('//*[contains(text(), "no matching records found")]')
+
+    # choose to show rejected now
+    driver.click_xpath('//div[@id="mui-component-select-rejectedStatus"]')
+    driver.click_xpath("//li[@data-value='show']", scroll_parent=True)
+    driver.click_xpath('//span[text()="Search"]')
+
+    # make sure candidate appears and that it has a "rejected" icon
+    driver.wait_for_xpath(f'//*[@data-testid="rejected_invisible_{candidate_id}"]')
