@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import argparse
 from email.utils import parseaddr
-from baselayer.app.env import load_env
+from baselayer.app.config import load_config
 from baselayer.app.model_util import status, drop_tables, create_tables
 from social_tornado.models import TornadoStorage
 from skyportal.models import init_db, Base, User, DBSession
@@ -29,7 +29,7 @@ PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py  \
 If you just want to add a user to an existing database make sure you add the `--nodrop` flag:
 
 PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py  \
-          --nodrop --user=<anotheremail>
+          --nodrop --username=<anotheremail>
 """
 
 parser = argparse.ArgumentParser(description='Initialize Skyportal and add admin/users')
@@ -55,6 +55,14 @@ parser.add_argument(
     help='Email of a normal user (e.g., user@cesium-ml.org)',
 )
 
+parser.add_argument(
+    '-C',
+    '--config',
+    action='append',
+    default=[],
+    help='Config YAML to specify database to connect to',
+)
+
 results = parser.parse_args()
 
 
@@ -62,7 +70,7 @@ if __name__ == "__main__":
 
     """Create the initial structure of the DB, prepping for Skyportal"""
 
-    env, cfg = load_env()
+    cfg = load_config(config_files=results.config)
     basedir = Path(os.path.dirname(__file__)) / '..'
 
     _, adminuser = parseaddr(results.adminuser)
@@ -88,7 +96,7 @@ if __name__ == "__main__":
     for model in Base.metadata.tables:
         print('    -', model)
 
-    with status(f"Creating permissions"):
+    with status("Creating permissions"):
         model_util.setup_permissions()
 
     if adminuser != '':

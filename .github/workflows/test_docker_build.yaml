@@ -1,0 +1,71 @@
+name: Test Skyportal Docker Build
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    name: Test SkyPortal Docker build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/setup-python@v1
+        with:
+          python-version: "3.8"
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache
+            ~/.local
+            ~/.npm
+          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Install Docker and Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install \
+            apt-transport-https \
+            ca-certificates \
+            curl \
+            gnupg-agent \
+            software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo apt-key fingerprint 0EBFCD88
+          sudo add-apt-repository \
+            "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+            $(lsb_release -cs) \
+            stable"
+          sudo apt-get install docker-ce docker-ce-cli containerd.io
+          docker --version
+
+          sudo curl -L "https://github.com/docker/compose/releases/download/1.28.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose --version
+
+      - name: Build Docker image
+        run: |
+          make docker-local
+
+      - name: Start containers
+        run: |
+          docker-compose up -d
+
+      - name: Create database tables
+        run: |
+          # Give plenty of time for containers to fully spin up
+          sleep 90
+          docker exec skyportal_web_1 bash -c 'source /skyportal_env/bin/activate && PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py --config=config.yaml --username testuser@cesium-ml.org'
+
+      - name: Test loading demo data
+        run: |
+          docker exec skyportal_web_1 bash -c 'source /skyportal_env/bin/activate && make load_demo_data'
