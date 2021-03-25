@@ -12,6 +12,7 @@ import * as observingRunsActions from "./ducks/observingRuns";
 import * as telescopesActions from "./ducks/telescopes";
 import * as taxonomyActions from "./ducks/taxonomies";
 import * as favoritesActions from "./ducks/favorites";
+import * as rejectedActions from "./ducks/rejected_candidates";
 
 export default function hydrate() {
   return (dispatch) => {
@@ -30,5 +31,6 @@ export default function hydrate() {
     dispatch(telescopesActions.fetchTelescopes());
     dispatch(taxonomyActions.fetchTaxonomies());
     dispatch(favoritesActions.fetchFavorites());
+    dispatch(rejectedActions.fetchRejected());
   };
 }

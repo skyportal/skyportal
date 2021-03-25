@@ -10,6 +10,7 @@ import Tooltip from "@material-ui/core/Tooltip";
 
 import MUIDataTable from "mui-datatables";
 
+// eslint-disable-next-line
 const Transition = React.forwardRef(function Transition(props, ref) {
   // eslint-disable-next-line
   return <Slide direction="up" ref={ref} {...props} />;
@@ -38,25 +39,30 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
             if (isFloat(value)) {
               return value.toFixed(key.includes("jd") ? 8 : 6);
             }
+            if (
+              key === "altdata" &&
+              typeof value === "object" &&
+              value !== null
+            ) {
+              return JSON.stringify(value);
+            }
             return value;
           },
         },
       }));
 
-      const customToolbarFunc = () => {
-        return (
-          <>
-            <Tooltip title="Close Table">
-              <IconButton
-                onClick={onClose}
-                data-testid="close-photometry-table-button"
-              >
-                <CloseIcon />
-              </IconButton>
-            </Tooltip>
-          </>
-        );
-      };
+      const customToolbarFunc = () => (
+        <>
+          <Tooltip title="Close Table">
+            <IconButton
+              onClick={onClose}
+              data-testid="close-photometry-table-button"
+            >
+              <CloseIcon />
+            </IconButton>
+          </Tooltip>
+        </>
+      );
 
       const options = {
         draggableColumns: { enabled: false },
