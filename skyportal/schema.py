@@ -83,7 +83,9 @@ def success(schema_name, base_schema=None):
 
     if base_schema is not None:
         if isinstance(base_schema, list):
-            schema_fields['data'] = fields.List(fields.Nested(base_schema[0]),)
+            schema_fields['data'] = fields.List(
+                fields.Nested(base_schema[0]),
+            )
         else:
             schema_fields['data'] = fields.Nested(base_schema)
 
@@ -266,7 +268,8 @@ class PhotBaseFlexible(object):
         description="Misc. alternative metadata stored in JSON "
         "format, e.g. `{'calibration': {'source': 'ps1', "
         "'color_term': 0.012}, 'photometry_method': 'allstar', "
-        "'method_reference': 'Masci et al. (2015)'}`",
+        "'method_reference': 'Masci et al. (2015)'}`. Can be a list of "
+        "dicts or a single dict which will be broadcast to all values.",
         missing=None,
         default=None,
         required=False,
@@ -748,7 +751,10 @@ class ObservingRunPost(_Schema):
 
 class FollowupRequestPost(_Schema):
 
-    obj_id = fields.String(required=True, description="ID of the target Obj.",)
+    obj_id = fields.String(
+        required=True,
+        description="ID of the target Obj.",
+    )
 
     payload = fields.Field(
         required=False, description="Content of the followup request."
@@ -984,7 +990,8 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
     )
 
     filename = fields.String(
-        description="The original filename (for bookkeeping purposes).", required=True,
+        description="The original filename (for bookkeeping purposes).",
+        required=True,
     )
     reduced_by = fields.List(
         fields.Integer,
@@ -1029,7 +1036,10 @@ class SpectrumPost(_Schema):
         description="Errors on the fluxes of the spectrum [F_lambda, same units as `fluxes`.]",
     )
 
-    obj_id = fields.String(required=True, description="ID of this Spectrum's Obj.",)
+    obj_id = fields.String(
+        required=True,
+        description="ID of this Spectrum's Obj.",
+    )
 
     observed_at = fields.DateTime(
         description='The ISO UTC time the spectrum was taken.', required=True
@@ -1050,7 +1060,8 @@ class SpectrumPost(_Schema):
     origin = fields.String(required=False, description="Origin of the spectrum.")
 
     instrument_id = fields.Integer(
-        required=True, description="ID of the Instrument that acquired the Spectrum.",
+        required=True,
+        description="ID of the Instrument that acquired the Spectrum.",
     )
 
     group_ids = fields.Field(
