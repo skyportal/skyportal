@@ -153,6 +153,7 @@ class PhotometryHandler(BaseHandler):
                         for key in data
                         if isinstance(data[key], (list, tuple))
                     ]
+                    + [1]
                 )
                 data["altdata"] = [data["altdata"]] * max_num_elements
 
