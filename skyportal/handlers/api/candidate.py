@@ -24,6 +24,7 @@ from ...models import (
     Annotation,
     Group,
     Classification,
+    Listing,
 )
 
 
@@ -270,6 +271,21 @@ class CandidateHandler(BaseHandler):
                 type: list
             description: |
                 lowest and highest redshift to return, e.g. "(0,0.5)"
+          - in: query
+            name: listName
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Get only candidates saved to the querying user's list, e.g., "favorites".
+          - in: query
+            name: listNameReject
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Get only candidates that ARE NOT saved to the querying user's list, e.g., "rejected_candidates".
+
           responses:
             200:
               content:
@@ -320,6 +336,7 @@ class CandidateHandler(BaseHandler):
                     .joinedload(Obj.spectra)
                     .joinedload(Spectrum.instrument)
                 )
+
             c = Candidate.get_obj_if_readable_by(
                 obj_id,
                 self.current_user,
@@ -385,6 +402,7 @@ class CandidateHandler(BaseHandler):
             candidate_info["luminosity_distance"] = c.luminosity_distance
             candidate_info["dm"] = c.dm
             candidate_info["angular_diameter_distance"] = c.angular_diameter_distance
+
             self.verify_permissions()
             return self.success(data=candidate_info)
 
@@ -406,6 +424,9 @@ class CandidateHandler(BaseHandler):
         annotation_filter_list = self.get_query_argument("annotationFilterList", None)
         classifications = self.get_query_argument("classifications", None)
         redshift_range_str = self.get_query_argument("redshiftRange", None)
+        list_name = self.get_query_argument('listName', None)
+        list_name_reject = self.get_query_argument('listNameReject', None)
+
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
@@ -482,6 +503,7 @@ class CandidateHandler(BaseHandler):
             )
             .outerjoin(Annotation)
         )  # Join in annotations info for sort/filter
+
         if classifications is not None:
             if isinstance(classifications, str) and "," in classifications:
                 classifications = [c.strip() for c in classifications.split(",")]
@@ -594,6 +616,25 @@ class CandidateHandler(BaseHandler):
 
             q = q.outerjoin(right, Obj.id == right.c.id).filter(right.c.id.is_(None))
 
+        if list_name is not None:
+            q = q.filter(
+                Listing.list_name == list_name,
+                Listing.user_id == self.associated_user_object.id,
+            )
+        if list_name_reject is not None:
+            right = (
+                DBSession()
+                .query(Obj.id)
+                .join(Listing)
+                .filter(
+                    Listing.list_name == list_name_reject,
+                    Listing.user_id == self.associated_user_object.id,
+                )
+                .subquery()
+            )
+
+            q = q.outerjoin(right, Obj.id == right.c.id).filter(right.c.id.is_(None))
+
         if annotation_filter_list is not None:
             # Parse annotation filter list objects from the query string
             # and apply the filters to the query
@@ -685,6 +726,7 @@ class CandidateHandler(BaseHandler):
                 Candidate.passed_at.desc().nullslast(),
                 Obj.id,
             ]
+
         try:
             query_results = grab_query_results(
                 q,
