@@ -145,6 +145,16 @@ class PhotometryHandler(BaseHandler):
 
         if "altdata" in data and not data["altdata"]:
             del data["altdata"]
+        if "altdata" in data:
+            if isinstance(data["altdata"], dict):
+                max_num_elements = max(
+                    [
+                        len(data[key])
+                        for key in data
+                        if isinstance(data[key], (list, tuple))
+                    ]
+                )
+                data["altdata"] = [data["altdata"]] * max_num_elements
 
         # quick validation - just to make sure things have the right fields
         try:
@@ -174,25 +184,10 @@ class PhotometryHandler(BaseHandler):
         try:
             df = pd.DataFrame(data)
         except ValueError as e:
-            if "altdata" in data and "Mixing dicts with non-Series" in str(e):
-                try:
-                    data["altdata"] = [
-                        {key: value[i] for key, value in data["altdata"].items()}
-                        for i in range(
-                            len(data["altdata"][list(data["altdata"].keys())[-1]])
-                        )
-                    ]
-                    df = pd.DataFrame(data)
-                except ValueError:
-                    raise ValidationError(
-                        'Unable to coerce passed JSON to a series of packets. '
-                        f'Error was: "{e}"'
-                    )
-            else:
-                raise ValidationError(
-                    'Unable to coerce passed JSON to a series of packets. '
-                    f'Error was: "{e}"'
-                )
+            raise ValidationError(
+                'Unable to coerce passed JSON to a series of packets. '
+                f'Error was: "{e}"'
+            )
 
         # `to_numeric` coerces numbers written as strings to numeric types
         #  (int, float)
