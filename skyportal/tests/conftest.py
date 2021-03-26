@@ -624,9 +624,11 @@ def public_groupuser(public_group, user):
 
 
 @pytest.fixture()
-def user2(public_group):
+def user2(public_group, public_stream):
     user = UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("Full user")]
+        groups=[public_group],
+        roles=[models.Role.query.get("Full user")],
+        streams=[public_stream],
     )
     user_id = user.id
     yield user
@@ -652,9 +654,11 @@ def user_no_groups_no_streams():
 
 
 @pytest.fixture()
-def user_two_groups(public_group, public_group2):
+def user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
-        groups=[public_group, public_group2], roles=[models.Role.query.get("Full user")]
+        groups=[public_group, public_group2],
+        roles=[models.Role.query.get("Full user")],
+        streams=[public_stream],
     )
     user_id = user.id
     yield user
@@ -662,9 +666,11 @@ def user_two_groups(public_group, public_group2):
 
 
 @pytest.fixture()
-def view_only_user(public_group):
+def view_only_user(public_group, public_stream):
     user = UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("View only")]
+        groups=[public_group],
+        roles=[models.Role.query.get("View only")],
+        streams=[public_stream],
     )
     user_id = user.id
     yield user
@@ -672,9 +678,11 @@ def view_only_user(public_group):
 
 
 @pytest.fixture()
-def view_only_user2(public_group):
+def view_only_user2(public_group, public_stream):
     user = UserFactory(
-        groups=[public_group], roles=[models.Role.query.get("View only")]
+        groups=[public_group],
+        roles=[models.Role.query.get("View only")],
+        streams=[public_stream],
     )
     user_id = user.id
     yield user
@@ -702,10 +710,11 @@ def group_admin_user(public_group, public_stream):
 
 
 @pytest.fixture()
-def group_admin_user_two_groups(public_group, public_group2):
+def group_admin_user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
         groups=[public_group, public_group2],
         roles=[models.Role.query.get("Group admin")],
+        streams=[public_stream],
     )
     user_id = user.id
     yield user
@@ -725,10 +734,11 @@ def super_admin_user(public_group, public_stream):
 
 
 @pytest.fixture()
-def super_admin_user_two_groups(public_group, public_group2):
+def super_admin_user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
         groups=[public_group, public_group2],
         roles=[models.Role.query.get("Super admin")],
+        streams=[public_stream],
     )
     user_id = user.id
     yield user
