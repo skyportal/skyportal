@@ -52,6 +52,7 @@ from baselayer.app.models import (  # noqa
     restricted,
     public,
     AccessibleIfRelatedRowsAreAccessible,
+    CustomUserAccessControl,
     CronJobRun,
 )
 from skyportal import facility_apis
@@ -1569,6 +1570,8 @@ class SourceView(Base):
 class Telescope(Base):
     """A ground or space-based observational facility that can host Instruments."""
 
+    create = restricted
+
     name = sa.Column(
         sa.String,
         unique=True,
@@ -1740,6 +1743,8 @@ class ArrayOfEnum(ARRAY):
 
 class Instrument(Base):
     """An instrument attached to a telescope."""
+
+    create = restricted
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Instrument name.")
     type = sa.Column(
@@ -1951,6 +1956,37 @@ class Taxonomy(Base):
     )
 
 
+def taxonomy_update_delete_logic(cls, user_or_token):
+    """This function generates the query for taxonomies that the current user
+    can update or delete. If the querying user doesn't have System admin or
+    Delete taxonomy acl, then no taxonomies are accessible to that user under
+    this policy . Otherwise, the only taxonomies that the user can delete are
+    those that have no associated classifications, preventing classifications
+    from getting deleted in a cascade when their parent taxonomy is deleted.
+    """
+
+    if len({'Delete taxonomy', 'System admin'} & set(user_or_token.permissions)) == 0:
+        # nothing accessible
+        return restricted.query_accessible_rows(cls, user_or_token)
+
+    # dont allow deletion of any taxonomies that have classifications attached
+    return (
+        DBSession()
+        .query(cls)
+        .outerjoin(Classification)
+        .group_by(cls.id)
+        .having(sa.func.bool_and(Classification.id.is_(None)))
+    )
+
+
+# system admins can delete any taxonomy that has no classifications attached
+# people with the delete taxonomy ACL can delete any taxonomy that has no
+# classifications attached and is shared with at least one of their groups
+Taxonomy.update = Taxonomy.delete = (
+    CustomUserAccessControl(taxonomy_update_delete_logic) & Taxonomy.read
+)
+
+
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
 GroupTaxonomy.delete = GroupTaxonomy.update = (
@@ -2082,6 +2118,22 @@ User.comments = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+
+
+def user_update_delete_logic(cls, user_or_token):
+    """A user can update or delete themselves, and a super admin can delete
+    or update any user."""
+
+    if user_or_token.is_admin:
+        return public.query_accessible_rows(cls, user_or_token)
+
+    # non admin users can only update or delete themselves
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+
+    return DBSession().query(cls).filter(cls.id == user_id)
+
+
+User.update = User.delete = CustomUserAccessControl(user_update_delete_logic)
 
 
 class Annotation(Base):
@@ -2786,6 +2838,36 @@ GroupSpectrum.update = GroupSpectrum.delete = (
 #        return '/' + file_uri.lstrip('./')
 
 
+def updatable_by_token_with_listener_acl(cls, user_or_token):
+    if user_or_token.is_admin:
+        return public.query_accessible_rows(cls, user_or_token)
+
+    instruments_with_apis = (
+        Instrument.query_records_accessible_by(user_or_token)
+        .filter(Instrument.listener_classname.isnot(None))
+        .all()
+    )
+
+    api_map = {
+        instrument.id: instrument.listener_class.get_acl_id()
+        for instrument in instruments_with_apis
+    }
+
+    accessible_instrument_ids = [
+        instrument_id
+        for instrument_id, acl_id in api_map.items()
+        if acl_id in user_or_token.permissions
+    ]
+
+    return (
+        DBSession()
+        .query(cls)
+        .join(Allocation)
+        .join(Instrument)
+        .filter(Instrument.id.in_(accessible_instrument_ids))
+    )
+
+
 class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
@@ -2793,9 +2875,12 @@ class FollowupRequest(Base):
     # TODO: Make read-accessible via target groups
     create = read = AccessibleIfRelatedRowsAreAccessible(obj="read", allocation="read")
     update = delete = (
-        AccessibleIfUserMatches('allocation.group.users')
-        | AccessibleIfUserMatches('requester')
-    ) & read
+        (
+            AccessibleIfUserMatches('allocation.group.users')
+            | AccessibleIfUserMatches('requester')
+        )
+        & read
+    ) | CustomUserAccessControl(updatable_by_token_with_listener_acl)
 
     requester_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='SET NULL'),
