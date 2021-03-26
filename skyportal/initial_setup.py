@@ -83,7 +83,8 @@ if __name__ == "__main__":
     if user == '' and results.user is not None:
         print("Note: user is not a valid email address")
 
-    RETRIES = 10
+    RETRIES = 6
+    timeout = 1
     for i in range(RETRIES):
         try:
             with status(f"Connecting to database {cfg['database']['database']}"):
@@ -92,10 +93,13 @@ if __name__ == "__main__":
             if i == RETRIES - 1:
                 print('FAIL')
                 print()
-                print('Error: Could not connect to SkyPortal database')
+                print(
+                    f'Error: Could not connect to SkyPortal database; trying again in {timeout}s'
+                )
                 sys.exit(-1)
             else:
-                time.sleep(2)
+                time.sleep(timeout)
+                timeout = max(timeout * 2, 30)
                 print('Retrying connection...')
 
     if not results.nodrop:
