@@ -56,6 +56,10 @@ class UserAccessControl:
 
 To construct a new policy, subclass `UserAccessControl` and override `query_accessible_rows`.
 
+#### Restricted
+
+Baselayer provides a [restricted](https://github.com/cesium-ml/baselayer/blob/master/app/models.py#L579) policy that grants record access only to users or tokens that have the `System admin` ACL. **Restricted records are not restricted to all users.**
+
 ### Examples
 
 The following `public` policy will grant record access to any user:

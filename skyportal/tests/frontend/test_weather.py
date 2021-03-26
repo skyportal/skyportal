@@ -4,7 +4,7 @@ from skyportal.tests import api
 
 
 @pytest.mark.flaky(reruns=2)
-def test_weather_widget(driver, user, public_group, upload_data_token, p60_telescope):
+def test_weather_widget(driver, user, public_group, super_admin_token, p60_telescope):
     name = str(uuid.uuid4())
     post_data = {
         'name': name,
@@ -18,7 +18,7 @@ def test_weather_widget(driver, user, public_group, upload_data_token, p60_teles
         'robotic': True,
     }
 
-    status, data = api('POST', 'telescope', data=post_data, token=upload_data_token)
+    status, data = api('POST', 'telescope', data=post_data, token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
 

@@ -200,7 +200,7 @@ class TaxonomyHandler(BaseHandler):
 
         return self.success(data={'taxonomy_id': taxonomy.id})
 
-    @permissions(['Delete taxonomy'])
+    @auth_or_token
     def delete(self, taxonomy_id):
         """
         ---
@@ -219,11 +219,12 @@ class TaxonomyHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        c = Taxonomy.query.get(taxonomy_id)
-        if c is None:
-            return self.error("Invalid taxonomy ID")
 
-        Taxonomy.query.filter_by(id=taxonomy_id).delete()
+        taxonomy = Taxonomy.get_if_accessible_by(
+            taxonomy_id, self.current_user, mode='delete', raise_if_none=True
+        )
+
+        DBSession().delete(taxonomy)
         self.verify_and_commit()
 
         return self.success()
