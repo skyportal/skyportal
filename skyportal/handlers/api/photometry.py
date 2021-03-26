@@ -944,19 +944,26 @@ class BulkDeletePhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        # Permissions check:
-        phot_id = Photometry.query.filter(Photometry.upload_id == upload_id).first().id
-        _ = Photometry.get_if_readable_by(phot_id, self.current_user)
 
-        n_deleted = (
-            DBSession()
-            .query(Photometry)
-            .filter(Photometry.upload_id == upload_id)
-            .delete()
-        )
+        # dont check permissions here -- pull all the photometry associated with
+        # the upload, not necessarily just the photometry that is accessible
+        # to the user. if any of the photometry fails to be deleted, send back
+        # 400
+        photometry_to_delete = Photometry.query.filter(
+            Photometry.upload_id == upload_id
+        ).all()
+
+        n = len(photometry_to_delete)
+        if n == 0:
+            return self.error('Invalid bulk upload id.')
+
+        for phot in photometry_to_delete:
+            DBSession().delete(phot)
+
+        # this will return self.error if the user does not have access
+        # to delete any of the photometry points
         self.finalize_transaction()
-
-        return self.success(f"Deleted {n_deleted} photometry points.")
+        return self.success(f"Deleted {n} photometry points.")
 
 
 class PhotometryRangeHandler(BaseHandler):
