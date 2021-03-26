@@ -1,7 +1,10 @@
 import os
 from pathlib import Path
 import argparse
+import time
+import sys
 from email.utils import parseaddr
+from sqlalchemy.exc import TimeoutError
 from baselayer.app.config import load_config
 from baselayer.app.model_util import status, drop_tables, create_tables
 from social_tornado.models import TornadoStorage
@@ -80,8 +83,20 @@ if __name__ == "__main__":
     if user == '' and results.user is not None:
         print("Note: user is not a valid email address")
 
-    with status(f"Connecting to database {cfg['database']['database']}"):
-        init_db(**cfg['database'])
+    RETRIES = 10
+    for i in range(RETRIES):
+        try:
+            with status(f"Connecting to database {cfg['database']['database']}"):
+                init_db(**cfg['database'])
+        except TimeoutError:
+            if i == RETRIES - 1:
+                print('FAIL')
+                print()
+                print('Error: Could not connect to SkyPortal database')
+                sys.exit(-1)
+            else:
+                time.sleep(2)
+                print('Retrying connection...')
 
     if not results.nodrop:
         with status("Force dropping all tables"):

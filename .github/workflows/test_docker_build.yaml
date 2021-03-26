@@ -31,11 +31,6 @@ jobs:
           fetch-depth: 0
           submodules: true
 
-      - name: Install Docker and Docker Compose
-        run: |
-          docker --version
-          docker-compose --version
-
       - name: Build Docker image
         run: |
           make docker-local
@@ -46,8 +41,6 @@ jobs:
 
       - name: Create database tables
         run: |
-          # Give plenty of time for containers to fully spin up
-          sleep 90
           docker exec skyportal_web_1 bash -c 'source /skyportal_env/bin/activate && PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py --config=config.yaml --username testuser@cesium-ml.org'
 
       - name: Test loading demo data
