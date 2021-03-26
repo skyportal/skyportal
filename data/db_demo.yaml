@@ -80,6 +80,16 @@ filters:
     =id: example_filter2
 
 telescope:
+  - name: Palomar 1.2m
+    nickname: P48
+    lat: 33.3580556
+    lon: -116.861944
+    elevation: 1706
+    diameter: 1.26
+    robotic: true
+    skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+    weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
+    =id: P48
   - name: Palomar 1.5m
     nickname: P60
     lat: 33.3633675
@@ -128,11 +138,12 @@ telescope:
     =id: LT
 
 instrument:
-  - name: P60 Camera
+  - name: ZTF
     type: imager
     band: V
-    telescope_id: =P60
+    telescope_id: =P48
     filters: ["ztfg", "ztfr", "ztfi"]
+    =id: ZTF
   - name: ALFOSC
     type: imaging spectrograph
     band: V
@@ -401,28 +412,28 @@ assignment:
 
 photometry:
   - obj_id: 14gqr_unsaved_copy
-    instrument_id: =P60
+    instrument_id: =ZTF
     assignment_id: 1
     file: phot.csv
     group_ids:
       - =program_A
       - =program_B
   - obj_id: 14gqr
-    instrument_id: =P60
+    instrument_id: =ZTF
     assignment_id: 1
     file: phot3.csv
     group_ids:
       - =program_A
       - =program_B
   - obj_id: 16fil_unsaved_copy
-    instrument_id: =P60
+    instrument_id: =ZTF
     assignment_id: 2
     file: phot2.csv
     group_ids:
       - =program_A
       - =program_B
   - obj_id: 16fil
-    instrument_id: =P60
+    instrument_id: =ZTF
     assignment_id: 2
     file: phot2.csv
     group_ids:
