@@ -157,7 +157,7 @@ class CommentHandler(BaseHandler):
                 )
 
         DBSession().add(comment)
-        self.finalize_transaction()
+        self.verify_and_commit()
         if users_mentioned_in_comment:
             for user_mentioned in users_mentioned_in_comment:
                 self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
@@ -241,7 +241,7 @@ class CommentHandler(BaseHandler):
             )
             c.groups = groups
 
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push_all(
             action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key}
         )
@@ -271,7 +271,7 @@ class CommentHandler(BaseHandler):
         )
         obj_key = c.obj.internal_key
         DBSession().delete(c)
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
         return self.success()
 
@@ -326,7 +326,7 @@ class CommentAttachmentHandler(BaseHandler):
         comment = Comment.get_if_accessible_by(
             comment_id, self.current_user, raise_if_none=True
         )
-        self.verify_permissions()
+        self.verify_and_commit()
 
         if download:
             self.set_header(

@@ -53,7 +53,7 @@ class StreamHandler(BaseHandler):
                 return self.error("Invalid stream ID.")
             return self.success(data=s)
         streams = DBSession().query(Stream).all()
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=streams)
 
     @permissions(["System admin"])
@@ -100,7 +100,7 @@ class StreamHandler(BaseHandler):
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
         DBSession().add(stream)
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         return self.success(data={"id": stream.id})
 
@@ -146,7 +146,7 @@ class StreamHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success()
 
     @permissions(["System admin"])
@@ -169,7 +169,7 @@ class StreamHandler(BaseHandler):
                 schema: Success
         """
         DBSession().delete(Stream.query.get(stream_id))
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         return self.success()
 
@@ -234,7 +234,7 @@ class StreamUserHandler(BaseHandler):
             DBSession.add(StreamUser(stream_id=stream_id, user_id=user_id))
         else:
             return self.error("Specified user already has access to this stream.")
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         return self.success(data={'stream_id': stream_id, 'user_id': user_id})
 
@@ -271,5 +271,5 @@ class StreamUserHandler(BaseHandler):
         if su is None:
             return self.error("Stream user does not exist.")
         DBSession().delete(su)
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success()

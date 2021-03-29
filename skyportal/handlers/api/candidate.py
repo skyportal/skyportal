@@ -77,7 +77,7 @@ class CandidateHandler(BaseHandler):
             .filter(Candidate.obj_id == obj_id, Filter.group_id.in_(user_group_ids))
             .count()
         )
-        self.verify_permissions()
+        self.verify_and_commit()
         if num_c > 0:
             return self.success()
         else:
@@ -415,7 +415,7 @@ class CandidateHandler(BaseHandler):
             candidate_info["dm"] = c.dm
             candidate_info["angular_diameter_distance"] = c.angular_diameter_distance
 
-            self.verify_permissions()
+            self.verify_and_commit()
             return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -838,7 +838,7 @@ class CandidateHandler(BaseHandler):
                 ] = obj.angular_diameter_distance
 
         query_results["candidates"] = candidate_list
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=query_results)
 
     @permissions(["Upload data"])
@@ -948,7 +948,7 @@ class CandidateHandler(BaseHandler):
             for filter in filters
         ]
         DBSession().add_all(candidates)
-        self.finalize_transaction()
+        self.verify_and_commit()
         if not obj_already_exists:
             obj.add_linked_thumbnails()
 
@@ -1000,7 +1000,7 @@ class CandidateHandler(BaseHandler):
         DBSession().query(Candidate).filter(Candidate.obj_id == obj_id).filter(
             Candidate.filter_id == filter_id
         ).delete(synchronize_session="fetch")
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         return self.success()
 

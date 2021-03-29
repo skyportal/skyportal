@@ -10,5 +10,5 @@ class RoboticInstrumentsHandler(BaseHandler):
             Instrument.api_classname.isnot(None)
         ).all()
         retval = {i.id: i.api_class.frontend_render_info() for i in instruments}
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=retval)

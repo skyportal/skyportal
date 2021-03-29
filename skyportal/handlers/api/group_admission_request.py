@@ -68,7 +68,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
 
             response_data = admission_request.to_json()
             response_data["user"] = admission_request.user
-            self.verify_permissions()
+            self.verify_and_commit()
             return self.success(data=response_data)
 
         q = GroupAdmissionRequest.query
@@ -79,7 +79,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             {**admission_request.to_dict(), "user": admission_request.user}
             for admission_request in admission_requests
         ]
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=response_data)
 
     @auth_or_token
@@ -190,7 +190,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
                     url=f"/group/{group_id}",
                 )
             )
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push(action="skyportal/FETCH_USER_PROFILE")
         if group_admin is not None:
             self.flow.push(group_admin.id, "skyportal/FETCH_NOTIFICATIONS", {})
@@ -252,7 +252,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             )
         )
 
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.flow.push(admission_request.user_id, "skyportal/FETCH_NOTIFICATIONS", {})
         return self.success()
 
@@ -287,6 +287,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
         ):
             return self.error("Insufficient permissions")
         DBSession().delete(admission_request)
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push(action="skyportal/FETCH_USER_PROFILE")
         return self.success()

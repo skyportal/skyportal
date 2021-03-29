@@ -142,7 +142,7 @@ class ClassificationHandler(BaseHandler):
         )
 
         DBSession().add(classification)
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -216,7 +216,7 @@ class ClassificationHandler(BaseHandler):
             )
             c.groups = groups
 
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': c.obj.internal_key},
@@ -251,7 +251,7 @@ class ClassificationHandler(BaseHandler):
         )
         obj_key = c.obj.internal_key
         DBSession().delete(c)
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -296,5 +296,5 @@ class ObjClassificationHandler(BaseHandler):
             .filter(Classification.obj_id == obj_id)
             .all()
         )
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=classifications)
