@@ -17,7 +17,9 @@ cfg = load_config()
 
 
 def enter_comment_text(driver, comment_text):
-    comment_box = driver.wait_for_xpath("//input[@name='text']")
+    comment_xpath = "//input[@name='text']"
+    comment_box = driver.wait_for_xpath(comment_xpath)
+    driver.click_xpath(comment_xpath)
     comment_box.send_keys(comment_text)
 
 
