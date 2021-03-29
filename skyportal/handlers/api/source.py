@@ -626,8 +626,12 @@ class SourceHandler(BaseHandler):
             source_info["angular_diameter_distance"] = s.angular_diameter_distance
 
             source_info["followup_requests"] = [
-                f for f in s.followup_requests if f.status != 'deleted'
+                f.to_dict() for f in s.followup_requests if f.status != 'deleted'
             ]
+
+            for f, r in zip(source_info['followup_requests'], s.followup_requests):
+                f['allocation'] = r.allocation.to_dict()
+
             if include_photometry:
                 photometry = (
                     Photometry.query_records_accessible_by(self.current_user)
