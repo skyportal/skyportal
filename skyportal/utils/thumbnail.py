@@ -1,4 +1,4 @@
-from PIL import Image, ImageStat
+from PIL import Image, ImageStat, UnidentifiedImageError
 
 
 def image_is_grayscale(file, thumb_size=40, MSE_cutoff=22, adjust_color_bias=True):
@@ -10,7 +10,11 @@ def image_is_grayscale(file, thumb_size=40, MSE_cutoff=22, adjust_color_bias=Tru
     Adapted from:
     https://stackoverflow.com/questions/20068945/detect-if-image-is-color-grayscale-or-black-and-white-with-python-pil
     """
-    pil_img = Image.open(file)
+    try:
+        pil_img = Image.open(file)
+    except UnidentifiedImageError:
+        return False
+
     bands = pil_img.getbands()
     if bands == ('R', 'G', 'B') or bands == ('R', 'G', 'B', 'A'):
         thumb = pil_img.resize((thumb_size, thumb_size))
