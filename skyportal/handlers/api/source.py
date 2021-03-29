@@ -612,9 +612,19 @@ class SourceHandler(BaseHandler):
                 s.get_annotations_readable_by(self.current_user),
                 key=lambda x: x.origin,
             )
-            source_info["classifications"] = s.get_classifications_readable_by(
+            readable_classifications = s.get_classifications_readable_by(
                 self.current_user
             )
+
+            readable_classifications_json = []
+            for classification in readable_classifications:
+                classification_dict = classification.to_dict()
+                classification_dict['groups'] = [
+                    g.to_dict() for g in classification.groups
+                ]
+                readable_classifications_json.append(classification_dict)
+
+            source_info["classifications"] = readable_classifications_json
             source_info["last_detected_at"] = s.last_detected_at
             source_info["last_detected_mag"] = s.last_detected_mag
             source_info["peak_detected_at"] = s.peak_detected_at
@@ -940,9 +950,20 @@ class SourceHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     )
-                source_list[-1][
-                    "classifications"
-                ] = source.get_classifications_readable_by(self.current_user)
+
+                readable_classifications = source.get_classifications_readable_by(
+                    self.current_user
+                )
+
+                readable_classifications_json = []
+                for classification in readable_classifications:
+                    classification_dict = classification.to_dict()
+                    classification_dict['groups'] = [
+                        g.to_dict() for g in classification.groups
+                    ]
+                    readable_classifications_json.append(classification_dict)
+
+                source_list[-1]["classifications"] = readable_classifications_json
                 source_list[-1]["annotations"] = sorted(
                     source.get_annotations_readable_by(self.current_user),
                     key=lambda x: x.origin,
