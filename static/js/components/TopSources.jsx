@@ -111,6 +111,10 @@ const TopSourcesList = ({ sources, styles }) => {
             }
           }
 
+          const imgClasses = source.is_grayscale
+            ? `${styles.stamp} ${styles.inverted}`
+            : `${styles.stamp}`;
+
           return (
             <li key={`topSources_${source.obj_id}`}>
               <div
@@ -123,7 +127,7 @@ const TopSourcesList = ({ sources, styles }) => {
                     className={styles.stampContainer}
                   >
                     <img
-                      className={styles.stamp}
+                      className={imgClasses}
                       src={source.public_url}
                       alt={source.obj_id}
                     />
@@ -171,6 +175,7 @@ TopSourcesList.propTypes = {
       dec: PropTypes.number,
       views: PropTypes.number.isRequired,
       public_url: PropTypes.string,
+      is_grayscale: PropTypes.bool,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({
           author_name: PropTypes.string,

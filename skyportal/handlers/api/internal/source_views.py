@@ -5,7 +5,7 @@ import tornado.web
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from ....models import DBSession, Obj, Source, SourceView
-from .recent_sources import first_thumbnail_public_url
+from .recent_sources import first_thumbnail_info
 
 
 default_prefs = {'maxNumSources': 10, 'sinceDaysAgo': 7}
@@ -54,14 +54,15 @@ class SourceViewsHandler(BaseHandler):
                 self.current_user,
                 options=[joinedload(Source.obj).joinedload(Obj.thumbnails)],
             )
-            public_url = first_thumbnail_public_url(s.thumbnails)
+            info = first_thumbnail_info(s.thumbnails)
             sources.append(
                 {
                     'obj_id': s.id,
                     'views': view,
                     'ra': s.ra,
                     'dec': s.dec,
-                    'public_url': public_url,
+                    'public_url': info[0],
+                    'is_grayscale': info[1],
                     'classifications': s.classifications,
                 }
             )
