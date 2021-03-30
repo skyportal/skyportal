@@ -1607,12 +1607,6 @@ class Telescope(Base):
         passive_deletes=True,
         doc="The Instruments on this telescope.",
     )
-    weather = relationship(
-        "Weather",
-        back_populates="telescope",
-        uselist=False,
-        doc="Associated Weather record",
-    )
 
     @property
     def observer(self):
@@ -1738,7 +1732,6 @@ class Weather(Base):
     telescope = relationship(
         "Telescope",
         foreign_keys=[telescope_id],
-        back_populates="weather",
         uselist=False,
         doc="The associated Telescope",
     )
