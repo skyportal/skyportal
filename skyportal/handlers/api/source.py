@@ -180,19 +180,19 @@ class SourceHandler(BaseHandler):
             nullable: true
             schema:
               type: number
-            description: RA for spatial filtering
+            description: RA for spatial filtering (in decimal degrees)
           - in: query
             name: dec
             nullable: true
             schema:
               type: number
-            description: Declination for spatial filtering
+            description: Declination for spatial filtering (in decimal degrees)
           - in: query
             name: radius
             nullable: true
             schema:
               type: number
-            description: Radius for spatial filtering if ra & dec are provided
+            description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
           - in: query
             name: sourceID
             nullable: true
