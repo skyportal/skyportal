@@ -1718,22 +1718,22 @@ class Telescope(Base):
 class Weather(Base):
     update = public
 
-    weather_info = sa.Column(JSONB, doc="Latest weather information")
+    weather_info = sa.Column(JSONB, doc="Latest weather information.")
     retrieved_at = sa.Column(
-        sa.DateTime, doc="UTC time at which the weather was last retrieved"
+        sa.DateTime, doc="UTC time at which the weather was last retrieved."
     )
     telescope_id = sa.Column(
         sa.ForeignKey("telescopes.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         unique=True,
-        doc="ID of the associated Telescope",
+        doc="ID of the associated Telescope.",
     )
     telescope = relationship(
         "Telescope",
         foreign_keys=[telescope_id],
         uselist=False,
-        doc="The associated Telescope",
+        doc="The associated Telescope.",
     )
 
 
