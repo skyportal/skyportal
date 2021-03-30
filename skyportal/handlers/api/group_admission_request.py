@@ -70,7 +70,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 "user": admission_request.user,
             }
             response_data["user"] = admission_request.user
-            self.verify_permissions()
+            self.verify_and_commit()
             return self.success(data=response_data)
 
         q = GroupAdmissionRequest.query_records_accessible_by(
@@ -83,7 +83,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             {**admission_request.to_dict(), "user": admission_request.user}
             for admission_request in admission_requests
         ]
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=response_data)
 
     @auth_or_token
@@ -189,8 +189,9 @@ class GroupAdmissionRequestHandler(BaseHandler):
                     url=f"/group/{group_id}",
                 )
             )
+
         try:
-            self.finalize_transaction()
+            self.verify_and_commit()
         except AccessError:
             return self.error(
                 "Insufficient permissions: group admission requests cannot be made on behalf of others."
@@ -263,7 +264,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             )
         )
 
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.flow.push(admission_request.user_id, "skyportal/FETCH_NOTIFICATIONS", {})
         return self.success()
 
@@ -301,6 +302,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
             )
 
         DBSession().delete(admission_request)
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push(action="skyportal/FETCH_USER_PROFILE")
         return self.success()

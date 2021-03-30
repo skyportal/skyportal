@@ -931,7 +931,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         period = period_list[0]
     else:
         period = None
-    period = None
     # don't generate if no period annotated
     if period is not None:
         # bokeh figure for period plotting

@@ -68,7 +68,7 @@ class AllocationHandler(BaseHandler):
             allocations = allocations.filter(Allocation.instrument_id == instrument_id)
 
         allocations = allocations.all()
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=allocations)
 
     @permissions(['Manage allocations'])
@@ -118,7 +118,7 @@ class AllocationHandler(BaseHandler):
             return self.error(f'No group with specified ID: {allocation.instrument_id}')
 
         DBSession().add(allocation)
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success(data={"id": allocation.id})
 
     @permissions(['Manage allocations'])
@@ -165,7 +165,7 @@ class AllocationHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success()
 
     @permissions(['Manage allocations'])
@@ -191,5 +191,5 @@ class AllocationHandler(BaseHandler):
             int(allocation_id), self.current_user, mode='delete'
         )
         DBSession().delete(allocation)
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success()
