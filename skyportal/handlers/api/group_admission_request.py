@@ -1,4 +1,5 @@
 from baselayer.app.access import auth_or_token
+from baselayer.app.custom_exceptions import AccessError
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -8,7 +9,6 @@ from ...models import (
     GroupAdmissionRequest,
     UserNotification,
 )
-from .group import has_admin_access_for_group
 
 
 class GroupAdmissionRequestHandler(BaseHandler):
@@ -62,16 +62,20 @@ class GroupAdmissionRequestHandler(BaseHandler):
         """
         group_id = self.get_query_argument("groupID", None)
         if admission_request_id is not None:
-            admission_request = GroupAdmissionRequest.query.get(admission_request_id)
-            if admission_request is None:
-                return self.error("Invalid admission request ID.")
-
-            response_data = admission_request.to_json()
+            admission_request = GroupAdmissionRequest.get_if_accessible_by(
+                admission_request_id, self.current_user, raise_if_none=True, mode="read"
+            )
+            response_data = {
+                **admission_request.to_dict(),
+                "user": admission_request.user,
+            }
             response_data["user"] = admission_request.user
             self.verify_permissions()
             return self.success(data=response_data)
 
-        q = GroupAdmissionRequest.query
+        q = GroupAdmissionRequest.query_records_accessible_by(
+            self.current_user, mode="read"
+        )
         if group_id is not None:
             q = q.filter(GroupAdmissionRequest.group_id == group_id)
         admission_requests = q.all()
@@ -135,12 +139,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             group_id = int(group_id)
         except ValueError:
             return self.error("Invalid `groupID` parameter; unable to parse to int")
-        # Ensure that requesting user is either sysadmin or is the user in question
-        if (
-            self.associated_user_object.id != user_id
-            and not self.current_user.is_system_admin
-        ):
-            return self.error("Insufficient permissions")
+
         group = Group.query.get(group_id)
         if group is None or group.single_user_group:
             return self.error("Invalid group ID")
@@ -190,7 +189,13 @@ class GroupAdmissionRequestHandler(BaseHandler):
                     url=f"/group/{group_id}",
                 )
             )
-        self.finalize_transaction()
+        try:
+            self.finalize_transaction()
+        except AccessError:
+            return self.error(
+                "Insufficient permissions: group admission requests cannot be made on behalf of others."
+            )
+
         self.push(action="skyportal/FETCH_USER_PROFILE")
         if group_admin is not None:
             self.flow.push(group_admin.id, "skyportal/FETCH_NOTIFICATIONS", {})
@@ -236,13 +241,19 @@ class GroupAdmissionRequestHandler(BaseHandler):
             return self.error(
                 "Invalid 'status' value - should be one of either 'accepted', 'declined', or 'pending'"
             )
-        admission_request = GroupAdmissionRequest.query.get(admission_request_id)
-        if admission_request is None:
-            return self.error("Invalid admission request ID.")
-        if not has_admin_access_for_group(
-            self.current_user, admission_request.group_id
-        ):
-            return self.error("Insufficient permissions.")
+
+        try:
+            admission_request = GroupAdmissionRequest.get_if_accessible_by(
+                admission_request_id,
+                self.current_user,
+                raise_if_none=True,
+                mode="update",
+            )
+        except AccessError:
+            return self.error(
+                "Insufficient permissions: group admission request status can only be changed by group admins."
+            )
+
         admission_request.status = status
         DBSession().add(
             UserNotification(
@@ -277,15 +288,18 @@ class GroupAdmissionRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        admission_request = GroupAdmissionRequest.query.get(admission_request_id)
-        if admission_request is None:
-            return self.error("Invalid admission request ID")
-        # Ensure that requesting user is either sysadmin or is the user in question
-        if (
-            self.associated_user_object.id != admission_request.user_id
-            and not self.current_user.is_system_admin
-        ):
-            return self.error("Insufficient permissions")
+        try:
+            admission_request = GroupAdmissionRequest.get_if_accessible_by(
+                admission_request_id,
+                self.current_user,
+                raise_if_none=True,
+                mode="delete",
+            )
+        except AccessError:
+            return self.error(
+                "Insufficient permissions: only the requester can delete a group admission request."
+            )
+
         DBSession().delete(admission_request)
         self.finalize_transaction()
         self.push(action="skyportal/FETCH_USER_PROFILE")
