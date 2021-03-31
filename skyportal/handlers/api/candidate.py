@@ -415,7 +415,7 @@ class CandidateHandler(BaseHandler):
             candidate_info["dm"] = c.dm
             candidate_info["angular_diameter_distance"] = c.angular_diameter_distance
 
-            self.verify_and_commit()
+            # self.verify_and_commit()
             return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -838,7 +838,7 @@ class CandidateHandler(BaseHandler):
                 ] = obj.angular_diameter_distance
 
         query_results["candidates"] = candidate_list
-        self.verify_and_commit()
+        # self.verify_and_commit()
         return self.success(data=query_results)
 
     @permissions(["Upload data"])
