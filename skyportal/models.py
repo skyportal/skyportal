@@ -47,7 +47,6 @@ from baselayer.app.models import (  # noqa
     UserACL,
     UserRole,
     UserAccessControl,
-    ComposedAccessControl,
     AccessibleIfUserMatches,
     accessible_by_owner,
     restricted,
@@ -397,9 +396,7 @@ User.group_admission_requests = relationship(
 class GroupAdmissionRequest(Base):
     """Table tracking requests from users to join groups."""
 
-    read = ComposedAccessControl(
-        AccessibleIfUserMatches('user'), accessible_by_group_admins, logic='or'
-    )
+    read = AccessibleIfUserMatches('user') | accessible_by_group_admins
     create = delete = AccessibleIfUserMatches('user')
     update = accessible_by_group_admins
 

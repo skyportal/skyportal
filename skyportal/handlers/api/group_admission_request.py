@@ -192,9 +192,10 @@ class GroupAdmissionRequestHandler(BaseHandler):
 
         try:
             self.verify_and_commit()
-        except AccessError:
+        except AccessError as e:
             return self.error(
-                "Insufficient permissions: group admission requests cannot be made on behalf of others."
+                "Insufficient permissions: group admission requests cannot be made "
+                f"on behalf of others. (Original exception: {e})"
             )
 
         self.push(action="skyportal/FETCH_USER_PROFILE")
@@ -250,9 +251,10 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 raise_if_none=True,
                 mode="update",
             )
-        except AccessError:
+        except AccessError as e:
             return self.error(
-                "Insufficient permissions: group admission request status can only be changed by group admins."
+                "Insufficient permissions: group admission request status can "
+                f"only be changed by group admins. (Original exception: {e})"
             )
 
         admission_request.status = status
@@ -296,11 +298,11 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 raise_if_none=True,
                 mode="delete",
             )
-        except AccessError:
+        except AccessError as e:
             return self.error(
-                "Insufficient permissions: only the requester can delete a group admission request."
+                "Insufficient permissions: only the requester can delete a "
+                f"group admission request. (Original exception: {e})"
             )
-
         DBSession().delete(admission_request)
         self.verify_and_commit()
         self.push(action="skyportal/FETCH_USER_PROFILE")
