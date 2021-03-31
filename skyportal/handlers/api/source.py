@@ -180,19 +180,19 @@ class SourceHandler(BaseHandler):
             nullable: true
             schema:
               type: number
-            description: RA for spatial filtering
+            description: RA for spatial filtering (in decimal degrees)
           - in: query
             name: dec
             nullable: true
             schema:
               type: number
-            description: Declination for spatial filtering
+            description: Declination for spatial filtering (in decimal degrees)
           - in: query
             name: radius
             nullable: true
             schema:
               type: number
-            description: Radius for spatial filtering if ra & dec are provided
+            description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
           - in: query
             name: sourceID
             nullable: true
@@ -587,7 +587,8 @@ class SourceHandler(BaseHandler):
                     is_token=True,
                 )
                 DBSession.add(sv)
-                self.verify_and_commit()
+                DBSession().commit()
+                # self.verify_and_commit()
 
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
@@ -712,7 +713,7 @@ class SourceHandler(BaseHandler):
                 )
                 source_info["groups"][i]['saved_at'] = saved_at
 
-            self.verify_and_commit()
+            # self.verify_and_commit()
             return self.success(data=source_info)
 
         # Fetch multiple sources
@@ -1051,7 +1052,7 @@ class SourceHandler(BaseHandler):
                     source_list[-1]["groups"][i]['saved_at'] = saved_at
             query_results["sources"] = source_list
 
-        self.verify_and_commit()
+        # self.verify_and_commit()
         return self.success(data=query_results)
 
     @permissions(['Upload data'])
