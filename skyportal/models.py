@@ -48,6 +48,7 @@ from baselayer.app.models import (  # noqa
     UserRole,
     UserAccessControl,
     AccessibleIfUserMatches,
+    CustomUserAccessControl,
     accessible_by_owner,
     restricted,
     public,
@@ -175,7 +176,6 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
         contain a relationship called `group_users` and matches are only
         valid if the `admin` property of the corresponding `group_users` rows
         are true.
-
         Parameters
         ----------
         relationship_chain: str
@@ -283,8 +283,16 @@ class Group(Base):
     must have access to all of the `Group`'s data `Stream`s.
     """
 
-    update = delete = accessible_by_admins
+    update = accessible_by_admins
     member = accessible_by_members
+
+    # require group admin access for group deletion and do not allow
+    # the public group to be deleted.
+    delete = update & CustomUserAccessControl(
+        lambda cls, user_or_token: DBSession()
+        .query(cls)
+        .filter(cls.name != cfg['misc']['public_group_name'])
+    )
 
     name = sa.Column(
         sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
@@ -375,9 +383,6 @@ class Group(Base):
 
 GroupUser = join_model('group_users', Group, User)
 GroupUser.__doc__ = "Join table mapping `Group`s to `User`s."
-GroupUser.create = GroupUser.update = GroupUser.delete = (
-    accessible_by_group_admins & GroupUser.read
-)
 
 GroupUser.admin = sa.Column(
     sa.Boolean,
@@ -481,9 +486,6 @@ class Stream(Base):
 
 GroupStream = join_model('group_streams', Group, Stream)
 GroupStream.__doc__ = "Join table mapping Groups to Streams."
-GroupStream.create = GroupStream.update = GroupStream.delete = (
-    accessible_by_group_admins & GroupStream.read
-)
 
 
 StreamUser = join_model('stream_users', Stream, User)
@@ -3670,6 +3672,139 @@ def update_single_user_group(mapper, connection, target):
         single_user_group = target.single_user_group
         single_user_group.name = slugify(target.username)
         DBSession().add(single_user_group)
+
+
+# Group / user / stream permissions
+
+# group admins can set the admin status of other group members
+GroupUser.update = accessible_by_group_admins
+
+
+GroupUser.delete = (
+    # users can remove themselves from a group
+    # admins can remove users from a group
+    # no one can remove a user from their single user group
+    (accessible_by_group_admins | AccessibleIfUserMatches('user'))
+    & GroupUser.read
+    & CustomUserAccessControl(
+        lambda cls, user_or_token: DBSession()
+        .query(cls)
+        .join(Group)
+        .filter(Group.single_user_group.is_(False))
+    )
+)
+
+GroupUser.create = (
+    GroupUser.read
+    # only admins can add people to groups
+    & accessible_by_group_admins
+    & CustomUserAccessControl(
+        # Can only add a user to a group if they have all the requisite
+        # streams required for entry to the group. And users cannot
+        # be added to single user groups through the Groups API (only
+        # through event handlers).
+        lambda cls, user_or_token: DBSession()
+        .query(cls)
+        .join(Group)
+        .outerjoin(Stream, Group.streams)
+        .outerjoin(
+            StreamUser,
+            sa.and_(
+                StreamUser.user_id == cls.user_id,
+                StreamUser.stream_id == Stream.id,
+            ),
+        )
+        .filter(Group.single_user_group.is_(False))
+        .group_by(cls.id)
+        .having(
+            sa.or_(
+                sa.func.bool_and(StreamUser.stream_id.isnot(None)),
+                sa.func.bool_and(Stream.id.is_(None)),  # group has no streams
+            )
+        )
+    )
+)
+
+GroupStream.update = restricted
+GroupStream.delete = (
+    # only admins can delete streams from groups
+    accessible_by_group_admins
+    & GroupStream.read
+) & CustomUserAccessControl(
+    # Can only delete a stream from the group if none of the group's filters
+    # are operating on the stream.
+    lambda cls, user_or_token: DBSession()
+    .query(cls)
+    .outerjoin(Stream)
+    .outerjoin(
+        Filter,
+        sa.and_(Filter.stream_id == Stream.id, Filter.group_id == cls.group_id),
+    )
+    .group_by(cls.id)
+    .having(
+        sa.or_(
+            sa.func.bool_and(Filter.id.is_(None)),
+            sa.func.bool_and(Stream.id.is_(None)),  # group has no streams
+        )
+    )
+)
+
+GroupStream.create = (
+    # only admins can add streams to groups
+    accessible_by_group_admins
+    & GroupStream.read
+    & CustomUserAccessControl(
+        # Can only add a stream to a group if all users in the group have
+        # access to the stream.
+        # Also, cannot add stream access to single user groups.
+        lambda cls, user_or_token: DBSession()
+        .query(cls)
+        .join(Group, cls.group)
+        .outerjoin(User, Group.users)
+        .outerjoin(
+            StreamUser,
+            sa.and_(
+                cls.stream_id == StreamUser.stream_id,
+                User.id == StreamUser.user_id,
+            ),
+        )
+        .filter(Group.single_user_group.is_(False))
+        .group_by(cls.id)
+        .having(
+            sa.or_(
+                sa.func.bool_and(StreamUser.stream_id.isnot(None)),
+                sa.func.bool_and(User.id.is_(None)),
+            )
+        )
+    )
+)
+
+
+StreamUser.__doc__ = "Join table mapping Streams to Users."
+
+# only system admins can modify user stream permissions
+StreamUser.create = restricted
+
+# only system admins can modify user stream permissions
+StreamUser.delete = restricted & CustomUserAccessControl(
+    # Can only delete a stream from a user if none of the user's groups
+    # require that stream for membership
+    lambda cls, user_or_token: DBSession()
+    .query(cls)
+    .join(User, cls.user)
+    .outerjoin(Group, User.groups)
+    .outerjoin(
+        GroupStream,
+        sa.and_(
+            GroupStream.group_id == Group.id,
+            GroupStream.stream_id == cls.stream_id,
+        ),
+    )
+    .group_by(cls.id)
+    # no OR here because Users will always be a member of at least one
+    # group -- their single user group.
+    .having(sa.func.bool_and(GroupStream.stream_id.is_(None)))
+)
 
 
 schema.setup_schema()

@@ -221,7 +221,6 @@ def test_add_stream_to_single_user_group_delete_stream(
         "POST", "user", data={"username": username}, token=super_admin_token
     )
     assert status == 200
-    new_user_id = data["data"]["id"]
 
     # get single-user group
     status, data = api(
@@ -245,37 +244,10 @@ def test_add_stream_to_single_user_group_delete_stream(
         data={"stream_id": public_stream.id},
         token=super_admin_token,
     )
-    assert status == 200
-    assert data["data"]["stream_id"] == public_stream.id
 
-    # check that stream is there
-    status, data = api(
-        "GET",
-        f"groups/{single_user_group['id']}",
-        token=super_admin_token,
-    )
-    assert data["data"]["streams"][0]["id"] == public_stream.id
-
-    # delete stream
-    status, data = api(
-        "DELETE",
-        f"streams/{public_stream.id}",
-        token=super_admin_token,
-    )
-    assert status == 200
-
-    # check it is deleted from group
-    status, data = api(
-        "GET",
-        f"groups/{single_user_group['id']}",
-        token=super_admin_token,
-    )
-    assert len(data["data"]["streams"]) == 0
-
-    # check user still exists
-    status, data = api("GET", f"user/{new_user_id}", token=super_admin_token)
-    assert status == 200
-    assert data["data"]["id"] == new_user_id
+    # check that you can't add a stream to a single user group
+    assert status == 400
+    assert data['status'] == 'error'
 
 
 def test_add_stream_to_group_delete_stream(
@@ -384,7 +356,7 @@ def test_cannot_delete_sitewide_public_group(super_admin_token):
 
     status, data = api("DELETE", f"groups/{group_id}", token=super_admin_token)
     assert data["status"] == "error"
-    assert data["message"] == "Cannot delete site-wide public group."
+    assert "Insufficient permissions" in data["message"]
 
 
 def test_obj_groups(public_source, public_group, super_admin_token):
