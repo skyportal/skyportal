@@ -396,6 +396,10 @@ User.group_admission_requests = relationship(
 class GroupAdmissionRequest(Base):
     """Table tracking requests from users to join groups."""
 
+    read = AccessibleIfUserMatches('user') | accessible_by_group_admins
+    create = delete = AccessibleIfUserMatches('user')
+    update = accessible_by_group_admins
+
     user_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
