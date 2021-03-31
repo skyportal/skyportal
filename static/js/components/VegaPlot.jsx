@@ -41,6 +41,10 @@ const spec = (url) => ({
           as: "magAndErr",
         },
         { calculate: `${mjdNow} - datum.mjd`, as: "daysAgo" },
+        {
+          calculate: `(indexof(datum.filter, 'ztfr') >= 0 ? "red" : (indexof(datum.filter, 'ztfi') >= 0 ? "orange" : "green"))`,
+          as: "plcolor",
+        },
       ],
       encoding: {
         x: {
@@ -68,6 +72,7 @@ const spec = (url) => ({
         color: {
           field: "filter",
           type: "nominal",
+          scale: { range: { field: "plcolor" } },
         },
         tooltip: [
           { field: "magAndErr", title: "mag", type: "nominal" },
