@@ -2,13 +2,13 @@ import uuid
 import pytest
 import requests
 from selenium.webdriver.common.action_chains import ActionChains
-from baselayer.app.env import load_env
+from baselayer.app.env import load_config
 from skyportal.tests import api
 import glob
 import os
 
 
-env, cfg = load_env()
+cfg = load_config(config_files=["test_config.yaml"])
 endpoint = cfg['app.sedm_endpoint']
 
 sedm_isonline = False
@@ -20,13 +20,14 @@ else:
     sedm_isonline = True
 
 url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
+
 lt_isonline = False
-# try:
-#     requests.get(url, timeout=5)
-# except requests.exceptions.ConnectTimeout:
-#     pass
-# else:
-#     lt_isonline = True
+try:
+    requests.get(url, timeout=5)
+except requests.exceptions.ConnectTimeout:
+    pass
+else:
+    lt_isonline = True
 
 
 def add_telescope_and_instrument(instrument_name, token):
@@ -344,7 +345,6 @@ def test_submit_new_followup_request_SEDM(
 def test_submit_new_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_IOO(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
