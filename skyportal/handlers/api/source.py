@@ -110,7 +110,7 @@ class SourceHandler(BaseHandler):
             .filter(Source.group_id.in_(user_group_ids))
             .count()
         )
-        self.verify_permissions()
+        self.verify_and_commit()
         if num_s > 0:
             return self.success()
         else:
@@ -180,19 +180,19 @@ class SourceHandler(BaseHandler):
             nullable: true
             schema:
               type: number
-            description: RA for spatial filtering
+            description: RA for spatial filtering (in decimal degrees)
           - in: query
             name: dec
             nullable: true
             schema:
               type: number
-            description: Declination for spatial filtering
+            description: Declination for spatial filtering (in decimal degrees)
           - in: query
             name: radius
             nullable: true
             schema:
               type: number
-            description: Radius for spatial filtering if ra & dec are provided
+            description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
           - in: query
             name: sourceID
             nullable: true
@@ -587,7 +587,7 @@ class SourceHandler(BaseHandler):
                     is_token=True,
                 )
                 DBSession.add(sv)
-                self.finalize_transaction()
+                self.verify_and_commit()
 
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
@@ -612,9 +612,19 @@ class SourceHandler(BaseHandler):
                 s.get_annotations_readable_by(self.current_user),
                 key=lambda x: x.origin,
             )
-            source_info["classifications"] = s.get_classifications_readable_by(
+            readable_classifications = s.get_classifications_readable_by(
                 self.current_user
             )
+
+            readable_classifications_json = []
+            for classification in readable_classifications:
+                classification_dict = classification.to_dict()
+                classification_dict['groups'] = [
+                    g.to_dict() for g in classification.groups
+                ]
+                readable_classifications_json.append(classification_dict)
+
+            source_info["classifications"] = readable_classifications_json
             source_info["last_detected_at"] = s.last_detected_at
             source_info["last_detected_mag"] = s.last_detected_mag
             source_info["peak_detected_at"] = s.peak_detected_at
@@ -626,8 +636,12 @@ class SourceHandler(BaseHandler):
             source_info["angular_diameter_distance"] = s.angular_diameter_distance
 
             source_info["followup_requests"] = [
-                f for f in s.followup_requests if f.status != 'deleted'
+                f.to_dict() for f in s.followup_requests if f.status != 'deleted'
             ]
+
+            for f, r in zip(source_info['followup_requests'], s.followup_requests):
+                f['allocation'] = r.allocation.to_dict()
+
             if include_photometry:
                 photometry = (
                     Photometry.query_records_accessible_by(self.current_user)
@@ -698,7 +712,7 @@ class SourceHandler(BaseHandler):
                 )
                 source_info["groups"][i]['saved_at'] = saved_at
 
-            self.verify_permissions()
+            self.verify_and_commit()
             return self.success(data=source_info)
 
         # Fetch multiple sources
@@ -936,9 +950,20 @@ class SourceHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     )
-                source_list[-1][
-                    "classifications"
-                ] = source.get_classifications_readable_by(self.current_user)
+
+                readable_classifications = source.get_classifications_readable_by(
+                    self.current_user
+                )
+
+                readable_classifications_json = []
+                for classification in readable_classifications:
+                    classification_dict = classification.to_dict()
+                    classification_dict['groups'] = [
+                        g.to_dict() for g in classification.groups
+                    ]
+                    readable_classifications_json.append(classification_dict)
+
+                source_list[-1]["classifications"] = readable_classifications_json
                 source_list[-1]["annotations"] = sorted(
                     source.get_annotations_readable_by(self.current_user),
                     key=lambda x: x.origin,
@@ -1026,7 +1051,7 @@ class SourceHandler(BaseHandler):
                     source_list[-1]["groups"][i]['saved_at'] = saved_at
             query_results["sources"] = source_list
 
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=query_results)
 
     @permissions(['Upload data'])
@@ -1133,7 +1158,7 @@ class SourceHandler(BaseHandler):
                         obj=obj, group=group, saved_by_id=self.associated_user_object.id
                     )
                 )
-        self.finalize_transaction()
+        self.verify_and_commit()
         if not obj_already_exists:
             obj.add_linked_thumbnails()
         # If we're updating a source
@@ -1187,7 +1212,7 @@ class SourceHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_key": obj.internal_key},
@@ -1230,7 +1255,7 @@ class SourceHandler(BaseHandler):
         )
         s.active = False
         s.unsaved_by = self.current_user
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         return self.success(action='skyportal/FETCH_SOURCES')
 
@@ -1439,7 +1464,7 @@ class SourceOffsetsHandler(BaseHandler):
             [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
         )
 
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(
             data={
                 'facility': facility,
@@ -1653,7 +1678,7 @@ class SourceFinderHandler(BaseHandler):
             'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
         )
 
-        self.verify_permissions()
+        self.verify_and_commit()
 
         for i in range(math.ceil(max_file_size / chunk_size)):
             chunk = image.read(chunk_size)
@@ -1795,7 +1820,7 @@ class SourceNotificationHandler(BaseHandler):
         )
         DBSession().add(new_notification)
         try:
-            self.finalize_transaction()
+            self.verify_and_commit()
         except python_http_client.exceptions.UnauthorizedError:
             return self.error(
                 "Twilio Sendgrid authorization error. Please ensure "

@@ -1589,6 +1589,7 @@ class Telescope(Base):
     skycam_link = sa.Column(
         URLType, nullable=True, doc="Link to the telescope's sky camera."
     )
+    weather_link = sa.Column(URLType, doc="Link to the preferred weather site")
     robotic = sa.Column(
         sa.Boolean, default=False, nullable=False, doc="Is this telescope robotic?"
     )
@@ -1598,14 +1599,6 @@ class Telescope(Base):
         nullable=False,
         server_default='true',
         doc="Does this telescope have a fixed location (lon, lat, elev)?",
-    )
-
-    weather = sa.Column(JSONB, nullable=True, doc='Latest weather information')
-    weather_retrieved_at = sa.Column(
-        sa.DateTime, nullable=True, doc="When was the weather last retrieved?"
-    )
-    weather_link = sa.Column(
-        URLType, nullable=True, doc="Link to the preferred weather site."
     )
 
     instruments = relationship(
@@ -1721,6 +1714,28 @@ class Telescope(Base):
             'twilight_morning_nautical_unix_ms': twilight_morning_nautical.unix * 1000,
             'twilight_evening_nautical_unix_ms': twilight_evening_nautical.unix * 1000,
         }
+
+
+class Weather(Base):
+    update = public
+
+    weather_info = sa.Column(JSONB, doc="Latest weather information.")
+    retrieved_at = sa.Column(
+        sa.DateTime, doc="UTC time at which the weather was last retrieved."
+    )
+    telescope_id = sa.Column(
+        sa.ForeignKey("telescopes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        unique=True,
+        doc="ID of the associated Telescope.",
+    )
+    telescope = relationship(
+        "Telescope",
+        foreign_keys=[telescope_id],
+        uselist=False,
+        doc="The associated Telescope.",
+    )
 
 
 class ArrayOfEnum(ARRAY):

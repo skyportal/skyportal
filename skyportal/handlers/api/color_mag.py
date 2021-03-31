@@ -266,6 +266,6 @@ class ObjColorMagHandler(BaseHandler):
             colorKey=color_key,
         )
 
-        self.verify_permissions()
+        self.verify_and_commit()
 
         return self.success(data=output)
