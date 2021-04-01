@@ -694,9 +694,11 @@ class SourceHandler(BaseHandler):
             )
             source_info["groups"] = [g.to_dict() for g in query.all()]
             for group in source_info["groups"]:
-                source_table_row = Source.query.filter(
-                    Source.obj_id == s.id, Source.group_id == group["id"]
-                ).first()
+                source_table_row = (
+                    Source.query_records_accessible_by(self.current_user)
+                    .filter(Source.obj_id == s.id, Source.group_id == group["id"])
+                    .first()
+                )
                 group["active"] = source_table_row.active
                 group["requested"] = source_table_row.requested
                 group["saved_at"] = source_table_row.saved_at
@@ -717,24 +719,11 @@ class SourceHandler(BaseHandler):
         query_options = [joinedload(Obj.thumbnails)]
 
         if not save_summary:
-            q = (
-                DBSession()
-                .query(Obj)
-                .join(Source)
-                .filter(
-                    Source.group_id.in_(
-                        user_accessible_group_ids
-                    )  # only give sources the user has access to
-                )
-                .options(query_options)
-            )
+            q = Obj.query_records_accessible_by(
+                self.current_user, options=query_options
+            ).join(Source)
         else:
-            q = (
-                DBSession()
-                .query(Source)
-                .join(Obj)
-                .filter(Source.group_id.in_(user_accessible_group_ids))
-            )
+            q = Source.query_records_accessible_by(self.current_user).join(Obj)
 
         if list_name:
             q = q.join(Listing)
@@ -936,6 +925,7 @@ class SourceHandler(BaseHandler):
             )
 
         if not save_summary:
+            # Records are Objs, not Sources
             source_list = []
             for source in query_results["sources"]:
                 source_list.append(source.to_dict())
@@ -947,14 +937,20 @@ class SourceHandler(BaseHandler):
                                 for k, v in c.to_dict().items()
                                 if k != "attachment_bytes"
                             }
-                            for c in source.get_comments_readable_by(self.current_user)
+                            for c in Comment.query_records_accessible_by(
+                                self.current_user
+                            )
+                            .filter(Comment.obj_id == source.id)
+                            .all()
                         ],
                         key=lambda x: x["created_at"],
                         reverse=True,
                     )
 
-                readable_classifications = source.get_classifications_readable_by(
-                    self.current_user
+                readable_classifications = (
+                    Classification.query_records_accessible_by(self.current_user)
+                    .filter(Classification.obj_id == source.id)
+                    .all()
                 )
 
                 readable_classifications_json = []
@@ -967,7 +963,9 @@ class SourceHandler(BaseHandler):
 
                 source_list[-1]["classifications"] = readable_classifications_json
                 source_list[-1]["annotations"] = sorted(
-                    source.get_annotations_readable_by(self.current_user),
+                    Annotation.query_records_accessible_by(self.current_user).filter(
+                        Annotation.obj_id == source.id
+                    ),
                     key=lambda x: x.origin,
                 )
                 source_list[-1]["last_detected_at"] = source.last_detected_at(
@@ -1016,13 +1014,9 @@ class SourceHandler(BaseHandler):
                     )
 
                 groups_query = (
-                    DBSession()
-                    .query(Group)
+                    Group.query_records_accessible_by(self.current_user)
                     .join(Source)
-                    .filter(
-                        Source.obj_id == source_list[-1]["id"],
-                        Group.id.in_(user_accessible_group_ids),
-                    )
+                    .filter(Source.obj_id == source_list[-1]["id"])
                 )
                 groups_query = apply_active_or_requested_filtering(
                     groups_query, include_requested, requested_only
@@ -1030,9 +1024,13 @@ class SourceHandler(BaseHandler):
                 groups = groups_query.all()
                 source_list[-1]["groups"] = [g.to_dict() for g in groups]
                 for group in source_list[-1]["groups"]:
-                    source_table_row = Source.query.filter(
-                        Source.obj_id == source.id, Source.group_id == group["id"]
-                    ).first()
+                    source_table_row = (
+                        Source.query_records_accessible_by(self.current_user)
+                        .filter(
+                            Source.obj_id == source.id, Source.group_id == group["id"]
+                        )
+                        .first()
+                    )
                     group["active"] = source_table_row.active
                     group["requested"] = source_table_row.requested
                     group["saved_at"] = source_table_row.saved_at
@@ -1045,20 +1043,6 @@ class SourceHandler(BaseHandler):
                     source_list[-1]["color_magnitude"] = get_color_mag(
                         source_list[-1]["annotations"]
                     )
-
-                # add the date(s) this source was saved to each of these groups
-                for i, g in enumerate(source_list[-1]["groups"]):
-                    saved_at = (
-                        DBSession()
-                        .query(Source.saved_at)
-                        .filter(
-                            Source.obj_id == source_list[-1]["id"],
-                            Source.group_id == g["id"],
-                        )
-                        .first()
-                        .saved_at
-                    )
-                    source_list[-1]["groups"][i]['saved_at'] = saved_at
             query_results["sources"] = source_list
 
         self.verify_and_commit()
@@ -1103,7 +1087,9 @@ class SourceHandler(BaseHandler):
                               description: New source ID
         """
         data = self.get_json()
-        obj_already_exists = Obj.query.get(data["id"]) is not None
+        obj_already_exists = (
+            Obj.get_if_accessible_by(data["id"], self.current_user) is not None
+        )
         schema = Obj.__schema__()
 
         ra = data.get('ra', None)
@@ -1141,9 +1127,11 @@ class SourceHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
 
-        previously_saved = Source.query.filter(Source.obj_id == obj.id).first()
-
-        groups = Group.query.filter(Group.id.in_(group_ids)).all()
+        groups = (
+            Group.query_records_accessible_by(self.current_user)
+            .filter(Group.id.in_(group_ids))
+            .all()
+        )
         if not groups:
             return self.error(
                 "Invalid group_ids field. Please specify at least "
@@ -1155,7 +1143,8 @@ class SourceHandler(BaseHandler):
         DBSession().add(obj)
         for group in groups:
             source = (
-                Source.query.filter(Source.obj_id == obj.id)
+                Source.query_records_accessible_by(self.current_user)
+                .filter(Source.obj_id == obj.id)
                 .filter(Source.group_id == group.id)
                 .first()
             )
@@ -1171,11 +1160,9 @@ class SourceHandler(BaseHandler):
         self.verify_and_commit()
         if not obj_already_exists:
             obj.add_linked_thumbnails()
-        # If we're updating a source
-        if previously_saved is not None:
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-            )
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+        )
 
         self.push_all(
             action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
@@ -1209,8 +1196,6 @@ class SourceHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        # Permissions check
-        _ = Obj.get_if_readable_by(obj_id, self.current_user)
         data = self.get_json()
         data['id'] = obj_id
 
@@ -1257,8 +1242,7 @@ class SourceHandler(BaseHandler):
         if group_id not in [g.id for g in self.current_user.accessible_groups]:
             return self.error("Inadequate permissions.")
         s = (
-            DBSession()
-            .query(Source)
+            Source.query_records_accessible_by(self.current_user, mode="update")
             .filter(Source.obj_id == obj_id)
             .filter(Source.group_id == group_id)
             .first()
@@ -1393,10 +1377,7 @@ class SourceOffsetsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Obj.get_if_readable_by(
-            obj_id,
-            self.current_user,
-        )
+        source = Obj.get_if_accessible_by(obj_id, self.current_user)
         if source is None:
             return self.error('Source not found', status=404)
 
@@ -1570,10 +1551,7 @@ class SourceFinderHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        source = Obj.get_if_readable_by(
-            obj_id,
-            self.current_user,
-        )
+        source = Obj.get_if_accessible_by(obj_id, self.current_user)
         if source is None:
             return self.error('Source not found', status=404)
 
@@ -1787,12 +1765,16 @@ class SourceNotificationHandler(BaseHandler):
                 "all list items to integers."
             )
 
-        groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+        groups = (
+            Group.query_records_accessible_by(self.current_user)
+            .filter(Group.id.in_(group_ids))
+            .all()
+        )
 
         if data.get("sourceId") is None:
             return self.error("Missing required parameter `sourceId`")
 
-        source = Obj.get_if_readable_by(data["sourceId"], self.current_user)
+        source = Obj.get_if_accessible_by(data["sourceId"], self.current_user)
         if source is None:
             return self.error('Source not found', status=404)
 
@@ -1800,8 +1782,9 @@ class SourceNotificationHandler(BaseHandler):
 
         source_group_ids = [
             row[0]
-            for row in DBSession()
-            .query(Source.group_id)
+            for row in Source.query_records_accessible_by(
+                self.current_user, columns=[Source.group_id]
+            )
             .filter(Source.obj_id == source_id)
             .all()
         ]
@@ -1854,7 +1837,7 @@ class PS1ThumbnailHandler(BaseHandler):
         obj_id = data.get("objID")
         if obj_id is None:
             return self.error("Missing required paramter objID")
-        obj = Obj.get_if_readable_by(obj_id, self.current_user)
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         IOLoop.current().add_callback(
             lambda: add_ps1_thumbnail_and_push_ws_msg(obj, self)
         )
