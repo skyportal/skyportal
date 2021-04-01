@@ -20,6 +20,8 @@ from ..base import BaseHandler
 from ...models import (
     DBSession,
     Allocation,
+    Annotation,
+    Comment,
     Instrument,
     Obj,
     Source,
@@ -555,29 +557,41 @@ class SourceHandler(BaseHandler):
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
         if obj_id is not None:
-            query_options = [
-                joinedload(Obj.followup_requests).joinedload(FollowupRequest.requester),
-                joinedload(Obj.followup_requests)
-                .joinedload(FollowupRequest.allocation)
-                .joinedload(Allocation.instrument),
-                joinedload(Obj.assignments)
-                .joinedload(ClassicalAssignment.run)
-                .joinedload(ObservingRun.instrument)
-                .joinedload(Instrument.telescope),
-                joinedload(Obj.thumbnails),
-                joinedload(Obj.followup_requests)
-                .joinedload(FollowupRequest.allocation)
-                .joinedload(Allocation.group),
-            ]
-
-            s = Obj.get_if_readable_by(
-                obj_id,
-                self.current_user,
-                options=query_options,
+            s = Obj.get_if_accessible_by(
+                obj_id, self.current_user, options=[joinedload(Obj.thumbnails)]
             )
-
             if s is None:
                 return self.error("Source not found", status=404)
+            source_info = s.to_dict()
+            source_info["followup_requests"] = (
+                FollowupRequest.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(FollowupRequest.allocation).joinedload(
+                            Allocation.instrument
+                        ),
+                        joinedload(FollowupRequest.allocation).joinedload(
+                            Allocation.group
+                        ),
+                        joinedload(FollowupRequest.requester),
+                    ],
+                )
+                .filter(FollowupRequest.obj_id == obj_id)
+                .filter(FollowupRequest.status != "deleted")
+                .all()
+            )
+            source_info["assignments"] = (
+                ClassicalAssignment.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(ClassicalAssignment.run)
+                        .joinedload(ObservingRun.instrument)
+                        .joinedload(Instrument.telescope)
+                    ],
+                )
+                .filter(ClassicalAssignment.obj_id == obj_id)
+                .all()
+            )
 
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
@@ -588,15 +602,18 @@ class SourceHandler(BaseHandler):
                 )
                 DBSession.add(sv)
                 DBSession().commit()
-                # self.verify_and_commit()
+                self.verify_and_commit()
 
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
                     lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
                 )
-            source_info = s.to_dict()
             if include_comments:
-                comments = s.get_comments_readable_by(self.current_user)
+                comments = (
+                    Comment.query_records_accessible_by(self.current_user)
+                    .filter(Comment.obj_id == obj_id)
+                    .all()
+                )
                 source_info["comments"] = sorted(
                     [
                         {
@@ -610,11 +627,15 @@ class SourceHandler(BaseHandler):
                     reverse=True,
                 )
             source_info["annotations"] = sorted(
-                s.get_annotations_readable_by(self.current_user),
+                Annotation.query_records_accessible_by(self.current_user)
+                .filter(Annotation.obj_id == obj_id)
+                .all(),
                 key=lambda x: x.origin,
             )
-            readable_classifications = s.get_classifications_readable_by(
-                self.current_user
+            readable_classifications = (
+                Classification.query_records_accessible_by(self.current_user)
+                .filter(Classification.obj_id == obj_id)
+                .all()
             )
 
             readable_classifications_json = []
@@ -635,13 +656,6 @@ class SourceHandler(BaseHandler):
             source_info["luminosity_distance"] = s.luminosity_distance
             source_info["dm"] = s.dm
             source_info["angular_diameter_distance"] = s.angular_diameter_distance
-
-            source_info["followup_requests"] = [
-                f.to_dict() for f in s.followup_requests if f.status != 'deleted'
-            ]
-
-            for f, r in zip(source_info['followup_requests'], s.followup_requests):
-                f['allocation'] = r.allocation.to_dict()
 
             if include_photometry:
                 photometry = (
@@ -671,13 +685,9 @@ class SourceHandler(BaseHandler):
                     > 0
                 )
             query = (
-                DBSession()
-                .query(Group)
+                Group.query_records_accessible_by(self.current_user)
                 .join(Source)
-                .filter(
-                    Source.obj_id == source_info["id"],
-                    Group.id.in_(user_accessible_group_ids),
-                )
+                .filter(Source.obj_id == source_info["id"])
             )
             query = apply_active_or_requested_filtering(
                 query, include_requested, requested_only
@@ -700,20 +710,7 @@ class SourceHandler(BaseHandler):
                     source_info["annotations"]
                 )
 
-            # add the date(s) this source was saved to each of these groups
-            for i, g in enumerate(source_info["groups"]):
-                saved_at = (
-                    DBSession()
-                    .query(Source.saved_at)
-                    .filter(
-                        Source.obj_id == source_info["id"], Source.group_id == g["id"]
-                    )
-                    .first()
-                    .saved_at
-                )
-                source_info["groups"][i]['saved_at'] = saved_at
-
-            # self.verify_and_commit()
+            self.verify_and_commit()
             return self.success(data=source_info)
 
         # Fetch multiple sources
@@ -1064,7 +1061,7 @@ class SourceHandler(BaseHandler):
                     source_list[-1]["groups"][i]['saved_at'] = saved_at
             query_results["sources"] = source_list
 
-        # self.verify_and_commit()
+        self.verify_and_commit()
         return self.success(data=query_results)
 
     @permissions(['Upload data'])
