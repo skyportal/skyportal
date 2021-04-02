@@ -151,10 +151,6 @@ class ObservingRunHandler(BaseHandler):
                     d["rise_time_utc"] = rt if rt is not np.ma.masked else ''
                     d["set_time_utc"] = st if st is not np.ma.masked else ''
 
-            # TODO: uncomment once API is refactored - this is currently commented
-            # as this handler implements some changes to persistent records that
-            # should not ever be flushed to the database
-
             self.verify_and_commit()
             return self.success(data=data)
 
