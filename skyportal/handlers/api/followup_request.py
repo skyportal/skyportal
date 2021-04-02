@@ -434,6 +434,11 @@ class FollowupRequestHandler(BaseHandler):
                 schema: Error
         """
 
+        try:
+            request_id = int(request_id)
+        except ValueError:
+            return self.error('Request id must be an int.')
+
         followup_request = FollowupRequest.get_if_accessible_by(
             request_id, self.current_user, mode="update", raise_if_none=True
         )
