@@ -102,43 +102,24 @@ class ObservingRunHandler(BaseHandler):
                   schema: Error
         """
         if run_id is not None:
-            run = (
-                DBSession()
-                .query(ObservingRun)
-                .options(
-                    joinedload(ObservingRun.assignments)
-                    .joinedload(ClassicalAssignment.obj)
-                    .joinedload(Obj.thumbnails),
-                    joinedload(ObservingRun.assignments).joinedload(
-                        ClassicalAssignment.requester
-                    ),
-                    joinedload(ObservingRun.instrument).joinedload(
-                        Instrument.telescope
-                    ),
-                    joinedload(ObservingRun.assignments)
-                    .joinedload(ClassicalAssignment.obj)
-                    .joinedload(Obj.sources)
-                    .joinedload(Source.group),
-                )
-                .filter(ObservingRun.id == run_id)
-                .first()
+            # These are all read=public, including Objs
+            options = [
+                joinedload(ObservingRun.assignments)
+                .joinedload(ClassicalAssignment.obj)
+                .joinedload(Obj.thumbnails),
+                joinedload(ObservingRun.assignments).joinedload(
+                    ClassicalAssignment.requester
+                ),
+                joinedload(ObservingRun.instrument).joinedload(Instrument.telescope),
+            ]
+
+            run = ObservingRun.get_if_accessible_by(
+                run_id,
+                self.current_user,
+                mode="read",
+                raise_if_none=True,
+                options=options,
             )
-
-            if run is None:
-                return self.error(
-                    f"Could not load observing run {run_id}", data={"run_id": run_id}
-                )
-
-            # filter out the assignments of objects that are not visible to
-            # the user
-            assignments = []
-            for a in run.assignments:
-                try:
-                    obj = Obj.get_if_readable_by(a.obj.id, self.current_user)
-                except AccessError:
-                    continue
-                if obj is not None:
-                    assignments.append(a)
 
             # order the assignments by ra
             assignments = sorted(run.assignments, key=lambda a: a.obj.ra)
@@ -146,16 +127,14 @@ class ObservingRunHandler(BaseHandler):
             data = ObservingRunGetWithAssignments.dump(run)
             data["assignments"] = [a.to_dict() for a in assignments]
 
-            gids = [
-                g.id
-                for g in self.current_user.accessible_groups
-                if not g.single_user_group
-            ]
             for a in data["assignments"]:
                 a['accessible_group_names'] = [
                     (s.group.nickname if s.group.nickname is not None else s.group.name)
-                    for s in a['obj'].sources
-                    if s.group_id in gids
+                    for s in Source.query_records_accessible_by(
+                        self.current_user, mode="read"
+                    )
+                    .filter(Source.obj_id == a["obj"].id)
+                    .all()
                 ]
                 del a['obj'].sources
                 del a['obj'].users
@@ -176,10 +155,14 @@ class ObservingRunHandler(BaseHandler):
             # as this handler implements some changes to persistent records that
             # should not ever be flushed to the database
 
-            # self.verify_and_commit()
+            self.verify_and_commit()
             return self.success(data=data)
 
-        runs = ObservingRun.query.order_by(ObservingRun.calendar_date.asc()).all()
+        runs = (
+            ObservingRun.query_accessible_rows(self.current_user, mode="read")
+            .order_by(ObservingRun.calendar_date.asc())
+            .all()
+        )
         runs_list = []
         for run in runs:
             runs_list.append(run.to_dict())
@@ -220,14 +203,16 @@ class ObservingRunHandler(BaseHandler):
 
         data = self.get_json()
         run_id = int(run_id)
-        is_superadmin = self.current_user.is_system_admin
 
-        orun = ObservingRun.query.get(run_id)
+        try:
+            orun = ObservingRun.get_if_accessible_by(
+                run_id, self.current_user, mode="update", raise_if_none=True
+            )
+        except AccessError as e:
+            return self.error(
+                f"Only the owner of an observing run can modify the run. Original error: {e}"
+            )
 
-        current_user_id = self.associated_user_object.id
-
-        if orun.owner_id != current_user_id and not is_superadmin:
-            return self.error("Only the owner of an observing run can modify the run.")
         try:
             new_params = ObservingRunPost.load(data, partial=True)
         except ValidationError as exc:
@@ -268,16 +253,17 @@ class ObservingRunHandler(BaseHandler):
                 schema: Error
         """
         run_id = int(run_id)
-        is_superadmin = self.current_user.is_system_admin
 
-        run = ObservingRun.query.get(run_id)
+        try:
+            run = ObservingRun.get_if_accessible_by(
+                run_id, self.current_user, mode="delete", raise_if_none=True
+            )
+        except AccessError as e:
+            return self.error(
+                f"Only the owner of an observing run can delete the run. Original error: {e}"
+            )
 
-        current_user_id = self.associated_user_object.id
-
-        if run.owner_id != current_user_id and not is_superadmin:
-            return self.error("Only the owner of an observing run can modify the run.")
-
-        DBSession().query(ObservingRun).filter(ObservingRun.id == run_id).delete()
+        DBSession().delete(run)
         self.verify_and_commit()
 
         self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
