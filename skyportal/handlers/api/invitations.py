@@ -84,7 +84,11 @@ class InvitationHandler(BaseHandler):
                 "Invalid value provided for `groupIDs`; unable to parse "
                 "all list items to integers."
             )
-        groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+        groups = (
+            Group.query_accessible_rows(self.current_user, mode="read")
+            .filter(Group.id.in_(group_ids))
+            .all()
+        )
         if set(group_ids).difference({g.id for g in groups}):
             return self.error(
                 "The following groupIDs elements are invalid: "
@@ -99,7 +103,12 @@ class InvitationHandler(BaseHandler):
                     "Invalid value provided for `streamIDs`; unable to parse "
                     "all list items to integers."
                 )
-            streams = DBSession().query(Stream).filter(Stream.id.in_(stream_ids)).all()
+
+            streams = (
+                Stream.query_accessible_rows(self.current_user, mode="read")
+                .filter(Stream.id.in_(stream_ids))
+                .all()
+            )
             if set(stream_ids).difference({s.id for s in streams}):
                 return self.error(
                     "The following streamIDs elements are invalid: "
@@ -117,8 +126,7 @@ class InvitationHandler(BaseHandler):
                 )
         else:
             streams = (
-                DBSession()
-                .query(Stream)
+                Stream.query_accessible_rows(self.current_user, mode="read")
                 .join(GroupStream)
                 .filter(GroupStream.group_id.in_(group_ids))
                 .all()
@@ -243,7 +251,7 @@ class InvitationHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid numPerPage value.")
 
-        query = Invitation.query
+        query = Invitation.query_accessible_rows(self.current_user, mode="read")
         if not include_used:
             query = query.filter(Invitation.used.is_(False))
         if email_address is not None:
@@ -304,7 +312,9 @@ class InvitationHandler(BaseHandler):
                 schema: Success
         """
         data = self.get_json()
-        invitation = Invitation.query.get(invitation_id)
+        invitation = Invitation.get_if_accessible_by(
+            invitation_id, self.current_user, raise_if_none=True, mode="update"
+        )
         group_ids = data.get("groupIDs")
         stream_ids = data.get("streamIDs")
         if group_ids is None and stream_ids is None:
@@ -313,24 +323,42 @@ class InvitationHandler(BaseHandler):
             )
         if group_ids is not None:
             group_ids = [int(gid) for gid in group_ids]
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            groups = (
+                Group.query_accessible_rows(self.current_user, mode="read")
+                .filter(Group.id.in_(group_ids))
+                .all()
+            )
             if set(group_ids).difference({g.id for g in groups}):
                 return self.error(
                     "The following groupIDs elements are invalid: "
                     f"{set(group_ids).difference({g.id for g in groups})}"
                 )
         else:
-            groups = invitation.groups
+            groups = (
+                Group.query_accessible_rows(self.current_user, mode="read")
+                .join(GroupInvitation)
+                .filter(GroupInvitation.invitation_id == invitation.id)
+                .all()
+            )
         if stream_ids is not None:
             stream_ids = [int(sid) for sid in stream_ids]
-            streams = Stream.query.filter(Stream.id.in_(stream_ids)).all()
+            streams = (
+                Stream.query_accessible_rows(self.current_user, mode="read")
+                .filter(Stream.id.in_(stream_ids))
+                .all()
+            )
             if set(stream_ids).difference({s.id for s in streams}):
                 return self.error(
                     "The following streamIDs elements are invalid: "
                     f"{set(stream_ids).difference({s.id for s in streams})}"
                 )
         else:
-            streams = invitation.streams
+            streams = (
+                Stream.query_accessible_rows(self.current_user, mode="read")
+                .join(StreamInvitation)
+                .filter(StreamInvitation.invitation_id == invitation.id)
+                .all()
+            )
 
         # Ensure specified groups are covered by specified streams
         if not all([stream in streams for group in groups for stream in group.streams]):
@@ -366,9 +394,9 @@ class InvitationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        invitation = DBSession().query(Invitation).get(invitation_id)
-        if invitation is None:
-            return self.error("Invalid invitation ID")
+        invitation = Invitation.get_if_accessible_by(
+            invitation_id, self.current_user, raise_if_none=True, mode="delete"
+        )
         DBSession().delete(invitation)
         self.verify_and_commit()
         return self.success()
