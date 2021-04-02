@@ -174,34 +174,18 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
 
-        spectrum = (
-            DBSession()
-            .query(Spectrum)
-            .join(Obj)
-            .join(GroupSpectrum)
-            .filter(
-                Spectrum.id == spectrum_id,
-                GroupSpectrum.group_id.in_(
-                    [g.id for g in self.current_user.accessible_groups]
-                ),
-            )
-            .options(joinedload(Spectrum.groups))
-            .first()
+        spectrum = Spectrum.get_if_accessible_by(
+            spectrum_id, self.current_user, raise_if_none=True
         )
 
-        if spectrum is not None:
-            # Permissions check
-            _ = Obj.get_if_readable_by(spectrum.obj_id, self.current_user)
-            spec_dict = spectrum.to_dict()
-            spec_dict["instrument_name"] = spectrum.instrument.name
-            spec_dict["groups"] = spectrum.groups
-            spec_dict["reducers"] = spectrum.reducers
-            spec_dict["observers"] = spectrum.observers
-            spec_dict["owner"] = spectrum.owner
-            self.verify_and_commit()
-            return self.success(data=spec_dict)
-        else:
-            return self.error(f"Could not load spectrum with ID {spectrum_id}")
+        spec_dict = spectrum.to_dict()
+        spec_dict["instrument_name"] = spectrum.instrument.name
+        spec_dict["groups"] = spectrum.groups
+        spec_dict["reducers"] = spectrum.reducers
+        spec_dict["observers"] = spectrum.observers
+        spec_dict["owner"] = spectrum.owner
+        self.verify_and_commit()
+        return self.success(data=spec_dict)
 
     @permissions(['Upload data'])
     def put(self, spectrum_id):
@@ -235,15 +219,9 @@ class SpectrumHandler(BaseHandler):
         except TypeError:
             return self.error('Could not convert spectrum id to int.')
 
-        spectrum = Spectrum.query.get(spectrum_id)
-        # Permissions check
-        _ = Obj.get_if_readable_by(spectrum.obj_id, self.current_user)
-
-        # Check that the requesting user owns the spectrum (or is an admin)
-        if not spectrum.is_modifiable_by(self.associated_user_object):
-            return self.error(
-                f'Cannot modify spectrum that is owned by {spectrum.owner}.'
-            )
+        spectrum = Spectrum.get_if_accessible_by(
+            spectrum_id, self.current_user, mode="update", raise_if_none=True
+        )
 
         data = self.get_json()
 
@@ -263,7 +241,6 @@ class SpectrumHandler(BaseHandler):
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': spectrum.obj.internal_key},
         )
-
         return self.success()
 
     @permissions(['Upload data'])
@@ -289,16 +266,9 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        spectrum = Spectrum.query.get(spectrum_id)
-        # Permissions check
-        _ = Obj.get_if_readable_by(spectrum.obj_id, self.current_user)
-
-        # Check that the requesting user owns the spectrum (or is an admin)
-        if not spectrum.is_modifiable_by(self.associated_user_object):
-            return self.error(
-                f'Cannot delete spectrum that is owned by {spectrum.owner}.'
-            )
-
+        spectrum = Spectrum.get_if_accessible_by(
+            spectrum_id, self.current_user, raise_if_none=True
+        )
         DBSession().delete(spectrum)
         self.verify_and_commit()
 
