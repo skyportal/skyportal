@@ -16,6 +16,7 @@ import functools
 import healpix_alchemy as ha
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
+from baselayer.app.model_util import recursive_to_dict
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -66,7 +67,8 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
     return query
 
 
-def add_ps1_thumbnail_and_push_ws_msg(obj, request_handler):
+def add_ps1_thumbnail_and_push_ws_msg(obj_id, request_handler):
+    obj = Obj.get_if_accessible_by(obj_id, request_handler.current_user)
     try:
         obj.add_ps1_thumbnail()
     except (ValueError, ConnectionError) as e:
@@ -606,20 +608,32 @@ class SourceHandler(BaseHandler):
 
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
-                    lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
+                    lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self)
                 )
             if include_comments:
                 comments = (
-                    Comment.query_records_accessible_by(self.current_user)
+                    Comment.query_records_accessible_by(
+                        self.current_user,
+                        options=[
+                            joinedload(Comment.author),
+                            joinedload(Comment.groups),
+                        ],
+                    )
                     .filter(Comment.obj_id == obj_id)
                     .all()
                 )
                 source_info["comments"] = sorted(
                     [
                         {
-                            k: v
-                            for k, v in c.to_dict().items()
-                            if k != "attachment_bytes"
+                            **{
+                                k: v
+                                for k, v in c.to_dict().items()
+                                if k != "attachment_bytes"
+                            },
+                            "author": {
+                                **c.author.to_dict(),
+                                "gravatar_url": c.author.gravatar_url,
+                            },
                         }
                         for c in comments
                     ],
@@ -627,7 +641,9 @@ class SourceHandler(BaseHandler):
                     reverse=True,
                 )
             source_info["annotations"] = sorted(
-                Annotation.query_records_accessible_by(self.current_user)
+                Annotation.query_records_accessible_by(
+                    self.current_user, options=[joinedload(Annotation.author)]
+                )
                 .filter(Annotation.obj_id == obj_id)
                 .all(),
                 key=lambda x: x.origin,
@@ -712,6 +728,7 @@ class SourceHandler(BaseHandler):
                     source_info["annotations"]
                 )
 
+            source_info = recursive_to_dict(source_info)
             self.verify_and_commit()
             return self.success(data=source_info)
 
@@ -1045,6 +1062,7 @@ class SourceHandler(BaseHandler):
                     )
             query_results["sources"] = source_list
 
+        query_results = recursive_to_dict(query_results)
         self.verify_and_commit()
         return self.success(data=query_results)
 
@@ -1837,8 +1855,7 @@ class PS1ThumbnailHandler(BaseHandler):
         obj_id = data.get("objID")
         if obj_id is None:
             return self.error("Missing required paramter objID")
-        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         IOLoop.current().add_callback(
-            lambda: add_ps1_thumbnail_and_push_ws_msg(obj, self)
+            lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self)
         )
         return self.success()
