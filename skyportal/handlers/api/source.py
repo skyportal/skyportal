@@ -626,10 +626,10 @@ class SourceHandler(BaseHandler):
                 readable_classifications_json.append(classification_dict)
 
             source_info["classifications"] = readable_classifications_json
-            source_info["last_detected_at"] = s.last_detected_at
-            source_info["last_detected_mag"] = s.last_detected_mag
-            source_info["peak_detected_at"] = s.peak_detected_at
-            source_info["peak_detected_mag"] = s.peak_detected_mag
+            source_info["last_detected_at"] = s.last_detected_at(self.current_user)
+            source_info["last_detected_mag"] = s.last_detected_mag(self.current_user)
+            source_info["peak_detected_at"] = s.peak_detected_at(self.current_user)
+            source_info["peak_detected_mag"] = s.peak_detected_mag(self.current_user)
             source_info["gal_lat"] = s.gal_lat_deg
             source_info["gal_lon"] = s.gal_lon_deg
             source_info["luminosity_distance"] = s.luminosity_distance
@@ -766,10 +766,10 @@ class SourceHandler(BaseHandler):
             q = q.filter(Obj.within(other, radius))
         if start_date:
             start_date = arrow.get(start_date.strip()).datetime
-            q = q.filter(Obj.last_detected_at >= start_date)
+            q = q.filter(Obj.last_detected_at(self.current_user) >= start_date)
         if end_date:
             end_date = arrow.get(end_date.strip()).datetime
-            q = q.filter(Obj.last_detected_at <= end_date)
+            q = q.filter(Obj.last_detected_at(self.current_user) <= end_date)
         if saved_before:
             q = q.filter(Source.saved_at <= saved_before)
         if saved_after:
@@ -813,7 +813,7 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for minPeakMagnitude - could not convert to float"
                 )
-            q = q.filter(Obj.peak_detected_mag >= min_peak_magnitude)
+            q = q.filter(Obj.peak_detected_mag(self.current_user) >= min_peak_magnitude)
         if max_peak_magnitude is not None:
             try:
                 max_peak_magnitude = float(max_peak_magnitude)
@@ -821,7 +821,7 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for maxPeakMagnitude - could not convert to float"
                 )
-            q = q.filter(Obj.peak_detected_mag <= max_peak_magnitude)
+            q = q.filter(Obj.peak_detected_mag(self.current_user) <= max_peak_magnitude)
         if min_latest_magnitude is not None:
             try:
                 min_latest_magnitude = float(min_latest_magnitude)
@@ -829,7 +829,9 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for minLatestMagnitude - could not convert to float"
                 )
-            q = q.filter(Obj.last_detected_mag >= min_latest_magnitude)
+            q = q.filter(
+                Obj.last_detected_mag(self.current_user) >= min_latest_magnitude
+            )
         if max_latest_magnitude is not None:
             try:
                 max_latest_magnitude = float(max_latest_magnitude)
@@ -837,7 +839,9 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for maxLatestMagnitude - could not convert to float"
                 )
-            q = q.filter(Obj.last_detected_mag <= max_latest_magnitude)
+            q = q.filter(
+                Obj.last_detected_mag(self.current_user) <= max_latest_magnitude
+            )
         if classifications is not None:
             if isinstance(classifications, str) and "," in classifications:
                 classifications = [c.strip() for c in classifications.split(",")]
@@ -969,10 +973,18 @@ class SourceHandler(BaseHandler):
                     source.get_annotations_readable_by(self.current_user),
                     key=lambda x: x.origin,
                 )
-                source_list[-1]["last_detected_at"] = source.last_detected_at
-                source_list[-1]["last_detected_mag"] = source.last_detected_mag
-                source_list[-1]["peak_detected_at"] = source.peak_detected_at
-                source_list[-1]["peak_detected_mag"] = source.peak_detected_mag
+                source_list[-1]["last_detected_at"] = source.last_detected_at(
+                    self.current_user
+                )
+                source_list[-1]["last_detected_mag"] = source.last_detected_mag(
+                    self.current_user
+                )
+                source_list[-1]["peak_detected_at"] = source.peak_detected_at(
+                    self.current_user
+                )
+                source_list[-1]["peak_detected_mag"] = source.peak_detected_mag(
+                    self.current_user
+                )
                 source_list[-1]["gal_lon"] = source.gal_lon_deg
                 source_list[-1]["gal_lat"] = source.gal_lat_deg
                 source_list[-1]["luminosity_distance"] = source.luminosity_distance

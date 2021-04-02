@@ -408,14 +408,14 @@ class CandidateHandler(BaseHandler):
                 candidate_info["classifications"] = c.get_classifications_readable_by(
                     self.current_user
                 )
-            candidate_info["last_detected_at"] = c.last_detected_at
+            candidate_info["last_detected_at"] = c.last_detected_at(self.current_user)
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
             candidate_info["luminosity_distance"] = c.luminosity_distance
             candidate_info["dm"] = c.dm
             candidate_info["angular_diameter_distance"] = c.angular_diameter_distance
 
-            # self.verify_and_commit()
+            self.verify_and_commit()
             return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -480,6 +480,7 @@ class CandidateHandler(BaseHandler):
                 "Insufficient permissions - you must only specify "
                 "groups/filters that you have access to."
             )
+
         try:
             page = int(page_number)
         except ValueError:
@@ -793,7 +794,6 @@ class CandidateHandler(BaseHandler):
                     )
                 ]
                 candidate_list.append(obj.to_dict())
-
                 if include_photometry:
                     candidate_list[-1]["photometry"] = (
                         Photometry.query_records_accessible_by(
@@ -828,7 +828,9 @@ class CandidateHandler(BaseHandler):
                     obj.get_annotations_readable_by(self.current_user),
                     key=lambda x: x.origin,
                 )
-                candidate_list[-1]["last_detected_at"] = obj.last_detected_at
+                candidate_list[-1]["last_detected_at"] = obj.last_detected_at(
+                    self.current_user
+                )
                 candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
                 candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
                 candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
@@ -838,7 +840,7 @@ class CandidateHandler(BaseHandler):
                 ] = obj.angular_diameter_distance
 
         query_results["candidates"] = candidate_list
-        # self.verify_and_commit()
+        self.verify_and_commit()
         return self.success(data=query_results)
 
     @permissions(["Upload data"])
