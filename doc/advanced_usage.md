@@ -9,10 +9,10 @@ but in a future release we may expand the notion of the HR diagram
 to arbitrary catalogs.
 
 This is done by posting an `Annotation` to the source, with correctly formatted data.
-If at least one properly formatted `Annotation` exists on the source,
-an HR diagram will be rendered for it.
+If at least one properly formatted `Annotation` with Gaia color-magnitude data
+exists on the source, an HR diagram will be rendered for it.
 
-First let's see how to post an `Annotation` using the `request` package.
+First let's see how to post an `Annotation` using the `requests` package.
 Here is a working example:
 
 ```
@@ -22,7 +22,6 @@ import json
 url = 'http://localhost:5000'
 token = '239868fa-8307-41ad-983f-4a8180609df6'
 header = {"Authorization": f"token {token}", "content_type": "application/json"}
-parameters = {}
 data = {'obj_id': '2021example',
         'origin': 'cross_match_robot',
         'Gaia': {'Mag_G', 10.2,
@@ -50,15 +49,7 @@ The `token` should be generated for your user
 through the profile page.
 The token must have the ACL to annotate.
 
-The `header` uses the token above
-and defines what kind of HTTP call is expected.
-
-The `parameters` are used to define query parameters,
-which are often very useful in GET calls,
-but in this case are left empty.
-Query parameters can also be appended to the URL
-using a `?` before each `keyword=value` pair,
-and each pair is separated using a `&`.
+The `header` is used to pass along the SkyPortal authentication token.
 
 The `data` field is a dictionary that contains
 information to be posted to the database.
@@ -77,14 +68,14 @@ Each origin can only post a single `Annotation`
 to each source, but that `Annotation` can contain arbitrary data.
 
 In the case of the color-magnitude plot,
-the system only recongnizes annotations
+the system only recognizes annotations
 with a specific schema:
 - One of the keys in the `Annotation` data must be named `Gaia`.
 - The value of that key must be a dictionary.
 - That dictionary must contain the following entries:
 - `Mag_G', 'Mag_Bp', 'Mag_Rp', 'Plx'.
-- All these names (including the catalog name) will be made customizable
-  in a future release. Currently the HR diagram is drawn only for Gaia data.
+- All these names (including the catalog name) may be made customizable
+  in a future release. Currently, the HR diagram is drawn only for Gaia data.
 - The names are searched ignoring case, and removing underscores.
   So, for example, the dictionary can contain `mag_g` or `MagG`,
   and would still be accepted as data for an HR diagram.
