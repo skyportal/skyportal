@@ -23,6 +23,8 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
+from sqlalchemy.ext.declarative import declared_attr
+
 from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_utils import URLType, EmailType
@@ -645,6 +647,15 @@ class Obj(Base, ha.Point):
         passive_deletes=True,
         order_by="Comment.created_at",
         doc="Comments posted about the object.",
+    )
+
+    spectrum_comments = relationship(
+        'SpectrumComment',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="SpectrumComment.created_at",
+        doc="Comments posted about spectra belonging to the object.",
     )
 
     annotations = relationship(
@@ -2081,37 +2092,59 @@ class CommentMixin:
     )
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
-    author = relationship(
-        "User",
-        back_populates="comments",
-        doc="Comment's author.",
-        uselist=False,
-        foreign_keys="Comment.author_id",
-    )
-    author_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="ID of the Comment author's User instance.",
-    )
-    obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="ID of the Comment's Obj.",
-    )
-    obj = relationship(
-        'Obj',
-        back_populates='comments',
-        doc="The Comment's Obj.",
-    )
-    groups = relationship(
-        "Group",
-        secondary="group_comments",
-        cascade="save-update, merge, refresh-expire, expunge",
-        passive_deletes=True,
-        doc="Groups that can see the comment.",
-    )
+
+    @classmethod
+    def backref_name(cls):
+        if cls.__name__ == 'Comment':
+            return "comments"
+        if cls.__name__ == 'SpectrumComment':
+            return 'spectrum_comments'
+
+    @declared_attr
+    def author(cls):
+        return relationship(
+            "User",
+            back_populates=cls.backref_name(),
+            doc="Comment's author.",
+            uselist=False,
+            foreign_keys=f"{cls.__name__}.author_id",
+        )
+
+    @declared_attr
+    def author_id(cls):
+        return sa.Column(
+            sa.ForeignKey('users.id', ondelete='CASCADE'),
+            nullable=False,
+            index=True,
+            doc="ID of the Comment author's User instance.",
+        )
+
+    @declared_attr
+    def obj_id(cls):
+        return sa.Column(
+            sa.ForeignKey('objs.id', ondelete='CASCADE'),
+            nullable=False,
+            index=True,
+            doc="ID of the Comment's Obj.",
+        )
+
+    @declared_attr
+    def obj(cls):
+        return relationship(
+            'Obj',
+            back_populates=cls.backref_name(),
+            doc="The Comment's Obj.",
+        )
+
+    @declared_attr
+    def groups(cls):
+        return relationship(
+            "Group",
+            secondary="group_" + cls.backref_name(),
+            cascade="save-update, merge, refresh-expire, expunge",
+            passive_deletes=True,
+            doc="Groups that can see the comment.",
+        )
 
     def construct_author_info_dict(self):
         return {
@@ -2132,7 +2165,7 @@ class CommentMixin:
         return comment
 
 
-class Comment(Base):
+class Comment(Base, CommentMixin):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
 
@@ -2147,29 +2180,6 @@ User.comments = relationship(
     "Comment",
     back_populates="author",
     foreign_keys="Comment.author_id",
-    cascade="delete",
-    passive_deletes=True,
-)
-
-
-class SpectrumComment(Base, CommentMixin):
-    spectrum_id = sa.Column(
-        sa.ForeignKey('spectra.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="ID of the Comment's Spectrum.",
-    )
-    spectrum = relationship(
-        'Spectra',
-        back_populates='comments',
-        doc="The Spectrum refered to by this comment.",
-    )
-
-
-User.spectrum_comments = relationship(
-    "SpectrumComment",
-    back_populates="author",
-    foreign_keys="SpectrumComment.author_id",
     cascade="delete",
     passive_deletes=True,
 )
@@ -2683,6 +2693,15 @@ class Spectrum(Base):
         doc="The User who uploaded the spectrum.",
     )
 
+    comments = relationship(
+        'SpectrumComment',
+        back_populates='spectrum',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="SpectrumComment.created_at",
+        doc="Comments posted about this spectrum.",
+    )
+
     @classmethod
     def from_ascii(
         cls,
@@ -2879,6 +2898,36 @@ GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 GroupSpectrum.update = GroupSpectrum.delete = (
     accessible_by_group_admins & GroupSpectrum.read
+)
+
+
+class SpectrumComment(Base, CommentMixin):
+
+    spectrum_id = sa.Column(
+        sa.ForeignKey('spectra.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Comment's Spectrum.",
+    )
+    spectrum = relationship(
+        'Spectrum',
+        back_populates='comments',
+        doc="The Spectrum referred to by this comment.",
+    )
+
+
+User.spectrum_comments = relationship(
+    "SpectrumComment",
+    back_populates="author",
+    foreign_keys="SpectrumComment.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+
+GroupSpectrumComment = join_model("group_spectrum_comments", Group, SpectrumComment)
+GroupSpectrumComment.__doc__ = "Join table mapping Groups to SpectrumComments."
+GroupSpectrumComment.delete = GroupSpectrumComment.update = (
+    accessible_by_group_admins & GroupSpectrumComment.read
 )
 
 
