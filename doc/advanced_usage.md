@@ -34,7 +34,6 @@ data = {'obj_id': '2021example',
 response = requests.post(
       f'{url}/api/annotation',
       header=header,
-      params=parameters,
       data=json.dumps(data)
     )
 
