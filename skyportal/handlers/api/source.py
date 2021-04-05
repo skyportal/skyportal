@@ -604,6 +604,8 @@ class SourceHandler(BaseHandler):
                 )
                 DBSession.add(sv)
                 DBSession().commit()
+                # To keep loaded relationships from being cleared in verify_and_commit:
+                source_info = recursive_to_dict(source_info)
                 self.verify_and_commit()
 
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
