@@ -2053,8 +2053,8 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
 Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 
 
-class Comment(Base):
-    """A comment made by a User or a Robot (via the API) on a Source."""
+class CommentMixin:
+    """All the basic columns needed for comments on objects, spectra, etc."""
 
     create = AccessibleIfRelatedRowsAreAccessible(obj='read')
 
@@ -2132,16 +2132,44 @@ class Comment(Base):
         return comment
 
 
+class Comment(Base):
+    """A comment made by a User or a Robot (via the API) on a Source."""
+
+
 GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
 GroupComment.delete = GroupComment.update = (
     accessible_by_group_admins & GroupComment.read
 )
 
+
 User.comments = relationship(
     "Comment",
     back_populates="author",
     foreign_keys="Comment.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+
+
+class SpectrumComment(Base, CommentMixin):
+    spectrum_id = sa.Column(
+        sa.ForeignKey('spectra.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Comment's Spectrum.",
+    )
+    spectrum = relationship(
+        'Spectra',
+        back_populates='comments',
+        doc="The Spectrum refered to by this comment.",
+    )
+
+
+User.spectrum_comments = relationship(
+    "SpectrumComment",
+    back_populates="author",
+    foreign_keys="SpectrumComment.author_id",
     cascade="delete",
     passive_deletes=True,
 )
