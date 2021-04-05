@@ -15,7 +15,6 @@ from ...models import (
     Group,
     Instrument,
     Obj,
-    GroupUser,
     Spectrum,
     User,
     ClassicalAssignment,
@@ -24,7 +23,6 @@ from ...models import (
 from ...schema import (
     SpectrumAsciiFilePostJSON,
     SpectrumPost,
-    GroupIDList,
     SpectrumAsciiFileParseJSON,
 )
 
@@ -72,36 +70,13 @@ class SpectrumHandler(BaseHandler):
                 f'Invalid / missing parameters; {e.normalized_messages()}'
             )
 
-        group_ids = data.pop("group_ids")
-        if group_ids == "all":
-            groups = (
-                DBSession()
-                .query(Group)
-                .filter(Group.name == cfg["misc"]["public_group_name"])
-                .all()
-            )
+        group_ids = data.pop("group_ids", None)
+        if not group_ids:
+            groups = self.current_user.accessible_groups
         else:
-            try:
-                group_ids = GroupIDList.load({'group_ids': group_ids})
-            except ValidationError:
-                return self.error(
-                    "Invalid group_ids parameter value. Must be a list of IDs "
-                    "(integers) or the string 'all'."
-                )
-
-            group_ids = group_ids['group_ids']
-            groups = []
-            for group_id in group_ids:
-                try:
-                    group_id = int(group_id)
-                except TypeError:
-                    return self.error(
-                        f"Invalid format for group id {group_id}, must be an integer."
-                    )
-                group = Group.query.get(group_id)
-                if group is None:
-                    return self.error(f'No group with ID {group_id}')
-                groups.append(group)
+            groups = Group.get_if_accessible_by(
+                group_ids, self.current_user, raise_if_none=True
+            )
 
         # always append the single user group
         single_user_group = self.associated_user_object.single_user_group
@@ -267,7 +242,7 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
         spectrum = Spectrum.get_if_accessible_by(
-            spectrum_id, self.current_user, raise_if_none=True
+            spectrum_id, self.current_user, mode="delete", raise_if_none=True
         )
         DBSession().delete(spectrum)
         self.verify_and_commit()
@@ -378,25 +353,18 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         if instrument is None:
             raise ValidationError('Invalid instrument id.')
 
-        groups = []
         group_ids = json.pop('group_ids', [])
-        for group_id in group_ids:
-            group = Group.query.get(group_id)
-            if group is None:
-                return self.error(f'Invalid group id: {group_id}.')
-            groups.append(group)
+        if not group_ids:
+            groups = self.current_user.accessible_groups
+        else:
+            groups = Group.get_if_accessible_by(
+                group_ids, self.current_user, raise_if_none=True
+            )
 
         # always add the single user group
-        single_user_group = (
-            DBSession()
-            .query(Group)
-            .join(GroupUser)
-            .filter(
-                Group.single_user_group == True,  # noqa
-                GroupUser.user_id == self.associated_user_object.id,
-            )
-            .first()
-        )
+        single_user_group = self.associated_user_object.single_user_group
+        if single_user_group not in groups:
+            groups.append(single_user_group)
 
         reducers = []
         for reducer_id in json.get('reduced_by', []):
@@ -411,10 +379,6 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             if observer is None:
                 raise ValidationError(f'Invalid observer ID: {observer_id}.')
             observers.append(observer)
-
-        if single_user_group is not None:
-            if single_user_group not in groups:
-                groups.append(single_user_group)
 
         # will never KeyError as missing value is imputed
         followup_request_id = json.pop('followup_request_id', None)
