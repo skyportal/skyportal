@@ -17,7 +17,9 @@ cfg = load_config()
 
 
 def enter_comment_text(driver, comment_text):
-    comment_box = driver.wait_for_xpath("//input[@name='text']")
+    comment_xpath = "//input[@name='text']"
+    comment_box = driver.wait_for_xpath(comment_xpath)
+    driver.click_xpath(comment_xpath)
     comment_box.send_keys(comment_text)
 
 
@@ -416,7 +418,9 @@ def test_centroid_plot(
             pytest.fail("Missing centroid plot baseline image for comparison")
         expected_plot = Image.open(expected_plot_path)
 
-        difference = ImageChops.difference(generated_plot, expected_plot)
+        difference = ImageChops.difference(
+            generated_plot.convert('RGB'), expected_plot.convert('RGB')
+        )
         assert difference.getbbox() is None
 
 
@@ -559,3 +563,69 @@ def test_javascript_sexagesimal_conversion(public_source, driver, user):
     driver.refresh()
     driver.wait_for_xpath('//*[contains(., "05:02:33.07")]')
     driver.wait_for_xpath('//*[contains(., "+15:36:24.15")]')
+
+
+def test_source_hr_diagram(driver, user, public_source, annotation_token):
+
+    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
+
+    status, data = api(
+        'POST',
+        'annotation',
+        data={
+            'obj_id': public_source.id,
+            'origin': 'cross_match1',
+            'data': {
+                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20}
+            },
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
+    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
+
+    driver.wait_for_xpath('//*[@id="hr-diagram-content"]')
+
+    try:
+        # Look for Suspense fallback to show
+        loading_text = "Loading HR diagram..."
+        driver.wait_for_xpath(f'//div[text()="{loading_text}"]')
+        driver.wait_for_xpath_to_disappear(f'//div[text()="{loading_text}"]')
+
+    except TimeoutException:
+        # The plot may have loaded too quickly to catch the Suspense div
+        driver.wait_for_xpath_to_disappear(f'//div[text()="{loading_text}"]')
+
+    finally:
+        component_class_xpath = (
+            f"//div[contains(@data-testid, 'hr_diagram_{public_source.id}')]"
+        )
+        vegaplot_div = driver.wait_for_xpath(component_class_xpath)
+        assert vegaplot_div.is_displayed()
+
+        # Since Vega uses a <canvas> element, we can't examine individual
+        # components of the plot through the DOM, so just compare an image of
+        # the plot to the saved baseline
+        generated_plot_data = vegaplot_div.screenshot_as_png
+        generated_plot = Image.open(BytesIO(generated_plot_data))
+
+        expected_plot_path = os.path.abspath(
+            "skyportal/tests/data/HR_diagram_expected.png"
+        )
+
+        # Use this commented line to save a new version of the expected plot
+        # if changes have been made to the component:
+        # generated_plot.save(expected_plot_path)
+
+        if not os.path.exists(expected_plot_path):
+            pytest.fail("Missing HR diagram baseline image for comparison")
+        expected_plot = Image.open(expected_plot_path)
+
+        difference = ImageChops.difference(
+            generated_plot.convert('RGB'), expected_plot.convert('RGB')
+        )
+        assert difference.getbbox() is None

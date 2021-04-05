@@ -88,6 +88,7 @@ User Guide
    styling
    database
    migrations
+   permissions
 
 Contributing
 ------------

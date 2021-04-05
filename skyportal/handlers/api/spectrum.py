@@ -136,7 +136,7 @@ class SpectrumHandler(BaseHandler):
         spec.groups = groups
         spec.owner_id = owner_id
         DBSession().add(spec)
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -198,7 +198,7 @@ class SpectrumHandler(BaseHandler):
             spec_dict["reducers"] = spectrum.reducers
             spec_dict["observers"] = spectrum.observers
             spec_dict["owner"] = spectrum.owner
-            self.verify_permissions()
+            self.verify_and_commit()
             return self.success(data=spec_dict)
         else:
             return self.error(f"Could not load spectrum with ID {spectrum_id}")
@@ -257,7 +257,7 @@ class SpectrumHandler(BaseHandler):
         for k in data:
             setattr(spectrum, k, data[k])
 
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -300,7 +300,7 @@ class SpectrumHandler(BaseHandler):
             )
 
         DBSession().delete(spectrum)
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -336,7 +336,14 @@ class ASCIIHandler:
             raise ValueError('File must be smaller than 10MB.')
 
         # pass ascii in as a file-like object
-        file = io.BytesIO(ascii.encode('ascii'))
+        try:
+            file = io.BytesIO(ascii.encode('ascii'))
+        except UnicodeEncodeError:
+            raise ValueError(
+                'Unable to parse uploaded spectrum file as ascii. '
+                'Ensure the file is not a FITS file and retry.'
+            )
+
         spec = Spectrum.from_ascii(
             file,
             obj_id=json.get('obj_id', None),
@@ -465,7 +472,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         spec.observers = observers
 
         DBSession().add(spec)
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -498,7 +505,10 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
                 schema: Error
         """
 
-        spec = self.spec_from_ascii_request(validator=SpectrumAsciiFileParseJSON)
+        try:
+            spec = self.spec_from_ascii_request(validator=SpectrumAsciiFileParseJSON)
+        except Exception as e:
+            return self.error(f'Error parsing spectrum: {e.args[0]}')
         return self.success(data=spec)
 
 
@@ -673,5 +683,5 @@ class SpectrumRangeHandler(BaseHandler):
             utc = Time(max_date, format='isot', scale='utc')
             query = query.filter(Spectrum.observed_at <= utc.isot)
 
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=query.all())

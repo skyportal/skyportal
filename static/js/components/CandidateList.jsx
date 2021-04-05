@@ -36,6 +36,7 @@ import ScanningPageCandidateAnnotations, {
 } from "./ScanningPageCandidateAnnotations";
 import EditSourceGroups from "./EditSourceGroups";
 import { ra_to_hours, dec_to_dms } from "../units";
+import RejectButton from "./RejectButton";
 
 const VegaPlot = React.lazy(() =>
   import(/* webpackChunkName: "VegaPlot" */ "./VegaPlot")
@@ -249,12 +250,11 @@ const CustomSortToolbar = ({
   filterFormData,
   setQueryInProgress,
   loaded,
+  sortOrder,
+  setSortOrder,
 }) => {
   const classes = useStyles();
 
-  const [sortOrder, setSortOrder] = useState(
-    selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null
-  );
   const dispatch = useDispatch();
 
   const handleSort = async () => {
@@ -323,11 +323,14 @@ CustomSortToolbar.propTypes = {
   filterGroups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   filterFormData: PropTypes.shape({}),
   loaded: PropTypes.bool.isRequired,
+  sortOrder: PropTypes.string,
+  setSortOrder: PropTypes.func.isRequired,
 };
 
 CustomSortToolbar.defaultProps = {
   selectedAnnotationSortOptions: null,
   filterFormData: null,
+  sortOrder: null,
 };
 
 const columnNames = ["Images", "Info", "Photometry", "Autoannotations"];
@@ -358,6 +361,9 @@ const CandidateList = () => {
     totalMatches,
     selectedAnnotationSortOptions,
   } = useSelector((state) => state.candidates);
+  const [sortOrder, setSortOrder] = useState(
+    selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null
+  );
 
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible
@@ -588,6 +594,7 @@ const CandidateList = () => {
           <div>
             <div className={classes.itemPaddingBottom}>
               <Chip size="small" label="Previously Saved" color="primary" />
+              <RejectButton objID={candidateObj.id} />
             </div>
             <div className={classes.saveCandidateButton}>
               <EditSourceGroups
@@ -623,14 +630,45 @@ const CandidateList = () => {
               label="NOT SAVED"
               className={classes.itemPaddingBottom}
             />
-            <br />
-            <div className={classes.saveCandidateButton}>
-              <SaveCandidateButton
-                candidate={candidateObj}
-                userGroups={userAccessibleGroups}
-                filterGroups={filterGroups}
-              />
-            </div>
+            <RejectButton objID={candidateObj.id} />
+          </div>
+        )}
+        {/* If candidate is either unsaved or is not yet saved to all groups being filtered on, show the "Save to..." button */}
+        {Boolean(
+          !candidateObj.is_source ||
+            (candidateObj.is_source &&
+              filterGroups.filter(
+                (g) =>
+                  !candidateObj.saved_groups.map((x) => x.id).includes(g.id)
+              ).length)
+        ) && (
+          // eslint-disable-next-line react/jsx-indent
+          <div className={classes.saveCandidateButton}>
+            <SaveCandidateButton
+              candidate={candidateObj}
+              userGroups={
+                // Filter out groups the candidate is already saved to
+                candidateObj.is_source
+                  ? userAccessibleGroups.filter(
+                      (g) =>
+                        !candidateObj.saved_groups
+                          .map((x) => x.id)
+                          .includes(g.id)
+                    )
+                  : userAccessibleGroups
+              }
+              filterGroups={
+                // Filter out groups the candidate is already saved to
+                candidateObj.is_source
+                  ? filterGroups.filter(
+                      (g) =>
+                        !candidateObj.saved_groups
+                          .map((x) => x.id)
+                          .includes(g.id)
+                    )
+                  : filterGroups
+              }
+            />
           </div>
         )}
         {candidateObj.last_detected_at && (
@@ -1003,6 +1041,8 @@ const CandidateList = () => {
         filterFormData={filterFormData}
         setQueryInProgress={setQueryInProgress}
         loaded={!queryInProgress}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
       />
     ),
     onFilterChange: handleTableFilterChipChange,
@@ -1021,6 +1061,7 @@ const CandidateList = () => {
           setFilterGroups={setFilterGroups}
           numPerPage={rowsPerPage}
           annotationFilterList={filterListQueryStrings.join()}
+          setSortOrder={setSortOrder}
         />
         <Box
           display={queryInProgress ? "block" : "none"}

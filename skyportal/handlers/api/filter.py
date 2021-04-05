@@ -53,11 +53,11 @@ class FilterHandler(BaseHandler):
                 raise_if_none=True,
                 options=[joinedload(Filter.stream)],
             )
-            self.verify_permissions()
+            self.verify_and_commit()
             return self.success(data=f)
 
         filters = Filter.get_records_accessible_by(self.current_user)
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=filters)
 
     @auth_or_token
@@ -96,7 +96,7 @@ class FilterHandler(BaseHandler):
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
         DBSession().add(fil)
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success(data={"id": fil.id})
 
     @auth_or_token
@@ -143,7 +143,7 @@ class FilterHandler(BaseHandler):
         if fil.group_id != f.group_id or fil.stream_id != f.stream_id:
             return self.error("Cannot update group_id or stream_id.")
 
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success()
 
     @auth_or_token
@@ -169,5 +169,5 @@ class FilterHandler(BaseHandler):
             filter_id, self.current_user, mode="delete", raise_if_none=True
         )
         DBSession().delete(f)
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success()

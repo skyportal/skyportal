@@ -195,7 +195,12 @@ TopSourcesList.defaultProps = {
 
 const TopSources = ({ classes }) => {
   const styles = useStyles();
-  const sourceListStyles = useSourceListStyles();
+
+  const invertThumbnails = useSelector(
+    (state) => state.profile.preferences.invertThumbnails
+  );
+  const sourceListStyles = useSourceListStyles({ invertThumbnails });
+
   const { sourceViews } = useSelector((state) => state.topSources);
   const topSourcesPrefs =
     useSelector((state) => state.profile.preferences.topSources) ||

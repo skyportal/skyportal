@@ -24,6 +24,7 @@ from ...models import (
     Obj,
     Source,
     Token,
+    Photometry,
     Group,
     FollowupRequest,
     ClassicalAssignment,
@@ -44,7 +45,7 @@ from ...utils import (
 )
 from .candidate import grab_query_results, update_redshift_history_if_relevant
 from .photometry import serialize
-
+from .color_mag import get_color_mag
 
 SOURCES_PER_PAGE = 100
 
@@ -109,7 +110,7 @@ class SourceHandler(BaseHandler):
             .filter(Source.group_id.in_(user_group_ids))
             .count()
         )
-        self.verify_permissions()
+        self.verify_and_commit()
         if num_s > 0:
             return self.success()
         else:
@@ -179,19 +180,19 @@ class SourceHandler(BaseHandler):
             nullable: true
             schema:
               type: number
-            description: RA for spatial filtering
+            description: RA for spatial filtering (in decimal degrees)
           - in: query
             name: dec
             nullable: true
             schema:
               type: number
-            description: Declination for spatial filtering
+            description: Declination for spatial filtering (in decimal degrees)
           - in: query
             name: radius
             nullable: true
             schema:
               type: number
-            description: Radius for spatial filtering if ra & dec are provided
+            description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
           - in: query
             name: sourceID
             nullable: true
@@ -271,6 +272,20 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to include associated photometry. Defaults to
               false.
+          - in: query
+            name: includeColorMagnitude
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include the color-magnitude data from Gaia.
+              This will only include data for objects that have an annotation
+              with the appropriate format: a key named Gaia that contains a dictionary
+              with keys named Mag_G, Mag_Bp, Mag_Rp, and Plx
+              (underscores and case are ignored when matching all the above keys).
+              The result is saved in a field named 'color_magnitude'.
+              If no data is available, returns an empty array.
+              Defaults to false (do not search for nor include this info).
           - in: query
             name: includeRequested
             nullable: true
@@ -460,6 +475,7 @@ class SourceHandler(BaseHandler):
         list_name = self.get_query_argument('listName', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         include_photometry = self.get_query_argument("includePhotometry", False)
+        include_color_mag = self.get_query_argument("includeColorMagnitude", False)
         include_requested = self.get_query_argument("includeRequested", False)
         requested_only = self.get_query_argument("pendingOnly", False)
         saved_after = self.get_query_argument('savedAfter', None)
@@ -571,7 +587,8 @@ class SourceHandler(BaseHandler):
                     is_token=True,
                 )
                 DBSession.add(sv)
-                self.finalize_transaction()
+                DBSession().commit()
+                # self.verify_and_commit()
 
             if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                 IOLoop.current().add_callback(
@@ -596,13 +613,23 @@ class SourceHandler(BaseHandler):
                 s.get_annotations_readable_by(self.current_user),
                 key=lambda x: x.origin,
             )
-            source_info["classifications"] = s.get_classifications_readable_by(
+            readable_classifications = s.get_classifications_readable_by(
                 self.current_user
             )
-            source_info["last_detected_at"] = s.last_detected_at
-            source_info["last_detected_mag"] = s.last_detected_mag
-            source_info["peak_detected_at"] = s.peak_detected_at
-            source_info["peak_detected_mag"] = s.peak_detected_mag
+
+            readable_classifications_json = []
+            for classification in readable_classifications:
+                classification_dict = classification.to_dict()
+                classification_dict['groups'] = [
+                    g.to_dict() for g in classification.groups
+                ]
+                readable_classifications_json.append(classification_dict)
+
+            source_info["classifications"] = readable_classifications_json
+            source_info["last_detected_at"] = s.last_detected_at(self.current_user)
+            source_info["last_detected_mag"] = s.last_detected_mag(self.current_user)
+            source_info["peak_detected_at"] = s.peak_detected_at(self.current_user)
+            source_info["peak_detected_mag"] = s.peak_detected_mag(self.current_user)
             source_info["gal_lat"] = s.gal_lat_deg
             source_info["gal_lon"] = s.gal_lon_deg
             source_info["luminosity_distance"] = s.luminosity_distance
@@ -610,23 +637,38 @@ class SourceHandler(BaseHandler):
             source_info["angular_diameter_distance"] = s.angular_diameter_distance
 
             source_info["followup_requests"] = [
-                f for f in s.followup_requests if f.status != 'deleted'
+                f.to_dict() for f in s.followup_requests if f.status != 'deleted'
             ]
+
+            for f, r in zip(source_info['followup_requests'], s.followup_requests):
+                f['allocation'] = r.allocation.to_dict()
+
             if include_photometry:
-                photometry = Obj.get_photometry_readable_by_user(
-                    obj_id, self.current_user
+                photometry = (
+                    Photometry.query_records_accessible_by(self.current_user)
+                    .filter(Photometry.obj_id == obj_id)
+                    .all()
                 )
                 source_info["photometry"] = [
                     serialize(phot, 'ab', 'flux') for phot in photometry
                 ]
             if include_photometry_exists:
                 source_info["photometry_exists"] = (
-                    len(Obj.get_photometry_readable_by_user(obj_id, self.current_user))
+                    len(
+                        Photometry.query_records_accessible_by(self.current_user)
+                        .filter(Photometry.obj_id == obj_id)
+                        .all()
+                    )
                     > 0
                 )
             if include_spectrum_exists:
                 source_info["spectrum_exists"] = (
-                    len(Obj.get_spectra_readable_by(obj_id, self.current_user)) > 0
+                    len(
+                        Spectrum.query_records_accessible_by(self.current_user)
+                        .filter(Spectrum.obj_id == obj_id)
+                        .all()
+                    )
+                    > 0
                 )
             query = (
                 DBSession()
@@ -653,6 +695,10 @@ class SourceHandler(BaseHandler):
                     if source_table_row.saved_by is not None
                     else None
                 )
+            if include_color_mag:
+                source_info["color_magnitude"] = get_color_mag(
+                    source_info["annotations"]
+                )
 
             # add the date(s) this source was saved to each of these groups
             for i, g in enumerate(source_info["groups"]):
@@ -667,7 +713,7 @@ class SourceHandler(BaseHandler):
                 )
                 source_info["groups"][i]['saved_at'] = saved_at
 
-            self.verify_permissions()
+            # self.verify_and_commit()
             return self.success(data=source_info)
 
         # Fetch multiple sources
@@ -720,10 +766,10 @@ class SourceHandler(BaseHandler):
             q = q.filter(Obj.within(other, radius))
         if start_date:
             start_date = arrow.get(start_date.strip()).datetime
-            q = q.filter(Obj.last_detected_at >= start_date)
+            q = q.filter(Obj.last_detected_at(self.current_user) >= start_date)
         if end_date:
             end_date = arrow.get(end_date.strip()).datetime
-            q = q.filter(Obj.last_detected_at <= end_date)
+            q = q.filter(Obj.last_detected_at(self.current_user) <= end_date)
         if saved_before:
             q = q.filter(Source.saved_at <= saved_before)
         if saved_after:
@@ -767,7 +813,7 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for minPeakMagnitude - could not convert to float"
                 )
-            q = q.filter(Obj.peak_detected_mag >= min_peak_magnitude)
+            q = q.filter(Obj.peak_detected_mag(self.current_user) >= min_peak_magnitude)
         if max_peak_magnitude is not None:
             try:
                 max_peak_magnitude = float(max_peak_magnitude)
@@ -775,7 +821,7 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for maxPeakMagnitude - could not convert to float"
                 )
-            q = q.filter(Obj.peak_detected_mag <= max_peak_magnitude)
+            q = q.filter(Obj.peak_detected_mag(self.current_user) <= max_peak_magnitude)
         if min_latest_magnitude is not None:
             try:
                 min_latest_magnitude = float(min_latest_magnitude)
@@ -783,7 +829,9 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for minLatestMagnitude - could not convert to float"
                 )
-            q = q.filter(Obj.last_detected_mag >= min_latest_magnitude)
+            q = q.filter(
+                Obj.last_detected_mag(self.current_user) >= min_latest_magnitude
+            )
         if max_latest_magnitude is not None:
             try:
                 max_latest_magnitude = float(max_latest_magnitude)
@@ -791,7 +839,9 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for maxLatestMagnitude - could not convert to float"
                 )
-            q = q.filter(Obj.last_detected_mag <= max_latest_magnitude)
+            q = q.filter(
+                Obj.last_detected_mag(self.current_user) <= max_latest_magnitude
+            )
         if classifications is not None:
             if isinstance(classifications, str) and "," in classifications:
                 classifications = [c.strip() for c in classifications.split(",")]
@@ -871,7 +921,6 @@ class SourceHandler(BaseHandler):
                     num_per_page,
                     "sources",
                     order_by=order_by,
-                    include_photometry=include_photometry,
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
@@ -887,7 +936,6 @@ class SourceHandler(BaseHandler):
                 None,
                 "sources",
                 order_by=order_by,
-                include_photometry=include_photometry,
             )
 
         if not save_summary:
@@ -907,17 +955,36 @@ class SourceHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     )
-                source_list[-1][
-                    "classifications"
-                ] = source.get_classifications_readable_by(self.current_user)
+
+                readable_classifications = source.get_classifications_readable_by(
+                    self.current_user
+                )
+
+                readable_classifications_json = []
+                for classification in readable_classifications:
+                    classification_dict = classification.to_dict()
+                    classification_dict['groups'] = [
+                        g.to_dict() for g in classification.groups
+                    ]
+                    readable_classifications_json.append(classification_dict)
+
+                source_list[-1]["classifications"] = readable_classifications_json
                 source_list[-1]["annotations"] = sorted(
                     source.get_annotations_readable_by(self.current_user),
                     key=lambda x: x.origin,
                 )
-                source_list[-1]["last_detected_at"] = source.last_detected_at
-                source_list[-1]["last_detected_mag"] = source.last_detected_mag
-                source_list[-1]["peak_detected_at"] = source.peak_detected_at
-                source_list[-1]["peak_detected_mag"] = source.peak_detected_mag
+                source_list[-1]["last_detected_at"] = source.last_detected_at(
+                    self.current_user
+                )
+                source_list[-1]["last_detected_mag"] = source.last_detected_mag(
+                    self.current_user
+                )
+                source_list[-1]["peak_detected_at"] = source.peak_detected_at(
+                    self.current_user
+                )
+                source_list[-1]["peak_detected_mag"] = source.peak_detected_mag(
+                    self.current_user
+                )
                 source_list[-1]["gal_lon"] = source.gal_lon_deg
                 source_list[-1]["gal_lat"] = source.gal_lat_deg
                 source_list[-1]["luminosity_distance"] = source.luminosity_distance
@@ -926,24 +993,28 @@ class SourceHandler(BaseHandler):
                     "angular_diameter_distance"
                 ] = source.angular_diameter_distance
                 if include_photometry:
-                    photometry = Obj.get_photometry_readable_by_user(
-                        source.id, self.current_user
-                    )
+                    photometry = Photometry.query_records_accessible_by(
+                        self.current_user
+                    ).filter(Photometry.obj_id == source.id)
                     source_list[-1]["photometry"] = [
                         serialize(phot, 'ab', 'flux') for phot in photometry
                     ]
                 if include_photometry_exists:
                     source_list[-1]["photometry_exists"] = (
                         len(
-                            Obj.get_photometry_readable_by_user(
-                                source.id, self.current_user
-                            )
+                            Photometry.query_records_accessible_by(self.current_user)
+                            .filter(Photometry.obj_id == source.id)
+                            .all()
                         )
                         > 0
                     )
                 if include_spectrum_exists:
                     source_list[-1]["spectrum_exists"] = (
-                        len(Obj.get_spectra_readable_by(source.id, self.current_user))
+                        len(
+                            Spectrum.query_records_accessible_by(self.current_user)
+                            .filter(Spectrum.obj_id == source.id)
+                            .all()
+                        )
                         > 0
                     )
 
@@ -973,6 +1044,10 @@ class SourceHandler(BaseHandler):
                         if source_table_row.saved_by is not None
                         else None
                     )
+                if include_color_mag:
+                    source_list[-1]["color_magnitude"] = get_color_mag(
+                        source_list[-1]["annotations"]
+                    )
 
                 # add the date(s) this source was saved to each of these groups
                 for i, g in enumerate(source_list[-1]["groups"]):
@@ -989,7 +1064,7 @@ class SourceHandler(BaseHandler):
                     source_list[-1]["groups"][i]['saved_at'] = saved_at
             query_results["sources"] = source_list
 
-        self.verify_permissions()
+        # self.verify_and_commit()
         return self.success(data=query_results)
 
     @permissions(['Upload data'])
@@ -1081,13 +1156,22 @@ class SourceHandler(BaseHandler):
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
 
         DBSession().add(obj)
-        DBSession().add_all(
-            [
-                Source(obj=obj, group=group, saved_by_id=self.associated_user_object.id)
-                for group in groups
-            ]
-        )
-        self.finalize_transaction()
+        for group in groups:
+            source = (
+                Source.query.filter(Source.obj_id == obj.id)
+                .filter(Source.group_id == group.id)
+                .first()
+            )
+            if source is not None:
+                source.active = True
+                source.saved_by = self.associated_user_object
+            else:
+                DBSession().add(
+                    Source(
+                        obj=obj, group=group, saved_by_id=self.associated_user_object.id
+                    )
+                )
+        self.verify_and_commit()
         if not obj_already_exists:
             obj.add_linked_thumbnails()
         # If we're updating a source
@@ -1141,7 +1225,7 @@ class SourceHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_key": obj.internal_key},
@@ -1184,7 +1268,7 @@ class SourceHandler(BaseHandler):
         )
         s.active = False
         s.unsaved_by = self.current_user
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         return self.success(action='skyportal/FETCH_SOURCES')
 
@@ -1315,7 +1399,6 @@ class SourceOffsetsHandler(BaseHandler):
         source = Obj.get_if_readable_by(
             obj_id,
             self.current_user,
-            options=[joinedload(Obj.photometry)],
         )
         if source is None:
             return self.error('Source not found', status=404)
@@ -1324,7 +1407,9 @@ class SourceOffsetsHandler(BaseHandler):
 
         try:
             best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                source.photometry,
+                Photometry.query_records_accessible_by(self.current_user)
+                .filter(Photometry.obj_id == source.id)
+                .all(),
                 fallback=(initial_pos[0], initial_pos[1]),
                 how="snr2",
             )
@@ -1392,7 +1477,7 @@ class SourceOffsetsHandler(BaseHandler):
             [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
         )
 
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(
             data={
                 'facility': facility,
@@ -1491,7 +1576,6 @@ class SourceFinderHandler(BaseHandler):
         source = Obj.get_if_readable_by(
             obj_id,
             self.current_user,
-            options=[joinedload(Obj.photometry)],
         )
         if source is None:
             return self.error('Source not found', status=404)
@@ -1513,7 +1597,9 @@ class SourceFinderHandler(BaseHandler):
         initial_pos = (source.ra, source.dec)
         try:
             best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                source.photometry,
+                Photometry.query_records_accessible_by(self.current_user)
+                .filter(Photometry.obj_id == source.id)
+                .all(),
                 fallback=(initial_pos[0], initial_pos[1]),
                 how="snr2",
             )
@@ -1605,7 +1691,7 @@ class SourceFinderHandler(BaseHandler):
             'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
         )
 
-        self.verify_permissions()
+        self.verify_and_commit()
 
         for i in range(math.ceil(max_file_size / chunk_size)):
             chunk = image.read(chunk_size)
@@ -1747,7 +1833,7 @@ class SourceNotificationHandler(BaseHandler):
         )
         DBSession().add(new_notification)
         try:
-            self.finalize_transaction()
+            self.verify_and_commit()
         except python_http_client.exceptions.UnauthorizedError:
             return self.error(
                 "Twilio Sendgrid authorization error. Please ensure "

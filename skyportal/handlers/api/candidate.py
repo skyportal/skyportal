@@ -24,6 +24,7 @@ from ...models import (
     Annotation,
     Group,
     Classification,
+    Listing,
 )
 
 
@@ -37,7 +38,7 @@ def update_redshift_history_if_relevant(request_data, obj, user):
             {
                 "set_by_user_id": user.id,
                 "set_at_utc": datetime.datetime.utcnow().isoformat(),
-                "value": float(request_data["redshift"]),
+                "value": request_data["redshift"],
             }
         )
         obj.redshift_history = redshift_history
@@ -76,7 +77,7 @@ class CandidateHandler(BaseHandler):
             .filter(Candidate.obj_id == obj_id, Filter.group_id.in_(user_group_ids))
             .count()
         )
-        self.verify_permissions()
+        self.verify_and_commit()
         if num_c > 0:
             return self.success()
         else:
@@ -270,6 +271,21 @@ class CandidateHandler(BaseHandler):
                 type: list
             description: |
                 lowest and highest redshift to return, e.g. "(0,0.5)"
+          - in: query
+            name: listName
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Get only candidates saved to the querying user's list, e.g., "favorites".
+          - in: query
+            name: listNameReject
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Get only candidates that ARE NOT saved to the querying user's list, e.g., "rejected_candidates".
+
           responses:
             200:
               content:
@@ -302,24 +318,14 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_spectra = self.get_query_argument("includeSpectra", False)
 
         if obj_id is not None:
             query_options = [joinedload(Candidate.obj).joinedload(Obj.thumbnails)]
-            if include_photometry:
-                query_options.append(
-                    joinedload(Candidate.obj)
-                    .joinedload(Obj.photometry)
-                    .joinedload(Photometry.instrument)
-                )
-            if include_spectra:
-                query_options.append(
-                    joinedload(Candidate.obj)
-                    .joinedload(Obj.spectra)
-                    .joinedload(Spectrum.instrument)
-                )
+
             c = Candidate.get_obj_if_readable_by(
                 obj_id,
                 self.current_user,
@@ -361,6 +367,29 @@ class CandidateHandler(BaseHandler):
                 key=lambda x: x["created_at"],
                 reverse=True,
             )
+
+            if include_photometry:
+                candidate_info['photometry'] = (
+                    Photometry.query_records_accessible_by(
+                        self.current_user,
+                        mode='read',
+                        options=[joinedload(Photometry.instrument)],
+                    )
+                    .filter(Photometry.obj_id == obj_id)
+                    .all()
+                )
+
+            if include_spectra:
+                candidate_info['spectra'] = (
+                    Spectrum.query_records_accessible_by(
+                        self.current_user,
+                        mode='read',
+                        options=[joinedload(Spectrum.instrument)],
+                    )
+                    .filter(Spectrum.obj_id == obj_id)
+                    .all()
+                )
+
             candidate_info["annotations"] = sorted(
                 c.get_annotations_readable_by(self.current_user),
                 key=lambda x: x.origin,
@@ -379,13 +408,14 @@ class CandidateHandler(BaseHandler):
                 candidate_info["classifications"] = c.get_classifications_readable_by(
                     self.current_user
                 )
-            candidate_info["last_detected_at"] = c.last_detected_at
+            candidate_info["last_detected_at"] = c.last_detected_at(self.current_user)
             candidate_info["gal_lon"] = c.gal_lon_deg
             candidate_info["gal_lat"] = c.gal_lat_deg
             candidate_info["luminosity_distance"] = c.luminosity_distance
             candidate_info["dm"] = c.dm
             candidate_info["angular_diameter_distance"] = c.angular_diameter_distance
-            self.verify_permissions()
+
+            self.verify_and_commit()
             return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -406,6 +436,9 @@ class CandidateHandler(BaseHandler):
         annotation_filter_list = self.get_query_argument("annotationFilterList", None)
         classifications = self.get_query_argument("classifications", None)
         redshift_range_str = self.get_query_argument("redshiftRange", None)
+        list_name = self.get_query_argument('listName', None)
+        list_name_reject = self.get_query_argument('listNameReject', None)
+
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         user_accessible_filter_ids = [
             filtr.id
@@ -447,6 +480,7 @@ class CandidateHandler(BaseHandler):
                 "Insufficient permissions - you must only specify "
                 "groups/filters that you have access to."
             )
+
         try:
             page = int(page_number)
         except ValueError:
@@ -482,6 +516,7 @@ class CandidateHandler(BaseHandler):
             )
             .outerjoin(Annotation)
         )  # Join in annotations info for sort/filter
+
         if classifications is not None:
             if isinstance(classifications, str) and "," in classifications:
                 classifications = [c.strip() for c in classifications.split(",")]
@@ -594,6 +629,25 @@ class CandidateHandler(BaseHandler):
 
             q = q.outerjoin(right, Obj.id == right.c.id).filter(right.c.id.is_(None))
 
+        if list_name is not None:
+            q = q.filter(
+                Listing.list_name == list_name,
+                Listing.user_id == self.associated_user_object.id,
+            )
+        if list_name_reject is not None:
+            right = (
+                DBSession()
+                .query(Obj.id)
+                .join(Listing)
+                .filter(
+                    Listing.list_name == list_name_reject,
+                    Listing.user_id == self.associated_user_object.id,
+                )
+                .subquery()
+            )
+
+            q = q.outerjoin(right, Obj.id == right.c.id).filter(right.c.id.is_(None))
+
         if annotation_filter_list is not None:
             # Parse annotation filter list objects from the query string
             # and apply the filters to the query
@@ -685,6 +739,7 @@ class CandidateHandler(BaseHandler):
                 Candidate.passed_at.desc().nullslast(),
                 Obj.id,
             ]
+
         try:
             query_results = grab_query_results(
                 q,
@@ -693,8 +748,6 @@ class CandidateHandler(BaseHandler):
                 n_per_page,
                 "candidates",
                 order_by=order_by,
-                include_photometry=include_photometry,
-                include_spectra=include_spectra,
             )
         except ValueError as e:
             if "Page number out of range" in str(e):
@@ -741,6 +794,28 @@ class CandidateHandler(BaseHandler):
                     )
                 ]
                 candidate_list.append(obj.to_dict())
+                if include_photometry:
+                    candidate_list[-1]["photometry"] = (
+                        Photometry.query_records_accessible_by(
+                            self.current_user,
+                            mode='read',
+                            options=[joinedload(Photometry.instrument)],
+                        )
+                        .filter(Photometry.obj_id == obj.id)
+                        .all()
+                    )
+
+                if include_spectra:
+                    candidate_list[-1]["spectra"] = (
+                        Spectrum.query_records_accessible_by(
+                            self.current_user,
+                            mode='read',
+                            options=[joinedload(Spectrum.instrument)],
+                        )
+                        .filter(Spectrum.obj_id == obj.id)
+                        .all()
+                    )
+
                 candidate_list[-1]["comments"] = sorted(
                     [
                         cmt.to_dict()
@@ -753,7 +828,9 @@ class CandidateHandler(BaseHandler):
                     obj.get_annotations_readable_by(self.current_user),
                     key=lambda x: x.origin,
                 )
-                candidate_list[-1]["last_detected_at"] = obj.last_detected_at
+                candidate_list[-1]["last_detected_at"] = obj.last_detected_at(
+                    self.current_user
+                )
                 candidate_list[-1]["gal_lat"] = obj.gal_lat_deg
                 candidate_list[-1]["gal_lon"] = obj.gal_lon_deg
                 candidate_list[-1]["luminosity_distance"] = obj.luminosity_distance
@@ -763,7 +840,7 @@ class CandidateHandler(BaseHandler):
                 ] = obj.angular_diameter_distance
 
         query_results["candidates"] = candidate_list
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=query_results)
 
     @permissions(["Upload data"])
@@ -873,22 +950,27 @@ class CandidateHandler(BaseHandler):
             for filter in filters
         ]
         DBSession().add_all(candidates)
-        self.finalize_transaction()
+        self.verify_and_commit()
         if not obj_already_exists:
             obj.add_linked_thumbnails()
 
         return self.success(data={"ids": [c.id for c in candidates]})
 
     @auth_or_token
-    def delete(self, candidate_id):
+    def delete(self, obj_id, filter_id):
         """
         ---
-        description: Delete a candidate
+        description: Delete candidate(s)
         tags:
           - candidates
         parameters:
           - in: path
-            name: candidate_id
+            name: obj_id
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: filter_id
             required: true
             schema:
               type: integer
@@ -898,14 +980,29 @@ class CandidateHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        c = Candidate.query.get(candidate_id)
-        if not (
-            self.associated_user_object.is_system_admin
-            or c.uploader_id == self.associated_user_object.id
-        ):
-            return self.error("Insufficient permissions.")
-        DBSession().delete(c)
-        self.finalize_transaction()
+        cands = (
+            Candidate.query.filter(Candidate.obj_id == obj_id)
+            .filter(Candidate.filter_id == filter_id)
+            .all()
+        )
+        if not cands:
+            return self.error(
+                "Invalid (obj_id, filter_id) combination - "
+                "no matching candidates found."
+            )
+        for c in cands:
+            if not (
+                self.associated_user_object.is_system_admin
+                or c.uploader_id == self.associated_user_object.id
+            ):
+                return self.error(
+                    "Insufficient permissions for candidate w/ "
+                    f"passed_at={c.passed_at}"
+                )
+        DBSession().query(Candidate).filter(Candidate.obj_id == obj_id).filter(
+            Candidate.filter_id == filter_id
+        ).delete(synchronize_session="fetch")
+        self.verify_and_commit()
 
         return self.success()
 
@@ -917,8 +1014,6 @@ def grab_query_results(
     n_items_per_page,
     items_name,
     order_by=None,
-    include_photometry=False,
-    include_spectra=False,
 ):
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
@@ -999,12 +1094,6 @@ def grab_query_results(
 
     items = []
     query_options = [joinedload(Obj.thumbnails)]
-    if include_photometry:
-        query_options.append(
-            joinedload(Obj.photometry).joinedload(Photometry.instrument)
-        )
-    if include_spectra:
-        query_options.append(joinedload(Obj.spectra).joinedload(Spectrum.instrument))
     for item_id in page_ids:
         items.append(Obj.query.options(query_options).get(item_id))
     info[items_name] = items

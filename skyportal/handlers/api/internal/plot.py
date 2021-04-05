@@ -20,7 +20,6 @@ device_types = [
 class PlotPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
-        height = self.get_query_argument("height", 300)
         width = self.get_query_argument("width", 600)
         device = self.get_query_argument("device", None)
         # Just return browser by default if not one of accepted types
@@ -29,18 +28,16 @@ class PlotPhotometryHandler(BaseHandler):
         json = plot.photometry_plot(
             obj_id,
             self.current_user,
-            height=int(height),
             width=int(width),
             device=device,
         )
-        self.verify_permissions()
+        self.verify_and_commit()
         self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
 
 class PlotSpectroscopyHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
-        height = self.get_query_argument("height", 300)
         width = self.get_query_argument("width", 600)
         device = self.get_query_argument("device", None)
         # Just return browser by default if not one of accepted types
@@ -51,11 +48,10 @@ class PlotSpectroscopyHandler(BaseHandler):
             obj_id,
             self.associated_user_object,
             spec_id,
-            height=int(height),
             width=int(width),
             device=device,
         )
-        self.verify_permissions()
+        self.verify_and_commit()
         self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
 
@@ -92,7 +88,7 @@ class PlotAssignmentAirmassHandler(AirmassHandler):
             sunset = telescope.observer.sun_set_time(time, which='previous')
 
         json = self.calculate_airmass(obj, telescope, sunrise, sunset)
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=json)
 
 
@@ -131,5 +127,5 @@ class PlotObjTelAirmassHandler(AirmassHandler):
             sunset = telescope.observer.sun_set_time(time, which='previous')
 
         json = self.calculate_airmass(obj, telescope, sunrise, sunset)
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=json)

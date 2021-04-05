@@ -25,5 +25,5 @@ class PublicGroupHandler(BaseHandler):
         pg = Group.query.filter(Group.name == cfg['misc.public_group_name']).first()
         if pg is None:
             return self.error('Public group does not exist')
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=pg)

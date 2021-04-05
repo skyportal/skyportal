@@ -39,6 +39,7 @@ import { filterOutEmptyValues } from "../API";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
+const VegaHR = React.lazy(() => import("./VegaHR"));
 
 const useStyles = makeStyles((theme) => ({
   chip: {
@@ -61,6 +62,9 @@ const useStyles = makeStyles((theme) => ({
   },
   sourceName: {
     verticalAlign: "middle",
+  },
+  objId: {
+    color: theme.palette.primary.main,
   },
   starButton: {
     verticalAlign: "middle",
@@ -322,6 +326,19 @@ const SourceTable = ({
               {!source.photometry_exists && <div> no photometry exists </div>}
             </Grid>
             <Grid item>
+              {source.color_magnitude.length ? (
+                <div data-testid={`hr_diagram_${source.id}`}>
+                  <Suspense fallback={<div>Loading HR diagram...</div>}>
+                    <VegaHR
+                      data={source.color_magnitude}
+                      width={200}
+                      height={200}
+                    />
+                  </Suspense>
+                </div>
+              ) : null}
+            </Grid>
+            <Grid item>
               {source.spectrum_exists && (
                 <Suspense fallback={<div>Loading spectra...</div>}>
                   <VegaSpectrum
@@ -421,7 +438,7 @@ const SourceTable = ({
         key={`${objid}_objid`}
         data-testid={`${objid}`}
       >
-        <span> {objid} </span>
+        <span className={classes.objId}>{objid}</span>
       </Link>
     );
   };

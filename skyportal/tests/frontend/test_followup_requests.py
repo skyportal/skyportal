@@ -2,13 +2,13 @@ import uuid
 import pytest
 import requests
 from selenium.webdriver.common.action_chains import ActionChains
-from baselayer.app.env import load_env
+from baselayer.app.env import load_config
 from skyportal.tests import api
 import glob
 import os
 
 
-env, cfg = load_env()
+cfg = load_config(config_files=["test_config.yaml"])
 endpoint = cfg['app.sedm_endpoint']
 
 sedm_isonline = False
@@ -20,6 +20,7 @@ else:
     sedm_isonline = True
 
 url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
+
 lt_isonline = False
 try:
     requests.get(url, timeout=5)
@@ -154,16 +155,16 @@ def add_followup_request_using_frontend_and_verify_SEDM(
 
     driver.click_xpath("//div[@data-testid='SEDM-requests-header']")
     driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
+        '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]'''
+        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]'''
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]'''
+        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]'''
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]'''
+        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]'''
     )
 
 
@@ -344,7 +345,6 @@ def test_submit_new_followup_request_SEDM(
 def test_submit_new_followup_request_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
-
     add_followup_request_using_frontend_and_verify_IOO(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
@@ -381,7 +381,7 @@ def test_edit_existing_followup_request(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
     edit_button = driver.wait_for_xpath(
-        f'//button[contains(@data-testid, "editRequest")]'
+        '//button[contains(@data-testid, "editRequest")]'
     )
     driver.scroll_to_element_and_click(edit_button)
     mode_select = driver.wait_for_xpath(
@@ -419,7 +419,7 @@ def test_delete_followup_request_SEDM(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
     delete_button = driver.wait_for_xpath(
-        f'//button[contains(@data-testid, "deleteRequest")]'
+        '//button[contains(@data-testid, "deleteRequest")]'
     )
     driver.scroll_to_element_and_click(delete_button)
 
@@ -444,7 +444,7 @@ def test_delete_followup_request_IOO(
     )
 
     driver.click_xpath(
-        f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
+        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )
 
     driver.wait_for_xpath_to_disappear(
@@ -468,7 +468,7 @@ def test_delete_followup_request_IOI(
     )
 
     driver.click_xpath(
-        f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
+        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )
 
     driver.wait_for_xpath_to_disappear(
@@ -492,7 +492,7 @@ def test_delete_followup_request_SPRAT(
     )
 
     driver.click_xpath(
-        f'//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
+        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )
 
     driver.wait_for_xpath_to_disappear(
@@ -577,16 +577,16 @@ def test_submit_new_followup_request_two_groups(
 
     driver.click_xpath("//div[@data-testid='SEDM-requests-header']")
     driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
+        '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]'''
+        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "u,IFU")]'''
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]'''
+        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "1")]'''
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]'''
+        '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]'''
     )
 
     filename = glob.glob(

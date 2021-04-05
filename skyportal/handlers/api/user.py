@@ -191,7 +191,7 @@ class UserHandler(BaseHandler):
             user_info["permissions"] = sorted(user.permissions)
             user_info["roles"] = sorted([role.id for role in user.roles])
             user_info["acls"] = sorted([acl.id for acl in user.acls])
-            self.verify_permissions()
+            self.verify_and_commit()
             return self.success(data=user_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
@@ -254,7 +254,7 @@ class UserHandler(BaseHandler):
 
         info["users"] = return_values
         info["totalMatches"] = int(total_matches)
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=info)
 
     @permissions(["Manage users"])
@@ -356,7 +356,7 @@ class UserHandler(BaseHandler):
             roles=roles,
             group_ids_and_admin=group_ids_and_admin,
         )
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success(data={"id": user_id})
 
     @permissions(["Manage users"])
@@ -384,5 +384,5 @@ class UserHandler(BaseHandler):
         """
         user = User.query.get(user_id)
         DBSession().delete(user)
-        self.finalize_transaction()
+        self.verify_and_commit()
         return self.success()

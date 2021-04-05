@@ -77,6 +77,11 @@ function getStyles(classification, selectedClassifications, theme) {
   };
 }
 
+const rejectedStatusSelectOptions = [
+  { value: "hide", label: "Hide rejected candidates" },
+  { value: "show", label: "Show rejected candidates" },
+];
+
 const savedStatusSelectOptions = [
   { value: "all", label: "regardless of saved status" },
   { value: "savedToAllSelected", label: "and is saved to all selected groups" },
@@ -108,6 +113,7 @@ const FilterCandidateList = ({
   setFilterGroups,
   numPerPage,
   annotationFilterList,
+  setSortOrder,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -195,6 +201,10 @@ const FilterCandidateList = ({
       groupIDs: selectedGroupIDs,
       savedStatus: formData.savedStatus,
     };
+    // decide if to show rejected candidates
+    if (formData.rejectedStatus === "hide") {
+      data.listNameReject = "rejected_candidates";
+    }
     // Convert dates to ISO for parsing on back-end
     if (formData.startDate) {
       data.startDate = formData.startDate.toISOString();
@@ -214,6 +224,11 @@ const FilterCandidateList = ({
     setFilterGroups(
       userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
     );
+
+    // Clear annotation sort params
+    await dispatch(candidatesActions.setCandidatesAnnotationSortOptions(null));
+    setSortOrder(null);
+
     // Save form-specific data, formatted for the API query
     await dispatch(candidatesActions.setFilterFormData(data));
 
@@ -388,6 +403,25 @@ const FilterCandidateList = ({
               />
             </div>
           </div>
+          <div className={classes.formRow}>
+            <InputLabel id="rejectedCandidatesLabel">
+              Show/hide rejected candidates
+            </InputLabel>
+            <Controller
+              labelId="rejectedCandidatesLabel"
+              as={Select}
+              name="rejectedStatus"
+              control={control}
+              input={<Input data-testid="rejectedStatusSelect" />}
+              defaultValue="hide"
+            >
+              {rejectedStatusSelectOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Controller>
+          </div>
           <div>
             <Responsive
               element={FoldBox}
@@ -456,6 +490,7 @@ FilterCandidateList.propTypes = {
   setQueryInProgress: PropTypes.func.isRequired,
   setFilterGroups: PropTypes.func.isRequired,
   numPerPage: PropTypes.number.isRequired,
+  setSortOrder: PropTypes.func.isRequired,
   annotationFilterList: PropTypes.string,
 };
 FilterCandidateList.defaultProps = {

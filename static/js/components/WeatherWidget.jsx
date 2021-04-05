@@ -135,7 +135,7 @@ const WeatherWidget = ({ classes }) => {
   const styles = useStyles();
 
   const dispatch = useDispatch();
-  const weather = useSelector((state) => state.weather.weather);
+  const weather = useSelector((state) => state.weather);
   const userPrefs = useSelector((state) => state.profile.preferences.weather);
   const telescopeList = useSelector((state) => state.telescopes.telescopeList);
   telescopeList.sort((a, b) => {
@@ -156,7 +156,10 @@ const WeatherWidget = ({ classes }) => {
     const fetchWeatherData = () => {
       dispatch(weatherActions.fetchWeather());
     };
-    if (weather?.id !== weatherPrefs?.telescopeID || weather === undefined) {
+    if (
+      weather?.telescope_id !== weatherPrefs?.telescopeID ||
+      weather === undefined
+    ) {
       fetchWeatherData();
     }
   }, [weatherPrefs, weather, dispatch]);
@@ -181,7 +184,7 @@ const WeatherWidget = ({ classes }) => {
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
         <Typography variant="h6" display="inline">
-          {weather?.name}
+          {weather?.telescope_name}
         </Typography>
         <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
 
