@@ -20,7 +20,7 @@ To execute the test suite:
 
 - Install geckodriver and Firefox
 - To run all tests: `make test`
-- To run a single test: `./tools/test_frontend.py skyportal/tests/frontend/<test_file>.py::test_<specific_test>`
+- To run a single test: `./baselayer/tools/test_frontend.py skyportal/tests/frontend/<test_file>.py::test_<specific_test>`
 
 This fires up the test server and runs that test. To make things
 faster you can also run the test server separately:
