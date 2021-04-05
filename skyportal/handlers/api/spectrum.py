@@ -70,16 +70,17 @@ class SpectrumHandler(BaseHandler):
                 f'Invalid / missing parameters; {e.normalized_messages()}'
             )
 
+        # always append the single user group
+        single_user_group = self.associated_user_object.single_user_group
+
         group_ids = data.pop("group_ids", None)
         if not group_ids:
-            groups = self.current_user.accessible_groups
+            groups = [single_user_group]
         else:
             groups = Group.get_if_accessible_by(
                 group_ids, self.current_user, raise_if_none=True
             )
 
-        # always append the single user group
-        single_user_group = self.associated_user_object.single_user_group
         if single_user_group not in groups:
             groups.append(single_user_group)
 
@@ -244,17 +245,18 @@ class SpectrumHandler(BaseHandler):
         spectrum = Spectrum.get_if_accessible_by(
             spectrum_id, self.current_user, mode="delete", raise_if_none=True
         )
+        obj_key = spectrum.obj.internal_key
         DBSession().delete(spectrum)
         self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': spectrum.obj.internal_key},
+            payload={'obj_key': obj_key},
         )
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_id': spectrum.obj_id},
+            payload={'obj_id': obj_key},
         )
 
         return self.success()
@@ -353,16 +355,17 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         if instrument is None:
             raise ValidationError('Invalid instrument id.')
 
+        # always add the single user group
+        single_user_group = self.associated_user_object.single_user_group
+
         group_ids = json.pop('group_ids', [])
         if not group_ids:
-            groups = self.current_user.accessible_groups
+            groups = [single_user_group]
         else:
             groups = Group.get_if_accessible_by(
                 group_ids, self.current_user, raise_if_none=True
             )
 
-        # always add the single user group
-        single_user_group = self.associated_user_object.single_user_group
         if single_user_group not in groups:
             groups.append(single_user_group)
 
