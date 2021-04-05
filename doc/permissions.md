@@ -173,7 +173,7 @@ filtered_deletable_query = deletable_phot_query.filter(Photometry.snr > 10)
 
 Calling `self.verify_and_commit()` within a SkyPortal API handler will trigger the RLS permission checker to introspect the current database session and verify that all of the records it currently is tracking are being accessed in an allowable way.  If it encounters any permissions violations during this process, it causes the handler to rollback the transaction and return an HTTP status code of 400 with a message that identifies the specific row where an access policy was violated. If no access policies are violated, then the current database transaction will be committed.
 
-If `self.verify_and_commit() is not called in an API handler, the handler will not automatically check for permissions violations. The best practice is to call `self.verify_and_commit()` at the end of a handler's transaction, immediately before `self.success` or `self.error`.
+If `self.verify_and_commit()` is not called in an API handler, the handler will not automatically check for permissions violations. The best practice is to call `self.verify_and_commit()` at the end of a handler's transaction, immediately before `self.success` or `self.error`.
 
 ###  Further examples of policies:
 
