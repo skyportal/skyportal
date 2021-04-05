@@ -125,6 +125,7 @@ class AnnotationsInfoHandler(BaseHandler):
             .outerjoin(annotations, literal(True))
             .join(GroupAnnotation)
             .filter(GroupAnnotation.group_id.in_(user_accessible_group_ids))
+            .distinct()
         )
 
         # Restructure query results so that records are grouped by origin in a
