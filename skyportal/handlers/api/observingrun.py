@@ -2,6 +2,7 @@ import numpy as np
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token, AccessError
+from baselayer.app.model_util import recursive_to_dict
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -151,11 +152,12 @@ class ObservingRunHandler(BaseHandler):
                     d["rise_time_utc"] = rt if rt is not np.ma.masked else ''
                     d["set_time_utc"] = st if st is not np.ma.masked else ''
 
+            data = recursive_to_dict(data)
             self.verify_and_commit()
             return self.success(data=data)
 
         runs = (
-            ObservingRun.query_accessible_rows(self.current_user, mode="read")
+            ObservingRun.query_records_accessible_by(self.current_user, mode="read")
             .order_by(ObservingRun.calendar_date.asc())
             .all()
         )
