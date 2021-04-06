@@ -1078,22 +1078,23 @@ def grab_query_results(
     page_ids = map(lambda x: x[0], results)
     info["totalMatches"] = results[0][1] if len(results) > 0 else 0
 
-    if (
-        (
+    if page:
+        if (
             (
-                info["totalMatches"] < (page - 1) * n_items_per_page
-                and info["totalMatches"] % n_items_per_page != 0
+                (
+                    info["totalMatches"] < (page - 1) * n_items_per_page
+                    and info["totalMatches"] % n_items_per_page != 0
+                )
+                or (
+                    info["totalMatches"] < page * n_items_per_page
+                    and info["totalMatches"] % n_items_per_page == 0
+                )
+                and info["totalMatches"] != 0
             )
-            or (
-                info["totalMatches"] < page * n_items_per_page
-                and info["totalMatches"] % n_items_per_page == 0
-            )
-            and info["totalMatches"] != 0
-        )
-        or page <= 0
-        or (info["totalMatches"] == 0 and page != 1)
-    ):
-        raise ValueError("Page number out of range.")
+            or page <= 0
+            or (info["totalMatches"] == 0 and page != 1)
+        ):
+            raise ValueError("Page number out of range.")
 
     items = []
     query_options = [joinedload(Obj.thumbnails)]
