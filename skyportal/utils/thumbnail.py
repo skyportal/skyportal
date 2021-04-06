@@ -36,6 +36,7 @@ def image_is_grayscale(
             bias = ImageStat.Stat(thumb).mean[:3]
             bias = [b - sum(bias) / 3 for b in bias]
         for pixel in thumb.getdata():
+            pixel = pixel[:3]  # Ignore alpha channel
             mu = sum(pixel) / 3
             SSE += sum(
                 (pixel[i] - mu - bias[i]) * (pixel[i] - mu - bias[i]) for i in [0, 1, 2]
