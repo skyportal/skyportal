@@ -1406,63 +1406,63 @@ def test_candidates_hidden_photometry_not_leaked(
 
 
 def test_candidate_list_pagination(
-    view_only_token, upload_data_token, public_filter, capsys
+    view_only_token,
+    upload_data_token,
+    public_group,
+    public_filter,
 ):
-    with capsys.disabled():
-        # Upload two candidates with know passed_at order
-        obj_id1 = str(uuid.uuid4())
-        obj_id2 = str(uuid.uuid4())
-        status, data = api(
-            "POST",
-            "candidates",
-            data={
-                "id": obj_id1,
-                "ra": 234.22,
-                "dec": -22.33,
-                "redshift": 3,
-                "transient": False,
-                "ra_dis": 2.3,
-                "filter_ids": [public_filter.id],
-                "passed_at": str(datetime.datetime.utcnow()),
-            },
-            token=upload_data_token,
-        )
-        assert status == 200
-        status, data = api(
-            "POST",
-            "candidates",
-            data={
-                "id": obj_id2,
-                "ra": 234.22,
-                "dec": -22.33,
-                "redshift": 3,
-                "transient": False,
-                "ra_dis": 2.3,
-                "filter_ids": [public_filter.id],
-                "passed_at": str(
-                    datetime.datetime.utcnow() + datetime.timedelta(days=1)
-                ),
-            },
-            token=upload_data_token,
-        )
-        assert status == 200
+    # Upload two candidates with know passed_at order
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow() + datetime.timedelta(days=1)),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
 
-        # Default order is descending passed_at
-        status, data = api(
-            "GET",
-            "candidates",
-            params={"numPerPage": 1, "pageNumber": 2},
-            token=view_only_token,
-        )
-        assert status == 200
-        assert data["data"]["candidates"][0]["id"] == obj_id1
+    # Default order is descending passed_at
+    status, data = api(
+        "GET",
+        "candidates",
+        params={"numPerPage": 1, "pageNumber": 2, "groupIDs": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["data"]["candidates"][0]["id"] == obj_id1
 
-        # Invalid page
-        status, data = api(
-            "GET",
-            "candidates",
-            params={"numPerPage": 1, "pageNumber": 4},
-            token=view_only_token,
-        )
-        assert status == 400
-        assert "Page number out of range" in data["message"]
+    # Invalid page
+    status, data = api(
+        "GET",
+        "candidates",
+        params={"numPerPage": 1, "pageNumber": 4},
+        token=view_only_token,
+    )
+    assert status == 400
+    assert "Page number out of range" in data["message"]
