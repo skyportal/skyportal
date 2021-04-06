@@ -85,7 +85,7 @@ class InvitationHandler(BaseHandler):
                 "all list items to integers."
             )
         groups = (
-            Group.query_accessible_rows(self.current_user, mode="read")
+            Group.query_records_accessible_by(self.current_user, mode="read")
             .filter(Group.id.in_(group_ids))
             .all()
         )
@@ -105,7 +105,7 @@ class InvitationHandler(BaseHandler):
                 )
 
             streams = (
-                Stream.query_accessible_rows(self.current_user, mode="read")
+                Stream.query_records_accessible_by(self.current_user, mode="read")
                 .filter(Stream.id.in_(stream_ids))
                 .all()
             )
@@ -126,7 +126,7 @@ class InvitationHandler(BaseHandler):
                 )
         else:
             streams = (
-                Stream.query_accessible_rows(self.current_user, mode="read")
+                Stream.query_records_accessible_by(self.current_user, mode="read")
                 .join(GroupStream)
                 .filter(GroupStream.group_id.in_(group_ids))
                 .all()
@@ -251,7 +251,7 @@ class InvitationHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid numPerPage value.")
 
-        query = Invitation.query_accessible_rows(self.current_user, mode="read")
+        query = Invitation.query_records_accessible_by(self.current_user, mode="read")
         if not include_used:
             query = query.filter(Invitation.used.is_(False))
         if email_address is not None:
@@ -324,7 +324,7 @@ class InvitationHandler(BaseHandler):
         if group_ids is not None:
             group_ids = [int(gid) for gid in group_ids]
             groups = (
-                Group.query_accessible_rows(self.current_user, mode="read")
+                Group.query_records_accessible_by(self.current_user, mode="read")
                 .filter(Group.id.in_(group_ids))
                 .all()
             )
@@ -335,7 +335,7 @@ class InvitationHandler(BaseHandler):
                 )
         else:
             groups = (
-                Group.query_accessible_rows(self.current_user, mode="read")
+                Group.query_records_accessible_by(self.current_user, mode="read")
                 .join(GroupInvitation)
                 .filter(GroupInvitation.invitation_id == invitation.id)
                 .all()
@@ -343,7 +343,7 @@ class InvitationHandler(BaseHandler):
         if stream_ids is not None:
             stream_ids = [int(sid) for sid in stream_ids]
             streams = (
-                Stream.query_accessible_rows(self.current_user, mode="read")
+                Stream.query_records_accessible_by(self.current_user, mode="read")
                 .filter(Stream.id.in_(stream_ids))
                 .all()
             )
@@ -354,7 +354,7 @@ class InvitationHandler(BaseHandler):
                 )
         else:
             streams = (
-                Stream.query_accessible_rows(self.current_user, mode="read")
+                Stream.query_records_accessible_by(self.current_user, mode="read")
                 .join(StreamInvitation)
                 .filter(StreamInvitation.invitation_id == invitation.id)
                 .all()
