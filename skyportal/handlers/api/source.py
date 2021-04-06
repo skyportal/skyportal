@@ -565,7 +565,9 @@ class SourceHandler(BaseHandler):
         if obj_id is not None:
             if include_thumbnails:
                 query_options = [
-                    joinedload(Obj.followup_requests).joinedload(FollowupRequest.requester),
+                    joinedload(Obj.followup_requests).joinedload(
+                        FollowupRequest.requester
+                    ),
                     joinedload(Obj.followup_requests)
                     .joinedload(FollowupRequest.allocation)
                     .joinedload(Allocation.instrument),
@@ -578,9 +580,11 @@ class SourceHandler(BaseHandler):
                     .joinedload(FollowupRequest.allocation)
                     .joinedload(Allocation.group),
                 ]
-            else: 
+            else:
                 query_options = [
-                    joinedload(Obj.followup_requests).joinedload(FollowupRequest.requester),
+                    joinedload(Obj.followup_requests).joinedload(
+                        FollowupRequest.requester
+                    ),
                     joinedload(Obj.followup_requests)
                     .joinedload(FollowupRequest.allocation)
                     .joinedload(Allocation.instrument),
@@ -591,14 +595,13 @@ class SourceHandler(BaseHandler):
                     joinedload(Obj.followup_requests)
                     .joinedload(FollowupRequest.allocation)
                     .joinedload(Allocation.group),
-                ] 
+                ]
 
             s = Obj.get_if_readable_by(
                 obj_id,
                 self.current_user,
                 options=query_options,
             )
-
 
             if s is None:
                 return self.error("Source not found", status=404)

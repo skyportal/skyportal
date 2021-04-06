@@ -79,7 +79,7 @@ def test_token_user_retrieving_source_with_thumbnails(view_only_token, public_so
 def test_token_user_retrieving_sources_without_nested(view_only_token):
     status, data = api(
         "GET",
-        f"sources",
+        "sources",
         params={"removeNested": "true"},
         token=view_only_token,
     )
@@ -90,10 +90,7 @@ def test_token_user_retrieving_sources_without_nested(view_only_token):
         k in data["data"]["sources"][0]
         for k in ["ra", "dec", "redshift", "classifications", "created_at", "id"]
     )
-    assert all(
-    	k not in data["data"]["sources"][0]
-    	for k in ["annotations", "groups"]
-    )
+    assert all(k not in data["data"]["sources"][0] for k in ["annotations", "groups"])
 
 
 def test_token_user_update_source(upload_data_token, public_source):
@@ -312,7 +309,9 @@ def test_starlist(upload_data_token, public_source):
     assert isinstance(data["data"]["starlist_info"][0]["ra"], float)
 
     status, data = api(
-        "GET", f"sources/{public_source.id}/offsets", token=upload_data_token,
+        "GET",
+        f"sources/{public_source.id}/offsets",
+        token=upload_data_token,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -629,7 +628,9 @@ def test_source_photometry_summary_info(
     iso2 = arrow.get((pt2["mjd"] - 40_587) * 86400.0).isoformat()
 
     status, data = api(
-        "GET", f"sources/{public_source_no_data.id}", token=view_only_token,
+        "GET",
+        f"sources/{public_source_no_data.id}",
+        token=view_only_token,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -1276,7 +1277,10 @@ def test_sources_filter_by_has_tns_name(
 
 
 def test_sources_filter_by_has_spectrum(
-    view_only_token, public_group, public_source, public_source_no_data,
+    view_only_token,
+    public_group,
+    public_source,
+    public_source_no_data,
 ):
     # Filter for obj 1 only, since the no data source will not have spectra
     status, data = api(
