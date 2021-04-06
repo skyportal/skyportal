@@ -161,12 +161,12 @@ class SourceHandler(BaseHandler):
               description: |
                 Boolean indicating whether to return if a source has a spectra. Defaults to false.
             - in: query
-              name: includeNested
+              name: includeThumbnails
               nullable: true
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to return nested output. Defaults to true.
+                Boolean indicating whether to include associated thumbnails. Defaults to false.
           responses:
             200:
               content:
@@ -369,12 +369,12 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to return if a source has a spectra. Defaults to false.
           - in: query
-            name: includeNested
+            name: removeNested
             nullable: true
             schema:
               type: boolean
             description: |
-              Boolean indicating whether to return nested output. Defaults to true.
+              Boolean indicating whether to return nested output. Defaults to false.
           - in: query
             name: classifications
             nullable: true
