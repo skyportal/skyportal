@@ -1055,34 +1055,17 @@ def grab_query_results(
     # in the query set, so re-order by the row_num we used to remember the
     # original ordering
     ordered_ids = (
-        DBSession().query(ids_with_row_nums.c.id).order_by(ids_with_row_nums.c.row_num)
+        DBSession()
+        .query(
+            ids_with_row_nums.c.id,
+            func.count(ids_with_row_nums.c.id).over().label('total'),
+        )
+        .order_by(ids_with_row_nums.c.row_num)
     )
 
-    if total_matches:
-        info["totalMatches"] = int(total_matches)
-    else:
-        info["totalMatches"] = ordered_ids.count()
-
     if page:
-        if (
-            (
-                (
-                    info["totalMatches"] < (page - 1) * n_items_per_page
-                    and info["totalMatches"] % n_items_per_page != 0
-                )
-                or (
-                    info["totalMatches"] < page * n_items_per_page
-                    and info["totalMatches"] % n_items_per_page == 0
-                )
-                and info["totalMatches"] != 0
-            )
-            or page <= 0
-            or (info["totalMatches"] == 0 and page != 1)
-        ):
-            raise ValueError("Page number out of range.")
-
         # Now bring in the full Obj info for the candidates
-        page_ids = (
+        results = (
             ordered_ids.limit(n_items_per_page)
             .offset((page - 1) * n_items_per_page)
             .all()
@@ -1090,7 +1073,27 @@ def grab_query_results(
         info["pageNumber"] = page
         info["numPerPage"] = n_items_per_page
     else:
-        page_ids = ordered_ids.all()
+        results = ordered_ids.all()
+
+    page_ids = map(lambda x: x[0], results)
+    info["totalMatches"] = results[0][1] if len(results) > 0 else 0
+
+    if (
+        (
+            (
+                info["totalMatches"] < (page - 1) * n_items_per_page
+                and info["totalMatches"] % n_items_per_page != 0
+            )
+            or (
+                info["totalMatches"] < page * n_items_per_page
+                and info["totalMatches"] % n_items_per_page == 0
+            )
+            and info["totalMatches"] != 0
+        )
+        or page <= 0
+        or (info["totalMatches"] == 0 and page != 1)
+    ):
+        raise ValueError("Page number out of range.")
 
     items = []
     query_options = [joinedload(Obj.thumbnails)]
