@@ -160,6 +160,13 @@ class SourceHandler(BaseHandler):
                 type: boolean
               description: |
                 Boolean indicating whether to return if a source has a spectra. Defaults to false.
+            - in: query
+              name: includeNested
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to return nested output. Defaults to true.
           responses:
             200:
               content:
@@ -362,6 +369,13 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to return if a source has a spectra. Defaults to false.
           - in: query
+            name: includeNested
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return nested output. Defaults to true.
+          - in: query
             name: classifications
             nullable: true
             schema:
@@ -474,6 +488,8 @@ class SourceHandler(BaseHandler):
         include_spectrum_exists = self.get_query_argument(
             "includeSpectrumExists", False
         )
+        remove_nested = self.get_query_argument("removeNested", False)
+        include_thumbnails = self.get_query_argument("includeThumbnails", False)
         classifications = self.get_query_argument("classifications", None)
         min_redshift = self.get_query_argument("minRedshift", None)
         max_redshift = self.get_query_argument("maxRedshift", None)
@@ -503,6 +519,8 @@ class SourceHandler(BaseHandler):
             saved_after = UTCTZnaiveDateTime(required=False, missing=None)
             saved_before = UTCTZnaiveDateTime(required=False, missing=None)
             save_summary = fields.Boolean()
+            remove_nested = fields.Boolean()
+            include_thumbnails = fields.Boolean()
 
         validator_instance = Validator()
         params_to_be_validated = {}
@@ -512,6 +530,10 @@ class SourceHandler(BaseHandler):
             params_to_be_validated['saved_before'] = saved_before
         if save_summary is not None:
             params_to_be_validated['save_summary'] = save_summary
+        if remove_nested is not None:
+            params_to_be_validated['remove_nested'] = remove_nested
+        if include_thumbnails is not None:
+            params_to_be_validated['include_thumbnails'] = include_thumbnails
 
         try:
             validated = validator_instance.load(params_to_be_validated)
@@ -521,6 +543,8 @@ class SourceHandler(BaseHandler):
         saved_after = validated['saved_after']
         saved_before = validated['saved_before']
         save_summary = validated['save_summary']
+        remove_nested = validated['remove_nested']
+        include_thumbnails = validated['include_thumbnails']
 
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
@@ -539,26 +563,42 @@ class SourceHandler(BaseHandler):
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
         if obj_id is not None:
-            query_options = [
-                joinedload(Obj.followup_requests).joinedload(FollowupRequest.requester),
-                joinedload(Obj.followup_requests)
-                .joinedload(FollowupRequest.allocation)
-                .joinedload(Allocation.instrument),
-                joinedload(Obj.assignments)
-                .joinedload(ClassicalAssignment.run)
-                .joinedload(ObservingRun.instrument)
-                .joinedload(Instrument.telescope),
-                joinedload(Obj.thumbnails),
-                joinedload(Obj.followup_requests)
-                .joinedload(FollowupRequest.allocation)
-                .joinedload(Allocation.group),
-            ]
+            if include_thumbnails:
+                query_options = [
+                    joinedload(Obj.followup_requests).joinedload(FollowupRequest.requester),
+                    joinedload(Obj.followup_requests)
+                    .joinedload(FollowupRequest.allocation)
+                    .joinedload(Allocation.instrument),
+                    joinedload(Obj.assignments)
+                    .joinedload(ClassicalAssignment.run)
+                    .joinedload(ObservingRun.instrument)
+                    .joinedload(Instrument.telescope),
+                    joinedload(Obj.thumbnails),
+                    joinedload(Obj.followup_requests)
+                    .joinedload(FollowupRequest.allocation)
+                    .joinedload(Allocation.group),
+                ]
+            else: 
+                query_options = [
+                    joinedload(Obj.followup_requests).joinedload(FollowupRequest.requester),
+                    joinedload(Obj.followup_requests)
+                    .joinedload(FollowupRequest.allocation)
+                    .joinedload(Allocation.instrument),
+                    joinedload(Obj.assignments)
+                    .joinedload(ClassicalAssignment.run)
+                    .joinedload(ObservingRun.instrument)
+                    .joinedload(Instrument.telescope),
+                    joinedload(Obj.followup_requests)
+                    .joinedload(FollowupRequest.allocation)
+                    .joinedload(Allocation.group),
+                ] 
 
             s = Obj.get_if_readable_by(
                 obj_id,
                 self.current_user,
                 options=query_options,
             )
+
 
             if s is None:
                 return self.error("Source not found", status=404)
@@ -573,10 +613,12 @@ class SourceHandler(BaseHandler):
                 DBSession.add(sv)
                 self.finalize_transaction()
 
-            if "ps1" not in [thumb.type for thumb in s.thumbnails]:
-                IOLoop.current().add_callback(
-                    lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
-                )
+            if include_thumbnails:
+                if "ps1" not in [thumb.type for thumb in s.thumbnails]:
+                    IOLoop.current().add_callback(
+                        lambda: add_ps1_thumbnail_and_push_ws_msg(s, self)
+                    )
+
             source_info = s.to_dict()
             if include_comments:
                 comments = s.get_comments_readable_by(self.current_user)
@@ -671,7 +713,10 @@ class SourceHandler(BaseHandler):
             return self.success(data=source_info)
 
         # Fetch multiple sources
-        query_options = [joinedload(Obj.thumbnails)]
+        if include_thumbnails:
+            query_options = [joinedload(Obj.thumbnails)]
+        else:
+            query_options = []
 
         if not save_summary:
             q = (
@@ -907,24 +952,30 @@ class SourceHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     )
-                source_list[-1][
-                    "classifications"
-                ] = source.get_classifications_readable_by(self.current_user)
-                source_list[-1]["annotations"] = sorted(
-                    source.get_annotations_readable_by(self.current_user),
-                    key=lambda x: x.origin,
-                )
-                source_list[-1]["last_detected_at"] = source.last_detected_at
-                source_list[-1]["last_detected_mag"] = source.last_detected_mag
-                source_list[-1]["peak_detected_at"] = source.peak_detected_at
-                source_list[-1]["peak_detected_mag"] = source.peak_detected_mag
-                source_list[-1]["gal_lon"] = source.gal_lon_deg
-                source_list[-1]["gal_lat"] = source.gal_lat_deg
-                source_list[-1]["luminosity_distance"] = source.luminosity_distance
-                source_list[-1]["dm"] = source.dm
-                source_list[-1][
-                    "angular_diameter_distance"
-                ] = source.angular_diameter_distance
+                if remove_nested:
+                    source_list[-1][
+                        "classifications"
+                    ] = source.get_classifications_readable_by(self.current_user)
+                else:
+                    source_list[-1][
+                        "classifications"
+                    ] = source.get_classifications_readable_by(self.current_user)
+                    source_list[-1]["annotations"] = sorted(
+                        source.get_annotations_readable_by(self.current_user),
+                        key=lambda x: x.origin,
+                    )
+                    source_list[-1]["last_detected_at"] = source.last_detected_at
+                    source_list[-1]["last_detected_mag"] = source.last_detected_mag
+                    source_list[-1]["peak_detected_at"] = source.peak_detected_at
+                    source_list[-1]["peak_detected_mag"] = source.peak_detected_mag
+                    source_list[-1]["gal_lon"] = source.gal_lon_deg
+                    source_list[-1]["gal_lat"] = source.gal_lat_deg
+                    source_list[-1]["luminosity_distance"] = source.luminosity_distance
+                    source_list[-1]["dm"] = source.dm
+                    source_list[-1][
+                        "angular_diameter_distance"
+                    ] = source.angular_diameter_distance
+
                 if include_photometry:
                     photometry = Obj.get_photometry_readable_by_user(
                         source.id, self.current_user
@@ -946,47 +997,47 @@ class SourceHandler(BaseHandler):
                         len(Obj.get_spectra_readable_by(source.id, self.current_user))
                         > 0
                     )
-
-                groups_query = (
-                    DBSession()
-                    .query(Group)
-                    .join(Source)
-                    .filter(
-                        Source.obj_id == source_list[-1]["id"],
-                        Group.id.in_(user_accessible_group_ids),
-                    )
-                )
-                groups_query = apply_active_or_requested_filtering(
-                    groups_query, include_requested, requested_only
-                )
-                groups = groups_query.all()
-                source_list[-1]["groups"] = [g.to_dict() for g in groups]
-                for group in source_list[-1]["groups"]:
-                    source_table_row = Source.query.filter(
-                        Source.obj_id == source.id, Source.group_id == group["id"]
-                    ).first()
-                    group["active"] = source_table_row.active
-                    group["requested"] = source_table_row.requested
-                    group["saved_at"] = source_table_row.saved_at
-                    group["saved_by"] = (
-                        source_table_row.saved_by.to_dict()
-                        if source_table_row.saved_by is not None
-                        else None
-                    )
-
-                # add the date(s) this source was saved to each of these groups
-                for i, g in enumerate(source_list[-1]["groups"]):
-                    saved_at = (
+                if not remove_nested:
+                    groups_query = (
                         DBSession()
-                        .query(Source.saved_at)
+                        .query(Group)
+                        .join(Source)
                         .filter(
                             Source.obj_id == source_list[-1]["id"],
-                            Source.group_id == g["id"],
+                            Group.id.in_(user_accessible_group_ids),
                         )
-                        .first()
-                        .saved_at
                     )
-                    source_list[-1]["groups"][i]['saved_at'] = saved_at
+                    groups_query = apply_active_or_requested_filtering(
+                        groups_query, include_requested, requested_only
+                    )
+                    groups = groups_query.all()
+                    source_list[-1]["groups"] = [g.to_dict() for g in groups]
+                    for group in source_list[-1]["groups"]:
+                        source_table_row = Source.query.filter(
+                            Source.obj_id == source.id, Source.group_id == group["id"]
+                        ).first()
+                        group["active"] = source_table_row.active
+                        group["requested"] = source_table_row.requested
+                        group["saved_at"] = source_table_row.saved_at
+                        group["saved_by"] = (
+                            source_table_row.saved_by.to_dict()
+                            if source_table_row.saved_by is not None
+                            else None
+                        )
+
+                    # add the date(s) this source was saved to each of these groups
+                    for i, g in enumerate(source_list[-1]["groups"]):
+                        saved_at = (
+                            DBSession()
+                            .query(Source.saved_at)
+                            .filter(
+                                Source.obj_id == source_list[-1]["id"],
+                                Source.group_id == g["id"],
+                            )
+                            .first()
+                            .saved_at
+                        )
+                        source_list[-1]["groups"][i]['saved_at'] = saved_at
             query_results["sources"] = source_list
 
         self.verify_permissions()

@@ -52,6 +52,50 @@ def test_token_user_retrieving_source_with_phot(view_only_token, public_source):
     )
 
 
+def test_token_user_retrieving_source_with_thumbnails(view_only_token, public_source):
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}",
+        params={"includeThumbnails": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert all(
+        k in data["data"]
+        for k in ["ra", "dec", "redshift", "dm", "created_at", "id", "thumbnails"]
+    )
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}",
+        params={"includeThumbnails": "false"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert "thumbnails" not in data["data"]
+
+
+def test_token_user_retrieving_sources_without_nested(view_only_token):
+    status, data = api(
+        "GET",
+        f"sources",
+        params={"removeNested": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert "sources" in data["data"]
+    assert all(
+        k in data["data"]["sources"][0]
+        for k in ["ra", "dec", "redshift", "classifications", "created_at", "id"]
+    )
+    assert all(
+    	k not in data["data"]["sources"][0]
+    	for k in ["annotations", "groups"]
+    )
+
+
 def test_token_user_update_source(upload_data_token, public_source):
     status, data = api(
         "PATCH",
