@@ -1,7 +1,20 @@
 from PIL import Image, ImageStat, UnidentifiedImageError
+from baselayer.app.env import load_env
+
+_, cfg = load_env()
+
+# Default classification parameters
+thumb_size = cfg["image_grayscale_params.thumb_size"] or 40
+MSE_cutoff = cfg["image_grayscale_params.MSE_cutoff"] or 22
+adjust_color_bias = cfg["image_grayscale_params.adjust_color_bias"] or True
 
 
-def image_is_grayscale(file, thumb_size=40, MSE_cutoff=22, adjust_color_bias=True):
+def image_is_grayscale(
+    file,
+    thumb_size=thumb_size,
+    MSE_cutoff=MSE_cutoff,
+    adjust_color_bias=adjust_color_bias,
+):
     """
     Determine whether an image is colored or grayscale, roughly. That is, even if a PNG
     is encoded with RGB color type, if it is mostly black/white with very few colored pixels
