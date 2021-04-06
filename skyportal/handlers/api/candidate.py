@@ -1028,13 +1028,28 @@ def grab_query_results(
     # in the query set, so re-order by the row_num we used to remember the
     # original ordering
     ordered_ids = (
-        DBSession().query(ids_with_row_nums.c.id).order_by(ids_with_row_nums.c.row_num)
+        DBSession()
+        .query(
+            ids_with_row_nums.c.id,
+            func.count(ids_with_row_nums.c.id).over().label('total'),
+        )
+        .order_by(ids_with_row_nums.c.row_num)
     )
 
-    if total_matches:
-        info["totalMatches"] = int(total_matches)
+    if page:
+        # Now bring in the full Obj info for the candidates
+        results = (
+            ordered_ids.limit(n_items_per_page)
+            .offset((page - 1) * n_items_per_page)
+            .all()
+        )
+        info["pageNumber"] = page
+        info["numPerPage"] = n_items_per_page
     else:
-        info["totalMatches"] = ordered_ids.count()
+        results = ordered_ids.all()
+
+    page_ids = map(lambda x: x[0], results)
+    info["totalMatches"] = results[0][1] if len(results) > 0 else 0
 
     if page:
         if (
@@ -1053,17 +1068,6 @@ def grab_query_results(
             or (info["totalMatches"] == 0 and page != 1)
         ):
             raise ValueError("Page number out of range.")
-
-        # Now bring in the full Obj info for the candidates
-        page_ids = (
-            ordered_ids.limit(n_items_per_page)
-            .offset((page - 1) * n_items_per_page)
-            .all()
-        )
-        info["pageNumber"] = page
-        info["numPerPage"] = n_items_per_page
-    else:
-        page_ids = ordered_ids.all()
 
     items = []
     query_options = [joinedload(Obj.thumbnails)]
