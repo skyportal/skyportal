@@ -125,7 +125,7 @@ class AnnotationHandler(BaseHandler):
         )
 
         DBSession().add(annotation)
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': annotation.obj.internal_key},
@@ -190,7 +190,7 @@ class AnnotationHandler(BaseHandler):
             )
             a.groups = groups
 
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push_all(
             action='skyportal/REFRESH_SOURCE', payload={'obj_key': a.obj.internal_key}
         )
@@ -220,7 +220,7 @@ class AnnotationHandler(BaseHandler):
         )
         obj_key = a.obj.internal_key
         DBSession().delete(a)
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
         return self.success()
 
@@ -256,5 +256,5 @@ class ObjAnnotationHandler(BaseHandler):
             .filter(Annotation.obj_id == obj_id)
             .all()
         )
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=annotations)

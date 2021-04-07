@@ -111,7 +111,7 @@ class SharingHandler(BaseHandler):
                 # Grab obj_id for use in websocket message below
                 spec_obj_ids.append(spec.obj_id)
 
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         spec_obj_ids = set(spec_obj_ids)
         phot_obj_ids = set(phot_obj_ids)

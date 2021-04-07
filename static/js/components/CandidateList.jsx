@@ -250,12 +250,11 @@ const CustomSortToolbar = ({
   filterFormData,
   setQueryInProgress,
   loaded,
+  sortOrder,
+  setSortOrder,
 }) => {
   const classes = useStyles();
 
-  const [sortOrder, setSortOrder] = useState(
-    selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null
-  );
   const dispatch = useDispatch();
 
   const handleSort = async () => {
@@ -324,11 +323,14 @@ CustomSortToolbar.propTypes = {
   filterGroups: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   filterFormData: PropTypes.shape({}),
   loaded: PropTypes.bool.isRequired,
+  sortOrder: PropTypes.string,
+  setSortOrder: PropTypes.func.isRequired,
 };
 
 CustomSortToolbar.defaultProps = {
   selectedAnnotationSortOptions: null,
   filterFormData: null,
+  sortOrder: null,
 };
 
 const columnNames = ["Images", "Info", "Photometry", "Autoannotations"];
@@ -359,6 +361,9 @@ const CandidateList = () => {
     totalMatches,
     selectedAnnotationSortOptions,
   } = useSelector((state) => state.candidates);
+  const [sortOrder, setSortOrder] = useState(
+    selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null
+  );
 
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible
@@ -1036,6 +1041,8 @@ const CandidateList = () => {
         filterFormData={filterFormData}
         setQueryInProgress={setQueryInProgress}
         loaded={!queryInProgress}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
       />
     ),
     onFilterChange: handleTableFilterChipChange,
@@ -1054,6 +1061,7 @@ const CandidateList = () => {
           setFilterGroups={setFilterGroups}
           numPerPage={rowsPerPage}
           annotationFilterList={filterListQueryStrings.join()}
+          setSortOrder={setSortOrder}
         />
         <Box
           display={queryInProgress ? "block" : "none"}

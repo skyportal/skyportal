@@ -1315,3 +1315,154 @@ def test_candidate_list_not_saved_to_all_selected_groups(
         )
         == 0
     )
+
+
+def test_correct_spectra_and_photometry_returned_by_candidate(
+    public_candidate,
+    public_candidate2,  # adds phot and spec that should not be returned
+    view_only_token_two_groups,
+):
+
+    status, data = api(
+        'GET',
+        f"candidates/{public_candidate.id}?includePhotometry=t&includeSpectra=t",
+        token=view_only_token_two_groups,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    assert len(public_candidate.photometry) == len(data['data']['photometry'])
+    assert len(public_candidate.spectra) == len(data['data']['spectra'])
+
+    phot_ids_db = sorted([p.id for p in public_candidate.photometry])
+    phot_ids_api = sorted([p['id'] for p in data['data']['photometry']])
+    assert phot_ids_db == phot_ids_api
+
+    spec_ids_db = sorted([p.id for p in public_candidate.spectra])
+    spec_ids_api = sorted([p['id'] for p in data['data']['spectra']])
+    assert spec_ids_db == spec_ids_api
+
+
+def test_candidates_hidden_photometry_not_leaked(
+    public_candidate,
+    ztf_camera,
+    public_group,
+    public_group2,
+    view_only_token,
+    upload_data_token_two_groups,
+):
+    obj_id = str(public_candidate.id)
+    # Post photometry to the object belonging to a different group
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group2.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    photometry_id = data['data']['ids'][0]
+
+    # Check the photometry sent back with the candidate
+    status, data = api(
+        "GET",
+        "candidates",
+        params={"groupIDs": f"{public_group.id}", "includePhotometry": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["candidates"]) == 1
+    assert data["data"]["candidates"][0]["id"] == obj_id
+    assert len(public_candidate.photometry) - 1 == len(
+        data["data"]["candidates"][0]["photometry"]
+    )
+    assert photometry_id not in map(
+        lambda x: x["id"], data["data"]["candidates"][0]["photometry"]
+    )
+
+    # Check for single GET call as well
+    status, data = api(
+        "GET",
+        f"candidates/{obj_id}",
+        params={"includePhotometry": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+    assert len(public_candidate.photometry) - 1 == len(data["data"]["photometry"])
+    assert photometry_id not in map(lambda x: x["id"], data["data"]["photometry"])
+
+
+def test_candidate_list_pagination(
+    view_only_token,
+    upload_data_token,
+    public_group,
+    public_filter,
+):
+    # Upload two candidates with know passed_at order
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow() + datetime.timedelta(days=1)),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    # Default order is descending passed_at
+    status, data = api(
+        "GET",
+        "candidates",
+        params={"numPerPage": 1, "pageNumber": 2, "groupIDs": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["data"]["candidates"][0]["id"] == obj_id1
+
+    # Invalid page
+    status, data = api(
+        "GET",
+        "candidates",
+        params={"numPerPage": 1, "pageNumber": 4},
+        token=view_only_token,
+    )
+    assert status == 400
+    assert "Page number out of range" in data["message"]

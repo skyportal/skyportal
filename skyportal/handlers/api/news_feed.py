@@ -2,7 +2,6 @@ from sqlalchemy import desc, or_
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
-    DBSession,
     Source,
     Comment,
     Classification,
@@ -54,17 +53,7 @@ class NewsFeedHandler(BaseHandler):
             n_items = 10
 
         def fetch_newest(model):
-            query = model.query.filter(
-                model.obj_id.in_(
-                    DBSession()
-                    .query(Source.obj_id)
-                    .filter(
-                        Source.group_id.in_(
-                            [g.id for g in self.current_user.accessible_groups]
-                        )
-                    )
-                )
-            )
+            query = model.query_records_accessible_by(self.current_user)
             if model == Photometry:
                 query = query.filter(
                     or_(
@@ -179,5 +168,5 @@ class NewsFeedHandler(BaseHandler):
 
         news_feed_items.sort(key=lambda x: x['time'], reverse=True)
         news_feed_items = news_feed_items[:n_items]
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=news_feed_items)

@@ -113,6 +113,7 @@ const FilterCandidateList = ({
   setFilterGroups,
   numPerPage,
   annotationFilterList,
+  setSortOrder,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -223,6 +224,11 @@ const FilterCandidateList = ({
     setFilterGroups(
       userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
     );
+
+    // Clear annotation sort params
+    await dispatch(candidatesActions.setCandidatesAnnotationSortOptions(null));
+    setSortOrder(null);
+
     // Save form-specific data, formatted for the API query
     await dispatch(candidatesActions.setFilterFormData(data));
 
@@ -484,6 +490,7 @@ FilterCandidateList.propTypes = {
   setQueryInProgress: PropTypes.func.isRequired,
   setFilterGroups: PropTypes.func.isRequired,
   numPerPage: PropTypes.number.isRequired,
+  setSortOrder: PropTypes.func.isRequired,
   annotationFilterList: PropTypes.string,
 };
 FilterCandidateList.defaultProps = {

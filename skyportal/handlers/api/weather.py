@@ -5,7 +5,7 @@ from baselayer.app.env import load_env
 from ...utils.offset import get_url
 
 from ..base import BaseHandler
-from ...models import Telescope
+from ...models import DBSession, Telescope, Weather
 
 _, cfg = load_env()
 weather_refresh = cfg["weather"].get("refresh_time") if cfg.get("weather") else None
@@ -21,7 +21,7 @@ class WeatherHandler(BaseHandler):
     def get(self):
         """
         ---
-        description: Retrieve weather at the telescope site saved by user
+        description: Retrieve weather info at the telescope site saved by user
         tags:
           - weather
           - telescopes
@@ -47,47 +47,70 @@ class WeatherHandler(BaseHandler):
                             weather_link:
                               type: string
                               description: URL for more weather info
-                            name:
+                            telescope_name:
                               type: string
                               description: Name of the telescope
-                            nickname:
+                            telescope_nickname:
                               type: string
                               description: Short name of the telescope
+                            telescope_id:
+                              type: integer
+                              description: Telescope ID
+                            message:
+                              type: string
+                              description: Weather fetching error message
         """
         user_prefs = getattr(self.current_user, 'preferences', None) or {}
         weather_prefs = user_prefs.get('weather', {})
         weather_prefs = {**default_prefs, **weather_prefs}
 
-        t = Telescope.query.get(int(weather_prefs["telescopeID"]))
-        if t is None:
+        telescope_id = int(weather_prefs["telescopeID"])
+        telescope = Telescope.query.get(telescope_id)
+        if telescope is None:
             return self.error(
                 f"Could not load telescope with ID {weather_prefs['telescopeID']}"
             )
+        weather = Weather.query.filter(Weather.telescope_id == telescope_id).first()
+        if weather is None:
+            weather = Weather(telescope=telescope)
+            DBSession().add(weather)
 
         # Should we call the API again?
         refresh = weather_refresh is not None
-        if refresh and t.weather_retrieved_at is not None:
+        if refresh and weather.retrieved_at is not None:
             if (
-                t.weather_retrieved_at + datetime.timedelta(seconds=weather_refresh)
+                weather.retrieved_at + datetime.timedelta(seconds=weather_refresh)
                 >= datetime.datetime.utcnow()
             ):
                 # it is too soon to refresh
                 refresh = False
+        elif weather.retrieved_at is None:
+            refresh = True
 
         message = ""
         if refresh:
             response = get_url(
                 "https://api.openweathermap.org/data/2.5/onecall?"
-                f"lat={t.lat}&lon={t.lon}&appid={openweather_api_key}"
+                f"lat={telescope.lat}&lon={telescope.lon}&appid={openweather_api_key}"
             )
             if response is not None:
                 if response.status_code == 200:
-                    weather = response.json()
-                    t.weather = weather
-                    t.weather_retrieved_at = datetime.datetime.utcnow()
-                    self.finalize_transaction()
+                    data = response.json()
+                    weather.weather_info = data
+                    weather.retrieved_at = datetime.datetime.utcnow()
+                    self.verify_and_commit()
                 else:
                     message = response.text
 
-        self.verify_permissions()
-        return self.success(data={**t.to_dict(), "message": message})
+        self.verify_and_commit()
+        return self.success(
+            data={
+                "weather": weather.weather_info,
+                "weather_retrieved_at": weather.retrieved_at,
+                "weather_link": telescope.weather_link,
+                "telescope_name": telescope.name,
+                "telescope_nickname": telescope.nickname,
+                "telescope_id": telescope.id,
+                "message": message,
+            }
+        )

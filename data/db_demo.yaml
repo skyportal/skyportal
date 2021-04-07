@@ -46,9 +46,11 @@ groups:
     =id: program_B
 
 groups/=program_A/users:
-  - userID: =viewonlyuser
-    admin: false
   - userID: =fulluser
+    admin: false
+
+groups/=program_B/users:
+  - userID: =viewonlyuser
     admin: false
 
 streams/=ztf_public/users:
@@ -57,8 +59,12 @@ streams/=ztf_public/users:
   - user_id: =groupadmin
   - user_id: =testadmin
 
+streams/=ztf_partnership/users:
+  - user_id: =fulluser
+  - user_id: =groupadmin
+  - user_id: =testadmin
+
 streams/=ztf_caltech/users:
-  - user_id: =viewonlyuser
   - user_id: =fulluser
   - user_id: =groupadmin
   - user_id: =testadmin
@@ -80,6 +86,16 @@ filters:
     =id: example_filter2
 
 telescope:
+  - name: Palomar 1.2m
+    nickname: P48
+    lat: 33.3580556
+    lon: -116.861944
+    elevation: 1706
+    diameter: 1.26
+    robotic: true
+    skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+    weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
+    =id: P48
   - name: Palomar 1.5m
     nickname: P60
     lat: 33.3633675
@@ -128,11 +144,12 @@ telescope:
     =id: LT
 
 instrument:
-  - name: P60 Camera
+  - name: ZTF
     type: imager
     band: V
-    telescope_id: =P60
+    telescope_id: =P48
     filters: ["ztfg", "ztfr", "ztfi"]
+    =id: ZTF
   - name: ALFOSC
     type: imaging spectrograph
     band: V
@@ -217,9 +234,6 @@ candidates:
     dec: 33.646149
     redshift: 0.063
     varstar: false
-    altdata:
-      simbad:
-        class: RRLyr
     passed_at: "2020-10-30 21:17:06.475748"
   - id: 14gqr
     filter_ids:
@@ -229,9 +243,6 @@ candidates:
     dec: 33.646149
     redshift: 0.063
     varstar: false
-    altdata:
-      simbad:
-        class: RRLyr
     passed_at: "2020-10-30 21:18:06.475748"
   - id: 16fil_unsaved_copy
     filter_ids:
@@ -239,10 +250,7 @@ candidates:
     ra: 322.718872
     dec: 27.574113
     redshift: 0.0
-    varstar: true
-    altdata:
-      simbad:
-        class: RRLyr
+    varstar: false
     passed_at: "2020-10-30 21:19:06.475748"
   - id: 16fil
     filter_ids:
@@ -250,11 +258,30 @@ candidates:
     ra: 322.718872
     dec: 27.574113
     redshift: 0.0
+    varstar: false
+    passed_at: "2020-10-30 21:13:06.475748"
+  - id: ZTFe028h94k
+    filter_ids:
+      - =example_filter
+    ra: 229.9620403
+    dec: 34.8442757
+    redshift: 0.0
     varstar: true
     altdata:
       simbad:
         class: RRLyr
-    passed_at: "2020-10-30 21:13:06.475748"
+    passed_at: "2020-10-30 11:13:06.475748"
+  - id: ZTFrlh6cyjh
+    filter_ids:
+      - =example_filter
+    ra: 342.4596
+    dec: 51.2634
+    redshift: 0.0
+    varstar: true
+    altdata:
+      simbad:
+        class: EB
+    passed_at: "2020-10-30 11:23:06.475748"
 
 sources:
   - id: 14gqr
@@ -273,6 +300,20 @@ sources:
     group_ids:
       - =public_group_id
       - =program_A
+  - id: ZTFe028h94k
+    ra: 229.9620403
+    dec: 34.8442757
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+  - id: ZTFrlh6cyjh
+    ra: 342.4596
+    dec: 51.2634
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
 
 comment:
   - obj_id: 14gqr_unsaved_copy
@@ -316,7 +357,6 @@ annotation:
     origin: "Program A"
     data:
       numeric_field: 0.123456789
-      period: 1.107332
       some_boolean: true
       some_text: "some text auto-annotation"
     group_ids:
@@ -351,14 +391,25 @@ annotation:
     origin: "Program A"
     data:
       numeric_field: 0.98765
-      period: 0.5281217208459
       some_boolean: false
     group_ids:
       - =program_A
-  - obj_id: 16fil
+  - obj_id: ZTFe028h94k
     origin: "Program B"
     data:
       period: 0.5281475
+    group_ids:
+      - =program_B
+  - obj_id: ZTFe028h94k
+    origin: "ZVM"
+    data:
+      period: 0.5281217208459
+    group_ids:
+      - =program_B
+  - obj_id: ZTFrlh6cyjh
+    origin: "ZVM"
+    data:
+      period: 1.107332
     group_ids:
       - =program_B
 
@@ -401,30 +452,44 @@ assignment:
 
 photometry:
   - obj_id: 14gqr_unsaved_copy
-    instrument_id: =P60
+    instrument_id: =ZTF
     assignment_id: 1
-    file: phot.csv
+    file: 14gqr_phot.csv
     group_ids:
       - =program_A
       - =program_B
   - obj_id: 14gqr
-    instrument_id: =P60
+    instrument_id: =ZTF
     assignment_id: 1
-    file: phot3.csv
+    file: 14gqr_phot.csv
     group_ids:
       - =program_A
       - =program_B
   - obj_id: 16fil_unsaved_copy
-    instrument_id: =P60
+    instrument_id: =ZTF
     assignment_id: 2
-    file: phot2.csv
+    file: 16fil_phot.csv
     group_ids:
       - =program_A
       - =program_B
   - obj_id: 16fil
-    instrument_id: =P60
+    instrument_id: =ZTF
     assignment_id: 2
-    file: phot2.csv
+    file: 16fil_phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: ZTFe028h94k
+    instrument_id: =ZTF
+    assignment_id: 2
+    file: ZTFe028h94k_phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: ZTFrlh6cyjh
+    instrument_id: =ZTF
+    assignment_id: 2
+    file: ZTFrlh6cyjh_phot.csv
     group_ids:
       - =program_A
       - =program_B
@@ -523,3 +588,11 @@ thumbnail:
     ttype: sub
     data:
       file: ../skyportal/tests/data/16fil_sub.png
+  - obj_id: ZTFe028h94k
+    ttype: new
+    data:
+      file: ./ZTFe028h94k_new.png
+  - obj_id: ZTFrlh6cyjh
+    ttype: new
+    data:
+      file: ./ZTFrlh6cyjh_new.png

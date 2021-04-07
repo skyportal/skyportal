@@ -60,7 +60,7 @@ class TaxonomyHandler(BaseHandler):
                 Group.id.in_([g.id for g in self.current_user.accessible_groups])
             )
         )
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=query.all())
 
     @permissions(['Post taxonomy'])
@@ -196,11 +196,11 @@ class TaxonomyHandler(BaseHandler):
         )
 
         DBSession().add(taxonomy)
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         return self.success(data={'taxonomy_id': taxonomy.id})
 
-    @permissions(['Delete taxonomy'])
+    @auth_or_token
     def delete(self, taxonomy_id):
         """
         ---
@@ -219,11 +219,12 @@ class TaxonomyHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        c = Taxonomy.query.get(taxonomy_id)
-        if c is None:
-            return self.error("Invalid taxonomy ID")
 
-        Taxonomy.query.filter_by(id=taxonomy_id).delete()
-        self.finalize_transaction()
+        taxonomy = Taxonomy.get_if_accessible_by(
+            taxonomy_id, self.current_user, mode='delete', raise_if_none=True
+        )
+
+        DBSession().delete(taxonomy)
+        self.verify_and_commit()
 
         return self.success()
