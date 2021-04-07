@@ -500,14 +500,15 @@ class CandidateHandler(BaseHandler):
         if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
             end_date = arrow.get(end_date).datetime
             initial_candidate_filter_criteria.append(Candidate.passed_at <= end_date)
-        candidate_subquery = Candidate.query_records_accessible_by(
-            self.current_user
-        ).subquery()
+        candidate_subquery = (
+            Candidate.query_records_accessible_by(self.current_user)
+            .filter(*initial_candidate_filter_criteria)
+            .subquery()
+        )
         # We'll join in the nested data for Obj (like photometry) later
         q = (
             Obj.query_records_accessible_by(self.current_user)
             .join(candidate_subquery, Obj.id == candidate_subquery.c.obj_id)
-            .filter(*initial_candidate_filter_criteria)
             .outerjoin(Annotation)
         )  # Join in annotations info for sort/filter
 
