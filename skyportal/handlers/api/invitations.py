@@ -1,7 +1,7 @@
 import uuid
 import smtplib
 import python_http_client.exceptions
-from baselayer.app.access import permissions
+from baselayer.app.access import permissions, AccessError
 from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
@@ -65,7 +65,17 @@ class InvitationHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: New invitation ID
         """
         if not cfg["invitations.enabled"]:
             return self.error("Invitations are not enabled in current deployment.")
@@ -139,16 +149,15 @@ class InvitationHandler(BaseHandler):
             return self.error("groupAdmin and groupIDs must be the same length")
 
         invite_token = str(uuid.uuid4())
-        DBSession().add(
-            Invitation(
-                token=invite_token,
-                groups=groups,
-                admin_for_groups=admin_for_groups,
-                streams=streams,
-                user_email=user_email,
-                invited_by=self.associated_user_object,
-            )
+        invitation = Invitation(
+            token=invite_token,
+            groups=groups,
+            admin_for_groups=admin_for_groups,
+            streams=streams,
+            user_email=user_email,
+            invited_by=self.associated_user_object,
         )
+        DBSession().add(invitation)
         try:
             self.verify_and_commit()
         except python_http_client.exceptions.UnauthorizedError:
@@ -162,7 +171,7 @@ class InvitationHandler(BaseHandler):
                 "SMTP authentication failed. Please ensure valid "
                 "credentials are specified in the config file."
             )
-        return self.success()
+        return self.success(data={"id": invitation.id})
 
     @permissions(["Manage users"])
     def get(self):
@@ -312,14 +321,21 @@ class InvitationHandler(BaseHandler):
                 schema: Success
         """
         data = self.get_json()
-        invitation = Invitation.get_if_accessible_by(
-            invitation_id, self.current_user, raise_if_none=True, mode="update"
-        )
+        try:
+            invitation = Invitation.get_if_accessible_by(
+                invitation_id, self.current_user, raise_if_none=True, mode="update"
+            )
+        except AccessError as e:
+            return self.error(
+                "Insufficient permissions: Only the invitor may update an invitation. "
+                f"(Original exception: {e})"
+            )
+
         group_ids = data.get("groupIDs")
         stream_ids = data.get("streamIDs")
         if group_ids is None and stream_ids is None:
             return self.error(
-                "At least one of either groupIDs or streamIDs are requried."
+                "At least one of either groupIDs or streamIDs are required."
             )
         if group_ids is not None:
             group_ids = [int(gid) for gid in group_ids]
@@ -394,9 +410,15 @@ class InvitationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        invitation = Invitation.get_if_accessible_by(
-            invitation_id, self.current_user, raise_if_none=True, mode="delete"
-        )
+        try:
+            invitation = Invitation.get_if_accessible_by(
+                invitation_id, self.current_user, raise_if_none=True, mode="delete"
+            )
+        except AccessError as e:
+            return self.error(
+                "Insufficient permissions: Only the invitor may delete an invitation. "
+                f"(Original exception: {e})"
+            )
         DBSession().delete(invitation)
         self.verify_and_commit()
         return self.success()

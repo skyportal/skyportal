@@ -734,6 +734,18 @@ def super_admin_user(public_group, public_stream):
 
 
 @pytest.fixture()
+def super_admin_user_group2(public_group2, public_stream):
+    user = UserFactory(
+        groups=[public_group2],
+        roles=[models.Role.query.get("Super admin")],
+        streams=[public_stream],
+    )
+    user_id = user.id
+    yield user
+    UserFactory.teardown(user_id)
+
+
+@pytest.fixture()
 def super_admin_user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
         groups=[public_group, public_group2],
@@ -831,6 +843,17 @@ def manage_users_token(super_admin_user):
     token_id = create_token(
         ACLs=["Manage users"],
         user_id=super_admin_user.id,
+        name=str(uuid.uuid4()),
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def manage_users_token_group2(super_admin_user_group2):
+    token_id = create_token(
+        ACLs=["Manage users"],
+        user_id=super_admin_user_group2.id,
         name=str(uuid.uuid4()),
     )
     yield token_id
