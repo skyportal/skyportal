@@ -506,11 +506,11 @@ class CandidateHandler(BaseHandler):
             .subquery()
         )
         # We'll join in the nested data for Obj (like photometry) later
-        q = (
-            Obj.query_records_accessible_by(self.current_user)
-            .join(candidate_subquery, Obj.id == candidate_subquery.c.obj_id)
-            .outerjoin(Annotation)
-        )  # Join in annotations info for sort/filter
+        q = Obj.query_records_accessible_by(self.current_user).join(
+            candidate_subquery, Obj.id == candidate_subquery.c.obj_id
+        )
+        if sort_by_origin is not None or annotation_filter_list is not None:
+            q = q.outerjoin(Annotation)
 
         if classifications is not None:
             if isinstance(classifications, str) and "," in classifications:
