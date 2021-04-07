@@ -364,12 +364,17 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         single_user_group = self.associated_user_object.single_user_group
 
         group_ids = json.pop('group_ids', [])
-        if not group_ids:
+        if group_ids is None:
             groups = [single_user_group]
         else:
-            groups = Group.get_if_accessible_by(
-                group_ids, self.current_user, raise_if_none=True
-            )
+            if group_ids == "all":
+                groups = Group.query.filter(
+                    Group.name == cfg['misc.public_group_name']
+                ).all()
+            else:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
 
         if single_user_group not in groups:
             groups.append(single_user_group)
