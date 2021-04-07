@@ -74,7 +74,7 @@ class SpectrumHandler(BaseHandler):
         single_user_group = self.associated_user_object.single_user_group
 
         group_ids = data.pop("group_ids", None)
-        if not group_ids:
+        if group_ids is None:
             groups = [single_user_group]
         else:
             if group_ids == "all":
