@@ -515,17 +515,19 @@ class ObjSpectraHandler(BaseHandler):
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object ID.')
+        query_options = [
+            joinedload(Spectrum.instrument.name)
+            .joinedload(Spectrum.groups)
+            .joinedload(Spectrum.reducers)
+            .joinedload(Spectrum.observers)
+            .joinedload(Spectrum.owner)
+        ]
         spectra = Obj.get_spectra_readable_by(
-            obj_id, self.current_user, options=[joinedload(Spectrum.groups)]
+            obj_id, self.current_user, options=query_options
         )
         return_values = []
         for spec in spectra:
             spec_dict = spec.to_dict()
-            spec_dict["instrument_name"] = spec.instrument.name
-            spec_dict["groups"] = spec.groups
-            spec_dict["reducers"] = spec.reducers
-            spec_dict["observers"] = spec.observers
-            spec_dict["owner"] = spec.owner
             return_values.append(spec_dict)
 
         normalization = self.get_query_argument('normalization', None)
