@@ -61,6 +61,14 @@ if not DBSession.query(User).filter(User.username == "test factory").scalar():
     DBSession.add(User(username="test factory"))
     DBSession.commit()
 
+# Also add the test driver user (testuser-cesium-ml-org) if needed so that the driver
+# fixture has a user to login as (without needing an invitation token).
+if not DBSession.query(User).filter(User.username == "testuser-cesium-ml-org").scalar():
+    DBSession.add(
+        User(username="testuser-cesium-ml-org", oauth_uid="testuser@cesium-ml.org")
+    )
+    DBSession.commit()
+
 
 def pytest_runtest_setup(item):
     # Print timestamp when running each test
