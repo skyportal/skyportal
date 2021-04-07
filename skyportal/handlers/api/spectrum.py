@@ -155,16 +155,18 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
 
+        query_options = [
+            joinedload(Spectrum.instrument.name)
+            .joinedload(Spectrum.groups)
+            .joinedload(Spectrum.reducers)
+            .joinedload(Spectrum.observers)
+            .joinedload(Spectrum.owner)
+        ]
         spectrum = Spectrum.get_if_accessible_by(
-            spectrum_id, self.current_user, raise_if_none=True
+            spectrum_id, self.current_user, raise_if_none=True, options=query_options
         )
 
         spec_dict = spectrum.to_dict()
-        spec_dict["instrument_name"] = spectrum.instrument.name
-        spec_dict["groups"] = spectrum.groups
-        spec_dict["reducers"] = spectrum.reducers
-        spec_dict["observers"] = spectrum.observers
-        spec_dict["owner"] = spectrum.owner
         self.verify_and_commit()
         return self.success(data=spec_dict)
 
