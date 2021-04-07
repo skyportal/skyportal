@@ -94,11 +94,7 @@ class InvitationHandler(BaseHandler):
                 "Invalid value provided for `groupIDs`; unable to parse "
                 "all list items to integers."
             )
-        groups = (
-            Group.query_records_accessible_by(self.current_user, mode="read")
-            .filter(Group.id.in_(group_ids))
-            .all()
-        )
+        groups = Group.get_if_accessible_by(group_ids, self.current_user)
         if set(group_ids).difference({g.id for g in groups}):
             return self.error(
                 "The following groupIDs elements are invalid: "
@@ -114,11 +110,7 @@ class InvitationHandler(BaseHandler):
                     "all list items to integers."
                 )
 
-            streams = (
-                Stream.query_records_accessible_by(self.current_user, mode="read")
-                .filter(Stream.id.in_(stream_ids))
-                .all()
-            )
+            streams = Stream.get_if_accessible_by(stream_ids, self.current_user)
             if set(stream_ids).difference({s.id for s in streams}):
                 return self.error(
                     "The following streamIDs elements are invalid: "
@@ -339,11 +331,7 @@ class InvitationHandler(BaseHandler):
             )
         if group_ids is not None:
             group_ids = [int(gid) for gid in group_ids]
-            groups = (
-                Group.query_records_accessible_by(self.current_user, mode="read")
-                .filter(Group.id.in_(group_ids))
-                .all()
-            )
+            groups = Group.get_if_accessible_by(group_ids, self.current_user)
             if set(group_ids).difference({g.id for g in groups}):
                 return self.error(
                     "The following groupIDs elements are invalid: "
@@ -358,11 +346,7 @@ class InvitationHandler(BaseHandler):
             )
         if stream_ids is not None:
             stream_ids = [int(sid) for sid in stream_ids]
-            streams = (
-                Stream.query_records_accessible_by(self.current_user, mode="read")
-                .filter(Stream.id.in_(stream_ids))
-                .all()
-            )
+            streams = Stream.get_if_accessible_by(stream_ids, self.current_user)
             if set(stream_ids).difference({s.id for s in streams}):
                 return self.error(
                     "The following streamIDs elements are invalid: "
