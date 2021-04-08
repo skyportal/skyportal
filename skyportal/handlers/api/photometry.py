@@ -823,6 +823,11 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
 
+        try:
+            photometry_id = int(photometry_id)
+        except ValueError:
+            return self.error('Photometry id must be an int.')
+
         photometry = Photometry.get_if_readable_by(photometry_id, self.current_user)
         if not photometry.is_modifiable_by(self.associated_user_object):
             return self.error(

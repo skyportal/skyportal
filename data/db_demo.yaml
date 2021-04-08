@@ -46,9 +46,11 @@ groups:
     =id: program_B
 
 groups/=program_A/users:
-  - userID: =viewonlyuser
-    admin: false
   - userID: =fulluser
+    admin: false
+
+groups/=program_B/users:
+  - userID: =viewonlyuser
     admin: false
 
 streams/=ztf_public/users:
@@ -57,8 +59,12 @@ streams/=ztf_public/users:
   - user_id: =groupadmin
   - user_id: =testadmin
 
+streams/=ztf_partnership/users:
+  - user_id: =fulluser
+  - user_id: =groupadmin
+  - user_id: =testadmin
+
 streams/=ztf_caltech/users:
-  - user_id: =viewonlyuser
   - user_id: =fulluser
   - user_id: =groupadmin
   - user_id: =testadmin

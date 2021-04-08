@@ -63,15 +63,7 @@ const CommentList = () => {
     <div className={styles.comments}>
       <div className={styles.commentsList}>
         {comments.map(
-          ({
-            id,
-            author,
-            author_info,
-            created_at,
-            text,
-            attachment_name,
-            groups,
-          }) => (
+          ({ id, author, created_at, text, attachment_name, groups }) => (
             <span
               key={id}
               className={commentStyle}
@@ -85,10 +77,10 @@ const CommentList = () => {
               <div className={styles.commentUserAvatar}>
                 <UserAvatar
                   size={24}
-                  firstName={author_info.first_name}
-                  lastName={author_info.last_name}
-                  username={author_info.username}
-                  gravatarUrl={author_info.gravatar_url}
+                  firstName={author.first_name}
+                  lastName={author.last_name}
+                  username={author.username}
+                  gravatarUrl={author.gravatar_url}
                 />
               </div>
               <div className={styles.commentContent}>
