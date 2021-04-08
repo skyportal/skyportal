@@ -12,6 +12,7 @@ from sqlalchemy.types import Float, Boolean
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.model_util import recursive_to_dict
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -25,6 +26,7 @@ from ...models import (
     Group,
     Classification,
     Listing,
+    Comment,
 )
 
 
@@ -69,12 +71,9 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        user_group_ids = [g.id for g in self.associated_user_object.accessible_groups]
         num_c = (
-            DBSession()
-            .query(Candidate)
-            .join(Filter)
-            .filter(Candidate.obj_id == obj_id, Filter.group_id.in_(user_group_ids))
+            Candidate.query_records_accessible_by(self.current_user)
+            .filter(Candidate.obj_id == obj_id)
             .count()
         )
         self.verify_and_commit()
@@ -324,9 +323,9 @@ class CandidateHandler(BaseHandler):
         include_spectra = self.get_query_argument("includeSpectra", False)
 
         if obj_id is not None:
-            query_options = [joinedload(Candidate.obj).joinedload(Obj.thumbnails)]
+            query_options = [joinedload(Obj.thumbnails)]
 
-            c = Candidate.get_obj_if_readable_by(
+            c = Obj.get_if_accessible_by(
                 obj_id,
                 self.current_user,
                 options=query_options,
@@ -334,15 +333,8 @@ class CandidateHandler(BaseHandler):
             if c is None:
                 return self.error("Invalid ID")
             accessible_candidates = (
-                DBSession()
-                .query(Candidate)
-                .join(Filter)
-                .filter(
-                    Candidate.obj_id == obj_id,
-                    Filter.group_id.in_(
-                        [g.id for g in self.current_user.accessible_groups]
-                    ),
-                )
+                Candidate.query_records_accessible_by(self.current_user)
+                .filter(Candidate.obj_id == obj_id)
                 .all()
             )
             filter_ids = [cand.filter_id for cand in accessible_candidates]
@@ -356,15 +348,14 @@ class CandidateHandler(BaseHandler):
                 for cand in accessible_candidates
             ]
 
-            candidate_info = c.to_dict()
+            candidate_info = recursive_to_dict(c)
             candidate_info["filter_ids"] = filter_ids
             candidate_info["passing_alerts"] = passing_alerts
             candidate_info["comments"] = sorted(
-                [
-                    cmt.to_dict()
-                    for cmt in c.get_comments_readable_by(self.current_user)
-                ],
-                key=lambda x: x["created_at"],
+                Comment.query_records_accessible_by(self.current_user)
+                .filter(Comment.obj_id == obj_id)
+                .all(),
+                key=lambda x: x.created_at,
                 reverse=True,
             )
 
@@ -391,22 +382,32 @@ class CandidateHandler(BaseHandler):
                 )
 
             candidate_info["annotations"] = sorted(
-                c.get_annotations_readable_by(self.current_user),
+                Annotation.query_records_accessible_by(self.current_user).filter(
+                    Annotation.obj_id == obj_id
+                ),
                 key=lambda x: x.origin,
             )
-            candidate_info["is_source"] = len(c.sources) > 0
+            candidate_info["is_source"] = (
+                Source.query_records_accessible_by(self.current_user)
+                .filter(Source.obj_id == obj_id)
+                .count()
+                > 0
+            )
             if candidate_info["is_source"]:
+                source_subquery = Source.query_records_accessible_by(
+                    self.current_user
+                ).subquery()
                 candidate_info["saved_groups"] = (
-                    DBSession()
-                    .query(Group)
-                    .join(Source)
+                    Group.query_records_accessible_by(self.current_user)
+                    .join(source_subquery, Group.id == source_subquery.c.group_id)
                     .filter(Source.obj_id == obj_id)
                     .filter(Source.active.is_(True))
-                    .filter(Group.id.in_(user_accessible_group_ids))
                     .all()
                 )
-                candidate_info["classifications"] = c.get_classifications_readable_by(
-                    self.current_user
+                candidate_info["classifications"] = (
+                    Classification.query_records_accessible_by(self.current_user)
+                    .filter(Classification.obj_id == obj_id)
+                    .all()
                 )
             candidate_info["last_detected_at"] = c.last_detected_at(self.current_user)
             candidate_info["gal_lon"] = c.gal_lon_deg
@@ -415,6 +416,7 @@ class CandidateHandler(BaseHandler):
             candidate_info["dm"] = c.dm
             candidate_info["angular_diameter_distance"] = c.angular_diameter_distance
 
+            candidate_info = recursive_to_dict(candidate_info)
             self.verify_and_commit()
             return self.success(data=candidate_info)
 
@@ -454,7 +456,10 @@ class CandidateHandler(BaseHandler):
             else:
                 return self.error("Invalid groupIDs value -- select at least one group")
             filter_ids = [
-                f.id for f in Filter.query.filter(Filter.group_id.in_(group_ids))
+                f.id
+                for f in Filter.query_records_accessible_by(self.current_user).filter(
+                    Filter.group_id.in_(group_ids)
+                )
             ]
         elif filter_ids is not None:
             if "," in filter_ids:
@@ -464,22 +469,15 @@ class CandidateHandler(BaseHandler):
             else:
                 return self.error("Invalid filterIDs paramter value.")
             group_ids = [
-                f.group_id for f in Filter.query.filter(Filter.id.in_(filter_ids))
+                f.group_id
+                for f in Filter.query_records_accessible_by(self.current_user).filter(
+                    Filter.id.in_(filter_ids)
+                )
             ]
         else:
             # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
             group_ids = user_accessible_group_ids
             filter_ids = user_accessible_filter_ids
-
-        # Ensure user has access to specified groups/filters
-        if not (
-            all([gid in user_accessible_group_ids for gid in group_ids])
-            and all([fid in user_accessible_filter_ids for fid in filter_ids])
-        ):
-            return self.error(
-                "Insufficient permissions - you must only specify "
-                "groups/filters that you have access to."
-            )
 
         try:
             page = int(page_number)
@@ -502,20 +500,17 @@ class CandidateHandler(BaseHandler):
         if end_date is not None and end_date.strip() not in ["", "null", "undefined"]:
             end_date = arrow.get(end_date).datetime
             initial_candidate_filter_criteria.append(Candidate.passed_at <= end_date)
+        candidate_subquery = (
+            Candidate.query_records_accessible_by(self.current_user)
+            .filter(*initial_candidate_filter_criteria)
+            .subquery()
+        )
         # We'll join in the nested data for Obj (like photometry) later
-        q = (
-            DBSession()
-            .query(Obj)
-            .join(Candidate)
-            .filter(
-                Obj.id.in_(
-                    DBSession()
-                    .query(Candidate.obj_id)
-                    .filter(*initial_candidate_filter_criteria)
-                )
-            )
-            .outerjoin(Annotation)
-        )  # Join in annotations info for sort/filter
+        q = Obj.query_records_accessible_by(self.current_user).join(
+            candidate_subquery, Obj.id == candidate_subquery.c.obj_id
+        )
+        if sort_by_origin is not None or annotation_filter_list is not None:
+            q = q.outerjoin(Annotation)
 
         if classifications is not None:
             if isinstance(classifications, str) and "," in classifications:
@@ -544,9 +539,9 @@ class CandidateHandler(BaseHandler):
             "notSavedToAllSelected",
         ]:
             notin = False
-            active_sources = (
-                DBSession().query(Source.obj_id).filter(Source.active.is_(True))
-            )
+            active_sources = Source.query_records_accessible_by(
+                self.current_user, columns=[Source.obj_id]
+            ).filter(Source.active.is_(True))
             if saved_status == "savedToAllSelected":
                 # Retrieve objects that have as many active saved groups that are
                 # in 'group_ids' as there are items in 'group_ids'
@@ -605,11 +600,9 @@ class CandidateHandler(BaseHandler):
             )
 
         if annotation_exclude_origin is not None:
-
             if annotation_exclude_date is None:
                 right = (
-                    DBSession()
-                    .query(Obj.id)
+                    Obj.query_records_accessible_by(self.current_user, columns=[Obj.id])
                     .join(Annotation)
                     .filter(Annotation.origin == annotation_exclude_origin)
                     .subquery()
@@ -617,8 +610,7 @@ class CandidateHandler(BaseHandler):
             else:
                 expire_date = arrow.get(annotation_exclude_date).datetime
                 right = (
-                    DBSession()
-                    .query(Obj.id)
+                    Obj.query_records_accessible_by(self.current_user, columns=[Obj.id])
                     .join(Annotation)
                     .filter(
                         Annotation.origin == annotation_exclude_origin,
@@ -636,8 +628,7 @@ class CandidateHandler(BaseHandler):
             )
         if list_name_reject is not None:
             right = (
-                DBSession()
-                .query(Obj.id)
+                Obj.query_records_accessible_by(self.current_user, columns=[Obj.id])
                 .join(Listing)
                 .filter(
                     Listing.list_name == list_name_reject,
@@ -754,9 +745,9 @@ class CandidateHandler(BaseHandler):
                 return self.error("Page number out of range.")
             raise
         matching_source_ids = (
-            DBSession()
-            .query(Source.obj_id)
-            .filter(Source.group_id.in_(user_accessible_group_ids))
+            Source.query_records_accessible_by(
+                self.current_user, columns=[Source.obj_id]
+            )
             .filter(Source.obj_id.in_([obj.id for obj in query_results["candidates"]]))
             .all()
         )
@@ -765,35 +756,35 @@ class CandidateHandler(BaseHandler):
             with DBSession().no_autoflush:
                 obj.is_source = (obj.id,) in matching_source_ids
                 if obj.is_source:
+                    source_subquery = Source.query_records_accessible_by(
+                        self.current_user
+                    ).subquery()
                     obj.saved_groups = (
-                        DBSession()
-                        .query(Group)
-                        .join(Source)
+                        Group.query_records_accessible_by(self.current_user)
+                        .join(source_subquery, Group.id == source_subquery.c.group_id)
                         .filter(Source.obj_id == obj.id)
                         .filter(Source.active.is_(True))
                         .filter(Group.id.in_(user_accessible_group_ids))
                         .all()
                     )
-                    obj.classifications = obj.get_classifications_readable_by(
-                        self.current_user
+                    obj.classifications = (
+                        Classification.query_records_accessible_by(self.current_user)
+                        .filter(Classification.obj_id == obj.id)
+                        .all()
                     )
                 obj.passing_group_ids = [
                     f.group_id
                     for f in (
-                        DBSession()
-                        .query(Filter)
-                        .filter(Filter.id.in_(user_accessible_filter_ids))
-                        .filter(
+                        Filter.query_records_accessible_by(self.current_user).filter(
                             Filter.id.in_(
-                                DBSession()
-                                .query(Candidate.filter_id)
-                                .filter(Candidate.obj_id == obj.id)
+                                Candidate.query_records_accessible_by(
+                                    self.current_user, columns=[Candidate.filter_id]
+                                ).filter(Candidate.obj_id == obj.id)
                             )
                         )
-                        .all()
                     )
                 ]
-                candidate_list.append(obj.to_dict())
+                candidate_list.append(recursive_to_dict(obj))
                 if include_photometry:
                     candidate_list[-1]["photometry"] = (
                         Photometry.query_records_accessible_by(
@@ -817,15 +808,16 @@ class CandidateHandler(BaseHandler):
                     )
 
                 candidate_list[-1]["comments"] = sorted(
-                    [
-                        cmt.to_dict()
-                        for cmt in obj.get_comments_readable_by(self.current_user)
-                    ],
-                    key=lambda x: x["created_at"],
+                    Comment.query_records_accessible_by(self.current_user)
+                    .filter(Comment.obj_id == obj.id)
+                    .all(),
+                    key=lambda x: x.created_at,
                     reverse=True,
                 )
                 candidate_list[-1]["annotations"] = sorted(
-                    obj.get_annotations_readable_by(self.current_user),
+                    Annotation.query_records_accessible_by(self.current_user)
+                    .filter(Annotation.obj_id == obj.id)
+                    .all(),
                     key=lambda x: x.origin,
                 )
                 candidate_list[-1]["last_detected_at"] = obj.last_detected_at(
@@ -840,6 +832,7 @@ class CandidateHandler(BaseHandler):
                 ] = obj.angular_diameter_distance
 
         query_results["candidates"] = candidate_list
+        query_results = recursive_to_dict(query_results)
         self.verify_and_commit()
         return self.success(data=query_results)
 
@@ -893,7 +886,9 @@ class CandidateHandler(BaseHandler):
                               description: List of new candidate IDs
         """
         data = self.get_json()
-        obj_already_exists = Obj.query.get(data["id"]) is not None
+        obj_already_exists = (
+            Obj.get_if_accessible_by(data["id"], self.current_user) is not None
+        )
         schema = Obj.__schema__()
 
         ra = data.get('ra', None)
@@ -914,17 +909,6 @@ class CandidateHandler(BaseHandler):
             filter_ids = data.pop("filter_ids")
         except KeyError:
             return self.error("Missing required filter_ids parameter.")
-        user_accessible_filter_ids = [
-            filtr.id
-            for g in self.current_user.accessible_groups
-            for filtr in g.filters
-            if g.filters is not None
-        ]
-        if not all([fid in user_accessible_filter_ids for fid in filter_ids]):
-            return self.error(
-                "Insufficient permissions - you must only specify "
-                "filters that you have access to."
-            )
 
         try:
             obj = schema.load(data)
@@ -932,7 +916,7 @@ class CandidateHandler(BaseHandler):
             return self.error(
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
-        filters = Filter.query.filter(Filter.id.in_(filter_ids)).all()
+        filters = Filter.get_if_accessible_by(filter_ids, self.current_user)
         if not filters:
             return self.error("At least one valid filter ID must be provided.")
 
@@ -980,28 +964,18 @@ class CandidateHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        cands = (
-            Candidate.query.filter(Candidate.obj_id == obj_id)
+        cands_to_delete = (
+            Candidate.query_records_accessible_by(self.current_user, mode="delete")
+            .filter(Candidate.obj_id == obj_id)
             .filter(Candidate.filter_id == filter_id)
             .all()
         )
-        if not cands:
+        if len(cands_to_delete) == 0:
             return self.error(
-                "Invalid (obj_id, filter_id) combination - "
-                "no matching candidates found."
+                "Invalid (obj_id, filter_id) pairing - no matching candidates"
             )
-        for c in cands:
-            if not (
-                self.associated_user_object.is_system_admin
-                or c.uploader_id == self.associated_user_object.id
-            ):
-                return self.error(
-                    "Insufficient permissions for candidate w/ "
-                    f"passed_at={c.passed_at}"
-                )
-        DBSession().query(Candidate).filter(Candidate.obj_id == obj_id).filter(
-            Candidate.filter_id == filter_id
-        ).delete(synchronize_session="fetch")
+        for cand in cands_to_delete:
+            DBSession().delete(cand)
         self.verify_and_commit()
 
         return self.success()
@@ -1055,13 +1029,28 @@ def grab_query_results(
     # in the query set, so re-order by the row_num we used to remember the
     # original ordering
     ordered_ids = (
-        DBSession().query(ids_with_row_nums.c.id).order_by(ids_with_row_nums.c.row_num)
+        DBSession()
+        .query(
+            ids_with_row_nums.c.id,
+            func.count(ids_with_row_nums.c.id).over().label('total'),
+        )
+        .order_by(ids_with_row_nums.c.row_num)
     )
 
-    if total_matches:
-        info["totalMatches"] = int(total_matches)
+    if page:
+        # Now bring in the full Obj info for the candidates
+        results = (
+            ordered_ids.limit(n_items_per_page)
+            .offset((page - 1) * n_items_per_page)
+            .all()
+        )
+        info["pageNumber"] = page
+        info["numPerPage"] = n_items_per_page
     else:
-        info["totalMatches"] = ordered_ids.count()
+        results = ordered_ids.all()
+
+    page_ids = map(lambda x: x[0], results)
+    info["totalMatches"] = results[0][1] if len(results) > 0 else 0
 
     if page:
         if (
@@ -1080,17 +1069,6 @@ def grab_query_results(
             or (info["totalMatches"] == 0 and page != 1)
         ):
             raise ValueError("Page number out of range.")
-
-        # Now bring in the full Obj info for the candidates
-        page_ids = (
-            ordered_ids.limit(n_items_per_page)
-            .offset((page - 1) * n_items_per_page)
-            .all()
-        )
-        info["pageNumber"] = page
-        info["numPerPage"] = n_items_per_page
-    else:
-        page_ids = ordered_ids.all()
 
     items = []
     query_options = [joinedload(Obj.thumbnails)]

@@ -19,7 +19,7 @@ apispec==4.0.0
 marshmallow==3.10.0
 marshmallow-sqlalchemy==0.24.1
 marshmallow-enum==1.5.1
-Pillow==8.1.0
+Pillow==8.1.1
 sncosmo==2.3.0
 tdtax==0.1.3
 healpix-alchemy==0.1.2
