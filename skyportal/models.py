@@ -2269,7 +2269,9 @@ class Classification(Base):
     read = accessible_by_groups_members & ok_if_tax_and_obj_readable
     update = delete = AccessibleIfUserMatches('author')
 
-    classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
+    classification = sa.Column(
+        sa.String, nullable=False, index=True, doc="The assigned class."
+    )
     taxonomy_id = sa.Column(
         sa.ForeignKey('taxonomies.id', ondelete='CASCADE'),
         nullable=False,
@@ -2285,6 +2287,7 @@ class Classification(Base):
         sa.Float,
         doc='User-assigned probability of belonging to this class',
         nullable=True,
+        index=True,
     )
 
     author_id = sa.Column(
