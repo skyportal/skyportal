@@ -215,9 +215,10 @@ def create_thumbnail(thumbnail_data, thumbnail_type, obj_id):
         file_uri=file_uri,
         public_url=f'/static/thumbnails/{obj_id}_{thumbnail_type}.png',
     )
+    with open(file_uri, 'wb') as f:
+        f.write(file_bytes)
+
     DBSession().add(t)
     DBSession().flush()
 
-    with open(file_uri, 'wb') as f:
-        f.write(file_bytes)
     return t
