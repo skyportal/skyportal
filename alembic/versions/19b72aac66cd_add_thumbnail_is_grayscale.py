@@ -5,14 +5,8 @@ Revises: 3e1852612f34
 Create Date: 2021-03-26 13:28:18.514981
 
 """
-import requests
-
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.orm.session import Session
-
-from skyportal.models import Thumbnail
-from skyportal.utils.thumbnail import image_is_grayscale
 
 
 # revision identifiers, used by Alembic.
@@ -33,21 +27,10 @@ def upgrade():
     # default within models.py
     op.alter_column('thumbnails', 'is_grayscale', server_default=None)
 
-    # Attach a sqlalchemy Session to the env connection
-    session = Session(bind=op.get_bind())
-    thumbnails = session.query(Thumbnail).all()
-    for thumbnail in thumbnails:
-        if thumbnail.file_uri is not None:
-            thumbnail.is_grayscale = image_is_grayscale(thumbnail.file_uri)
-        else:
-            try:
-                thumbnail.is_grayscale = image_is_grayscale(
-                    requests.get(thumbnail.public_url, stream=True).raw
-                )
-            except requests.exceptions.RequestException:
-                pass
-
-    session.commit()
+    # It would take too long to run the image_is_grayscale on the entire database for
+    # production-scale instances within the migration, so we just leave all old
+    # thumbnails as colored by default. Use an external script to retroactively fix
+    # the old thumbnails if needed.
 
     # ### end Alembic commands ###
 
