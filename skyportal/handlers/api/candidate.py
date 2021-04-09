@@ -756,15 +756,15 @@ class CandidateHandler(BaseHandler):
             with DBSession().no_autoflush:
                 obj.is_source = (obj.id,) in matching_source_ids
                 if obj.is_source:
-                    source_subquery = Source.query_records_accessible_by(
-                        self.current_user
-                    ).subquery()
+                    source_subquery = (
+                        Source.query_records_accessible_by(self.current_user)
+                        .filter(Source.obj_id == obj.id)
+                        .filter(Source.active.is_(True))
+                        .subquery()
+                    )
                     obj.saved_groups = (
                         Group.query_records_accessible_by(self.current_user)
                         .join(source_subquery, Group.id == source_subquery.c.group_id)
-                        .filter(Source.obj_id == obj.id)
-                        .filter(Source.active.is_(True))
-                        .filter(Group.id.in_(user_accessible_group_ids))
                         .all()
                     )
                     obj.classifications = (
