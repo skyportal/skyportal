@@ -17,7 +17,7 @@ from skyportal.utils.thumbnail import image_is_grayscale
 
 # revision identifiers, used by Alembic.
 revision = '19b72aac66cd'
-down_revision = '8f086f8c0c21'
+down_revision = '1562ff135257'
 branch_labels = None
 depends_on = None
 
