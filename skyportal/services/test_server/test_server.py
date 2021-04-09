@@ -243,10 +243,9 @@ if __name__ == "__main__":
         log(f"Listening for test SMTP requests on port {smtp_port}")
         # SMTP TLS context
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        context.load_cert_chain(
-            "skyportal/services/test_server/cert.pem",
-            "skyportal/services/test_server/key.pem",
-        )
+        cert_file = os.path.join(os.path.dirname(__file__), "cert.pem")
+        key_file = os.path.join(os.path.dirname(__file__), "key.pem")
+        context.load_cert_chain(cert_file, key_file)
         handler = CustomSMTPHandler()
         controller = Controller(
             handler,
