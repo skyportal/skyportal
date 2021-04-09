@@ -173,7 +173,10 @@ class PhotometryHandler(BaseHandler):
                 )
             else:
                 kind = 'flux'
-                if data['fluxerr'] < 0:
+                if (
+                    isinstance(data['fluxerr'], (list, tuple))
+                    and not all([fluxerr >= 0 for fluxerr in data['fluxerr']])
+                ) or (isinstance(data['fluxerr'], float) and data['fluxerr'] < 0):
                     raise ValidationError("fluxerr must be a non-negative value.")
         else:
             kind = 'mag'
