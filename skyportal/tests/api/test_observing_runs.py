@@ -138,3 +138,45 @@ def test_unauthorized_user_modify_unowned_observing_run(
 
     assert status == 400
     assert data['status'] == 'error'
+
+
+def test_observing_run_assignment_group_names(
+    public_assignment,
+    public_source,
+    view_only_token,
+    public_group,
+    public_group2,
+    upload_data_token_two_groups,
+):
+    # Save the obj associated with the public_assignment to a group the run
+    # owner is not a part of
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": public_source.id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group2.id],
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # Get the observing run and associated assignments and check that public_group2
+    # is not in the accessible_group_ids
+    status, data = api(
+        'GET', f'observing_run/{public_assignment.run.id}', token=view_only_token
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']["assignments"]) == 1
+    assert (
+        public_group2.name
+        not in data['data']["assignments"][0]["accessible_group_names"]
+    )

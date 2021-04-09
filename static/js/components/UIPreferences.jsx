@@ -41,7 +41,7 @@ const UIPreferences = () => {
 
   const thumbnailInvertSwitch = (
     <Switch
-      value="Invert thumbnails"
+      value="Invert grayscale thumbnails"
       checked={invertThumbnails}
       onChange={thumbnailInvertToggled}
     />

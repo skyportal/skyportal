@@ -589,6 +589,15 @@ def problematic_assignment(lris_run_20201118, public_ZTF20acgrjqm):
 
 
 @pytest.fixture()
+def public_assignment(red_transients_run, user, public_source):
+    assignment = ClassicalAssignmentFactory(
+        run=red_transients_run, obj=public_source, requester=user, last_modified_by=user
+    )
+    yield assignment
+    ClassicalAssignmentFactory.teardown(assignment)
+
+
+@pytest.fixture()
 def private_source():
     obj = ObjFactory(groups=[])
     yield obj
