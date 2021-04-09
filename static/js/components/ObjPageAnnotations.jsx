@@ -80,9 +80,9 @@ const ObjPageAnnotations = ({ annotations }) => {
   // Curate data
   const tableData = [];
   annotations.forEach((annotation) => {
-    const { origin, data, author_info, created_at } = annotation;
+    const { origin, data, author, created_at } = annotation;
     Object.entries(data).forEach(([key, value]) => {
-      tableData.push({ origin, key, value, author_info, created_at });
+      tableData.push({ origin, key, value, author, created_at });
     });
   });
 
@@ -103,7 +103,7 @@ const ObjPageAnnotations = ({ annotations }) => {
       },
     },
     {
-      name: "author_info.username",
+      name: "author.username",
       label: "Author",
     },
     {
@@ -143,7 +143,7 @@ ObjPageAnnotations.propTypes = {
     PropTypes.shape({
       origin: PropTypes.string.isRequired,
       data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-      author_info: PropTypes.shape({
+      author: PropTypes.shape({
         username: PropTypes.string.isRequired,
       }).isRequired,
       created_at: PropTypes.string.isRequired,

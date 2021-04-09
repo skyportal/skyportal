@@ -22,7 +22,7 @@ from sqlalchemy import cast, event
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
 from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_utils import URLType, EmailType
@@ -397,6 +397,10 @@ User.group_admission_requests = relationship(
 class GroupAdmissionRequest(Base):
     """Table tracking requests from users to join groups."""
 
+    read = AccessibleIfUserMatches('user') | accessible_by_group_admins
+    create = delete = AccessibleIfUserMatches('user')
+    update = accessible_by_group_admins
+
     user_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
@@ -715,99 +719,107 @@ class Obj(Base, ha.Point):
         doc="Notifications regarding the object sent out by users",
     )
 
-    @hybrid_property
-    def last_detected_at(self):
+    @hybrid_method
+    def last_detected_at(self, user):
         """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
         detections = [
             phot.iso
-            for phot in self.photometry
+            for phot in Photometry.query_records_accessible_by(user)
+            .filter(Photometry.obj_id == self.id)
+            .all()
             if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
         ]
         return max(detections) if detections else None
 
     @last_detected_at.expression
-    def last_detected_at(cls):
+    def last_detected_at(cls, user):
         """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
         return (
-            sa.select([sa.func.max(Photometry.iso)])
-            .where(Photometry.obj_id == cls.id)
-            .where(Photometry.snr.isnot(None))
-            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            Photometry.query_records_accessible_by(
+                user, columns=[sa.func.max(Photometry.iso)], mode="read"
+            )
+            .filter(Photometry.obj_id == cls.id)
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
             .label('last_detected_at')
         )
 
-    @hybrid_property
-    def last_detected_mag(self):
+    @hybrid_method
+    def last_detected_mag(self, user):
         """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
         detections = [
             (phot.iso, phot.mag)
-            for phot in self.photometry
+            for phot in Photometry.query_records_accessible_by(user)
+            .filter(Photometry.obj_id == self.id)
+            .all()
             if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
         ]
         return max(detections, key=(lambda x: x[0]))[1] if detections else None
 
     @last_detected_mag.expression
-    def last_detected_mag(cls):
+    def last_detected_mag(cls, user):
         """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
-        last_detected = (
-            sa.select([cls.id, sa.func.max(Photometry.mjd).label("max_mjd")])
-            .where(Photometry.obj_id == cls.id)
-            .where(Photometry.snr.isnot(None))
-            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .group_by(cls.id)
-            .alias()
-        )
         return (
-            sa.select([Photometry.mag])
-            .where(Photometry.obj_id == cls.id)
-            .where(Photometry.snr.isnot(None))
-            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-            .where(cls.id == last_detected.c.id)
-            .where(Photometry.mjd == last_detected.c.max_mjd)
+            Photometry.query_records_accessible_by(
+                user, columns=[Photometry.mag], mode="read"
+            )
+            .filter(Photometry.obj_id == cls.id)
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .order_by(Photometry.mjd.desc())
+            .limit(1)
             .label('last_detected_mag')
         )
 
-    @hybrid_property
-    def peak_detected_at(self):
+    @hybrid_method
+    def peak_detected_at(self, user):
         """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
         detections = [
             (phot.iso, phot.mag)
-            for phot in self.photometry
+            for phot in Photometry.query_records_accessible_by(user)
+            .filter(Photometry.obj_id == self.id)
+            .all()
             if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
         ]
         return max(detections, key=(lambda x: x[1]))[0] if detections else None
 
     @peak_detected_at.expression
-    def peak_detected_at(cls):
+    def peak_detected_at(cls, user):
         """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
         return (
-            sa.select([Photometry.iso])
-            .where(Photometry.obj_id == cls.id)
-            .where(Photometry.snr.isnot(None))
-            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            Photometry.query_records_accessible_by(
+                user, columns=[Photometry.iso], mode="read"
+            )
+            .filter(Photometry.obj_id == cls.id)
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
             .order_by(Photometry.mag.desc())
             .limit(1)
             .label('peak_detected_at')
         )
 
-    @hybrid_property
-    def peak_detected_mag(self):
+    @hybrid_method
+    def peak_detected_mag(self, user):
         """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
         detections = [
             phot.mag
-            for phot in self.photometry
+            for phot in Photometry.query_records_accessible_by(user)
+            .filter(Photometry.obj_id == self.id)
+            .all()
             if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
         ]
         return max(detections) if detections else None
 
     @peak_detected_mag.expression
-    def peak_detected_mag(cls):
+    def peak_detected_mag(cls, user):
         """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
         return (
-            sa.select([sa.func.max(Photometry.mag)])
-            .where(Photometry.obj_id == cls.id)
-            .where(Photometry.snr.isnot(None))
-            .where(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            Photometry.query_records_accessible_by(
+                user, columns=[sa.func.max(Photometry.mag)], mode="read"
+            )
+            .filter(Photometry.obj_id == cls.id)
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
             .label('peak_detected_mag')
         )
 
@@ -2258,7 +2270,9 @@ class Classification(Base):
     read = accessible_by_groups_members & ok_if_tax_and_obj_readable
     update = delete = AccessibleIfUserMatches('author')
 
-    classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
+    classification = sa.Column(
+        sa.String, nullable=False, index=True, doc="The assigned class."
+    )
     taxonomy_id = sa.Column(
         sa.ForeignKey('taxonomies.id', ondelete='CASCADE'),
         nullable=False,
@@ -2274,6 +2288,7 @@ class Classification(Base):
         sa.Float,
         doc='User-assigned probability of belonging to this class',
         nullable=True,
+        index=True,
     )
 
     author_id = sa.Column(
@@ -2318,7 +2333,7 @@ class Photometry(ha.Point, Base):
 
     __tablename__ = 'photometry'
 
-    read = accessible_by_groups_members
+    read = accessible_by_groups_members | accessible_by_owner
     update = delete = accessible_by_owner
 
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
@@ -2416,6 +2431,7 @@ class Photometry(ha.Point, Base):
         'User',
         back_populates='photometry',
         foreign_keys=[owner_id],
+        passive_deletes=True,
         cascade='save-update, merge, refresh-expire, expunge',
         doc="The User who uploaded the photometry.",
     )
@@ -2529,6 +2545,7 @@ User.photometry = relationship(
     'Photometry',
     doc='Photometry uploaded by this User.',
     back_populates='owner',
+    passive_deletes=True,
     foreign_keys="Photometry.owner_id",
 )
 
