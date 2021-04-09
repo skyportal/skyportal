@@ -97,6 +97,13 @@ class CandidateHandler(BaseHandler):
               required: true
               schema:
                 type: string
+            - in: query
+              name: includeComments
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated comments. Defaults to false.
           responses:
             200:
               content:
@@ -252,6 +259,13 @@ class CandidateHandler(BaseHandler):
             description: |
               Boolean indicating whether to include associated spectra. Defaults to false.
           - in: query
+            name: includeComments
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated comments. Defaults to false.
+          - in: query
             name: classifications
             nullable: true
             schema:
@@ -321,6 +335,7 @@ class CandidateHandler(BaseHandler):
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_spectra = self.get_query_argument("includeSpectra", False)
+        include_comments = self.get_query_argument("includeComments", False)
 
         if obj_id is not None:
             query_options = [joinedload(Obj.thumbnails)]
@@ -351,13 +366,14 @@ class CandidateHandler(BaseHandler):
             candidate_info = recursive_to_dict(c)
             candidate_info["filter_ids"] = filter_ids
             candidate_info["passing_alerts"] = passing_alerts
-            candidate_info["comments"] = sorted(
-                Comment.query_records_accessible_by(self.current_user)
-                .filter(Comment.obj_id == obj_id)
-                .all(),
-                key=lambda x: x.created_at,
-                reverse=True,
-            )
+            if include_comments:
+                candidate_info["comments"] = sorted(
+                    Comment.query_records_accessible_by(self.current_user)
+                    .filter(Comment.obj_id == obj_id)
+                    .all(),
+                    key=lambda x: x.created_at,
+                    reverse=True,
+                )
 
             if include_photometry:
                 candidate_info['photometry'] = (
@@ -807,13 +823,14 @@ class CandidateHandler(BaseHandler):
                         .all()
                     )
 
-                candidate_list[-1]["comments"] = sorted(
-                    Comment.query_records_accessible_by(self.current_user)
-                    .filter(Comment.obj_id == obj.id)
-                    .all(),
-                    key=lambda x: x.created_at,
-                    reverse=True,
-                )
+                if include_comments:
+                    candidate_list[-1]["comments"] = sorted(
+                        Comment.query_records_accessible_by(self.current_user)
+                        .filter(Comment.obj_id == obj.id)
+                        .all(),
+                        key=lambda x: x.created_at,
+                        reverse=True,
+                    )
                 candidate_list[-1]["annotations"] = sorted(
                     Annotation.query_records_accessible_by(self.current_user)
                     .filter(Annotation.obj_id == obj.id)
