@@ -649,12 +649,12 @@ class Obj(Base, ha.Point):
         doc="Comments posted about the object.",
     )
 
-    spectrum_comments = relationship(
-        'SpectrumComment',
+    comments_on_spectra = relationship(
+        'CommentOnSpectrum',
         back_populates='obj',
         cascade='save-update, merge, refresh-expire, expunge, delete',
         passive_deletes=True,
-        order_by="SpectrumComment.created_at",
+        order_by="CommentOnSpectrum.created_at",
         doc="Comments posted about spectra belonging to the object.",
     )
 
@@ -2067,14 +2067,6 @@ Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 class CommentMixin:
     """All the basic columns needed for comments on objects, spectra, etc."""
 
-    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
-
-    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        obj='read'
-    )
-
-    update = delete = AccessibleIfUserMatches('author')
-
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
         sa.Enum('text', 'redshift', name='comment_types', validate_strings=True),
@@ -2097,8 +2089,8 @@ class CommentMixin:
     def backref_name(cls):
         if cls.__name__ == 'Comment':
             return "comments"
-        if cls.__name__ == 'SpectrumComment':
-            return 'spectrum_comments'
+        if cls.__name__ == 'CommentOnSpectrum':
+            return 'comments_on_spectra'
 
     @declared_attr
     def author(cls):
@@ -2167,6 +2159,14 @@ class CommentMixin:
 
 class Comment(Base, CommentMixin):
     """A comment made by a User or a Robot (via the API) on a Source."""
+
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read'
+    )
+
+    update = delete = AccessibleIfUserMatches('author')
 
 
 GroupComment = join_model("group_comments", Group, Comment)
@@ -2694,11 +2694,11 @@ class Spectrum(Base):
     )
 
     comments = relationship(
-        'SpectrumComment',
+        'CommentOnSpectrum',
         back_populates='spectrum',
         cascade='save-update, merge, refresh-expire, expunge, delete',
         passive_deletes=True,
-        order_by="SpectrumComment.created_at",
+        order_by="CommentOnSpectrum.created_at",
         doc="Comments posted about this spectrum.",
     )
 
@@ -2901,7 +2901,15 @@ GroupSpectrum.update = GroupSpectrum.delete = (
 )
 
 
-class SpectrumComment(Base, CommentMixin):
+class CommentOnSpectrum(Base, CommentMixin):
+
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read'
+    )
+
+    update = delete = AccessibleIfUserMatches('author')
 
     spectrum_id = sa.Column(
         sa.ForeignKey('spectra.id', ondelete='CASCADE'),
@@ -2916,18 +2924,20 @@ class SpectrumComment(Base, CommentMixin):
     )
 
 
-User.spectrum_comments = relationship(
-    "SpectrumComment",
+User.comments_on_spectra = relationship(
+    "CommentOnSpectrum",
     back_populates="author",
-    foreign_keys="SpectrumComment.author_id",
+    foreign_keys="CommentOnSpectrum.author_id",
     cascade="delete",
     passive_deletes=True,
 )
 
-GroupSpectrumComment = join_model("group_spectrum_comments", Group, SpectrumComment)
-GroupSpectrumComment.__doc__ = "Join table mapping Groups to SpectrumComments."
-GroupSpectrumComment.delete = GroupSpectrumComment.update = (
-    accessible_by_group_admins & GroupSpectrumComment.read
+GroupCommentOnSpectrum = join_model(
+    "group_comments_on_spectra", Group, CommentOnSpectrum
+)
+GroupCommentOnSpectrum.__doc__ = "Join table mapping Groups to CommentOnSpectrum."
+GroupCommentOnSpectrum.delete = GroupCommentOnSpectrum.update = (
+    accessible_by_group_admins & GroupCommentOnSpectrum.read
 )
 
 
