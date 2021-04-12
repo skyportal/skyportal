@@ -410,14 +410,15 @@ class CandidateHandler(BaseHandler):
                 > 0
             )
             if candidate_info["is_source"]:
-                source_subquery = Source.query_records_accessible_by(
-                    self.current_user
-                ).subquery()
+                source_subquery = (
+                    Source.query_records_accessible_by(self.current_user)
+                    .filter(Source.obj_id == obj_id)
+                    .filter(Source.active.is_(True))
+                    .subquery()
+                )
                 candidate_info["saved_groups"] = (
                     Group.query_records_accessible_by(self.current_user)
                     .join(source_subquery, Group.id == source_subquery.c.group_id)
-                    .filter(Source.obj_id == obj_id)
-                    .filter(Source.active.is_(True))
                     .all()
                 )
                 candidate_info["classifications"] = (

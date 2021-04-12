@@ -353,6 +353,7 @@ def test_post_photometry_multiple_groups(
 
 def test_post_photometry_all_groups(
     upload_data_token_two_groups,
+    user_two_groups,
     super_admin_token,
     public_source_two_groups,
     public_group,
@@ -394,8 +395,11 @@ def test_post_photometry_all_groups(
     assert data['data']['ra_unc'] is None
     assert data['data']['dec_unc'] is None
 
+    # Groups should be single user group and public group
     assert len(data['data']['groups']) == 2
-    assert data['data']['groups'][0]['name'] == cfg['misc']['public_group_name']
+    groups = [g['name'] for g in data['data']['groups']]
+    assert cfg['misc']['public_group_name'] in groups
+    assert user_two_groups.single_user_group.name in groups
 
     np.testing.assert_allclose(
         data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
