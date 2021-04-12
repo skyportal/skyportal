@@ -67,6 +67,7 @@ from .enum_types import (
     listener_classnames,
 )
 from .utils.cosmology import establish_cosmology
+from .utils.thumbnail import image_is_grayscale
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
 # All DB fluxes are stored in microJy (AB).
@@ -2269,7 +2270,9 @@ class Classification(Base):
     read = accessible_by_groups_members & ok_if_tax_and_obj_readable
     update = delete = AccessibleIfUserMatches('author')
 
-    classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
+    classification = sa.Column(
+        sa.String, nullable=False, index=True, doc="The assigned class."
+    )
     taxonomy_id = sa.Column(
         sa.ForeignKey('taxonomies.id', ondelete='CASCADE'),
         nullable=False,
@@ -2285,6 +2288,7 @@ class Classification(Base):
         sa.Float,
         doc='User-assigned probability of belonging to this class',
         nullable=True,
+        index=True,
     )
 
     author_id = sa.Column(
@@ -3158,6 +3162,25 @@ class Thumbnail(Base):
         nullable=False,
         doc="ID of the thumbnail's obj.",
     )
+    is_grayscale = sa.Column(
+        sa.Boolean(),
+        nullable=False,
+        default=False,
+        doc="Boolean indicating whether the thumbnail is (mostly) grayscale or not.",
+    )
+
+
+@event.listens_for(Thumbnail, 'before_insert')
+def classify_thumbnail_grayscale(mapper, connection, target):
+    if target.file_uri is not None:
+        target.is_grayscale = image_is_grayscale(target.file_uri)
+    else:
+        try:
+            target.is_grayscale = image_is_grayscale(
+                requests.get(target.public_url, stream=True).raw
+            )
+        except requests.exceptions.RequestException:
+            pass
 
 
 class ObservingRun(Base):

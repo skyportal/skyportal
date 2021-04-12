@@ -35,9 +35,11 @@ const useStyles = makeStyles((theme) => ({
   mediaDiv: {
     position: "relative",
   },
-  media: ({ size, invertThumbnails }) => ({
+  media: ({ size }) => ({
     height: size,
     width: size,
+  }),
+  inverted: ({ invertThumbnails }) => ({
     filter: invertThumbnails ? "invert(1)" : "unset",
     WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
   }),
@@ -51,7 +53,7 @@ const useStyles = makeStyles((theme) => ({
   }),
 }));
 
-const Thumbnail = ({ ra, dec, name, url, size }) => {
+const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
@@ -90,6 +92,10 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
       link = "";
   }
 
+  const imgClasses = grayscale
+    ? `${classes.media} ${classes.inverted}`
+    : `${classes.media}`;
+
   return (
     <Card className={classes.root} variant="outlined">
       <CardContent className={classes.cardTitle}>
@@ -102,7 +108,7 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
           <img
             src={url}
             alt={alt}
-            className={classes.media}
+            className={imgClasses}
             title={alt}
             loading="lazy"
           />
@@ -125,6 +131,7 @@ Thumbnail.propTypes = {
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
   size: PropTypes.string.isRequired,
+  grayscale: PropTypes.bool.isRequired,
 };
 
 const sortThumbnailsByDate = (a, b) => {
@@ -173,6 +180,7 @@ const ThumbnailList = ({
               name={t.type}
               url={t.public_url}
               size={size}
+              grayscale={t.is_grayscale}
             />
           </Grid>
         ))}
@@ -186,6 +194,7 @@ const ThumbnailList = ({
                 name="PS1: Loading..."
                 url="#"
                 size={size}
+                grayscale={false}
               />
             </Grid>
           )}
@@ -201,6 +210,7 @@ const ThumbnailList = ({
         name={t.type}
         url={t.public_url}
         size={size}
+        grayscale={t.is_grayscale}
       />
     </Grid>
   ));
