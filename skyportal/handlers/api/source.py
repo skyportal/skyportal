@@ -165,6 +165,13 @@ class SourceHandler(BaseHandler):
                 type: boolean
               description: |
                 Boolean indicating whether to return if a source has a spectra. Defaults to false.
+            - in: query
+              name: includeThumbnails
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated thumbnails. Defaults to false.
           responses:
             200:
               content:
@@ -381,6 +388,20 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to return if a source has a spectra. Defaults to false.
           - in: query
+            name: removeNested
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to remove nested output. Defaults to false.
+          - in: query
+            name: includeThumbnails
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated thumbnails. Defaults to false.
+          - in: query
             name: classifications
             nullable: true
             schema:
@@ -481,6 +502,7 @@ class SourceHandler(BaseHandler):
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_color_mag = self.get_query_argument("includeColorMagnitude", False)
         include_requested = self.get_query_argument("includeRequested", False)
+        include_thumbnails = self.get_query_argument("includeThumbnails", False)
         requested_only = self.get_query_argument("pendingOnly", False)
         saved_after = self.get_query_argument('savedAfter', None)
         saved_before = self.get_query_argument('savedBefore', None)
@@ -494,6 +516,7 @@ class SourceHandler(BaseHandler):
         include_spectrum_exists = self.get_query_argument(
             "includeSpectrumExists", False
         )
+        remove_nested = self.get_query_argument("removeNested", False)
         classifications = self.get_query_argument("classifications", None)
         min_redshift = self.get_query_argument("minRedshift", None)
         max_redshift = self.get_query_argument("maxRedshift", None)
@@ -523,6 +546,8 @@ class SourceHandler(BaseHandler):
             saved_after = UTCTZnaiveDateTime(required=False, missing=None)
             saved_before = UTCTZnaiveDateTime(required=False, missing=None)
             save_summary = fields.Boolean()
+            remove_nested = fields.Boolean()
+            include_thumbnails = fields.Boolean()
 
         validator_instance = Validator()
         params_to_be_validated = {}
@@ -532,6 +557,10 @@ class SourceHandler(BaseHandler):
             params_to_be_validated['saved_before'] = saved_before
         if save_summary is not None:
             params_to_be_validated['save_summary'] = save_summary
+        if include_thumbnails is not None:
+            params_to_be_validated['include_thumbnails'] = include_thumbnails
+        if remove_nested is not None:
+            params_to_be_validated['remove_nested'] = remove_nested
 
         try:
             validated = validator_instance.load(params_to_be_validated)
@@ -541,6 +570,8 @@ class SourceHandler(BaseHandler):
         saved_after = validated['saved_after']
         saved_before = validated['saved_before']
         save_summary = validated['save_summary']
+        remove_nested = validated['remove_nested']
+        include_thumbnails = validated['include_thumbnails']
 
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
@@ -559,9 +590,12 @@ class SourceHandler(BaseHandler):
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
         if obj_id is not None:
-            s = Obj.get_if_accessible_by(
-                obj_id, self.current_user, options=[joinedload(Obj.thumbnails)]
-            )
+            if include_thumbnails:
+                s = Obj.get_if_accessible_by(
+                    obj_id, self.current_user, options=[joinedload(Obj.thumbnails)]
+                )
+            else:
+                s = Obj.get_if_accessible_by(obj_id, self.current_user)
             if s is None:
                 return self.error("Source not found", status=404)
             source_info = s.to_dict()
@@ -608,10 +642,11 @@ class SourceHandler(BaseHandler):
                 source_info = recursive_to_dict(source_info)
                 self.verify_and_commit()
 
-            if "ps1" not in [thumb.type for thumb in s.thumbnails]:
-                IOLoop.current().add_callback(
-                    lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self)
-                )
+            if include_thumbnails:
+                if "ps1" not in [thumb.type for thumb in s.thumbnails]:
+                    IOLoop.current().add_callback(
+                        lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self)
+                    )
             if include_comments:
                 comments = (
                     Comment.query_records_accessible_by(
@@ -736,7 +771,7 @@ class SourceHandler(BaseHandler):
             return self.success(data=source_info)
 
         # Fetch multiple sources
-        query_options = [joinedload(Obj.thumbnails)]
+        query_options = [joinedload(Obj.thumbnails)] if include_thumbnails else []
 
         if not save_summary:
             q = Obj.query_records_accessible_by(
@@ -966,47 +1001,47 @@ class SourceHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     )
+                if not remove_nested:
+                    readable_classifications = (
+                        Classification.query_records_accessible_by(self.current_user)
+                        .filter(Classification.obj_id == source.id)
+                        .all()
+                    )
 
-                readable_classifications = (
-                    Classification.query_records_accessible_by(self.current_user)
-                    .filter(Classification.obj_id == source.id)
-                    .all()
-                )
+                    readable_classifications_json = []
+                    for classification in readable_classifications:
+                        classification_dict = classification.to_dict()
+                        classification_dict['groups'] = [
+                            g.to_dict() for g in classification.groups
+                        ]
+                        readable_classifications_json.append(classification_dict)
 
-                readable_classifications_json = []
-                for classification in readable_classifications:
-                    classification_dict = classification.to_dict()
-                    classification_dict['groups'] = [
-                        g.to_dict() for g in classification.groups
-                    ]
-                    readable_classifications_json.append(classification_dict)
-
-                source_list[-1]["classifications"] = readable_classifications_json
-                source_list[-1]["annotations"] = sorted(
-                    Annotation.query_records_accessible_by(self.current_user).filter(
-                        Annotation.obj_id == source.id
-                    ),
-                    key=lambda x: x.origin,
-                )
-                source_list[-1]["last_detected_at"] = source.last_detected_at(
-                    self.current_user
-                )
-                source_list[-1]["last_detected_mag"] = source.last_detected_mag(
-                    self.current_user
-                )
-                source_list[-1]["peak_detected_at"] = source.peak_detected_at(
-                    self.current_user
-                )
-                source_list[-1]["peak_detected_mag"] = source.peak_detected_mag(
-                    self.current_user
-                )
-                source_list[-1]["gal_lon"] = source.gal_lon_deg
-                source_list[-1]["gal_lat"] = source.gal_lat_deg
-                source_list[-1]["luminosity_distance"] = source.luminosity_distance
-                source_list[-1]["dm"] = source.dm
-                source_list[-1][
-                    "angular_diameter_distance"
-                ] = source.angular_diameter_distance
+                    source_list[-1]["classifications"] = readable_classifications_json
+                    source_list[-1]["annotations"] = sorted(
+                        Annotation.query_records_accessible_by(
+                            self.current_user
+                        ).filter(Annotation.obj_id == source.id),
+                        key=lambda x: x.origin,
+                    )
+                    source_list[-1]["last_detected_at"] = source.last_detected_at(
+                        self.current_user
+                    )
+                    source_list[-1]["last_detected_mag"] = source.last_detected_mag(
+                        self.current_user
+                    )
+                    source_list[-1]["peak_detected_at"] = source.peak_detected_at(
+                        self.current_user
+                    )
+                    source_list[-1]["peak_detected_mag"] = source.peak_detected_mag(
+                        self.current_user
+                    )
+                    source_list[-1]["gal_lon"] = source.gal_lon_deg
+                    source_list[-1]["gal_lat"] = source.gal_lat_deg
+                    source_list[-1]["luminosity_distance"] = source.luminosity_distance
+                    source_list[-1]["dm"] = source.dm
+                    source_list[-1][
+                        "angular_diameter_distance"
+                    ] = source.angular_diameter_distance
                 if include_photometry:
                     photometry = Photometry.query_records_accessible_by(
                         self.current_user
@@ -1032,37 +1067,38 @@ class SourceHandler(BaseHandler):
                         )
                         > 0
                     )
-
-                groups_query = (
-                    Group.query_records_accessible_by(self.current_user)
-                    .join(Source)
-                    .filter(Source.obj_id == source_list[-1]["id"])
-                )
-                groups_query = apply_active_or_requested_filtering(
-                    groups_query, include_requested, requested_only
-                )
-                groups = groups_query.all()
-                source_list[-1]["groups"] = [g.to_dict() for g in groups]
-                for group in source_list[-1]["groups"]:
-                    source_table_row = (
-                        Source.query_records_accessible_by(self.current_user)
-                        .filter(
-                            Source.obj_id == source.id, Source.group_id == group["id"]
+                if not remove_nested:
+                    groups_query = (
+                        Group.query_records_accessible_by(self.current_user)
+                        .join(Source)
+                        .filter(Source.obj_id == source_list[-1]["id"])
+                    )
+                    groups_query = apply_active_or_requested_filtering(
+                        groups_query, include_requested, requested_only
+                    )
+                    groups = groups_query.all()
+                    source_list[-1]["groups"] = [g.to_dict() for g in groups]
+                    for group in source_list[-1]["groups"]:
+                        source_table_row = (
+                            Source.query_records_accessible_by(self.current_user)
+                            .filter(
+                                Source.obj_id == source.id,
+                                Source.group_id == group["id"],
+                            )
+                            .first()
                         )
-                        .first()
-                    )
-                    group["active"] = source_table_row.active
-                    group["requested"] = source_table_row.requested
-                    group["saved_at"] = source_table_row.saved_at
-                    group["saved_by"] = (
-                        source_table_row.saved_by.to_dict()
-                        if source_table_row.saved_by is not None
-                        else None
-                    )
-                if include_color_mag:
-                    source_list[-1]["color_magnitude"] = get_color_mag(
-                        source_list[-1]["annotations"]
-                    )
+                        group["active"] = source_table_row.active
+                        group["requested"] = source_table_row.requested
+                        group["saved_at"] = source_table_row.saved_at
+                        group["saved_by"] = (
+                            source_table_row.saved_by.to_dict()
+                            if source_table_row.saved_by is not None
+                            else None
+                        )
+                    if include_color_mag:
+                        source_list[-1]["color_magnitude"] = get_color_mag(
+                            source_list[-1]["annotations"]
+                        )
             query_results["sources"] = source_list
 
         query_results = recursive_to_dict(query_results)

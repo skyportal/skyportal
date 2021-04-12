@@ -52,6 +52,72 @@ def test_token_user_retrieving_source_with_phot(view_only_token, public_source):
     )
 
 
+def test_token_user_retrieving_source_with_thumbnails(view_only_token, public_source):
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}",
+        params={"includeThumbnails": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert all(
+        k in data["data"]
+        for k in ["ra", "dec", "redshift", "dm", "created_at", "id", "thumbnails"]
+    )
+
+
+def test_token_user_retrieving_source_without_nested(
+    view_only_token, public_group, upload_data_token
+):
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"removeNested": "true", "group_ids": [public_group.id]},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 2
+    assert all(
+        k in data["data"]["sources"][0]
+        for k in ["ra", "dec", "redshift", "created_at", "id"]
+    )
+    assert all(
+        k not in data["data"]["sources"][0]
+        for k in ["annotations", "groups", "classifications"]
+    )
+
+
 def test_token_user_update_source(upload_data_token, public_source):
     status, data = api(
         "PATCH",
