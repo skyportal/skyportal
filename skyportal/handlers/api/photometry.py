@@ -433,15 +433,15 @@ class PhotometryHandler(BaseHandler):
             ),
             *[
                 (
-                    idx,
-                    row["obj_id"],
-                    row["instrument_id"],
-                    row["origin"],
-                    float(row["mjd"]),
-                    float(row["standardized_fluxerr"]),
-                    float(row["standardized_flux"]),
+                    row.Index,
+                    row.obj_id,
+                    row.instrument_id,
+                    row.origin,
+                    float(row.mjd),
+                    float(row.standardized_fluxerr),
+                    float(row.standardized_flux),
                 )
-                for idx, row in df.iterrows()
+                for row in df.itertuples()
             ],
             alias_name="values_table",
         )
