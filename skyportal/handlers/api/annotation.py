@@ -115,6 +115,8 @@ class AnnotationHandler(BaseHandler):
             return self.error("Input `origin` must begin with alphanumeric/underscore")
 
         annotation_data = data.get("data")
+        if annotation_data is None or not annotation_data:
+            return self.error("Annotation data must be non-null.")
         author = self.associated_user_object
         annotation = Annotation(
             data=annotation_data,
