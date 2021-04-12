@@ -1099,7 +1099,7 @@ class SourceHandler(BaseHandler):
                     if include_color_mag:
                         source_list[-1]["color_magnitude"] = get_color_mag(
                             source_list[-1]["annotations"]
-                    )
+                        )
             query_results["sources"] = source_list
 
         query_results = recursive_to_dict(query_results)
