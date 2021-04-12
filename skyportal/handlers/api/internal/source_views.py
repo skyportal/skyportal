@@ -49,10 +49,10 @@ class SourceViewsHandler(BaseHandler):
         )
         sources = []
         for view, obj_id in query_results:
-            s = Source.get_obj_if_readable_by(  # Returns Source.obj
+            s = Obj.get_if_accessible_by(
                 obj_id,
                 self.current_user,
-                options=[joinedload(Source.obj).joinedload(Obj.thumbnails)],
+                options=[joinedload(Obj.thumbnails)],
             )
             info = first_thumbnail_info(s.thumbnails)
             sources.append(
