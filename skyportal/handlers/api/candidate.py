@@ -416,8 +416,8 @@ class CandidateHandler(BaseHandler):
                 candidate_info["saved_groups"] = (
                     Group.query_records_accessible_by(self.current_user)
                     .join(source_subquery, Group.id == source_subquery.c.group_id)
-                    .filter(Source.obj_id == obj_id)
-                    .filter(Source.active.is_(True))
+                    .filter(source_subquery.c.obj_id == obj_id)
+                    .filter(source_subquery.c.active.is_(True))
                     .all()
                 )
                 candidate_info["classifications"] = (
