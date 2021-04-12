@@ -737,15 +737,19 @@ class SourceHandler(BaseHandler):
                     )
                     > 0
                 )
-            query = (
+            source_query = Source.query_records_accessible_by(self.current_user).filter(
+                Source.obj_id == source_info["id"]
+            )
+            source_query = apply_active_or_requested_filtering(
+                source_query, include_requested, requested_only
+            )
+            source_subquery = source_query.subquery()
+            groups = (
                 Group.query_records_accessible_by(self.current_user)
-                .join(Source)
-                .filter(Source.obj_id == source_info["id"])
+                .join(source_subquery, Group.id == source_subquery.c.group_id)
+                .all()
             )
-            query = apply_active_or_requested_filtering(
-                query, include_requested, requested_only
-            )
-            source_info["groups"] = [g.to_dict() for g in query.all()]
+            source_info["groups"] = [g.to_dict() for g in groups]
             for group in source_info["groups"]:
                 source_table_row = (
                     Source.query_records_accessible_by(self.current_user)
@@ -1068,15 +1072,18 @@ class SourceHandler(BaseHandler):
                         > 0
                     )
                 if not remove_nested:
-                    groups_query = (
+                    source_query = Source.query_records_accessible_by(
+                        self.current_user
+                    ).filter(Source.obj_id == source_list[-1]["id"])
+                    source_query = apply_active_or_requested_filtering(
+                        source_query, include_requested, requested_only
+                    )
+                    source_subquery = source_query.subquery()
+                    groups = (
                         Group.query_records_accessible_by(self.current_user)
-                        .join(Source)
-                        .filter(Source.obj_id == source_list[-1]["id"])
+                        .join(source_subquery, Group.id == source_subquery.c.group_id)
+                        .all()
                     )
-                    groups_query = apply_active_or_requested_filtering(
-                        groups_query, include_requested, requested_only
-                    )
-                    groups = groups_query.all()
                     source_list[-1]["groups"] = [g.to_dict() for g in groups]
                     for group in source_list[-1]["groups"]:
                         source_table_row = (
