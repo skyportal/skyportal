@@ -63,6 +63,9 @@ if not DBSession.query(User).filter(User.username == "test factory").scalar():
 
 # Also add the test driver user (testuser-cesium-ml-org) if needed so that the driver
 # fixture has a user to login as (without needing an invitation token).
+# With invitations enabled on the test configs, the driver fails to login properly
+# without this user because the authenticator looks for the user or an
+# invitation token when neither exists initially on fresh test databases.
 if not DBSession.query(User).filter(User.username == "testuser-cesium-ml-org").scalar():
     DBSession.add(
         User(username="testuser-cesium-ml-org", oauth_uid="testuser@cesium-ml.org")
