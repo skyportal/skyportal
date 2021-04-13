@@ -321,3 +321,21 @@ def test_cannot_add_annotation_without_data(
     )
     assert status == 400
     assert "Missing data for required field" in data["message"]
+
+
+def test_post_invalid_data(annotation_token, public_source, public_group):
+    origin = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'annotation',
+        data={
+            'obj_id': public_source.id,
+            'data': "Test",
+            'origin': origin,
+            'group_ids': [public_group.id],
+        },
+        token=annotation_token,
+    )
+
+    assert status == 400
+    assert 'Invalid data' in data["message"]
