@@ -1,4 +1,5 @@
 import re
+from typing import Mapping
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -115,7 +116,7 @@ class AnnotationHandler(BaseHandler):
 
         annotation_data = data.get("data")
 
-        if type(annotation_data) is not dict:
+        if not isinstance(annotation_data, Mapping):
             return self.error(
                 "Invalid data: the annotation data must be an object with at least one {key: value} pair"
             )
