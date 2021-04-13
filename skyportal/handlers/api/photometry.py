@@ -595,8 +595,8 @@ class PhotometryHandler(BaseHandler):
 
         query = Photometry.__table__.insert()
         DBSession().execute(query, params)
-
-        DBSession.commit()
+        # Persist the new photometry
+        DBSession().commit()
 
         save_group_photometry_using_copy(group_photometry_params)
 
