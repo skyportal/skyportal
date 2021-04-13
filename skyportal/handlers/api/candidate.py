@@ -97,6 +97,13 @@ class CandidateHandler(BaseHandler):
               required: true
               schema:
                 type: string
+            - in: query
+              name: includeComments
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated comments. Defaults to false.
           responses:
             200:
               content:
@@ -252,6 +259,13 @@ class CandidateHandler(BaseHandler):
             description: |
               Boolean indicating whether to include associated spectra. Defaults to false.
           - in: query
+            name: includeComments
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated comments. Defaults to false.
+          - in: query
             name: classifications
             nullable: true
             schema:
@@ -321,6 +335,7 @@ class CandidateHandler(BaseHandler):
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_spectra = self.get_query_argument("includeSpectra", False)
+        include_comments = self.get_query_argument("includeComments", False)
 
         if obj_id is not None:
             query_options = [joinedload(Obj.thumbnails)]
@@ -351,13 +366,14 @@ class CandidateHandler(BaseHandler):
             candidate_info = recursive_to_dict(c)
             candidate_info["filter_ids"] = filter_ids
             candidate_info["passing_alerts"] = passing_alerts
-            candidate_info["comments"] = sorted(
-                Comment.query_records_accessible_by(self.current_user)
-                .filter(Comment.obj_id == obj_id)
-                .all(),
-                key=lambda x: x.created_at,
-                reverse=True,
-            )
+            if include_comments:
+                candidate_info["comments"] = sorted(
+                    Comment.query_records_accessible_by(self.current_user)
+                    .filter(Comment.obj_id == obj_id)
+                    .all(),
+                    key=lambda x: x.created_at,
+                    reverse=True,
+                )
 
             if include_photometry:
                 candidate_info['photometry'] = (
@@ -394,14 +410,15 @@ class CandidateHandler(BaseHandler):
                 > 0
             )
             if candidate_info["is_source"]:
-                source_subquery = Source.query_records_accessible_by(
-                    self.current_user
-                ).subquery()
+                source_subquery = (
+                    Source.query_records_accessible_by(self.current_user)
+                    .filter(Source.obj_id == obj_id)
+                    .filter(Source.active.is_(True))
+                    .subquery()
+                )
                 candidate_info["saved_groups"] = (
                     Group.query_records_accessible_by(self.current_user)
                     .join(source_subquery, Group.id == source_subquery.c.group_id)
-                    .filter(Source.obj_id == obj_id)
-                    .filter(Source.active.is_(True))
                     .all()
                 )
                 candidate_info["classifications"] = (
@@ -528,7 +545,7 @@ class CandidateHandler(BaseHandler):
             # Don't apply the order by just yet. Save it so we can pass it to
             # the LIMT/OFFSET helper function down the line once other query
             # params are set.
-            order_by = [Candidate.passed_at.desc().nullslast(), Obj.id]
+            order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
         if saved_status in [
             "savedToAllSelected",
@@ -727,7 +744,7 @@ class CandidateHandler(BaseHandler):
             order_by = [
                 origin_sort_order.nullslast(),
                 annotation_sort_criterion,
-                Candidate.passed_at.desc().nullslast(),
+                candidate_subquery.c.passed_at.desc().nullslast(),
                 Obj.id,
             ]
 
@@ -756,15 +773,15 @@ class CandidateHandler(BaseHandler):
             with DBSession().no_autoflush:
                 obj.is_source = (obj.id,) in matching_source_ids
                 if obj.is_source:
-                    source_subquery = Source.query_records_accessible_by(
-                        self.current_user
-                    ).subquery()
+                    source_subquery = (
+                        Source.query_records_accessible_by(self.current_user)
+                        .filter(Source.obj_id == obj.id)
+                        .filter(Source.active.is_(True))
+                        .subquery()
+                    )
                     obj.saved_groups = (
                         Group.query_records_accessible_by(self.current_user)
                         .join(source_subquery, Group.id == source_subquery.c.group_id)
-                        .filter(Source.obj_id == obj.id)
-                        .filter(Source.active.is_(True))
-                        .filter(Group.id.in_(user_accessible_group_ids))
                         .all()
                     )
                     obj.classifications = (
@@ -807,13 +824,14 @@ class CandidateHandler(BaseHandler):
                         .all()
                     )
 
-                candidate_list[-1]["comments"] = sorted(
-                    Comment.query_records_accessible_by(self.current_user)
-                    .filter(Comment.obj_id == obj.id)
-                    .all(),
-                    key=lambda x: x.created_at,
-                    reverse=True,
-                )
+                if include_comments:
+                    candidate_list[-1]["comments"] = sorted(
+                        Comment.query_records_accessible_by(self.current_user)
+                        .filter(Comment.obj_id == obj.id)
+                        .all(),
+                        key=lambda x: x.created_at,
+                        reverse=True,
+                    )
                 candidate_list[-1]["annotations"] = sorted(
                     Annotation.query_records_accessible_by(self.current_user)
                     .filter(Annotation.obj_id == obj.id)

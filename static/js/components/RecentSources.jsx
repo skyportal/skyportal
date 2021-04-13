@@ -24,17 +24,19 @@ export const useSourceListStyles = makeStyles((theme) => ({
   stampContainer: {
     display: "contents",
   },
-  stamp: ({ invertThumbnails }) => ({
+  stamp: () => ({
     transition: "transform 0.1s",
     width: "5em",
     height: "auto",
     display: "block",
-    filter: invertThumbnails ? "invert(1)" : "unset",
-    WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
     "&:hover": {
       color: "rgba(255, 255, 255, 1)",
       boxShadow: "0 5px 15px rgba(51, 52, 92, 0.6)",
     },
+  }),
+  inverted: ({ invertThumbnails }) => ({
+    filter: invertThumbnails ? "invert(1)" : "unset",
+    WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
   }),
   sourceListContainer: {
     height: "calc(100% - 3rem)",
@@ -135,6 +137,9 @@ const RecentSourcesList = ({ sources, styles }) => {
             }
           }
 
+          const imgClasses = source.is_grayscale
+            ? `${styles.stamp} ${styles.inverted}`
+            : `${styles.stamp}`;
           return (
             <li key={`recentSources_${source.obj_id}_${source.created_at}`}>
               <div
@@ -147,7 +152,7 @@ const RecentSourcesList = ({ sources, styles }) => {
                     className={styles.stampContainer}
                   >
                     <img
-                      className={styles.stamp}
+                      className={imgClasses}
                       src={source.public_url}
                       alt={source.obj_id}
                       loading="lazy"
@@ -197,6 +202,7 @@ RecentSourcesList.propTypes = {
       dec: PropTypes.number,
       created_at: PropTypes.string.isRequired,
       public_url: PropTypes.string,
+      is_grayscale: PropTypes.bool,
       resaved: PropTypes.bool,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({
