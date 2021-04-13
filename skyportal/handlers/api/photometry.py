@@ -599,6 +599,13 @@ class PhotometryHandler(BaseHandler):
         DBSession().commit()
 
         # Bulk COPY in the group_photometry records
+        #
+        # Note that we don't the same with inserting the photometry data
+        # itself because of complications with the handler's Session holding
+        # locks for the relevant tables for things like reserving the photometry
+        # primary key IDs, checking for duplicate photometry, etc, such that
+        # a subprocess cannot actually insert into photometry on a separate
+        # connection.
         save_group_photometry_using_copy(group_photometry_params)
 
         return ids, upload_id
