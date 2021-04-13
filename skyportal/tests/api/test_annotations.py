@@ -325,7 +325,6 @@ def test_cannot_add_annotation_without_data(
 
 def test_post_invalid_data(annotation_token, public_source, public_group):
     origin = str(uuid.uuid4())
-    # this should not work, since no "origin" is given
     status, data = api(
         'POST',
         'annotation',
