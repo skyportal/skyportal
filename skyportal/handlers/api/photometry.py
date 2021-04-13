@@ -58,10 +58,12 @@ def save_group_photometry_using_copy(rows):
         '-U',
         str(cfg["database.user"]),
     ]
+
     if cfg["database.password"] is not None:
-        cmd = [f"PGPASSWORD={cfg['database']['password']}"] + cmd
+        env = {"PGPASSWORD": cfg['database']['password']}
     else:
         cmd.append("--no-password")
+        env = None
 
     cmd += [
         "-c",
@@ -72,6 +74,7 @@ def save_group_photometry_using_copy(rows):
     p = subprocess.Popen(
         cmd,
         stdin=subprocess.PIPE,
+        env=env,
     )
 
     for row in rows:
