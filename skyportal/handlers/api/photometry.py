@@ -598,6 +598,7 @@ class PhotometryHandler(BaseHandler):
         # Persist the new photometry
         DBSession().commit()
 
+        # Bulk COPY in the group_photometry records
         save_group_photometry_using_copy(group_photometry_params)
 
         return ids, upload_id
