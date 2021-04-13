@@ -1,5 +1,6 @@
 import uuid
 import math
+import datetime
 
 from astropy.time import Time
 from astropy.table import Table
@@ -40,6 +41,47 @@ from ...enum_types import ALLOWED_MAGSYSTEMS
 
 
 _, cfg = load_env()
+
+
+def save_group_photometry_using_copy(rows):
+    import subprocess
+
+    # Build command
+    cmd = [
+        "psql",
+        "-d",
+        str(cfg["database.database"]),
+        "-h",
+        str(cfg["database.host"]),
+        "-p",
+        str(cfg["database.port"]),
+        '-U',
+        str(cfg["database.user"]),
+    ]
+    if cfg["database.password"] is not None:
+        cmd = [f"PGPASSWORD={cfg['database']['password']}"] + cmd
+    else:
+        cmd.append("--no-password")
+
+    cmd += [
+        "-c",
+        "COPY group_photometry(group_id, photometr_id, created_at, modified) FROM STDIN",
+        "--set=ON_ERROR_STOP=true",
+    ]
+
+    p = subprocess.Popen(
+        cmd,
+        stdin=subprocess.PIPE,
+    )
+
+    for row in rows:
+        utcnow = datetime.datetime.utcnow().isoformat()
+        p.stdin.write(
+            f"{row['group_id']}\t{row['photometr_id']}\t{utcnow}\t{utcnow}\n".encode()
+        )
+
+    p.stdin.close()
+    p.wait()
 
 
 def nan_to_none(value):
@@ -504,6 +546,7 @@ class PhotometryHandler(BaseHandler):
         upload_id = str(uuid.uuid4())
 
         params = []
+        group_photometry_params = []
         for packet in rows:
             if (
                 packet["filter"]
@@ -545,18 +588,18 @@ class PhotometryHandler(BaseHandler):
 
             params.append(phot)
 
-        #  actually do the insert
+            for group_id in group_ids:
+                group_photometry_params.append(
+                    {'photometr_id': packet['id'], 'group_id': group_id}
+                )
+
         query = Photometry.__table__.insert()
         DBSession().execute(query, params)
 
-        groupquery = GroupPhotometry.__table__.insert()
-        params = []
+        DBSession.commit()
 
-        for id in ids:
-            for group_id in group_ids:
-                params.append({'photometr_id': id, 'group_id': group_id})
+        save_group_photometry_using_copy(group_photometry_params)
 
-        DBSession().execute(groupquery, params)
         return ids, upload_id
 
     def get_group_ids(self):
