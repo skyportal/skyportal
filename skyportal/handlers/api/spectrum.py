@@ -3,10 +3,9 @@ from pathlib import Path
 from astropy.time import Time
 import numpy as np
 
-from sqlalchemy.orm import joinedload
-
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
@@ -18,7 +17,6 @@ from ...models import (
     Spectrum,
     User,
     ClassicalAssignment,
-    GroupSpectrum,
 )
 from ...schema import (
     SpectrumAsciiFilePostJSON,
@@ -155,18 +153,16 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
 
-        query_options = [
-            joinedload(Spectrum.instrument.name)
-            .joinedload(Spectrum.groups)
-            .joinedload(Spectrum.reducers)
-            .joinedload(Spectrum.observers)
-            .joinedload(Spectrum.owner)
-        ]
         spectrum = Spectrum.get_if_accessible_by(
-            spectrum_id, self.current_user, raise_if_none=True, options=query_options
+            spectrum_id, self.current_user, raise_if_none=True
         )
 
-        spec_dict = spectrum.to_dict()
+        spec_dict = recursive_to_dict(spectrum)
+        spec_dict["instrument_name"] = spectrum.instrument.name
+        spec_dict["groups"] = spectrum.groups
+        spec_dict["reducers"] = spectrum.reducers
+        spec_dict["observers"] = spectrum.observers
+        spec_dict["owner"] = spectrum.owner
         self.verify_and_commit()
         return self.success(data=spec_dict)
 
@@ -512,22 +508,23 @@ class ObjSpectraHandler(BaseHandler):
                 schema: Error
         """
 
-        obj = Obj.query.get(obj_id)
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj is None:
             return self.error('Invalid object ID.')
-        query_options = [
-            joinedload(Spectrum.instrument.name)
-            .joinedload(Spectrum.groups)
-            .joinedload(Spectrum.reducers)
-            .joinedload(Spectrum.observers)
-            .joinedload(Spectrum.owner)
-        ]
-        spectra = Obj.get_spectra_readable_by(
-            obj_id, self.current_user, options=query_options
+
+        spectra = (
+            Spectrum.query_records_accessible_by(self.current_user)
+            .filter(Spectrum.obj_id == obj_id)
+            .all()
         )
         return_values = []
         for spec in spectra:
-            spec_dict = spec.to_dict()
+            spec_dict = recursive_to_dict(spec)
+            spec_dict["instrument_name"] = spec.instrument.name
+            spec_dict["groups"] = spec.groups
+            spec_dict["reducers"] = spec.reducers
+            spec_dict["observers"] = spec.observers
+            spec_dict["owner"] = spec.owner
             return_values.append(spec_dict)
 
         normalization = self.get_query_argument('normalization', None)
@@ -547,9 +544,10 @@ class ObjSpectraHandler(BaseHandler):
                     s["fluxes"] = s["fluxes"] / norm
             else:
                 return self.error(
-                    f'Invalid "normalization" value "{normalization}, use "median" or None'
+                    f'Invalid "normalization" value "{normalization}, use '
+                    '"median" or None'
                 )
-
+        self.verify_and_commit()
         return self.success(data={'obj_id': obj.id, 'spectra': return_values})
 
 
@@ -616,17 +614,13 @@ class SpectrumRangeHandler(BaseHandler):
         min_date = self.get_query_argument('min_date', None)
         max_date = self.get_query_argument('max_date', None)
 
-        gids = [g.id for g in self.current_user.accessible_groups]
+        if len(instrument_ids) > 0:
+            query = Spectrum.query_records_accessible_by(self.current_user).filter(
+                Spectrum.instrument_id.in_(instrument_ids)
+            )
+        else:
+            query = Spectrum.query_records_accessible_by(self.current_user)
 
-        query = (
-            DBSession()
-            .query(Spectrum)
-            .join(GroupSpectrum)
-            .filter(GroupSpectrum.group_id.in_(gids))
-        )
-
-        if instrument_ids:
-            query = query.filter(Spectrum.instrument_id.in_(instrument_ids))
         if min_date is not None:
             utc = Time(min_date, format='isot', scale='utc')
             query = query.filter(Spectrum.observed_at >= utc.isot)
