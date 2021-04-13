@@ -2176,7 +2176,9 @@ class Annotation(Base):
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
-    data = sa.Column(JSONB, default=None, doc="Searchable data in JSON format")
+    data = sa.Column(
+        JSONB, default=None, nullable=False, doc="Searchable data in JSON format"
+    )
     author = relationship(
         "User",
         back_populates="annotations",
