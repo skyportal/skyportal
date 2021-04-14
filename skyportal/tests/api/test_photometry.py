@@ -2300,4 +2300,25 @@ def test_cannot_post_negative_fluxerr(
     )
     assert status == 400
     assert data['status'] == 'error'
-    assert "fluxerr must be a non-negative value" in data['message']
+    assert "Invalid value" in data['message']
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': [58000.0, 58000.4],
+            'instrument_id': ztf_camera.id,
+            'flux': [12.24, 12.43],
+            'fluxerr': [0.35, -0.031],
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+    assert "Invalid value" in data['message']
