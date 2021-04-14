@@ -259,7 +259,7 @@ class SpectrumHandler(BaseHandler):
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_id': obj_key},
+            payload={'obj_id': spectrum.obj_id},
         )
 
         return self.success()
