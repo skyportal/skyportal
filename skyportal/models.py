@@ -2906,10 +2906,11 @@ GroupSpectrum.update = GroupSpectrum.delete = (
 
 class CommentOnSpectrum(Base, CommentMixin):
 
-    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read', spectrum='read')
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        obj='read'
+        obj='read',
+        spectrum='read',
     )
 
     update = delete = AccessibleIfUserMatches('author')

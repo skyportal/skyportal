@@ -89,6 +89,12 @@ class CommentHandler(BaseHandler):
                 properties:
                   obj_id:
                     type: string
+                  spectrum_id:
+                    type: integer
+                    description: |
+                      ID of spectrum that this comment should be
+                      attached to. Leave empty to post a comment
+                      on the object instead.
                   text:
                     type: string
                   group_ids:
@@ -134,6 +140,8 @@ class CommentHandler(BaseHandler):
             return self.error("Missing required field `obj_id`")
         comment_text = data.get("text")
 
+        spectrum_id = data.get("spectrum_id", None)
+
         group_ids = data.pop('group_ids', None)
         if not group_ids:
             groups = self.current_user.accessible_groups
@@ -158,14 +166,25 @@ class CommentHandler(BaseHandler):
             attachment_bytes, attachment_name = None, None
 
         author = self.associated_user_object
-        comment = Comment(
-            text=comment_text,
-            obj_id=obj_id,
-            attachment_bytes=attachment_bytes,
-            attachment_name=attachment_name,
-            author=author,
-            groups=groups,
-        )
+        if spectrum_id:
+            comment = CommentOnSpectrum(
+                text=comment_text,
+                spectrum_id=spectrum_id,
+                obj_id=obj_id,
+                attachment_bytes=attachment_bytes,
+                attachment_name=attachment_name,
+                author=author,
+                groups=groups,
+            )
+        else:
+            comment = Comment(
+                text=comment_text,
+                obj_id=obj_id,
+                attachment_bytes=attachment_bytes,
+                attachment_name=attachment_name,
+                author=author,
+                groups=groups,
+            )
         users_mentioned_in_comment = users_mentioned(comment_text)
         if users_mentioned_in_comment:
             for user_mentioned in users_mentioned_in_comment:
@@ -244,7 +263,7 @@ class CommentHandler(BaseHandler):
         else:  # comment on other stuff
             if comment_on_what == "spectrum":
                 schema = CommentOnSpectrum.__schema__()
-                c = Comment.get_if_accessible_by(
+                c = CommentOnSpectrum.get_if_accessible_by(
                     comment_id, self.current_user, mode="update", raise_if_none=True
                 )
             # add more options using elif
