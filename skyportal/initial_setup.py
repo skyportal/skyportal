@@ -1,11 +1,8 @@
 import os
 from pathlib import Path
 import argparse
-import time
-import sys
 from email.utils import parseaddr
-from sqlalchemy.exc import TimeoutError
-from baselayer.app.config import load_config
+from baselayer.app.env import load_env
 from baselayer.app.model_util import status, drop_tables, create_tables
 from social_tornado.models import TornadoStorage
 from skyportal.models import init_db, Base, User, DBSession
@@ -32,7 +29,7 @@ PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py  \
 If you just want to add a user to an existing database make sure you add the `--nodrop` flag:
 
 PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py  \
-          --nodrop --username=<anotheremail>
+          --nodrop --user=<anotheremail>
 """
 
 parser = argparse.ArgumentParser(description='Initialize Skyportal and add admin/users')
@@ -58,14 +55,6 @@ parser.add_argument(
     help='Email of a normal user (e.g., user@cesium-ml.org)',
 )
 
-parser.add_argument(
-    '-C',
-    '--config',
-    action='append',
-    default=[],
-    help='Config YAML to specify database to connect to',
-)
-
 results = parser.parse_args()
 
 
@@ -73,7 +62,7 @@ if __name__ == "__main__":
 
     """Create the initial structure of the DB, prepping for Skyportal"""
 
-    cfg = load_config(config_files=results.config)
+    env, cfg = load_env()
     basedir = Path(os.path.dirname(__file__)) / '..'
 
     _, adminuser = parseaddr(results.adminuser)
@@ -83,24 +72,8 @@ if __name__ == "__main__":
     if user == '' and results.user is not None:
         print("Note: user is not a valid email address")
 
-    RETRIES = 6
-    timeout = 1
-    for i in range(RETRIES):
-        try:
-            with status(f"Connecting to database {cfg['database']['database']}"):
-                init_db(**cfg['database'])
-        except TimeoutError:
-            if i == RETRIES - 1:
-                print('FAIL')
-                print()
-                print(
-                    f'Error: Could not connect to SkyPortal database; trying again in {timeout}s'
-                )
-                sys.exit(-1)
-            else:
-                time.sleep(timeout)
-                timeout = max(timeout * 2, 30)
-                print('Retrying connection...')
+    with status(f"Connecting to database {cfg['database']['database']}"):
+        init_db(**cfg['database'])
 
     if not results.nodrop:
         with status("Force dropping all tables"):
