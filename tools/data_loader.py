@@ -13,8 +13,7 @@ import yaml
 from yaml import Loader
 
 from baselayer.app.env import load_env, parser
-from baselayer.app.model_util import create_tables
-from skyportal.models import init_db
+
 from skyportal.tests import api
 
 
@@ -59,9 +58,28 @@ if __name__ == "__main__":
     src = yaml.load(open(fname, "r"), Loader=Loader)
     src_path = os.path.dirname(fname)
 
-    if create_tables:
-        print(f"Connecting to database {cfg['database']['database']}")
-        init_db(**cfg['database'])
+    if env.create_tables:
+        from baselayer.app.model_util import create_tables
+        from skyportal.models import init_db
+
+        RETRIES = 6
+        timeout = 1
+        for i in range(RETRIES):
+            try:
+                print(f"Connecting to database {cfg['database']['database']}")
+                init_db(**cfg['database'])
+            except TimeoutError:
+                if i == RETRIES - 1:
+                    print('FAIL')
+                    print()
+                    print(
+                        f'Error: Could not connect to SkyPortal database; trying again in {timeout}s'
+                    )
+                    sys.exit(-1)
+                else:
+                    time.sleep(timeout)
+                    timeout = max(timeout * 2, 30)
+                    print('Retrying connection...')
 
         print("Creating tables")
         create_tables()
