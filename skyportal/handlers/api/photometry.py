@@ -74,9 +74,12 @@ def save_group_photometry_using_copy(rows):
     p = subprocess.Popen(
         cmd,
         stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         env=env,
     )
 
+    error_message = ""
     for row in rows:
         utcnow = datetime.datetime.utcnow().isoformat()
         p.stdin.write(
@@ -85,6 +88,11 @@ def save_group_photometry_using_copy(rows):
 
     p.stdin.close()
     p.wait()
+
+    if p.returncode:
+        error_message = p.stderr.readline().decode()
+
+    return p.returncode, error_message
 
 
 def nan_to_none(value):
@@ -598,7 +606,7 @@ class PhotometryHandler(BaseHandler):
 
         query = Photometry.__table__.insert()
         DBSession().execute(query, params)
-        # Persist the new photometry
+        # Persist the new photometry so the ids are present for the group photometry post
         DBSession().commit()
 
         # Bulk COPY in the group_photometry records
@@ -609,7 +617,16 @@ class PhotometryHandler(BaseHandler):
         # primary key IDs, checking for duplicate photometry, etc, such that
         # a subprocess cannot actually insert into photometry on a separate
         # connection.
-        save_group_photometry_using_copy(group_photometry_params)
+        exit_code, message = save_group_photometry_using_copy(group_photometry_params)
+        if exit_code:
+            # Returned with non-zero - rollback the photometry post
+            query = Photometry.__table__.delete().where(
+                Photometry.upload_id == upload_id
+            )
+            DBSession().execute(query)
+            raise RuntimeError(
+                f"Something went wrong during posting of GroupPhotometry:\n{message}"
+            )
 
         return ids, upload_id
 
@@ -692,7 +709,7 @@ class PhotometryHandler(BaseHandler):
 
         try:
             df, instrument_cache = self.standardize_photometry_data()
-        except ValidationError as e:
+        except (ValidationError, RuntimeError) as e:
             return self.error(e.args[0])
 
         # This lock ensures that the Photometry table data are not modified in any way
