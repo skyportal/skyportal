@@ -146,38 +146,51 @@ phot_markers = [
     "diamond",
     "star",
     "plus",
-    "x",
     "cross",
-    "y",
     "triangle_pin",
     "square_pin",
 ]
 
 
-def get_color(bandpass_name):
-    if bandpass_name.startswith('ztf'):
-        return {'ztfg': 'green', 'ztfi': 'orange', 'ztfr': 'red'}[bandpass_name]
-    else:
-        bandpass = sncosmo.get_bandpass(bandpass_name)
-        wave = bandpass.wave_eff
+def get_effective_wavelength(bandpass_name):
+    bandpass = sncosmo.get_bandpass(bandpass_name)
+    return float(bandpass.wave_eff)
 
-        if 0 < wave < 3000:
-            cmap = cmap_uv
-            cmap_limits = (0, 3000)
-        elif 3000 <= wave <= 10000:
-            cmap = cmap_opt
-            cmap_limits = (3000, 10000)
-        elif 10000 < wave < 1e5:
-            wave = np.log10(wave)
-            cmap = cmap_ir
-            cmap_limits = (4, 5)
-        else:
-            raise ValueError('wavelength out of range for color maps')
 
-        rgb = cmap((cmap_limits[1] - wave) / (cmap_limits[1] - cmap_limits[0]))[:3]
+def get_color(wavelength):
+
+    if 0 < wavelength <= 1500:  # EUV
+        bandcolor = 'indigo'
+    elif 1500 < wavelength <= 2100:  # uvw2
+        bandcolor = 'slateblue'
+    elif 2100 < wavelength <= 2400:  # uvm2
+        bandcolor = 'darkviolet'
+    elif 2400 < wavelength <= 3000:  # uvw1
+        bandcolor = 'magenta'
+    elif 3000 < wavelength <= 4000:  # U, sdss u
+        bandcolor = 'blue'
+    elif 4000 < wavelength <= 5000:  # B, sdss g
+        bandcolor = 'green'
+    elif 5000 < wavelength <= 6000:  # V
+        bandcolor = 'yellowgreen'
+    elif 6000 < wavelength <= 7000:  # sdss r
+        bandcolor = 'red'
+    elif 7000 < wavelength <= 8000:  # sdss i
+        bandcolor = 'orange'
+    elif 8000 < wavelength <= 11000:  # sdss z
+        bandcolor = 'brown'
+    elif 11000 < wavelength < 1e5:  # mm to Radio
+        wavelength = np.log10(wavelength)
+        cmap = cmap_ir
+        cmap_limits = (4, 5)
+        rgb = cmap((cmap_limits[1] - wavelength) / (cmap_limits[1] - cmap_limits[0]))[
+            :3
+        ]
         bandcolor = rgb2hex(rgb)
+    else:
+        raise ValueError('wavelength out of range for color maps')
 
-        return bandcolor
+    return bandcolor
 
 
 def annotate_spec(plot, spectra, lower, upper):
@@ -326,7 +339,10 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         .all()
     )
 
-    data['color'] = [get_color(f) for f in data['filter']]
+    data['effwave'] = [get_effective_wavelength(f) for f in data['filter']]
+    data['color'] = [get_color(w) for w in data['effwave']]
+
+    data.sort_values(by=['effwave'], inplace=True)
 
     # get marker for each unique instrument
     instruments = list(data.instrument.unique())
@@ -335,7 +351,8 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         markers.append(phot_markers[i % len(phot_markers)])
 
     filters = list(set(data['filter']))
-    colors = [get_color(f) for f in filters]
+    ewaves = [get_effective_wavelength(f) for f in filters]
+    colors = [get_color(w) for w in ewaves]
 
     color_mapper = CategoricalColorMapper(factors=filters, palette=colors)
     color_dict = {'field': 'filter', 'transform': color_mapper}
@@ -725,6 +742,23 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     for i, (label, df) in enumerate(split):
         renderers = []
 
+        unobs_source = df[~df['obs']].copy()
+        unobs_source.loc[:, 'alpha'] = 0.8
+
+        key = f'unobs{i}'
+        model_dict[key] = plot.scatter(
+            x='mjd',
+            y='lim_mag',
+            color=color_dict,
+            marker=factor_mark('instrument', markers, instruments),
+            fill_alpha=0.0,
+            line_color=color_dict,
+            alpha='alpha',
+            source=ColumnDataSource(unobs_source),
+        )
+        renderers.append(model_dict[key])
+        imhover.renderers.append(model_dict[key])
+
         key = f'obs{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
@@ -734,23 +768,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             fill_color=color_dict,
             alpha='alpha',
             source=ColumnDataSource(df[df['obs']]),
-        )
-        renderers.append(model_dict[key])
-        imhover.renderers.append(model_dict[key])
-
-        unobs_source = df[~df['obs']].copy()
-        unobs_source.loc[:, 'alpha'] = 0.8
-
-        key = f'unobs{i}'
-        model_dict[key] = plot.scatter(
-            x='mjd',
-            y='lim_mag',
-            color=color_dict,
-            marker='inverted_triangle',
-            fill_color='white',
-            line_color='color',
-            alpha='alpha',
-            source=ColumnDataSource(unobs_source),
         )
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
@@ -931,7 +948,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         period = period_list[0]
     else:
         period = None
-    period = None
     # don't generate if no period annotated
     if period is not None:
         # bokeh figure for period plotting

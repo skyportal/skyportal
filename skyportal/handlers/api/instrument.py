@@ -13,9 +13,9 @@ class InstrumentHandler(BaseHandler):
 
         data = self.get_json()
         telescope_id = data.get('telescope_id')
-        telescope = Telescope.query.get(telescope_id)
-        if not telescope:
-            return self.error('Invalid telescope ID.')
+        telescope = Telescope.get_if_accessible_by(
+            telescope_id, self.current_user, raise_if_none=True, mode="read"
+        )
 
         schema = Instrument.__schema__()
         try:
@@ -26,7 +26,7 @@ class InstrumentHandler(BaseHandler):
             )
         instrument.telescope = telescope
         DBSession().add(instrument)
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         return self.success(data={"id": instrument.id})
 
@@ -74,21 +74,18 @@ class InstrumentHandler(BaseHandler):
                   schema: Error
         """
         if instrument_id is not None:
-            instrument = Instrument.query.get(int(instrument_id))
-
-            if instrument is None:
-                return self.error(
-                    f"Could not load instrument {instrument_id}",
-                    data={"instrument_id": instrument_id},
-                )
+            instrument = Instrument.get_if_accessible_by(
+                int(instrument_id), self.current_user, raise_if_none=True, mode="read"
+            )
             return self.success(data=instrument)
 
         inst_name = self.get_query_argument("name", None)
-        query = Instrument.query
+        query = Instrument.query_records_accessible_by(self.current_user, mode="read")
         if inst_name is not None:
             query = query.filter(Instrument.name == inst_name)
-        self.verify_permissions()
-        return self.success(data=query.all())
+        instruments = query.all()
+        self.verify_and_commit()
+        return self.success(data=instruments)
 
     @permissions(['System admin'])
     def put(self, instrument_id):
@@ -120,6 +117,11 @@ class InstrumentHandler(BaseHandler):
         data = self.get_json()
         data['id'] = int(instrument_id)
 
+        # permission check
+        _ = Instrument.get_if_accessible_by(
+            int(instrument_id), self.current_user, raise_if_none=True, mode='update'
+        )
+
         schema = Instrument.__schema__()
         try:
             schema.load(data, partial=True)
@@ -127,7 +129,7 @@ class InstrumentHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
             )
-        self.finalize_transaction()
+        self.verify_and_commit()
 
         return self.success()
 
@@ -154,10 +156,11 @@ class InstrumentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        DBSession().query(Instrument).filter(
-            Instrument.id == int(instrument_id)
-        ).delete()
-        self.finalize_transaction()
+        instrument = Instrument.get_if_accessible_by(
+            int(instrument_id), self.current_user, raise_if_none=True, mode='update'
+        )
+        DBSession().delete(instrument)
+        self.verify_and_commit()
 
         return self.success()
 

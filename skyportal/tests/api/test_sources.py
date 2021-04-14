@@ -268,7 +268,9 @@ def test_starlist(upload_data_token, public_source):
     assert isinstance(data["data"]["starlist_info"][0]["ra"], float)
 
     status, data = api(
-        "GET", f"sources/{public_source.id}/offsets", token=upload_data_token,
+        "GET",
+        f"sources/{public_source.id}/offsets",
+        token=upload_data_token,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -498,7 +500,13 @@ def test_sources_sorting(upload_data_token, view_only_token, public_group):
 
 
 def test_object_last_detected(
-    upload_data_token, view_only_token, public_source, ztf_camera, public_group
+    upload_data_token,
+    view_only_token,
+    public_source,
+    ztf_camera,
+    public_group,
+    upload_data_token_two_groups,
+    public_group2,
 ):
     # Some very high mjd to make this the latest point
     # This is not a detection though
@@ -517,6 +525,26 @@ def test_object_last_detected(
             'group_ids': [public_group.id],
         },
         token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # Another high mjd, but this time a photometry point not visible to the user
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 99900.0,
+            'instrument_id': ztf_camera.id,
+            'mag': None,
+            'magerr': None,
+            'limiting_mag': 22.3,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group2.id],
+        },
+        token=upload_data_token_two_groups,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -585,7 +613,9 @@ def test_source_photometry_summary_info(
     iso2 = arrow.get((pt2["mjd"] - 40_587) * 86400.0).isoformat()
 
     status, data = api(
-        "GET", f"sources/{public_source_no_data.id}", token=view_only_token,
+        "GET",
+        f"sources/{public_source_no_data.id}",
+        token=view_only_token,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -1232,7 +1262,10 @@ def test_sources_filter_by_has_tns_name(
 
 
 def test_sources_filter_by_has_spectrum(
-    view_only_token, public_group, public_source, public_source_no_data,
+    view_only_token,
+    public_group,
+    public_source,
+    public_source_no_data,
 ):
     # Filter for obj 1 only, since the no data source will not have spectra
     status, data = api(
@@ -1244,3 +1277,64 @@ def test_sources_filter_by_has_spectrum(
     assert status == 200
     assert len(data["data"]["sources"]) == 1
     assert data["data"]["sources"][0]["id"] == public_source.id
+
+
+def test_sources_hidden_photometry_not_leaked(
+    public_source,
+    ztf_camera,
+    public_group,
+    public_group2,
+    view_only_token,
+    upload_data_token_two_groups,
+):
+    obj_id = str(public_source.id)
+    # Post photometry to the object belonging to a different group
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group2.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    photometry_id = data['data']['ids'][0]
+
+    # Check the photometry sent back with the source
+    status, data = api(
+        "GET",
+        "sources",
+        params={"group_ids": f"{public_group.id}", "includePhotometry": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id
+    assert len(public_source.photometry) - 1 == len(
+        data["data"]["sources"][0]["photometry"]
+    )
+    assert photometry_id not in map(
+        lambda x: x["id"], data["data"]["sources"][0]["photometry"]
+    )
+
+    # Check for single GET call as well
+    status, data = api(
+        "GET",
+        f"sources/{obj_id}",
+        params={"includePhotometry": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+    assert len(public_source.photometry) - 1 == len(data["data"]["photometry"])
+    assert photometry_id not in map(lambda x: x["id"], data["data"]["photometry"])

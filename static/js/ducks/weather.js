@@ -21,10 +21,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 const reducer = (state = { weather: undefined }, action) => {
   switch (action.type) {
     case FETCH_WEATHER_OK: {
-      const weather = action.data;
-      return {
-        weather,
-      };
+      return action.data;
     }
     default:
       return state;

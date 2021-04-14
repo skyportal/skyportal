@@ -79,8 +79,8 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Telescope
 
-    name = factory.LazyFunction(lambda: f'Palomar 48 inch_{str(uuid.uuid4())}')
-    nickname = factory.LazyFunction(lambda: f'P48_{str(uuid.uuid4())}')
+    name = factory.LazyFunction(lambda: f'Palomar 48 inch_{uuid.uuid4().hex}')
+    nickname = factory.LazyFunction(lambda: f'P48_{uuid.uuid4().hex}')
     lat = 33.3563
     lon = -116.8650
     elevation = 1712.0
@@ -101,7 +101,7 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = User
 
-    username = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    username = factory.LazyFunction(lambda: uuid.uuid4().hex)
     contact_email = factory.LazyFunction(lambda: f'{uuid.uuid4().hex[:10]}@gmail.com')
     first_name = factory.LazyFunction(lambda: f'{uuid.uuid4().hex[:4]}')
     last_name = factory.LazyFunction(lambda: f'{uuid.uuid4().hex[:4]}')
@@ -151,9 +151,9 @@ class AnnotationFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Annotation
 
-    data = {'unique_id': str(uuid.uuid4())}
+    data = {'unique_id': uuid.uuid4().hex}
     author = factory.SubFactory(UserFactory)
-    origin = factory.LazyFunction(lambda: str(uuid.uuid4())[:10])
+    origin = factory.LazyFunction(lambda: uuid.uuid4().hex[:10])
 
     @factory.post_generation
     def groups(obj, create, extracted, **kwargs):
@@ -181,7 +181,7 @@ class InstrumentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Instrument
 
-    name = factory.LazyFunction(lambda: f'ZTF_{str(uuid.uuid4())}')
+    name = factory.LazyFunction(lambda: f'ZTF_{uuid.uuid4().hex}')
     type = 'imager'
     band = 'Optical'
     telescope = factory.SubFactory(TelescopeFactory)
@@ -257,7 +257,7 @@ class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Stream
 
-    name = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    name = factory.LazyFunction(lambda: uuid.uuid4().hex)
     users = []
     groups = []
     filters = []
@@ -276,7 +276,7 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Group
 
-    name = factory.LazyFunction(lambda: str(uuid.uuid4())[:15])
+    name = factory.LazyFunction(lambda: uuid.uuid4().hex[:15])
     users = []
     streams = []
     filters = []
@@ -320,7 +320,7 @@ class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Comment
 
-    text = f'Test comment {str(uuid.uuid4())}'
+    text = f'Test comment {uuid.uuid4().hex}'
     ctype = 'text'
     author = factory.SubFactory(UserFactory)
 
@@ -349,7 +349,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Obj
 
-    id = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    id = factory.LazyFunction(lambda: uuid.uuid4().hex)
     ra = 0.0
     dec = 0.0
     redshift = 0.0
@@ -419,16 +419,16 @@ class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     instrument = factory.SubFactory(
         InstrumentFactory,
-        name=factory.LazyFunction(lambda: f'DBSP_{uuid.uuid4()}'),
+        name=factory.LazyFunction(lambda: f'DBSP_{uuid.uuid4().hex}'),
         type='spectrograph',
         band='Optical',
         filters=[],
         telescope=factory.SubFactory(
             TelescopeFactory,
             name=factory.LazyFunction(
-                lambda: f'Palomar 200-inch Telescope_{uuid.uuid4()}'
+                lambda: f'Palomar 200-inch Telescope_{uuid.uuid4().hex}'
             ),
-            nickname=factory.LazyFunction(lambda: f'P200_{uuid.uuid4()}'),
+            nickname=factory.LazyFunction(lambda: f'P200_{uuid.uuid4().hex}'),
             robotic=False,
             skycam_link='/static/images/palomar.jpg',
         ),
@@ -487,7 +487,7 @@ class TaxonomyFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Taxonomy
 
-    name = factory.LazyFunction(lambda: str(uuid.uuid4())[:10])
+    name = factory.LazyFunction(lambda: uuid.uuid4().hex[:10])
     hierarchy = tdtax.taxonomy
     provenance = f"tdtax_{tdtax.__version__}"
     version = tdtax.__version__
@@ -517,9 +517,9 @@ class ClassificationFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Classification
 
     taxonomy = factory.SubFactory(TaxonomyFactory)
-    classification = factory.LazyFunction(lambda: str(uuid.uuid4())[:10])
+    classification = factory.LazyFunction(lambda: uuid.uuid4().hex[:10])
     author = factory.SubFactory(UserFactory)
-    author_name = factory.LazyFunction(lambda: str(uuid.uuid4())[:10])
+    author_name = factory.LazyFunction(lambda: uuid.uuid4().hex[:10])
     obj = factory.SubFactory(ObjFactory)
     probability = factory.LazyFunction(lambda: float(np.random.uniform()))
 
@@ -555,8 +555,8 @@ class AllocationFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     instrument = factory.SubFactory(InstrumentFactory)
     group = (factory.SubFactory(GroupFactory),)
-    pi = (factory.LazyFunction(lambda: str(uuid.uuid4())),)
-    proposal_id = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    pi = (factory.LazyFunction(lambda: uuid.uuid4().hex),)
+    proposal_id = factory.LazyFunction(lambda: uuid.uuid4().hex)
     hours_allocated = 100
 
     @staticmethod
@@ -620,7 +620,7 @@ class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Invitation
 
-    token = factory.LazyFunction(lambda: str(uuid.uuid4()))
+    token = factory.LazyFunction(lambda: uuid.uuid4().hex)
     admin_for_groups = []
     user_email = 'user@email.com'
     invited_by = factory.SubFactory(UserFactory)

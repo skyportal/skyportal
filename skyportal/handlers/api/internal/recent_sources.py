@@ -69,14 +69,15 @@ class RecentSourcesHandler(BaseHandler):
                 .first()
             )
 
-            public_url = first_thumbnail_public_url(s.thumbnails)
+            info = first_thumbnail_info(s.thumbnails)
             sources.append(
                 {
                     'obj_id': s.id,
                     'ra': s.ra,
                     'dec': s.dec,
                     'created_at': source_entry.created_at,
-                    'public_url': public_url,
+                    'public_url': info[0],
+                    'is_grayscale': info[1],
                     'classifications': s.classifications,
                     'recency_index': recency_index,
                 }
@@ -93,13 +94,16 @@ class RecentSourcesHandler(BaseHandler):
             # Delete bookkeeping recency_index key
             del source["recency_index"]
 
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=sources)
 
 
-def first_thumbnail_public_url(thumbnails):
-    urls = [t.public_url for t in sorted(thumbnails, key=lambda t: tIndex(t.type))]
-    return urls[0] if urls else ""
+def first_thumbnail_info(thumbnails):
+    infos = [
+        (t.public_url, t.is_grayscale)
+        for t in sorted(thumbnails, key=lambda t: tIndex(t.type))
+    ]
+    return infos[0] if infos else ("", False)
 
 
 def tIndex(t):

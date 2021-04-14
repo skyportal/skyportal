@@ -1,4 +1,5 @@
 import re
+from typing import Mapping
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -93,7 +94,6 @@ class AnnotationHandler(BaseHandler):
                               description: New annotation ID
         """
         data = self.get_json()
-
         group_ids = data.pop('group_ids', None)
         if not group_ids:
             groups = self.current_user.accessible_groups
@@ -115,6 +115,12 @@ class AnnotationHandler(BaseHandler):
             return self.error("Input `origin` must begin with alphanumeric/underscore")
 
         annotation_data = data.get("data")
+
+        if not isinstance(annotation_data, Mapping):
+            return self.error(
+                "Invalid data: the annotation data must be an object with at least one {key: value} pair"
+            )
+
         author = self.associated_user_object
         annotation = Annotation(
             data=annotation_data,
@@ -125,7 +131,7 @@ class AnnotationHandler(BaseHandler):
         )
 
         DBSession().add(annotation)
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': annotation.obj.internal_key},
@@ -190,7 +196,7 @@ class AnnotationHandler(BaseHandler):
             )
             a.groups = groups
 
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push_all(
             action='skyportal/REFRESH_SOURCE', payload={'obj_key': a.obj.internal_key}
         )
@@ -220,7 +226,7 @@ class AnnotationHandler(BaseHandler):
         )
         obj_key = a.obj.internal_key
         DBSession().delete(a)
-        self.finalize_transaction()
+        self.verify_and_commit()
         self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
         return self.success()
 
@@ -256,5 +262,5 @@ class ObjAnnotationHandler(BaseHandler):
             .filter(Annotation.obj_id == obj_id)
             .all()
         )
-        self.verify_permissions()
+        self.verify_and_commit()
         return self.success(data=annotations)
