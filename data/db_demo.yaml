@@ -49,6 +49,12 @@ groups/=program_A/users:
   - userID: =fulluser
     admin: false
 
+groups/=program_B/users:
+  - userID: =viewonlyuser
+    admin: false
+  - userID: =fulluser
+    admin: false
+
 streams/=ztf_public/users:
   - user_id: =viewonlyuser
   - user_id: =fulluser
