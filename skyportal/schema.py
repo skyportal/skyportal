@@ -45,6 +45,12 @@ _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 
+def validate_fluxerr(fluxerr):
+    if isinstance(fluxerr, (float, int, str)):
+        return float(fluxerr) >= 0
+    return all([float(el) >= 0 for el in fluxerr])
+
+
 class ApispecEnumField(EnumField):
     """See https://github.com/justanr/marshmallow_enum/issues/24#issue-335162592"""
 
@@ -324,6 +330,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         'If a scalar, will be broadcast to all values '
         'given as lists. Null values not allowed.',
         required=True,
+        validate=validate_fluxerr,
     )
 
     zp = fields.Field(
