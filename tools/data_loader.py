@@ -13,6 +13,8 @@ import yaml
 from yaml import Loader
 
 from baselayer.app.env import load_env, parser
+from baselayer.app.model_util import create_tables
+from skyportal.models import init_db
 from skyportal.tests import api
 
 
@@ -41,6 +43,11 @@ if __name__ == "__main__":
                              here, that token will be used.'''
         ),
     )
+    parser.add_argument(
+        '--create_tables',
+        action='store_true',
+        help="Set to create the SkyPortal database tables before inserting data.",
+    )
 
     env, cfg = load_env()
 
@@ -52,6 +59,13 @@ if __name__ == "__main__":
     src = yaml.load(open(fname, "r"), Loader=Loader)
     src_path = os.path.dirname(fname)
 
+    if create_tables:
+        print(f"Connecting to database {cfg['database']['database']}")
+        init_db(**cfg['database'])
+
+        print("Creating tables")
+        create_tables()
+
     def get_token():
         if env.token:
             return env.token
@@ -60,7 +74,7 @@ if __name__ == "__main__":
             token = yaml.load(open('.tokens.yaml'), Loader=yaml.Loader)['INITIAL_ADMIN']
             print('Token loaded from `.tokens.yaml`')
             return token
-        except (FileNotFoundError, TypeError, KeyError) as e:
+        except (FileNotFoundError, TypeError, KeyError):
             print(
                 'Error: no token specified, and no suitable token found in .tokens.yaml'
             )
