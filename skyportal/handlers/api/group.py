@@ -436,7 +436,9 @@ class GroupUserHandler(BaseHandler):
             .first()
         )
         if gu is not None:
-            return self.error("Specified user is already a member of this group.")
+            return self.error(
+                f"User {user_id} is already a member of group {group_id}."
+            )
 
         DBSession().add(GroupUser(group_id=group_id, user_id=user_id, admin=admin))
         DBSession().add(
@@ -507,7 +509,7 @@ class GroupUserHandler(BaseHandler):
         )
 
         if groupuser is None:
-            return self.error("Specified user is not a member of specified group.")
+            return self.error(f"User {user_id} is not a member of group {group_id}.")
 
         if data.get("admin") is None:
             return self.error("Missing required parameter: `admin`")

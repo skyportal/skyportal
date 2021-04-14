@@ -365,3 +365,62 @@ def test_obj_groups(public_source, public_group, super_admin_token):
     )
     assert status == 200
     assert data["data"][0]["id"] == public_group.id
+
+
+def test_add_user_to_group(public_group, user_group2, super_admin_token):
+    status, data = api(
+        "POST",
+        f"groups/{public_group.id}/users",
+        data={"userID": user_group2.id, "admin": False},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+
+def test_cannot_add_user_to_group_wout_stream_access(
+    public_group_stream2, super_admin_token, user
+):
+    status, data = api(
+        "POST",
+        f"groups/{public_group_stream2.id}/users",
+        data={"userID": user.id, "admin": False},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "Insufficient permissions" in data["message"]
+
+
+def test_cannot_delete_stream_actively_filtered(
+    public_group, public_stream, public_filter, super_admin_token
+):
+    status, data = api(
+        "DELETE",
+        f"groups/{public_group.id}/streams/{public_stream.id}",
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "Insufficient permissions" in data["message"]
+
+
+def test_delete_stream_not_actively_filtered(
+    public_group_two_streams,
+    public_group,
+    public_stream,
+    public_stream2,
+    public_filter,
+    super_admin_token,
+):
+    status, data = api(
+        "DELETE",
+        f"groups/{public_group.id}/streams/{public_stream.id}",
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "Insufficient permissions" in data["message"]
+
+    status, data = api(
+        "DELETE",
+        f"groups/{public_group_two_streams.id}/streams/{public_stream2.id}",
+        token=super_admin_token,
+    )
+    assert status == 200

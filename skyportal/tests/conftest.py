@@ -208,6 +208,22 @@ def public_group2(public_stream):
 
 
 @pytest.fixture()
+def public_group_stream2(public_stream2):
+    group = GroupFactory(streams=[public_stream2])
+    group_id = group.id
+    yield group
+    GroupFactory.teardown(group_id)
+
+
+@pytest.fixture()
+def public_group_two_streams(public_stream, public_stream2):
+    group = GroupFactory(streams=[public_stream, public_stream2])
+    group_id = group.id
+    yield group
+    GroupFactory.teardown(group_id)
+
+
+@pytest.fixture()
 def public_group_no_streams():
     group = GroupFactory()
     group_id = group.id
