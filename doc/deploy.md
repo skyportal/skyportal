@@ -38,16 +38,6 @@ docker-compose up -d
 
 Once both services are up and running, you may browse to SkyPortal at `http://localhost:9000`.
 
-Note that by default, the SkyPortal image will run the application in production (`make run_production`).
-
-The key behavior to note when running production mode is that the application will not create any database tables automatically (to avoid messing with production data). This means that the very first time you spin up SkyPortal using containers, the `skyportal_dbdata` volume will only have an empty database. You will need to set up the database tables manually. The easiest way to do this would be to run:
-
-```
-docker exec skyportal_web_1 bash -c 'source /skyportal_env/bin/activate && PYTHONPATH=$PYTHONPATH:"." python skyportal/initial_setup.py --config=config.yaml --username testuser@cesium-ml.org'
-```
-
-The `initial_setup.py` script used here is primarily intended to add new users to the database, but also can create tables defined in `models.py` as a side-effect.
-
 ## Handling problems
 
 You can see which containers are running with `docker-compose ps`.
@@ -63,11 +53,15 @@ docker-compose logs db
 
 ## Adding test data
 
-To add some test data to play with, run:
+Note that by default, the SkyPortal image will run the application in production (`make run_production`).
+
+The key behavior to note when running production mode is that the application will not create any database tables automatically (to avoid messing with production data). This means that the very first time you spin up SkyPortal using containers, the `skyportal_dbdata` volume will only have an empty database. You will need to set up the database tables manually. The easiest way to do this would be to run:
 
 ```
-docker exec skyportal_web_1 bash -c 'source /skyportal_env/bin/activate && make load_demo_data'
+docker exec skyportal_web_1 bash -c 'source /skyportal_env/bin/activate && FLAGS="--create_tables --config=config.yaml" make load_demo_data'
 ```
+
+This will also load in some test data to play with.
 
 ## Stopping the deployment
 
