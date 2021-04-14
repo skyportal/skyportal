@@ -607,7 +607,7 @@ class PhotometryHandler(BaseHandler):
         query = Photometry.__table__.insert()
         DBSession().execute(query, params)
         # Persist the new photometry so the ids are present for the group photometry post
-        DBSession().commit()
+        self.verify_and_commit()
 
         # Bulk COPY in the group_photometry records
         #
@@ -728,7 +728,6 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
-        self.verify_and_commit()
         return self.success(data={'ids': ids, 'upload_id': upload_id})
 
     @permissions(['Upload data'])
