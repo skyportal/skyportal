@@ -3,7 +3,6 @@ import re
 import uuid
 import warnings
 from datetime import datetime, timezone, timedelta
-
 import arrow
 import astroplan
 import healpix_alchemy as ha
