@@ -1370,6 +1370,14 @@ def test_group_admin_user_delete_public_group(
     assert accessible
 
 
+def test_group_member_user_cannot_delete_group(
+    user,
+    public_group,
+):
+    accessible = public_group.is_accessible_by(user, mode="delete")
+    assert not accessible
+
+
 def test_group_admin_user_delete_public_groupuser(
     group_admin_user,
     public_groupuser,

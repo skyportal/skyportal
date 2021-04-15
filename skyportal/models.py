@@ -274,6 +274,20 @@ class NumpyArray(sa.types.TypeDecorator):
         return np.array(value)
 
 
+def delete_group_access_logic(cls, user_or_token):
+    """User can delete a group that is not the sitewide public group, is not
+    a single user group, and that they are an admin member of."""
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    return (
+        DBSession()
+        .query(cls)
+        .join(GroupUser)
+        .filter(cls.name != cfg['misc']['public_group_name'])
+        .filter(cls.single_user_group.is_(False))
+        .filter(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
+    )
+
+
 class Group(Base):
     """A user group. `Group`s controls `User` access to `Filter`s and serve as
     targets for data sharing requests. `Photometry` and `Spectra` shared with
@@ -287,11 +301,7 @@ class Group(Base):
 
     # require group admin access for group deletion and do not allow
     # the public group to be deleted.
-    delete = update & CustomUserAccessControl(
-        lambda cls, user_or_token: DBSession()
-        .query(cls)
-        .filter(cls.name != cfg['misc']['public_group_name'])
-    )
+    delete = CustomUserAccessControl(delete_group_access_logic)
 
     name = sa.Column(
         sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
