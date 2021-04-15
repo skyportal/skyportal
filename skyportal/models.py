@@ -278,14 +278,16 @@ def delete_group_access_logic(cls, user_or_token):
     """User can delete a group that is not the sitewide public group, is not
     a single user group, and that they are an admin member of."""
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    return (
+    query = (
         DBSession()
         .query(cls)
         .join(GroupUser)
         .filter(cls.name != cfg['misc']['public_group_name'])
         .filter(cls.single_user_group.is_(False))
-        .filter(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
     )
+    if not user_or_token.is_system_admin:
+        query = query.filter(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
+    return query
 
 
 class Group(Base):
