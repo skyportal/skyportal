@@ -279,7 +279,7 @@ def test_user_delete_public_groupuser(
     public_groupuser,
 ):
     accessible = public_groupuser.is_accessible_by(user, mode="delete")
-    assert not accessible  # needs group admin
+    assert accessible  # Any user can remove themself from group
 
 
 def test_user_delete_public_stream(
