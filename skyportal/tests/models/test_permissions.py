@@ -1299,7 +1299,7 @@ def test_group_admin_user_update_public_groupstream(
     public_groupstream,
 ):
     accessible = public_groupstream.is_accessible_by(group_admin_user, mode="update")
-    assert accessible
+    assert not accessible  # needs system admin
 
 
 def test_group_admin_user_update_public_streamuser(
