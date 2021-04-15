@@ -424,3 +424,25 @@ def test_delete_stream_not_actively_filtered(
         token=super_admin_token,
     )
     assert status == 200
+
+
+def test_update_group_user_admin_status(public_group, group_admin_token, user):
+    status, data = api(
+        "PATCH",
+        f"groups/{public_group.id}/users",
+        data={"userID": user.id, "admin": True},
+        token=group_admin_token,
+    )
+    assert status == 200
+
+
+def test_non_group_admin_cannot_update_group_user_admin_status(
+    public_group, manage_users_token, user
+):
+    status, data = api(
+        "PATCH",
+        f"groups/{public_group.id}/users",
+        data={"userID": user.id, "admin": True},
+        token=manage_users_token,
+    )
+    assert status == 400

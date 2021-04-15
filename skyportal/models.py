@@ -53,7 +53,6 @@ from baselayer.app.models import (  # noqa
     restricted,
     public,
     AccessibleIfRelatedRowsAreAccessible,
-    CustomUserAccessControl,
     CronJobRun,
 )
 from skyportal import facility_apis
@@ -3677,7 +3676,18 @@ def update_single_user_group(mapper, connection, target):
 # Group / user / stream permissions
 
 # group admins can set the admin status of other group members
-GroupUser.update = accessible_by_group_admins
+def groupuser_update_access_logic(cls, user_or_token):
+    aliased = sa.orm.aliased(cls)
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    return (
+        DBSession()
+        .query(cls)
+        .join(aliased, cls.group_id == aliased.group_id)
+        .filter(aliased.user_id == user_id, aliased.admin.is_(True))
+    )
+
+
+GroupUser.update = CustomUserAccessControl(groupuser_update_access_logic)
 
 
 GroupUser.delete = (
