@@ -281,6 +281,19 @@ def public_streamuser(public_stream, user):
 
 
 @pytest.fixture()
+def public_streamuser_no_groups(public_stream, user_no_groups):
+    return (
+        DBSession()
+        .query(StreamUser)
+        .filter(
+            StreamUser.user_id == user_no_groups.id,
+            StreamUser.stream_id == public_stream.id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
 def public_filter(public_group, public_stream):
     filter_ = FilterFactory(group=public_group, stream=public_stream)
     filter_id = filter_.id

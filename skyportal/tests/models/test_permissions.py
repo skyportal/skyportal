@@ -1024,11 +1024,21 @@ def test_super_admin_user_delete_public_groupstream(
     assert accessible
 
 
-def test_super_admin_user_delete_public_streamuser(
+def test_super_admin_user_delete_public_streamuser_no_access(
     super_admin_user,
     public_streamuser,
 ):
     accessible = public_streamuser.is_accessible_by(super_admin_user, mode="delete")
+    assert not accessible  # User belongs to groups that filter on stream
+
+
+def test_super_admin_user_delete_public_streamuser(
+    super_admin_user,
+    public_streamuser_no_groups,
+):
+    accessible = public_streamuser_no_groups.is_accessible_by(
+        super_admin_user, mode="delete"
+    )
     assert accessible
 
 
