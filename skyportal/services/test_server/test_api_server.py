@@ -94,8 +94,12 @@ class TestRouteHandler(tornado.web.RequestHandler):
         with my_vcr.use_cassette(cache, record_mode="new_episodes") as cass:
             base_route = self.request.uri.split("?")[0]
 
-            if base_route in cfg["test_server.redirects"]:
-                real_host = cfg["test_server.redirects"][base_route]
+            real_host = None
+            for route in cfg["test_server.redirects"].keys():
+                if re.match(route, base_route):
+                    real_host = cfg["test_server.redirects"][route]
+
+            if real_host is not None:
                 url = real_host + self.request.uri
 
                 # Convert Tornado HTTPHeaders object to a regular dict
@@ -160,8 +164,12 @@ class TestRouteHandler(tornado.web.RequestHandler):
             record_mode="new_episodes",
             match_on=match_on,
         ) as cass:
-            if self.request.uri in cfg["test_server.redirects"]:
-                real_host = cfg["test_server.redirects"][self.request.uri]
+            real_host = None
+            for route in cfg["test_server.redirects"].keys():
+                if re.match(route, self.request.uri):
+                    real_host = cfg["test_server.redirects"][route]
+
+            if real_host is not None:
                 url = real_host + self.request.uri
 
                 if is_soap_action:
