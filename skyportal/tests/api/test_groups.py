@@ -446,3 +446,133 @@ def test_non_group_admin_cannot_update_group_user_admin_status(
         token=manage_users_token,
     )
     assert status == 400
+
+
+def test_remove_self_from_group(public_group, view_only_token, user):
+    status, data = api(
+        "DELETE",
+        f"groups/{public_group.id}/users/{user.id}",
+        token=view_only_token,
+    )
+    assert status == 200
+
+
+def test_super_admin_remove_user_from_group(public_group, super_admin_token, user):
+    status, data = api(
+        "DELETE",
+        f"groups/{public_group.id}/users/{user.id}",
+        token=super_admin_token,
+    )
+    assert status == 200
+
+
+def test_group_admin_remove_user_from_group(public_group, group_admin_token, user):
+    status, data = api(
+        "DELETE",
+        f"groups/{public_group.id}/users/{user.id}",
+        token=group_admin_token,
+    )
+    assert status == 200
+
+
+def test_non_group_admin_cannot_remove_user_from_group(
+    public_group, view_only_token2, user
+):
+    status, data = api(
+        "DELETE",
+        f"groups/{public_group.id}/users/{user.id}",
+        token=view_only_token2,
+    )
+    assert status == 400
+
+
+def test_cannot_add_self_to_group(public_group2, view_only_token, user):
+    status, data = api(
+        "POST",
+        f"groups/{public_group2.id}/users",
+        data={"userID": user.id, "admin": False},
+        token=view_only_token,
+    )
+    assert status == 400
+    assert "Insufficient permissions" in data["message"]
+
+
+def test_super_admin_add_user_to_group(public_group2, super_admin_token, user):
+    status, data = api(
+        "POST",
+        f"groups/{public_group2.id}/users",
+        data={"userID": user.id, "admin": False},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+
+def test_group_admin_add_user_to_group(public_group, group_admin_token, user_group2):
+    status, data = api(
+        "POST",
+        f"groups/{public_group.id}/users",
+        data={"userID": user_group2.id, "admin": False},
+        token=group_admin_token,
+    )
+    assert status == 200
+
+
+def test_non_group_admin_cannot_add_user_to_group(
+    public_group2, group_admin_token, user
+):
+    status, data = api(
+        "POST",
+        f"groups/{public_group2.id}/users",
+        data={"userID": user.id, "admin": False},
+        token=group_admin_token,
+    )
+    assert status == 400
+    assert "Insufficient permission" in data["message"]
+
+
+def test_cannot_add_stream_to_single_user_group(super_admin_token, user, public_stream):
+    single_user_group = user.single_user_group
+    assert single_user_group is not None
+    status, data = api(
+        "POST",
+        f"groups/{single_user_group.id}/streams",
+        data={"stream_id": public_stream.id},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "Insufficient permissions" in data["message"]
+
+
+def test_cannot_add_another_user_to_single_user_group(user2, super_admin_token, user):
+    single_user_group = user2.single_user_group
+    assert single_user_group is not None
+    status, data = api(
+        "POST",
+        f"groups/{single_user_group.id}/users",
+        data={"userID": user.id, "admin": False},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "Insufficient permissions" in data["message"]
+
+
+def test_cannot_remove_user_from_single_user_group(super_admin_token, user):
+    single_user_group = user.single_user_group
+    assert single_user_group is not None
+    status, data = api(
+        "DELETE",
+        f"groups/{single_user_group.id}/users/{user.id}",
+        token=super_admin_token,
+    )
+    assert status == 400
+
+
+def test_user_cannot_remove_self_from_single_user_group(view_only_token, user):
+    single_user_group = user.single_user_group
+    assert single_user_group is not None
+    status, data = api(
+        "DELETE",
+        f"groups/{single_user_group.id}/users/{user.id}",
+        token=view_only_token,
+    )
+    assert status == 400

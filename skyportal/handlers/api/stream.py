@@ -175,7 +175,7 @@ class StreamHandler(BaseHandler):
 
 
 class StreamUserHandler(BaseHandler):
-    @permissions(["Manage users"])
+    @auth_or_token
     def post(self, stream_id, *ignored_args):
         """
         ---
@@ -238,7 +238,7 @@ class StreamUserHandler(BaseHandler):
 
         return self.success(data={'stream_id': stream_id, 'user_id': user_id})
 
-    @permissions(["Manage users"])
+    @auth_or_token
     def delete(self, stream_id, user_id):
         """
         ---
