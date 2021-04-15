@@ -3691,12 +3691,10 @@ def update_single_user_group(mapper, connection, target):
 def groupuser_update_access_logic(cls, user_or_token):
     aliased = sa.orm.aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    return (
-        DBSession()
-        .query(cls)
-        .join(aliased, cls.group_id == aliased.group_id)
-        .filter(aliased.user_id == user_id, aliased.admin.is_(True))
-    )
+    query = DBSession().query(cls).join(aliased, cls.group_id == aliased.group_id)
+    if not user_or_token.is_system_admin:
+        query = query.filter(aliased.user_id == user_id, aliased.admin.is_(True))
+    return query
 
 
 GroupUser.update = CustomUserAccessControl(groupuser_update_access_logic)
