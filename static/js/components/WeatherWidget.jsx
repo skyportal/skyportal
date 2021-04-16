@@ -157,12 +157,13 @@ const WeatherWidget = ({ classes }) => {
       dispatch(weatherActions.fetchWeather());
     };
     if (
-      weather?.telescope_id !== weatherPrefs?.telescopeID ||
-      weather === undefined
+      telescopeList.length > 0 &&
+      (weather?.telescope_id !== weatherPrefs?.telescopeID ||
+        weather === undefined)
     ) {
       fetchWeatherData();
     }
-  }, [weatherPrefs, weather, dispatch]);
+  }, [weatherPrefs, weather, telescopeList, dispatch]);
 
   const handleClose = () => {
     setAnchorEl(null);
