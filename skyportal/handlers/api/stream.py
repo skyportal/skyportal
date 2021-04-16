@@ -48,9 +48,9 @@ class StreamHandler(BaseHandler):
                   schema: Error
         """
         if stream_id is not None:
-            s = Stream.get_if_accessible_by(stream_id, self.current_user)
-            if s is None:
-                return self.error("Invalid stream ID.")
+            s = Stream.get_if_accessible_by(
+                stream_id, self.current_user, raise_if_none=True
+            )
             return self.success(data=s)
         streams = Stream.get_records_accessible_by(self.current_user)
         self.verify_and_commit()
@@ -169,7 +169,7 @@ class StreamHandler(BaseHandler):
                 schema: Success
         """
         stream = Stream.get_if_accessible_by(
-            stream_id, self.current_user, mode="delete"
+            stream_id, self.current_user, mode="delete", raise_if_none=True
         )
         DBSession().delete(stream)
         self.verify_and_commit()
