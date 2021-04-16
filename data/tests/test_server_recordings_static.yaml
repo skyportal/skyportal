@@ -1,0 +1,71 @@
+interactions:
+- request:
+    body: '{"name": "cbbf7050a76247858a3084c5dabdc52c", "proposal": "TOM2020A-008",
+      "ipp_value": 1, "operator": "SINGLE", "observation_type": "NORMAL", "requests":
+      [{"configurations": [{"type": "EXPOSE", "instrument_type": "1M0-SCICAM-SINISTRO",
+      "constraints": {"max_airmass": 2, "min_lunar_distance": 30}, "target": {"name":
+      "cbbf7050a76247858a3084c5dabdc52c", "type": "ICRS", "ra": 123.813909, "dec":
+      -5.867007, "epoch": 2000}, "acquisition_config": {}, "guiding_config": {}, "instrument_configs":
+      [{"exposure_time": 300, "exposure_count": 1, "optical_elements": {"filter":
+      "gp"}}]}, {"type": "EXPOSE", "instrument_type": "1M0-SCICAM-SINISTRO", "constraints":
+      {"max_airmass": 2, "min_lunar_distance": 30}, "target": {"name": "cbbf7050a76247858a3084c5dabdc52c",
+      "type": "ICRS", "ra": 123.813909, "dec": -5.867007, "epoch": 2000}, "acquisition_config":
+      {}, "guiding_config": {}, "instrument_configs": [{"exposure_time": 300, "exposure_count":
+      1, "optical_elements": {"filter": "Y"}}]}], "windows": [{"start": "2021-04-16
+      00:00:00", "end": "2021-04-23 00:00:00"}], "location": {"telescope_class": "1m0"}}]}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Authorization:
+      - Token 854c32f01d6afba87446fd86f0d95c5c6c8de0a9
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '1094'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - Python-urllib/3.8
+    method: POST
+    uri: https://observe.lco.global/api/requestgroups/
+  response:
+    body:
+      string: !!binary |
+        H4sIAAAAAAAA/+1VXW/aMBT9L34OyDYJCXmrurZCKlCVPuxDU+Q4Biwldmo7HRXiv+/ayVqmdd26
+        x6kSD+Z+nnPuvcoByQrlhMwIjWcRMuK+E9ZZlH85BA+NEzqlkwjVmjMntUL5ATlRC8t1KwpeMwvB
+        iDQYHSPEtdrIbWdC5HORJJ1mcUqC3zrDpPIdDqhh+4JJ04QadIwj1EhV1J1ipqikdUxxgfIJDh6I
+        7T3tjlkwq66ue7MVQqrtkwVKQA9lW2aE4o8/7GIP1gKMrPHNjwBXejRdI5QreuQ9ZLFvte2MKJxs
+        Qv8AQLdOclYXwN1nBAIbWTthgP+29fQbXUE82kC/YgN9BIqei3HdKQdSR6gEhPun12N4Ge2Y06YY
+        SqAX8H6NEOP3nbTSqzsgDjL2OavLy9N+Pfjfct92sgLVTsp4glqxGuUginhis1qiF8kf/76XY2Yr
+        XNicx9bXnJ/frqGq8hLliJflJsUJZumUxmmWZGyCs5gnFSsrnlAOkYaBSnQyzshkhmFPK8FRPkrG
+        2TTFOI1Qa2AbvXpBGh8dZvazOST1dkBX12w//BWt5jvYQNxP+vVNGSiQBR6tz+fnZ4vRer6cr+9u
+        V4BzcF58vFmtL14YoocktZHOT/0YnZ4H/Y/P49P7dbxfx9uug/qJfpOq0t/6tYN9N6ASopiSEY5H
+        ZHqHcR5+n30tVZ046eTE6StVw0cJ5WkWw8RKK8xDsBRKu2GpoEV43lwsP8yXVyhMWW6kqH7pS2ge
+        p+NZGtMJ9e25EZD7WlwSYDLORetYKWtgWbidEXana8ibgbgeqO3KRrr+bBq4iu2ulupN23DKbVB8
+        ubpdnF2HTRXGXxLYYC5X134Ksm2LB1Z3EEj8gP9EheBZoPIPahFCiU/1m6etPyZ0t1pALD4bYZyh
+        43c5DEUbjwgAAA==
+    headers:
+      Allow:
+      - GET, POST, HEAD, OPTIONS
+      Connection:
+      - keep-alive
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '694'
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 16 Apr 2021 00:12:48 GMT
+      Server:
+      - nginx/1.19.1
+      Vary:
+      - Accept, Origin, Cookie, Accept-Encoding
+      X-Frame-Options:
+      - SAMEORIGIN
+    status:
+      code: 201
+      message: Created
+version: 1

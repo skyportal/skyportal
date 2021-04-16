@@ -30,13 +30,13 @@ else:
     lt_isonline = True
 
 url = f"{cfg['app.lco_protocol']}://{cfg['app.lco_host']}:{cfg['app.lco_port']}/api/requestgroups/"
+lco_isonline = False
 try:
     requests.get(url, timeout=5)
 except requests.exceptions.ConnectTimeout:
     pass
 else:
     lco_isonline = True
-lco_isonline = True
 
 
 def add_telescope_and_instrument(instrument_name, token):
@@ -586,8 +586,8 @@ def test_submit_new_followup_request_SPRAT(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
-# @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Sinistro(
     driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
 ):

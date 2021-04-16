@@ -15,6 +15,14 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 
+def get_cache_file_static():
+    """
+    Helper function to get the path to the VCR cache file for requests
+    that must be updated by hand due to credentials.
+    """
+    return "data/tests/test_server_recordings_static.yaml"
+
+
 def get_cache_file():
     """
     Helper function to get the path to the VCR cache file.
@@ -103,7 +111,11 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
     def get(self):
         is_wsdl = self.get_query_argument('wsdl', None)
-        cache = get_cache_file()
+        if self.request.uri == "/api/requestgroups/":
+            cache = get_cache_file_static()
+        else:
+            cache = get_cache_file()
+        print(cache)
         with my_vcr.use_cassette(cache, record_mode="new_episodes") as cass:
             base_route = self.request.uri.split("?")[0]
 
@@ -166,8 +178,11 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
     def post(self):
         is_soap_action = "Soapaction" in self.request.headers
-        cache = get_cache_file()
-
+        if self.request.uri == "/api/requestgroups/":
+            cache = get_cache_file_static()
+        else:
+            cache = get_cache_file()
+        print(cache)
         match_on = ['uri', 'method', 'body']
         if self.request.uri == "/node_agent2/node_agent":
             match_on = ["lt"]
