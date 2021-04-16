@@ -68,17 +68,19 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
 
 
 def add_ps1_thumbnail_and_push_ws_msg(obj_id, request_handler):
-    obj = Obj.get_if_accessible_by(obj_id, request_handler.current_user)
     try:
+        obj = Obj.get_if_accessible_by(obj_id, request_handler.current_user)
         obj.add_ps1_thumbnail()
-    except (ValueError, ConnectionError) as e:
+        request_handler.push_all(
+            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+        )
+        request_handler.push_all(
+            action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+        )
+    except Exception as e:
         return request_handler.error(f"Unable to generate PS1 thumbnail URL: {e}")
-    request_handler.push_all(
-        action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-    )
-    request_handler.push_all(
-        action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-    )
+    finally:
+        DBSession().remove()
 
 
 class SourceHandler(BaseHandler):
