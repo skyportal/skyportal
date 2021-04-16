@@ -87,9 +87,10 @@ def lco_request_matcher(r1, r2):
 
     # A request matches an LCO request if the URI and method matches
     assert (
-        r1.uri.replace(":443","") == r2.uri.replace(":443","")
+        r1.uri.replace(":443", "") == r2.uri.replace(":443", "")
         and r1.method == r2.method
     )
+
 
 class TestRouteHandler(tornado.web.RequestHandler):
     """
@@ -196,9 +197,11 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
                 if self.request.uri == "/api/requestgroups/":
                     header = {'Authorization': headers['Authorization']}
-                    r = requests.post(url, json=json.loads(self.request.body.decode()), headers=header)
+                    requests.post(
+                        url, json=json.loads(self.request.body.decode()), headers=header
+                    )
                 else:
-                    r = requests.post(url, data=self.request.body, headers=headers)
+                    requests.post(url, data=self.request.body, headers=headers)
 
                 # Get recorded document and pass it back
                 response = cass.responses_of(
