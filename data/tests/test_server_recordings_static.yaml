@@ -19,7 +19,7 @@ interactions:
       Accept-Encoding:
       - gzip, deflate
       Authorization:
-      - Token 854c32f01d6afba87446fd86f0d95c5c6c8de0a9
+      - Token testtoken
       Connection:
       - keep-alive
       Content-Length:
