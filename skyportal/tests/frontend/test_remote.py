@@ -13,4 +13,4 @@ def test_remote(driver):
     DBSession.commit()
     driver.get("/")
     assert 'localhost' in driver.current_url
-    driver.wait_for_xpath('//div[contains(.,"Welcome to SkyPortal.")]')
+    driver.wait_for_xpath('//p[contains(.,"New Sources")]')
