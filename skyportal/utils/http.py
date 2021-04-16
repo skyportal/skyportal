@@ -1,7 +1,12 @@
 def serialize_requests_request(request):
+    if request.body is not None:
+        body = request.body.decode()
+    else:
+        body = ''
+
     return {
         'headers': dict(request.headers),
-        'body': request.body.decode(),
+        'body': body,
         'url': request.url,
         'method': request.method,
     }

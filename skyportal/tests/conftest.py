@@ -330,6 +330,15 @@ def public_ZTF20acgrjqm(public_group):
 
 
 @pytest.fixture()
+def public_ZTF21aaeyldq(public_group):
+    obj = ObjFactory(groups=[public_group], ra=123.813909, dec=-5.867007)
+    DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
+    DBSession().commit()
+    yield obj
+    ObjFactory.teardown(obj)
+
+
+@pytest.fixture()
 def public_source(public_group):
     obj = ObjFactory(groups=[public_group])
     source = Source(obj_id=obj.id, group_id=public_group.id)
