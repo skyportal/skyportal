@@ -1,4 +1,3 @@
-import os
 import json
 import requests
 from datetime import datetime, timedelta
@@ -11,11 +10,12 @@ from ..utils import http
 env, cfg = load_env()
 
 
-#if "PYTEST_CURRENT_TEST" in os.environ:
+# if "PYTEST_CURRENT_TEST" in os.environ:
 #    requestpath = "https://observe.lco.global/api/requestgroups/validate/"
-#else:
+# else:
 requestpath = f"{cfg['app.lco_protocol']}://{cfg['app.lco_host']}:{cfg['app.lco_port']}/api/requestgroups/"
 print(requestpath)
+
 
 class SINISTRORequest:
 
@@ -746,7 +746,7 @@ class SPECTRALAPI(LCOAPI):
             json=requestgroup,  # Make sure you use json!
         )
 
-        #r.raise_for_status()
+        # r.raise_for_status()
 
         if r.status_code == 201:
             request.status = 'submitted'
@@ -853,19 +853,19 @@ class MUSCATAPI(LCOAPI):
         lcoreq = MUSCATRequest(request)
         requestgroup = lcoreq.requestgroup
 
-        #r = requests.post(
+        # r = requests.post(
         #    "https://observe.lco.global/api/requestgroups/",
         #    headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
         #    json=requestgroup,  # Make sure you use json!
-        #)
-      
+        # )
+
         r = requests.post(
             requestpath,
             headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
             json=requestgroup,  # Make sure you use json!
         )
         r.raise_for_status()
- 
+
         if r.status_code == 201:
             request.status = 'submitted'
         else:
