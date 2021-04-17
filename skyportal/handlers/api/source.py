@@ -605,7 +605,6 @@ class SourceHandler(BaseHandler):
                     is_token=True,
                 )
                 DBSession.add(sv)
-                DBSession().commit()
                 # To keep loaded relationships from being cleared in verify_and_commit:
                 source_info = recursive_to_dict(source_info)
                 self.verify_and_commit()
@@ -742,24 +741,41 @@ class SourceHandler(BaseHandler):
             return self.success(data=source_info)
 
         # Fetch multiple sources
-        query_options = [joinedload(Obj.thumbnails)]
+        obj_query_options = [joinedload(Obj.thumbnails)]
 
-        if not save_summary:
-            q = Obj.query_records_accessible_by(
-                self.current_user, options=query_options
-            ).join(Source)
-        else:
-            q = Source.query_records_accessible_by(self.current_user).join(Obj)
+        obj_query = Obj.query_records_accessible_by(
+            self.current_user, options=obj_query_options
+        )
+        source_query = Source.query_records_accessible_by(self.current_user)
 
         if list_name:
-            q = q.join(Listing)
+            listing_subquery = Listing.query_records_accessible_by(
+                self.current_user
+            ).subquery()
+            obj_query = obj_query.join(
+                listing_subquery, Obj.id == listing_subquery.c.obj_id
+            )
         if classifications is not None or sort_by == "classification":
-            q = q.join(Classification, isouter=True)
+            classification_subquery = Classification.query_records_accessible_by(
+                self.current_user
+            )
             if classifications is not None:
-                q = q.join(Taxonomy)
+                taxonomy_subquery = Taxonomy.query_records_accessible_by(
+                    self.current_user
+                ).subquery()
+                classification_subquery = classification_subquery.join(
+                    taxonomy_subquery,
+                    Classification.taxonomy_id == taxonomy_subquery.c.id,
+                )
+            classification_subquery = classification_subquery.subquery()
+            obj_query = obj_query.join(
+                classification_subquery,
+                Obj.id == classification_subquery.c.obj_id,
+                isouter=True,
+            )
 
         if sourceID:
-            q = q.filter(Obj.id.contains(sourceID.strip()))
+            obj_query = obj_query.filter(Obj.id.contains(sourceID.strip()))
         if any([ra, dec, radius]):
             if not all([ra, dec, radius]):
                 return self.error(
@@ -775,32 +791,39 @@ class SourceHandler(BaseHandler):
                     "Invalid values for ra, dec or radius - could not convert to float"
                 )
             other = ha.Point(ra=ra, dec=dec)
-            q = q.filter(Obj.within(other, radius))
+            obj_query = obj_query.filter(Obj.within(other, radius))
         if start_date:
             start_date = arrow.get(start_date.strip()).datetime
-            q = q.filter(Obj.last_detected_at(self.current_user) >= start_date)
+            obj_query = obj_query.filter(
+                Obj.last_detected_at(self.current_user) >= start_date
+            )
         if end_date:
             end_date = arrow.get(end_date.strip()).datetime
-            q = q.filter(Obj.last_detected_at(self.current_user) <= end_date)
+            obj_query = obj_query.filter(
+                Obj.last_detected_at(self.current_user) <= end_date
+            )
         if saved_before:
-            q = q.filter(Source.saved_at <= saved_before)
+            source_query = source_query.filter(Source.saved_at <= saved_before)
         if saved_after:
-            q = q.filter(Source.saved_at >= saved_after)
+            source_query = source_query.filter(Source.saved_at >= saved_after)
         if list_name:
-            q = q.filter(
-                Listing.list_name == list_name,
-                Listing.user_id == self.associated_user_object.id,
+            obj_query = obj_query.filter(
+                listing_subquery.c.list_name == list_name,
+                listing_subquery.c.user_id == self.associated_user_object.id,
             )
         if simbad_class:
-            q = q.filter(
+            obj_query = obj_query.filter(
                 func.lower(Obj.altdata['simbad']['class'].astext)
                 == simbad_class.lower()
             )
         if has_tns_name in ['true', True]:
-            q = q.filter(Obj.altdata['tns']['name'].isnot(None))
+            obj_query = obj_query.filter(Obj.altdata['tns']['name'].isnot(None))
         if has_spectrum in ["true", True]:
-            q = q.join(Spectrum).filter(
-                Spectrum.groups.any(Group.id.in_(user_accessible_group_ids))
+            spectrum_subquery = Spectrum.query_records_accessible_by(
+                self.current_user
+            ).subquery()
+            obj_query = obj_query.join(
+                spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
             )
         if min_redshift is not None:
             try:
@@ -809,7 +832,7 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for minRedshift - could not convert to float"
                 )
-            q = q.filter(Obj.redshift >= min_redshift)
+            obj_query = obj_query.filter(Obj.redshift >= min_redshift)
         if max_redshift is not None:
             try:
                 max_redshift = float(max_redshift)
@@ -817,7 +840,7 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for maxRedshift - could not convert to float"
                 )
-            q = q.filter(Obj.redshift <= max_redshift)
+            obj_query = obj_query.filter(Obj.redshift <= max_redshift)
         if min_peak_magnitude is not None:
             try:
                 min_peak_magnitude = float(min_peak_magnitude)
@@ -825,7 +848,9 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for minPeakMagnitude - could not convert to float"
                 )
-            q = q.filter(Obj.peak_detected_mag(self.current_user) >= min_peak_magnitude)
+            obj_query = obj_query.filter(
+                Obj.peak_detected_mag(self.current_user) >= min_peak_magnitude
+            )
         if max_peak_magnitude is not None:
             try:
                 max_peak_magnitude = float(max_peak_magnitude)
@@ -833,7 +858,9 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for maxPeakMagnitude - could not convert to float"
                 )
-            q = q.filter(Obj.peak_detected_mag(self.current_user) <= max_peak_magnitude)
+            obj_query = obj_query.filter(
+                Obj.peak_detected_mag(self.current_user) <= max_peak_magnitude
+            )
         if min_latest_magnitude is not None:
             try:
                 min_latest_magnitude = float(min_latest_magnitude)
@@ -841,7 +868,7 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for minLatestMagnitude - could not convert to float"
                 )
-            q = q.filter(
+            obj_query = obj_query.filter(
                 Obj.last_detected_mag(self.current_user) >= min_latest_magnitude
             )
         if max_latest_magnitude is not None:
@@ -851,7 +878,7 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for maxLatestMagnitude - could not convert to float"
                 )
-            q = q.filter(
+            obj_query = obj_query.filter(
                 Obj.last_detected_mag(self.current_user) <= max_latest_magnitude
             )
         if classifications is not None:
@@ -870,25 +897,27 @@ class SourceHandler(BaseHandler):
                     classifications,
                 )
             )
-            q = q.filter(
-                tuple_(Taxonomy.name, Classification.classification).in_(
-                    classifications
-                )
+            obj_query = obj_query.filter(
+                tuple_(
+                    taxonomy_subquery.c.name, classification_subquery.c.classification
+                ).in_(classifications)
             )
-        q = apply_active_or_requested_filtering(q, include_requested, requested_only)
+        source_query = apply_active_or_requested_filtering(
+            source_query, include_requested, requested_only
+        )
         if group_ids is not None:
             if not all(gid in user_accessible_group_ids for gid in group_ids):
                 return self.error(
                     f"One of the requested groups in '{group_ids}' is inaccessible to user."
                 )
-            q = q.filter(Source.group_id.in_(group_ids))
+            source_query = source_query.filter(Source.group_id.in_(group_ids))
 
+        source_subquery = source_query.subquery()
+        query = obj_query.join(source_subquery, Obj.id == source_subquery.c.obj_id)
         order_by = None
         if sort_by is not None:
             if sort_by == "id":
-                order_by = (
-                    [Source.obj_id] if sort_order == "asc" else [Source.obj_id.desc()]
-                )
+                order_by = [Obj.id] if sort_order == "asc" else [Obj.id.desc()]
             elif sort_by == "ra":
                 order_by = (
                     [Obj.ra.nullslast()]
@@ -909,27 +938,27 @@ class SourceHandler(BaseHandler):
                 )
             elif sort_by == "saved_at":
                 order_by = (
-                    [Source.saved_at]
+                    [source_subquery.c.saved_at]
                     if sort_order == "asc"
-                    else [Source.saved_at.desc()]
+                    else [source_subquery.c.saved_at.desc()]
                 )
             elif sort_by == "classification":
                 order_by = (
-                    [Classification.classification.nullslast()]
+                    [classification_subquery.c.classification.nullslast()]
                     if sort_order == "asc"
-                    else [Classification.classification.desc().nullslast()]
+                    else [classification_subquery.c.classification.desc().nullslast()]
                 )
 
         if page_number:
             try:
-                page = int(page_number)
+                page_number = int(page_number)
             except ValueError:
                 return self.error("Invalid page number value.")
             try:
                 query_results = grab_query_results(
-                    q,
+                    query,
                     total_matches,
-                    page,
+                    page_number,
                     num_per_page,
                     "sources",
                     order_by=order_by,
@@ -939,10 +968,10 @@ class SourceHandler(BaseHandler):
                     return self.error("Page number out of range.")
                 raise
         elif save_summary:
-            query_results = {"sources": q.all()}
+            query_results = {"sources": source_query.all()}
         else:
             query_results = grab_query_results(
-                q,
+                query,
                 total_matches,
                 None,
                 None,
@@ -952,11 +981,11 @@ class SourceHandler(BaseHandler):
 
         if not save_summary:
             # Records are Objs, not Sources
-            source_list = []
-            for source in query_results["sources"]:
-                source_list.append(source.to_dict())
+            obj_list = []
+            for obj in query_results["sources"]:
+                obj_list.append(obj.to_dict())
                 if include_comments:
-                    source_list[-1]["comments"] = sorted(
+                    obj_list[-1]["comments"] = sorted(
                         [
                             {
                                 k: v
@@ -966,7 +995,7 @@ class SourceHandler(BaseHandler):
                             for c in Comment.query_records_accessible_by(
                                 self.current_user
                             )
-                            .filter(Comment.obj_id == source.id)
+                            .filter(Comment.obj_id == obj.id)
                             .all()
                         ],
                         key=lambda x: x["created_at"],
@@ -975,7 +1004,7 @@ class SourceHandler(BaseHandler):
 
                 readable_classifications = (
                     Classification.query_records_accessible_by(self.current_user)
-                    .filter(Classification.obj_id == source.id)
+                    .filter(Classification.obj_id == obj.id)
                     .all()
                 )
 
@@ -987,53 +1016,53 @@ class SourceHandler(BaseHandler):
                     ]
                     readable_classifications_json.append(classification_dict)
 
-                source_list[-1]["classifications"] = readable_classifications_json
-                source_list[-1]["annotations"] = sorted(
+                obj_list[-1]["classifications"] = readable_classifications_json
+                obj_list[-1]["annotations"] = sorted(
                     Annotation.query_records_accessible_by(self.current_user).filter(
-                        Annotation.obj_id == source.id
+                        Annotation.obj_id == obj.id
                     ),
                     key=lambda x: x.origin,
                 )
-                source_list[-1]["last_detected_at"] = source.last_detected_at(
+                obj_list[-1]["last_detected_at"] = obj.last_detected_at(
                     self.current_user
                 )
-                source_list[-1]["last_detected_mag"] = source.last_detected_mag(
+                obj_list[-1]["last_detected_mag"] = obj.last_detected_mag(
                     self.current_user
                 )
-                source_list[-1]["peak_detected_at"] = source.peak_detected_at(
+                obj_list[-1]["peak_detected_at"] = obj.peak_detected_at(
                     self.current_user
                 )
-                source_list[-1]["peak_detected_mag"] = source.peak_detected_mag(
+                obj_list[-1]["peak_detected_mag"] = obj.peak_detected_mag(
                     self.current_user
                 )
-                source_list[-1]["gal_lon"] = source.gal_lon_deg
-                source_list[-1]["gal_lat"] = source.gal_lat_deg
-                source_list[-1]["luminosity_distance"] = source.luminosity_distance
-                source_list[-1]["dm"] = source.dm
-                source_list[-1][
+                obj_list[-1]["gal_lon"] = obj.gal_lon_deg
+                obj_list[-1]["gal_lat"] = obj.gal_lat_deg
+                obj_list[-1]["luminosity_distance"] = obj.luminosity_distance
+                obj_list[-1]["dm"] = obj.dm
+                obj_list[-1][
                     "angular_diameter_distance"
-                ] = source.angular_diameter_distance
+                ] = obj.angular_diameter_distance
                 if include_photometry:
                     photometry = Photometry.query_records_accessible_by(
                         self.current_user
-                    ).filter(Photometry.obj_id == source.id)
-                    source_list[-1]["photometry"] = [
+                    ).filter(Photometry.obj_id == obj.id)
+                    obj_list[-1]["photometry"] = [
                         serialize(phot, 'ab', 'flux') for phot in photometry
                     ]
                 if include_photometry_exists:
-                    source_list[-1]["photometry_exists"] = (
+                    obj_list[-1]["photometry_exists"] = (
                         len(
                             Photometry.query_records_accessible_by(self.current_user)
-                            .filter(Photometry.obj_id == source.id)
+                            .filter(Photometry.obj_id == obj.id)
                             .all()
                         )
                         > 0
                     )
                 if include_spectrum_exists:
-                    source_list[-1]["spectrum_exists"] = (
+                    obj_list[-1]["spectrum_exists"] = (
                         len(
                             Spectrum.query_records_accessible_by(self.current_user)
-                            .filter(Spectrum.obj_id == source.id)
+                            .filter(Spectrum.obj_id == obj.id)
                             .all()
                         )
                         > 0
@@ -1041,7 +1070,7 @@ class SourceHandler(BaseHandler):
 
                 source_query = Source.query_records_accessible_by(
                     self.current_user
-                ).filter(Source.obj_id == source_list[-1]["id"])
+                ).filter(Source.obj_id == obj_list[-1]["id"])
                 source_query = apply_active_or_requested_filtering(
                     source_query, include_requested, requested_only
                 )
@@ -1051,12 +1080,12 @@ class SourceHandler(BaseHandler):
                     .join(source_subquery, Group.id == source_subquery.c.group_id)
                     .all()
                 )
-                source_list[-1]["groups"] = [g.to_dict() for g in groups]
-                for group in source_list[-1]["groups"]:
+                obj_list[-1]["groups"] = [g.to_dict() for g in groups]
+                for group in obj_list[-1]["groups"]:
                     source_table_row = (
                         Source.query_records_accessible_by(self.current_user)
                         .filter(
-                            Source.obj_id == source_list[-1]["id"],
+                            Source.obj_id == obj_list[-1]["id"],
                             Source.group_id == group["id"],
                         )
                         .first()
@@ -1071,10 +1100,10 @@ class SourceHandler(BaseHandler):
                             else None
                         )
                 if include_color_mag:
-                    source_list[-1]["color_magnitude"] = get_color_mag(
-                        source_list[-1]["annotations"]
+                    obj_list[-1]["color_magnitude"] = get_color_mag(
+                        obj_list[-1]["annotations"]
                     )
-            query_results["sources"] = source_list
+            query_results["sources"] = obj_list
 
         query_results = recursive_to_dict(query_results)
         self.verify_and_commit()
