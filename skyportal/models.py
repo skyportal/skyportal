@@ -652,7 +652,7 @@ class Obj(Base, ha.Point):
     comments_on_spectra = relationship(
         'CommentOnSpectrum',
         back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge, delete',
+        cascade='save-update, merge, refresh-expire, expunge',
         passive_deletes=True,
         order_by="CommentOnSpectrum.created_at",
         doc="Comments posted about spectra belonging to the object.",

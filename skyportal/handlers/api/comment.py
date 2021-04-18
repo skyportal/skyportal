@@ -27,7 +27,7 @@ def users_mentioned(text):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, comment_id, comment_on_what=None):
+    def get(self, comment_id, comment_on_what="object"):
         """
         ---
         description: Retrieve a comment
@@ -45,8 +45,8 @@ class CommentHandler(BaseHandler):
             schema:
               type: string
             description: |
-               can ask to get a comment on things other than objects,
-               e.g., on a spectrum.
+               What underlying data the comment is on:
+               an "object" (default), or a "spectrum".
         responses:
           200:
             content:
@@ -57,20 +57,23 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        if comment_on_what is None:  # comment on object
+        if type(comment_on_what) != str:
+            return self.error(
+                f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
+            )
+        elif comment_on_what.lower() == "object":  # comment on object (default)
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
-        else:  # comment on other stuff
-            if comment_on_what == "spectrum":
-                comment = CommentOnSpectrum.get_if_accessible_by(
-                    comment_id, self.current_user, raise_if_none=True
-                )
-            # add more options using elif
-            else:
-                self.error(
-                    f'Wrong input "{comment_on_what}" given as "comment_on_what" argument.'
-                )
+        elif comment_on_what.lower() == "spectrum":
+            comment = CommentOnSpectrum.get_if_accessible_by(
+                comment_id, self.current_user, raise_if_none=True
+            )
+        # add more options using elif
+        else:
+            return self.error(
+                f'Wrong input "{comment_on_what}" given as "comment_on_what" argument.'
+            )
 
         return self.success(data=comment)
 
@@ -166,7 +169,7 @@ class CommentHandler(BaseHandler):
             attachment_bytes, attachment_name = None, None
 
         author = self.associated_user_object
-        if spectrum_id:
+        if spectrum_id is not None:
             comment = CommentOnSpectrum(
                 text=comment_text,
                 spectrum_id=spectrum_id,
@@ -176,7 +179,7 @@ class CommentHandler(BaseHandler):
                 author=author,
                 groups=groups,
             )
-        else:
+        else:  # the default is to post a comment directly on the object
             comment = Comment(
                 text=comment_text,
                 obj_id=obj_id,
@@ -209,7 +212,7 @@ class CommentHandler(BaseHandler):
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
-    def put(self, comment_id, comment_on_what=None):
+    def put(self, comment_id, comment_on_what="object"):
         """
         ---
         description: Update a comment
@@ -227,8 +230,8 @@ class CommentHandler(BaseHandler):
             schema:
               type: string
             description: |
-               can ask to get a comment on things other than objects,
-               e.g., on a spectrum.
+               What underlying data the comment is on:
+               an "object" (default), or a "spectrum".
         requestBody:
           content:
             application/json:
@@ -255,22 +258,25 @@ class CommentHandler(BaseHandler):
                 schema: Error
         """
 
-        if comment_on_what is None:  # comment on object
+        if type(comment_on_what) != str:
+            return self.error(
+                f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
+            )
+        elif comment_on_what.lower() == "object":  # comment on object
             schema = Comment.__schema__()
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="update", raise_if_none=True
             )
-        else:  # comment on other stuff
-            if comment_on_what == "spectrum":
-                schema = CommentOnSpectrum.__schema__()
-                c = CommentOnSpectrum.get_if_accessible_by(
-                    comment_id, self.current_user, mode="update", raise_if_none=True
-                )
-            # add more options using elif
-            else:
-                self.error(
-                    f'Wrong input "{comment_on_what}" given as "comment_on_what" argument.'
-                )
+        elif comment_on_what.lower() == "spectrum":
+            schema = CommentOnSpectrum.__schema__()
+            c = CommentOnSpectrum.get_if_accessible_by(
+                comment_id, self.current_user, mode="update", raise_if_none=True
+            )
+        # add more options using elif
+        else:
+            return self.error(
+                f'Wrong input "{comment_on_what}" given as "comment_on_what" argument.'
+            )
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
@@ -309,7 +315,7 @@ class CommentHandler(BaseHandler):
         return self.success()
 
     @permissions(['Comment'])
-    def delete(self, comment_id, comment_on_what=None):
+    def delete(self, comment_id, comment_on_what="object"):
         """
         ---
         description: Delete a comment
@@ -327,28 +333,31 @@ class CommentHandler(BaseHandler):
             schema:
               type: string
             description: |
-               can ask to get a comment on things other than objects,
-               e.g., on a spectrum.
+               What underlying data the comment is on:
+               an "object" (default), or a "spectrum".
         responses:
           200:
             content:
               application/json:
                 schema: Success
         """
-        if comment_on_what is None:  # comment on object
+        if type(comment_on_what) != str:
+            return self.error(
+                f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
+            )
+        elif comment_on_what.lower() == "object":  # comment on object
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
-        else:  # comment on other stuff
-            if comment_on_what == "spectrum":
-                c = CommentOnSpectrum.get_if_accessible_by(
-                    comment_id, self.current_user, mode="delete", raise_if_none=True
-                )
-            # add more options using elif
-            else:
-                self.error(
-                    f'Wrong input "{comment_on_what}" given as "comment_on_what" argument.'
-                )
+        elif comment_on_what.lower() == "spectrum":
+            c = CommentOnSpectrum.get_if_accessible_by(
+                comment_id, self.current_user, mode="delete", raise_if_none=True
+            )
+        # add more options using elif
+        else:
+            return self.error(
+                f'Wrong input "{comment_on_what}" given as "comment_on_what" argument.'
+            )
 
         obj_key = c.obj.internal_key
         DBSession().delete(c)
@@ -359,7 +368,7 @@ class CommentHandler(BaseHandler):
 
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
-    def get(self, comment_id, comment_on_what=None):
+    def get(self, comment_id, comment_on_what="object"):
         """
         ---
         description: Download comment attachment
@@ -377,8 +386,8 @@ class CommentAttachmentHandler(BaseHandler):
             schema:
               type: string
             description: |
-               can ask to get a comment on things other than objects,
-               e.g., on a spectrum.
+               What underlying data the comment is on:
+               an "object" (default), or a "spectrum".
           - in: query
             name: download
             nullable: True
@@ -411,21 +420,23 @@ class CommentAttachmentHandler(BaseHandler):
 
         """
         download = strtobool(self.get_query_argument('download', "True").lower())
-
-        if comment_on_what is None:  # comment on object
+        if type(comment_on_what) != str:
+            return self.error(
+                f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
+            )
+        elif comment_on_what.lower() == "object":  # comment on object
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
-        else:  # comment on other stuff
-            if comment_on_what == "spectrum":
-                comment = CommentOnSpectrum.get_if_accessible_by(
-                    comment_id, self.current_user, raise_if_none=True
-                )
-            # add more options using elif
-            else:
-                self.error(
-                    f'Wrong input "{comment_on_what}" given as "comment_on_what" argument.'
-                )
+        elif comment_on_what.lower() == "spectrum":
+            comment = CommentOnSpectrum.get_if_accessible_by(
+                comment_id, self.current_user, raise_if_none=True
+            )
+        # add more options using elif
+        else:
+            return self.error(
+                f'Wrong input "{comment_on_what}" given as "comment_on_what" argument.'
+            )
 
         self.verify_and_commit()
 
