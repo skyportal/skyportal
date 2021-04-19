@@ -40,6 +40,15 @@ const EditFollowupRequestDialog = ({
     handleClose();
   };
 
+  // Set default form values to current request data
+  const { formSchema } = instrumentFormParams[
+    followupRequest.allocation.instrument.id
+  ];
+
+  Object.keys(formSchema.properties).forEach((key) => {
+    formSchema.properties[key].default = followupRequest.payload[key];
+  });
+
   return (
     <span key={followupRequest.id}>
       <Button
@@ -55,10 +64,7 @@ const EditFollowupRequestDialog = ({
       <Dialog open={open} onClose={handleClose} className={classes.dialog}>
         <DialogContent>
           <Form
-            schema={
-              instrumentFormParams[followupRequest.allocation.instrument.id]
-                .formSchema
-            }
+            schema={formSchema}
             uiSchema={
               instrumentFormParams[followupRequest.allocation.instrument.id]
                 .uiSchema
@@ -90,6 +96,7 @@ EditFollowupRequestDialog.propTypes = {
     status: PropTypes.string,
     obj_id: PropTypes.string,
     id: PropTypes.number,
+    payload: PropTypes.objectOf(PropTypes.any),
   }).isRequired,
   instrumentFormParams: PropTypes.shape({
     formSchema: PropTypes.objectOf(PropTypes.any),
