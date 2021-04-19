@@ -49,6 +49,18 @@ const EditFollowupRequestDialog = ({
     formSchema.properties[key].default = followupRequest.payload[key];
   });
 
+  const validate = (formData, errors) => {
+    if (
+      formData.start_date &&
+      formData.end_date &&
+      formData.start_date > formData.end_date
+    ) {
+      errors.start_date.addError("Start Date must come before End Date");
+    }
+
+    return errors;
+  };
+
   return (
     <span key={followupRequest.id}>
       <Button
@@ -70,6 +82,8 @@ const EditFollowupRequestDialog = ({
                 .uiSchema
             }
             onSubmit={handleSubmit}
+            validate={validate}
+            liveValidate
           />
         </DialogContent>
       </Dialog>
