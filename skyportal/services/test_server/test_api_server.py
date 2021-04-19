@@ -205,6 +205,8 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
                 if is_soap_action:
                     log(f"Forwarding SOAP method call {url}")
+                else:
+                    log(f"Forwarding POST call {url}")
 
                 # Convert Tornado HTTPHeaders object to a regular dict
                 headers = {}

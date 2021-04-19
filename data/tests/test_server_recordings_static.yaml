@@ -68,4 +68,37 @@ interactions:
     status:
       code: 201
       message: Created
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Host:
+      - localhost:64502
+      User-Agent:
+      - python-requests/2.25.1
+    method: GET
+    uri: https://observe.lco.global/api/requestgroups/
+  response:
+    body:
+      string: "<html>\r\n<head><title>404 Not Found</title></head>\r\n<body>\r\n<center><h1>404
+        Not Found</h1></center>\r\n<hr><center>nginx/1.19.1</center>\r\n</body>\r\n</html>\r\n"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '153'
+      Content-Type:
+      - text/html
+      Date:
+      - Mon, 19 Apr 2021 16:31:45 GMT
+      Server:
+      - nginx/1.19.1
+    status:
+      code: 404
+      message: Not Found
 version: 1
