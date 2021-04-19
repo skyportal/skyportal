@@ -179,7 +179,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
     def post(self):
         is_soap_action = "Soapaction" in self.request.headers
-        if self.request.uri == "/api/requestgroups/":
+        if "/api/requestgroups/" in self.request.uri:
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()
@@ -187,7 +187,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
         match_on = ['uri', 'method', 'body']
         if self.request.uri == "/node_agent2/node_agent":
             match_on = ["lt"]
-        elif self.request.uri == "/api/requestgroups/":
+        elif "/api/requestgroups/" in self.request.uri:
             match_on = ["lco"]
 
         with my_vcr.use_cassette(
@@ -213,10 +213,17 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 for k, v in self.request.headers.get_all():
                     headers[k] = v
 
-                if self.request.uri == "/api/requestgroups/":
+                if "/api/requestgroups/" in self.request.uri:
                     header = {'Authorization': headers['Authorization']}
+                    json_body = (
+                        json.loads(self.request.body.decode())
+                        if len(self.request.body) > 0
+                        else None
+                    )
                     requests.post(
-                        url, json=json.loads(self.request.body.decode()), headers=header
+                        url,
+                        json=json_body,
+                        headers=header,
                     )
                 else:
                     requests.post(url, data=self.request.body, headers=headers)

@@ -523,7 +523,7 @@ class LCOAPI(FollowUpAPI):
         uid = content["id"]
 
         r = requests.post(
-            f"https://observe.lco.global/api/requestgroups/{uid}/cancel/",
+            f"{requestpath}{uid}/cancel/",
             headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
         )
 
@@ -577,7 +577,7 @@ class LCOAPI(FollowUpAPI):
         uid = content["id"]
 
         r = requests.get(
-            f"https://observe.lco.global/api/requestgroups/{uid}/",
+            f"{requestpath}{uid}/",
             headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
         )
 
