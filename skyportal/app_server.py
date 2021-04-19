@@ -251,7 +251,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     models.init_db(
         **cfg['database'],
         autoflush=False,
-        default_engine_args={'pool_size': 10, 'max_overflow': 15, 'pool_recycle': 3600},
+        engine_args={'pool_size': 10, 'max_overflow': 15, 'pool_recycle': 3600},
     )
 
     # If tables are found in the database, new tables will only be added
