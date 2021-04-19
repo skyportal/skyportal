@@ -130,10 +130,11 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 # Convert Tornado HTTPHeaders object to a regular dict
                 headers = {}
                 for k, v in self.request.headers.get_all():
+                    # Multiple values for a header should be in a comma-separated list
                     if k in headers:
-                        headers[k].append(v)
+                        headers[k] += f",{v}"
                     else:
-                        headers[k] = [v]
+                        headers[k] = str(v)
 
                 if is_wsdl is not None:
                     log(f"Forwarding WSDL call {url}")
