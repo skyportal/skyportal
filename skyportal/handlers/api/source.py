@@ -80,7 +80,7 @@ def add_ps1_thumbnail_and_push_ws_msg(obj_id, request_handler):
     except Exception as e:
         return request_handler.error(f"Unable to generate PS1 thumbnail URL: {e}")
     finally:
-        DBSession().remove()
+        DBSession.remove()
 
 
 class SourceHandler(BaseHandler):
