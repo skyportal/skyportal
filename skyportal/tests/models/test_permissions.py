@@ -279,7 +279,7 @@ def test_user_delete_public_groupuser(
     public_groupuser,
 ):
     accessible = public_groupuser.is_accessible_by(user, mode="delete")
-    assert not accessible  # needs group admin
+    assert accessible  # Any user can remove themself from group
 
 
 def test_user_delete_public_stream(
@@ -1024,11 +1024,21 @@ def test_super_admin_user_delete_public_groupstream(
     assert accessible
 
 
-def test_super_admin_user_delete_public_streamuser(
+def test_super_admin_user_delete_public_streamuser_no_access(
     super_admin_user,
     public_streamuser,
 ):
     accessible = public_streamuser.is_accessible_by(super_admin_user, mode="delete")
+    assert not accessible  # User belongs to groups that filter on stream
+
+
+def test_super_admin_user_delete_public_streamuser(
+    super_admin_user,
+    public_streamuser_no_groups,
+):
+    accessible = public_streamuser_no_groups.is_accessible_by(
+        super_admin_user, mode="delete"
+    )
     assert accessible
 
 
@@ -1299,7 +1309,7 @@ def test_group_admin_user_update_public_groupstream(
     public_groupstream,
 ):
     accessible = public_groupstream.is_accessible_by(group_admin_user, mode="update")
-    assert accessible
+    assert not accessible  # needs system admin
 
 
 def test_group_admin_user_update_public_streamuser(
@@ -1368,6 +1378,14 @@ def test_group_admin_user_delete_public_group(
 ):
     accessible = public_group.is_accessible_by(group_admin_user, mode="delete")
     assert accessible
+
+
+def test_group_member_user_cannot_delete_group(
+    user,
+    public_group,
+):
+    accessible = public_group.is_accessible_by(user, mode="delete")
+    assert not accessible
 
 
 def test_group_admin_user_delete_public_groupuser(
