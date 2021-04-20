@@ -15,6 +15,7 @@ def test_gcn():
 
     event = Event.query.filter_by(dateobs=dateobs).one()
     assert event.dateobs == dateobs
+    print(event.tags)
     assert 'GW' in event.tags
 
     localization = Localization.query.filter_by(dateobs=dateobs).one()

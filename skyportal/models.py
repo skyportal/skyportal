@@ -28,7 +28,6 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
-from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.orm import deferred
 from sqlalchemy.schema import UniqueConstraint
@@ -3523,8 +3522,7 @@ class SourceNotification(Base):
 
 
 class Event(Base):
-    """Event information, including an event ID, mission, and time of the
-    event"""
+    """Event information, including an event ID, mission, and time of the event."""
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
@@ -3541,9 +3539,11 @@ class Event(Base):
         ),
     )
 
-    tags = association_proxy('_tags', 'text', creator=lambda tag: Tag(text=tag))
-
     localizations = relationship(lambda: Localization)
+
+    @hybrid_property
+    def tags(self):
+        return [tag.text for tag in self._tags]
 
     @hybrid_property
     def retracted(self):
