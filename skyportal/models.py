@@ -2065,7 +2065,6 @@ Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 
 
 class CommentMixin:
-    """All the basic columns needed for comments on objects, spectra, etc."""
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
