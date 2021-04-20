@@ -776,7 +776,11 @@ class SourceHandler(BaseHandler):
             return self.success(data=source_info)
 
         # Fetch multiple sources
-        obj_query_options = [joinedload(Obj.thumbnails)] if include_thumbnails and not remove_nested else []
+        obj_query_options = (
+            [joinedload(Obj.thumbnails)]
+            if include_thumbnails and not remove_nested
+            else []
+        )
 
         obj_query = Obj.query_records_accessible_by(
             self.current_user, options=obj_query_options
@@ -1036,7 +1040,7 @@ class SourceHandler(BaseHandler):
                         key=lambda x: x["created_at"],
                         reverse=True,
                     )
-                    
+
                 readable_classifications = (
                     Classification.query_records_accessible_by(self.current_user)
                     .filter(Classification.obj_id == obj.id)
@@ -1052,12 +1056,12 @@ class SourceHandler(BaseHandler):
                     readable_classifications_json.append(classification_dict)
 
                 obj_list[-1]["classifications"] = readable_classifications_json
-                
+
                 if not remove_nested:
                     obj_list[-1]["annotations"] = sorted(
-                        Annotation.query_records_accessible_by(self.current_user).filter(
-                            Annotation.obj_id == obj.id
-                        ),
+                        Annotation.query_records_accessible_by(
+                            self.current_user
+                        ).filter(Annotation.obj_id == obj.id),
                         key=lambda x: x.origin,
                     )
                     obj_list[-1]["last_detected_at"] = obj.last_detected_at(
@@ -1104,7 +1108,7 @@ class SourceHandler(BaseHandler):
                         )
                         > 0
                     )
-                    
+
                 if not remove_nested:
                     source_query = Source.query_records_accessible_by(
                         self.current_user
@@ -1136,7 +1140,7 @@ class SourceHandler(BaseHandler):
                                 source_table_row.saved_by.to_dict()
                                 if source_table_row.saved_by is not None
                                 else None
-                        )
+                            )
                 if include_color_mag:
                     obj_list[-1]["color_magnitude"] = get_color_mag(
                         obj_list[-1]["annotations"]
