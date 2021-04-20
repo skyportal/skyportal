@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 import numpy as np
 import scipy
 import gcn
@@ -350,34 +349,3 @@ class GCNHandler:
         env, cfg = load_env()
         with status(f"Connecting to database {cfg['database']['database']}"):
             init_db(**cfg['database'])
-
-
-if __name__ == "__main__":
-
-    from argparse import ArgumentParser
-
-    parser = ArgumentParser()
-
-    parser.add_argument('--datafile', default='GW190425_initial.xml')
-
-    args = parser.parse_args()
-
-    env, cfg = load_env()
-    basedir = Path(os.path.dirname(__file__)) / ".."
-
-    with status(f"Connecting to database {cfg['database']['database']}"):
-        init_db(**cfg["database"])
-
-    gcnhandler = GCNHandler(args.datafile)
-
-    events = Event.query.all()
-    print(events[0].dateobs, events[0].tags)
-    print(events[0].dateobs == Time("2019-04-25 08:18:05", format='iso').datetime)
-    print('GW' in events[0].tags)
-    localizations = Localization.query.all()
-    # print(events)
-    print(
-        localizations[0].dateobs == Time("2019-04-25 08:18:05", format='iso').datetime
-    )
-    print(localizations[0].localization_name == "bayestar.fits.gz")
-    print(np.isclose(np.sum(localizations[0].flat_2d), 1))
