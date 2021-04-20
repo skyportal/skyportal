@@ -41,3 +41,5 @@ pyvo==1.1
 lxml==4.6.3
 suds-py3==1.4.3
 vcrpy==4.1.1
+ligo.skymap
+healpy

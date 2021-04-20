@@ -1,4 +1,5 @@
 import json
+import lxml
 import re
 import uuid
 import warnings
@@ -6,7 +7,9 @@ from datetime import datetime, timezone, timedelta
 
 import arrow
 import astroplan
+import gcn
 import healpix_alchemy as ha
+import healpy as hp
 import numpy as np
 import requests
 import sqlalchemy as sa
@@ -15,15 +18,19 @@ import yaml
 from astropy import coordinates as ap_coord
 from astropy import time as ap_time
 from astropy import units as u
+from astropy.table import Table
 from astropy.io import fits, ascii
 from astropy.utils.exceptions import AstropyWarning
+from ligo.skymap.bayestar import rasterize
 from slugify import slugify
 from sqlalchemy import cast, event
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship, joinedload
+from sqlalchemy.orm import deferred
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy_utils.types import JSONType
@@ -3513,6 +3520,302 @@ class SourceNotification(Base):
 
     additional_notes = sa.Column(sa.String(), nullable=True)
     level = sa.Column(sa.String(), nullable=False)
+
+
+class Event(Base):
+    """Event information, including an event ID, mission, and time of the
+    event"""
+
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
+
+    dateobs = sa.Column(sa.DateTime, comment='Event time', unique=True, nullable=False)
+
+    gcn_notices = relationship(lambda: GcnNotice, order_by=lambda: GcnNotice.date)
+
+    _tags = relationship(
+        lambda: Tag,
+        order_by=lambda: (
+            sa.func.lower(Tag.text).notin_({'fermi', 'swift', 'amon', 'lvc'}),
+            sa.func.lower(Tag.text).notin_({'long', 'short'}),
+            sa.func.lower(Tag.text).notin_({'grb', 'gw', 'transient'}),
+        ),
+    )
+
+    tags = association_proxy('_tags', 'text', creator=lambda tag: Tag(text=tag))
+
+    localizations = relationship(lambda: Localization)
+
+    @hybrid_property
+    def retracted(self):
+        return 'retracted' in self.tags
+
+    @retracted.expression
+    def retracted(cls):
+        return sa.literal('retracted').in_(cls.tags)
+
+    @property
+    def lightcurve(self):
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='LightCurve_URL']")
+        if elem is None:
+            return None
+        else:
+            return elem.attrib.get('value', '').replace('http://', 'https://')
+
+    @property
+    def gracesa(self):
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='EventPage']")
+        if elem is None:
+            return None
+        else:
+            return elem.attrib.get('value', '')
+
+    @property
+    def ned_gwf(self):
+        return "https://ned.ipac.caltech.edu/gwf/events"
+
+    @property
+    def HasNS(self):
+        notice = self.gcn_notices[0]
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='HasNS']")
+        if elem is None:
+            return None
+        else:
+            return 'HasNS: ' + elem.attrib.get('value', '')
+
+    @property
+    def HasRemnant(self):
+        notice = self.gcn_notices[0]
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='HasRemnant']")
+        if elem is None:
+            return None
+        else:
+            return 'HasRemnant: ' + elem.attrib.get('value', '')
+
+    @property
+    def FAR(self):
+        notice = self.gcn_notices[0]
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='FAR']")
+        if elem is None:
+            return None
+        else:
+            return 'FAR: ' + elem.attrib.get('value', '')
+
+
+class GcnNotice(Base):
+    """Records of ingested GCN notices"""
+
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
+
+    ivorn = sa.Column(
+        sa.String, primary_key=True, comment='Unique identifier of VOEvent'
+    )
+
+    notice_type = sa.Column(
+        sa.Enum(gcn.NoticeType, native_enum=False),
+        nullable=False,
+        comment='GCN Notice type',
+    )
+
+    stream = sa.Column(
+        sa.String, nullable=False, comment='Event stream or mission (i.e., "Fermi")'
+    )
+
+    date = sa.Column(sa.DateTime, nullable=False, comment='UTC message timestamp')
+
+    dateobs = sa.Column(
+        sa.DateTime,
+        sa.ForeignKey(Event.dateobs),
+        nullable=False,
+        comment='UTC event timestamp',
+    )
+
+    content = deferred(
+        sa.Column(sa.LargeBinary, nullable=False, comment='Raw VOEvent content')
+    )
+
+    def _get_property(self, property_name, value=None):
+        root = lxml.etree.fromstring(self.content)
+        path = ".//Param[@name='{}']".format(property_name)
+        elem = root.find(path)
+        value = float(elem.attrib.get('value', '')) * 100
+        return value
+
+    @property
+    def has_ns(self):
+        return self._get_property(property_name="HasNS")
+
+    @property
+    def has_remnant(self):
+        return self._get_property(property_name="HasRemnant")
+
+    @property
+    def far(self):
+        return self._get_property(property_name="FAR")
+
+    @property
+    def bns(self):
+        return self._get_property(property_name="BNS")
+
+    @property
+    def nsbh(self):
+        return self._get_property(property_name="NSBH")
+
+    @property
+    def bbh(self):
+        return self._get_property(property_name="BBH")
+
+    @property
+    def mass_gap(self):
+        return self._get_property(property_name="MassGap")
+
+    @property
+    def noise(self):
+        return self._get_property(property_name="Terrestrial")
+
+
+class Localization(Base):
+    """Localization information, including the localization ID, event ID, right
+    ascension, declination, error radius (if applicable), and the healpix
+    map."""
+
+    nside = 512
+    """HEALPix resolution used for flat (non-multiresolution) operations."""
+
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
+
+    dateobs = sa.Column(
+        sa.DateTime,
+        sa.ForeignKey(Event.dateobs),
+        nullable=False,
+        comment='UTC event timestamp',
+    )
+
+    localization_name = sa.Column(
+        sa.String, primary_key=True, comment='Localization name'
+    )
+
+    uniq = deferred(
+        sa.Column(
+            sa.ARRAY(sa.BigInteger),
+            nullable=False,
+            comment='Multiresolution HEALPix UNIQ pixel index array',
+        )
+    )
+
+    probdensity = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float),
+            nullable=False,
+            comment='Multiresolution HEALPix probability density array',
+        )
+    )
+
+    distmu = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float), comment='Multiresolution HEALPix distance mu array'
+        )
+    )
+
+    distsigma = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float), comment='Multiresolution HEALPix distance sigma array'
+        )
+    )
+
+    distnorm = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float),
+            comment='Multiresolution HEALPix distance normalization array',
+        )
+    )
+
+    contour = deferred(sa.Column(sa.JSON, comment='GeoJSON contours'))
+
+    @hybrid_property
+    def is_3d(self):
+        return (
+            self.distmu is not None
+            and self.distsigma is not None
+            and self.distnorm is not None
+        )
+
+    @is_3d.expression
+    def is_3d(self):
+        return (
+            self.distmu.isnot(None)
+            and self.distsigma.isnot(None)
+            and self.distnorm.isnot(None)
+        )
+
+    @property
+    def table_2d(self):
+        """Get multiresolution HEALPix dataset, probability density only."""
+        return Table(
+            [np.asarray(self.uniq, dtype=np.int64), self.probdensity],
+            names=['UNIQ', 'PROBDENSITY'],
+        )
+
+    @property
+    def table(self):
+        """Get multiresolution HEALPix dataset, probability density and
+        distance."""
+        if self.is_3d:
+            return Table(
+                [
+                    np.asarray(self.uniq, dtype=np.int64),
+                    self.probdensity,
+                    self.distmu,
+                    self.distsigma,
+                    self.distnorm,
+                ],
+                names=['UNIQ', 'PROBDENSITY', 'DISTMU', 'DISTSIGMA', 'DISTNORM'],
+            )
+        else:
+            return self.table_2d
+
+    @property
+    def flat_2d(self):
+        """Get flat resolution HEALPix dataset, probability density only."""
+        order = hp.nside2order(Localization.nside)
+        result = rasterize(self.table_2d, order)['PROB']
+        return hp.reorder(result, 'NESTED', 'RING')
+
+    @property
+    def flat(self):
+        """Get flat resolution HEALPix dataset, probability density and
+        distance."""
+        if self.is_3d:
+            order = hp.nside2order(Localization.nside)
+            t = rasterize(self.table, order)
+            result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
+            return hp.reorder(result, 'NESTED', 'RING')
+        else:
+            return (self.flat_2d,)
+
+
+class Tag(Base):
+    """Store qualitative tags for events."""
+
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
+
+    dateobs = sa.Column(
+        sa.DateTime, sa.ForeignKey(Event.dateobs), nullable=False, primary_key=True
+    )
+
+    text = sa.Column(sa.Unicode, nullable=False, primary_key=True)
 
 
 class UserNotification(Base):
