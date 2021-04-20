@@ -61,7 +61,8 @@ class CommentHandler(BaseHandler):
             return self.error(
                 f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
             )
-        elif comment_on_what.lower() == "object":  # comment on object (default)
+
+        if comment_on_what.lower() == "object":  # comment on object (default)
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
@@ -262,7 +263,8 @@ class CommentHandler(BaseHandler):
             return self.error(
                 f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
             )
-        elif comment_on_what.lower() == "object":  # comment on object
+
+        if comment_on_what.lower() == "object":  # comment on object
             schema = Comment.__schema__()
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="update", raise_if_none=True
@@ -345,7 +347,8 @@ class CommentHandler(BaseHandler):
             return self.error(
                 f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
             )
-        elif comment_on_what.lower() == "object":  # comment on object
+
+        if comment_on_what.lower() == "object":  # comment on object
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
@@ -424,7 +427,8 @@ class CommentAttachmentHandler(BaseHandler):
             return self.error(
                 f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
             )
-        elif comment_on_what.lower() == "object":  # comment on object
+
+        if comment_on_what.lower() == "object":  # comment on object
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
