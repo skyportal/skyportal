@@ -22,8 +22,6 @@ import TopSources from "./TopSources";
 import SourceCounts from "./SourceCounts";
 import WeatherWidget from "./WeatherWidget";
 
-import UninitializedDBMessage from "./UninitializedDBMessage";
-
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const useStyles = makeStyles(() => ({
@@ -71,10 +69,6 @@ const HomePage = () => {
 
   const groups = useSelector((state) => state.groups.user);
 
-  const sourceTableEmpty = useSelector(
-    (state) => state.dbInfo.source_table_empty
-  );
-
   const profile = useSelector((state) => state.profile);
 
   let currentLayouts =
@@ -83,10 +77,6 @@ const HomePage = () => {
       : profile.preferences.layouts;
 
   const dispatch = useDispatch();
-
-  if (sourceTableEmpty) {
-    return <UninitializedDBMessage />;
-  }
 
   const LayoutChangeHandler = (currentLayout, allLayouts) => {
     const prefs = {

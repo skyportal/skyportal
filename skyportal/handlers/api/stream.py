@@ -48,11 +48,11 @@ class StreamHandler(BaseHandler):
                   schema: Error
         """
         if stream_id is not None:
-            s = DBSession().query(Stream).filter(Stream.id == stream_id).first()
-            if s is None:
-                return self.error("Invalid stream ID.")
+            s = Stream.get_if_accessible_by(
+                stream_id, self.current_user, raise_if_none=True
+            )
             return self.success(data=s)
-        streams = DBSession().query(Stream).all()
+        streams = Stream.get_records_accessible_by(self.current_user)
         self.verify_and_commit()
         return self.success(data=streams)
 
@@ -168,14 +168,17 @@ class StreamHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        DBSession().delete(Stream.query.get(stream_id))
+        stream = Stream.get_if_accessible_by(
+            stream_id, self.current_user, mode="delete", raise_if_none=True
+        )
+        DBSession().delete(stream)
         self.verify_and_commit()
 
         return self.success()
 
 
 class StreamUserHandler(BaseHandler):
-    @permissions(["Manage users"])
+    @auth_or_token
     def post(self, stream_id, *ignored_args):
         """
         ---
@@ -226,7 +229,8 @@ class StreamUserHandler(BaseHandler):
 
         stream_id = int(stream_id)
         su = (
-            StreamUser.query.filter(StreamUser.stream_id == stream_id)
+            StreamUser.query_records_accessible_by(self.current_user)
+            .filter(StreamUser.stream_id == stream_id)
             .filter(StreamUser.user_id == user_id)
             .first()
         )
@@ -238,7 +242,7 @@ class StreamUserHandler(BaseHandler):
 
         return self.success(data={'stream_id': stream_id, 'user_id': user_id})
 
-    @permissions(["Manage users"])
+    @auth_or_token
     def delete(self, stream_id, user_id):
         """
         ---
@@ -264,7 +268,8 @@ class StreamUserHandler(BaseHandler):
                 schema: Success
         """
         su = (
-            StreamUser.query.filter(StreamUser.stream_id == stream_id)
+            StreamUser.query_records_accessible_by(self.current_user, mode="delete")
+            .filter(StreamUser.stream_id == stream_id)
             .filter(StreamUser.user_id == user_id)
             .first()
         )

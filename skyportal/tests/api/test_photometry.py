@@ -353,6 +353,7 @@ def test_post_photometry_multiple_groups(
 
 def test_post_photometry_all_groups(
     upload_data_token_two_groups,
+    user_two_groups,
     super_admin_token,
     public_source_two_groups,
     public_group,
@@ -394,8 +395,11 @@ def test_post_photometry_all_groups(
     assert data['data']['ra_unc'] is None
     assert data['data']['dec_unc'] is None
 
+    # Groups should be single user group and public group
     assert len(data['data']['groups']) == 2
-    assert data['data']['groups'][0]['name'] == cfg['misc']['public_group_name']
+    groups = [g['name'] for g in data['data']['groups']]
+    assert cfg['misc']['public_group_name'] in groups
+    assert user_two_groups.single_user_group.name in groups
 
     np.testing.assert_allclose(
         data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
@@ -2272,3 +2276,49 @@ def test_problematic_photometry_1276(
     )
     assert status == 400
     assert data['status'] == 'error'
+
+
+def test_cannot_post_negative_fluxerr(
+    upload_data_token, public_source, public_group, ztf_camera
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': -0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+    assert "Invalid value" in data['message']
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': [58000.0, 58000.4],
+            'instrument_id': ztf_camera.id,
+            'flux': [12.24, 12.43],
+            'fluxerr': [0.35, -0.031],
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+    assert "Invalid value" in data['message']
