@@ -40,12 +40,14 @@ const EditFollowupRequestDialog = ({
     handleClose();
   };
 
-  // Set default form values to current request data
+  // Since we are editing exsiting follow-up requests,
+  // it makes more sense to set default form values to current request data
   const { formSchema } = instrumentFormParams[
     followupRequest.allocation.instrument.id
   ];
-
   Object.keys(formSchema.properties).forEach((key) => {
+    // Set the form value for "key" to the value in the existing request's
+    // payload, which is the form data sent to the external follow-up API
     formSchema.properties[key].default = followupRequest.payload[key];
   });
 
@@ -53,7 +55,7 @@ const EditFollowupRequestDialog = ({
     if (
       formData.start_date &&
       formData.end_date &&
-      formData.start_date > formData.end_date
+      Date.parse(formData.start_date) > Date.parse(formData.end_date)
     ) {
       errors.start_date.addError("Start Date must come before End Date");
     }
