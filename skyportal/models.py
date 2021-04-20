@@ -2954,7 +2954,7 @@ User.comments_on_spectra = relationship(
 )
 
 GroupCommentOnSpectrum = join_model(
-    "group_comments_on_spectra", Group, CommentOnSpectrum
+    "group_comment_on_spectrum", Group, CommentOnSpectrum
 )
 GroupCommentOnSpectrum.__doc__ = "Join table mapping Groups to CommentOnSpectrum."
 GroupCommentOnSpectrum.delete = GroupCommentOnSpectrum.update = (
