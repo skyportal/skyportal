@@ -39,7 +39,7 @@ from ...models import (
     Spectrum,
     SourceView,
 )
-from ...utils import (
+from ...utils.offset import (
     get_nearby_offset_stars,
     facility_parameters,
     source_image_parameters,
