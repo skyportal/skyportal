@@ -10,11 +10,7 @@ from ..utils import http
 env, cfg = load_env()
 
 
-# if "PYTEST_CURRENT_TEST" in os.environ:
-#    requestpath = "https://observe.lco.global/api/requestgroups/validate/"
-# else:
 requestpath = f"{cfg['app.lco_protocol']}://{cfg['app.lco_host']}:{cfg['app.lco_port']}/api/requestgroups/"
-print(requestpath)
 
 
 class SINISTRORequest:
@@ -516,7 +512,7 @@ class LCOAPI(FollowUpAPI):
         altdata = request.allocation.altdata
 
         if not altdata:
-            return
+            raise ValueError('Missing allocation information.')
 
         content = req.transactions[0].response["content"]
         content = json.loads(content)
@@ -570,7 +566,7 @@ class LCOAPI(FollowUpAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            return
+            raise ValueError('Missing allocation information.')
 
         content = req.transactions[0].response["content"]
         content = json.loads(content)
@@ -619,7 +615,7 @@ class SINISTROAPI(LCOAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            return
+            raise ValueError('Missing allocation information.')
 
         lcoreq = SINISTRORequest(request)
         requestgroup = lcoreq.requestgroup
@@ -629,9 +625,6 @@ class SINISTROAPI(LCOAPI):
             headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
             json=requestgroup,  # Make sure you use json!
         )
-        print(r.text)
-        print(requestgroup)
-        print(r.status_code)
         r.raise_for_status()
 
         if r.status_code == 201:
@@ -735,7 +728,7 @@ class SPECTRALAPI(LCOAPI):
         altdata = request.allocation.altdata
 
         if not altdata:
-            return
+            raise ValueError('Missing allocation information.')
 
         lcoreq = SPECTRALRequest(request)
         requestgroup = lcoreq.requestgroup
@@ -746,7 +739,7 @@ class SPECTRALAPI(LCOAPI):
             json=requestgroup,  # Make sure you use json!
         )
 
-        # r.raise_for_status()
+        r.raise_for_status()
 
         if r.status_code == 201:
             request.status = 'submitted'
@@ -848,16 +841,10 @@ class MUSCATAPI(LCOAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            return
+            raise ValueError('Missing allocation information.')
 
         lcoreq = MUSCATRequest(request)
         requestgroup = lcoreq.requestgroup
-
-        # r = requests.post(
-        #    "https://observe.lco.global/api/requestgroups/",
-        #    headers={"Authorization": f'Token {altdata["API_TOKEN"]}'},
-        #    json=requestgroup,  # Make sure you use json!
-        # )
 
         r = requests.post(
             requestpath,
@@ -959,7 +946,7 @@ class FLOYDSAPI(LCOAPI):
 
         altdata = request.allocation.altdata
         if not altdata:
-            return
+            raise ValueError('Missing allocation information.')
 
         lcoreq = FLOYDSRequest(request)
         requestgroup = lcoreq.requestgroup
