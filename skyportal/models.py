@@ -3526,7 +3526,7 @@ class Event(Base):
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
-    dateobs = sa.Column(sa.DateTime, comment='Event time', unique=True, nullable=False)
+    dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
 
     gcn_notices = relationship(lambda: GcnNotice, order_by=lambda: GcnNotice.date)
 
@@ -3541,20 +3541,24 @@ class Event(Base):
 
     localizations = relationship(lambda: Localization)
 
-    @hybrid_property
+    @property
     def tags(self):
+        """List of tags."""
         return [tag.text for tag in self._tags]
 
     @hybrid_property
     def retracted(self):
+        """Check if event is retracted."""
         return 'retracted' in self.tags
 
     @retracted.expression
     def retracted(cls):
+        """Check if event is retracted."""
         return sa.literal('retracted').in_(cls.tags)
 
     @property
     def lightcurve(self):
+        """GRB lightcurve URL."""
         try:
             notice = self.gcn_notices[0]
         except IndexError:
@@ -3568,6 +3572,7 @@ class Event(Base):
 
     @property
     def gracesa(self):
+        """Event page URL."""
         try:
             notice = self.gcn_notices[0]
         except IndexError:
@@ -3581,10 +3586,12 @@ class Event(Base):
 
     @property
     def ned_gwf(self):
+        """NED URL."""
         return "https://ned.ipac.caltech.edu/gwf/events"
 
     @property
     def HasNS(self):
+        """Checking if GW event contains NS."""
         notice = self.gcn_notices[0]
         root = lxml.etree.fromstring(notice.content)
         elem = root.find(".//Param[@name='HasNS']")
@@ -3595,6 +3602,7 @@ class Event(Base):
 
     @property
     def HasRemnant(self):
+        """Checking if GW event has remnant matter."""
         notice = self.gcn_notices[0]
         root = lxml.etree.fromstring(notice.content)
         elem = root.find(".//Param[@name='HasRemnant']")
@@ -3605,6 +3613,7 @@ class Event(Base):
 
     @property
     def FAR(self):
+        """Returning event false alarm rate."""
         notice = self.gcn_notices[0]
         root = lxml.etree.fromstring(notice.content)
         elem = root.find(".//Param[@name='FAR']")
