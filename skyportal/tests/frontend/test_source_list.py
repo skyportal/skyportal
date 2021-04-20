@@ -17,14 +17,6 @@ def test_add_sources_two_groups(
     taxonomy_token_two_groups,
     classification_token_two_groups,
 ):
-
-    driver.get(
-        f"/become_user/{super_admin_user_two_groups.id}"
-    )  # TODO decorator/context manager?
-    assert 'localhost' in driver.current_url
-    driver.get('/sources')
-    driver.wait_for_xpath('//h6[contains(text(), "Sources")]', timeout=20)
-
     obj_id = str(uuid.uuid4())
     t1 = datetime.now(timezone.utc)
 
@@ -47,8 +39,15 @@ def test_add_sources_two_groups(
     assert status == 200
     assert data['data']['id'] == f'{obj_id}'
 
+    driver.get(
+        f"/become_user/{super_admin_user_two_groups.id}"
+    )  # TODO decorator/context manager?
+    assert 'localhost' in driver.current_url
+    driver.get('/sources')
+
     # filter on the object id
     driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+
     obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
     obj_button.clear()
     obj_button.send_keys(obj_id)

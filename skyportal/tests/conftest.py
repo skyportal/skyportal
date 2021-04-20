@@ -208,6 +208,22 @@ def public_group2(public_stream):
 
 
 @pytest.fixture()
+def public_group_stream2(public_stream2):
+    group = GroupFactory(streams=[public_stream2])
+    group_id = group.id
+    yield group
+    GroupFactory.teardown(group_id)
+
+
+@pytest.fixture()
+def public_group_two_streams(public_stream, public_stream2):
+    group = GroupFactory(streams=[public_stream, public_stream2])
+    group_id = group.id
+    yield group
+    GroupFactory.teardown(group_id)
+
+
+@pytest.fixture()
 def public_group_no_streams():
     group = GroupFactory()
     group_id = group.id
@@ -260,6 +276,19 @@ def public_streamuser(public_stream, user):
         DBSession()
         .query(StreamUser)
         .filter(StreamUser.user_id == user.id, StreamUser.stream_id == public_stream.id)
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_streamuser_no_groups(public_stream, user_no_groups):
+    return (
+        DBSession()
+        .query(StreamUser)
+        .filter(
+            StreamUser.user_id == user_no_groups.id,
+            StreamUser.stream_id == public_stream.id,
+        )
         .first()
     )
 
@@ -830,6 +859,15 @@ def manage_groups_token(super_admin_user):
         ACLs=["Manage groups"],
         user_id=super_admin_user.id,
         name=str(uuid.uuid4()),
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def group_admin_token(group_admin_user):
+    token_id = create_token(
+        ACLs=[], user_id=group_admin_user.id, name=str(uuid.uuid4())
     )
     yield token_id
     delete_token(token_id)

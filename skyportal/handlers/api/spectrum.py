@@ -3,10 +3,9 @@ from pathlib import Path
 from astropy.time import Time
 import numpy as np
 
-from sqlalchemy.orm import joinedload
-
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
@@ -15,16 +14,13 @@ from ...models import (
     Group,
     Instrument,
     Obj,
-    GroupUser,
     Spectrum,
     User,
     ClassicalAssignment,
-    GroupSpectrum,
 )
 from ...schema import (
     SpectrumAsciiFilePostJSON,
     SpectrumPost,
-    GroupIDList,
     SpectrumAsciiFileParseJSON,
 )
 
@@ -72,39 +68,22 @@ class SpectrumHandler(BaseHandler):
                 f'Invalid / missing parameters; {e.normalized_messages()}'
             )
 
-        group_ids = data.pop("group_ids")
-        if group_ids == "all":
-            groups = (
-                DBSession()
-                .query(Group)
-                .filter(Group.name == cfg["misc"]["public_group_name"])
-                .all()
-            )
-        else:
-            try:
-                group_ids = GroupIDList.load({'group_ids': group_ids})
-            except ValidationError:
-                return self.error(
-                    "Invalid group_ids parameter value. Must be a list of IDs "
-                    "(integers) or the string 'all'."
-                )
-
-            group_ids = group_ids['group_ids']
-            groups = []
-            for group_id in group_ids:
-                try:
-                    group_id = int(group_id)
-                except TypeError:
-                    return self.error(
-                        f"Invalid format for group id {group_id}, must be an integer."
-                    )
-                group = Group.query.get(group_id)
-                if group is None:
-                    return self.error(f'No group with ID {group_id}')
-                groups.append(group)
-
         # always append the single user group
         single_user_group = self.associated_user_object.single_user_group
+
+        group_ids = data.pop("group_ids", None)
+        if group_ids is None:
+            groups = [single_user_group]
+        else:
+            if group_ids == "all":
+                groups = Group.query.filter(
+                    Group.name == cfg['misc.public_group_name']
+                ).all()
+            else:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+
         if single_user_group not in groups:
             groups.append(single_user_group)
 
@@ -174,34 +153,18 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
 
-        spectrum = (
-            DBSession()
-            .query(Spectrum)
-            .join(Obj)
-            .join(GroupSpectrum)
-            .filter(
-                Spectrum.id == spectrum_id,
-                GroupSpectrum.group_id.in_(
-                    [g.id for g in self.current_user.accessible_groups]
-                ),
-            )
-            .options(joinedload(Spectrum.groups))
-            .first()
+        spectrum = Spectrum.get_if_accessible_by(
+            spectrum_id, self.current_user, raise_if_none=True
         )
 
-        if spectrum is not None:
-            # Permissions check
-            _ = Obj.get_if_readable_by(spectrum.obj_id, self.current_user)
-            spec_dict = spectrum.to_dict()
-            spec_dict["instrument_name"] = spectrum.instrument.name
-            spec_dict["groups"] = spectrum.groups
-            spec_dict["reducers"] = spectrum.reducers
-            spec_dict["observers"] = spectrum.observers
-            spec_dict["owner"] = spectrum.owner
-            self.verify_and_commit()
-            return self.success(data=spec_dict)
-        else:
-            return self.error(f"Could not load spectrum with ID {spectrum_id}")
+        spec_dict = recursive_to_dict(spectrum)
+        spec_dict["instrument_name"] = spectrum.instrument.name
+        spec_dict["groups"] = spectrum.groups
+        spec_dict["reducers"] = spectrum.reducers
+        spec_dict["observers"] = spectrum.observers
+        spec_dict["owner"] = spectrum.owner
+        self.verify_and_commit()
+        return self.success(data=spec_dict)
 
     @permissions(['Upload data'])
     def put(self, spectrum_id):
@@ -235,15 +198,9 @@ class SpectrumHandler(BaseHandler):
         except TypeError:
             return self.error('Could not convert spectrum id to int.')
 
-        spectrum = Spectrum.query.get(spectrum_id)
-        # Permissions check
-        _ = Obj.get_if_readable_by(spectrum.obj_id, self.current_user)
-
-        # Check that the requesting user owns the spectrum (or is an admin)
-        if not spectrum.is_modifiable_by(self.associated_user_object):
-            return self.error(
-                f'Cannot modify spectrum that is owned by {spectrum.owner}.'
-            )
+        spectrum = Spectrum.get_if_accessible_by(
+            spectrum_id, self.current_user, mode="update", raise_if_none=True
+        )
 
         data = self.get_json()
 
@@ -263,7 +220,6 @@ class SpectrumHandler(BaseHandler):
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': spectrum.obj.internal_key},
         )
-
         return self.success()
 
     @permissions(['Upload data'])
@@ -289,22 +245,16 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        spectrum = Spectrum.query.get(spectrum_id)
-        # Permissions check
-        _ = Obj.get_if_readable_by(spectrum.obj_id, self.current_user)
-
-        # Check that the requesting user owns the spectrum (or is an admin)
-        if not spectrum.is_modifiable_by(self.associated_user_object):
-            return self.error(
-                f'Cannot delete spectrum that is owned by {spectrum.owner}.'
-            )
-
+        spectrum = Spectrum.get_if_accessible_by(
+            spectrum_id, self.current_user, mode="delete", raise_if_none=True
+        )
+        obj_key = spectrum.obj.internal_key
         DBSession().delete(spectrum)
         self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': spectrum.obj.internal_key},
+            payload={'obj_key': obj_key},
         )
 
         self.push_all(
@@ -408,25 +358,24 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         if instrument is None:
             raise ValidationError('Invalid instrument id.')
 
-        groups = []
-        group_ids = json.pop('group_ids', [])
-        for group_id in group_ids:
-            group = Group.query.get(group_id)
-            if group is None:
-                return self.error(f'Invalid group id: {group_id}.')
-            groups.append(group)
-
         # always add the single user group
-        single_user_group = (
-            DBSession()
-            .query(Group)
-            .join(GroupUser)
-            .filter(
-                Group.single_user_group == True,  # noqa
-                GroupUser.user_id == self.associated_user_object.id,
-            )
-            .first()
-        )
+        single_user_group = self.associated_user_object.single_user_group
+
+        group_ids = json.pop('group_ids', [])
+        if group_ids is None:
+            groups = [single_user_group]
+        else:
+            if group_ids == "all":
+                groups = Group.query.filter(
+                    Group.name == cfg['misc.public_group_name']
+                ).all()
+            else:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+
+        if single_user_group not in groups:
+            groups.append(single_user_group)
 
         reducers = []
         for reducer_id in json.get('reduced_by', []):
@@ -441,10 +390,6 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             if observer is None:
                 raise ValidationError(f'Invalid observer ID: {observer_id}.')
             observers.append(observer)
-
-        if single_user_group is not None:
-            if single_user_group not in groups:
-                groups.append(single_user_group)
 
         # will never KeyError as missing value is imputed
         followup_request_id = json.pop('followup_request_id', None)
@@ -563,15 +508,18 @@ class ObjSpectraHandler(BaseHandler):
                 schema: Error
         """
 
-        obj = Obj.query.get(obj_id)
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj is None:
             return self.error('Invalid object ID.')
-        spectra = Obj.get_spectra_readable_by(
-            obj_id, self.current_user, options=[joinedload(Spectrum.groups)]
+
+        spectra = (
+            Spectrum.query_records_accessible_by(self.current_user)
+            .filter(Spectrum.obj_id == obj_id)
+            .all()
         )
         return_values = []
         for spec in spectra:
-            spec_dict = spec.to_dict()
+            spec_dict = recursive_to_dict(spec)
             spec_dict["instrument_name"] = spec.instrument.name
             spec_dict["groups"] = spec.groups
             spec_dict["reducers"] = spec.reducers
@@ -596,9 +544,10 @@ class ObjSpectraHandler(BaseHandler):
                     s["fluxes"] = s["fluxes"] / norm
             else:
                 return self.error(
-                    f'Invalid "normalization" value "{normalization}, use "median" or None'
+                    f'Invalid "normalization" value "{normalization}, use '
+                    '"median" or None'
                 )
-
+        self.verify_and_commit()
         return self.success(data={'obj_id': obj.id, 'spectra': return_values})
 
 
@@ -665,17 +614,13 @@ class SpectrumRangeHandler(BaseHandler):
         min_date = self.get_query_argument('min_date', None)
         max_date = self.get_query_argument('max_date', None)
 
-        gids = [g.id for g in self.current_user.accessible_groups]
+        if len(instrument_ids) > 0:
+            query = Spectrum.query_records_accessible_by(self.current_user).filter(
+                Spectrum.instrument_id.in_(instrument_ids)
+            )
+        else:
+            query = Spectrum.query_records_accessible_by(self.current_user)
 
-        query = (
-            DBSession()
-            .query(Spectrum)
-            .join(GroupSpectrum)
-            .filter(GroupSpectrum.group_id.in_(gids))
-        )
-
-        if instrument_ids:
-            query = query.filter(Spectrum.instrument_id.in_(instrument_ids))
         if min_date is not None:
             utc = Time(min_date, format='isot', scale='utc')
             query = query.filter(Spectrum.observed_at >= utc.isot)
