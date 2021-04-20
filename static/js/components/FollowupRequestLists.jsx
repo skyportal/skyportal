@@ -208,6 +208,34 @@ const FollowupRequestLists = ({
     rowsPerPageOptions: [1, 10, 15],
   };
 
+  const keyOrder = (a, b) => {
+    // End date comes after start date
+    if (a === "end_date" && b === "start_date") {
+      return 1;
+    }
+    if (b === "end_date" && a === "start_date") {
+      return -1;
+    }
+
+    // Dates come before anything else
+    if (a === "end_date" || a === "start_date") {
+      return -1;
+    }
+    if (b === "end_date" || b === "start_date") {
+      return 1;
+    }
+
+    // Regular string comparison
+    if (a < b) {
+      return -1;
+    }
+    if (a > b) {
+      return 1;
+    }
+    // a must be equal to b
+    return 0;
+  };
+
   return (
     <div className={classes.container}>
       {Object.keys(requestsGroupedByInstId).map((instrument_id) => {
@@ -220,6 +248,8 @@ const FollowupRequestLists = ({
           });
           return r;
         }, []);
+
+        keys.sort(keyOrder);
 
         return (
           <Accordion
