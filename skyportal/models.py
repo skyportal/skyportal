@@ -2921,6 +2921,8 @@ GroupSpectrum.update = GroupSpectrum.delete = (
 
 class CommentOnSpectrum(Base, CommentMixin):
 
+    __tablename__ = 'comments_on_spectra'
+
     create = AccessibleIfRelatedRowsAreAccessible(obj='read', spectrum='read')
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
