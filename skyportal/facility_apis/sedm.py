@@ -1,7 +1,6 @@
 from . import FollowUpAPI, Listener
 from baselayer.app.env import load_env
 from datetime import datetime, timedelta
-from pytz import timezone
 import json
 import requests
 
@@ -14,11 +13,7 @@ class SEDMListener(Listener):
 
     schema = {
         'type': 'object',
-        'properties': {
-            'new_status': {
-                'type': 'string',
-            },
-        },  # noqa: E231
+        'properties': {'new_status': {'type': 'string',},},  # noqa: E231
         'required': ['new_status'],
     }
 
@@ -160,8 +155,7 @@ class SEDMAPI(FollowUpAPI):
         payload = convert_request_to_sedm(request, method_value='new')
         content = json.dumps(payload)
         r = requests.post(
-            cfg['app.sedm_endpoint'],
-            files={'jsonfile': ('jsonfile', content)},
+            cfg['app.sedm_endpoint'], files={'jsonfile': ('jsonfile', content)},
         )
 
         if r.status_code == 200:
@@ -193,8 +187,7 @@ class SEDMAPI(FollowUpAPI):
         payload = convert_request_to_sedm(request, method_value='delete')
         content = json.dumps(payload)
         r = requests.post(
-            cfg['app.sedm_endpoint'],
-            files={'jsonfile': ('jsonfile', content)},
+            cfg['app.sedm_endpoint'], files={'jsonfile': ('jsonfile', content)},
         )
 
         r.raise_for_status()
@@ -224,8 +217,7 @@ class SEDMAPI(FollowUpAPI):
         payload = convert_request_to_sedm(request, method_value='edit')
         content = json.dumps(payload)
         r = requests.post(
-            cfg['app.sedm_endpoint'],
-            files={'jsonfile': ('jsonfile', content)},
+            cfg['app.sedm_endpoint'], files={'jsonfile': ('jsonfile', content)},
         )
 
         if r.status_code == 200:
@@ -290,16 +282,14 @@ class SEDMAPI(FollowUpAPI):
             "start_date": {
                 "type": "string",
                 "format": "date",
-                "default": datetime.now(tz=timezone("US/Pacific")).date().isoformat(),
+                "default": datetime.utcnow().date().isoformat(),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "format": "date",
                 "title": "End Date (UT)",
-                "default": (
-                    datetime.now(tz=timezone("US/Pacific")).date() + timedelta(days=7)
-                ).isoformat(),
+                "default": (datetime.utcnow().date() + timedelta(days=7)).isoformat(),
             },
         },
         "dependencies": {"observation_type": {"oneOf": _dependencies}},
