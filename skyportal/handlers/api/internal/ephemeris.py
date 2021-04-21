@@ -22,7 +22,9 @@ class EphemerisHandler(BaseHandler):
         except TypeError:
             return self.error(f'Invalid telescope id: {telescope_id}, must be integer.')
 
-        telescope = Telescope.query.get(telescope_id)
+        telescope = Telescope.query.get_if_accessible_by(
+            telescope_id, self.current_user
+        )
         if telescope is None:
             return self.error(
                 f'Invalid telescope id: {telescope_id}, record does not exist.'
