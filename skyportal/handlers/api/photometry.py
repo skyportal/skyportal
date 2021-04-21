@@ -782,9 +782,9 @@ class PhotometryHandler(BaseHandler):
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
-        phot = Photometry.get_if_readable_by(photometry_id, self.current_user)
-        if phot is None:
-            return self.error('Invalid photometry ID')
+        phot = Photometry.get_if_accessible_by(
+            photometry_id, self.current_user, raise_if_none=True
+        )
 
         # get the desired output format
         format = self.get_query_argument('format', 'mag')
@@ -829,11 +829,9 @@ class PhotometryHandler(BaseHandler):
         except ValueError:
             return self.error('Photometry id must be an int.')
 
-        photometry = Photometry.get_if_readable_by(photometry_id, self.current_user)
-        if not photometry.is_modifiable_by(self.associated_user_object):
-            return self.error(
-                f'Cannot delete photometry point that is owned by {photometry.owner}.'
-            )
+        photometry = Photometry.get_if_accessible_by(
+            photometry_id, self.current_user, mode="update", raise_if_none=True
+        )
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
@@ -861,13 +859,13 @@ class PhotometryHandler(BaseHandler):
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
             if not groups:
                 return self.error(
-                    "Invalid group_ids field. " "Specify at least one valid group ID."
+                    "Invalid group_ids field. Specify at least one valid group ID."
                 )
             if not all(
                 [group in self.current_user.accessible_groups for group in groups]
             ):
                 return self.error(
-                    "Cannot upload photometry to groups you " "are not a member of."
+                    "Cannot upload photometry to groups you are not a member of."
                 )
             photometry.groups = groups
 
@@ -897,15 +895,11 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        photometry = Photometry.get_if_readable_by(photometry_id, self.current_user)
-        if not photometry.is_modifiable_by(self.associated_user_object):
-            return self.error(
-                f'Cannot delete photometry point that is owned by {photometry.owner}.'
-            )
+        photometry = Photometry.get_if_accessible_by(
+            photometry_id, self.current_user, mode="delete", raise_if_none=True
+        )
 
-        DBSession().query(Photometry).filter(
-            Photometry.id == int(photometry_id)
-        ).delete()
+        DBSession().delete(photometry)
         self.verify_and_commit()
 
         return self.success()
@@ -914,10 +908,10 @@ class PhotometryHandler(BaseHandler):
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
-        obj = Obj.query.get(obj_id)
-        if obj is None:
-            return self.error('Invalid object id.')
-        photometry = Obj.get_photometry_readable_by_user(obj_id, self.current_user)
+        Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
+        photometry = Photometry.query_records_accessible_by(self.current_user).filter(
+            Photometry.obj_id == obj_id
+        )
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         self.verify_and_commit()
@@ -950,14 +944,11 @@ class BulkDeletePhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        # dont check permissions here -- pull all the photometry associated with
-        # the upload, not necessarily just the photometry that is accessible
-        # to the user. if any of the photometry fails to be deleted, send back
-        # 400
-        photometry_to_delete = Photometry.query.filter(
-            Photometry.upload_id == upload_id
-        ).all()
+        photometry_to_delete = (
+            Photometry.query_records_accessible_by(self.current_user)
+            .filter(Photometry.upload_id == upload_id)
+            .all()
+        )
 
         n = len(photometry_to_delete)
         if n == 0:
@@ -966,8 +957,6 @@ class BulkDeletePhotometryHandler(BaseHandler):
         for phot in photometry_to_delete:
             DBSession().delete(phot)
 
-        # this will return self.error if the user does not have access
-        # to delete any of the photometry points
         self.verify_and_commit()
         return self.success(f"Deleted {n} photometry points.")
 
@@ -999,12 +988,10 @@ class PhotometryRangeHandler(BaseHandler):
 
         gids = [g.id for g in self.current_user.accessible_groups]
 
-        query = (
-            DBSession()
-            .query(Photometry)
-            .join(GroupPhotometry)
-            .filter(GroupPhotometry.group_id.in_(gids))
-        )
+        group_phot_query = GroupPhotometry.query_records_accessible_by(
+            self.current_user
+        ).filter(GroupPhotometry.group_id.in_(gids))
+        query = Photometry.query_records_accessible_by(self.current_user)
 
         if instrument_ids is not None:
             query = query.filter(Photometry.instrument_id.in_(instrument_ids))
@@ -1014,6 +1001,8 @@ class PhotometryRangeHandler(BaseHandler):
         if max_date is not None:
             mjd = Time(max_date, format='datetime').mjd
             query = query.filter(Photometry.mjd <= mjd)
+
+        query = query.join(group_phot_query)
 
         output = [serialize(p, magsys, format) for p in query]
         self.verify_and_commit()
