@@ -167,6 +167,16 @@ def setup_schema():
                     'last_modified_by_id',
                 ],
             )
+            if schema_class_name == "Obj":
+                add_schema(
+                    f'{schema_class_name}Post',
+                    exclude=[
+                        'created_at',
+                        'redshift_history',
+                        'modified',
+                        'internal_key',
+                    ],
+                )
 
 
 class PhotBaseFlexible(object):
