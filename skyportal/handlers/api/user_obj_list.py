@@ -34,9 +34,9 @@ def check_user_and_permissions(user_id, associated_user):
     Parameters
     ----------
     user_id: integer
-            the ID of the user associated witht the listing, not necessarily the poster.
-    associated_user: integer
-            the ID of the user that is posting the listing.
+            the ID of the user associated with the listing, not necessarily the poster.
+    associated_user: User instance
+            User that is posting the listing.
 
     Return
     ------
@@ -50,8 +50,7 @@ def check_user_and_permissions(user_id, associated_user):
     except ValueError:
         return "Invalid `user_id` parameter; unable to parse to integer"
 
-    if User.query.get(user_id) is None:  # verify that user exists
-        return f'User "{user_id}" does not exist!'
+    User.get_if_accessible_by(user_id, associated_user, raise_if_none=True)
 
     # verify that poster has write access to user_id's lists
     if (
@@ -97,11 +96,14 @@ class UserObjListHandler(BaseHandler):
 
         list_name = self.get_query_argument("listName", None)
 
-        query = DBSession().query(Listing).filter(Listing.user_id == user_id)
+        query = Listing.query_records_accessible_by(self.current_user).filter(
+            Listing.user_id == user_id
+        )
 
         if list_name is not None:
             query = query.filter(Listing.list_name == list_name)
 
+        self.verify_and_commit()
         return self.success(data=query.all())
 
     @auth_or_token
@@ -171,8 +173,7 @@ class UserObjListHandler(BaseHandler):
             return self.error(err_str)
 
         obj_id = data.get('obj_id')
-        if Obj.query.get(obj_id) is None:  # verify that object exists!
-            return self.error(f'Object "{obj_id}" does not exist!')
+        Obj.get_if_accessible_(obj_id, self.current_user, raise_if_none=True)
 
         list_name = data.get('list_name')
         if not check_list_name(list_name):
@@ -180,14 +181,10 @@ class UserObjListHandler(BaseHandler):
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
 
-        query = (
-            DBSession()
-            .query(Listing)
-            .filter(
-                Listing.user_id == int(user_id),
-                Listing.obj_id == obj_id,
-                Listing.list_name == list_name,
-            )
+        query = Listing.query_records_accessible_by(self.current_user).filter(
+            Listing.user_id == int(user_id),
+            Listing.obj_id == obj_id,
+            Listing.list_name == list_name,
         )
 
         # what to do if listing already exists...
@@ -249,7 +246,9 @@ class UserObjListHandler(BaseHandler):
         """
 
         try:
-            listing = Listing.query.get(int(listing_id))
+            listing = Listing.get_if_accessible_by(
+                int(listing_id), self.current_user, mode="update"
+            )
         except TypeError:
             return self.error('Listing ID must be convertible to int. ')
 
@@ -279,8 +278,7 @@ class UserObjListHandler(BaseHandler):
             return self.error(err_str)
 
         obj_id = data.get('obj_id', listing.obj_id)
-        if Obj.query.get(obj_id) is None:  # verify that object exists!
-            return self.error(f'Object "{obj_id}" does not exist!')
+        Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
 
         list_name = data.get('list_name', listing.list_name)
 
@@ -364,25 +362,21 @@ class UserObjListHandler(BaseHandler):
                 )
 
             obj_id = data.get('obj_id')
-            if Obj.query.get(obj_id) is None:  # verify that object exists!
-                return self.error(f'Object "{obj_id}" does not exist!')
+            Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
 
             list_name = data.get('list_name')
-            listing = Listing.query.filter(
-                Listing.user_id == user_id,
-                Listing.obj_id == obj_id,
-                Listing.list_name == list_name,
-            ).first()
+            listing = (
+                Listing.query_record_accessible_by(self.current_user, mode="delete")
+                .filter(
+                    Listing.user_id == user_id,
+                    Listing.obj_id == obj_id,
+                    Listing.list_name == list_name,
+                )
+                .first()
+            )
 
         if listing is None:
             return self.error("Listing does not exist.")
-
-        # verify that poster has write access to user_id's lists
-        if (
-            self.associated_user_object.id != listing.user_id
-            and "System admin" not in self.associated_user_object.permissions
-        ):
-            return self.error('Insufficient permissions to access this listing. ')
 
         DBSession.delete(listing)
         DBSession.commit()

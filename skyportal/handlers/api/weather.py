@@ -65,7 +65,7 @@ class WeatherHandler(BaseHandler):
         weather_prefs = {**default_prefs, **weather_prefs}
 
         telescope_id = int(weather_prefs["telescopeID"])
-        telescope = Telescope.query.get(telescope_id)
+        telescope = Telescope.get_if_accessible_by(telescope_id, self.current_user)
         if telescope is None:
             return self.error(
                 f"Could not load telescope with ID {weather_prefs['telescopeID']}"
