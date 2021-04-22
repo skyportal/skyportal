@@ -32,7 +32,6 @@ from sqlalchemy import func
 
 from twilio.rest import Client as TwilioClient
 
-from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 from baselayer.app.json_util import to_json
 from baselayer.app.models import (  # noqa
@@ -112,56 +111,6 @@ def user_to_dict(self):
 
 User.to_dict = user_to_dict
 
-
-def is_readable_by(self, user_or_token):
-    """Generic ownership logic for any `skyportal` ORM model.
-
-    Models with complicated ownership logic should implement their own method
-    instead of adding too many additional conditions here.
-    """
-    if hasattr(self, 'tokens'):
-        return user_or_token in self.tokens
-    if hasattr(self, 'groups'):
-        return bool(set(self.groups) & set(user_or_token.accessible_groups))
-    if hasattr(self, 'group'):
-        return self.group in user_or_token.accessible_groups
-    if hasattr(self, 'users'):
-        if hasattr(user_or_token, 'created_by'):
-            if user_or_token.created_by in self.users:
-                return True
-        return user_or_token in self.users
-
-    raise NotImplementedError(f"{type(self).__name__} object has no owner")
-
-
-def is_modifiable_by(self, user):
-    """Return a boolean indicating whether an object point can be modified or
-    deleted by a given user.
-
-    Parameters
-    ----------
-    user: `baselayer.app.models.User`
-       The User to check.
-
-    Returns
-    -------
-    readable: bool
-       Whether the Object can be modified by the User.
-    """
-
-    if not hasattr(self, 'owner'):
-        raise TypeError(
-            f'Object {self} does not have an `owner` attribute, '
-            f'and thus does not expose the interface that is needed '
-            f'to check for modification or deletion privileges.'
-        )
-
-    is_admin = "System admin" in user.permissions
-    owns_spectrum = self.owner is user
-    return is_admin or owns_spectrum
-
-
-Base.is_readable_by = is_readable_by
 
 accessible_by_groups_members = AccessibleIfUserMatches('groups.users')
 accessible_by_group_members = AccessibleIfUserMatches('group.users')
@@ -1138,67 +1087,6 @@ Candidate.__table_args__ = (
 )
 
 
-def get_candidate_if_readable_by(obj_id, user_or_token, options=[]):
-    """Return an Obj from the database if the Obj is a Candidate in at least
-    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
-    Candidate in one of the User or Token owner's accessible Groups, raise an AccessError.
-    If the Obj does not exist, return `None`.
-
-    Parameters
-    ----------
-    obj_id : integer or string
-       Primary key of the Obj.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-    options : list of `sqlalchemy.orm.MapperOption`s
-       Options that wil be passed to `options()` in the loader query.
-
-    Returns
-    -------
-    obj : `skyportal.models.Obj`
-       The requested Obj.
-    """
-
-    if Candidate.query.filter(Candidate.obj_id == obj_id).first() is None:
-        return None
-    user_group_ids = [g.id for g in user_or_token.accessible_groups]
-    c = (
-        Candidate.query.filter(Candidate.obj_id == obj_id)
-        .filter(
-            Candidate.filter_id.in_(
-                DBSession.query(Filter.id).filter(Filter.group_id.in_(user_group_ids))
-            )
-        )
-        .options(options)
-        .first()
-    )
-    if c is None:
-        raise AccessError("Insufficient permissions.")
-    return c.obj
-
-
-def candidate_is_readable_by(self, user_or_token):
-    """Return a boolean indicating whether the Candidate passed the Filter
-    of any of a User or Token owner's accessible Groups.
-
-
-    Parameters
-    ----------
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    readable : bool
-       Whether the Candidate is readable by the User or Token owner.
-    """
-    return self.filter.group in user_or_token.accessible_groups
-
-
-Candidate.get_obj_if_readable_by = get_candidate_if_readable_by
-Candidate.is_readable_by = candidate_is_readable_by
-
-
 User.listings = relationship(
     'Listing',
     back_populates='user',
@@ -1869,18 +1757,6 @@ class Comment(Base):
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
         }
 
-    @classmethod
-    def get_if_readable_by(cls, ident, user, options=[]):
-        comment = cls.query.options(options).get(ident)
-
-        if comment is not None and not comment.is_readable_by(user):
-            raise AccessError('Insufficient permissions.')
-
-        # Grab basic author info for the comment
-        comment.author_info = comment.construct_author_info_dict()
-
-        return comment
-
 
 GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
@@ -1976,18 +1852,6 @@ class Annotation(Base):
             field: getattr(self.author, field)
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
         }
-
-    @classmethod
-    def get_if_readable_by(cls, ident, user, options=[]):
-        annotation = cls.query.options(options).get(ident)
-
-        if annotation is not None and not annotation.is_readable_by(user):
-            raise AccessError('Insufficient permissions.')
-
-        # Grab basic author info for the annotation
-        annotation.author_info = annotation.construct_author_info_dict()
-
-        return annotation
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
@@ -2269,8 +2133,6 @@ class Photometry(ha.Point, Base):
             else_=None,
         )
 
-
-Photometry.is_modifiable_by = is_modifiable_by
 
 # Deduplication index. This is a unique index that prevents any photometry
 # point that has the same obj_id, instrument_id, origin, mjd, flux error,
@@ -2586,7 +2448,6 @@ class Spectrum(Base):
         )
 
 
-Spectrum.is_modifiable_by = is_modifiable_by
 User.spectra = relationship(
     'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
 )
@@ -2737,25 +2598,6 @@ class FollowupRequest(Base):
     @property
     def instrument(self):
         return self.allocation.instrument
-
-    def is_readable_by(self, user_or_token):
-        """Return a boolean indicating whether a FollowupRequest belongs to
-        an allocation that is accessible to the given user or token.
-
-        Parameters
-        ----------
-        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-           The User or Token to check.
-
-        Returns
-        -------
-        readable: bool
-           Whether the FollowupRequest belongs to an Allocation that is
-           accessible to the given user or token.
-        """
-
-        user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
-        return self.allocation.group_id in user_or_token_group_ids
 
 
 FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)

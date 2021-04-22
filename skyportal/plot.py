@@ -34,6 +34,7 @@ from baselayer.app.env import load_env
 from skyportal.models import (
     DBSession,
     Obj,
+    Annotation,
     Photometry,
     Group,
     Instrument,
@@ -746,7 +747,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
     plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
 
-    obj = DBSession().query(Obj).get(obj_id)
+    obj = Obj.get_if_accessible_by(obj_id, user, raise_if_none=True)
     if obj.dm is not None:
         plot.extra_y_ranges = {
             "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
@@ -1004,7 +1005,11 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     # now make period plot
 
     # get periods from annotations
-    annotation_list = obj.get_annotations_readable_by(user)
+    annotation_list = (
+        Annotation.query_records_accessible_by(user)
+        .filter(Annotation.obj_id == obj.id)
+        .all()
+    )
     period_labels = []
     period_list = []
     for an in annotation_list:
