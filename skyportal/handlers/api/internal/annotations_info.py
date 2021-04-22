@@ -6,9 +6,7 @@ from sqlalchemy.sql.elements import ColumnClause
 from sqlalchemy.sql.selectable import FromClause
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
-from ....models import (
-    Annotation,
-)
+from ....models import Annotation
 
 
 # Helper classes/functions below provide a workaround for PostgreSQL functions
