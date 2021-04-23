@@ -13,7 +13,11 @@ class SEDMListener(Listener):
 
     schema = {
         'type': 'object',
-        'properties': {'new_status': {'type': 'string',},},  # noqa: E231
+        'properties': {
+            'new_status': {
+                'type': 'string',
+            },
+        },
         'required': ['new_status'],
     }
 
@@ -30,7 +34,9 @@ class SEDMListener(Listener):
         from ..models import FollowupRequest, FacilityTransaction, DBSession
 
         data = handler_instance.get_json()
-        request = FollowupRequest.query.get(int(data['followup_request_id']))
+        request = FollowupRequest.get_if_accessible_by(
+            int(data['followup_request_id']), handler_instance.current_user
+        )
         request.status = data['new_status']
 
         transaction_record = FacilityTransaction(
@@ -155,7 +161,8 @@ class SEDMAPI(FollowUpAPI):
         payload = convert_request_to_sedm(request, method_value='new')
         content = json.dumps(payload)
         r = requests.post(
-            cfg['app.sedm_endpoint'], files={'jsonfile': ('jsonfile', content)},
+            cfg['app.sedm_endpoint'],
+            files={'jsonfile': ('jsonfile', content)},
         )
 
         if r.status_code == 200:
@@ -187,7 +194,8 @@ class SEDMAPI(FollowUpAPI):
         payload = convert_request_to_sedm(request, method_value='delete')
         content = json.dumps(payload)
         r = requests.post(
-            cfg['app.sedm_endpoint'], files={'jsonfile': ('jsonfile', content)},
+            cfg['app.sedm_endpoint'],
+            files={'jsonfile': ('jsonfile', content)},
         )
 
         r.raise_for_status()
@@ -217,7 +225,8 @@ class SEDMAPI(FollowUpAPI):
         payload = convert_request_to_sedm(request, method_value='edit')
         content = json.dumps(payload)
         r = requests.post(
-            cfg['app.sedm_endpoint'], files={'jsonfile': ('jsonfile', content)},
+            cfg['app.sedm_endpoint'],
+            files={'jsonfile': ('jsonfile', content)},
         )
 
         if r.status_code == 200:
