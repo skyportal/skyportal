@@ -6,6 +6,7 @@ Create Date: 2021-02-22 12:46:46.137261
 
 """
 from alembic import op
+from sqlalchemy.engine.reflection import Inspector
 from baselayer.app.models import JoinModel
 
 
@@ -20,14 +21,24 @@ mapped_classes = JoinModel.__subclasses__()
 
 
 def upgrade():
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    table_names = inspector.get_table_names()
+
     op.create_primary_key("candidates_pkey", "candidates", ["id"])
     for cls in mapped_classes:
         table = cls.__tablename__
-        op.create_primary_key(f"{table}_pkey", table, ["id"])
+        if table in table_names:
+            op.create_primary_key(f"{table}_pkey", table, ["id"])
 
 
 def downgrade():
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    table_names = inspector.get_table_names()
+
     op.drop_constraint("candidates_pkey", "candidates")
     for cls in mapped_classes:
         table = cls.__tablename__
-        op.drop_constraint(f"{table}_pkey", table)
+        if table in table_names:
+            op.drop_constraint(f"{table}_pkey", table)
