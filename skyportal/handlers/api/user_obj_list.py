@@ -366,7 +366,7 @@ class UserObjListHandler(BaseHandler):
 
             list_name = data.get('list_name')
             listing = (
-                Listing.query_record_accessible_by(self.current_user, mode="delete")
+                Listing.query_records_accessible_by(self.current_user, mode="delete")
                 .filter(
                     Listing.user_id == user_id,
                     Listing.obj_id == obj_id,
