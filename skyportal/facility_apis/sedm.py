@@ -35,7 +35,9 @@ class SEDMListener(Listener):
 
         data = handler_instance.get_json()
         request = FollowupRequest.get_if_accessible_by(
-            int(data['followup_request_id']), handler_instance.current_user
+            int(data['followup_request_id']),
+            handler_instance.current_user,
+            mode="update",
         )
         request.status = data['new_status']
 
