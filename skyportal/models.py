@@ -166,6 +166,7 @@ Base.is_readable_by = is_readable_by
 accessible_by_groups_members = AccessibleIfUserMatches('groups.users')
 accessible_by_group_members = AccessibleIfUserMatches('group.users')
 accessible_by_members = AccessibleIfUserMatches('users')
+accessible_by_stream_members = AccessibleIfUserMatches('stream.users')
 accessible_by_streams_members = AccessibleIfUserMatches('streams.users')
 
 
@@ -2593,6 +2594,7 @@ GroupPhotometry.delete = GroupPhotometry.update = (
 
 StreamPhotometry = join_model("stream_photometry", Stream, Photometry)
 StreamPhotometry.__doc__ = "Join table mapping Streams to Photometry."
+StreamPhotometry.create = accessible_by_stream_members
 
 
 class Spectrum(Base):
