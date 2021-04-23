@@ -173,7 +173,7 @@ class UserObjListHandler(BaseHandler):
             return self.error(err_str)
 
         obj_id = data.get('obj_id')
-        Obj.get_if_accessible_(obj_id, self.current_user, raise_if_none=True)
+        Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
 
         list_name = data.get('list_name')
         if not check_list_name(list_name):
