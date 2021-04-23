@@ -988,9 +988,11 @@ class PhotometryRangeHandler(BaseHandler):
 
         gids = [g.id for g in self.current_user.accessible_groups]
 
-        group_phot_query = GroupPhotometry.query_records_accessible_by(
-            self.current_user
-        ).filter(GroupPhotometry.group_id.in_(gids))
+        group_phot_subquery = (
+            GroupPhotometry.query_records_accessible_by(self.current_user)
+            .filter(GroupPhotometry.group_id.in_(gids))
+            .subquery()
+        )
         query = Photometry.query_records_accessible_by(self.current_user)
 
         if instrument_ids is not None:
@@ -1002,7 +1004,9 @@ class PhotometryRangeHandler(BaseHandler):
             mjd = Time(max_date, format='datetime').mjd
             query = query.filter(Photometry.mjd <= mjd)
 
-        query = query.join(group_phot_query)
+        query = query.join(
+            group_phot_subquery, Photometry.id == group_phot_subquery.c.photometr_id
+        )
 
         output = [serialize(p, magsys, format) for p in query]
         self.verify_and_commit()
