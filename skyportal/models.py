@@ -166,6 +166,7 @@ Base.is_readable_by = is_readable_by
 accessible_by_groups_members = AccessibleIfUserMatches('groups.users')
 accessible_by_group_members = AccessibleIfUserMatches('group.users')
 accessible_by_members = AccessibleIfUserMatches('users')
+accessible_by_streams_members = AccessibleIfUserMatches('streams.users')
 
 
 class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
@@ -492,6 +493,14 @@ class Stream(Base):
         back_populates='stream',
         passive_deletes=True,
         doc="The filters with access to this stream.",
+    )
+    photometry = relationship(
+        "Photometry",
+        secondary="stream_photometry",
+        back_populates="streams",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc='The photometry associated with this stream.',
     )
 
 
@@ -2348,7 +2357,11 @@ class Photometry(ha.Point, Base):
 
     __tablename__ = 'photometry'
 
-    read = accessible_by_groups_members | accessible_by_owner
+    read = (
+        accessible_by_groups_members
+        | accessible_by_streams_members
+        | accessible_by_owner
+    )
     update = delete = accessible_by_owner
 
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
@@ -2413,6 +2426,14 @@ class Photometry(ha.Point, Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="Groups that can access this Photometry.",
+    )
+    streams = relationship(
+        "Stream",
+        secondary="stream_photometry",
+        back_populates="photometry",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="Streams associated with this Photometry.",
     )
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete='CASCADE'),
@@ -2569,6 +2590,9 @@ GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 GroupPhotometry.delete = GroupPhotometry.update = (
     accessible_by_group_admins & GroupPhotometry.read
 )
+
+StreamPhotometry = join_model("stream_photometry", Stream, Photometry)
+StreamPhotometry.__doc__ = "Join table mapping Streams to Photometry."
 
 
 class Spectrum(Base):
