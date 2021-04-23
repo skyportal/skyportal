@@ -897,6 +897,7 @@ class PhotometryHandler(BaseHandler):
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
+        stream_ids = data.pop("stream_ids", None)
 
         try:
             phot = PhotometryFlux.load(data)
@@ -930,6 +931,15 @@ class PhotometryHandler(BaseHandler):
                     "Cannot upload photometry to groups you " "are not a member of."
                 )
             photometry.groups = groups
+
+        # Update streams, if relevant
+        if stream_ids is not None:
+            streams = Stream.get_if_accessible_by(stream_ids, self.current_user)
+            if not streams:
+                return self.error(
+                    "Invalid stream_ids field. Specify at least one valid stream ID."
+                )
+            photometry.streams = streams
 
         self.verify_and_commit()
         return self.success()
