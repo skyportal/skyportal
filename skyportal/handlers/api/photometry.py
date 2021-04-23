@@ -743,6 +743,11 @@ class PhotometryHandler(BaseHandler):
             return self.error(e.args[0])
 
         try:
+            stream_ids = self.get_stream_ids()
+        except ValidationError as e:
+            return self.error(e.args[0])
+
+        try:
             df, instrument_cache = self.standardize_photometry_data()
         except ValidationError as e:
             return self.error(e.args[0])
@@ -780,6 +785,7 @@ class PhotometryHandler(BaseHandler):
         for df_index, duplicate in duplicated_photometry:
             id_map[df_index] = duplicate.id
             duplicate_group_ids = set([g.id for g in duplicate.groups])
+            duplicate_stream_ids = set([s.id for s in duplicate.streams])
 
             # posting to new groups?
             if len(set(group_ids) - duplicate_group_ids) > 0:
@@ -794,13 +800,30 @@ class PhotometryHandler(BaseHandler):
                 # update the corresponding photometry entry in the db
                 duplicate.groups = groups
 
+            # posting to new streams?
+            if len(set(stream_ids) - duplicate_stream_ids) > 0:
+                # select old + new stream
+                stream_ids_update = set(stream_ids).union(duplicate_stream_ids)
+                streams = (
+                    DBSession()
+                    .query(Stream)
+                    .filter(Stream.id.in_(stream_ids_update))
+                    .all()
+                )
+                # update the corresponding photometry entry in the db
+                duplicate.streams = streams
+
         # now safely drop the duplicates:
         new_photometry = df.loc[new_photometry_df_idxs]
 
         if len(new_photometry) > 0:
             try:
                 ids, _ = self.insert_new_photometry_data(
-                    new_photometry, instrument_cache, group_ids, validate=False
+                    new_photometry,
+                    instrument_cache,
+                    group_ids,
+                    stream_ids,
+                    validate=False,
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
