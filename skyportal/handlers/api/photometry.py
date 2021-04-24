@@ -804,11 +804,8 @@ class PhotometryHandler(BaseHandler):
             if len(set(stream_ids) - duplicate_stream_ids) > 0:
                 # select old + new stream
                 stream_ids_update = set(stream_ids).union(duplicate_stream_ids)
-                streams = (
-                    DBSession()
-                    .query(Stream)
-                    .filter(Stream.id.in_(stream_ids_update))
-                    .all()
+                streams = Stream.get_if_accessible_by(
+                    stream_ids_update, self.current_user
                 )
                 # update the corresponding photometry entry in the db
                 duplicate.streams = streams
