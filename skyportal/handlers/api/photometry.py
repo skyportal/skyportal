@@ -945,7 +945,7 @@ class BulkDeletePhotometryHandler(BaseHandler):
                 schema: Error
         """
         photometry_to_delete = (
-            Photometry.query_records_accessible_by(self.current_user)
+            Photometry.query_records_accessible_by(self.current_user, mode="delete")
             .filter(Photometry.upload_id == upload_id)
             .all()
         )
