@@ -31,14 +31,16 @@ const useStyles = makeStyles(() => ({
     display: "flex",
     flexDirection: "row",
     height: "60%",
+    overflow: "hidden",
+    overflowY: "scroll",
   },
   weatherBar: {
     display: "flex",
     flexDirection: "column",
-    height: "80%",
+    height: "calc(100% - 1.25rem)",
   },
   weatherLinks: {
-    align: "center",
+    padding: 0,
   },
   widgetsBar: {
     position: "fixed",
@@ -51,12 +53,20 @@ const useStyles = makeStyles(() => ({
   },
   selector: {
     position: "relative",
-    top: "-0.75rem",
     left: "0.75rem",
+    "& button": {
+      padding: 0,
+    },
   },
   description: {
     position: "relative",
     left: "0.5rem",
+  },
+  telescopeName: {
+    display: "inline-block",
+    maxHeight: "2.5rem",
+    maxWidth: "calc(100% - 5.5rem)",
+    overflowY: "hidden",
   },
 }));
 
@@ -184,7 +194,11 @@ const WeatherWidget = ({ classes }) => {
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
-        <Typography variant="h6" display="inline">
+        <Typography
+          variant="h6"
+          display="inline"
+          className={styles.telescopeName}
+        >
           {weather?.telescope_name}
         </Typography>
         <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />

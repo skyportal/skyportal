@@ -13,7 +13,7 @@ const useStyles = makeStyles(() => ({
   listContainer: {
     overflowX: "hidden",
     overflowY: "scroll",
-    height: "95%",
+    height: "calc(95% - 1.25rem);",
   },
 }));
 
