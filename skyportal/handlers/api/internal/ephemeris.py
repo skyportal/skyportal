@@ -23,12 +23,8 @@ class EphemerisHandler(BaseHandler):
             return self.error(f'Invalid telescope id: {telescope_id}, must be integer.')
 
         telescope = Telescope.query.get_if_accessible_by(
-            telescope_id, self.current_user
+            telescope_id, self.current_user, raise_if_none=True
         )
-        if telescope is None:
-            return self.error(
-                f'Invalid telescope id: {telescope_id}, record does not exist.'
-            )
 
         ephemeris = telescope.ephemeris(time)
         self.verify_and_commit()

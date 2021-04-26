@@ -2666,7 +2666,7 @@ User.transactions = relationship(
 
 
 class Listing(Base):
-    update = delete = AccessibleIfUserMatches("user")
+    create = read = update = delete = AccessibleIfUserMatches("user")
 
     user_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),

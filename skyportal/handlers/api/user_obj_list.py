@@ -5,7 +5,6 @@ from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession,
-    User,
     Obj,
     Listing,
 )
@@ -26,40 +25,6 @@ def check_list_name(name):
 
     """
     return re.search(r'^\w+', name) is not None
-
-
-def check_user_and_permissions(user_id, associated_user):
-    """Verify that the user id is valid, and that the user has access to the requested user's listings.
-
-    Parameters
-    ----------
-    user_id: integer
-            the ID of the user associated with the listing, not necessarily the poster.
-    associated_user: User instance
-            User that is posting the listing.
-
-    Return
-    ------
-    bool
-        If fails, return an error string. If succeeds, return None.
-
-    """
-
-    try:
-        user_id = int(user_id)
-    except ValueError:
-        return "Invalid `user_id` parameter; unable to parse to integer"
-
-    User.get_if_accessible_by(user_id, associated_user, raise_if_none=True)
-
-    # verify that poster has write access to user_id's lists
-    if (
-        associated_user.id != user_id
-        and "System admin" not in associated_user.permissions
-    ):
-        return 'Insufficient permissions to access this listing.'
-
-    return None
 
 
 class UserObjListHandler(BaseHandler):
@@ -89,10 +54,6 @@ class UserObjListHandler(BaseHandler):
 
         if user_id is None:
             user_id = self.associated_user_object.id
-
-        error_obj = check_user_and_permissions(user_id, self.associated_user_object)
-        if error_obj is not None:
-            return self.error(error_obj)
 
         list_name = self.get_query_argument("listName", None)
 
@@ -168,10 +129,6 @@ class UserObjListHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
-        err_str = check_user_and_permissions(user_id, self.associated_user_object)
-        if err_str is not None:
-            return self.error(err_str)
-
         obj_id = data.get('obj_id')
         Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
 
@@ -195,7 +152,7 @@ class UserObjListHandler(BaseHandler):
 
         listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
         DBSession().add(listing)
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push(action='skyportal/REFRESH_FAVORITES')
         self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
@@ -244,22 +201,9 @@ class UserObjListHandler(BaseHandler):
                 schema: Success
 
         """
-
-        try:
-            listing = Listing.get_if_accessible_by(
-                int(listing_id), self.current_user, mode="update"
-            )
-        except TypeError:
-            return self.error('Listing ID must be convertible to int. ')
-
-        if listing is None:
-            return self.error("Listing does not exist.")
-
-        err_str = check_user_and_permissions(
-            listing.user_id, self.associated_user_object
+        listing = Listing.get_if_accessible_by(
+            listing_id, self.current_user, mode="update", raise_if_none=True
         )
-        if err_str is not None:
-            return self.error(err_str)
 
         # get the data from the request body
         data = self.get_json()
@@ -272,10 +216,6 @@ class UserObjListHandler(BaseHandler):
 
         user_id = data.get('user_id', listing.user_id)
         user_id = int(user_id)
-
-        err_str = check_user_and_permissions(user_id, self.associated_user_object)
-        if err_str is not None:
-            return self.error(err_str)
 
         obj_id = data.get('obj_id', listing.obj_id)
         Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
@@ -291,7 +231,7 @@ class UserObjListHandler(BaseHandler):
         listing.obj_id = obj_id
         listing.list_name = list_name
 
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push(action='skyportal/REFRESH_FAVORITES')
         self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
@@ -379,7 +319,7 @@ class UserObjListHandler(BaseHandler):
             return self.error("Listing does not exist.")
 
         DBSession.delete(listing)
-        DBSession.commit()
+        self.verify_and_commit()
 
         self.push(action='skyportal/REFRESH_FAVORITES')
         self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
