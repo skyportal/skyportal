@@ -1,8 +1,8 @@
-"""added comments on spectra table
+"""adding comments on spectra table
 
-Revision ID: cc15635f45fe
+Revision ID: 0bb283f1dbdc
 Revises: c867ada3e0c4
-Create Date: 2021-04-20 22:15:45.241664
+Create Date: 2021-04-22 00:39:28.242940
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'cc15635f45fe'
+revision = '0bb283f1dbdc'
 down_revision = 'c867ada3e0c4'
 branch_labels = None
 depends_on = None

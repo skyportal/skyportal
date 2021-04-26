@@ -27,7 +27,7 @@ def users_mentioned(text):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, comment_id, comment_on_what="object"):
+    def get(self, comment_id, comment_on_what=None):
         """
         ---
         description: Retrieve a comment
@@ -57,6 +57,10 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        if comment_on_what is None:
+            comment_on_what = 'object'
+
         if type(comment_on_what) != str:
             return self.error(
                 f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
@@ -213,7 +217,7 @@ class CommentHandler(BaseHandler):
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
-    def put(self, comment_id, comment_on_what="object"):
+    def put(self, comment_id, comment_on_what=None):
         """
         ---
         description: Update a comment
@@ -258,6 +262,9 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        if comment_on_what is None:
+            comment_on_what = 'object'
 
         if type(comment_on_what) != str:
             return self.error(
@@ -317,7 +324,7 @@ class CommentHandler(BaseHandler):
         return self.success()
 
     @permissions(['Comment'])
-    def delete(self, comment_id, comment_on_what="object"):
+    def delete(self, comment_id, comment_on_what=None):
         """
         ---
         description: Delete a comment
@@ -343,6 +350,10 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+
+        if comment_on_what is None:
+            comment_on_what = 'object'
+
         if type(comment_on_what) != str:
             return self.error(
                 f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
@@ -371,7 +382,7 @@ class CommentHandler(BaseHandler):
 
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
-    def get(self, comment_id, comment_on_what="object"):
+    def get(self, comment_id, comment_on_what=None):
         """
         ---
         description: Download comment attachment
@@ -423,6 +434,10 @@ class CommentAttachmentHandler(BaseHandler):
 
         """
         download = strtobool(self.get_query_argument('download', "True").lower())
+
+        if comment_on_what is None:
+            comment_on_what = 'object'
+
         if type(comment_on_what) != str:
             return self.error(
                 f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
