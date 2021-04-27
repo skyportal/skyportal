@@ -1064,25 +1064,25 @@ class SourceHandler(BaseHandler):
                         ).filter(Annotation.obj_id == obj.id),
                         key=lambda x: x.origin,
                     )
-                    obj_list[-1]["last_detected_at"] = obj.last_detected_at(
-                        self.current_user
-                    )
-                    obj_list[-1]["last_detected_mag"] = obj.last_detected_mag(
-                        self.current_user
-                    )
-                    obj_list[-1]["peak_detected_at"] = obj.peak_detected_at(
-                        self.current_user
-                    )
-                    obj_list[-1]["peak_detected_mag"] = obj.peak_detected_mag(
-                        self.current_user
-                    )
-                    obj_list[-1]["gal_lon"] = obj.gal_lon_deg
-                    obj_list[-1]["gal_lat"] = obj.gal_lat_deg
-                    obj_list[-1]["luminosity_distance"] = obj.luminosity_distance
-                    obj_list[-1]["dm"] = obj.dm
-                    obj_list[-1][
-                        "angular_diameter_distance"
-                    ] = obj.angular_diameter_distance
+                obj_list[-1]["last_detected_at"] = obj.last_detected_at(
+                    self.current_user
+                )
+                obj_list[-1]["last_detected_mag"] = obj.last_detected_mag(
+                    self.current_user
+                )
+                obj_list[-1]["peak_detected_at"] = obj.peak_detected_at(
+                    self.current_user
+                )
+                obj_list[-1]["peak_detected_mag"] = obj.peak_detected_mag(
+                    self.current_user
+                )
+                obj_list[-1]["gal_lon"] = obj.gal_lon_deg
+                obj_list[-1]["gal_lat"] = obj.gal_lat_deg
+                obj_list[-1]["luminosity_distance"] = obj.luminosity_distance
+                obj_list[-1]["dm"] = obj.dm
+                obj_list[-1][
+                    "angular_diameter_distance"
+                ] = obj.angular_diameter_distance
                 if include_photometry:
                     photometry = Photometry.query_records_accessible_by(
                         self.current_user
