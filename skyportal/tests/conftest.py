@@ -61,6 +61,17 @@ if not DBSession.query(User).filter(User.username == "test factory").scalar():
     DBSession.add(User(username="test factory"))
     DBSession.commit()
 
+# Also add the test driver user (testuser-cesium-ml-org) if needed so that the driver
+# fixture has a user to login as (without needing an invitation token).
+# With invitations enabled on the test configs, the driver fails to login properly
+# without this user because the authenticator looks for the user or an
+# invitation token when neither exists initially on fresh test databases.
+if not DBSession.query(User).filter(User.username == "testuser-cesium-ml-org").scalar():
+    DBSession.add(
+        User(username="testuser-cesium-ml-org", oauth_uid="testuser@cesium-ml.org")
+    )
+    DBSession.commit()
+
 
 def pytest_runtest_setup(item):
     # Print timestamp when running each test
@@ -772,6 +783,18 @@ def super_admin_user(public_group, public_stream):
 
 
 @pytest.fixture()
+def super_admin_user_group2(public_group2, public_stream):
+    user = UserFactory(
+        groups=[public_group2],
+        roles=[models.Role.query.get("Super admin")],
+        streams=[public_stream],
+    )
+    user_id = user.id
+    yield user
+    UserFactory.teardown(user_id)
+
+
+@pytest.fixture()
 def super_admin_user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
         groups=[public_group, public_group2],
@@ -878,6 +901,17 @@ def manage_users_token(super_admin_user):
     token_id = create_token(
         ACLs=["Manage users"],
         user_id=super_admin_user.id,
+        name=str(uuid.uuid4()),
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def manage_users_token_group2(super_admin_user_group2):
+    token_id = create_token(
+        ACLs=["Manage users"],
+        user_id=super_admin_user_group2.id,
         name=str(uuid.uuid4()),
     )
     yield token_id
