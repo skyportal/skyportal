@@ -18,7 +18,8 @@ from baselayer.log import make_log
 def get_cache_file_static():
     """
     Helper function to get the path to the VCR cache file for requests
-    that must be updated by hand due to credentials.
+    that must be updated by hand in cases where regular refreshing is
+    infeasible, i.e. limited access to the real server.
 
     To update this server recording:
     1) delete the existing recording
