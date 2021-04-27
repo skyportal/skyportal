@@ -65,7 +65,7 @@ const useStyles = makeStyles(() => ({
   },
   telescopeName: {
     display: "inline-block",
-    maxHeight: "2.5rem",
+    maxHeight: "1.75rem",
     maxWidth: "calc(100% - 5.5rem)",
     overflowY: "hidden",
   },
