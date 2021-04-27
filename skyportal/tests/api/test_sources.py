@@ -112,7 +112,10 @@ def test_token_user_retrieving_source_without_nested(
         k in data["data"]["sources"][0]
         for k in ["ra", "dec", "redshift", "created_at", "id", "classifications"]
     )
-    assert all(k not in data["data"]["sources"][0] for k in ["annotations", "groups"])
+    assert all(
+        k not in data["data"]["sources"][0]
+        for k in ["annotations", "groups", "thumbnails"]
+    )
 
 
 def test_token_user_update_source(upload_data_token, public_source):
