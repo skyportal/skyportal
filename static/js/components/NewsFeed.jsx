@@ -138,17 +138,19 @@ const NewsFeed = ({ classes }) => {
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
-        <Typography variant="h6" display="inline">
-          News Feed
-        </Typography>
-        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-        <div className={classes.widgetIcon}>
-          <WidgetPrefsDialog
-            initialValues={newsFeedPrefs}
-            stateBranchName="newsFeed"
-            title="News Feed Preferences"
-            onSubmit={profileActions.updateUserPreferences}
-          />
+        <div>
+          <Typography variant="h6" display="inline">
+            News Feed
+          </Typography>
+          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+          <div className={classes.widgetIcon}>
+            <WidgetPrefsDialog
+              initialValues={newsFeedPrefs}
+              stateBranchName="newsFeed"
+              title="News Feed Preferences"
+              onSubmit={profileActions.updateUserPreferences}
+            />
+          </div>
         </div>
         <div className={newsFeedStyle} style={{ height: "85%" }}>
           {items.map((item) => (
