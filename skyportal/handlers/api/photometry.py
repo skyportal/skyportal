@@ -839,7 +839,7 @@ class PhotometryHandler(BaseHandler):
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
-        phot = Photometry.get_if_readable_by(photometry_id, self.current_user)
+        phot = Photometry.get_if_accessible_by(photometry_id, self.current_user)
         if phot is None:
             return self.error('Invalid photometry ID')
 
