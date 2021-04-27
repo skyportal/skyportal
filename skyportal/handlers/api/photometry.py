@@ -152,6 +152,7 @@ class PhotometryHandler(BaseHandler):
                         len(data[key])
                         for key in data
                         if isinstance(data[key], (list, tuple))
+                        and key not in ["group_ids", "stream_ids"]
                     ]
                     + [1]
                 )
