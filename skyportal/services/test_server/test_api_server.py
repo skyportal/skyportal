@@ -19,6 +19,13 @@ def get_cache_file_static():
     """
     Helper function to get the path to the VCR cache file for requests
     that must be updated by hand due to credentials.
+
+    To update this server recording:
+    1) delete the existing recording
+    2) re-run all tests (with API keys for telescopes in place)
+    3) replace any secret information (such as API keys) with dummy values
+    4) commit recording
+
     """
     return "data/tests/test_server_recordings_static.yaml"
 
