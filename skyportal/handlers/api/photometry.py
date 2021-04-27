@@ -471,12 +471,7 @@ class PhotometryHandler(BaseHandler):
             values_table, condition = self.get_values_table_and_condition(df)
 
             duplicated_photometry = (
-                DBSession()
-                .query(Photometry)
-                .join(values_table, condition)
-                .options(
-                    [joinedload(Photometry.groups), joinedload(Photometry.streams)]
-                )
+                DBSession().query(Photometry).join(values_table, condition)
             )
 
             dict_rep = [d.to_dict() for d in duplicated_photometry]
