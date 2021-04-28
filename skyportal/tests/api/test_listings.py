@@ -266,7 +266,7 @@ def test_listings_user_permissions(
     assert status == 200
     item1 = data["data"]["id"]  # get the list item ID
 
-    # try to add this to a different user
+    # try to transfer ownership to a different user
     status, data = api(
         'PATCH',
         f'listing/{item1}',
@@ -279,7 +279,21 @@ def test_listings_user_permissions(
     )
 
     assert status == 400
-    assert 'Insufficient permission' in data['message']
+    assert 'Insufficient permissions' in data['message']
+
+    # try to post to a different user
+    status, data = api(
+        'POST',
+        'listing',
+        data={
+            'user_id': user2.id,
+            'obj_id': public_candidate.id,
+            'list_name': 'favorites',
+        },
+        token=upload_data_token,
+    )
+
+    assert status == 400
 
     # try to add this to a different user, but with super admin privileges
     status, data = api(

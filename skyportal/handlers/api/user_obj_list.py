@@ -216,6 +216,11 @@ class UserObjListHandler(BaseHandler):
 
         user_id = data.get('user_id', listing.user_id)
         user_id = int(user_id)
+        if (
+            user_id != self.associated_user_object.id
+            and not self.current_user.is_system_admin
+        ):
+            return self.error("Insufficient permissions.")
 
         obj_id = data.get('obj_id', listing.obj_id)
         Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
