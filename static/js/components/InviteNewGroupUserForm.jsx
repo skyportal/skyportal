@@ -67,6 +67,7 @@ const InviteNewGroupUserForm = ({ group_id }) => {
       <div style={{ paddingBottom: "1rem" }}>
         <TextField
           id="newUserEmail"
+          data-testid="newUserEmail"
           value={formState?.newUserEmail || ""}
           onChange={(event) =>
             setFormState({ ...formState, newUserEmail: event.target.value })
@@ -81,6 +82,7 @@ const InviteNewGroupUserForm = ({ group_id }) => {
       />
       Group Admin &nbsp;&nbsp;
       <Button
+        data-testid="inviteNewUserButton"
         onClick={() => setConfirmDialogOpen(true)}
         variant="contained"
         size="small"
@@ -114,6 +116,7 @@ const InviteNewGroupUserForm = ({ group_id }) => {
             Cancel
           </Button>
           <Button
+            data-testid="confirmNewUserButton"
             onClick={() => {
               setConfirmDialogOpen(false);
               handleClickSubmit();

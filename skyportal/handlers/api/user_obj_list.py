@@ -5,7 +5,6 @@ from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession,
-    User,
     Obj,
     Listing,
 )
@@ -26,41 +25,6 @@ def check_list_name(name):
 
     """
     return re.search(r'^\w+', name) is not None
-
-
-def check_user_and_permissions(user_id, associated_user):
-    """Verify that the user id is valid, and that the user has access to the requested user's listings.
-
-    Parameters
-    ----------
-    user_id: integer
-            the ID of the user associated witht the listing, not necessarily the poster.
-    associated_user: integer
-            the ID of the user that is posting the listing.
-
-    Return
-    ------
-    bool
-        If fails, return an error string. If succeeds, return None.
-
-    """
-
-    try:
-        user_id = int(user_id)
-    except ValueError:
-        return "Invalid `user_id` parameter; unable to parse to integer"
-
-    if User.query.get(user_id) is None:  # verify that user exists
-        return f'User "{user_id}" does not exist!'
-
-    # verify that poster has write access to user_id's lists
-    if (
-        associated_user.id != user_id
-        and "System admin" not in associated_user.permissions
-    ):
-        return 'Insufficient permissions to access this listing.'
-
-    return None
 
 
 class UserObjListHandler(BaseHandler):
@@ -91,17 +55,16 @@ class UserObjListHandler(BaseHandler):
         if user_id is None:
             user_id = self.associated_user_object.id
 
-        error_obj = check_user_and_permissions(user_id, self.associated_user_object)
-        if error_obj is not None:
-            return self.error(error_obj)
-
         list_name = self.get_query_argument("listName", None)
 
-        query = DBSession().query(Listing).filter(Listing.user_id == user_id)
+        query = Listing.query_records_accessible_by(self.current_user).filter(
+            Listing.user_id == user_id
+        )
 
         if list_name is not None:
             query = query.filter(Listing.list_name == list_name)
 
+        self.verify_and_commit()
         return self.success(data=query.all())
 
     @auth_or_token
@@ -166,13 +129,8 @@ class UserObjListHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
-        err_str = check_user_and_permissions(user_id, self.associated_user_object)
-        if err_str is not None:
-            return self.error(err_str)
-
         obj_id = data.get('obj_id')
-        if Obj.query.get(obj_id) is None:  # verify that object exists!
-            return self.error(f'Object "{obj_id}" does not exist!')
+        Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
 
         list_name = data.get('list_name')
         if not check_list_name(list_name):
@@ -180,14 +138,10 @@ class UserObjListHandler(BaseHandler):
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
 
-        query = (
-            DBSession()
-            .query(Listing)
-            .filter(
-                Listing.user_id == int(user_id),
-                Listing.obj_id == obj_id,
-                Listing.list_name == list_name,
-            )
+        query = Listing.query_records_accessible_by(self.current_user).filter(
+            Listing.user_id == int(user_id),
+            Listing.obj_id == obj_id,
+            Listing.list_name == list_name,
         )
 
         # what to do if listing already exists...
@@ -198,7 +152,7 @@ class UserObjListHandler(BaseHandler):
 
         listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
         DBSession().add(listing)
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push(action='skyportal/REFRESH_FAVORITES')
         self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
@@ -247,20 +201,9 @@ class UserObjListHandler(BaseHandler):
                 schema: Success
 
         """
-
-        try:
-            listing = Listing.query.get(int(listing_id))
-        except TypeError:
-            return self.error('Listing ID must be convertible to int. ')
-
-        if listing is None:
-            return self.error("Listing does not exist.")
-
-        err_str = check_user_and_permissions(
-            listing.user_id, self.associated_user_object
+        listing = Listing.get_if_accessible_by(
+            listing_id, self.current_user, mode="update", raise_if_none=True
         )
-        if err_str is not None:
-            return self.error(err_str)
 
         # get the data from the request body
         data = self.get_json()
@@ -273,14 +216,14 @@ class UserObjListHandler(BaseHandler):
 
         user_id = data.get('user_id', listing.user_id)
         user_id = int(user_id)
-
-        err_str = check_user_and_permissions(user_id, self.associated_user_object)
-        if err_str is not None:
-            return self.error(err_str)
+        if (
+            user_id != self.associated_user_object.id
+            and not self.current_user.is_system_admin
+        ):
+            return self.error("Insufficient permissions.")
 
         obj_id = data.get('obj_id', listing.obj_id)
-        if Obj.query.get(obj_id) is None:  # verify that object exists!
-            return self.error(f'Object "{obj_id}" does not exist!')
+        Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
 
         list_name = data.get('list_name', listing.list_name)
 
@@ -293,7 +236,7 @@ class UserObjListHandler(BaseHandler):
         listing.obj_id = obj_id
         listing.list_name = list_name
 
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push(action='skyportal/REFRESH_FAVORITES')
         self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
@@ -364,28 +307,24 @@ class UserObjListHandler(BaseHandler):
                 )
 
             obj_id = data.get('obj_id')
-            if Obj.query.get(obj_id) is None:  # verify that object exists!
-                return self.error(f'Object "{obj_id}" does not exist!')
+            Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
 
             list_name = data.get('list_name')
-            listing = Listing.query.filter(
-                Listing.user_id == user_id,
-                Listing.obj_id == obj_id,
-                Listing.list_name == list_name,
-            ).first()
+            listing = (
+                Listing.query_records_accessible_by(self.current_user, mode="delete")
+                .filter(
+                    Listing.user_id == user_id,
+                    Listing.obj_id == obj_id,
+                    Listing.list_name == list_name,
+                )
+                .first()
+            )
 
         if listing is None:
             return self.error("Listing does not exist.")
 
-        # verify that poster has write access to user_id's lists
-        if (
-            self.associated_user_object.id != listing.user_id
-            and "System admin" not in self.associated_user_object.permissions
-        ):
-            return self.error('Insufficient permissions to access this listing. ')
-
         DBSession.delete(listing)
-        DBSession.commit()
+        self.verify_and_commit()
 
         self.push(action='skyportal/REFRESH_FAVORITES')
         self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
