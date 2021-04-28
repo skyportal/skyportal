@@ -1121,7 +1121,7 @@ class SourceHandler(BaseHandler):
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/Obj'
+                  - $ref: '#/components/schemas/ObjPost'
                   - type: object
                     properties:
                       group_ids:

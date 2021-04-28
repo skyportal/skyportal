@@ -75,7 +75,7 @@ class TokenHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        token = Token.get_if_readable_by(token_id, self.current_user)
+        token = Token.get_if_accessible_by(token_id, self.current_user, mode="delete")
         if token is not None:
             DBSession.delete(token)
             self.verify_and_commit()

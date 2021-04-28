@@ -1,7 +1,7 @@
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from .... import plot
-from ....models import ClassicalAssignment, Source, Telescope
+from ....models import ClassicalAssignment, Obj, Telescope
 
 import numpy as np
 from astropy import time as ap_time
@@ -57,10 +57,6 @@ class PlotSpectroscopyHandler(BaseHandler):
 
 class AirmassHandler(BaseHandler):
     def calculate_airmass(self, obj, telescope, sunset, sunrise):
-        permission_check = Source.get_obj_if_readable_by(obj.id, self.current_user)
-        if permission_check is None:
-            return self.error('Invalid assignment id.')
-
         time = np.linspace(sunset.unix, sunrise.unix, 50)
         time = ap_time.Time(time, format='unix')
 
@@ -74,9 +70,9 @@ class AirmassHandler(BaseHandler):
 class PlotAssignmentAirmassHandler(AirmassHandler):
     @auth_or_token
     def get(self, assignment_id):
-        assignment = ClassicalAssignment.query.get(assignment_id)
-        if assignment is None:
-            return self.error('Invalid assignment id.')
+        assignment = ClassicalAssignment.get_if_accessible_by(
+            assignment_id, self.current_user, raise_if_none=True
+        )
         obj = assignment.obj
         telescope = assignment.run.instrument.telescope
         time = assignment.run.calendar_noon
@@ -105,20 +101,15 @@ class PlotObjTelAirmassHandler(AirmassHandler):
         else:
             time = ap_time.Time.now()
 
-        obj = Source.get_obj_if_readable_by(obj_id, self.current_user)
-        if obj is None:
-            return self.error('Invalid assignment id.')
-
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
         try:
             telescope_id = int(telescope_id)
         except TypeError:
             return self.error(f'Invalid telescope id: {telescope_id}, must be integer.')
 
-        telescope = Telescope.query.get(telescope_id)
-        if telescope is None:
-            return self.error(
-                f'Invalid telescope id: {telescope_id}, record does not exist.'
-            )
+        telescope = Telescope.get_if_accessible_by(
+            telescope_id, self.current_user, raise_if_none=True
+        )
 
         sunrise = telescope.next_sunrise(time=time)
         sunset = telescope.next_sunset(time=time)

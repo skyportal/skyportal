@@ -71,7 +71,11 @@ class ProfileHandler(BaseHandler):
                             preferences:
                               type: object
         """
-        user = User.query.filter(User.username == self.current_user.username).first()
+        user = (
+            User.query_records_accessible_by(self.current_user)
+            .filter(User.username == self.current_user.username)
+            .first()
+        )
         user_roles = sorted([role.id for role in user.roles])
         user_acls = sorted([acl.id for acl in user.acls])
         user_permissions = sorted(user.permissions)
@@ -140,7 +144,9 @@ class ProfileHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        user = User.query.get(self.associated_user_object.id)
+        user = User.get_if_accessible_by(
+            self.associated_user_object.id, self.current_user, mode="update"
+        )
 
         if data.get("username") is not None:
             username = data.pop("username").strip()

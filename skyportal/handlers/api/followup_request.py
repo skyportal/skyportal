@@ -133,9 +133,7 @@ class AssignmentHandler(BaseHandler):
 
         run_id = assignment.run_id
         data['priority'] = assignment.priority.name
-        run = ObservingRun.query.get(run_id)
-        if run is None:
-            return self.error(f'Invalid observing run: "{run_id}"')
+        ObservingRun.get_if_accessible_by(run_id, self.current_user, raise_if_none=True)
 
         predecessor = (
             ClassicalAssignment.query_records_accessible_by(self.current_user)

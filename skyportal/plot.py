@@ -34,13 +34,12 @@ from baselayer.app.env import load_env
 from skyportal.models import (
     DBSession,
     Obj,
+    Annotation,
     Photometry,
-    Group,
     Instrument,
     Telescope,
     PHOT_ZP,
     Spectrum,
-    GroupSpectrum,
 )
 
 import sncosmo
@@ -380,19 +379,20 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         Returns Bokeh JSON embedding for the desired plot.
     """
 
+    telescope_subquery = Telescope.query_records_accessible_by(user).subquery()
+    instrument_subquery = Instrument.query_records_accessible_by(user).subquery()
     data = pd.read_sql(
-        DBSession()
-        .query(
-            Photometry,
-            Telescope.nickname.label("telescope"),
-            Instrument.name.label("instrument"),
+        Photometry.query_records_accessible_by(user)
+        .add_columns(
+            telescope_subquery.c.nickname.label("telescope"),
+            instrument_subquery.c.name.label("instrument"),
         )
-        .join(Instrument, Instrument.id == Photometry.instrument_id)
-        .join(Telescope, Telescope.id == Instrument.telescope_id)
+        .join(instrument_subquery, instrument_subquery.c.id == Photometry.instrument_id)
+        .join(
+            telescope_subquery,
+            telescope_subquery.c.id == instrument_subquery.c.telescope_id,
+        )
         .filter(Photometry.obj_id == obj_id)
-        .filter(
-            Photometry.groups.any(Group.id.in_([g.id for g in user.accessible_groups]))
-        )
         .statement,
         DBSession().bind,
     )
@@ -746,7 +746,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
     plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
 
-    obj = DBSession().query(Obj).get(obj_id)
+    obj = Obj.get_if_accessible_by(obj_id, user, raise_if_none=True)
     if obj.dm is not None:
         plot.extra_y_ranges = {
             "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
@@ -1004,7 +1004,11 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     # now make period plot
 
     # get periods from annotations
-    annotation_list = obj.get_annotations_readable_by(user)
+    annotation_list = (
+        Annotation.query_records_accessible_by(user)
+        .filter(Annotation.obj_id == obj.id)
+        .all()
+    )
     period_labels = []
     period_list = []
     for an in annotation_list:
@@ -1038,7 +1042,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         period_plot.toolbar.logo = None
 
         # do we have a distance modulus (dm)?
-        obj = DBSession().query(Obj).get(obj_id)
+        obj = Obj.get_if_accessible_by(obj_id, user)
         if obj.dm is not None:
             period_plot.extra_y_ranges = {
                 "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
@@ -1241,17 +1245,12 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
 
 def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
-    obj = Obj.query.get(obj_id)
+    obj = Obj.get_if_accessible_by(obj_id, user)
     spectra = (
-        DBSession()
-        .query(Spectrum)
-        .join(Obj)
-        .join(GroupSpectrum)
-        .filter(
-            Spectrum.obj_id == obj_id,
-            GroupSpectrum.group_id.in_([g.id for g in user.accessible_groups]),
-        )
-    ).all()
+        Spectrum.query_records_accessible_by(user)
+        .filter(Spectrum.obj_id == obj_id)
+        .all()
+    )
 
     if spec_id is not None:
         spectra = [spec for spec in spectra if spec.id == int(spec_id)]
@@ -1377,7 +1376,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     legend_items = []
     for i, (key, df) in enumerate(split):
         renderers = []
-        s = Spectrum.query.get(key)
+        s = Spectrum.get_if_accessible_by(key, user)
         label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
         model_dict['s' + str(i)] = plot.step(
             x='wavelength',
