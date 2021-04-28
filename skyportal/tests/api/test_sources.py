@@ -56,7 +56,7 @@ def test_token_user_retrieving_source_with_thumbnails(view_only_token, public_so
     status, data = api(
         "GET",
         f"sources/{public_source.id}",
-        params={"includeThumbnails": "true"},
+        params={"includeThumbnails": True},
         token=view_only_token,
     )
     assert status == 200
@@ -102,7 +102,7 @@ def test_token_user_retrieving_source_without_nested(
     status, data = api(
         "GET",
         "sources",
-        params={"removeNested": "true", "group_ids": [public_group.id]},
+        params={"removeNested": True, "group_ids": [public_group.id]},
         token=view_only_token,
     )
     assert status == 200
@@ -112,7 +112,10 @@ def test_token_user_retrieving_source_without_nested(
         k in data["data"]["sources"][0]
         for k in ["ra", "dec", "redshift", "created_at", "id", "classifications"]
     )
-    assert all(k not in data["data"]["sources"][0] for k in ["annotations", "groups"])
+    assert all(
+        k not in data["data"]["sources"][0]
+        for k in ["annotations", "groups", "thumbnails"]
+    )
 
 
 def test_token_user_update_source(upload_data_token, public_source):

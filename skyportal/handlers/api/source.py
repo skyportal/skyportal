@@ -395,7 +395,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: boolean
             description: |
-              Boolean indicating whether to remove nested output. Defaults to false.
+              Boolean indicating whether to remove nested output (does not apply to classifications). Defaults to false.
           - in: query
             name: includeThumbnails
             nullable: true
