@@ -22,11 +22,13 @@ from ..base import BaseHandler
 from ...models import (
     DBSession,
     Group,
+    Stream,
     Photometry,
     Instrument,
     Obj,
     PHOT_ZP,
     GroupPhotometry,
+    StreamPhotometry,
 )
 
 from ...schema import (
@@ -179,6 +181,7 @@ class PhotometryHandler(BaseHandler):
 
         # not used here
         _ = data.pop('group_ids', None)
+        _ = data.pop('stream_ids', None)
 
         if allscalar(data):
             data = [data]
@@ -460,7 +463,7 @@ class PhotometryHandler(BaseHandler):
         return values_table, condition
 
     def insert_new_photometry_data(
-        self, df, instrument_cache, group_ids, validate=True
+        self, df, instrument_cache, group_ids, stream_ids, validate=True
     ):
         # check for existing photometry and error if any is found
 
@@ -468,10 +471,7 @@ class PhotometryHandler(BaseHandler):
             values_table, condition = self.get_values_table_and_condition(df)
 
             duplicated_photometry = (
-                DBSession()
-                .query(Photometry)
-                .join(values_table, condition)
-                .options(joinedload(Photometry.groups))
+                DBSession().query(Photometry).join(values_table, condition)
             )
 
             dict_rep = [d.to_dict() for d in duplicated_photometry]
@@ -552,12 +552,18 @@ class PhotometryHandler(BaseHandler):
 
         groupquery = GroupPhotometry.__table__.insert()
         params = []
-
         for id in ids:
             for group_id in group_ids:
                 params.append({'photometr_id': id, 'group_id': group_id})
-
         DBSession().execute(groupquery, params)
+
+        if stream_ids:
+            stream_query = StreamPhotometry.__table__.insert()
+            params = []
+            for id in ids:
+                for stream_id in stream_ids:
+                    params.append({'photometr_id': id, 'stream_id': stream_id})
+            DBSession().execute(stream_query, params)
         return ids, upload_id
 
     def get_group_ids(self):
@@ -592,6 +598,28 @@ class PhotometryHandler(BaseHandler):
         group_ids.append(self.associated_user_object.single_user_group.id)
         group_ids = list(set(group_ids))
         return group_ids
+
+    def get_stream_ids(self):
+        data = self.get_json()
+        stream_ids = data.pop("stream_ids", [])
+        if isinstance(stream_ids, (list, tuple)):
+            for stream_id in stream_ids:
+                try:
+                    stream_id = int(stream_id)
+                except TypeError:
+                    raise ValidationError(
+                        f"Invalid format for stream id {stream_id}, must be an integer."
+                    )
+                stream = Stream.get_if_accessible_by(stream_id, self.current_user)
+                if stream is None:
+                    raise ValidationError(f'No stream with ID {stream_id}')
+        else:
+            raise ValidationError(
+                "Invalid stream_ids parameter value. Must be a list of IDs (integers)."
+            )
+
+        stream_ids = list(set(stream_ids))
+        return stream_ids
 
     @permissions(['Upload data'])
     def post(self):
@@ -636,6 +664,10 @@ class PhotometryHandler(BaseHandler):
             group_ids = self.get_group_ids()
         except ValidationError as e:
             return self.error(e.args[0])
+        try:
+            stream_ids = self.get_stream_ids()
+        except ValidationError as e:
+            return self.error(e.args[0])
 
         try:
             df, instrument_cache = self.standardize_photometry_data()
@@ -653,7 +685,7 @@ class PhotometryHandler(BaseHandler):
         )
         try:
             ids, upload_id = self.insert_new_photometry_data(
-                df, instrument_cache, group_ids
+                df, instrument_cache, group_ids, stream_ids
             )
         except ValidationError as e:
             return self.error(e.args[0])
@@ -702,6 +734,11 @@ class PhotometryHandler(BaseHandler):
 
         try:
             group_ids = self.get_group_ids()
+        except ValidationError as e:
+            return self.error(e.args[0])
+
+        try:
+            stream_ids = self.get_stream_ids()
         except ValidationError as e:
             return self.error(e.args[0])
 
@@ -757,13 +794,23 @@ class PhotometryHandler(BaseHandler):
                 # update the corresponding photometry entry in the db
                 duplicate.groups = groups
 
+            # posting to new streams?
+            if stream_ids:
+                streams = Stream.get_if_accessible_by(stream_ids, self.current_user)
+                # update the corresponding photometry entry in the db
+                duplicate.streams.extend(streams)
+
         # now safely drop the duplicates:
         new_photometry = df.loc[new_photometry_df_idxs]
 
         if len(new_photometry) > 0:
             try:
                 ids, _ = self.insert_new_photometry_data(
-                    new_photometry, instrument_cache, group_ids, validate=False
+                    new_photometry,
+                    instrument_cache,
+                    group_ids,
+                    stream_ids,
+                    validate=False,
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
@@ -835,6 +882,7 @@ class PhotometryHandler(BaseHandler):
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
+        stream_ids = data.pop("stream_ids", None)
 
         try:
             phot = PhotometryFlux.load(data)
@@ -868,6 +916,15 @@ class PhotometryHandler(BaseHandler):
                     "Cannot upload photometry to groups you are not a member of."
                 )
             photometry.groups = groups
+
+        # Update streams, if relevant
+        if stream_ids is not None:
+            streams = Stream.get_if_accessible_by(stream_ids, self.current_user)
+            if not streams:
+                return self.error(
+                    "Invalid stream_ids field. Specify at least one valid stream ID."
+                )
+            photometry.streams = streams
 
         self.verify_and_commit()
         return self.success()

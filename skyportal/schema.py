@@ -280,6 +280,12 @@ class PhotBaseFlexible(object):
         missing=[],
     )
 
+    stream_ids = fields.Field(
+        description="List of stream IDs to which photometry points will be visible.",
+        required=False,
+        missing=[],
+    )
+
     altdata = fields.Field(
         description="Misc. alternative metadata stored in JSON "
         "format, e.g. `{'calibration': {'source': 'ps1', "
