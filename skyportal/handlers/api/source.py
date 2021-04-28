@@ -1001,6 +1001,7 @@ class SourceHandler(BaseHandler):
                     num_per_page,
                     "sources",
                     order_by=order_by,
+                    include_thumbnails=include_thumbnails and not remove_nested,
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
@@ -1016,6 +1017,7 @@ class SourceHandler(BaseHandler):
                 None,
                 "sources",
                 order_by=order_by,
+                include_thumbnails=include_thumbnails and not remove_nested,
             )
 
         if not save_summary:
