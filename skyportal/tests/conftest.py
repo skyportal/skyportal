@@ -719,6 +719,26 @@ def view_only_token_no_groups_no_streams(user_no_groups_no_streams):
 
 
 @pytest.fixture()
+def upload_data_token_no_groups(user_no_groups):
+    token_id = create_token(
+        ACLs=["Upload data"], user_id=user_no_groups.id, name=str(uuid.uuid4())
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def upload_data_token_no_groups_no_streams(user_no_groups_no_streams):
+    token_id = create_token(
+        ACLs=["Upload data"],
+        user_id=user_no_groups_no_streams.id,
+        name=str(uuid.uuid4()),
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
 def user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
         groups=[public_group, public_group2],
