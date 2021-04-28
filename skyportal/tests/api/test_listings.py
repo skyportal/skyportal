@@ -244,12 +244,14 @@ def test_patching_listing(user, user2, public_candidate, public_candidate2):
 
 
 def test_listings_user_permissions(
-    user, user2, super_admin_user, public_candidate, public_candidate2
+    user,
+    user2,
+    super_admin_user,
+    super_admin_token,
+    upload_data_token,
+    public_candidate,
+    public_candidate2,
 ):
-    token_id = create_token(
-        ACLs=["Upload data"], user_id=user.id, name=str(uuid.uuid4())
-    )
-
     status, data = api(
         'POST',
         'listing',
@@ -258,13 +260,13 @@ def test_listings_user_permissions(
             'obj_id': public_candidate.id,
             'list_name': 'favorites',
         },
-        token=token_id,
+        token=upload_data_token,
     )
 
     assert status == 200
     item1 = data["data"]["id"]  # get the list item ID
 
-    # try to add this to a different user
+    # try to transfer ownership to a different user
     status, data = api(
         'PATCH',
         f'listing/{item1}',
@@ -273,16 +275,25 @@ def test_listings_user_permissions(
             'obj_id': public_candidate.id,
             'list_name': 'favorites',
         },
-        token=token_id,
+        token=upload_data_token,
     )
 
     assert status == 400
-    assert 'Insufficient permission' in data['message']
+    assert 'Insufficient permissions' in data['message']
 
-    # setup a token for the super user
-    super_token_id = create_token(
-        ACLs=["Upload data"], user_id=super_admin_user.id, name=str(uuid.uuid4())
+    # try to post to a different user
+    status, data = api(
+        'POST',
+        'listing',
+        data={
+            'user_id': user2.id,
+            'obj_id': public_candidate.id,
+            'list_name': 'favorites',
+        },
+        token=upload_data_token,
     )
+
+    assert status == 400
 
     # try to add this to a different user, but with super admin privileges
     status, data = api(
@@ -293,14 +304,14 @@ def test_listings_user_permissions(
             'obj_id': public_candidate.id,
             'list_name': 'favorites',
         },
-        token=super_token_id,
+        token=super_admin_token,
     )
 
     assert status == 200
 
     # get the list back, should include only one item that matches user2
     status, data = api(
-        'GET', f'listing/{user2.id}?listName=favorites', token=super_token_id
+        'GET', f'listing/{user2.id}?listName=favorites', token=super_admin_token
     )
 
     assert status == 200
@@ -313,7 +324,10 @@ def test_listings_user_permissions(
     # try to patch with only partial data inputs
     # bring this listing back to first user with super token permission
     status, data = api(
-        'PATCH', f'listing/{item1}', data={'user_id': user.id}, token=super_token_id,
+        'PATCH',
+        f'listing/{item1}',
+        data={'user_id': user.id},
+        token=super_admin_token,
     )
 
     assert status == 200
@@ -323,21 +337,24 @@ def test_listings_user_permissions(
         'PATCH',
         f'listing/{item1}',
         data={'obj_id': public_candidate2.id},
-        token=token_id,
+        token=upload_data_token,
     )
 
     assert status == 200
 
     # change the list name only
     status, data = api(
-        'PATCH', f'listing/{item1}', data={'list_name': 'new_listing'}, token=token_id,
+        'PATCH',
+        f'listing/{item1}',
+        data={'list_name': 'new_listing'},
+        token=upload_data_token,
     )
 
     assert status == 200
 
     # get the list back, should include only one item that matches user2
     status, data = api(
-        'GET', f'listing/{user.id}?listName=new_listing', token=super_token_id
+        'GET', f'listing/{user.id}?listName=new_listing', token=super_admin_token
     )
 
     assert status == 200
@@ -350,17 +367,13 @@ def test_listings_user_permissions(
     assert new_list[0]['list_name'] == 'new_listing'  # new listing name
 
 
-def test_invalid_listing_name_fails(user, public_candidate):
-    token_id = create_token(
-        ACLs=["Upload data"], user_id=user.id, name=str(uuid.uuid4())
-    )
-
+def test_invalid_listing_name_fails(user, upload_data_token, public_candidate):
     # we cannot post a listing with an empty string
     status, data = api(
         'POST',
         'listing',
         data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': ''},
-        token=token_id,
+        token=upload_data_token,
     )
 
     assert status == 400
@@ -371,7 +384,7 @@ def test_invalid_listing_name_fails(user, public_candidate):
         'POST',
         'listing',
         data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': ' '},
-        token=token_id,
+        token=upload_data_token,
     )
 
     assert status == 400
@@ -382,7 +395,7 @@ def test_invalid_listing_name_fails(user, public_candidate):
         'POST',
         'listing',
         data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': '-'},
-        token=token_id,
+        token=upload_data_token,
     )
 
     assert status == 400
@@ -397,7 +410,7 @@ def test_invalid_listing_name_fails(user, public_candidate):
             'obj_id': public_candidate.id,
             'list_name': 'favorites',
         },
-        token=token_id,
+        token=upload_data_token,
     )
 
     assert status == 200
@@ -408,7 +421,7 @@ def test_invalid_listing_name_fails(user, public_candidate):
         'PATCH',
         f'listing/{listing_id}',
         data={'user_id': user.id, 'obj_id': public_candidate.id, 'list_name': ''},
-        token=token_id,
+        token=upload_data_token,
     )
 
     assert status == 400

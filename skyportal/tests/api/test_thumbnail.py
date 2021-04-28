@@ -58,7 +58,7 @@ def test_token_user_post_get_thumbnail(upload_data_token, public_group, ztf_came
 
 
 def test_token_user_delete_thumbnail_cascade_source(
-    upload_data_token, manage_sources_token, public_group, ztf_camera
+    upload_data_token, super_admin_token, public_group, ztf_camera
 ):
 
     obj_id = str(uuid.uuid4())
@@ -110,9 +110,7 @@ def test_token_user_delete_thumbnail_cascade_source(
         == orig_source_thumbnail_count + 1
     )
 
-    status, data = api(
-        'DELETE', f'thumbnail/{thumbnail_id}', token=manage_sources_token
-    )
+    status, data = api('DELETE', f'thumbnail/{thumbnail_id}', token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
 
