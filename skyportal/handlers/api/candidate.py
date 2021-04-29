@@ -866,7 +866,7 @@ class CandidateHandler(BaseHandler):
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/Obj'
+                  - $ref: '#/components/schemas/ObjPost'
                   - type: object
                     properties:
                       filter_ids:

@@ -87,23 +87,23 @@ class SpectrumHandler(BaseHandler):
         if single_user_group not in groups:
             groups.append(single_user_group)
 
-        instrument = Instrument.query.get(data['instrument_id'])
-        if instrument is None:
-            return self.error('Invalid instrument id.')
+        instrument = Instrument.get_if_accessible_by(
+            data['instrument_id'], self.current_user, raise_if_none=True
+        )
 
         # need to do this before the creation of Spectrum because this line flushes.
         owner_id = self.associated_user_object.id
 
         reducers = []
         for reducer_id in data.pop('reduced_by', []):
-            reducer = User.query.get(reducer_id)
+            reducer = User.get_if_accessible_by(reducer_id, self.current_user)
             if reducer is None:
                 return self.error(f'Invalid reducer ID: {reducer_id}.')
             reducers.append(reducer)
 
         observers = []
         for observer_id in data.pop('observed_by', []):
-            observer = User.query.get(observer_id)
+            observer = User.get_if_accessible_by(observer_id, self.current_user)
             if observer is None:
                 return self.error(f'Invalid observer ID: {observer_id}.')
             observers.append(observer)
@@ -350,13 +350,11 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         filename = json.pop('filename')
 
-        obj = Obj.get_if_readable_by(json['obj_id'], self.current_user)
-        if obj is None:
-            raise ValidationError('Invalid Obj id.')
+        Obj.get_if_accessible_by(json['obj_id'], self.current_user, raise_if_none=True)
 
-        instrument = Instrument.query.get(json['instrument_id'])
-        if instrument is None:
-            raise ValidationError('Invalid instrument id.')
+        Instrument.get_if_accessible_by(
+            json['instrument_id'], self.current_user, raise_if_none=True
+        )
 
         # always add the single user group
         single_user_group = self.associated_user_object.single_user_group
@@ -379,14 +377,14 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         reducers = []
         for reducer_id in json.get('reduced_by', []):
-            reducer = User.query.get(reducer_id)
+            reducer = User.get_if_accessible_by(reducer_id, self.current_user)
             if reducer is None:
                 raise ValidationError(f'Invalid reducer ID: {reducer_id}.')
             reducers.append(reducer)
 
         observers = []
         for observer_id in json.get('observed_by', []):
-            observer = User.query.get(observer_id)
+            observer = User.get_if_accessible_by(observer_id, self.current_user)
             if observer is None:
                 raise ValidationError(f'Invalid observer ID: {observer_id}.')
             observers.append(observer)
@@ -394,9 +392,9 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         # will never KeyError as missing value is imputed
         followup_request_id = json.pop('followup_request_id', None)
         if followup_request_id is not None:
-            followup_request = FollowupRequest.query.get(followup_request_id)
-            if followup_request is None:
-                return self.error('Invalid followup request.')
+            followup_request = FollowupRequest.get_if_accessible_by(
+                followup_request_id, self.current_user, raise_if_none=True
+            )
             spec.followup_request = followup_request
             for group in followup_request.target_groups:
                 if group not in groups:
@@ -404,7 +402,9 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         assignment_id = json.pop('assignment_id', None)
         if assignment_id is not None:
-            assignment = ClassicalAssignment.query.get(assignment_id)
+            assignment = ClassicalAssignment.get_if_accessible_by(
+                assignment_id, self.current_user, raise_if_none=True
+            )
             if assignment is None:
                 return self.error('Invalid assignment.')
             spec.assignment = assignment

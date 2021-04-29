@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 import tornado.web
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
-from ....models import DBSession, Obj, Source, SourceView
+from ....models import DBSession, Obj, SourceView
 from .recent_sources import first_thumbnail_info
 
 
@@ -22,19 +22,14 @@ class SourceViewsHandler(BaseHandler):
         since_days_ago = int(top_sources_prefs['sinceDaysAgo'])
         cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
         q = (
-            DBSession.query(
-                func.count(SourceView.obj_id).label('views'), SourceView.obj_id
+            SourceView.query_records_accessible_by(
+                current_user,
+                columns=[
+                    func.count(SourceView.obj_id).label('views'),
+                    SourceView.obj_id,
+                ],
             )
             .group_by(SourceView.obj_id)
-            .filter(
-                SourceView.obj_id.in_(
-                    DBSession.query(Source.obj_id).filter(
-                        Source.group_id.in_(
-                            [g.id for g in current_user.accessible_groups]
-                        )
-                    )
-                )
-            )
             .filter(SourceView.created_at >= cutoff_day)
             .order_by(desc('views'))
             .limit(max_num_sources)

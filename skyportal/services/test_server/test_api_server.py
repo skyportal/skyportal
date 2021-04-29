@@ -203,7 +203,7 @@ def make_app():
 
 if __name__ == "__main__":
     env, cfg = load_env()
-    log = make_log("testserver")
+    log = make_log("testapiserver")
     my_vcr = vcr.VCR()
     my_vcr.register_matcher("lt", lt_request_matcher)
     if "test_server" in cfg:

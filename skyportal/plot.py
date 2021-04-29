@@ -34,13 +34,12 @@ from baselayer.app.env import load_env
 from skyportal.models import (
     DBSession,
     Obj,
+    Annotation,
     Photometry,
-    Group,
     Instrument,
     Telescope,
     PHOT_ZP,
     Spectrum,
-    GroupSpectrum,
 )
 
 import sncosmo
@@ -50,72 +49,140 @@ _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 SPEC_LINES = {
-    'H': ([3970, 4102, 4341, 4861, 6563], '#ff0000'),
-    'He': ([3886, 4472, 5876, 6678, 7065], '#002157'),
-    'He II': ([3203, 4686], '#003b99'),
+    'H': ([3970, 4102, 4341, 4861, 6563, 10052, 10941, 12822, 18756], '#ff0000'),
+    'He I': ([3889, 4471, 5876, 6678, 7065], '#002157'),
+    'He II': ([3203, 4686, 5411, 6560, 6683, 6891, 8237, 10124], '#003b99'),
     'C I': ([8335, 9093, 9406, 9658, 10693, 11330, 11754, 14543], '#8a2be2'),
-    'C II': ([3919, 4267, 6580, 7234, 9234], '#570199'),
-    'C III': ([4650, 5696], '#a30198'),
-    'C IV': ([5801], '#ff0073'),
-    'N II': ([5754, 6548, 6583], '#01fee1'),
-    'N III': ([4100, 4640], '#01fe95'),
-    'O': ([7772, 7774, 7775, 8447, 9266], '#007236'),
-    'O II': ([3727], '#00a64d'),
+    'C II': ([3919, 3921, 4267, 5145, 5890, 6578, 7231, 7236, 9234, 9891], '#570199'),
+    'C III': ([4647, 4650, 5696, 6742, 8500, 8665, 9711], '#a30198'),
+    'C IV': ([4658, 5801, 5812, 7061, 7726, 8859], '#ff0073'),
+    'N II': ([3995, 4631, 5005, 5680, 5942, 6482, 6611], '#01fee1'),
+    'N III': ([4634, 4641, 4687, 5321, 5327, 6467], '#01fe95'),
+    'N IV': ([3479, 3483, 3485, 4058, 6381, 7115], '#00ff4d'),
+    'N V': ([4604, 4620, 4945], '#22ff00'),
+    'O I': ([6158, 7772, 7774, 7775, 8446, 9263], '#007236'),
+    '[O I]': ([5577, 6300, 6363], '#007236'),
+    'O II': (
+        [3390, 3377, 3713, 3749, 3954, 3973, 4076, 4349, 4416, 4649, 6641, 6721],
+        '#00a64d',
+    ),
+    '[O II]': ([3726, 3729], '#b9d2c5'),
     'O III': ([4959, 5007], '#00bf59'),
-    'Na': ([5890, 5896, 8183, 8195], '#aba000'),
-    'Mg': ([2780, 2852, 3829, 3832, 3838, 4571, 5167, 5173, 5184], '#8c6239'),
-    'Mg II': ([2791, 2796, 2803, 4481], '#bf874e'),
+    '[OIII]': ([4363, 4959, 5007], '#aeefcc'),
+    'O V': ([3145, 4124, 4930, 5598, 6500], '#03d063'),
+    'O VI': ([3811, 3834], '#01e46b'),
+    'Na I': ([5890, 5896, 8183, 8195], '#aba000'),
+    'Mg I': ([3829, 3832, 3838, 4571, 4703, 5167, 5173, 5184, 5528, 8807], '#8c6239'),
+    'Mg II': (
+        [2796, 2798, 2803, 4481, 7877, 7896, 8214, 8235, 9218, 9244, 9632],
+        '#bf874e',
+    ),
     'Si I': ([10585, 10827, 12032, 15888], '#6495ed'),
-    'Si II': ([3856, 5041, 5056, 5670, 6347, 6371], '#5674b9'),
+    'Si II': ([4128, 4131, 5958, 5979, 6347, 6371], '#5674b9'),
     'S I': ([9223, 10457, 13809, 18940, 22694], '#ffe4b5'),
-    'S II': ([5433, 5454, 5606, 5640, 5647, 6715], '#a38409'),
+    'S II': ([5433, 5454, 5606, 5640, 5647, 6715, 13529, 14501], '#a38409'),
     'Ca I': ([19453, 19753], '#009000'),
-    'Ca II': ([3934, 3969, 7292, 7324, 8498, 8542, 8662], '#005050'),
+    'Ca II': ([3159, 3180, 3706, 3737, 3934, 3969, 8498, 8542, 8662], '#005050'),
+    '[Ca II]': ([7292, 7324], '#859797'),
     'Mn I': ([12900, 13310, 13630, 13859, 15184, 15263], '#009090'),
     'Fe I': ([11973], '#cd5c5c'),
-    'Fe II': ([5018, 5169], '#f26c4f'),
+    'Fe II': ([4303, 4352, 4515, 4549, 4924, 5018, 5169, 5198, 5235, 5363], '#f26c4f'),
     'Fe III': ([4397, 4421, 4432, 5129, 5158], '#f9917b'),
     'Co II': (
         [15759, 16064, 16361, 17239, 17462, 17772, 21347, 22205, 22497, 23613, 24596],
         '#ffe4e1',
     ),
+    'WR WN': (
+        [
+            4058,
+            4341,
+            4537,
+            4604,
+            4641,
+            4686,
+            4861,
+            4945,
+            5411,
+            5801,
+            6563,
+            7109,
+            7123,
+            10124,
+        ],
+        '#a55031',
+    ),
+    # H: 4341,4861,6563; HeII: 4686,5411,10124; CIV: 5801;
+    # NIII: 4641; NIV: 4058,4537,7109,7123; NV: 4604,4945
+    'WR WC/O': (
+        [
+            3811,
+            3834,
+            3886,
+            4341,
+            4472,
+            4647,
+            4686,
+            4861,
+            5598,
+            5696,
+            5801,
+            5876,
+            6563,
+            6678,
+            6742,
+            7065,
+            7236,
+            7726,
+            9711,
+        ],
+        '#b9a44f',
+    ),
+    # H: 4341,4861,6563; HeI: 7065,6678,5876,4472,3886; HeII: 4686;
+    # CII: 7236; CIII: 4647,5696,6742,9711; CIV: 5801,7726; OV: 5598; OVI: 3811,3834
+    'Galaxy Lines': (
+        [
+            2025,
+            2056,
+            2062,
+            2066,
+            2249,
+            2260,
+            2343,
+            2374,
+            2382,
+            2576,
+            2586,
+            2594,
+            2599,
+            2798,
+            2852,
+            3727,
+            3934,
+            3969,
+            4341,
+            4861,
+            4959,
+            5007,
+            5890,
+            5896,
+            6548,
+            6563,
+            6583,
+            6717,
+            6731,
+        ],
+        '#8357bd',
+    ),
+    # H 4341,4861,6563; NII 6548,6583; [OII] 3727; [OIII] 4959,5007;
+    # NaI 5890,5896; MgII 2798; SII 6717,6731; CaII H&K 3969,3934
+    # ZnII 2025; CrII 2056,2062,2066; FeII 2249,2260,2343,2374,2382,2586,2599;
+    # MnII 2576,2594; MgI 2852
 }
-# TODO add groups
-# Galaxy lines
-#
-# 'H': '4341, 4861, 6563;
-# 'N II': '6548, 6583;
-# 'O I': '6300;'
-# 'O II': '3727;
-# 'O III': '4959, 5007;
-# 'Mg II': '2798;
-# 'S II': '6717, 6731'
-# 'H': '3970, 4102, 4341, 4861, 6563'
-# 'Na': '5890, 5896, 8183, 8195'
-# 'He': '3886, 4472, 5876, 6678, 7065'
-# 'Mg': '2780, 2852, 3829, 3832, 3838, 4571, 5167, 5173, 5184'
-# 'He II': '3203, 4686'
-# 'Mg II': '2791, 2796, 2803, 4481'
-# 'O': '7772, 7774, 7775, 8447, 9266'
-# 'Si II': '3856, 5041, 5056, 5670 6347, 6371'
-# 'O II': '3727'
-# 'Ca II': '3934, 3969, 7292, 7324, 8498, 8542, 8662'
-# 'O III': '4959, 5007'
-# 'Fe II': '5018, 5169'
-# 'S II': '5433, 5454, 5606, 5640, 5647, 6715'
-# 'Fe III': '4397, 4421, 4432, 5129, 5158'
-#
-# Other
-#
-# 'Tel: 6867-6884, 7594-7621'
-# 'Tel': '#b7b7b7',
-# 'H: 4341, 4861, 6563;
-# 'N II': 6548, 6583;
-# 'O I': 6300;
-# 'O II': 3727;
-# 'O III': 4959, 5007;
-# 'Mg II': 2798;
-# 'S II': 6717, 6731'
+
+# Tellurics
+# 'Tellurics': (np.append(list(np.linspace(6867,6884)), list(np.linspace(7594,7621))), '#99FFFF')
+
+# TODO:  - generate the telluric lines
 
 
 class CheckboxWithLegendGroup(CheckboxGroup):
@@ -312,19 +379,20 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         Returns Bokeh JSON embedding for the desired plot.
     """
 
+    telescope_subquery = Telescope.query_records_accessible_by(user).subquery()
+    instrument_subquery = Instrument.query_records_accessible_by(user).subquery()
     data = pd.read_sql(
-        DBSession()
-        .query(
-            Photometry,
-            Telescope.nickname.label("telescope"),
-            Instrument.name.label("instrument"),
+        Photometry.query_records_accessible_by(user)
+        .add_columns(
+            telescope_subquery.c.nickname.label("telescope"),
+            instrument_subquery.c.name.label("instrument"),
         )
-        .join(Instrument, Instrument.id == Photometry.instrument_id)
-        .join(Telescope, Telescope.id == Instrument.telescope_id)
+        .join(instrument_subquery, instrument_subquery.c.id == Photometry.instrument_id)
+        .join(
+            telescope_subquery,
+            telescope_subquery.c.id == instrument_subquery.c.telescope_id,
+        )
         .filter(Photometry.obj_id == obj_id)
-        .filter(
-            Photometry.groups.any(Group.id.in_([g.id for g in user.accessible_groups]))
-        )
         .statement,
         DBSession().bind,
     )
@@ -678,7 +746,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     plot.extra_x_ranges = {"Days Ago": Range1d(start=now - xmin, end=now - xmax)}
     plot.add_layout(LinearAxis(x_range_name="Days Ago", axis_label="Days Ago"), 'below')
 
-    obj = DBSession().query(Obj).get(obj_id)
+    obj = Obj.get_if_accessible_by(obj_id, user, raise_if_none=True)
     if obj.dm is not None:
         plot.extra_y_ranges = {
             "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
@@ -936,7 +1004,11 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     # now make period plot
 
     # get periods from annotations
-    annotation_list = obj.get_annotations_readable_by(user)
+    annotation_list = (
+        Annotation.query_records_accessible_by(user)
+        .filter(Annotation.obj_id == obj.id)
+        .all()
+    )
     period_labels = []
     period_list = []
     for an in annotation_list:
@@ -970,7 +1042,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         period_plot.toolbar.logo = None
 
         # do we have a distance modulus (dm)?
-        obj = DBSession().query(Obj).get(obj_id)
+        obj = Obj.get_if_accessible_by(obj_id, user)
         if obj.dm is not None:
             period_plot.extra_y_ranges = {
                 "Absolute Mag": Range1d(start=ymax - obj.dm, end=ymin - obj.dm)
@@ -1173,17 +1245,12 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
 
 def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
-    obj = Obj.query.get(obj_id)
+    obj = Obj.get_if_accessible_by(obj_id, user)
     spectra = (
-        DBSession()
-        .query(Spectrum)
-        .join(Obj)
-        .join(GroupSpectrum)
-        .filter(
-            Spectrum.obj_id == obj_id,
-            GroupSpectrum.group_id.in_([g.id for g in user.accessible_groups]),
-        )
-    ).all()
+        Spectrum.query_records_accessible_by(user)
+        .filter(Spectrum.obj_id == obj_id)
+        .all()
+    )
 
     if spec_id is not None:
         spectra = [spec for spec in spectra if spec.id == int(spec_id)]
@@ -1309,7 +1376,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     legend_items = []
     for i, (key, df) in enumerate(split):
         renderers = []
-        s = Spectrum.query.get(key)
+        s = Spectrum.get_if_accessible_by(key, user)
         label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
         model_dict['s' + str(i)] = plot.step(
             x='wavelength',

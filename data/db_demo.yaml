@@ -460,6 +460,9 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
   - obj_id: 14gqr
     instrument_id: =ZTF
     assignment_id: 1
@@ -467,6 +470,9 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
   - obj_id: 16fil_unsaved_copy
     instrument_id: =ZTF
     assignment_id: 2
@@ -474,6 +480,9 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
   - obj_id: 16fil
     instrument_id: =ZTF
     assignment_id: 2
@@ -481,6 +490,9 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
   - obj_id: ZTFe028h94k
     instrument_id: =ZTF
     assignment_id: 2
@@ -488,6 +500,9 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
   - obj_id: ZTFrlh6cyjh
     instrument_id: =ZTF
     assignment_id: 2
@@ -495,6 +510,9 @@ photometry:
     group_ids:
       - =program_A
       - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
 
 spectrum:
   - obj_id: 14gqr_unsaved_copy

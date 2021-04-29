@@ -240,17 +240,19 @@ const RecentSources = ({ classes }) => {
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
-        <Typography variant="h6" display="inline">
-          Recently Saved Sources
-        </Typography>
-        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-        <div className={classes.widgetIcon}>
-          <WidgetPrefsDialog
-            initialValues={recentSourcesPrefs}
-            stateBranchName="recentSources"
-            title="Recent Sources Preferences"
-            onSubmit={profileActions.updateUserPreferences}
-          />
+        <div>
+          <Typography variant="h6" display="inline">
+            Recently Saved Sources
+          </Typography>
+          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+          <div className={classes.widgetIcon}>
+            <WidgetPrefsDialog
+              initialValues={recentSourcesPrefs}
+              stateBranchName="recentSources"
+              title="Recent Sources Preferences"
+              onSubmit={profileActions.updateUserPreferences}
+            />
+          </div>
         </div>
         <RecentSourcesList sources={recentSources} styles={styles} />
       </div>

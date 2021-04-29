@@ -6,11 +6,7 @@ from sqlalchemy.sql.elements import ColumnClause
 from sqlalchemy.sql.selectable import FromClause
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
-from ....models import (
-    DBSession,
-    Annotation,
-    GroupAnnotation,
-)
+from ....models import Annotation
 
 
 # Helper classes/functions below provide a workaround for PostgreSQL functions
@@ -102,8 +98,6 @@ class AnnotationsInfoHandler(BaseHandler):
                                 An object in which each key is an annotation origin, and
                                 the values are arrays of { key: value_type } objects
         """
-        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
-
         # This query gets the origin/keys present in the accessible annotaions
         # for an Obj, as well as the data type for the values for each key.
         # This information is used to generate the front-end form for selecting
@@ -117,14 +111,13 @@ class AnnotationsInfoHandler(BaseHandler):
         # Objs are read-public, so no need to check that annotations belong to an unreadable obj
         # Instead, just check for annotation group membership
         q = (
-            DBSession()
-            .query(Annotation.origin)
+            Annotation.query_records_accessible_by(
+                self.current_user, columns=[Annotation.origin]
+            )
             .add_columns(
                 annotations.c.key, func.jsonb_typeof(annotations.c.value).label("type")
             )
             .outerjoin(annotations, literal(True))
-            .join(GroupAnnotation)
-            .filter(GroupAnnotation.group_id.in_(user_accessible_group_ids))
             .distinct()
         )
 

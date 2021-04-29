@@ -27,6 +27,9 @@ const useStyles = makeStyles((theme) => ({
     "& .MuiButton-label": {
       color: theme.palette.text.secondary,
     },
+    "& .MuiButtonGroup-root": {
+      flexWrap: "wrap",
+    },
   },
   sourceListContainer: {
     height: "calc(100% - 5rem)",

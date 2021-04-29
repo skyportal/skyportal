@@ -13,7 +13,11 @@ const useStyles = makeStyles(() => ({
   listContainer: {
     overflowX: "hidden",
     overflowY: "scroll",
-    height: "95%",
+    height: "calc(95% - 1.25rem);",
+  },
+  flex: {
+    display: "flex",
+    flexFlow: "column nowrap",
   },
 }));
 
@@ -22,9 +26,11 @@ const GroupList = ({ title, groups, classes }) => {
 
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
-      <div className={classes.widgetPaperDiv}>
-        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-        <Typography variant="h6">{title}</Typography>
+      <div className={`${classes.widgetPaperDiv} ${styles.flex}`}>
+        <div>
+          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+          <Typography variant="h6">{title}</Typography>
+        </div>
         <List
           component="nav"
           aria-label="main mailbox folders"
