@@ -3,6 +3,7 @@ import numpy as np
 import scipy
 import gcn
 import lxml
+import xmlschema
 from urllib.parse import urlparse
 
 from baselayer.app.env import load_env
@@ -55,7 +56,13 @@ class GCNHandler:
 
         with open(fname, 'rb') as fid:
             payload = fid.read()
-        root = lxml.etree.fromstring(payload)
+
+        schema = f'{os.path.dirname(__file__)}/schema/VOEvent-v2.0.xsd'
+        voevent_schema = xmlschema.XMLSchema(schema)
+        if voevent_schema.is_valid(payload):
+            root = lxml.etree.fromstring(payload)
+        else:
+            raise Exception("xml file is not valid VOEvent")
 
         self.payload = payload
         self.root = root
