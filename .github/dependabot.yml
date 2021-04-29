@@ -1,0 +1,54 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: monthly
+      time: "13:00"
+    open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: "@date-io/dayjs"
+        versions:
+          - ">= 0"
+      - dependency-name: react-dnd
+        versions:
+          - ">= 0"
+      - dependency-name: mui-datatables
+        versions:
+          - 3.7.6
+      - dependency-name: "@bokeh/bokehjs"
+        versions:
+          - 2.3.0
+      - dependency-name: redoc
+        versions:
+          - 2.0.0-rc.41
+          - 2.0.0-rc.48
+      - dependency-name: react
+        versions:
+          - 16.14.0
+          - 17.0.1
+      - dependency-name: "@rjsf/core"
+        versions:
+          - 2.4.1
+      - dependency-name: react-hook-form
+        versions:
+          - 6.14.2
+      - dependency-name: "@babel/plugin-transform-async-to-generator"
+        versions:
+          - 7.12.1
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: monthly
+      time: "13:00"
+    open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: dask
+        versions:
+          - 2021.1.1
+      - dependency-name: numpy
+        versions:
+          - 1.20.0
+      - dependency-name: pandas
+        versions:
+          - 1.2.1
