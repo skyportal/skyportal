@@ -29,7 +29,7 @@
     "emojilib": "3.0.0",
     "exports-loader": "1.1.1",
     "imports-loader": "0.8.0",
-    "mathjs": "9.2.0",
+    "mathjs": "9.3.2",
     "material-ui-phone-number": "2.2.6",
     "mobx": "6.1.7",
     "mui-datatables": "3.6.0",
