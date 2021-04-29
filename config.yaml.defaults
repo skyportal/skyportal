@@ -170,6 +170,7 @@ app:
     # section above (as well as other grid characteristics).
     WeatherWidget:
       resizeable: true
+      minW: 2
       layouts:
         xlg: [0, 10, 4, 1]
         lg: [0, 10, 4, 1]
@@ -181,6 +182,7 @@ app:
       props:
         sinceDaysAgo: 7
       resizeable: true
+      minW: 1.5
       layouts:
         xlg: [14, 0, 2, 1]
         lg: [10, 0, 2, 1]
@@ -190,6 +192,7 @@ app:
 
     RecentSources:
       resizeable: true
+      minW: 2
       layouts:
         xlg: [0, 0, 5, 3]
         lg: [0, 0, 4, 3]
@@ -199,6 +202,7 @@ app:
 
     NewsFeed:
       resizeable: true
+      minW: 2
       layouts:
         xlg: [10, 0, 4, 3]
         lg: [7, 0, 3, 3]
@@ -208,6 +212,7 @@ app:
 
     TopSources:
       resizeable: true
+      minW: 2
       layouts:
         xlg: [5, 0, 5, 3]
         lg: [4, 3, 3, 3]
@@ -219,6 +224,7 @@ app:
       props:
         title: My Groups
       resizeable: true
+      minW: 1.5
       layouts:
         xlg: [14, 1, 2, 2]
         lg: [10, 1, 2, 2]
