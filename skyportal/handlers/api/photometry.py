@@ -796,9 +796,25 @@ class PhotometryHandler(BaseHandler):
 
             # posting to new streams?
             if stream_ids:
-                streams = Stream.get_if_accessible_by(stream_ids, self.current_user)
-                # update the corresponding photometry entry in the db
-                duplicate.streams.extend(streams)
+                streams = Stream.get_if_accessible_by(
+                    stream_ids, self.current_user, raise_if_none=True
+                )
+                # Add new stream_photometry rows if not already present
+                for stream in streams:
+                    if (
+                        StreamPhotometry.query_records_accessible_by(self.current_user)
+                        .filter(
+                            StreamPhotometry.stream_id == stream.id,
+                            StreamPhotometry.photometr_id == duplicate.id,
+                        )
+                        .first()
+                        is None
+                    ):
+                        DBSession().add(
+                            StreamPhotometry(
+                                photometr_id=duplicate.id, stream_id=stream.id
+                            )
+                        )
 
         # now safely drop the duplicates:
         new_photometry = df.loc[new_photometry_df_idxs]
@@ -919,12 +935,25 @@ class PhotometryHandler(BaseHandler):
 
         # Update streams, if relevant
         if stream_ids is not None:
-            streams = Stream.get_if_accessible_by(stream_ids, self.current_user)
-            if not streams:
-                return self.error(
-                    "Invalid stream_ids field. Specify at least one valid stream ID."
-                )
-            photometry.streams = streams
+            streams = Stream.get_if_accessible_by(
+                stream_ids, self.current_user, raise_if_none=True
+            )
+            # Add new stream_photometry rows if not already present
+            for stream in streams:
+                if (
+                    StreamPhotometry.query_records_accessible_by(self.current_user)
+                    .filter(
+                        StreamPhotometry.stream_id == stream.id,
+                        StreamPhotometry.photometr_id == photometry_id,
+                    )
+                    .first()
+                    is None
+                ):
+                    DBSession().add(
+                        StreamPhotometry(
+                            photometr_id=photometry_id, stream_id=stream.id
+                        )
+                    )
 
         self.verify_and_commit()
         return self.success()
