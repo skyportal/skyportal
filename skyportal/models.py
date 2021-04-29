@@ -28,7 +28,7 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
-from sqlalchemy.orm import relationship, joinedload
+from sqlalchemy.orm import relationship
 from sqlalchemy.orm import deferred
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_utils import URLType, EmailType
@@ -3173,7 +3173,10 @@ class Event(Base):
         if elem is None:
             return None
         else:
-            return elem.attrib.get('value', '').replace('http://', 'https://')
+            try:
+                return elem.attrib.get('value', '').replace('http://', 'https://')
+            except Exception:
+                return None
 
     @property
     def gracesa(self):
@@ -3187,7 +3190,10 @@ class Event(Base):
         if elem is None:
             return None
         else:
-            return elem.attrib.get('value', '')
+            try:
+                return elem.attrib.get('value', '')
+            except Exception:
+                return None
 
     @property
     def ned_gwf(self):
@@ -3203,7 +3209,10 @@ class Event(Base):
         if elem is None:
             return None
         else:
-            return 'HasNS: ' + elem.attrib.get('value', '')
+            try:
+                return 'HasNS: ' + elem.attrib.get('value', '')
+            except Exception:
+                return None
 
     @property
     def HasRemnant(self):
@@ -3214,7 +3223,10 @@ class Event(Base):
         if elem is None:
             return None
         else:
-            return 'HasRemnant: ' + elem.attrib.get('value', '')
+            try:
+                return 'HasRemnant: ' + elem.attrib.get('value', '')
+            except Exception:
+                return None
 
     @property
     def FAR(self):
@@ -3225,7 +3237,10 @@ class Event(Base):
         if elem is None:
             return None
         else:
-            return 'FAR: ' + elem.attrib.get('value', '')
+            try:
+                return 'FAR: ' + elem.attrib.get('value', '')
+            except Exception:
+                return None
 
 
 class GcnNotice(Base):
