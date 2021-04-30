@@ -756,17 +756,23 @@ class SourceHandler(BaseHandler):
                 listing_subquery, Obj.id == listing_subquery.c.obj_id
             )
         if classifications is not None or sort_by == "classification":
-            classification_subquery = Classification.query_records_accessible_by(
-                self.current_user
-            )
             if classifications is not None:
                 taxonomy_subquery = Taxonomy.query_records_accessible_by(
                     self.current_user
                 ).subquery()
+                classification_subquery = Classification.query_records_accessible_by(
+                    self.current_user,
+                    columns=[Classification, taxonomy_subquery.c.name.label("name")],
+                )
                 classification_subquery = classification_subquery.join(
                     taxonomy_subquery,
                     Classification.taxonomy_id == taxonomy_subquery.c.id,
                 )
+            else:
+                classification_subquery = Classification.query_records_accessible_by(
+                    self.current_user
+                )
+
             classification_subquery = classification_subquery.subquery()
             obj_query = obj_query.join(
                 classification_subquery,
@@ -899,7 +905,8 @@ class SourceHandler(BaseHandler):
             )
             obj_query = obj_query.filter(
                 tuple_(
-                    taxonomy_subquery.c.name, classification_subquery.c.classification
+                    classification_subquery.c.name,
+                    classification_subquery.c.classification,
                 ).in_(classifications)
             )
         source_query = apply_active_or_requested_filtering(
