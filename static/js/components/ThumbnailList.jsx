@@ -111,6 +111,10 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
             className={imgClasses}
             title={alt}
             loading="lazy"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = "/static/images/outside_survey.png";
+            }}
           />
         </a>
         {name !== "sdss" && (
