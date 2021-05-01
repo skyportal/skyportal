@@ -10,7 +10,7 @@ factory-boy==3.2.0
 astropy==4.2
 aplpy==2.0.3
 reproject==0.7.1
-avro-python3==1.10.1
+avro-python3==1.10.2
 fastavro==1.2.4
 tqdm>=4.23,<4.61
 matplotlib==3.3.4
