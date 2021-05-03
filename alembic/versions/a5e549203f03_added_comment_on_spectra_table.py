@@ -24,11 +24,6 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('modified', sa.DateTime(), nullable=False),
         sa.Column('text', sa.String(), nullable=False),
-        sa.Column(
-            'ctype',
-            sa.Enum('text', 'redshift', name='comment_types', create_type=False),
-            nullable=True,
-        ),
         sa.Column('attachment_name', sa.String(), nullable=True),
         sa.Column('attachment_bytes', sa.LargeBinary(), nullable=True),
         sa.Column('origin', sa.String(), nullable=True),

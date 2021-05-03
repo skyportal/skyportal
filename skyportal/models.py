@@ -1715,16 +1715,6 @@ Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 class CommentMixin:
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
-    ctype = sa.Column(
-        sa.Enum(
-            'text',
-            'redshift',
-            name='comment_types',
-            validate_strings=True,
-            create_type=False,
-        ),
-        doc="Comment type. Can be one of 'text' or 'redshift'.",
-    )
 
     attachment_name = sa.Column(
         sa.String, nullable=True, doc="Filename of the attachment."
