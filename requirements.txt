@@ -35,7 +35,7 @@ requests_toolbelt==0.9.1
 sendgrid==6.6.0
 twilio==6.50.1
 jsonschema-to-openapi==0.2.1
-responses==0.12.1
+responses==0.13.3
 numba==0.52.0
 pyvo==1.1
 lxml==4.6.3
