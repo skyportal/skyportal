@@ -1716,7 +1716,13 @@ class CommentMixin:
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
-        sa.Enum('text', 'redshift', name='comment_types', validate_strings=True),
+        sa.Enum(
+            'text',
+            'redshift',
+            name='comment_types',
+            validate_strings=True,
+            create_type=False,
+        ),
         doc="Comment type. Can be one of 'text' or 'redshift'.",
     )
 
