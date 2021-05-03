@@ -25,7 +25,9 @@ def upgrade():
         sa.Column('modified', sa.DateTime(), nullable=False),
         sa.Column('text', sa.String(), nullable=False),
         sa.Column(
-            'ctype', sa.Enum('text', 'redshift', name='comment_types'), nullable=True
+            'ctype',
+            sa.Enum('text', 'redshift', name='comment_types', create_type=False),
+            nullable=True,
         ),
         sa.Column('attachment_name', sa.String(), nullable=True),
         sa.Column('attachment_bytes', sa.LargeBinary(), nullable=True),
