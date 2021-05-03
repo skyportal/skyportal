@@ -16,7 +16,7 @@ tqdm>=4.23,<4.61
 matplotlib==3.3.4
 astroquery==0.4.1
 apispec==4.0.0
-marshmallow==3.10.0
+marshmallow==3.11.1
 marshmallow-sqlalchemy==0.24.3
 marshmallow-enum==1.5.1
 Pillow==8.2.0
