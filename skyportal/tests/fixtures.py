@@ -321,7 +321,7 @@ class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Comment
 
     text = f'Test comment {uuid.uuid4().hex}'
-    # ctype = 'text'
+
     author = factory.SubFactory(UserFactory)
 
     @factory.post_generation
