@@ -66,7 +66,7 @@
     "style-loader": "2.0.0",
     "styled-components": "5.2.3",
     "use-count-up": "2.3.0",
-    "vega": "5.18.0",
+    "vega": "5.20.2",
     "vega-embed": "6.17.0",
     "vega-lite": "4.17.0"
   },
