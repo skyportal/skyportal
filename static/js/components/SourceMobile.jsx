@@ -356,7 +356,7 @@ const SourceMobile = WidthProvider(
             </div>
             <Paper className={classes.comments} variant="outlined">
               <Typography className={classes.accordionHeading}>
-                Recent Comments
+                Comments
               </Typography>
               <CommentListMobile />
             </Paper>

@@ -1,3 +1,7 @@
+.comments {
+  width: 100%;
+}
+
 .commentsList {
   margin-top: 1rem;
   overflow-y: scroll;
@@ -62,6 +66,8 @@
 .commentUserName {
   font-weight: bold;
   margin-right: 0.5em;
+  white-space: nowrap;
+  color: #76aace;
 }
 
 .commentUserDomain {
@@ -92,17 +98,33 @@
   max-width: 20em;
 }
 
+.compactContainer {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  height: 25px;
+  margin: 0 15px;
+  width: 100%;
+}
+
+.compactWrap {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
 .commentDelete {
   height: 35px;
 }
 
 .commentDark .commentDelete {
-  color: #9fa8da;
-  border: 1px solid rgba(159, 168, 218, 0.5);
+  color: #b1dae9;
+  min-width: 25px;
 }
 
 .commentDark .commentDelete:hover {
-  color: #9fa8da;
-  border: 1px solid rgba(159, 168, 218);
-  background-color: rgba(159, 168, 218, 0.04);
+  color: #e63946;
 }
