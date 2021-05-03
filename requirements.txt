@@ -36,7 +36,7 @@ sendgrid==6.7.0
 twilio==6.57.0
 jsonschema-to-openapi==0.2.1
 responses==0.13.3
-numba==0.52.0
+numba==0.53.1
 pyvo==1.1
 lxml==4.6.3
 suds-py3==1.4.4.1
