@@ -31,14 +31,17 @@ const useStyles = makeStyles(() => ({
     display: "flex",
     flexDirection: "row",
     height: "60%",
+    overflow: "hidden",
+    overflowY: "scroll",
   },
   weatherBar: {
     display: "flex",
     flexDirection: "column",
-    height: "80%",
+    height: "calc(100% - 1.25rem)",
+    justifyContent: "space-around",
   },
   weatherLinks: {
-    align: "center",
+    padding: 0,
   },
   widgetsBar: {
     position: "fixed",
@@ -51,12 +54,20 @@ const useStyles = makeStyles(() => ({
   },
   selector: {
     position: "relative",
-    top: "-0.75rem",
     left: "0.75rem",
+    "& button": {
+      padding: 0,
+    },
   },
   description: {
     position: "relative",
     left: "0.5rem",
+  },
+  telescopeName: {
+    display: "inline-block",
+    maxHeight: "1.75rem",
+    maxWidth: "calc(100% - 5.5rem)",
+    overflowY: "hidden",
   },
 }));
 
@@ -184,44 +195,51 @@ const WeatherWidget = ({ classes }) => {
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
-        <Typography variant="h6" display="inline">
-          {weather?.telescope_name}
-        </Typography>
-        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-
-        {telescopeList && (
-          <div className={`${classes.widgetIcon} ${styles.selector}`}>
-            <IconButton
-              aria-controls="tel-list"
-              data-testid="tel-list-button"
-              aria-haspopup="true"
-              onClick={handleClickDropdownIcon}
-            >
-              <MoreVertIcon />
-            </IconButton>
-            <Menu
-              id="tel-list"
-              data-testid="tel-list"
-              anchorEl={anchorEl}
-              keepMounted
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
-            >
-              {telescopeList.map((telescope) => (
-                <MenuItem
-                  data-testid={telescope.name}
-                  id={telescope.name}
-                  key={telescope.id}
-                  value={telescope.id}
-                  onClick={(event) => handleMenuItemClick(event, telescope.id)}
-                  selected={telescope.id === weatherPrefs.telescopeID}
-                >
-                  {telescope.name}
-                </MenuItem>
-              ))}
-            </Menu>
-          </div>
-        )}
+        <div>
+          <Typography
+            variant="h6"
+            display="inline"
+            className={styles.telescopeName}
+          >
+            {weather?.telescope_name}
+          </Typography>
+          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+          {telescopeList && (
+            <div className={`${classes.widgetIcon} ${styles.selector}`}>
+              <IconButton
+                aria-controls="tel-list"
+                data-testid="tel-list-button"
+                aria-haspopup="true"
+                onClick={handleClickDropdownIcon}
+              >
+                <MoreVertIcon />
+              </IconButton>
+              <Menu
+                id="tel-list"
+                data-testid="tel-list"
+                anchorEl={anchorEl}
+                keepMounted
+                open={Boolean(anchorEl)}
+                onClose={handleClose}
+              >
+                {telescopeList.map((telescope) => (
+                  <MenuItem
+                    data-testid={telescope.name}
+                    id={telescope.name}
+                    key={telescope.id}
+                    value={telescope.id}
+                    onClick={(event) =>
+                      handleMenuItemClick(event, telescope.id)
+                    }
+                    selected={telescope.id === weatherPrefs.telescopeID}
+                  >
+                    {telescope.name}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </div>
+          )}
+        </div>
         <WeatherView weather={weather} />
       </div>
     </Paper>

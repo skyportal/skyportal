@@ -267,7 +267,7 @@ class PhotBaseFlexible(object):
     origin = fields.Field(
         description="Provenance of the Photometry. If a record is "
         "already present with identical origin, only the "
-        "groups list will be updated (other data assumed "
+        "groups or streams list will be updated (other data assumed "
         "identical). Defaults to None.",
         missing=None,
     )
@@ -276,6 +276,12 @@ class PhotBaseFlexible(object):
         description="List of group IDs to which photometry points will be visible. "
         "If 'all', will be shared with site-wide public group (visible to all users "
         "who can view associated source).",
+        required=False,
+        missing=[],
+    )
+
+    stream_ids = fields.Field(
+        description="List of stream IDs to which photometry points will be visible.",
         required=False,
         missing=[],
     )
@@ -457,6 +463,14 @@ class PhotBase(object):
     assignment_id = fields.Integer(
         description='ID of the classical assignment which generated the photometry',
         required=False,
+        missing=None,
+    )
+
+    origin = fields.Field(
+        description="Provenance of the Photometry. If a record is "
+        "already present with identical origin, only the "
+        "groups or streams list will be updated (other data assumed "
+        "identical). Defaults to None.",
         missing=None,
     )
 
