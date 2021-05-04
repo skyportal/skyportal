@@ -1006,6 +1006,7 @@ def grab_query_results(
     n_items_per_page,
     items_name,
     order_by=None,
+    include_thumbnails=True,
 ):
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
@@ -1089,7 +1090,7 @@ def grab_query_results(
             raise ValueError("Page number out of range.")
 
     items = []
-    query_options = [joinedload(Obj.thumbnails)]
+    query_options = [joinedload(Obj.thumbnails)] if include_thumbnails else []
     for item_id in page_ids:
         items.append(Obj.query.options(query_options).get(item_id))
     info[items_name] = items
