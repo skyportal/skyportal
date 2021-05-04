@@ -37,6 +37,16 @@ def test_token_user_retrieving_source(view_only_token, public_source):
     assert "photometry" not in data["data"]
 
 
+def test_invalid_source_name_yields_404(view_only_token):
+    status, data = api(
+        "GET",
+        "sources/invalid_source_name",
+        params={"includePhotometry": "true"},
+        token=view_only_token,
+    )
+    assert status == 404
+
+
 def test_token_user_retrieving_source_with_phot(view_only_token, public_source):
     status, data = api(
         "GET",
