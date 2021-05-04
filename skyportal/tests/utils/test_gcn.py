@@ -3,7 +3,7 @@ import numpy as np
 from astropy.time import Time
 
 from skyportal.utils.gcn import GCNHandler
-from skyportal.models import Event, Localization
+from skyportal.models import GcnEvent, Localization
 
 
 def test_gcn():
@@ -13,7 +13,7 @@ def test_gcn():
 
     dateobs = Time("2019-04-25 08:18:05", format='iso').datetime
 
-    event = Event.query.filter_by(dateobs=dateobs).one()
+    event = GcnEvent.query.filter_by(dateobs=dateobs).one()
     assert event.dateobs == dateobs
     assert 'GW' in event.tags
 

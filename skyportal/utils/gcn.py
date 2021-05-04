@@ -11,9 +11,9 @@ from baselayer.app.model_util import status
 from skyportal.models import (
     init_db,
     DBSession,
-    Event,
+    GcnEvent,
     GcnNotice,
-    Tag,
+    GcnTag,
     Localization,
 )
 
@@ -328,12 +328,12 @@ class GCNHandler:
         dateobs = self.get_dateobs()
 
         try:
-            event = Event.query.filter_by(dateobs=dateobs).one()
+            event = GcnEvent.query.filter_by(dateobs=dateobs).one()
         except NoResultFound:
-            event = DBSession().merge(Event(dateobs=dateobs))
+            event = DBSession().merge(GcnEvent(dateobs=dateobs))
             DBSession().commit()
 
-        tags = [Tag(dateobs=event.dateobs, text=_) for _ in self.get_tags()]
+        tags = [GcnTag(dateobs=event.dateobs, text=_) for _ in self.get_tags()]
 
         gcn_notice = GcnNotice(
             content=self.payload,

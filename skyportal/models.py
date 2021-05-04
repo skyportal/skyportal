@@ -3126,7 +3126,7 @@ class SourceNotification(Base):
     level = sa.Column(sa.String(), nullable=False)
 
 
-class Event(Base):
+class GcnEvent(Base):
     """Event information, including an event ID, mission, and time of the event."""
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
@@ -3136,11 +3136,11 @@ class Event(Base):
     gcn_notices = relationship(lambda: GcnNotice, order_by=lambda: GcnNotice.date)
 
     _tags = relationship(
-        lambda: Tag,
+        lambda: GcnTag,
         order_by=lambda: (
-            sa.func.lower(Tag.text).notin_({'fermi', 'swift', 'amon', 'lvc'}),
-            sa.func.lower(Tag.text).notin_({'long', 'short'}),
-            sa.func.lower(Tag.text).notin_({'grb', 'gw', 'transient'}),
+            sa.func.lower(GcnTag.text).notin_({'fermi', 'swift', 'amon', 'lvc'}),
+            sa.func.lower(GcnTag.text).notin_({'long', 'short'}),
+            sa.func.lower(GcnTag.text).notin_({'grb', 'gw', 'transient'}),
         ),
     )
 
@@ -3266,7 +3266,7 @@ class GcnNotice(Base):
 
     dateobs = sa.Column(
         sa.DateTime,
-        sa.ForeignKey(Event.dateobs),
+        sa.ForeignKey(GcnEvent.dateobs),
         nullable=False,
         comment='UTC event timestamp',
     )
@@ -3327,7 +3327,7 @@ class Localization(Base):
 
     dateobs = sa.Column(
         sa.DateTime,
-        sa.ForeignKey(Event.dateobs),
+        sa.ForeignKey(GcnEvent.dateobs),
         nullable=False,
         comment='UTC event timestamp',
     )
@@ -3435,13 +3435,13 @@ class Localization(Base):
             return (self.flat_2d,)
 
 
-class Tag(Base):
+class GcnTag(Base):
     """Store qualitative tags for events."""
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     dateobs = sa.Column(
-        sa.DateTime, sa.ForeignKey(Event.dateobs), nullable=False, primary_key=True
+        sa.DateTime, sa.ForeignKey(GcnEvent.dateobs), nullable=False, primary_key=True
     )
 
     text = sa.Column(sa.Unicode, nullable=False, primary_key=True)
