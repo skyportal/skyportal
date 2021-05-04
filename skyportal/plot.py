@@ -1361,6 +1361,10 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         + legend_row_height * int(len(split) / legend_items_per_row)
         + 30  # 30 is the height of the toolbar
     )
+    # check if our legend should extend the plot height
+    plot_height_with_legend = len(spectra) * 25 + 30
+    if plot_height_with_legend > plot_height:
+        plot_height = plot_height_with_legend
 
     plot = figure(
         frame_width=frame_width,
