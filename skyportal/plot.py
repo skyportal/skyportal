@@ -1337,7 +1337,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     # These values are equivalent from the photometry plot values
     frame_width = width - 64
     aspect_ratio = 2.0
-    legend_row_height = 27
+    legend_row_height = 25
     legend_items_per_row = 1
     if device == "mobile_portrait":
         legend_items_per_row = 1
@@ -1358,7 +1358,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     elif device == "browser":
         frame_width = width - 200
         aspect_ratio = 2.0
-        legend_row_height = 27
+        legend_row_height = 25
         legend_items_per_row = 1
     plot_height = (
         math.floor(width / aspect_ratio)
