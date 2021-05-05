@@ -1336,6 +1336,9 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
 
     # These values are equivalent from the photometry plot values
     frame_width = width - 64
+    aspect_ratio = 2.0
+    legend_row_height = 15
+    legend_items_per_row = 1
     if device == "mobile_portrait":
         legend_items_per_row = 1
         legend_row_height = 24
@@ -1354,17 +1357,14 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         aspect_ratio = 1.8
     elif device == "browser":
         frame_width = width - 200
+        aspect_ratio = 2.3
+        legend_row_height = 15
+        legend_items_per_row = 1
     plot_height = (
-        400
-        if device == "browser"
-        else math.floor(width / aspect_ratio)
+        math.floor(width / aspect_ratio)
         + legend_row_height * int(len(split) / legend_items_per_row)
         + 30  # 30 is the height of the toolbar
     )
-    # check if our legend should extend the plot height
-    plot_height_with_legend = len(spectra) * 25 + 30
-    if plot_height_with_legend > plot_height:
-        plot_height = plot_height_with_legend
 
     plot = figure(
         frame_width=frame_width,
@@ -1576,7 +1576,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
 
     # Add some height for the checkboxes and sliders
     if device == "mobile_portrait":
-        height = plot_height + 420
+        height = plot_height + 440
     elif device == "mobile_landscape":
         height = plot_height + 370
     else:
