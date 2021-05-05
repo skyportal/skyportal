@@ -146,7 +146,6 @@ class TestRouteHandler(tornado.web.RequestHandler):
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()
-        print(cache)
         with my_vcr.use_cassette(cache, record_mode="new_episodes") as cass:
             base_route = self.request.uri.split("?")[0]
 
@@ -214,7 +213,6 @@ class TestRouteHandler(tornado.web.RequestHandler):
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()
-        print(cache)
         match_on = ['uri', 'method', 'body']
         if self.request.uri == "/node_agent2/node_agent":
             match_on = ["lt"]
