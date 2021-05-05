@@ -1576,11 +1576,11 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
 
     # Add some height for the checkboxes and sliders
     if device == "mobile_portrait":
-        height = plot_height + 400
+        height = plot_height + 420
     elif device == "mobile_landscape":
-        height = plot_height + 350
+        height = plot_height + 370
     else:
-        height = plot_height + 200
+        height = plot_height + 220
 
     row2 = row(elements_groups)
     row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
