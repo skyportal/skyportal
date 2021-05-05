@@ -105,28 +105,21 @@ def lco_request_matcher(r1, r2):
 
     r1_uri = r1.uri.replace(":443", "")
     r2_uri = r2.uri.replace(":443", "")
-    delete_pattern = r"/api/requestgroups/[0-9]+/cancel/"
-    update_pattern = r"/api/requestgroups/[0-9]+/"
-    submit_pattern = r"/api/requestgroups/"
 
-    # Classify r1
-    if re.search(delete_pattern, r1_uri) is not None:
-        r1_type = "delete"
-    elif re.search(update_pattern, r1_uri) is not None:
-        r1_type = "update"
-    elif re.search(submit_pattern, r1_uri) is not None:
-        r1_type = "submit"
-    else:
-        r1_type = None
-    # Classify r2
-    if re.search(delete_pattern, r2_uri) is not None:
-        r2_type = "delete"
-    elif re.search(update_pattern, r2_uri) is not None:
-        r2_type = "update"
-    elif re.search(submit_pattern, r2_uri) is not None:
-        r2_type = "submit"
-    else:
-        r2_type = None
+    def submit_type(uri):
+        patterns = {
+            "delete": r"/api/requestgroups/[0-9]+/cancel/$",
+            "update": r"/api/requestgroups/[0-9]+/$",
+            "submit": r"/api/requestgroups/$",
+        }
+        for (submit_type, pattern) in patterns.items():
+            if re.search(pattern, uri) is not None:
+                return submit_type
+
+        return None
+
+    r1_type = submit_type(r1_uri)
+    r2_type = submit_type(r2_uri)
 
     assert r1_type == r2_type and r1.method == r2.method
 
