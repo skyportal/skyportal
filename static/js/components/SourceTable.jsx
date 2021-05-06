@@ -448,12 +448,12 @@ const SourceTable = ({
     return <FavoritesButton sourceID={objid} />;
   };
 
-  const renderAlias = (dataIndex) => {
-    const { id: objid, alias } = sources[dataIndex];
+  const renderOrigin = (dataIndex) => {
+    const { id: objid, origin } = sources[dataIndex];
 
     return (
-      <Link to={`/source/${objid}`} key={`${objid}_alias`}>
-        {alias}
+      <Link to={`/source/${objid}`} key={`${objid}_origin`}>
+        {origin}
       </Link>
     );
   };
@@ -729,12 +729,12 @@ const SourceTable = ({
       },
     },
     {
-      name: "Alias",
+      name: "Origin",
       options: {
         filter: false,
         sort: false,
-        display: displayedColumns.includes("Alias"),
-        customBodyRenderLite: renderAlias,
+        display: displayedColumns.includes("Origin"),
+        customBodyRenderLite: renderOrigin,
       },
     },
     {
@@ -933,7 +933,7 @@ SourceTable.propTypes = {
       id: PropTypes.string,
       ra: PropTypes.number,
       dec: PropTypes.number,
-      alias: PropTypes.string,
+      origin: PropTypes.string,
       redshift: PropTypes.number,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({
