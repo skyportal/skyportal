@@ -61,11 +61,6 @@ class CommentHandler(BaseHandler):
         if comment_on_what is None:
             comment_on_what = 'object'
 
-        if type(comment_on_what) != str:
-            return self.error(
-                f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
-            )
-
         if comment_on_what.lower() == "object":  # comment on object (default)
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
@@ -77,7 +72,7 @@ class CommentHandler(BaseHandler):
         # add more options using elif
         else:
             return self.error(
-                f'Wrong input "{comment_on_what}" given as "comment_on_what" argument.'
+                f'Unsupported input "{comment_on_what}" given as "comment_on_what" argument.'
             )
 
         return self.success(data=comment)
@@ -266,11 +261,6 @@ class CommentHandler(BaseHandler):
         if comment_on_what is None:
             comment_on_what = 'object'
 
-        if type(comment_on_what) != str:
-            return self.error(
-                f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
-            )
-
         if comment_on_what.lower() == "object":  # comment on object
             schema = Comment.__schema__()
             c = Comment.get_if_accessible_by(
@@ -284,7 +274,7 @@ class CommentHandler(BaseHandler):
         # add more options using elif
         else:
             return self.error(
-                f'Wrong input "{comment_on_what}" given as "comment_on_what" argument.'
+                f'Unsupported input "{comment_on_what}" given as "comment_on_what" argument.'
             )
 
         data = self.get_json()
@@ -354,11 +344,6 @@ class CommentHandler(BaseHandler):
         if comment_on_what is None:
             comment_on_what = 'object'
 
-        if type(comment_on_what) != str:
-            return self.error(
-                f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
-            )
-
         if comment_on_what.lower() == "object":  # comment on object
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="delete", raise_if_none=True
@@ -370,7 +355,7 @@ class CommentHandler(BaseHandler):
         # add more options using elif
         else:
             return self.error(
-                f'Wrong input "{comment_on_what}" given as "comment_on_what" argument.'
+                f'Unsupported input "{comment_on_what}" given as "comment_on_what" argument.'
             )
 
         obj_key = c.obj.internal_key
@@ -438,11 +423,6 @@ class CommentAttachmentHandler(BaseHandler):
         if comment_on_what is None:
             comment_on_what = 'object'
 
-        if type(comment_on_what) != str:
-            return self.error(
-                f'Wrong input type {type(comment_on_what)} given as "comment_on_what" argument'
-            )
-
         if comment_on_what.lower() == "object":  # comment on object
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
@@ -454,7 +434,7 @@ class CommentAttachmentHandler(BaseHandler):
         # add more options using elif
         else:
             return self.error(
-                f'Wrong input "{comment_on_what}" given as "comment_on_what" argument.'
+                f'Unsupported input "{comment_on_what}" given as "comment_on_what" argument.'
             )
 
         self.verify_and_commit()
