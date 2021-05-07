@@ -46,8 +46,8 @@ class UserObjListHandler(BaseHandler):
             name of the list to retrieve objects from.
             If not given will return all objects
             saved by the user to all lists.
-          tags:
-            -listings
+        tags:
+        - listings
         responses:
           200:
             content:
@@ -75,7 +75,7 @@ class UserObjListHandler(BaseHandler):
         ---
         description: Add a listing.
         tags:
-            -listings
+        - listings
         requestBody:
           content:
             application/json:
@@ -170,7 +170,7 @@ class UserObjListHandler(BaseHandler):
         ---
         description: Update an existing listing
         tags:
-            -listings
+        - listings
         parameters:
         - in: path
           name: listing_id
@@ -256,7 +256,7 @@ class UserObjListHandler(BaseHandler):
         ---
         description: Remove an existing listing
         tags:
-            -listings
+        - listings
         parameters:
         - in: path
           name: listing_id
