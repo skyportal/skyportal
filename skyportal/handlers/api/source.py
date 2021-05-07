@@ -219,6 +219,18 @@ class SourceHandler(BaseHandler):
               type: string
             description: Simbad class to filter on
           - in: query
+            name: alias
+            nullable: true
+            schema:
+              type: string
+            description: additional name for the same object
+          - in: query
+            name: origin
+            nullable: true
+            schema:
+              type: string
+            description: who posted/discovered this source
+          - in: query
             name: hasTNSname
             nullable: true
             schema:
@@ -588,6 +600,8 @@ class SourceHandler(BaseHandler):
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
 
         simbad_class = self.get_query_argument('simbadClass', None)
+        alias = self.get_query_argument('alias', None)
+        origin = self.get_query_argument('origin', None)
         has_tns_name = self.get_query_argument('hasTNSname', None)
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
@@ -861,6 +875,10 @@ class SourceHandler(BaseHandler):
                 func.lower(Obj.altdata['simbad']['class'].astext)
                 == simbad_class.lower()
             )
+        if alias:
+            obj_query = obj_query.filter(Obj.alias.contains(alias.strip()))
+        if origin:
+            obj_query = obj_query.filter(Obj.origin.contains(origin.strip()))
         if has_tns_name in ['true', True]:
             obj_query = obj_query.filter(Obj.altdata['tns']['name'].isnot(None))
         if has_spectrum in ["true", True]:
@@ -964,6 +982,18 @@ class SourceHandler(BaseHandler):
         if sort_by is not None:
             if sort_by == "id":
                 order_by = [Obj.id] if sort_order == "asc" else [Obj.id.desc()]
+            elif sort_by == "Alias":
+                order_by = (
+                    [Obj.alias.nullslast()]
+                    if sort_order == "asc"
+                    else [Obj.alias.desc().nullslast()]
+                )
+            elif sort_by == "Origin":
+                order_by = (
+                    [Obj.origin.nullslast()]
+                    if sort_order == "asc"
+                    else [Obj.origin.desc().nullslast()]
+                )
             elif sort_by == "ra":
                 order_by = (
                     [Obj.ra.nullslast()]

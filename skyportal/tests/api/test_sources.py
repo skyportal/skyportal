@@ -239,6 +239,8 @@ def test_cannot_update_source_without_permission(view_only_token, public_source)
 
 def test_token_user_post_new_source(upload_data_token, view_only_token, public_group):
     obj_id = str(uuid.uuid4())
+    alias = str(uuid.uuid4())
+    origin = str(uuid.uuid4())
     t0 = datetime.now(timezone.utc)
     status, data = api(
         "POST",
@@ -251,6 +253,8 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
             "transient": False,
             "ra_dis": 2.3,
             "group_ids": [public_group.id],
+            "alias": alias,
+            "origin": origin,
         },
         token=upload_data_token,
     )
@@ -264,6 +268,9 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
 
     saved_at = parser.parse(data["data"]["groups"][0]["saved_at"] + " UTC")
     assert abs(saved_at - t0) < timedelta(seconds=60)
+
+    assert alias == data["data"]["alias"]
+    assert origin == data["data"]["origin"]
 
 
 def test_cannot_post_source_with_null_radec(

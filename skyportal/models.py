@@ -594,6 +594,7 @@ class Obj(Base, ha.Point):
     score = sa.Column(sa.Float, nullable=True, doc="Machine learning score.")
 
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")
+    alias = sa.Column(sa.String, nullable=True, doc="Origin of the object.")
 
     internal_key = sa.Column(
         sa.String,

@@ -354,6 +354,8 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
     dec = 0.0
     redshift = 0.0
     altdata = {"simbad": {"class": "RRLyr"}}
+    origin = factory.LazyFunction(lambda: uuid.uuid4().hex)
+    alias = factory.LazyFunction(lambda: uuid.uuid4().hex)
 
     @factory.post_generation
     def groups(obj, create, passed_groups, *args, **kwargs):
