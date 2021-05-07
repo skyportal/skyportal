@@ -5,3 +5,5 @@ def test_fixed_location_filtering(  # noqa: E302
     driver.get(f'/observability/{public_source.id}')
     driver.wait_for_xpath(f'//*[text()="{keck1_telescope.name}"]')
     driver.wait_for_xpath_to_disappear(f'//*[text()="{hst.name}"]')
+    # Make sure a plot loads
+    driver.wait_for_xpath("//canvas")
