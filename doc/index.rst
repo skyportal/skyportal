@@ -89,6 +89,7 @@ User Guide
    database
    migrations
    permissions
+   advanced_usage
 
 Contributing
 ------------
