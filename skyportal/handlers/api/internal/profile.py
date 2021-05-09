@@ -220,4 +220,6 @@ class ProfileHandler(BaseHandler):
             self.push(action="skyportal/FETCH_RECENT_SOURCES")
         if "sourceCounts" in preferences:
             self.push(action="skyportal/FETCH_SOURCE_COUNTS")
+        if "topGcnEvents" in preferences:
+            self.push(action="skyportal/FETCH_TOP_GCNEVENTS")
         return self.success(action="skyportal/FETCH_USER_PROFILE")

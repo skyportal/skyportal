@@ -1,3 +1,4 @@
+import datetime
 import os
 import gcn
 import lxml
@@ -105,3 +106,50 @@ class GcnHandler(BaseHandler):
         DBSession().commit()
 
         return self.success()
+
+
+default_prefs = {'maxNumGcnEvents': 10, 'sinceDaysAgo': 3650}
+
+
+class GcnEventViewsHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        user_prefs = getattr(self.current_user, 'preferences', None) or {}
+        top_events_prefs = user_prefs.get('topGcnEvents', {})
+        top_events_prefs = {**default_prefs, **top_events_prefs}
+
+        max_num_events = int(top_events_prefs['maxNumGcnEvents'])
+        since_days_ago = int(top_events_prefs['sinceDaysAgo'])
+
+        cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
+        q = GcnEvent.query
+
+        events = []
+        for event in q.all():
+            if len(events) >= max_num_events:
+                continue
+            dateobs = event.dateobs
+            if dateobs < cutoff_day:
+                continue
+            tags = [_ for _ in event.tags]
+            localizations = [_.localization_name for _ in event.localizations]
+            events.append(
+                {'localizations': localizations, 'dateobs': dateobs, 'tags': tags}
+            )
+
+        return self.success(data=events)
+
+
+class LocalizationHandler(BaseHandler):
+    @auth_or_token
+    def get(self, dateobs, localization_name):
+        q = Localization.query.filter_by(
+            dateobs=dateobs, localization_name=localization_name
+        )
+        localization = q.first()
+        data = {
+            'contour': localization.contour,
+            'dateobs': localization.dateobs,
+            'localization_name': localization.localization_name,
+        }
+        return self.success(data=data)

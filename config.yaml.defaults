@@ -32,6 +32,10 @@ app:
       exact: True
     - path: "/source/:id"
       component: Source
+    - path: "/gcnevents"
+      component: GcnEventsPage
+    - path: "/gcnevents/:dateobs/:localization_name"
+      component: Localization
     - path: "/favorites"
       component: FavoritesPage
     - path: "/groups"
