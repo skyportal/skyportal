@@ -29,6 +29,15 @@ except requests.exceptions.ConnectTimeout:
 else:
     lt_isonline = True
 
+url = f"{cfg['app.lco_protocol']}://{cfg['app.lco_host']}:{cfg['app.lco_port']}/api/requestgroups/"
+lco_isonline = False
+try:
+    requests.get(url, timeout=5)
+except requests.exceptions.ConnectTimeout:
+    pass
+else:
+    lco_isonline = True
+
 if not cfg['app.ztf.port'] is None:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
 else:
@@ -41,15 +50,6 @@ except requests.exceptions.ConnectTimeout:
     pass
 else:
     ztf_isonline = True
-
-url = f"{cfg['app.lco_protocol']}://{cfg['app.lco_host']}:{cfg['app.lco_port']}/api/requestgroups/"
-lco_isonline = False
-try:
-    requests.get(url, timeout=5)
-except requests.exceptions.ConnectTimeout:
-    pass
-else:
-    lco_isonline = True
 
 
 def add_telescope_and_instrument(instrument_name, token):
@@ -146,7 +146,7 @@ def add_allocation_lco(instrument_id, group_id, token):
     assert data["status"] == "success"
     return data["data"]
 
-  
+
 def add_allocation_ztf(instrument_id, group_id, token):
     status, data = api(
         "POST",
@@ -164,13 +164,12 @@ def add_allocation_ztf(instrument_id, group_id, token):
     return data["data"]
 
 
-def add_followup_request_using_frontend_and_verify_Floyds(
+def add_followup_request_using_frontend_and_verify_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
-
-    idata = add_telescope_and_instrument("Floyds", super_admin_token)
-    add_allocation_lco(idata['id'], public_group.id, super_admin_token)
+    idata = add_telescope_and_instrument("ZTF", super_admin_token)
+    add_allocation_ztf(idata['id'], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -208,6 +207,32 @@ def add_followup_request_using_frontend_and_verify_Floyds(
     )
     driver.wait_for_xpath(
         '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]'''
+    )
+
+
+def add_followup_request_using_frontend_and_verify_Floyds(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+
+    idata = add_telescope_and_instrument("Floyds", super_admin_token)
+    add_allocation_lco(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
         f'//li[contains(text(), "Floyds")][contains(text(), "{public_group.name}")]',
         scroll_parent=True,
     )

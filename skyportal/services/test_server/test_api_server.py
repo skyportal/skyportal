@@ -124,6 +124,35 @@ def lco_request_matcher(r1, r2):
     assert r1_type == r2_type and r1.method == r2.method
 
 
+def ztf_request_matcher(r1, r2):
+    """
+    Helper function to help determine if two requests to the ZTF API are equivalent
+    """
+
+    # A request matches an LCO request if the URI and method matches
+
+    r1_uri = r1.uri.replace(":443", "")
+    r2_uri = r2.uri.replace(":443", "")
+
+    print(r1.uri, r2.uri)
+
+    def submit_type(uri):
+        patterns = {
+            "delete": r"/api/triggers/ztf",
+            "put": r"/api/triggers/ztf/",
+        }
+        for (submit_type, pattern) in patterns.items():
+            if re.search(pattern, uri) is not None:
+                return submit_type
+
+        return None
+
+    r1_type = submit_type(r1_uri)
+    r2_type = submit_type(r2_uri)
+
+    assert r1_type == r2_type and r1.method == r2.method
+
+
 class TestRouteHandler(tornado.web.RequestHandler):
     """
     This handler intercepts calls coming from SkyPortal API handlers which make
@@ -133,9 +162,75 @@ class TestRouteHandler(tornado.web.RequestHandler):
     to the SkyPortal test API server.
     """
 
+    def put(self):
+        is_wsdl = self.get_query_argument('wsdl', None)
+        if self.request.uri in ["/api/requestgroups/", "/api/triggers/ztf"]:
+            cache = get_cache_file_static()
+        else:
+            cache = get_cache_file()
+        with my_vcr.use_cassette(cache, record_mode="new_episodes") as cass:
+            base_route = self.request.uri.split("?")[0]
+
+            real_host = None
+            for route in cfg["test_server.redirects"].keys():
+                if re.match(route, base_route):
+                    real_host = cfg["test_server.redirects"][route]
+
+            if real_host is not None:
+                url = real_host + self.request.uri
+
+                # Convert Tornado HTTPHeaders object to a regular dict
+                headers = {}
+                for k, v in self.request.headers.get_all():
+                    # Multiple values for a header should be in a comma-separated list
+                    if k in headers:
+                        headers[k] += f",{v}"
+                    else:
+                        headers[k] = str(v)
+
+                if is_wsdl is not None:
+                    log(f"Forwarding WSDL call {url}")
+                    Client(url=url, headers=headers, cache=None)
+                else:
+                    log(f"Forwarding PUT call: {url}")
+                    requests.put(url, headers=headers)
+
+                # Get recorded document and pass it back
+                response = cass.responses_of(
+                    vcr.request.Request("PUT", url, "", headers)
+                )[0]
+                self.set_status(
+                    response["status"]["code"], response["status"]["message"]
+                )
+                for k, v in response["headers"].items():
+                    # Content Length may change (for the SOAP call) as we overwrite the host
+                    # in the response WSDL. Similarly, the response from this test server
+                    # will not be chunked even if the real response was.
+                    if k != "Content-Length" and not (
+                        k == "Transfer-Encoding" and "chunked" in v
+                    ):
+                        self.set_header(k, v[0])
+                if is_wsdl is not None:
+                    # Override service location in the service definition
+                    # so we can intercept the followup POST call
+                    response_body = (
+                        response["body"]["string"]
+                        .decode("utf-8")
+                        .replace(
+                            real_host, f"http://localhost:{cfg['test_server.port']}"
+                        )
+                    )
+                else:
+                    response_body = response["body"]["string"]
+                self.write(response_body)
+
+            else:
+                self.set_status(500)
+                self.write("Could not find test route redirect")
+
     def get(self):
         is_wsdl = self.get_query_argument('wsdl', None)
-        if self.request.uri == "/api/requestgroups/":
+        if self.request.uri in ["/api/requestgroups/", "/api/triggers/ztf"]:
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()
@@ -211,6 +306,8 @@ class TestRouteHandler(tornado.web.RequestHandler):
             match_on = ["lt"]
         elif "/api/requestgroups/" in self.request.uri:
             match_on = ["lco"]
+        elif self.request.uri == "/api/triggers/ztf":
+            match_on = ["ztf"]
 
         with my_vcr.use_cassette(
             cache,
@@ -283,6 +380,7 @@ if __name__ == "__main__":
     my_vcr = vcr.VCR()
     my_vcr.register_matcher("lt", lt_request_matcher)
     my_vcr.register_matcher("lco", lco_request_matcher)
+    my_vcr.register_matcher("ztf", ztf_request_matcher)
     if "test_server" in cfg:
         app = make_app()
         server = tornado.httpserver.HTTPServer(app)
