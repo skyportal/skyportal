@@ -1,4 +1,5 @@
 import re
+from typing import Mapping
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -93,7 +94,6 @@ class AnnotationHandler(BaseHandler):
                               description: New annotation ID
         """
         data = self.get_json()
-
         group_ids = data.pop('group_ids', None)
         if not group_ids:
             groups = self.current_user.accessible_groups
@@ -115,6 +115,12 @@ class AnnotationHandler(BaseHandler):
             return self.error("Input `origin` must begin with alphanumeric/underscore")
 
         annotation_data = data.get("data")
+
+        if not isinstance(annotation_data, Mapping):
+            return self.error(
+                "Invalid data: the annotation data must be an object with at least one {key: value} pair"
+            )
+
         author = self.associated_user_object
         annotation = Annotation(
             data=annotation_data,

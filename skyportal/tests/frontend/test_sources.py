@@ -526,7 +526,7 @@ def test_obj_page_unsaved_source(public_obj, driver, user):
     # wait for the plots to load
     driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
     # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//span[text()="Mg"]', timeout=20)
+    driver.wait_for_xpath('//span[text()="Mg I"]', timeout=20)
 
     driver.wait_for_xpath_to_disappear('//div[contains(@data-testid, "groupChip")]')
 
@@ -538,7 +538,7 @@ def test_show_photometry_table(public_source, driver, user):
     # wait for the plots to load
     driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
     # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//span[text()="Mg"]')
+    driver.wait_for_xpath('//span[text()="Mg I"]')
 
     driver.click_xpath('//*[@data-testid="show-photometry-table-button"]')
     driver.wait_for_xpath(f'//*[contains(text(), "Photometry of {public_source.id}")]')

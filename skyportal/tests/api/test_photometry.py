@@ -353,6 +353,7 @@ def test_post_photometry_multiple_groups(
 
 def test_post_photometry_all_groups(
     upload_data_token_two_groups,
+    user_two_groups,
     super_admin_token,
     public_source_two_groups,
     public_group,
@@ -394,8 +395,11 @@ def test_post_photometry_all_groups(
     assert data['data']['ra_unc'] is None
     assert data['data']['dec_unc'] is None
 
+    # Groups should be single user group and public group
     assert len(data['data']['groups']) == 2
-    assert data['data']['groups'][0]['name'] == cfg['misc']['public_group_name']
+    groups = [g['name'] for g in data['data']['groups']]
+    assert cfg['misc']['public_group_name'] in groups
+    assert user_two_groups.single_user_group.name in groups
 
     np.testing.assert_allclose(
         data['data']['flux'], 12.24 * 10 ** (-0.4 * (25.0 - 23.9))
@@ -2272,3 +2276,332 @@ def test_problematic_photometry_1276(
     )
     assert status == 400
     assert data['status'] == 'error'
+
+
+def test_cannot_post_negative_fluxerr(
+    upload_data_token, public_source, public_group, ztf_camera
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': -0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+    assert "Invalid value" in data['message']
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': [58000.0, 58000.4],
+            'instrument_id': ztf_camera.id,
+            'flux': [12.24, 12.43],
+            'fluxerr': [0.35, -0.031],
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+    assert "Invalid value" in data['message']
+
+
+def test_photometry_stream_read_access(
+    upload_data_token,
+    view_only_token_no_groups,
+    view_only_token_no_groups_no_streams,
+    public_source,
+    public_stream,
+    ztf_camera,
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'stream_ids': [public_stream.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    photometry_id = data['data']['ids'][0]
+
+    # this token has sufficient stream access
+    status, data = api(
+        'GET', f'photometry/{photometry_id}', token=view_only_token_no_groups
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # this token does not have sufficient stream access
+    status, data = api(
+        'GET', f'photometry/{photometry_id}', token=view_only_token_no_groups_no_streams
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+
+
+def test_photometry_stream_post_access(
+    upload_data_token_no_groups,
+    upload_data_token_no_groups_no_streams,
+    public_source,
+    public_stream,
+    ztf_camera,
+):
+    # this token has sufficient stream access to create a StreamPhotometry row
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'stream_ids': [public_stream.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_no_groups,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # this token doesn't have sufficient stream access to create a StreamPhotometry row
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58001.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 13.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'stream_ids': [public_stream.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_no_groups_no_streams,
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+
+
+def test_photometry_stream_put_access(
+    upload_data_token_no_groups,
+    upload_data_token_no_groups_no_streams,
+    upload_data_token_stream2,
+    public_source,
+    public_stream,
+    public_stream2,
+    ztf_camera,
+):
+    # this token has sufficient stream access to create a StreamPhotometry row
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'stream_ids': [public_stream.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_no_groups,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # this token doesn't have sufficient stream access to add to stream2
+    status, data = api(
+        'PUT',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58001.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 13.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'stream_ids': [public_stream2.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_no_groups_no_streams,
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+
+    # this token doesn't have sufficient stream access to create a StreamPhotometry row
+    status, data = api(
+        'PUT',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58001.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 13.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'stream_ids': [public_stream2.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_no_groups,
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+
+    # this token does have sufficient stream access to add to stream2
+    status, data = api(
+        'PUT',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58001.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 13.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'stream_ids': [public_stream2.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_stream2,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+
+def test_photometry_stream_patch_access(
+    upload_data_token_no_groups,
+    upload_data_token_no_groups_no_streams,
+    upload_data_token_no_groups_two_streams,
+    public_source,
+    public_stream,
+    public_stream2,
+    ztf_camera,
+):
+    # this token has sufficient stream access to create a StreamPhotometry row
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58000.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'stream_ids': [public_stream.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_no_groups_two_streams,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    phot_id = data['data']['ids'][0]
+
+    # this token doesn't have sufficient stream access to add to stream2
+    status, data = api(
+        'PATCH',
+        f'photometry/{phot_id}',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58001.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 13.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'stream_ids': [public_stream2.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_no_groups_no_streams,
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+
+    # this token doesn't have sufficient stream access to create a StreamPhotometry row
+    status, data = api(
+        'PATCH',
+        f'photometry/{phot_id}',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58001.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 13.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'stream_ids': [public_stream2.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_no_groups,
+    )
+    assert status == 400
+    assert data['status'] == 'error'
+
+    # this token does have sufficient stream access to add to stream2
+    status, data = api(
+        'PATCH',
+        f'photometry/{phot_id}',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 58001.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 13.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'stream_ids': [public_stream2.id],
+            'altdata': {'some_key': 'some_value'},
+        },
+        token=upload_data_token_no_groups_two_streams,
+    )
+    assert status == 200
+    assert data['status'] == 'success'

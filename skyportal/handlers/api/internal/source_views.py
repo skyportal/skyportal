@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 import tornado.web
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
-from ....models import DBSession, Obj, Source, SourceView
+from ....models import DBSession, Obj, SourceView
 from .recent_sources import first_thumbnail_info
 
 
@@ -22,19 +22,14 @@ class SourceViewsHandler(BaseHandler):
         since_days_ago = int(top_sources_prefs['sinceDaysAgo'])
         cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
         q = (
-            DBSession.query(
-                func.count(SourceView.obj_id).label('views'), SourceView.obj_id
+            SourceView.query_records_accessible_by(
+                current_user,
+                columns=[
+                    func.count(SourceView.obj_id).label('views'),
+                    SourceView.obj_id,
+                ],
             )
             .group_by(SourceView.obj_id)
-            .filter(
-                SourceView.obj_id.in_(
-                    DBSession.query(Source.obj_id).filter(
-                        Source.group_id.in_(
-                            [g.id for g in current_user.accessible_groups]
-                        )
-                    )
-                )
-            )
             .filter(SourceView.created_at >= cutoff_day)
             .order_by(desc('views'))
             .limit(max_num_sources)
@@ -49,10 +44,10 @@ class SourceViewsHandler(BaseHandler):
         )
         sources = []
         for view, obj_id in query_results:
-            s = Source.get_obj_if_readable_by(  # Returns Source.obj
+            s = Obj.get_if_accessible_by(
                 obj_id,
                 self.current_user,
-                options=[joinedload(Source.obj).joinedload(Obj.thumbnails)],
+                options=[joinedload(Obj.thumbnails)],
             )
             info = first_thumbnail_info(s.thumbnails)
             sources.append(
@@ -71,10 +66,6 @@ class SourceViewsHandler(BaseHandler):
 
     @tornado.web.authenticated
     def post(self, obj_id):
-        # Ensure user has access to source
-        Obj.get_if_readable_by(obj_id, self.current_user)
-        # This endpoint will only be hit by front-end, so this will never be a token
-
         sv = SourceView(
             obj_id=obj_id,
             username_or_token_id=self.current_user.username,

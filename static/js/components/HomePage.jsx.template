@@ -22,8 +22,6 @@ import TopSources from "./TopSources";
 import SourceCounts from "./SourceCounts";
 import WeatherWidget from "./WeatherWidget";
 
-import UninitializedDBMessage from "./UninitializedDBMessage";
-
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const useStyles = makeStyles(() => ({
@@ -38,6 +36,8 @@ const useStyles = makeStyles(() => ({
   widgetPaperDiv: {
     padding: "1rem",
     height: "100%",
+    display: "flex",
+    flexFlow: "column nowrap",
   },
   widgetPaperFillSpace: {
     height: "100%",
@@ -53,7 +53,8 @@ const defaultLayouts = {
   {%- for breakpoint in app.homepage_grid.breakpoints.keys() %}
   {{ breakpoint }}: [
     {%- for widgetName, widgetProps in app.homepage_widgets.items() %}
-    { i: "{{ widgetName }}", x: {{ widgetProps.layouts[breakpoint][0] }}, y: {{ widgetProps.layouts[breakpoint][1] }}, w: {{ widgetProps.layouts[breakpoint][2] }}, h: {{ widgetProps.layouts[breakpoint][3] }}, isResizable: {{ widgetProps.resizeable | lower }} },
+    { i: "{{ widgetName }}", x: {{ widgetProps.layouts[breakpoint][0] }}, y: {{ widgetProps.layouts[breakpoint][1] }}, w: {{ widgetProps.layouts[breakpoint][2] }}, h: {{ widgetProps.layouts[breakpoint][3] }}, isResizable: {{ widgetProps.resizeable | lower }},
+    {%- if widgetProps.minW is defined -%} minW: {{ widgetProps.minW }} {%- endif -%}},
     {%- endfor %}
   ],
   {%- endfor %}
@@ -71,10 +72,6 @@ const HomePage = () => {
 
   const groups = useSelector((state) => state.groups.user);
 
-  const sourceTableEmpty = useSelector(
-    (state) => state.dbInfo.source_table_empty
-  );
-
   const profile = useSelector((state) => state.profile);
 
   let currentLayouts =
@@ -83,10 +80,6 @@ const HomePage = () => {
       : profile.preferences.layouts;
 
   const dispatch = useDispatch();
-
-  if (sourceTableEmpty) {
-    return <UninitializedDBMessage />;
-  }
 
   const LayoutChangeHandler = (currentLayout, allLayouts) => {
     const prefs = {

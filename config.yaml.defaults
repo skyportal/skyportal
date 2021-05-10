@@ -24,6 +24,10 @@ app:
   lt_host: 161.72.57.3
   lt_port: 8080
 
+  lco_protocol: https
+  lco_host: observe.lco.global
+  lco_port: 443
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
@@ -170,6 +174,7 @@ app:
     # section above (as well as other grid characteristics).
     WeatherWidget:
       resizeable: true
+      minW: 2
       layouts:
         xlg: [0, 10, 4, 1]
         lg: [0, 10, 4, 1]
@@ -181,6 +186,7 @@ app:
       props:
         sinceDaysAgo: 7
       resizeable: true
+      minW: 1.5
       layouts:
         xlg: [14, 0, 2, 1]
         lg: [10, 0, 2, 1]
@@ -190,6 +196,7 @@ app:
 
     RecentSources:
       resizeable: true
+      minW: 2
       layouts:
         xlg: [0, 0, 5, 3]
         lg: [0, 0, 4, 3]
@@ -199,6 +206,7 @@ app:
 
     NewsFeed:
       resizeable: true
+      minW: 2
       layouts:
         xlg: [10, 0, 4, 3]
         lg: [7, 0, 3, 3]
@@ -208,6 +216,7 @@ app:
 
     TopSources:
       resizeable: true
+      minW: 2
       layouts:
         xlg: [5, 0, 5, 3]
         lg: [4, 3, 3, 3]
@@ -219,6 +228,7 @@ app:
       props:
         title: My Groups
       resizeable: true
+      minW: 1.5
       layouts:
         xlg: [14, 1, 2, 2]
         lg: [10, 1, 2, 2]
