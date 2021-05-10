@@ -20,7 +20,7 @@ class RecentSourcesHandler(BaseHandler):
         query_results = (
             Source.query_records_accessible_by(current_user)
             .filter(Source.active.is_(True))
-            .order_by(desc('created_at'))
+            .order_by(desc(Source.created_at))
             .distinct(Source.obj_id, Source.created_at)
             .limit(max_num_sources)
             .all()
@@ -53,7 +53,7 @@ class RecentSourcesHandler(BaseHandler):
             source_entry = (
                 Source.query_records_accessible_by(self.current_user)
                 .filter(Source.obj_id == obj_id)
-                .order_by(desc('created_at'))
+                .order_by(desc(Source.created_at))
                 .offset(recency_index)
                 .first()
             )
