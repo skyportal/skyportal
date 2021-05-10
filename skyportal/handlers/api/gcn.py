@@ -1,3 +1,5 @@
+# Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
+
 import datetime
 import os
 import gcn
