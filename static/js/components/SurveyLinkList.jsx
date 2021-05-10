@@ -9,26 +9,28 @@ import { ra_to_hours, dec_to_dms } from "../units";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   SurveyLinkList: {
     display: "inline-block",
   },
   SurveyLink: {
-    backgroundColor: "#eee",
-    padding: "0.2em",
-    margin: "0.2em",
+    backgroundColor: theme.palette.primary.main,
+    padding: "2px 15px",
+    margin: "3px",
     display: "inline-block",
+    color: theme.palette.secondary.main,
+    borderRadius: "5px",
   },
   submitButton: {
     border: "none",
-    backgroundColor: "transparent",
+    backgroundColor: theme.palette.primary.main,
     cursor: "pointer",
     padding: 0,
     margin: 0,
     fontWeight: "bold",
-    color: "gray",
+    color: theme.palette.secondary.main,
     textDecoration: "none",
-    fontFamily: ["Roboto", "Helvetica", "Arial", "sans-serif"],
+    borderRadius: "5px",
   },
 }));
 
@@ -223,7 +225,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       />
       <SurveyLink
         name="TNS"
-        url={`https://wis-tns.weizmann.ac.il/search?&ra=${ra}&decl=${dec}&radius=10&coords_unit=arcsec`}
+        url={`https://wis-tns.org/search?&ra=${ra}&decl=${dec}&radius=10&coords_unit=arcsec`}
       />
       <SurveyLink
         name="VizieR"
@@ -235,7 +237,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       />
       <SurveyLink
         name="WISE"
-        url={`http://irsa.ipac.caltech.edu/applications/wise/#id=Hydra_wise_wise_1&RequestClass=ServerRequest&DoSearch=true&intersect=CENTER&subsize=0.16666666800000002&mcenter=all&schema=allsky-4band&dpLevel=3a&band=1,2,3,4&UserTargetWorldPt=${ra};${dec};EQ_J2000&SimpleTargetPanel.field.resolvedBy=nedthensimbad&preliminary_data=no&coaddId=&projectId=earchName=wise_1&shortDesc=Position&isBookmarkAble=true&isDrillDownRoot=true&isSearchResult=true`}
+        url={`http://irsa.ipac.caltech.edu/applications/wise/#id=Hydra_wise_wise_1&RequestClass=ServerRequest&DoSearch=true&intersect=CENTER&subsize=0.16666666800000002&mcenter=all&schema=allsky-4band&dpLevel=3a&band=1,2,3,4&UserTargetWorldPt=${ra};${dec};EQ_J2000&SimpleTargetPanel.field.resolvedBy=nedthensimbad&preliminary_data=no&coaddId=&projectId=wise&searchName=wise_1&shortDesc=Position&isBookmarkAble=true&isDrillDownRoot=true&isSearchResult=true`}
       />
       <SurveyLink
         name="ZTF"

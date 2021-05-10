@@ -20,11 +20,11 @@ import SourceQuickView from "./SourceQuickView";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-export const useSourceListStyles = makeStyles(() => ({
+export const useSourceListStyles = makeStyles((theme) => ({
   stampContainer: {
     display: "contents",
   },
-  stamp: {
+  stamp: () => ({
     transition: "transform 0.1s",
     width: "5em",
     height: "auto",
@@ -33,10 +33,14 @@ export const useSourceListStyles = makeStyles(() => ({
       color: "rgba(255, 255, 255, 1)",
       boxShadow: "0 5px 15px rgba(51, 52, 92, 0.6)",
     },
-  },
+  }),
+  inverted: ({ invertThumbnails }) => ({
+    filter: invertThumbnails ? "invert(1)" : "unset",
+    WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
+  }),
   sourceListContainer: {
     height: "calc(100% - 3rem)",
-    overflowY: "scroll",
+    overflowY: "auto",
     marginTop: "0.625rem",
     paddingTop: "0.625rem",
   },
@@ -55,17 +59,32 @@ export const useSourceListStyles = makeStyles(() => ({
   },
   sourceInfo: {
     display: "flex",
-    flexFlow: "column wrap",
-    margin: "1rem 2rem",
-    flex: "0 1 50%",
+    flexDirection: "row",
+    margin: "10px",
+    width: "100%",
+  },
+  sourceNameContainer: {
+    display: "flex",
+    flexDirection: "column",
   },
   sourceName: {
     fontSize: "1rem",
   },
-  sourceTime: {
-    color: "gray",
+  sourceNameLink: {
+    color: theme.palette.primary.main,
+  },
+  link: {
+    color: theme.palette.warning.main,
+  },
+  quickViewContainer: {
+    display: "flex",
+    flexDirection: "column",
+    width: "45%",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   quickViewButton: {
+    minHeight: "30px",
     visibility: "hidden",
     textAlign: "center",
     display: "none",
@@ -74,11 +93,10 @@ export const useSourceListStyles = makeStyles(() => ({
     display: "flex",
     flexFlow: "column nowrap",
     justifyContent: "center",
-    marginBottom: "1rem",
-    marginLeft: "0.625rem",
+    // marginBottom: "1rem",
     transition: "all 0.3s ease",
     "&:hover": {
-      backgroundColor: "#ddd",
+      backgroundColor: theme.palette.secondary.light,
     },
     "&:hover $quickViewButton": {
       visibility: "visible",
@@ -119,6 +137,9 @@ const RecentSourcesList = ({ sources, styles }) => {
             }
           }
 
+          const imgClasses = source.is_grayscale
+            ? `${styles.stamp} ${styles.inverted}`
+            : `${styles.stamp}`;
           return (
             <li key={`recentSources_${source.obj_id}_${source.created_at}`}>
               <div
@@ -131,35 +152,39 @@ const RecentSourcesList = ({ sources, styles }) => {
                     className={styles.stampContainer}
                   >
                     <img
-                      className={styles.stamp}
+                      className={imgClasses}
                       src={source.public_url}
                       alt={source.obj_id}
                       loading="lazy"
                     />
                   </Link>
                   <div className={styles.sourceInfo}>
-                    <span className={styles.sourceName}>
-                      <Link to={`/source/${source.obj_id}`}>
-                        {`${recentSourceName}`}
-                      </Link>
-                    </span>
-                    <span>
-                      {`\u03B1, \u03B4: ${ra_to_hours(source.ra)} ${dec_to_dms(
-                        source.dec
-                      )}`}
-                    </span>
-                    {source.resaved && <span>(Source was re-saved)</span>}
-                  </div>
-                  <div className={styles.sourceTime}>
-                    <span>
-                      {dayjs().to(dayjs.utc(`${source.created_at}Z`))}
-                    </span>
+                    <div className={styles.sourceNameContainer}>
+                      <span className={styles.sourceName}>
+                        <Link to={`/source/${source.obj_id}`}>
+                          <span className={styles.sourceNameLink}>
+                            {recentSourceName}
+                          </span>
+                        </Link>
+                      </span>
+                      <span>
+                        {`\u03B1, \u03B4: ${ra_to_hours(
+                          source.ra
+                        )} ${dec_to_dms(source.dec)}`}
+                      </span>
+                      {source.resaved && <span>(Source was re-saved)</span>}
+                    </div>
+                    <div className={styles.quickViewContainer}>
+                      <span>
+                        {dayjs().to(dayjs.utc(`${source.created_at}Z`))}
+                      </span>
+                      <SourceQuickView
+                        sourceId={source.obj_id}
+                        className={styles.quickViewButton}
+                      />
+                    </div>
                   </div>
                 </div>
-                <SourceQuickView
-                  sourceId={source.obj_id}
-                  className={styles.quickViewButton}
-                />
               </div>
             </li>
           );
@@ -177,6 +202,7 @@ RecentSourcesList.propTypes = {
       dec: PropTypes.number,
       created_at: PropTypes.string.isRequired,
       public_url: PropTypes.string,
+      is_grayscale: PropTypes.bool,
       resaved: PropTypes.bool,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({
@@ -201,7 +227,10 @@ RecentSourcesList.defaultProps = {
 };
 
 const RecentSources = ({ classes }) => {
-  const styles = useSourceListStyles();
+  const invertThumbnails = useSelector(
+    (state) => state.profile.preferences.invertThumbnails
+  );
+  const styles = useSourceListStyles({ invertThumbnails });
 
   const { recentSources } = useSelector((state) => state.recentSources);
   const recentSourcesPrefs =
@@ -211,17 +240,19 @@ const RecentSources = ({ classes }) => {
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
       <div className={classes.widgetPaperDiv}>
-        <Typography variant="h6" display="inline">
-          Recently Saved Sources
-        </Typography>
-        <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-        <div className={classes.widgetIcon}>
-          <WidgetPrefsDialog
-            formValues={recentSourcesPrefs}
-            stateBranchName="recentSources"
-            title="Recent Sources Preferences"
-            onSubmit={profileActions.updateUserPreferences}
-          />
+        <div>
+          <Typography variant="h6" display="inline">
+            Recently Saved Sources
+          </Typography>
+          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
+          <div className={classes.widgetIcon}>
+            <WidgetPrefsDialog
+              initialValues={recentSourcesPrefs}
+              stateBranchName="recentSources"
+              title="Recent Sources Preferences"
+              onSubmit={profileActions.updateUserPreferences}
+            />
+          </div>
         </div>
         <RecentSourcesList sources={recentSources} styles={styles} />
       </div>

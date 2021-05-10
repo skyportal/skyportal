@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 from ...base import BaseHandler
-from ....models import User, DBSession
+from ....models import User
 
 
 class ProfileHandler(BaseHandler):
@@ -71,7 +71,11 @@ class ProfileHandler(BaseHandler):
                             preferences:
                               type: object
         """
-        user = User.query.filter(User.username == self.current_user.username).first()
+        user = (
+            User.query_records_accessible_by(self.current_user)
+            .filter(User.username == self.current_user.username)
+            .first()
+        )
         user_roles = sorted([role.id for role in user.roles])
         user_acls = sorted([acl.id for acl in user.acls])
         user_permissions = sorted(user.permissions)
@@ -91,6 +95,8 @@ class ProfileHandler(BaseHandler):
         user_info["tokens"] = user_tokens
         user_info["gravatar_url"] = user.gravatar_url or None
         user_info["preferences"] = user.preferences or {}
+        user_info["groupAdmissionRequests"] = user.group_admission_requests
+        self.verify_and_commit()
         return self.success(data=user_info)
 
     @auth_or_token
@@ -138,8 +144,9 @@ class ProfileHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
-        user = User.query.get(self.associated_user_object.id)
-        username_updated = False
+        user = User.get_if_accessible_by(
+            self.associated_user_object.id, self.current_user, mode="update"
+        )
 
         if data.get("username") is not None:
             username = data.pop("username").strip()
@@ -198,7 +205,7 @@ class ProfileHandler(BaseHandler):
         user.preferences = user_prefs
 
         try:
-            DBSession.commit()
+            self.verify_and_commit()
         except IntegrityError as e:
             if "duplicate key value violates unique constraint" in str(e):
                 return self.error(
@@ -213,9 +220,4 @@ class ProfileHandler(BaseHandler):
             self.push(action="skyportal/FETCH_RECENT_SOURCES")
         if "sourceCounts" in preferences:
             self.push(action="skyportal/FETCH_SOURCE_COUNTS")
-
-        if username_updated:
-            self.push_all(action="skyportal/FETCH_GROUPS")
-            self.push_all(action="skyportal/FETCH_USERS")
-
         return self.success(action="skyportal/FETCH_USER_PROFILE")

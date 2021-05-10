@@ -1,9 +1,20 @@
 import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
-import { makeStyles } from "@material-ui/core/styles";
+import {
+  makeStyles,
+  createMuiTheme,
+  MuiThemeProvider,
+  useTheme,
+} from "@material-ui/core/styles";
 import IconButton from "@material-ui/core/IconButton";
 import DeleteIcon from "@material-ui/icons/Delete";
+import Accordion from "@material-ui/core/Accordion";
+import AccordionSummary from "@material-ui/core/AccordionSummary";
+import AccordionDetails from "@material-ui/core/AccordionDetails";
+import Typography from "@material-ui/core/Typography";
+import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
+import MUIDataTable from "mui-datatables";
 import dayjs from "dayjs";
 
 import * as Actions from "../ducks/source";
@@ -11,8 +22,10 @@ import * as UserActions from "../ducks/users";
 
 const useStyles = makeStyles(() => ({
   container: {
-    overflowX: "scroll",
-    width: "100%",
+    margin: "1rem 0",
+  },
+  accordion: {
+    width: "99%",
   },
   assignmentTable: {
     borderSpacing: "0.7em",
@@ -26,8 +39,53 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+// Tweak responsive styling
+const getMuiTheme = (theme) =>
+  createMuiTheme({
+    palette: theme.palette,
+    overrides: {
+      MUIDataTable: {
+        paper: {
+          width: "100%",
+        },
+      },
+      MUIDataTableBodyCell: {
+        stackedCommon: {
+          overflow: "hidden",
+          "&:last-child": {
+            paddingLeft: "0.25rem",
+          },
+        },
+      },
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
+          },
+        },
+        tableCellContainer: {
+          padding: "1rem",
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0",
+            marginRight: "2rem",
+          },
+        },
+      },
+    },
+  });
+
 const AssignmentList = ({ assignments }) => {
   const styles = useStyles();
+  const theme = useTheme();
   const dispatch = useDispatch();
 
   const deleteAssignment = (id) => {
@@ -68,65 +126,129 @@ const AssignmentList = ({ assignments }) => {
       dayjs(observingRunDict[b.run_id].calendar_date).unix()
   );
 
+  const renderRunId = (value) => <a href={`/run/${value}`}>{value}</a>;
+
+  const renderRequester = (value, tableMeta) => {
+    const { requester_id } = assignments[tableMeta.rowIndex];
+    const requester = allUsers.find((user) => user.id === requester_id);
+    return requester?.username || "Loading...";
+  };
+
+  const renderInstrument = (value, tableMeta) => {
+    const { run_id } = assignments[tableMeta.rowIndex];
+    const run = observingRunList.filter((r) => r.id === run_id)[0];
+    const instrument_id = run?.instrument_id;
+    const instrument = instrumentList.filter((i) => i.id === instrument_id)[0];
+    return instrument?.name || "Loading...";
+  };
+
+  const renderRunDate = (value, tableMeta) => {
+    const { run_id } = assignments[tableMeta.rowIndex];
+    const run = observingRunList.filter((r) => r.id === run_id)[0];
+    return run?.calendar_date || "Loading...";
+  };
+
+  const renderPI = (value, tableMeta) => {
+    const { run_id } = assignments[tableMeta.rowIndex];
+    const run = observingRunList.filter((r) => r.id === run_id)[0];
+    return run?.pi || "Loading...";
+  };
+
+  const renderDelete = (dataIndex) => {
+    const { id } = assignments[dataIndex];
+    return (
+      <span>
+        <IconButton
+          aria-label="delete-assignment"
+          onClick={() => {
+            deleteAssignment(id);
+          }}
+        >
+          <DeleteIcon />
+        </IconButton>
+      </span>
+    );
+  };
+
+  const columns = [
+    {
+      name: "run_id",
+      label: "Run Id",
+      options: {
+        customBodyRender: renderRunId,
+      },
+    },
+    {
+      name: "requester",
+      label: "Requester",
+      options: {
+        customBodyRender: renderRequester,
+      },
+    },
+    {
+      name: "instrument",
+      label: "Instrument",
+      options: {
+        customBodyRender: renderInstrument,
+      },
+    },
+    {
+      name: "runDate",
+      label: "Run Date",
+      options: {
+        customBodyRender: renderRunDate,
+      },
+    },
+    {
+      name: "pi",
+      label: "PI",
+      options: {
+        customBodyRender: renderPI,
+      },
+    },
+    { name: "priority", label: "Priority" },
+    { name: "status", label: "Status" },
+    { name: "comment", label: "Comment" },
+    {
+      name: "delete",
+      label: "Delete",
+      options: {
+        customBodyRenderLite: renderDelete,
+      },
+    },
+  ];
+
+  const options = {
+    filter: false,
+    sort: false,
+    print: true,
+    download: true,
+    search: true,
+    selectableRows: "none",
+    elevation: 0,
+    rowsPerPageOptions: [1, 10, 15],
+  };
+
   return (
     <div className={styles.container}>
-      <table className={styles.assignmentTable}>
-        <thead>
-          <tr>
-            <th>Run Id</th>
-            <th>Requester</th>
-            <th>Instrument</th>
-            <th>Run Date</th>
-            <th>PI</th>
-            <th>Priority</th>
-            <th>Status</th>
-            <th>Comment</th>
-            <th>Delete</th>
-          </tr>
-        </thead>
-        <tbody>
-          {assignments.map((assignment) => {
-            const { requester_id } = assignment;
-            const requester = allUsers.find((user) => user.id === requester_id);
-
-            const { run_id } = assignment;
-            const run = observingRunList.filter((r) => r.id === run_id)[0];
-
-            const instrument_id = run?.instrument_id;
-            const instrument = instrumentList.filter(
-              (i) => i.id === instrument_id
-            )[0];
-            const load = "Loading...";
-
-            return (
-              <tr key={assignment.id}>
-                <td>
-                  <a href={`/run/${assignment.run_id}`}>{assignment.run_id}</a>
-                </td>
-                <td>{requester?.username || load}</td>
-                <td>{instrument?.name || load}</td>
-                <td>{run?.calendar_date || load}</td>
-                <td>{run?.pi || load}</td>
-                <td>{assignment.priority}</td>
-                <td>{assignment.status}</td>
-                <td>{assignment.comment}</td>
-                <td>
-                  <span>
-                    <IconButton
-                      aria-label="delete-assignment"
-                      onClick={() => {
-                        deleteAssignment(assignment.id);
-                      }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <Accordion className={styles.accordion}>
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          aria-controls="observing-run-assignments"
+          id="observing-run-assignments-header"
+        >
+          <Typography variant="subtitle1">Assignments</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <MuiThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              data={assignments}
+              options={options}
+              columns={columns}
+            />
+          </MuiThemeProvider>
+        </AccordionDetails>
+      </Accordion>
     </div>
   );
 };

@@ -7,7 +7,7 @@ from sqlalchemy.exc import StatementError
 from PIL import Image, UnidentifiedImageError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Obj, Source, Thumbnail
+from ...models import DBSession, Obj, Thumbnail
 
 
 class ThumbnailHandler(BaseHandler):
@@ -16,6 +16,8 @@ class ThumbnailHandler(BaseHandler):
         """
         ---
         description: Upload thumbnails
+        tags:
+          - thumbnails
         requestBody:
           content:
             application/json:
@@ -59,7 +61,7 @@ class ThumbnailHandler(BaseHandler):
         if 'obj_id' not in data:
             return self.error("Missing required parameter: obj_id")
         obj_id = data['obj_id']
-        obj = Obj.get_if_owned_by(obj_id, self.current_user)
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj is None:
             return self.error(f"Invalid obj_id: {obj_id}")
         try:
@@ -72,7 +74,7 @@ class ThumbnailHandler(BaseHandler):
             return self.error(f"Error creating new thumbnail: {e}")
         except UnidentifiedImageError as e:
             return self.error(f"Invalid file type: {e}")
-        DBSession().commit()
+        self.verify_and_commit()
 
         return self.success(data={"id": t.id})
 
@@ -81,6 +83,8 @@ class ThumbnailHandler(BaseHandler):
         """
         ---
         description: Retrieve a thumbnail
+        tags:
+          - thumbnails
         parameters:
           - in: path
             name: thumbnail_id
@@ -97,12 +101,10 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Thumbnail.query.get(thumbnail_id)
-        if t is None:
-            return self.error(f"Could not load thumbnail with ID {thumbnail_id}")
-        # Ensure user/token has access to parent source
-        _ = Source.get_obj_if_owned_by(t.obj.id, self.current_user)
-
+        t = Thumbnail.get_if_accessible_by(
+            thumbnail_id, self.current_user, raise_if_none=True
+        )
+        self.verify_and_commit()
         return self.success(data=t)
 
     @permissions(['Manage sources'])
@@ -110,6 +112,8 @@ class ThumbnailHandler(BaseHandler):
         """
         ---
         description: Update thumbnail
+        tags:
+          - thumbnails
         parameters:
           - in: path
             name: thumbnail_id
@@ -130,11 +134,9 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Thumbnail.query.get(thumbnail_id)
-        if t is None:
-            return self.error('Invalid thumbnail ID.')
-        # Ensure user/token has access to parent source
-        _ = Source.get_obj_if_owned_by(t.obj.id, self.current_user)
+        Thumbnail.get_if_accessible_by(
+            thumbnail_id, self.current_user, mode="update", raise_if_none=True
+        )
 
         data = self.get_json()
         data['id'] = thumbnail_id
@@ -146,7 +148,7 @@ class ThumbnailHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        DBSession().commit()
+        self.verify_and_commit()
 
         return self.success()
 
@@ -155,6 +157,8 @@ class ThumbnailHandler(BaseHandler):
         """
         ---
         description: Delete a thumbnail
+        tags:
+          - thumbnails
         parameters:
           - in: path
             name: thumbnail_id
@@ -171,14 +175,11 @@ class ThumbnailHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Thumbnail.query.get(thumbnail_id)
-        if t is None:
-            return self.error('Invalid thumbnail ID.')
-        # Ensure user/token has access to parent source
-        _ = Source.get_obj_if_owned_by(t.obj.id, self.current_user)
-
-        DBSession().query(Thumbnail).filter(Thumbnail.id == int(thumbnail_id)).delete()
-        DBSession().commit()
+        t = Thumbnail.get_if_accessible_by(
+            thumbnail_id, self.current_user, mode="delete", raise_if_none=True
+        )
+        DBSession().delete(t)
+        self.verify_and_commit()
 
         return self.success()
 
@@ -207,9 +208,10 @@ def create_thumbnail(thumbnail_data, thumbnail_type, obj_id):
         file_uri=file_uri,
         public_url=f'/static/thumbnails/{obj_id}_{thumbnail_type}.png',
     )
+    with open(file_uri, 'wb') as f:
+        f.write(file_bytes)
+
     DBSession().add(t)
     DBSession().flush()
 
-    with open(file_uri, 'wb') as f:
-        f.write(file_bytes)
     return t

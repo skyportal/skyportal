@@ -16,15 +16,34 @@ from skyportal.models import DBSession
 cfg = load_config()
 
 
+def enter_comment_text(driver, comment_text):
+    comment_xpath = "//input[@name='text']"
+    comment_box = driver.wait_for_xpath(comment_xpath)
+    driver.click_xpath(comment_xpath)
+    comment_box.send_keys(comment_text)
+
+
+def add_comment(driver, comment_text):
+    enter_comment_text(driver, comment_text)
+    driver.click_xpath('//*[@name="submitCommentButton"]')
+
+
+def add_comment_and_wait_for_display(driver, comment_text):
+    add_comment(driver, comment_text)
+    try:
+        driver.wait_for_xpath(f'//p[text()="{comment_text}"]', timeout=20)
+    except TimeoutException:
+        driver.refresh()
+        driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+
+
 @pytest.mark.flaky(reruns=2)
 def test_public_source_page(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.wait_for_xpath(
-        '//label[contains(text(), "band")]', 10
-    )  # TODO how to check plot?
-    driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
+    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
+    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
@@ -37,10 +56,8 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.wait_for_xpath(
-        '//label[contains(text(), "band")]', 10
-    )  # TODO how to check plot?
-    driver.wait_for_xpath('//label[contains(text(), "Fe III")]')
+    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
+    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
@@ -95,22 +112,22 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.click_xpath('//div[@id="tax-select"]')
+    driver.click_xpath('//div[@id="root_taxonomy"]')
     driver.click_xpath(
         f'//*[text()="{tax_name} ({tax_version})"]',
         wait_clickable=False,
         scroll_parent=True,
     )
     driver.click_xpath('//*[@id="classification"]')
-    driver.wait_for_xpath('//*[@id="classification"]').send_keys(
-        "Symmetrical", Keys.ENTER
+    driver.click_xpath('//li[contains(@data-value, "Symmetrical")]', scroll_parent=True)
+    driver.click_xpath('//*[@id="probability"]')
+    driver.wait_for_xpath('//*[@id="probability"]').send_keys("1", Keys.ENTER)
+    driver.click_xpath(
+        "//*[@id='classifications-content']//span[text()='Submit']",
+        wait_clickable=False,
     )
-    driver.click_xpath("//*[@id='classificationSubmitButton']")
     # Notification
     driver.wait_for_xpath("//*[text()='Classification saved']")
-
-    # Button at top of source page
-    driver.wait_for_xpath("//span[text()[contains(., 'Save')]]")
 
     # Scroll up to get top of classifications list component in view
     classifications = driver.find_element_by_xpath(
@@ -129,26 +146,11 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
 
 @pytest.mark.flaky(reruns=2)
 def test_comments(driver, user, public_source):
-    if "TRAVIS" in os.environ:
-        pytest.xfail("Xfailing this test on Travis builds.")
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    comment_box = driver.wait_for_xpath("//input[@name='text']")
     comment_text = str(uuid.uuid4())
-    comment_box.send_keys(comment_text)
-    driver.click_xpath('//*[@name="submitCommentButton"]')
-    try:
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
-        driver.wait_for_xpath('//span[text()="a few seconds ago"]')
-    except TimeoutException:
-        driver.refresh()
-        comment_box = driver.wait_for_xpath("//input[@name='text']")
-        comment_text = str(uuid.uuid4())
-        comment_box.send_keys(comment_text)
-        driver.click_xpath('//*[@name="submitCommentButton"]')
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
-        driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+    add_comment_and_wait_for_display(driver, comment_text)
 
 
 @pytest.mark.flaky(reruns=2)
@@ -157,12 +159,11 @@ def test_comment_groups_validation(
 ):
     _, data = api("GET", "groups/public", token=super_admin_token)
     sitewide_group_id = data["data"]["id"]
-    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
+    driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    comment_box = driver.wait_for_xpath("//input[@name='text']")
     comment_text = str(uuid.uuid4())
-    comment_box.send_keys(comment_text)
+    enter_comment_text(driver, comment_text)
     driver.click_xpath("//*[text()='Customize Group Access']")
 
     # sitewide_group
@@ -180,7 +181,7 @@ def test_comment_groups_validation(
     driver.click_xpath('//*[@name="submitCommentButton"]')
     driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
     try:
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+        driver.wait_for_xpath(f'//p[text()="{comment_text}"]', timeout=20)
         driver.wait_for_xpath('//span[text()="a few seconds ago"]')
     except TimeoutException:
         driver.refresh()
@@ -193,21 +194,21 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    comment_box = driver.wait_for_xpath("//input[@name='text']")
-    driver.scroll_to_element(comment_box)
     comment_text = str(uuid.uuid4())
-    comment_box.send_keys(comment_text)
+    enter_comment_text(driver, comment_text)
     attachment_file = driver.find_element_by_css_selector('input[type=file]')
     attachment_file.send_keys(
         pjoin(os.path.dirname(os.path.dirname(__file__)), 'data', 'spec.csv')
     )
     driver.click_xpath('//*[@name="submitCommentButton"]')
     try:
-        comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
+        comment_text_p = driver.wait_for_xpath(
+            f'//p[text()="{comment_text}"]', timeout=20
+        )
     except TimeoutException:
         driver.refresh()
-        comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
-    comment_div = comment_text_div.find_element_by_xpath("..")
+        comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+    comment_div = comment_text_p.find_element_by_xpath("../..")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
 
@@ -261,22 +262,16 @@ def test_delete_comment(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    comment_box = driver.wait_for_xpath("//input[@name='text']")
     comment_text = str(uuid.uuid4())
-    comment_box.send_keys(comment_text)
-    driver.click_xpath('//*[@name="submitCommentButton"]')
-    try:
-        comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
-    except TimeoutException:
-        driver.refresh()
-        comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
-    comment_div = comment_text_div.find_element_by_xpath("..")
+    add_comment_and_wait_for_display(driver, comment_text)
+    comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+    comment_div = comment_text_p.find_element_by_xpath("../..")
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']"
     )
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-    ActionChains(driver).move_to_element(comment_div).perform()
+    ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
     driver.execute_script("arguments[0].click();", delete_button)
     try:
         driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
@@ -295,7 +290,7 @@ def test_delete_comment(driver, user, public_source):
                 f"//*[@name='deleteCommentButton{comment_id}']"
             )
             driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-            ActionChains(driver).move_to_element(comment_div).perform()
+            ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
             driver.execute_script("arguments[0].click();", delete_button)
             driver.wait_for_xpath_to_disappear(f'//p[text()="{comment_text}"]')
 
@@ -307,26 +302,18 @@ def test_regular_user_cannot_delete_unowned_comment(
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    comment_box = driver.wait_for_xpath("//input[@name='text']")
     comment_text = str(uuid.uuid4())
-    comment_box.send_keys(comment_text)
-    submit_button = driver.find_element_by_xpath('//*[@name="submitCommentButton"]')
-    submit_button.click()
-    try:
-        comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
-    except TimeoutException:
-        driver.refresh()
-        comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
+    add_comment_and_wait_for_display(driver, comment_text)
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
-    comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
-    comment_div = comment_text_div.find_element_by_xpath("..")
+    comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+    comment_div = comment_text_p.find_element_by_xpath("../..")
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
     delete_button = comment_div.find_element_by_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']"
     )
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
-    ActionChains(driver).move_to_element(comment_div).perform()
+    ActionChains(driver).move_to_element(comment_div).pause(0.1).perform()
     assert not delete_button.is_displayed()
 
 
@@ -337,24 +324,19 @@ def test_super_user_can_delete_unowned_comment(
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    comment_box = driver.wait_for_xpath("//input[@name='text']")
     comment_text = str(uuid.uuid4())
-    driver.scroll_to_element_and_click(comment_box)
-    comment_box.send_keys(comment_text)
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//*[@name="submitCommentButton"]')
-    )
+    add_comment_and_wait_for_display(driver, comment_text)
 
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
 
-    comment_text_div = driver.wait_for_xpath(f'//div[./p[text()="{comment_text}"]]')
-    comment_div = comment_text_div.find_element_by_xpath("..")
+    comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+    comment_div = comment_text_p.find_element_by_xpath("../..")
     comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
 
     # wait for delete button to become interactible - hence pause 0.1
-    driver.scroll_to_element(comment_text_div)
-    ActionChains(driver).move_to_element(comment_text_div).pause(0.1).perform()
+    driver.scroll_to_element(comment_text_p)
+    ActionChains(driver).move_to_element(comment_text_p).pause(0.1).perform()
 
     delete_button = driver.wait_for_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']"
@@ -375,8 +357,6 @@ def test_show_starlist(driver, user, public_source):
 def test_centroid_plot(
     driver, user, public_source, public_group, ztf_camera, upload_data_token
 ):
-    if "TRAVIS" in os.environ:
-        pytest.xfail("Xfailing this test on Travis builds.")
     # Put in some actual photometry data first
     status, data = api(
         'POST',
@@ -438,24 +418,19 @@ def test_centroid_plot(
             pytest.fail("Missing centroid plot baseline image for comparison")
         expected_plot = Image.open(expected_plot_path)
 
-        difference = ImageChops.difference(generated_plot, expected_plot)
+        difference = ImageChops.difference(
+            generated_plot.convert('RGB'), expected_plot.convert('RGB')
+        )
         assert difference.getbbox() is None
 
 
 def test_dropdown_facility_change(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath('//span[text()="Show Starlist"]')
-    )
+    driver.click_xpath('//*[text()="Show Starlist"]')
     driver.wait_for_xpath("//code/div/pre[text()[contains(., 'raoffset')]]", timeout=45)
-
-    xpath = '//*[@id="mui-component-select-StarListSelectElement"]'
-    element = driver.wait_for_xpath(xpath)
-    ActionChains(driver).move_to_element(element).click_and_hold().perform()
-    xpath = '//li[@data-value="P200"]'
-    element = driver.wait_for_xpath(xpath)
-    ActionChains(driver).move_to_element(element).click_and_hold().perform()
+    driver.click_xpath('//*[@id="mui-component-select-StarListSelectElement"]')
+    driver.click_xpath('//li[@data-value="P200"]')
     driver.wait_for_xpath("//code/div/pre[text()[contains(., 'dist')]]", timeout=45)
 
 
@@ -496,6 +471,7 @@ def test_unsave_from_group(
     )
 
 
+@pytest.mark.flaky(reruns=2)
 def test_request_group_to_save_then_save(
     driver, user, user_two_groups, public_source, public_group2
 ):
@@ -507,7 +483,10 @@ def test_request_group_to_save_then_save(
         f'//*[@data-testid="inviteGroupCheckbox_{public_group2.id}"]',
         scroll_parent=True,
     )
-    driver.click_xpath(f'//button[@name="editSourceGroupsButton_{public_source.id}"]')
+    driver.click_xpath(
+        f'//button[@name="editSourceGroupsButton_{public_source.id}"]',
+        scroll_parent=True,
+    )
     driver.wait_for_xpath('//*[text()="Source groups updated successfully"]')
     driver.get(f"/become_user/{user_two_groups.id}")
     driver.get(f"/group_sources/{public_group2.id}")
@@ -540,33 +519,113 @@ def test_update_redshift_and_history(driver, user, public_source):
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
 
 
-@pytest.mark.flaky(reruns=2)
-def test_set_redshift_via_comments_and_history(driver, user, public_source):
-    if "TRAVIS" in os.environ:
-        pytest.xfail("Xfailing this test on Travis builds.")
-    driver.get(f"/become_user/{user.id}")
-    driver.get(f"/source/{public_source.id}")
-    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    comment_box = driver.wait_for_xpath("//input[@name='text']")
-    comment_text = "z=0.3131"
-    comment_box.send_keys(comment_text)
-    driver.click_xpath('//*[@name="submitCommentButton"]')
-
-    driver.click_xpath(
-        "//*[@data-testid='redshiftHistoryIconButton']", wait_clickable=False
-    )
-    driver.wait_for_xpath("//th[text()='Set By']")
-    driver.wait_for_xpath("//td[text()='0.3131']")
-    driver.wait_for_xpath(f"//td[text()='{user.username}']")
-
-
 def test_obj_page_unsaved_source(public_obj, driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_obj.id}")
 
     # wait for the plots to load
-    driver.wait_for_xpath('//div[@class="bk-root"]//span[text()="Flux"]', timeout=20)
+    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
     # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//div[@class="bk-root"]//label[text()="Mg"]', timeout=20)
+    driver.wait_for_xpath('//span[text()="Mg I"]', timeout=20)
 
     driver.wait_for_xpath_to_disappear('//div[contains(@data-testid, "groupChip")]')
+
+
+def test_show_photometry_table(public_source, driver, user):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+
+    # wait for the plots to load
+    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
+    # this waits for the spectroscopy plot by looking for the element Mg
+    driver.wait_for_xpath('//span[text()="Mg I"]')
+
+    driver.click_xpath('//*[@data-testid="show-photometry-table-button"]')
+    driver.wait_for_xpath(f'//*[contains(text(), "Photometry of {public_source.id}")]')
+
+    driver.click_xpath('//*[@data-testid="close-photometry-table-button"]')
+    driver.wait_for_xpath_to_disappear(
+        '//*[@data-testid="close-photometry-table-button"]'
+    )
+
+
+def test_javascript_sexagesimal_conversion(public_source, driver, user):
+    public_source.ra = 342.0708127
+    public_source.dec = 56.1130711
+    DBSession().commit()
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath('//*[contains(., "22:48:17.00")]')
+    driver.wait_for_xpath('//*[contains(., "+56:06:47.06")]')
+    public_source.ra = 75.6377796
+    public_source.dec = 15.606709
+    DBSession().commit()
+    driver.refresh()
+    driver.wait_for_xpath('//*[contains(., "05:02:33.07")]')
+    driver.wait_for_xpath('//*[contains(., "+15:36:24.15")]')
+
+
+def test_source_hr_diagram(driver, user, public_source, annotation_token):
+
+    driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
+
+    status, data = api(
+        'POST',
+        'annotation',
+        data={
+            'obj_id': public_source.id,
+            'origin': 'cross_match1',
+            'data': {
+                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20}
+            },
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
+    driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
+
+    driver.wait_for_xpath('//*[@id="hr-diagram-content"]')
+
+    try:
+        # Look for Suspense fallback to show
+        loading_text = "Loading HR diagram..."
+        driver.wait_for_xpath(f'//div[text()="{loading_text}"]')
+        driver.wait_for_xpath_to_disappear(f'//div[text()="{loading_text}"]')
+
+    except TimeoutException:
+        # The plot may have loaded too quickly to catch the Suspense div
+        driver.wait_for_xpath_to_disappear(f'//div[text()="{loading_text}"]')
+
+    finally:
+        component_class_xpath = (
+            f"//div[contains(@data-testid, 'hr_diagram_{public_source.id}')]"
+        )
+        vegaplot_div = driver.wait_for_xpath(component_class_xpath)
+        assert vegaplot_div.is_displayed()
+
+        # Since Vega uses a <canvas> element, we can't examine individual
+        # components of the plot through the DOM, so just compare an image of
+        # the plot to the saved baseline
+        generated_plot_data = vegaplot_div.screenshot_as_png
+        generated_plot = Image.open(BytesIO(generated_plot_data))
+
+        expected_plot_path = os.path.abspath(
+            "skyportal/tests/data/HR_diagram_expected.png"
+        )
+
+        # Use this commented line to save a new version of the expected plot
+        # if changes have been made to the component:
+        # generated_plot.save(expected_plot_path)
+
+        if not os.path.exists(expected_plot_path):
+            pytest.fail("Missing HR diagram baseline image for comparison")
+        expected_plot = Image.open(expected_plot_path)
+
+        difference = ImageChops.difference(
+            generated_plot.convert('RGB'), expected_plot.convert('RGB')
+        )
+        assert difference.getbbox() is None

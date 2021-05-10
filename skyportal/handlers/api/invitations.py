@@ -1,6 +1,7 @@
 import uuid
+import smtplib
 import python_http_client.exceptions
-from baselayer.app.access import permissions
+from baselayer.app.access import permissions, AccessError
 from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
@@ -24,6 +25,8 @@ class InvitationHandler(BaseHandler):
         """
         ---
         description: Invite a new user
+        tags:
+          - invitations
         requestBody:
           content:
             application/json:
@@ -62,7 +65,17 @@ class InvitationHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: New invitation ID
         """
         if not cfg["invitations.enabled"]:
             return self.error("Invitations are not enabled in current deployment.")
@@ -81,7 +94,7 @@ class InvitationHandler(BaseHandler):
                 "Invalid value provided for `groupIDs`; unable to parse "
                 "all list items to integers."
             )
-        groups = DBSession().query(Group).filter(Group.id.in_(group_ids)).all()
+        groups = Group.get_if_accessible_by(group_ids, self.current_user)
         if set(group_ids).difference({g.id for g in groups}):
             return self.error(
                 "The following groupIDs elements are invalid: "
@@ -96,7 +109,8 @@ class InvitationHandler(BaseHandler):
                     "Invalid value provided for `streamIDs`; unable to parse "
                     "all list items to integers."
                 )
-            streams = DBSession().query(Stream).filter(Stream.id.in_(stream_ids)).all()
+
+            streams = Stream.get_if_accessible_by(stream_ids, self.current_user)
             if set(stream_ids).difference({s.id for s in streams}):
                 return self.error(
                     "The following streamIDs elements are invalid: "
@@ -114,8 +128,7 @@ class InvitationHandler(BaseHandler):
                 )
         else:
             streams = (
-                DBSession()
-                .query(Stream)
+                Stream.query_records_accessible_by(self.current_user, mode="read")
                 .join(GroupStream)
                 .filter(GroupStream.group_id.in_(group_ids))
                 .all()
@@ -128,31 +141,37 @@ class InvitationHandler(BaseHandler):
             return self.error("groupAdmin and groupIDs must be the same length")
 
         invite_token = str(uuid.uuid4())
-        DBSession().add(
-            Invitation(
-                token=invite_token,
-                groups=groups,
-                admin_for_groups=admin_for_groups,
-                streams=streams,
-                user_email=user_email,
-                invited_by=self.associated_user_object,
-            )
+        invitation = Invitation(
+            token=invite_token,
+            groups=groups,
+            admin_for_groups=admin_for_groups,
+            streams=streams,
+            user_email=user_email,
+            invited_by=self.associated_user_object,
         )
+        DBSession().add(invitation)
         try:
-            DBSession().commit()
+            self.verify_and_commit()
         except python_http_client.exceptions.UnauthorizedError:
             return self.error(
                 "Twilio Sendgrid authorization error. Please ensure "
                 "valid Sendgrid API key is set in server environment as "
                 "per their setup docs."
             )
-        return self.success()
+        except smtplib.SMTPAuthenticationError:
+            return self.error(
+                "SMTP authentication failed. Please ensure valid "
+                "credentials are specified in the config file."
+            )
+        return self.success(data={"id": invitation.id})
 
     @permissions(["Manage users"])
     def get(self):
         """
         ---
         description: Retrieve invitations
+        tags:
+          - invitations
         parameters:
           - in: query
             name: includeUsed
@@ -233,7 +252,7 @@ class InvitationHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid numPerPage value.")
 
-        query = Invitation.query
+        query = Invitation.query_records_accessible_by(self.current_user, mode="read")
         if not include_used:
             query = query.filter(Invitation.used.is_(False))
         if email_address is not None:
@@ -263,6 +282,7 @@ class InvitationHandler(BaseHandler):
 
         info["invitations"] = return_data
         info["totalMatches"] = int(total_matches)
+        self.verify_and_commit()
         return self.success(data=info)
 
     @permissions(["Manage users"])
@@ -270,6 +290,8 @@ class InvitationHandler(BaseHandler):
         """
         ---
         description: Update a pending invitation
+        tags:
+          - invitations
         requestBody:
           content:
             application/json:
@@ -291,33 +313,52 @@ class InvitationHandler(BaseHandler):
                 schema: Success
         """
         data = self.get_json()
-        invitation = Invitation.query.get(invitation_id)
+        try:
+            invitation = Invitation.get_if_accessible_by(
+                invitation_id, self.current_user, raise_if_none=True, mode="update"
+            )
+        except AccessError as e:
+            return self.error(
+                "Insufficient permissions: Only the invitor may update an invitation. "
+                f"(Original exception: {e})"
+            )
+
         group_ids = data.get("groupIDs")
         stream_ids = data.get("streamIDs")
         if group_ids is None and stream_ids is None:
             return self.error(
-                "At least one of either groupIDs or streamIDs are requried."
+                "At least one of either groupIDs or streamIDs are required."
             )
         if group_ids is not None:
             group_ids = [int(gid) for gid in group_ids]
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            groups = Group.get_if_accessible_by(group_ids, self.current_user)
             if set(group_ids).difference({g.id for g in groups}):
                 return self.error(
                     "The following groupIDs elements are invalid: "
                     f"{set(group_ids).difference({g.id for g in groups})}"
                 )
         else:
-            groups = invitation.groups
+            groups = (
+                Group.query_records_accessible_by(self.current_user, mode="read")
+                .join(GroupInvitation)
+                .filter(GroupInvitation.invitation_id == invitation.id)
+                .all()
+            )
         if stream_ids is not None:
             stream_ids = [int(sid) for sid in stream_ids]
-            streams = Stream.query.filter(Stream.id.in_(stream_ids)).all()
+            streams = Stream.get_if_accessible_by(stream_ids, self.current_user)
             if set(stream_ids).difference({s.id for s in streams}):
                 return self.error(
                     "The following streamIDs elements are invalid: "
                     f"{set(stream_ids).difference({s.id for s in streams})}"
                 )
         else:
-            streams = invitation.streams
+            streams = (
+                Stream.query_records_accessible_by(self.current_user, mode="read")
+                .join(StreamInvitation)
+                .filter(StreamInvitation.invitation_id == invitation.id)
+                .all()
+            )
 
         # Ensure specified groups are covered by specified streams
         if not all([stream in streams for group in groups for stream in group.streams]):
@@ -331,7 +372,7 @@ class InvitationHandler(BaseHandler):
         if stream_ids is not None:
             invitation.streams = streams
 
-        DBSession().commit()
+        self.verify_and_commit()
         return self.success()
 
     @permissions(["Manage users"])
@@ -339,6 +380,8 @@ class InvitationHandler(BaseHandler):
         """
         ---
         description: Delete an invitation
+        tags:
+          - invitations
         parameters:
           - in: path
             name: invitation_id
@@ -351,9 +394,15 @@ class InvitationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        invitation = DBSession().query(Invitation).get(invitation_id)
-        if invitation is None:
-            return self.error("Invalid invitation ID")
+        try:
+            invitation = Invitation.get_if_accessible_by(
+                invitation_id, self.current_user, raise_if_none=True, mode="delete"
+            )
+        except AccessError as e:
+            return self.error(
+                "Insufficient permissions: Only the invitor may delete an invitation. "
+                f"(Original exception: {e})"
+            )
         DBSession().delete(invitation)
-        DBSession().commit()
+        self.verify_and_commit()
         return self.success()

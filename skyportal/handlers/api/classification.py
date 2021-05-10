@@ -1,9 +1,7 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Source, Group, Classification, Taxonomy
-from .internal.recent_sources import RecentSourcesHandler
-from .internal.source_views import SourceViewsHandler
+from ...models import DBSession, Group, Classification, Taxonomy
 
 
 class ClassificationHandler(BaseHandler):
@@ -12,6 +10,8 @@ class ClassificationHandler(BaseHandler):
         """
         ---
         description: Retrieve a classification
+        tags:
+          - classifications
         parameters:
           - in: path
             name: classification_id
@@ -28,11 +28,9 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        classification = Classification.get_if_owned_by(
-            classification_id, self.current_user
+        classification = Classification.get_if_accessible_by(
+            classification_id, self.current_user, raise_if_none=True
         )
-        if classification is None:
-            return self.error('Invalid classification ID.')
         return self.success(data=classification)
 
     @permissions(['Classify'])
@@ -40,6 +38,8 @@ class ClassificationHandler(BaseHandler):
         """
         ---
         description: Post a classification
+        tags:
+          - classifications
         requestBody:
           content:
             application/json:
@@ -93,32 +93,20 @@ class ClassificationHandler(BaseHandler):
         """
         data = self.get_json()
         obj_id = data['obj_id']
-        # Ensure user/token has access to parent source
-        source = Source.get_obj_if_owned_by(obj_id, self.current_user)
-        if source is None:
-            return self.error("Invalid source.")
+
         user_group_ids = [g.id for g in self.current_user.groups]
-        user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         group_ids = data.pop("group_ids", user_group_ids)
-        group_ids = [gid for gid in group_ids if gid in user_accessible_group_ids]
-        if not group_ids:
-            return self.error(
-                f"Invalid group IDs field ({group_ids}): "
-                "You must provide one or more valid group IDs."
-            )
-        groups = Group.query.filter(Group.id.in_(group_ids)).all()
+        groups = Group.get_if_accessible_by(
+            group_ids, self.current_user, raise_if_none=True
+        )
 
         author = self.associated_user_object
 
         # check the taxonomy
         taxonomy_id = data["taxonomy_id"]
-        taxonomy = Taxonomy.get_taxonomy_usable_by_user(taxonomy_id, self.current_user)
-        if len(taxonomy) == 0:
-            return self.error(
-                'That taxonomy does not exist or is not available to user.'
-            )
-        if not isinstance(taxonomy, list):
-            return self.error('Problem retrieving taxonomy')
+        taxonomy = Taxonomy.get_if_accessible_by(
+            taxonomy_id, self.current_user, raise_if_none=True
+        )
 
         def allowed_classes(hierarchy):
             if "class" in hierarchy:
@@ -128,7 +116,7 @@ class ClassificationHandler(BaseHandler):
                 for item in hierarchy.get("subclasses", []):
                     yield from allowed_classes(item)
 
-        if data['classification'] not in allowed_classes(taxonomy[0].hierarchy):
+        if data['classification'] not in allowed_classes(taxonomy.hierarchy):
             return self.error(
                 f"That classification ({data['classification']}) "
                 'is not in the allowed classes for the chosen '
@@ -154,22 +142,12 @@ class ClassificationHandler(BaseHandler):
         )
 
         DBSession().add(classification)
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': classification.obj.internal_key},
         )
-        if classification.obj_id in RecentSourcesHandler.get_recent_source_ids(
-            self.current_user
-        ):
-            self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
-
-        if classification.obj_id in map(
-            lambda view_obj_tuple: view_obj_tuple[1],
-            SourceViewsHandler.get_top_source_views_and_ids(self.current_user),
-        ):
-            self.push_all(action='skyportal/FETCH_TOP_SOURCES')
 
         self.push_all(
             action='skyportal/REFRESH_CANDIDATE',
@@ -183,6 +161,8 @@ class ClassificationHandler(BaseHandler):
         """
         ---
         description: Update a classification
+        tags:
+          - classifications
         parameters:
           - in: path
             name: classification
@@ -214,9 +194,9 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        c = Classification.get_if_owned_by(classification_id, self.current_user)
-        if c is None:
-            return self.error('Invalid classification ID.')
+        c = Classification.get_if_accessible_by(
+            classification_id, self.current_user, mode="update", raise_if_none=True
+        )
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
@@ -229,32 +209,22 @@ class ClassificationHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        DBSession().flush()
-        if group_ids is not None:
-            c = Classification.get_if_owned_by(classification_id, self.current_user)
-            groups = Group.query.filter(Group.id.in_(group_ids)).all()
-            if not groups:
-                return self.error(
-                    "Invalid group_ids field. " "Specify at least one valid group ID."
-                )
-            if not all(
-                [group in self.current_user.accessible_groups for group in groups]
-            ):
-                return self.error(
-                    "Cannot associate classification with groups you are "
-                    "not a member of."
-                )
-            c.groups = groups
-        DBSession().commit()
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key},
-        )
-        self.push_all(
-            action='skyportal/REFRESH_CANDIDATE', payload={'id': c.obj.internal_key},
-        )
-        if c.obj_id in RecentSourcesHandler.get_recent_source_ids(self.current_user):
-            self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
 
+        if group_ids is not None:
+            groups = Group.get_if_accessible_by(
+                group_ids, self.current_user, raise_if_none=True
+            )
+            c.groups = groups
+
+        self.verify_and_commit()
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': c.obj.internal_key},
+        )
+        self.push_all(
+            action='skyportal/REFRESH_CANDIDATE',
+            payload={'id': c.obj.internal_key},
+        )
         return self.success()
 
     @permissions(['Classify'])
@@ -262,6 +232,8 @@ class ClassificationHandler(BaseHandler):
         """
         ---
         description: Delete a classification
+        tags:
+          - classifications
         parameters:
           - in: path
             name: classification_id
@@ -274,26 +246,55 @@ class ClassificationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        user = self.associated_user_object
-        roles = self.current_user.roles if hasattr(self.current_user, 'roles') else []
-        c = Classification.query.get(classification_id)
-        if c is None:
-            return self.error("Invalid classification ID")
-        obj_id = c.obj_id
+        c = Classification.get_if_accessible_by(
+            classification_id, self.current_user, mode="delete", raise_if_none=True
+        )
         obj_key = c.obj.internal_key
-        author = c.author
-        if ("Super admin" in [role.id for role in roles]) or (user.id == author.id):
-            Classification.query.filter_by(id=classification_id).delete()
-            DBSession().commit()
-        else:
-            return self.error('Insufficient user permissions.')
+        DBSession().delete(c)
+        self.verify_and_commit()
+
         self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key},
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': obj_key},
         )
         self.push_all(
-            action='skyportal/REFRESH_CANDIDATE', payload={'id': obj_key},
+            action='skyportal/REFRESH_CANDIDATE',
+            payload={'id': obj_key},
         )
-        if obj_id in RecentSourcesHandler.get_recent_source_ids(self.current_user):
-            self.push_all(action='skyportal/FETCH_RECENT_SOURCES')
 
         return self.success()
+
+
+class ObjClassificationHandler(BaseHandler):
+    @auth_or_token
+    def get(self, obj_id):
+        """
+        ---
+        description: Retrieve an object's classifications
+        tags:
+          - classifications
+          - sources
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfClassifications
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        classifications = (
+            Classification.query_records_accessible_by(self.current_user)
+            .filter(Classification.obj_id == obj_id)
+            .all()
+        )
+        self.verify_and_commit()
+        return self.success(data=classifications)

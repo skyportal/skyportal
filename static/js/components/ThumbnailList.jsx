@@ -1,5 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
+import { useSelector } from "react-redux";
 
 import dayjs from "dayjs";
 import calendar from "dayjs/plugin/calendar";
@@ -14,8 +15,8 @@ import Typography from "@material-ui/core/Typography";
 dayjs.extend(calendar);
 
 const useStyles = makeStyles((theme) => ({
-  root: (props) => ({
-    width: props.size,
+  root: ({ size }) => ({
+    width: size,
     margin: "0.5rem auto",
     maxHeight: "31rem",
     flexGrow: 1,
@@ -34,25 +35,33 @@ const useStyles = makeStyles((theme) => ({
   mediaDiv: {
     position: "relative",
   },
-  media: (props) => ({
-    height: props.size,
-    width: props.size,
+  media: ({ size }) => ({
+    height: size,
+    width: size,
   }),
-  crosshair: (props) => ({
+  inverted: ({ invertThumbnails }) => ({
+    filter: invertThumbnails ? "invert(1)" : "unset",
+    WebkitFilter: invertThumbnails ? "invert(1)" : "unset",
+  }),
+  crosshair: ({ size }) => ({
     position: "absolute",
     top: 0,
     left: 0,
-    width: props.size,
-    height: props.size,
+    width: size,
+    height: size,
     paddingBottom: "0.2em",
   }),
 }));
 
-const Thumbnail = ({ ra, dec, name, url, size }) => {
+const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
   // convert mjd to unix timestamp *in ms*. 40587 is the mjd of the
   // unix timestamp epoch (1970-01-01).
 
-  const classes = useStyles({ size });
+  const invertThumbnails = useSelector(
+    (state) => state.profile.preferences.invertThumbnails
+  );
+
+  const classes = useStyles({ size, invertThumbnails });
 
   let alt = null;
   let link = null;
@@ -68,20 +77,24 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
       break;
     case "sdss":
       alt = "Link to SDSS Navigate tool";
-      link = `http://skyserver.sdss3.org/public/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.1981`;
+      link = `https://skyserver.sdss3.org/public/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.1981`;
       break;
     case "dr8":
       alt = "Link to DESI DR8 Image Access";
-      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr8&zoom=16`;
+      link = `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=ls-dr8&zoom=16&mark=radeg,decdeg`;
       break;
     case "ps1":
       alt = "Link to PanSTARRS-1 Image Access";
-      link = `http://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=${ra}+${dec}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=`;
+      link = `https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos=${ra}+${dec}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=`;
       break;
     default:
       alt = "";
       link = "";
   }
+
+  const imgClasses = grayscale
+    ? `${classes.media} ${classes.inverted}`
+    : `${classes.media}`;
 
   return (
     <Card className={classes.root} variant="outlined">
@@ -95,12 +108,18 @@ const Thumbnail = ({ ra, dec, name, url, size }) => {
           <img
             src={url}
             alt={alt}
-            className={classes.media}
+            className={imgClasses}
             title={alt}
             loading="lazy"
+            onError={(e) => {
+              if (url !== "#") {
+                e.target.onerror = null;
+                e.target.src = "/static/images/outside_survey.png";
+              }
+            }}
           />
         </a>
-        {(name === "dr8" || name === "ps1") && (
+        {name !== "sdss" && (
           <img
             className={classes.crosshair}
             src="/static/images/crosshairs.png"
@@ -118,6 +137,7 @@ Thumbnail.propTypes = {
   name: PropTypes.string.isRequired,
   url: PropTypes.string.isRequired,
   size: PropTypes.string.isRequired,
+  grayscale: PropTypes.bool.isRequired,
 };
 
 const sortThumbnailsByDate = (a, b) => {
@@ -166,6 +186,7 @@ const ThumbnailList = ({
               name={t.type}
               url={t.public_url}
               size={size}
+              grayscale={t.is_grayscale}
             />
           </Grid>
         ))}
@@ -179,6 +200,7 @@ const ThumbnailList = ({
                 name="PS1: Loading..."
                 url="#"
                 size={size}
+                grayscale={false}
               />
             </Grid>
           )}
@@ -194,6 +216,7 @@ const ThumbnailList = ({
         name={t.type}
         url={t.public_url}
         size={size}
+        grayscale={t.is_grayscale}
       />
     </Grid>
   ));

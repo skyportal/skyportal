@@ -13,6 +13,7 @@ import IconButton from "@material-ui/core/IconButton";
 import CloseIcon from "@material-ui/icons/Close";
 import Typography from "@material-ui/core/Typography";
 import Tooltip from "@material-ui/core/Tooltip";
+import grey from "@material-ui/core/colors/grey";
 
 import FilePreviewer, { FilePreviewerThumbnail } from "react-file-previewer";
 import ReactJson from "react-json-view";
@@ -22,7 +23,7 @@ import * as sourceActions from "../ducks/source";
 const useStyles = makeStyles((theme) => ({
   linkButton: {
     textDecoration: "none",
-    color: "gray",
+    color: theme.palette.info.main,
     fontWeight: "bold",
     verticalAlign: "baseline",
     backgroundColor: "transparent",
@@ -71,7 +72,7 @@ const dialogTitleStyles = (theme) => ({
     position: "absolute",
     right: theme.spacing(1),
     top: theme.spacing(1),
-    color: theme.palette.grey[500],
+    color: grey[500],
   },
 });
 
@@ -134,12 +135,20 @@ const CommentAttachmentPreview = ({ filename, commentId }) => {
     setOpen(false);
   };
 
-  const fileType = filename.includes(".") ? filename.split(".", 2)[1] : "";
+  const fileType = filename.includes(".") ? filename.split(".").pop() : "";
   const supportedType = ["png", "jpg", "jpeg", "pdf", "gif", "json"].includes(
     fileType.toLowerCase()
   );
 
-  const jsonFile = isCached ? JSON.parse(commentAttachment.attachment) : {};
+  let jsonFile = {};
+  try {
+    jsonFile = isCached ? JSON.parse(commentAttachment.attachment) : {};
+  } catch (e) {
+    jsonFile = {
+      "JSON Preview Parsing Error": `${e.message}. Please download the file if you want to inspect it.`,
+    };
+  }
+
   if (fileType.toLowerCase() === "json" && !isCached && open) {
     dispatch(sourceActions.getCommentAttachment(commentId));
   }

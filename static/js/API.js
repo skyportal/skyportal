@@ -67,8 +67,32 @@ function API(endpoint, actionType, method = "GET", body = {}, otherArgs = {}) {
   };
 }
 
-function GET(endpoint, actionType) {
-  return API(endpoint, actionType, "GET");
+export const filterOutEmptyValues = (params) => {
+  const filteredParams = {};
+  // Filter out empty fields from an object (form data)
+  Object.keys(params).forEach((key) => {
+    // Empty array ([]) counts as true, so specifically test for it
+    // Also, the number 0 may be a valid input but evaluate to false,
+    // so just let numbers through
+    if (
+      (!(Array.isArray(params[key]) && params[key].length === 0) &&
+        params[key]) ||
+      typeof key === "number"
+    ) {
+      filteredParams[key] = params[key];
+    }
+  });
+  return filteredParams;
+};
+
+function GET(endpoint, actionType, queryParams) {
+  let url = endpoint;
+  if (queryParams) {
+    const filteredQueryParams = filterOutEmptyValues(queryParams);
+    const queryString = new URLSearchParams(filteredQueryParams).toString();
+    url += `?${queryString}`;
+  }
+  return API(url, actionType, "GET");
 }
 
 function POST(endpoint, actionType, payload) {

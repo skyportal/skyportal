@@ -21,6 +21,13 @@ app:
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://pharos.caltech.edu/add_fritz
 
+  lt_host: 161.72.57.3
+  lt_port: 8080
+
+  lco_protocol: https
+  lco_host: observe.lco.global
+  lco_port: 443
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
@@ -29,6 +36,8 @@ app:
       exact: True
     - path: "/source/:id"
       component: Source
+    - path: "/favorites"
+      component: FavoritesPage
     - path: "/groups"
       component: Groups
     - path: "/group/:id"
@@ -47,8 +56,8 @@ app:
       component: About
     - path: "/run/:id"
       component: RunSummary
-    - path: "/share_data/:id"
-      component: ShareDataForm
+    - path: "/manage_data/:id"
+      component: ManageDataForm
     - path: "/filter/:fid"
       component: Filter
     - path: "/runs"
@@ -63,6 +72,11 @@ app:
       component: Observability
     - path: "/source/:id/finder"
       component: FindingChart
+    - path: "/source/:id/periodogram"
+      component: Periodogram
+    - path: "/db_stats"
+      component: DBStats
+
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -78,6 +92,10 @@ app:
     - name: Candidates
       icon: Search
       url: /candidates
+
+    - name: Favorites
+      icon: Star
+      url: /favorites
 
     - name: Groups
       icon: GroupWork
@@ -155,7 +173,8 @@ app:
     # 150px in height. The row height can be altered in the homepage_grid
     # section above (as well as other grid characteristics).
     WeatherWidget:
-      resizeable: false
+      resizeable: true
+      minW: 2
       layouts:
         xlg: [0, 10, 4, 1]
         lg: [0, 10, 4, 1]
@@ -166,7 +185,8 @@ app:
     SourceCounts:
       props:
         sinceDaysAgo: 7
-      resizeable: false
+      resizeable: true
+      minW: 1.5
       layouts:
         xlg: [14, 0, 2, 1]
         lg: [10, 0, 2, 1]
@@ -175,7 +195,8 @@ app:
         xs: [0, 0, 4, 1]
 
     RecentSources:
-      resizeable: false
+      resizeable: true
+      minW: 2
       layouts:
         xlg: [0, 0, 5, 3]
         lg: [0, 0, 4, 3]
@@ -184,7 +205,8 @@ app:
         xs: [0, 4, 4, 3]
 
     NewsFeed:
-      resizeable: false
+      resizeable: true
+      minW: 2
       layouts:
         xlg: [10, 0, 4, 3]
         lg: [7, 0, 3, 3]
@@ -193,7 +215,8 @@ app:
         xs: [0, 1, 4, 3]
 
     TopSources:
-      resizeable: false
+      resizeable: true
+      minW: 2
       layouts:
         xlg: [5, 0, 5, 3]
         lg: [4, 3, 3, 3]
@@ -204,7 +227,8 @@ app:
     GroupList:
       props:
         title: My Groups
-      resizeable: false
+      resizeable: true
+      minW: 1.5
       layouts:
         xlg: [14, 1, 2, 2]
         lg: [10, 1, 2, 2]
@@ -251,6 +275,10 @@ misc:
   cosmology: Planck18_arXiv_v2
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
+  # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
+  # consider a photometry point as a detection
+  photometry_detection_threshold_nsigma: 3.0
+
 weather:
   # time in seconds to wait before fetching weather for a given telescope
   refresh_time: 3600.0
@@ -271,9 +299,11 @@ external_logging:
     excluded_log_files: ["log/websocket_server.log"]
 
 cron:
-  - interval: 1440
-    script: jobs/delete_unsaved_candidates.py
-    limit: ["01:00", "02:00"]
+  - interval: 60
+    script: jobs/count_unsaved_candidates.py
+  # - interval: 1440
+  #   script: jobs/delete_unsaved_candidates.py
+  #   limit: ["01:00", "02:00"]
 
 twilio:
   # Twilio Sendgrid API configs
@@ -308,3 +338,14 @@ invitations:
 
 notifications:
   enabled: True
+
+standard_stars:
+  ZTF: data/ztf_standards.csv
+  ESO: data/eso_standards.csv
+
+# Parameters for the thumbnail classification function which labels
+# images as grayscale or colored. See utils/thumbnail.py for the function.
+image_grayscale_params:
+  thumb_size: 40
+  MSE_cutoff: 22
+  adjust_color_bias: True

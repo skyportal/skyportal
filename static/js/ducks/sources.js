@@ -1,22 +1,22 @@
+import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_SOURCES = "skyportal/FETCH_SOURCES";
-export const FETCH_SOURCES_OK = "skyportal/FETCH_SOURCES_OK";
-export const FETCH_SOURCES_FAIL = "skyportal/FETCH_SOURCES_FAIL";
+const FETCH_SOURCES = "skyportal/FETCH_SOURCES";
+const FETCH_SOURCES_OK = "skyportal/FETCH_SOURCES_OK";
+const FETCH_SOURCES_FAIL = "skyportal/FETCH_SOURCES_FAIL";
 
-export const FETCH_SAVED_GROUP_SOURCES = "skyportal/FETCH_SAVED_GROUP_SOURCES";
-export const FETCH_SAVED_GROUP_SOURCES_OK =
-  "skyportal/FETCH_SAVED_GROUP_SOURCES_OK";
-export const FETCH_SAVED_GROUP_SOURCES_FAIL =
-  "skyportal/FETCH_SAVED_GROUP_SOURCES_FAIL";
+const FETCH_SAVED_GROUP_SOURCES = "skyportal/FETCH_SAVED_GROUP_SOURCES";
+const FETCH_SAVED_GROUP_SOURCES_OK = "skyportal/FETCH_SAVED_GROUP_SOURCES_OK";
 
-export const FETCH_PENDING_GROUP_SOURCES =
-  "skyportal/FETCH_PENDING_GROUP_SOURCES";
-export const FETCH_PENDING_GROUP_SOURCES_OK =
+const FETCH_PENDING_GROUP_SOURCES = "skyportal/FETCH_PENDING_GROUP_SOURCES";
+const FETCH_PENDING_GROUP_SOURCES_OK =
   "skyportal/FETCH_PENDING_GROUP_SOURCES_OK";
-export const FETCH_PENDING_GROUP_SOURCES_FAIL =
-  "skyportal/FETCH_PENDING_GROUP_SOURCES_FAIL";
+
+const FETCH_FAVORITE_SOURCES = "skyportal/FETCH_FAVORITE_SOURCES";
+const FETCH_FAVORITE_SOURCES_OK = "skyportal/FETCH_FAVORITE_SOURCES_OK";
+
+const REFRESH_FAVORITE_SOURCES = "skyportal/REFRESH_FAVORITE_SOURCES";
 
 const addFilterParamDefaults = (filterParams) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
@@ -29,24 +29,40 @@ const addFilterParamDefaults = (filterParams) => {
 
 export function fetchSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
-  const params = new URLSearchParams(filterParams);
-  const queryString = params.toString();
-  return API.GET(`/api/sources?${queryString}`, FETCH_SOURCES);
+  filterParams.includePhotometryExists = true;
+  filterParams.includeSpectrumExists = true;
+  filterParams.includeColorMagnitude = true;
+  filterParams.includeThumbnails = true;
+  return API.GET("/api/sources", FETCH_SOURCES, filterParams);
 }
 
 export function fetchSavedGroupSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
-  const params = new URLSearchParams(filterParams);
-  const queryString = params.toString();
-  return API.GET(`/api/sources?${queryString}`, FETCH_SAVED_GROUP_SOURCES);
+  filterParams.includePhotometryExists = true;
+  filterParams.includeSpectrumExists = true;
+  filterParams.includeColorMagnitude = true;
+  filterParams.includeThumbnails = true;
+  return API.GET("/api/sources", FETCH_SAVED_GROUP_SOURCES, filterParams);
 }
 
 export function fetchPendingGroupSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.pendingOnly = true;
-  const params = new URLSearchParams(filterParams);
-  const queryString = params.toString();
-  return API.GET(`/api/sources?${queryString}`, FETCH_PENDING_GROUP_SOURCES);
+  filterParams.includePhotometryExists = true;
+  filterParams.includeSpectrumExists = true;
+  filterParams.includeColorMagnitude = true;
+  filterParams.includeThumbnails = true;
+  return API.GET("/api/sources", FETCH_PENDING_GROUP_SOURCES, filterParams);
+}
+
+export function fetchFavoriteSources(filterParams = {}) {
+  addFilterParamDefaults(filterParams);
+  filterParams.includePhotometryExists = true;
+  filterParams.includeSpectrumExists = true;
+  filterParams.listName = "favorites";
+  filterParams.includeColorMagnitude = true;
+  filterParams.includeThumbnails = true;
+  return API.GET("/api/sources", FETCH_FAVORITE_SOURCES, filterParams);
 }
 
 const initialState = {
@@ -55,6 +71,13 @@ const initialState = {
   totalMatches: 0,
   numPerPage: 10,
 };
+
+// Websocket message handler
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType === REFRESH_FAVORITE_SOURCES) {
+    dispatch(fetchFavoriteSources());
+  }
+});
 
 const reducer = (
   state = {
@@ -96,6 +119,12 @@ const reducer = (
       return {
         ...state,
         pendingGroupSources: action.data,
+      };
+    }
+    case FETCH_FAVORITE_SOURCES_OK: {
+      return {
+        ...state,
+        favorites: action.data,
       };
     }
     default:

@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from collections import defaultdict
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
-from ....models import DBSession, Obj, Source
+from ....models import Obj, Source
 
 
 default_prefs = {'maxNumSources': 5}
@@ -18,20 +18,8 @@ class RecentSourcesHandler(BaseHandler):
 
         max_num_sources = int(recent_sources_prefs['maxNumSources'])
         query_results = (
-            DBSession()
-            .query(Source)
-            .filter(
-                Source.obj_id.in_(
-                    DBSession()
-                    .query(Source.obj_id)
-                    .filter(
-                        Source.group_id.in_(
-                            [g.id for g in current_user.accessible_groups]
-                        )
-                    )
-                    .filter(Source.active.is_(True))
-                )
-            )
+            Source.query_records_accessible_by(current_user)
+            .filter(Source.active.is_(True))
             .order_by(desc('created_at'))
             .distinct(Source.obj_id, Source.created_at)
             .limit(max_num_sources)
@@ -55,28 +43,30 @@ class RecentSourcesHandler(BaseHandler):
                 recency_index = sources_seen[obj_id]
                 sources_seen[obj_id] += 1
 
-            s = Source.get_obj_if_owned_by(  # Returns Source.obj
+            s = Obj.get_if_accessible_by(
                 obj_id,
                 self.current_user,
-                options=[joinedload(Source.obj).joinedload(Obj.thumbnails)],
+                options=[joinedload(Obj.thumbnails)],
             )
 
             # Get the entry in the Source table to get the accurate saved_at time
             source_entry = (
-                Source.query.filter(Source.obj_id == obj_id)
+                Source.query_records_accessible_by(self.current_user)
+                .filter(Source.obj_id == obj_id)
                 .order_by(desc('created_at'))
                 .offset(recency_index)
                 .first()
             )
 
-            public_url = first_thumbnail_public_url(s.thumbnails)
+            info = first_thumbnail_info(s.thumbnails)
             sources.append(
                 {
                     'obj_id': s.id,
                     'ra': s.ra,
                     'dec': s.dec,
                     'created_at': source_entry.created_at,
-                    'public_url': public_url,
+                    'public_url': info[0],
+                    'is_grayscale': info[1],
                     'classifications': s.classifications,
                     'recency_index': recency_index,
                 }
@@ -93,12 +83,16 @@ class RecentSourcesHandler(BaseHandler):
             # Delete bookkeeping recency_index key
             del source["recency_index"]
 
+        self.verify_and_commit()
         return self.success(data=sources)
 
 
-def first_thumbnail_public_url(thumbnails):
-    urls = [t.public_url for t in sorted(thumbnails, key=lambda t: tIndex(t.type))]
-    return urls[0] if urls else ""
+def first_thumbnail_info(thumbnails):
+    infos = [
+        (t.public_url, t.is_grayscale)
+        for t in sorted(thumbnails, key=lambda t: tIndex(t.type))
+    ]
+    return infos[0] if infos else ("", False)
 
 
 def tIndex(t):

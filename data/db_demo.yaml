@@ -46,6 +46,10 @@ groups:
     =id: program_B
 
 groups/=program_A/users:
+  - userID: =fulluser
+    admin: false
+
+groups/=program_B/users:
   - userID: =viewonlyuser
     admin: false
   - userID: =fulluser
@@ -57,8 +61,12 @@ streams/=ztf_public/users:
   - user_id: =groupadmin
   - user_id: =testadmin
 
+streams/=ztf_partnership/users:
+  - user_id: =fulluser
+  - user_id: =groupadmin
+  - user_id: =testadmin
+
 streams/=ztf_caltech/users:
-  - user_id: =viewonlyuser
   - user_id: =fulluser
   - user_id: =groupadmin
   - user_id: =testadmin
@@ -80,6 +88,16 @@ filters:
     =id: example_filter2
 
 telescope:
+  - name: Palomar 1.2m
+    nickname: P48
+    lat: 33.3580556
+    lon: -116.861944
+    elevation: 1706
+    diameter: 1.26
+    robotic: true
+    skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+    weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
+    =id: P48
   - name: Palomar 1.5m
     nickname: P60
     lat: 33.3633675
@@ -126,13 +144,42 @@ telescope:
     skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
     =id: P48
     robotic: true
+  - name: Liverpool Telescope
+    nickname: LT
+    lat: 28.762
+    lon: -17.872
+    elevation: 2363
+    diameter: 2.0
+    skycam_link: http://telescope.livjm.ac.uk/data/archive/webfiles/QS/Latest/t_latest_hms.jpg
+    robotic: true
+    =id: LT
+  - diameter: 1.0
+    elevation: 2070.0
+    lat: 30.68
+    lon: -104.0151
+    nickname: LCO 1m Network
+    name: LCOGT1m
+    skycam_link: null
+    robotic: true
+    =id: LCOGT1m
+  - diameter: 2.0
+    elevation: 3052.0
+    lat: 20.7083
+    lon: -156.2571
+    nickname: LCO 2m Network
+    name: LCOGT2m
+    skycam_link: null
+    robotic: true
+    =id: LCOGT2m
+
 
 instrument:
-  - name: P60 Camera
+  - name: ZTF
     type: imager
     band: V
-    telescope_id: =P60
+    telescope_id: =P48
     filters: ["ztfg", "ztfr", "ztfi"]
+    =id: ZTF
   - name: ALFOSC
     type: imaging spectrograph
     band: V
@@ -162,6 +209,52 @@ instrument:
     api_classname: ZTFAPI
     filters: ['ztfg', 'ztfr', 'ztfi']
     =id: ZTF
+  - name: IOO
+    type: imager
+    band: V
+    telescope_id: =LT
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+    api_classname: IOOAPI
+    =id: IOO
+  - name: IOI
+    type: imager
+    band: H
+    telescope_id: =LT
+    filters: ["csphs"]
+    api_classname: IOIAPI
+    =id: IOI
+  - name: SPRAT
+    type: spectrograph
+    telescope_id: =LT
+    api_classname: SPRATAPI
+    =id: SPRAT
+  - band: optical
+    name: Sinistro
+    telescope_id: =LCOGT1m
+    type: imager
+    filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
+    api_classname: SINISTROAPI
+    =id: SINISTRO
+  - band: optical
+    name: SPECTRAL
+    telescope_id: =LCOGT2m
+    type: imager
+    filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
+    api_classname: SPECTRALAPI
+    =id: SPECTRAL
+  - band: optical
+    name: FLOYDS
+    telescope_id: =LCOGT2m
+    type: spectrograph
+    api_classname: FLOYDSAPI
+    =id: FLOYDS
+  - band: optical
+    name: MUSCAT
+    telescope_id: =LCOGT2m
+    type: imager
+    filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz']
+    api_classname: MUSCATAPI
+    =id: MUSCAT
 
 allocation:
   - pi: Michael Coughlin
@@ -171,6 +264,58 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =SEDM
+  - pi: Michael Coughlin
+    proposal_id: LT-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =IOO
+    _altdata: '{"username": "fritz_bot", "password": "fX5uxZTDy3", "LT_proposalID": "GrowthTest"}'
+  - pi: Michael Coughlin
+    proposal_id: LT-002
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =SPRAT
+    _altdata: '{"username": "fritz_bot", "password": "fX5uxZTDy3", "LT_proposalID": "GrowthTest"}'
+  - pi: Michael Coughlin
+    proposal_id: LT-003
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =IOI
+    _altdata: '{"username": "fritz_bot", "password": "fX5uxZTDy3", "LT_proposalID": "GrowthTest"}'
+  - pi: Michael Coughlin
+    proposal_id: Spectral-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =SPECTRAL
+  - pi: Michael Coughlin
+    proposal_id: Sinistro-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =SINISTRO
+  - pi: Michael Coughlin
+    proposal_id: FLOYDS-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =FLOYDS
+  - pi: Michael Coughlin
+    proposal_id: MUSCAT-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =MUSCAT
   - pi: Michael Coughlin
     proposal_id: ZTF-001
     start_date: "3020-02-12T00:00:00"
@@ -187,9 +332,7 @@ candidates:
     ra: 353.36647
     dec: 33.646149
     redshift: 0.063
-    altdata:
-      simbad:
-        class: RRLyr
+    varstar: false
     passed_at: "2020-10-30 21:17:06.475748"
   - id: 14gqr
     filter_ids:
@@ -198,9 +341,7 @@ candidates:
     ra: 353.36647
     dec: 33.646149
     redshift: 0.063
-    altdata:
-      simbad:
-        class: RRLyr
+    varstar: false
     passed_at: "2020-10-30 21:18:06.475748"
   - id: 16fil_unsaved_copy
     filter_ids:
@@ -208,9 +349,7 @@ candidates:
     ra: 322.718872
     dec: 27.574113
     redshift: 0.0
-    altdata:
-      simbad:
-        class: RRLyr
+    varstar: false
     passed_at: "2020-10-30 21:19:06.475748"
   - id: 16fil
     filter_ids:
@@ -218,10 +357,30 @@ candidates:
     ra: 322.718872
     dec: 27.574113
     redshift: 0.0
+    varstar: false
+    passed_at: "2020-10-30 21:13:06.475748"
+  - id: ZTFe028h94k
+    filter_ids:
+      - =example_filter
+    ra: 229.9620403
+    dec: 34.8442757
+    redshift: 0.0
+    varstar: true
     altdata:
       simbad:
         class: RRLyr
-    passed_at: "2020-10-30 21:13:06.475748"
+    passed_at: "2020-10-30 11:13:06.475748"
+  - id: ZTFrlh6cyjh
+    filter_ids:
+      - =example_filter
+    ra: 342.4596
+    dec: 51.2634
+    redshift: 0.0
+    varstar: true
+    altdata:
+      simbad:
+        class: EB
+    passed_at: "2020-10-30 11:23:06.475748"
 
 sources:
   - id: 14gqr
@@ -240,6 +399,20 @@ sources:
     group_ids:
       - =public_group_id
       - =program_A
+  - id: ZTFe028h94k
+    ra: 229.9620403
+    dec: 34.8442757
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+  - id: ZTFrlh6cyjh
+    ra: 342.4596
+    dec: 51.2634
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
 
 comment:
   - obj_id: 14gqr_unsaved_copy
@@ -297,6 +470,15 @@ annotation:
         flag: true
     group_ids:
       - =program_B
+  - obj_id: 14gqr
+    origin: "cross_match"
+    data:
+      gaia:
+        Plx: 20
+        Mag_G: 6.5
+        Mag_Bp: 7.6
+        Mag_Rp: 5.1
+        A_G: 0.3
   - obj_id: 16fil_unsaved_copy
     origin: "Program A"
     data:
@@ -311,6 +493,24 @@ annotation:
       some_boolean: false
     group_ids:
       - =program_A
+  - obj_id: ZTFe028h94k
+    origin: "Program B"
+    data:
+      period: 0.5281475
+    group_ids:
+      - =program_B
+  - obj_id: ZTFe028h94k
+    origin: "ZVM"
+    data:
+      period: 0.5281217208459
+    group_ids:
+      - =program_B
+  - obj_id: ZTFrlh6cyjh
+    origin: "ZVM"
+    data:
+      period: 1.107332
+    group_ids:
+      - =program_B
 
 taxonomy:
   file: taxonomy_demo.yaml
@@ -318,13 +518,13 @@ taxonomy:
 observing_run:
   - pi: Danny Goldstein
     instrument_id: =ESI
-    calendar_date: "2021-02-16"
+    calendar_date: "2020-02-16"
     group_id: =program_A
     observers: "Danny Goldstein, Peter Nugent"
     =id: esi_run
   - pi: Danny Goldstein
     instrument_id: =LRIS
-    calendar_date: "2021-06-17"
+    calendar_date: "2020-06-17"
     group_id: =program_A
     observers: "Danny Goldstein, Peter Nugent"
     =id: lris_run
@@ -351,39 +551,71 @@ assignment:
 
 photometry:
   - obj_id: 14gqr_unsaved_copy
-    instrument_id: =P60
+    instrument_id: =ZTF
     assignment_id: 1
-    file: phot.csv
+    file: 14gqr_phot.csv
     group_ids:
       - =program_A
       - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
   - obj_id: 14gqr
-    instrument_id: =P60
+    instrument_id: =ZTF
     assignment_id: 1
-    file: phot.csv
+    file: 14gqr_phot.csv
     group_ids:
       - =program_A
       - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
   - obj_id: 16fil_unsaved_copy
-    instrument_id: =P60
+    instrument_id: =ZTF
     assignment_id: 2
-    file: phot.csv
+    file: 16fil_phot.csv
     group_ids:
       - =program_A
       - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
   - obj_id: 16fil
-    instrument_id: =P60
+    instrument_id: =ZTF
     assignment_id: 2
-    file: phot.csv
+    file: 16fil_phot.csv
     group_ids:
       - =program_A
       - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
+  - obj_id: ZTFe028h94k
+    instrument_id: =ZTF
+    assignment_id: 2
+    file: ZTFe028h94k_phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
+  - obj_id: ZTFrlh6cyjh
+    instrument_id: =ZTF
+    assignment_id: 2
+    file: ZTFrlh6cyjh_phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
 
 spectrum:
   - obj_id: 14gqr_unsaved_copy
     file: spec1.csv
     instrument_id: =ALFOSC
-    observed_at: "2019-10-24T00:00:00"
+    observed_at: "2019-10-28T00:00:00"
     assignment_id: 1
     group_ids:
       - =program_A
@@ -391,7 +623,7 @@ spectrum:
   - obj_id: 14gqr
     file: spec1.csv
     instrument_id: =ALFOSC
-    observed_at: "2019-10-24T00:00:00"
+    observed_at: "2019-10-24T05:23:14"
     assignment_id: 1
     group_ids:
       - =program_A
@@ -399,7 +631,7 @@ spectrum:
   - obj_id: 16fil_unsaved_copy
     file: spec2.csv
     instrument_id: =ALFOSC
-    observed_at: "2019-10-24T00:00:00"
+    observed_at: "2019-08-28T00:00:00"
     assignment_id: 2
     group_ids:
       - =program_A
@@ -407,8 +639,16 @@ spectrum:
   - obj_id: 16fil
     file: spec2.csv
     instrument_id: =ALFOSC
-    observed_at: "2019-10-24T00:00:00"
+    observed_at: "2019-08-24T06:18:53"
     assignment_id: 2
+    group_ids:
+      - =program_A
+      - =program_B
+  - obj_id: 16fil
+    file: spec1.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-08-19T05:23:14"
+    assignment_id: 1
     group_ids:
       - =program_A
       - =program_B
@@ -465,3 +705,11 @@ thumbnail:
     ttype: sub
     data:
       file: ../skyportal/tests/data/16fil_sub.png
+  - obj_id: ZTFe028h94k
+    ttype: new
+    data:
+      file: ./ZTFe028h94k_new.png
+  - obj_id: ZTFrlh6cyjh
+    ttype: new
+    data:
+      file: ./ZTFrlh6cyjh_new.png

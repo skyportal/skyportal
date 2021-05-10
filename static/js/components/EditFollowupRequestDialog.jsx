@@ -3,8 +3,9 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
-import Form from "@rjsf/material-ui";
+import Button from "@material-ui/core/Button";
 import { makeStyles } from "@material-ui/core/styles";
+import Form from "@rjsf/material-ui";
 import * as Actions from "../ducks/source";
 
 const useStyles = makeStyles(() => ({
@@ -39,27 +40,52 @@ const EditFollowupRequestDialog = ({
     handleClose();
   };
 
+  // Since we are editing exsiting follow-up requests,
+  // it makes more sense to set default form values to current request data
+  const { formSchema } = instrumentFormParams[
+    followupRequest.allocation.instrument.id
+  ];
+  Object.keys(formSchema.properties).forEach((key) => {
+    // Set the form value for "key" to the value in the existing request's
+    // payload, which is the form data sent to the external follow-up API
+    formSchema.properties[key].default = followupRequest.payload[key];
+  });
+
+  const validate = (formData, errors) => {
+    if (
+      formData.start_date &&
+      formData.end_date &&
+      Date.parse(formData.start_date) > Date.parse(formData.end_date)
+    ) {
+      errors.start_date.addError("Start Date must come before End Date");
+    }
+
+    return errors;
+  };
+
   return (
     <span key={followupRequest.id}>
-      <button
-        type="button"
+      <Button
+        size="small"
+        color="primary"
+        type="submit"
+        variant="outlined"
         onClick={handleClickOpen}
-        name={`editRequest_${followupRequest.id}`}
+        data-testid={`editRequest_${followupRequest.id}`}
       >
         Edit
-      </button>
+      </Button>
       <Dialog open={open} onClose={handleClose} className={classes.dialog}>
         <DialogContent>
           <Form
-            schema={
-              instrumentFormParams[followupRequest.allocation.instrument.id]
-                .formSchema
-            }
+            schema={formSchema}
             uiSchema={
               instrumentFormParams[followupRequest.allocation.instrument.id]
                 .uiSchema
             }
             onSubmit={handleSubmit}
+            validate={validate}
+            liveValidate
           />
         </DialogContent>
       </Dialog>
@@ -86,6 +112,7 @@ EditFollowupRequestDialog.propTypes = {
     status: PropTypes.string,
     obj_id: PropTypes.string,
     id: PropTypes.number,
+    payload: PropTypes.objectOf(PropTypes.any),
   }).isRequired,
   instrumentFormParams: PropTypes.shape({
     formSchema: PropTypes.objectOf(PropTypes.any),

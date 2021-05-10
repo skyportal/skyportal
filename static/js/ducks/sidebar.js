@@ -1,7 +1,7 @@
 import store from "../store";
 
-export const TOGGLE_SIDEBAR = "skyportal/TOGGLE_SIDEBAR";
-export const SET_SIDEBAR = "skyportal/SET_SIDEBAR";
+const TOGGLE_SIDEBAR = "skyportal/TOGGLE_SIDEBAR";
+const SET_SIDEBAR = "skyportal/SET_SIDEBAR";
 
 export function toggleSidebar() {
   return {

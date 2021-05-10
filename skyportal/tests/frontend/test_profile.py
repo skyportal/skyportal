@@ -8,7 +8,8 @@ def test_token_acls_options_rendering1(driver, user):
     driver.wait_for_xpath('//*[@data-testid="acls[0]"]')
     driver.wait_for_xpath('//*[@data-testid="acls[1]"]')
     driver.wait_for_xpath('//*[@data-testid="acls[2]"]')
-    driver.wait_for_xpath_to_disappear('//*[@data-testid="acls[3]"]')
+    driver.wait_for_xpath('//*[@data-testid="acls[3]"]')
+    driver.wait_for_xpath_to_disappear('//*[@data-testid="acls[4]"]')
 
 
 def test_token_acls_options_rendering2(driver, super_admin_user):
@@ -72,18 +73,14 @@ def test_insufficient_name_entry_in_profile(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
     first_name_entry = driver.wait_for_xpath('//input[@name="firstName"]')
-    first_name = ""
     driver.scroll_to_element_and_click(first_name_entry)
-    first_name_entry.send_keys(first_name)
+    first_name_entry.clear()
     last_name_entry = driver.wait_for_xpath('//input[@name="lastName"]')
     last_name = str(uuid.uuid4())
     driver.scroll_to_element_and_click(last_name_entry)
     last_name_entry.send_keys(last_name)
 
-    update_profile_button = driver.find_element_by_xpath(
-        '//*[@id="updateProfileButton"]'
-    )
-    driver.scroll_to_element_and_click(update_profile_button)
+    driver.click_xpath('//*[@id="updateProfileButton"]')
 
     helper = driver.wait_for_xpath('//p[@id="firstName_id-helper-text"]')
     assert helper.text == "Required"

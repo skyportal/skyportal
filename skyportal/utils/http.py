@@ -1,10 +1,19 @@
 def serialize_requests_request(request):
+    if request.body is not None:
+        body = request.body.decode()
+    else:
+        body = ''
+
     return {
         'headers': dict(request.headers),
-        'body': request.body.decode(),
+        'body': body,
         'url': request.url,
         'method': request.method,
     }
+
+
+def serialize_requests_request_xml(payload):
+    return {'payload': payload}
 
 
 def serialize_requests_response(response):
@@ -16,6 +25,10 @@ def serialize_requests_response(response):
         'status_code': response.status_code,
         'ok': response.ok,
     }
+
+
+def serialize_requests_response_xml(response):
+    return {'response': response}
 
 
 def serialize_tornado_request(handler):

@@ -13,6 +13,8 @@ class TaxonomyHandler(BaseHandler):
         ---
         single:
           description: Retrieve a taxonomy
+          tags:
+            - taxonomies
           parameters:
             - in: path
               name: taxonomy_id
@@ -30,6 +32,8 @@ class TaxonomyHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Get all the taxonomies
+          tags:
+            - taxonomies
           responses:
             200:
               content:
@@ -56,6 +60,7 @@ class TaxonomyHandler(BaseHandler):
                 Group.id.in_([g.id for g in self.current_user.accessible_groups])
             )
         )
+        self.verify_and_commit()
         return self.success(data=query.all())
 
     @permissions(['Post taxonomy'])
@@ -63,6 +68,8 @@ class TaxonomyHandler(BaseHandler):
         """
         ---
         description: Post new taxonomy
+        tags:
+          - taxonomies
         requestBody:
           content:
             application/json:
@@ -189,15 +196,17 @@ class TaxonomyHandler(BaseHandler):
         )
 
         DBSession().add(taxonomy)
-        DBSession().commit()
+        self.verify_and_commit()
 
         return self.success(data={'taxonomy_id': taxonomy.id})
 
-    @permissions(['Delete taxonomy'])
+    @auth_or_token
     def delete(self, taxonomy_id):
         """
         ---
         description: Delete a taxonomy
+        tags:
+          - taxonomies
         parameters:
           - in: path
             name: taxonomy_id
@@ -210,11 +219,12 @@ class TaxonomyHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        c = Taxonomy.query.get(taxonomy_id)
-        if c is None:
-            return self.error("Invalid taxonomy ID")
 
-        Taxonomy.query.filter_by(id=taxonomy_id).delete()
-        DBSession().commit()
+        taxonomy = Taxonomy.get_if_accessible_by(
+            taxonomy_id, self.current_user, mode='delete', raise_if_none=True
+        )
+
+        DBSession().delete(taxonomy)
+        self.verify_and_commit()
 
         return self.success()

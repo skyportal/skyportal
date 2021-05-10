@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { useDispatch } from "react-redux";
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 import PropTypes from "prop-types";
 
@@ -9,12 +9,24 @@ import Button from "@material-ui/core/Button";
 import { KeyboardDateTimePicker } from "@material-ui/pickers";
 import Paper from "@material-ui/core/Paper";
 import SearchIcon from "@material-ui/icons/Search";
-import { makeStyles } from "@material-ui/core/styles";
+import Input from "@material-ui/core/Input";
+import InputLabel from "@material-ui/core/InputLabel";
+import Chip from "@material-ui/core/Chip";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
+import TextField from "@material-ui/core/TextField";
+import { makeStyles, useTheme } from "@material-ui/core/styles";
+
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 
 import * as candidatesActions from "../ducks/candidates";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FormValidationError from "./FormValidationError";
+import { allowedClasses } from "./ClassificationForm";
+
+dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
   filterListContainer: {
@@ -41,27 +53,128 @@ const useStyles = makeStyles(() => ({
       marginLeft: "0.5rem",
     },
   },
+  formRow: {
+    margin: "1rem 0",
+  },
+  redshiftField: {
+    display: "inline-block",
+    marginRight: "0.5rem",
+  },
+  savedStatusSelect: {
+    margin: "1rem 0",
+    "& input": {
+      fontSize: "1rem",
+    },
+  },
 }));
+
+function getStyles(classification, selectedClassifications, theme) {
+  return {
+    fontWeight:
+      selectedClassifications.indexOf(classification) === -1
+        ? theme.typography.fontWeightRegular
+        : theme.typography.fontWeightMedium,
+  };
+}
+
+const rejectedStatusSelectOptions = [
+  { value: "hide", label: "Hide rejected candidates" },
+  { value: "show", label: "Show rejected candidates" },
+];
+
+const savedStatusSelectOptions = [
+  { value: "all", label: "regardless of saved status" },
+  { value: "savedToAllSelected", label: "and is saved to all selected groups" },
+  {
+    value: "savedToAnySelected",
+    label: "and is saved to at least one of the selected groups",
+  },
+  {
+    value: "savedToAnyAccessible",
+    label: "and is saved to at least one group I have access to",
+  },
+  {
+    value: "notSavedToAnyAccessible",
+    label: "and is not saved to any of group I have access to",
+  },
+  {
+    value: "notSavedToAnySelected",
+    label: "and is not saved to any of the selected groups",
+  },
+  {
+    value: "notSavedToAllSelected",
+    label: "and is not saved to all of the selected groups",
+  },
+];
 
 const FilterCandidateList = ({
   userAccessibleGroups,
   setQueryInProgress,
   setFilterGroups,
   numPerPage,
+  annotationFilterList,
+  setSortOrder,
 }) => {
   const classes = useStyles();
+  const theme = useTheme();
 
-  const { handleSubmit, getValues, control, errors, reset } = useForm();
+  const defaultStartDate = new Date();
+  defaultStartDate.setDate(defaultStartDate.getDate() - 1);
+  const defaultEndDate = null;
+
+  const ITEM_HEIGHT = 48;
+  const MenuProps = {
+    PaperProps: {
+      style: {
+        maxHeight: ITEM_HEIGHT * 4.5,
+        width: 250,
+      },
+    },
+  };
+
+  // Get unique classification names, in alphabetical order
+  const { taxonomyList } = useSelector((state) => state.taxonomies);
+  const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
+  let classifications = [];
+  latestTaxonomyList.forEach((taxonomy) => {
+    const currentClasses = allowedClasses(taxonomy.hierarchy).map(
+      (option) => option.class
+    );
+    classifications = classifications.concat(currentClasses);
+  });
+  classifications = Array.from(new Set(classifications)).sort();
+
+  const [selectedClassifications, setSelectedClassifications] = useState([]);
+
+  const { handleSubmit, getValues, control, errors, reset } = useForm({
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
+  });
 
   useEffect(() => {
     reset({
       groupIDs: Array(userAccessibleGroups.length).fill(false),
-      startDate: null,
-      endDate: null,
+      startDate: defaultStartDate,
+      endDate: defaultEndDate,
     });
+    // Don't want to reset everytime the component rerenders and
+    // the defaultStartDate is updated, so ignore ESLint here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reset, userAccessibleGroups]);
 
   const dispatch = useDispatch();
+  // Set initial form values in the redux state
+  useEffect(() => {
+    dispatch(
+      candidatesActions.setFilterFormData({
+        savedStatus: "all",
+        startDate: defaultStartDate.toISOString(),
+      })
+    );
+    // Don't want to reset everytime the component rerenders and
+    // the defaultStartDate is updated, so ignore ESLint here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
 
   let formState = getValues({ nest: true });
 
@@ -84,11 +197,14 @@ const FilterCandidateList = ({
     const selectedGroupIDs = groupIDs.filter(
       (ID, idx) => formData.groupIDs[idx]
     );
-
     const data = {
       groupIDs: selectedGroupIDs,
-      unsavedOnly: formData.unsavedOnly,
+      savedStatus: formData.savedStatus,
     };
+    // decide if to show rejected candidates
+    if (formData.rejectedStatus === "hide") {
+      data.listNameReject = "rejected_candidates";
+    }
     // Convert dates to ISO for parsing on back-end
     if (formData.startDate) {
       data.startDate = formData.startDate.toISOString();
@@ -96,9 +212,23 @@ const FilterCandidateList = ({
     if (formData.endDate) {
       data.endDate = formData.endDate.toISOString();
     }
+    if (formData.classifications.length > 0) {
+      data.classifications = formData.classifications;
+    }
+    if (formData.redshiftMinimum && formData.redshiftMaximum) {
+      data.redshiftRange = `(${formData.redshiftMinimum},${formData.redshiftMaximum})`;
+    }
+    if (annotationFilterList) {
+      data.annotationFilterList = annotationFilterList;
+    }
     setFilterGroups(
       userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
     );
+
+    // Clear annotation sort params
+    await dispatch(candidatesActions.setCandidatesAnnotationSortOptions(null));
+    setSortOrder(null);
+
     // Save form-specific data, formatted for the API query
     await dispatch(candidatesActions.setFilterFormData(data));
 
@@ -117,53 +247,180 @@ const FilterCandidateList = ({
               <FormValidationError message="Invalid date range." />
             )}
             <Controller
-              as={
+              render={({ onChange, value }) => (
                 <KeyboardDateTimePicker
-                  value={formState.startDate}
-                  label="Start (browser local time)"
+                  value={value ? dayjs.utc(value) : null}
+                  onChange={(e, date) =>
+                    date ? onChange(dayjs.utc(date)) : onChange(date)
+                  }
+                  label="Start (UTC)"
                   format="YYYY/MM/DD HH:mm"
                   ampm={false}
-                  showTodayButton
+                  showTodayButton={false}
+                  data-testid="startDatePicker"
                 />
-              }
+              )}
               rules={{ validate: validateDates }}
               name="startDate"
               control={control}
+              defaultValue={defaultStartDate}
             />
             &nbsp;
             <Controller
-              as={
+              render={({ onChange, value }) => (
                 <KeyboardDateTimePicker
-                  value={formState.endDate}
-                  label="End (browser local time)"
+                  value={value ? dayjs.utc(value) : null}
+                  onChange={(e, date) =>
+                    date ? onChange(dayjs.utc(date)) : onChange(date)
+                  }
+                  label="End (UTC)"
                   format="YYYY/MM/DD HH:mm"
                   ampm={false}
-                  showTodayButton
+                  showTodayButton={false}
+                  data-testid="endDatePicker"
                 />
-              }
+              )}
               rules={{ validate: validateDates }}
               name="endDate"
               control={control}
+              defaultValue={defaultEndDate}
             />
           </div>
-          <div>
-            <FormControlLabel
-              control={
-                <Controller
-                  render={({ onChange, value }) => (
-                    <Checkbox
-                      onChange={(event) => onChange(event.target.checked)}
-                      checked={value}
-                      data-testid="unsavedOnlyCheckbox"
-                    />
+          <div className={classes.savedStatusSelect}>
+            <InputLabel id="savedStatusSelectLabel">
+              Show only candidates which passed a filter from the selected
+              groups...
+            </InputLabel>
+            <Controller
+              labelId="savedStatusSelectLabel"
+              as={Select}
+              name="savedStatus"
+              control={control}
+              input={<Input data-testid="savedStatusSelect" />}
+              defaultValue="all"
+            >
+              {savedStatusSelectOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Controller>
+          </div>
+          <div className={classes.formRow}>
+            <InputLabel id="classifications-select-label">
+              Classifications
+            </InputLabel>
+            <Controller
+              labelId="classifications-select-label"
+              render={({ onChange, value }) => (
+                <Select
+                  id="classifications-select"
+                  multiple
+                  value={value}
+                  onChange={(event) => {
+                    setSelectedClassifications(event.target.value);
+                    onChange(event.target.value);
+                  }}
+                  input={<Input id="classifications-select" />}
+                  renderValue={(selected) => (
+                    <div className={classes.chips}>
+                      {selected.map((classification) => (
+                        <Chip
+                          key={classification}
+                          label={classification}
+                          className={classes.chip}
+                        />
+                      ))}
+                    </div>
                   )}
-                  name="unsavedOnly"
-                  control={control}
-                  defaultValue={false}
-                />
-              }
-              label="Show only unsaved candidates"
+                  MenuProps={MenuProps}
+                >
+                  {classifications.map((classification) => (
+                    <MenuItem
+                      key={classification}
+                      value={classification}
+                      style={getStyles(
+                        classification,
+                        selectedClassifications,
+                        theme
+                      )}
+                    >
+                      {classification}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+              name="classifications"
+              control={control}
+              defaultValue={[]}
             />
+          </div>
+          <div className={classes.formRow}>
+            <InputLabel id="redshift-select-label">Redshift</InputLabel>
+            <div className={classes.redshiftField}>
+              <Controller
+                render={({ onChange, value }) => (
+                  <TextField
+                    id="minimum-redshift"
+                    label="Minimum"
+                    type="number"
+                    value={value}
+                    inputProps={{ step: 0.001 }}
+                    size="small"
+                    margin="dense"
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                    onChange={(event) => onChange(event.target.value)}
+                  />
+                )}
+                name="redshiftMinimum"
+                labelId="redshift-select-label"
+                control={control}
+                defaultValue=""
+              />
+            </div>
+            <div className={classes.redshiftField}>
+              <Controller
+                render={({ onChange, value }) => (
+                  <TextField
+                    id="maximum-redshift"
+                    label="Maximum"
+                    type="number"
+                    value={value}
+                    inputProps={{ step: 0.001 }}
+                    size="small"
+                    margin="dense"
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                    onChange={(event) => onChange(event.target.value)}
+                  />
+                )}
+                name="redshiftMaximum"
+                control={control}
+                defaultValue=""
+              />
+            </div>
+          </div>
+          <div className={classes.formRow}>
+            <InputLabel id="rejectedCandidatesLabel">
+              Show/hide rejected candidates
+            </InputLabel>
+            <Controller
+              labelId="rejectedCandidatesLabel"
+              as={Select}
+              name="rejectedStatus"
+              control={control}
+              input={<Input data-testid="rejectedStatusSelect" />}
+              defaultValue="hide"
+            >
+              {rejectedStatusSelectOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Controller>
           </div>
           <div>
             <Responsive
@@ -181,7 +438,21 @@ const FilterCandidateList = ({
                     <Controller
                       render={({ onChange, value }) => (
                         <Checkbox
-                          onChange={(event) => onChange(event.target.checked)}
+                          onChange={(event) => {
+                            onChange(event.target.checked);
+                            // Let parent component know program selection has changed
+                            const groupIDs = userAccessibleGroups.map(
+                              (g) => g.id
+                            );
+                            const selectedGroupIDs = groupIDs.filter(
+                              (ID, i) => getValues({ nest: true }).groupIDs[i]
+                            );
+                            setFilterGroups(
+                              userAccessibleGroups.filter((g) =>
+                                selectedGroupIDs.includes(g.id)
+                              )
+                            );
+                          }}
                           checked={value}
                           data-testid={`filteringFormGroupCheckbox-${group.id}`}
                         />
@@ -219,6 +490,11 @@ FilterCandidateList.propTypes = {
   setQueryInProgress: PropTypes.func.isRequired,
   setFilterGroups: PropTypes.func.isRequired,
   numPerPage: PropTypes.number.isRequired,
+  setSortOrder: PropTypes.func.isRequired,
+  annotationFilterList: PropTypes.string,
+};
+FilterCandidateList.defaultProps = {
+  annotationFilterList: null,
 };
 
 export default FilterCandidateList;

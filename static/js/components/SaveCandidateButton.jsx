@@ -82,9 +82,8 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
     if (result.status === "success") {
       reset();
       setDialogOpen(false);
-    } else if (result.status === "error") {
-      setIsSubmitting(false);
     }
+    setIsSubmitting(false);
   };
 
   // Split button logic (largely copied from
@@ -103,10 +102,8 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
         id: candidate.id,
         group_ids: filterGroups.map((g) => g.id),
       };
-      const result = await dispatch(sourceActions.saveSource(data));
-      if (result.status === "error") {
-        setIsSubmitting(false);
-      }
+      await dispatch(sourceActions.saveSource(data));
+      setIsSubmitting(false);
     } else if (selectedIndex === 1) {
       handleClickOpenDialog();
     }

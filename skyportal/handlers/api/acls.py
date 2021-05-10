@@ -1,7 +1,7 @@
 from baselayer.app.access import auth_or_token, permissions
 
 from ..base import BaseHandler
-from ...models import DBSession, ACL, User, UserACL
+from ...models import ACL, User, UserACL
 
 
 class ACLHandler(BaseHandler):
@@ -9,6 +9,8 @@ class ACLHandler(BaseHandler):
     def get(self):
         """
         description: Retrieve list of all ACL IDs (strings)
+        tags:
+          - acls
         responses:
           200:
             content:
@@ -24,6 +26,7 @@ class ACLHandler(BaseHandler):
                             type: string
                           description: List of all ACL IDs.
         """
+        self.verify_and_commit()
         return self.success(data=[acl.id for acl in ACL.query.all()])
 
 
@@ -33,6 +36,8 @@ class UserACLHandler(BaseHandler):
         """
         ---
         description: Grant new ACL(s) to a user
+        tags:
+          - acls
         parameters:
           - in: path
             name: user_id
@@ -73,7 +78,7 @@ class UserACLHandler(BaseHandler):
             return self.error("Invalid user_id parameter.")
         new_acls = ACL.query.filter(ACL.id.in_(new_acl_ids)).all()
         user.acls = list(set(user.acls).union(set(new_acls)))
-        DBSession().commit()
+        self.verify_and_commit()
         return self.success()
 
     @permissions(["Manage users"])
@@ -81,6 +86,8 @@ class UserACLHandler(BaseHandler):
         """
         ---
         description: Remove ACL from user permissions
+        tags:
+          - acls
         parameters:
           - in: path
             name: user_id
@@ -109,5 +116,5 @@ class UserACLHandler(BaseHandler):
             .filter(UserACL.acl_id == acl_id)
             .delete()
         )
-        DBSession().commit()
+        self.verify_and_commit()
         return self.success()

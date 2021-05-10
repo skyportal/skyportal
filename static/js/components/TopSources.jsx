@@ -17,7 +17,7 @@ import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useSourceListStyles } from "./RecentSources";
 import SourceQuickView from "./SourceQuickView";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   header: {},
   timespanSelect: {
     display: "flex",
@@ -25,14 +25,43 @@ const useStyles = makeStyles(() => ({
     justifyContent: "center",
     marginBottom: "0.5rem",
     "& .MuiButton-label": {
-      color: "gray",
+      color: theme.palette.text.secondary,
+    },
+    "& .MuiButtonGroup-root": {
+      flexWrap: "wrap",
     },
   },
   sourceListContainer: {
     height: "calc(100% - 5rem)",
-    overflowY: "scroll",
+    overflowY: "auto",
     marginTop: "0.625rem",
     paddingTop: "0.625rem",
+  },
+  sourceInfo: {
+    display: "flex",
+    flexDirection: "row",
+    margin: "10px",
+    width: "100%",
+  },
+  sourceNameContainer: {
+    display: "flex",
+    flexDirection: "column",
+  },
+  sourceNameLink: {
+    color: theme.palette.primary.main,
+  },
+  quickViewContainer: {
+    display: "flex",
+    flexDirection: "column",
+    width: "45%",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  quickViewButton: {
+    minHeight: "30px",
+    visibility: "hidden",
+    textAlign: "center",
+    display: "none",
   },
 }));
 
@@ -85,6 +114,10 @@ const TopSourcesList = ({ sources, styles }) => {
             }
           }
 
+          const imgClasses = source.is_grayscale
+            ? `${styles.stamp} ${styles.inverted}`
+            : `${styles.stamp}`;
+
           return (
             <li key={`topSources_${source.obj_id}`}>
               <div
@@ -97,33 +130,37 @@ const TopSourcesList = ({ sources, styles }) => {
                     className={styles.stampContainer}
                   >
                     <img
-                      className={styles.stamp}
+                      className={imgClasses}
                       src={source.public_url}
                       alt={source.obj_id}
                     />
                   </Link>
                   <div className={styles.sourceInfo}>
-                    <span className={styles.sourceName}>
-                      <Link to={`/source/${source.obj_id}`}>
-                        {`${topsourceName}`}
-                      </Link>
-                    </span>
-                    <span>
-                      {`\u03B1, \u03B4: ${ra_to_hours(source.ra)} ${dec_to_dms(
-                        source.dec
-                      )}`}
-                    </span>
-                  </div>
-                  <div className={styles.sourceTime}>
-                    <span>
-                      <em>{`${source.views} view(s)`}</em>
-                    </span>
+                    <div className={styles.sourceNameContainer}>
+                      <span className={styles.sourceName}>
+                        <Link to={`/source/${source.obj_id}`}>
+                          <span className={styles.sourceNameLink}>
+                            {topsourceName}
+                          </span>
+                        </Link>
+                      </span>
+                      <span>
+                        {`\u03B1, \u03B4: ${ra_to_hours(
+                          source.ra
+                        )} ${dec_to_dms(source.dec)}`}
+                      </span>
+                    </div>
+                    <div className={styles.quickViewContainer}>
+                      <span>
+                        <em>{`${source.views} view(s)`}</em>
+                      </span>
+                      <SourceQuickView
+                        sourceId={source.obj_id}
+                        className={styles.quickViewButton}
+                      />
+                    </div>
                   </div>
                 </div>
-                <SourceQuickView
-                  sourceId={source.obj_id}
-                  className={styles.quickViewButton}
-                />
               </div>
             </li>
           );
@@ -141,6 +178,7 @@ TopSourcesList.propTypes = {
       dec: PropTypes.number,
       views: PropTypes.number.isRequired,
       public_url: PropTypes.string,
+      is_grayscale: PropTypes.bool,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({
           author_name: PropTypes.string,
@@ -165,7 +203,12 @@ TopSourcesList.defaultProps = {
 
 const TopSources = ({ classes }) => {
   const styles = useStyles();
-  const sourceListStyles = useSourceListStyles();
+
+  const invertThumbnails = useSelector(
+    (state) => state.profile.preferences.invertThumbnails
+  );
+  const sourceListStyles = useSourceListStyles({ invertThumbnails });
+
   const { sourceViews } = useSelector((state) => state.topSources);
   const topSourcesPrefs =
     useSelector((state) => state.profile.preferences.topSources) ||
@@ -202,7 +245,7 @@ const TopSources = ({ classes }) => {
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog
               // Only expose num sources
-              formValues={{ maxNumSources: topSourcesPrefs.maxNumSources }}
+              initialValues={{ maxNumSources: topSourcesPrefs.maxNumSources }}
               stateBranchName="topSources"
               title="Top Sources Preferences"
               onSubmit={profileActions.updateUserPreferences}

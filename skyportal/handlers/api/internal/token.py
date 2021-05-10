@@ -45,6 +45,7 @@ class TokenHandler(BaseHandler):
         if Token.query.filter(Token.name == token_name).first():
             return self.error("Duplicate token name.")
         token_id = create_token(ACLs=token_acls, user_id=user.id, name=token_name)
+        self.verify_and_commit()
         self.push(
             action='baselayer/SHOW_NOTIFICATION',
             payload={'note': f'Token "{token_name}" created.', 'type': 'info'},
@@ -74,10 +75,10 @@ class TokenHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        token = Token.get_if_owned_by(token_id, self.current_user)
+        token = Token.get_if_accessible_by(token_id, self.current_user, mode="delete")
         if token is not None:
             DBSession.delete(token)
-            DBSession.commit()
+            self.verify_and_commit()
 
             self.push(
                 action='baselayer/SHOW_NOTIFICATION',

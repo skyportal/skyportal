@@ -44,14 +44,14 @@ const UpdateProfileForm = () => {
     });
   }, [reset, profile]);
 
-  const onSubmit = async (formValues) => {
+  const onSubmit = async (initialValues) => {
     setIsSubmitting(true);
     const basicinfo = {
-      username: formValues.username,
-      first_name: formValues.firstName,
-      last_name: formValues.lastName,
-      contact_email: formValues.email,
-      contact_phone: formValues.phone,
+      username: initialValues.username,
+      first_name: initialValues.firstName,
+      last_name: initialValues.lastName,
+      contact_email: initialValues.email,
+      contact_phone: initialValues.phone,
     };
     const result = await dispatch(
       ProfileActions.updateBasicUserInfo(basicinfo)
@@ -114,7 +114,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={5} sm={3}>
+              <Grid item xs={12} sm={5}>
                 <InputLabel htmlFor="email_id">
                   Preferred Contact Email
                 </InputLabel>
@@ -135,7 +135,7 @@ const UpdateProfileForm = () => {
               alignItems="baseline"
               spacing={2}
             >
-              <Grid item xs={6} sm={3}>
+              <Grid item xs={12} sm={3}>
                 <InputLabel htmlFor="phone_id">
                   Contact Phone (Include Country Code)
                 </InputLabel>

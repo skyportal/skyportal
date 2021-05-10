@@ -15,6 +15,9 @@ class SourceGroupsHandler(BaseHandler):
         """
         ---
         description: Save or request group(s) to save source, and optionally unsave from group(s).
+        tags:
+          - sources
+          - groups
         requestBody:
           content:
             application/json:
@@ -49,7 +52,7 @@ class SourceGroupsHandler(BaseHandler):
         obj_id = data.get("objId")
         if obj_id is None:
             return self.error("Missing required parameter: objId")
-        obj = Obj.get_if_owned_by(obj_id, self.associated_user_object)
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj is None:
             return self.error("Invalid objId")
         save_or_invite_group_ids = data.get("inviteGroupIds", [])
@@ -107,15 +110,18 @@ class SourceGroupsHandler(BaseHandler):
             source.active = False
             source.unsaved_at = datetime.datetime.utcnow()
 
+        # TODO: replace with  self.verify_and_commit() once API refactor is complete
+        # currently a single record is used for both source requests and sources
+        # this should be refactored into two database models since the two
+        # records have different permissions
+
         DBSession().commit()
-        self.push_all(action="skyportal/FETCH_SOURCES")
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
         self.push_all(
             action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
-        self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success()
 
     @permissions(['Upload data'])
@@ -123,6 +129,9 @@ class SourceGroupsHandler(BaseHandler):
         """
         ---
         description: Update a Source table row
+        tags:
+          - sources
+          - groups
         parameters:
           - in: path
             name: obj_id
@@ -157,7 +166,7 @@ class SourceGroupsHandler(BaseHandler):
             return self.error("Missing required parameter: groupID")
         active = data.get("active")
         requested = data.get("requested")
-        obj = Obj.get_if_owned_by(obj_id, self.associated_user_object)
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         source = (
             DBSession()
             .query(Source)
@@ -169,13 +178,18 @@ class SourceGroupsHandler(BaseHandler):
         source.requested = requested
         if active and not previously_active:
             source.saved_by_id = self.associated_user_object.id
+
+        # TODO: replace with  self.verify_and_commit() once API refactor is complete
+        # currently a single record is used for both source requests and sources
+        # this should be refactored into two database models since the two
+        # records have different permissions
+        # self.verify_and_commit()
+
         DBSession().commit()
-        self.push_all(action="skyportal/FETCH_SOURCES")
         self.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
         self.push_all(
             action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
-        self.push_all(action="skyportal/FETCH_RECENT_SOURCES")
         return self.success()

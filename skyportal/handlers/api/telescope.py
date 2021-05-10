@@ -11,6 +11,8 @@ class TelescopeHandler(BaseHandler):
         """
         ---
         description: Create telescopes
+        tags:
+          - telescopes
         requestBody:
           content:
             application/json:
@@ -45,7 +47,7 @@ class TelescopeHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
         DBSession().add(telescope)
-        DBSession().commit()
+        self.verify_and_commit()
 
         return self.success(data={"id": telescope.id})
 
@@ -55,6 +57,8 @@ class TelescopeHandler(BaseHandler):
         ---
         single:
           description: Retrieve a telescope
+          tags:
+            - telescopes
           parameters:
             - in: path
               name: telescope_id
@@ -72,6 +76,8 @@ class TelescopeHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all telescopes
+          tags:
+            - telescopes
           parameters:
             - in: query
               name: name
@@ -92,18 +98,23 @@ class TelescopeHandler(BaseHandler):
             t = Telescope.query.get(int(telescope_id))
             if t is None:
                 return self.error(f"Could not load telescope with ID {telescope_id}")
+            self.verify_and_commit()
             return self.success(data=t)
         tel_name = self.get_query_argument("name", None)
         query = Telescope.query
         if tel_name is not None:
             query = query.filter(Telescope.name == tel_name)
-        return self.success(data=query.all())
+        data = query.all()
+        self.verify_and_commit()
+        return self.success(data=data)
 
     @permissions(['Manage sources'])
     def put(self, telescope_id):
         """
         ---
         description: Update telescope
+        tags:
+          - telescopes
         parameters:
           - in: path
             name: telescope_id
@@ -137,7 +148,7 @@ class TelescopeHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        DBSession().commit()
+        self.verify_and_commit()
 
         return self.success()
 
@@ -146,6 +157,8 @@ class TelescopeHandler(BaseHandler):
         """
         ---
         description: Delete a telescope
+        tags:
+          - telescopes
         parameters:
           - in: path
             name: telescope_id
@@ -167,6 +180,6 @@ class TelescopeHandler(BaseHandler):
             return self.error('Invalid telescope ID.')
 
         DBSession().query(Telescope).filter(Telescope.id == int(telescope_id)).delete()
-        DBSession().commit()
+        self.verify_and_commit()
 
         return self.success()

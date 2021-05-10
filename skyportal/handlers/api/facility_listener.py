@@ -2,7 +2,7 @@ from skyportal.handlers import BaseHandler
 from baselayer.app.access import auth_or_token
 import jsonschema
 
-from ...models import FollowupRequest, DBSession
+from ...models import FollowupRequest, Instrument, Allocation
 from ... import facility_apis, enum_types
 
 
@@ -16,12 +16,19 @@ class FacilityMessageHandler(BaseHandler):
         if 'followup_request_id' not in data:
             return self.error('Missing required key "followup_request_id".')
 
-        request = FollowupRequest.query.get(int(data['followup_request_id']))
-
-        if request is None:
-            return self.error('Invalid request ID.')
-
-        instrument = request.allocation.instrument
+        request = FollowupRequest.get_if_accessible_by(
+            int(data['followup_request_id']),
+            self.current_user,
+            raise_if_none=True,
+            mode='update',
+        )
+        instrument = (
+            Instrument.query_records_accessible_by(self.current_user)
+            .join(Allocation)
+            .join(FollowupRequest)
+            .filter(FollowupRequest.id == request.id)
+            .first()
+        )
 
         if instrument.listener_classname is None:
             return self.error(
@@ -35,7 +42,7 @@ class FacilityMessageHandler(BaseHandler):
 
         jsonschema.validate(data, instrument.listener_class.complete_schema())
         instrument.listener_class.process_message(self)
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
@@ -54,6 +61,8 @@ class FacilityMessageHandler(BaseHandler):
     post.__doc__ = f"""
     ---
     description: Post a message from a remote facility
+    tags:
+      - facility
     requestBody:
       content:
         application/json:

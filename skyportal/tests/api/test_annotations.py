@@ -149,7 +149,7 @@ def test_add_and_retrieve_annotation_group_access(
     # This token does not belong to public_group2
     status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
     assert status == 400
-    assert "Insufficient permissions." in data["message"]
+    assert "Insufficient permissions" in data["message"]
 
     # Both tokens should be able to view this annotation
     status, data = api(
@@ -211,7 +211,7 @@ def test_update_annotation_group_list(
     # This token does not belong to public_group2
     status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
     assert status == 400
-    assert "Insufficient permissions." in data["message"]
+    assert "Insufficient permissions" in data["message"]
 
     # Both tokens should be able to view annotation after updating group list
     status, data = api(
@@ -277,3 +277,65 @@ def test_delete_annotation(annotation_token, public_source):
 
     status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
     assert status == 400
+
+
+def test_obj_annotations(annotation_token, public_source, public_group):
+    origin = str(uuid.uuid4())
+
+    status, data = api(
+        'POST',
+        'annotation',
+        data={
+            'obj_id': public_source.id,
+            'origin': origin,
+            'data': {'offset_from_host_galaxy': 1.5},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+    annotation_id = data['data']['annotation_id']
+
+    status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
+    assert status == 200
+
+    status, data = api(
+        'GET', f'sources/{public_source.id}/annotations', token=annotation_token
+    )
+    assert status == 200
+    assert data['data'][0]['id'] == annotation_id
+    assert len(data['data']) == 1
+
+
+def test_cannot_add_annotation_without_data(
+    annotation_token, public_source, public_group
+):
+    status, data = api(
+        'POST',
+        'annotation',
+        data={
+            'obj_id': public_source.id,
+            'origin': 'kowalski',
+            'group_ids': [public_group.id],
+        },
+        token=annotation_token,
+    )
+    assert status == 400
+    assert "Missing data for required field" in data["message"]
+
+
+def test_post_invalid_data(annotation_token, public_source, public_group):
+    origin = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'annotation',
+        data={
+            'obj_id': public_source.id,
+            'data': "Test",
+            'origin': origin,
+            'group_ids': [public_group.id],
+        },
+        token=annotation_token,
+    )
+
+    assert status == 400
+    assert 'Invalid data' in data["message"]

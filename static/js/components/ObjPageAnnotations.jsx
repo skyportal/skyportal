@@ -31,6 +31,7 @@ const useStyles = makeStyles((theme) => ({
 // Tweak responsive column widths
 const getMuiTheme = (theme) =>
   createMuiTheme({
+    palette: theme.palette,
     overrides: {
       MUIDataTableBodyCell: {
         root: {
@@ -42,6 +43,29 @@ const getMuiTheme = (theme) =>
       MuiIconButton: {
         root: {
           padding: "0.5rem",
+        },
+      },
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
+          },
+        },
+        tableCellContainer: {
+          padding: "1rem",
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0",
+            marginRight: "2rem",
+          },
         },
       },
     },
@@ -56,9 +80,9 @@ const ObjPageAnnotations = ({ annotations }) => {
   // Curate data
   const tableData = [];
   annotations.forEach((annotation) => {
-    const { origin, data, author_info, created_at } = annotation;
+    const { origin, data, author, created_at } = annotation;
     Object.entries(data).forEach(([key, value]) => {
-      tableData.push({ origin, key, value, author_info, created_at });
+      tableData.push({ origin, key, value, author, created_at });
     });
   });
 
@@ -79,7 +103,7 @@ const ObjPageAnnotations = ({ annotations }) => {
       },
     },
     {
-      name: "author_info.username",
+      name: "author.username",
       label: "Author",
     },
     {
@@ -119,7 +143,7 @@ ObjPageAnnotations.propTypes = {
     PropTypes.shape({
       origin: PropTypes.string.isRequired,
       data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-      author_info: PropTypes.shape({
+      author: PropTypes.shape({
         username: PropTypes.string.isRequired,
       }).isRequired,
       created_at: PropTypes.string.isRequired,

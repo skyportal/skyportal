@@ -4,6 +4,8 @@ import pytest
 
 from skyportal.tests import api
 
+from tdtax import taxonomy, __version__
+
 
 @pytest.mark.flaky(reruns=2)
 def test_candidate_group_filtering(
@@ -13,7 +15,7 @@ def test_candidate_group_filtering(
     public_filter,
     public_group,
     upload_data_token,
-    manage_groups_token,
+    super_admin_token,
 ):
     candidate_id = str(uuid.uuid4())
     for i in range(5):
@@ -39,7 +41,7 @@ def test_candidate_group_filtering(
         "POST",
         "groups",
         data={"name": str(uuid.uuid4()), "group_admins": [user.id]},
-        token=manage_groups_token,
+        token=super_admin_token,
     )
     new_group_id = data['data']['id']
     assert status == 200
@@ -65,7 +67,7 @@ def test_candidate_group_filtering(
 
 
 @pytest.mark.flaky(reruns=2)
-def test_candidate_unsaved_only_filtering(
+def test_candidate_saved_status_filtering(
     driver,
     user,
     public_candidate,
@@ -74,6 +76,9 @@ def test_candidate_unsaved_only_filtering(
     upload_data_token,
     manage_groups_token,
 ):
+    # This test just tests basic unsaved/saved filtering to test integration of
+    # the front-end form. More detailed testing of all options are covered in
+    # the API tests.
     candidate_id = str(uuid.uuid4())
     for i in range(5):
         status, data = api(
@@ -116,16 +121,19 @@ def test_candidate_unsaved_only_filtering(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    unsaved_only_checkbox = driver.wait_for_xpath(
-        '//*[@data-testid="unsavedOnlyCheckbox"]'
+    # Set to candidates not saved to any accessibe groups
+    driver.click_xpath("//*[@data-testid='savedStatusSelect']")
+    driver.click_xpath(
+        "//li[@data-value='notSavedToAnyAccessible']", scroll_parent=True
     )
-    driver.scroll_to_element_and_click(unsaved_only_checkbox)
-    submit_button = driver.wait_for_xpath('//span[text()="Search"]')
-    driver.scroll_to_element_and_click(submit_button)
+    driver.click_xpath('//span[text()="Search"]')
     for i in range(5):
         driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}_{i}"]')
-    driver.scroll_to_element_and_click(unsaved_only_checkbox)
-    driver.scroll_to_element_and_click(submit_button)
+
+    # Set to candidates is saved to any accessibe groups and submit again
+    driver.click_xpath("//*[@data-testid='savedStatusSelect']")
+    driver.click_xpath("//li[@data-value='savedToAnyAccessible']", scroll_parent=True)
+    driver.click_xpath('//span[text()="Search"]')
     for i in range(5):
         driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
 
@@ -184,10 +192,12 @@ def test_candidate_date_filtering(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    start_date_input = driver.wait_for_xpath("//*[@name='startDate']")
+    start_date_input = driver.wait_for_xpath(
+        "//*[@data-testid='startDatePicker']//input"
+    )
     start_date_input.clear()
     start_date_input.send_keys("200012120000")
-    end_date_input = driver.wait_for_xpath("//*[@name='endDate']")
+    end_date_input = driver.wait_for_xpath("//*[@data-testid='endDatePicker']//input")
     end_date_input.clear()
     end_date_input.send_keys("200112120000")
     submit_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Search"]')
@@ -343,10 +353,10 @@ def test_submit_annotations_sorting(
     driver.click_xpath('//span[text()="Search"]')
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
 
-    driver.click_xpath(f"//p[text()='numeric_field: 1.0000']")
+    driver.click_xpath("//p[text()='numeric_field: 1.0000']")
     # Check to see that selected annotation appears in info column
     driver.wait_for_xpath(
-        f'//td[contains(@data-testid, "MuiDataTableBodyCell")][.//span[text()=1.0000]]'
+        '//td[contains(@data-testid, "MuiDataTableBodyCell")][.//span[text()=1.0000]]'
     )
 
     # Check to see that sorting button has become enabled, and click
@@ -358,11 +368,11 @@ def test_submit_annotations_sorting(
     # Check that results come back as expected
     # Col 1, Row 0 should be the first candidate's info (MuiDataTableBodyCell-1-0)
     driver.wait_for_xpath(
-        f'//td[contains(@data-testid, "MuiDataTableBodyCell-1-0")][.//span[text()="1.0000"]]'
+        '//td[contains(@data-testid, "MuiDataTableBodyCell-1-0")][.//span[text()="1.0000"]]'
     )
     # Col 1, Row 1 should be the second candidate's info (MuiDataTableBodyCell-1-1)
     driver.wait_for_xpath(
-        f'//td[contains(@data-testid, "MuiDataTableBodyCell-1-1")][.//span[text()="2.0000"]]'
+        '//td[contains(@data-testid, "MuiDataTableBodyCell-1-1")][.//span[text()="2.0000"]]'
     )
 
 
@@ -438,3 +448,206 @@ def test_submit_annotations_filtering(
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
     # The second candidate should not exist
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{public_candidate2.id}"]')
+
+
+def test_candidate_classifications_filtering(
+    driver,
+    user,
+    public_candidate,
+    public_filter,
+    public_group,
+    upload_data_token,
+    taxonomy_token,
+    classification_token,
+):
+    # Post an object with a classification
+    candidate_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": candidate_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "POST",
+        "sources",
+        data={"id": candidate_id},
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        'POST',
+        'taxonomy',
+        data={
+            'name': "test taxonomy" + str(uuid.uuid4()),
+            'hierarchy': taxonomy,
+            'group_ids': [public_group.id],
+            'provenance': f"tdtax_{__version__}",
+            'version': __version__,
+            'isLatest': True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data['data']['taxonomy_id']
+
+    status, data = api(
+        'POST',
+        'classification',
+        data={
+            'obj_id': candidate_id,
+            'classification': 'Algol',
+            'taxonomy_id': taxonomy_id,
+            'probability': 1.0,
+            'group_ids': [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/candidates")
+    driver.click_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
+        wait_clickable=False,
+    )
+    driver.click_xpath("//div[@id='classifications-select']")
+    driver.click_xpath("//li[@data-value='Algol']", scroll_parent=True)
+    driver.click_xpath('//span[text()="Search"]')
+    # Should see the posted classification
+    driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}"]')
+
+    # Now search for a different classification
+    driver.click_xpath("//div[@id='classifications-select']")
+    # Clear old classification selection
+    driver.click_xpath("//li[@data-value='Algol']", scroll_parent=True)
+    driver.click_xpath("//li[@data-value='AGN']", scroll_parent=True)
+    driver.click_xpath('//span[text()="Search"]')
+    # Should no longer see the classification
+    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}"]')
+
+
+def test_candidate_redshift_filtering(
+    driver,
+    user,
+    public_filter,
+    public_group,
+    upload_data_token,
+):
+    # Post candidates with different redshifts
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 0,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 1,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/candidates")
+    driver.click_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
+        wait_clickable=False,
+    )
+    min_box = driver.wait_for_xpath("//input[@id='minimum-redshift']")
+    min_text = "0"
+    min_box.send_keys(min_text)
+    max_box = driver.wait_for_xpath("//input[@id='maximum-redshift']")
+    max_text = "0.5"
+    max_box.send_keys(max_text)
+    driver.click_xpath('//span[text()="Search"]')
+    # Should see the obj_id1 but not obj_id2
+    driver.wait_for_xpath(f'//a[@data-testid="{obj_id1}"]')
+    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{obj_id2}"]')
+
+
+def test_candidate_rejection_filtering(
+    driver,
+    user,
+    public_group,
+    upload_data_token,
+    public_filter,
+):
+
+    candidate_id = str(uuid.uuid4())
+
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": candidate_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": str(datetime.datetime.utcnow()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/candidates")
+    driver.click_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
+        wait_clickable=False,
+    )
+
+    driver.click_xpath('//span[text()="Search"]')
+
+    # make sure candidate appears and click the icon to reject it
+    driver.click_xpath(f'//*[@data-testid="rejected-visible_{candidate_id}"]')
+
+    driver.click_xpath('//span[text()="Search"]')
+
+    # now the candidate doesn't show up anymore
+    driver.wait_for_xpath('//*[contains(text(), "no matching records found")]')
+
+    # choose to show rejected now
+    driver.click_xpath('//div[@id="mui-component-select-rejectedStatus"]')
+    driver.click_xpath("//li[@data-value='show']", scroll_parent=True)
+    driver.click_xpath('//span[text()="Search"]')
+
+    # make sure candidate appears and that it has a "rejected" icon
+    driver.wait_for_xpath(f'//*[@data-testid="rejected_invisible_{candidate_id}"]')

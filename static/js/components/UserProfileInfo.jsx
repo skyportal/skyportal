@@ -5,8 +5,50 @@ import Card from "@material-ui/core/Card";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
 import Box from "@material-ui/core/Box";
+import PropTypes from "prop-types";
 
-import UserAvatar from "./UserAvatar";
+import UserAvatar, { isAllKoreanCharacters } from "./UserAvatar";
+
+export const UserContactInfo = ({ user }) => {
+  let contact_string = "";
+  if (user.first_name || user.last_name) {
+    contact_string += `${user.first_name} ${user.last_name} `;
+  } else {
+    contact_string += `${user.username} `;
+  }
+
+  const contact = [];
+  if (user.contact_email) {
+    contact.push(user.contact_email);
+  }
+
+  if (user.contact_phone) {
+    contact.push(user.contact_phone);
+  }
+
+  if (contact.length > 0) {
+    contact_string += `(${contact.join(";")})`;
+  }
+  return <p>{contact_string}</p>;
+};
+
+UserContactInfo.propTypes = {
+  user: PropTypes.shape({
+    first_name: PropTypes.string,
+    last_name: PropTypes.string,
+    username: PropTypes.string,
+    contact_email: PropTypes.string,
+    contact_phone: PropTypes.string,
+  }).isRequired,
+};
+
+const getUserRealName = (firstName, lastName) => {
+  // Korean names are generally written in last->first name order with no space in between
+  if (isAllKoreanCharacters(firstName) && isAllKoreanCharacters(lastName)) {
+    return `${lastName}${firstName}`;
+  }
+  return `${firstName} ${lastName}`;
+};
 
 const UserProfileInfo = () => {
   const profile = useSelector((state) => state.profile);
@@ -38,7 +80,8 @@ const UserProfileInfo = () => {
                 : "visible",
             }}
           >
-            {profile.first_name} {profile.last_name}
+            {(profile.first_name || profile.last_name) &&
+              getUserRealName(profile.first_name, profile.last_name)}
           </h2>
         </div>
         &nbsp;

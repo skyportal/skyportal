@@ -13,7 +13,6 @@ import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
 
-import Plot from "./Plot";
 import CommentList from "./CommentList";
 import ClassificationList from "./ClassificationList";
 import ClassificationForm from "./ClassificationForm";
@@ -33,6 +32,12 @@ import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
 import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
+import PhotometryTable from "./PhotometryTable";
+import FavoritesButton from "./FavoritesButton";
+
+const VegaHR = React.lazy(() => import("./VegaHR"));
+
+const Plot = React.lazy(() => import(/* webpackChunkName: "Bokeh" */ "./Plot"));
 
 const CentroidPlot = React.lazy(() =>
   import(/* webpackChunkName: "CentroidPlot" */ "./CentroidPlot")
@@ -51,15 +56,9 @@ export const useSourceStyles = makeStyles((theme) => ({
     display: "flex",
     overflowX: "scroll",
     flexDirection: "column",
-    paddingBottom: "0.5rem",
+    padding: "0.5rem",
     "& div button": {
       margin: "0.5rem",
-    },
-    "& .bk-bs-nav": {
-      marginTop: "0px",
-    },
-    "& .bk-plotdiv > .bk-widget": {
-      marginTop: "0px",
     },
   },
   source: {
@@ -87,13 +86,9 @@ export const useSourceStyles = makeStyles((theme) => ({
   name: {
     fontSize: "200%",
     fontWeight: "900",
-    color: "darkgray",
+    color: theme.palette.primary.main,
     paddingBottom: "0.25em",
     display: "inline-block",
-  },
-  plot: {
-    width: "900px",
-    overflow: "auto",
   },
   smallPlot: {
     width: "350px",
@@ -103,29 +98,69 @@ export const useSourceStyles = makeStyles((theme) => ({
   classifications: {
     display: "flex",
     flexDirection: "column",
+    width: "100%",
   },
+  hr_diagram: {},
   alignRight: {
+    display: "inline-block",
+    verticalAlign: "super",
+    align: "right",
+    justify: "flex-end",
+  },
+  alignLeft: {
     display: "inline-block",
     verticalAlign: "super",
   },
   followupContainer: {
     display: "flex",
+    overflow: "hidden",
     flexDirection: "column",
   },
   position: {
     fontWeight: "bold",
     fontSize: "110%",
   },
+  sourceInfo: {
+    display: "flex",
+    flexFlow: "row wrap",
+    alignItems: "center",
+  },
+  infoLine: {
+    // Get it's own line
+    flexBasis: "100%",
+    display: "flex",
+    flexFlow: "row wrap",
+    padding: "0.25rem 0",
+  },
+  redshiftInfo: {
+    padding: "0.25rem 0.5rem 0.25rem 0",
+  },
+  dmdlInfo: {
+    alignSelf: "center",
+    "&>div": {
+      display: "inline",
+      padding: "0.25rem 0.5rem 0.25rem 0",
+    },
+  },
+  infoButton: {
+    paddingRight: "0.5rem",
+  },
+  findingChart: {
+    alignItems: "center",
+  },
 }));
 
 const SourceDesktop = ({ source }) => {
   const classes = useSourceStyles();
-
   const [showStarList, setShowStarList] = useState(false);
+  const [showPhotometry, setShowPhotometry] = useState(false);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
+
+  const photometry = useSelector((state) => state.photometry[source.id]);
+
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const groups = (useSelector((state) => state.groups.all) || []).filter(
@@ -136,70 +171,106 @@ const SourceDesktop = ({ source }) => {
     <div className={classes.source}>
       <div className={classes.leftColumn}>
         <div className={classes.leftColumnItem}>
-          <div className={classes.alignRight}>
+          <div className={classes.alignLeft}>
             <SharePage />
           </div>
           <div className={classes.name}>{source.id}</div>
+          <div className={classes.alignRight}>
+            <FavoritesButton sourceID={source.id} />
+          </div>
           <br />
-          <ShowClassification
-            classifications={source.classifications}
-            taxonomyList={taxonomyList}
-          />
-          <b>Position (J2000):</b>
-          &nbsp; &nbsp;
-          <span className={classes.position}>
-            {ra_to_hours(source.ra, ":")} &nbsp;
-            {dec_to_dms(source.dec, ":")}
-          </span>
-          &nbsp; (&alpha;,&delta;= {source.ra}, &nbsp;
-          {source.dec}; <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
-          {source.gal_lat.toFixed(6)}
-          )
-          <br />
-          <>
-            <b>Redshift: &nbsp;</b>
-            {source.redshift && source.redshift.toFixed(4)}
-            <UpdateSourceRedshift source={source} />
-            <SourceRedshiftHistory redshiftHistory={source.redshift_history} />
-          </>
-          {source.dm && (
-            <>
+          <div className={classes.sourceInfo}>
+            <div className={classes.infoLine}>
+              <ShowClassification
+                classifications={source.classifications}
+                taxonomyList={taxonomyList}
+              />
+            </div>
+            <div className={classes.infoLine}>
+              <div className={classes.sourceInfo}>
+                <div>
+                  <b>Position (J2000):&nbsp; &nbsp;</b>
+                </div>
+                <div>
+                  <span className={classes.position}>
+                    {ra_to_hours(source.ra, ":")} &nbsp;
+                    {dec_to_dms(source.dec, ":")} &nbsp;
+                  </span>
+                </div>
+              </div>
+              <div className={classes.sourceInfo}>
+                <div>
+                  (&alpha;,&delta;= {source.ra}, &nbsp;
+                  {source.dec}; &nbsp;
+                </div>
+                <div>
+                  <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
+                  {source.gal_lat.toFixed(6)})
+                </div>
+              </div>
+            </div>
+            <div className={classes.infoLine}>
+              <div className={classes.redshiftInfo}>
+                <b>Redshift: &nbsp;</b>
+                {source.redshift && source.redshift.toFixed(4)}
+                <UpdateSourceRedshift source={source} />
+                <SourceRedshiftHistory
+                  redshiftHistory={source.redshift_history}
+                />
+              </div>
+              <div className={classes.dmdlInfo}>
+                {source.dm && (
+                  <div>
+                    <b>DM: &nbsp;</b>
+                    {source.dm.toFixed(3)}
+                    &nbsp; mag
+                  </div>
+                )}
+                {source.luminosity_distance && (
+                  <div>
+                    <b>
+                      <i>D</i>
+                      <sub>L</sub>: &nbsp;
+                    </b>
+                    {source.luminosity_distance.toFixed(2)}
+                    &nbsp; Mpc
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className={`${classes.infoLine} ${classes.findingChart}`}>
+              <b>Finding Chart:&nbsp;</b>
+              <Button
+                href={`/api/sources/${source.id}/finder`}
+                download="finder-chart-pdf"
+                size="small"
+              >
+                PDF
+              </Button>
               &nbsp;|&nbsp;
-              <b>DM: &nbsp;</b>
-              {source.dm.toFixed(3)}
-              &nbsp; mag
-            </>
-          )}
-          {source.luminosity_distance && (
-            <>
-              &nbsp;|&nbsp;
-              <b>
-                <i>D</i>
-                <sub>L</sub>: &nbsp;
-              </b>
-              {source.luminosity_distance.toFixed(2)}
-              &nbsp; Mpc
-            </>
-          )}
-          {source.redshift != null && <>&nbsp;|&nbsp;</>}
-          <b>Finding Chart:&nbsp;</b>
-          <Button
-            href={`/api/sources/${source.id}/finder`}
-            download="finder-chart-pdf"
-          >
-            PDF
-          </Button>
-          <Link to={`/source/${source.id}/finder`} role="link">
-            <Button>Interactive</Button>
-          </Link>
-          &nbsp;|&nbsp;
-          <Button onClick={() => setShowStarList(!showStarList)}>
-            {showStarList ? "Hide Starlist" : "Show Starlist"}
-          </Button>
-          &nbsp;|&nbsp;
-          <Link to={`/observability/${source.id}`} role="link">
-            <Button>Observability</Button>
-          </Link>
+              <Link to={`/source/${source.id}/finder`} role="link">
+                <Button size="small">Interactive</Button>
+              </Link>
+            </div>
+            <div className={classes.infoLine}>
+              <div className={classes.infoButton}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => setShowStarList(!showStarList)}
+                >
+                  {showStarList ? "Hide Starlist" : "Show Starlist"}
+                </Button>
+              </div>
+              <div className={classes.infoButton}>
+                <Link to={`/observability/${source.id}`} role="link">
+                  <Button size="small" variant="contained">
+                    Observability
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
           <br />
           {showStarList && <StarList sourceId={source.id} />}
           {source.groups.map((group) => (
@@ -266,19 +337,34 @@ const SourceDesktop = ({ source }) => {
             </AccordionSummary>
             <AccordionDetails>
               <div className={classes.photometryContainer}>
-                <Plot
-                  className={classes.plot}
-                  url={`/api/internal/plot/photometry/${source.id}`}
-                />
+                <Suspense fallback={<div>Loading photometry plot...</div>}>
+                  <Plot
+                    url={`/api/internal/plot/photometry/${source.id}?width=800&height=500`}
+                  />
+                </Suspense>
                 <div>
                   <Link to={`/upload_photometry/${source.id}`} role="link">
                     <Button variant="contained">
                       Upload additional photometry
                     </Button>
                   </Link>
-                  <Link to={`/share_data/${source.id}`} role="link">
-                    <Button variant="contained">Share data</Button>
+                  <Link to={`/manage_data/${source.id}`} role="link">
+                    <Button variant="contained">Manage data</Button>
                   </Link>
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      setShowPhotometry(true);
+                    }}
+                    data-testid="show-photometry-table-button"
+                  >
+                    Show Photometry Table
+                  </Button>
+                  {photometry && (
+                    <Link to={`/source/${source.id}/periodogram`} role="link">
+                      <Button variant="contained">Periodogram Analysis</Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             </AccordionDetails>
@@ -297,18 +383,19 @@ const SourceDesktop = ({ source }) => {
             </AccordionSummary>
             <AccordionDetails>
               <div className={classes.photometryContainer}>
-                <Plot
-                  className={classes.plot}
-                  url={`/api/internal/plot/spectroscopy/${source.id}`}
-                />
+                <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+                  <Plot
+                    url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600`}
+                  />
+                </Suspense>
                 <div>
                   <Link to={`/upload_spectrum/${source.id}`} role="link">
                     <Button variant="contained">
                       Upload additional spectroscopy
                     </Button>
                   </Link>
-                  <Link to={`/share_data/${source.id}`} role="link">
-                    <Button variant="contained">Share data</Button>
+                  <Link to={`/manage_data/${source.id}`} role="link">
+                    <Button variant="contained">Manage data</Button>
                   </Link>
                 </div>
               </div>
@@ -349,8 +436,14 @@ const SourceDesktop = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </div>
+        <PhotometryTable
+          obj_id={source.id}
+          open={showPhotometry}
+          onClose={() => {
+            setShowPhotometry(false);
+          }}
+        />
       </div>
-
       <div className={classes.rightColumn}>
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>
@@ -406,6 +499,35 @@ const SourceDesktop = ({ source }) => {
               </div>
             </AccordionDetails>
           </Accordion>
+        </div>
+        <div className={classes.columnItem}>
+          {source.color_magnitude.length ? (
+            <Accordion defaultExpanded className={classes.classifications}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="hr-diagram-content"
+                id="hr-diagram-header"
+              >
+                <Typography className={classes.accordionHeading}>
+                  HR Diagram
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <div
+                  className={classes.hr_diagram}
+                  data-testid={`hr_diagram_${source.id}`}
+                >
+                  <Suspense fallback={<div>Loading HR diagram...</div>}>
+                    <VegaHR
+                      data={source.color_magnitude}
+                      width={300}
+                      height={300}
+                    />
+                  </Suspense>
+                </div>
+              </AccordionDetails>
+            </Accordion>
+          ) : null}
         </div>
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>
@@ -485,6 +607,13 @@ SourceDesktop.propTypes = {
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
     redshift_history: PropTypes.arrayOf(PropTypes.any),
+    color_magnitude: PropTypes.arrayOf(
+      PropTypes.shape({
+        abs_mag: PropTypes.number,
+        color: PropTypes.number,
+        origin: PropTypes.string,
+      })
+    ),
   }).isRequired,
 };
 

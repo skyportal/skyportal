@@ -12,8 +12,8 @@ def force_render_enum_markdown(values):
     return ', '.join(list(map(lambda v: f'`{v}`', values)))
 
 
-ALLOWED_MAGSYSTEMS = tuple(l['name'] for l in _MAGSYSTEMS.get_loaders_metadata())
-ALLOWED_BANDPASSES = tuple(l['name'] for l in _BANDPASSES.get_loaders_metadata())
+ALLOWED_MAGSYSTEMS = tuple(val['name'] for val in _MAGSYSTEMS.get_loaders_metadata())
+ALLOWED_BANDPASSES = tuple(val['name'] for val in _BANDPASSES.get_loaders_metadata())
 THUMBNAIL_TYPES = (
     'new',
     'ref',
@@ -55,13 +55,6 @@ followup_priorities = sa.Enum(
     *FOLLOWUP_PRIORITIES, name='followup_priorities', validate_strings=True
 )
 
-sqla_enum_types = [
-    allowed_bandpasses,
-    thumbnail_types,
-    instrument_types,
-    followup_priorities,
-]
-
 api_classnames = sa.Enum(
     *[
         k
@@ -75,10 +68,21 @@ api_classnames = sa.Enum(
 )
 
 listener_classnames = sa.Enum(
-    *LISTENER_CLASSNAMES, name='followup_listeners', validate_strings=True,
+    *LISTENER_CLASSNAMES,
+    name='followup_listeners',
+    validate_strings=True,
 )
 
 py_allowed_magsystems = Enum('magsystems', ALLOWED_MAGSYSTEMS)
 py_allowed_bandpasses = Enum('bandpasses', ALLOWED_BANDPASSES)
 py_thumbnail_types = Enum('thumbnail_types', THUMBNAIL_TYPES)
 py_followup_priorities = Enum('priority', FOLLOWUP_PRIORITIES)
+
+sqla_enum_types = [
+    allowed_bandpasses,
+    thumbnail_types,
+    instrument_types,
+    followup_priorities,
+    api_classnames,
+    listener_classnames,
+]

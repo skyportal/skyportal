@@ -5,33 +5,41 @@ import PropTypes from "prop-types";
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
 import InputLabel from "@material-ui/core/InputLabel";
+import { makeStyles } from "@material-ui/core/styles";
 
 import { GET } from "../API";
-import styles from "./StarList.css";
+
+const useStyles = makeStyles(() => ({
+  starListDiv: {
+    padding: "1rem",
+    margin: "1rem",
+    lineHeight: "0.8rem",
+    position: "relative",
+    minHeight: "7rem",
+    minWidth: "15rem",
+    maxWidth: "100%",
+  },
+  starList: {
+    fontSize: "0.75rem",
+  },
+  codeText: {
+    overflow: "scroll",
+  },
+  dropDown: {
+    margin: "1.5rem",
+  },
+}));
 
 const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
+  const classes = useStyles();
   const handleChange = (event) => {
     setFacility(event.target.value);
     setStarList([{ str: "Loading starlist..." }]);
   };
 
   return (
-    <div className={styles.starListDiv}>
-      <code className={styles.starList}>
-        <div className={styles.codeText}>
-          <pre>
-            {starList &&
-              starList.map((item, idx) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <React.Fragment key={idx}>
-                  {item.str}
-                  <br />
-                </React.Fragment>
-              ))}
-          </pre>
-        </div>
-      </code>
-      <div className={styles.dropDown}>
+    <div className={classes.starListDiv}>
+      <div className={classes.dropDown}>
         <InputLabel id="StarListSelect">Facility</InputLabel>
         <Select
           labelId="StarListSelect"
@@ -44,6 +52,20 @@ const StarListBody = ({ starList, facility, setFacility, setStarList }) => {
           <MenuItem value="Shane">Shane</MenuItem>
         </Select>
       </div>
+      <code className={classes.starList}>
+        <div className={classes.codeText}>
+          <pre>
+            {starList &&
+              starList.map((item, idx) => (
+                // eslint-disable-next-line react/no-array-index-key
+                <React.Fragment key={idx}>
+                  {item.str}
+                  <br />
+                </React.Fragment>
+              ))}
+          </pre>
+        </div>
+      </code>
     </div>
   );
 };
@@ -93,9 +115,18 @@ export const ObservingRunStarList = () => {
           )
         )
       );
-
+      const standard_promise = [
+        dispatch(
+          GET(
+            `/api/internal/standards?facility=${facility}`,
+            "skyportal/FETCH_STANDARDS"
+          )
+        ),
+      ];
       const starlistInfo = [];
       const values = await Promise.allSettled(promises);
+      const standard_value = await Promise.allSettled(standard_promise);
+      values.push(standard_value[0]);
 
       values.forEach((response) =>
         starlistInfo.push(...response.value.data.starlist_info)

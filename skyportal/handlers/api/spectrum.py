@@ -1,11 +1,11 @@
 import io
 from pathlib import Path
+from astropy.time import Time
 import numpy as np
-
-from sqlalchemy.orm import joinedload
 
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
@@ -14,16 +14,13 @@ from ...models import (
     Group,
     Instrument,
     Obj,
-    GroupUser,
     Spectrum,
     User,
     ClassicalAssignment,
-    GroupSpectrum,
 )
 from ...schema import (
     SpectrumAsciiFilePostJSON,
     SpectrumPost,
-    GroupIDList,
     SpectrumAsciiFileParseJSON,
 )
 
@@ -36,6 +33,8 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         description: Upload spectrum
+        tags:
+          - spectra
         requestBody:
           content:
             application/json:
@@ -69,59 +68,42 @@ class SpectrumHandler(BaseHandler):
                 f'Invalid / missing parameters; {e.normalized_messages()}'
             )
 
-        group_ids = data.pop("group_ids")
-        if group_ids == "all":
-            groups = (
-                DBSession()
-                .query(Group)
-                .filter(Group.name == cfg["misc"]["public_group_name"])
-                .all()
-            )
-        else:
-            try:
-                group_ids = GroupIDList.load({'group_ids': group_ids})
-            except ValidationError:
-                return self.error(
-                    "Invalid group_ids parameter value. Must be a list of IDs "
-                    "(integers) or the string 'all'."
-                )
-
-            group_ids = group_ids['group_ids']
-            groups = []
-            for group_id in group_ids:
-                try:
-                    group_id = int(group_id)
-                except TypeError:
-                    return self.error(
-                        f"Invalid format for group id {group_id}, must be an integer."
-                    )
-                group = Group.query.get(group_id)
-                if group is None:
-                    return self.error(f'No group with ID {group_id}')
-                groups.append(group)
-
         # always append the single user group
         single_user_group = self.associated_user_object.single_user_group
+
+        group_ids = data.pop("group_ids", None)
+        if group_ids is None:
+            groups = [single_user_group]
+        else:
+            if group_ids == "all":
+                groups = Group.query.filter(
+                    Group.name == cfg['misc.public_group_name']
+                ).all()
+            else:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+
         if single_user_group not in groups:
             groups.append(single_user_group)
 
-        instrument = Instrument.query.get(data['instrument_id'])
-        if instrument is None:
-            return self.error('Invalid instrument id.')
+        instrument = Instrument.get_if_accessible_by(
+            data['instrument_id'], self.current_user, raise_if_none=True
+        )
 
         # need to do this before the creation of Spectrum because this line flushes.
         owner_id = self.associated_user_object.id
 
         reducers = []
         for reducer_id in data.pop('reduced_by', []):
-            reducer = User.query.get(reducer_id)
+            reducer = User.get_if_accessible_by(reducer_id, self.current_user)
             if reducer is None:
                 return self.error(f'Invalid reducer ID: {reducer_id}.')
             reducers.append(reducer)
 
         observers = []
         for observer_id in data.pop('observed_by', []):
-            observer = User.query.get(observer_id)
+            observer = User.get_if_accessible_by(observer_id, self.current_user)
             if observer is None:
                 return self.error(f'Invalid observer ID: {observer_id}.')
             observers.append(observer)
@@ -133,10 +115,15 @@ class SpectrumHandler(BaseHandler):
         spec.groups = groups
         spec.owner_id = owner_id
         DBSession().add(spec)
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': spec.obj.internal_key},
+        )
+
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE_SPECTRA',
             payload={'obj_key': spec.obj.internal_key},
         )
 
@@ -147,6 +134,8 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         description: Retrieve a spectrum
+        tags:
+          - spectra
         parameters:
           - in: path
             name: spectrum_id
@@ -164,38 +153,26 @@ class SpectrumHandler(BaseHandler):
                 schema: Error
         """
 
-        spectrum = (
-            DBSession()
-            .query(Spectrum)
-            .join(Obj)
-            .join(GroupSpectrum)
-            .filter(
-                Spectrum.id == spectrum_id,
-                GroupSpectrum.group_id.in_(
-                    [g.id for g in self.current_user.accessible_groups]
-                ),
-            )
-            .options(joinedload(Spectrum.groups))
-            .first()
+        spectrum = Spectrum.get_if_accessible_by(
+            spectrum_id, self.current_user, raise_if_none=True
         )
 
-        if spectrum is not None:
-            # Permissions check
-            _ = Obj.get_if_owned_by(spectrum.obj_id, self.current_user)
-            spec_dict = spectrum.to_dict()
-            spec_dict["instrument_name"] = spectrum.instrument.name
-            spec_dict["groups"] = spectrum.groups
-            spec_dict["reducers"] = spectrum.reducers
-            spec_dict["observers"] = spectrum.observers
-            return self.success(data=spec_dict)
-        else:
-            return self.error(f"Could not load spectrum with ID {spectrum_id}")
+        spec_dict = recursive_to_dict(spectrum)
+        spec_dict["instrument_name"] = spectrum.instrument.name
+        spec_dict["groups"] = spectrum.groups
+        spec_dict["reducers"] = spectrum.reducers
+        spec_dict["observers"] = spectrum.observers
+        spec_dict["owner"] = spectrum.owner
+        self.verify_and_commit()
+        return self.success(data=spec_dict)
 
     @permissions(['Upload data'])
     def put(self, spectrum_id):
         """
         ---
         description: Update spectrum
+        tags:
+          - spectra
         parameters:
           - in: path
             name: spectrum_id
@@ -221,15 +198,9 @@ class SpectrumHandler(BaseHandler):
         except TypeError:
             return self.error('Could not convert spectrum id to int.')
 
-        spectrum = Spectrum.query.get(spectrum_id)
-        # Permissions check
-        _ = Obj.get_if_owned_by(spectrum.obj_id, self.current_user)
-
-        # Check that the requesting user owns the spectrum (or is an admin)
-        if not spectrum.is_modifiable_by(self.associated_user_object):
-            return self.error(
-                f'Cannot modify spectrum that is owned by {spectrum.owner}.'
-            )
+        spectrum = Spectrum.get_if_accessible_by(
+            spectrum_id, self.current_user, mode="update", raise_if_none=True
+        )
 
         data = self.get_json()
 
@@ -243,13 +214,12 @@ class SpectrumHandler(BaseHandler):
         for k in data:
             setattr(spectrum, k, data[k])
 
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': spectrum.obj.internal_key},
         )
-
         return self.success()
 
     @permissions(['Upload data'])
@@ -257,6 +227,8 @@ class SpectrumHandler(BaseHandler):
         """
         ---
         description: Delete a spectrum
+        tags:
+          - spectra
         parameters:
           - in: path
             name: spectrum_id
@@ -273,22 +245,21 @@ class SpectrumHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        spectrum = Spectrum.query.get(spectrum_id)
-        # Permissions check
-        _ = Obj.get_if_owned_by(spectrum.obj_id, self.current_user)
-
-        # Check that the requesting user owns the spectrum (or is an admin)
-        if not spectrum.is_modifiable_by(self.associated_user_object):
-            return self.error(
-                f'Cannot delete spectrum that is owned by {spectrum.owner}.'
-            )
-
+        spectrum = Spectrum.get_if_accessible_by(
+            spectrum_id, self.current_user, mode="delete", raise_if_none=True
+        )
+        obj_key = spectrum.obj.internal_key
         DBSession().delete(spectrum)
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': spectrum.obj.internal_key},
+            payload={'obj_key': obj_key},
+        )
+
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE_SPECTRA',
+            payload={'obj_id': spectrum.obj_id},
         )
 
         return self.success()
@@ -315,7 +286,14 @@ class ASCIIHandler:
             raise ValueError('File must be smaller than 10MB.')
 
         # pass ascii in as a file-like object
-        file = io.BytesIO(ascii.encode('ascii'))
+        try:
+            file = io.BytesIO(ascii.encode('ascii'))
+        except UnicodeEncodeError:
+            raise ValueError(
+                'Unable to parse uploaded spectrum file as ascii. '
+                'Ensure the file is not a FITS file and retry.'
+            )
+
         spec = Spectrum.from_ascii(
             file,
             obj_id=json.get('obj_id', None),
@@ -338,6 +316,8 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         """
         ---
         description: Upload spectrum from ASCII file
+        tags:
+          - spectra
         requestBody:
           content:
             application/json:
@@ -370,58 +350,51 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         filename = json.pop('filename')
 
-        obj = Obj.get_if_owned_by(json['obj_id'], self.current_user)
-        if obj is None:
-            raise ValidationError('Invalid Obj id.')
+        Obj.get_if_accessible_by(json['obj_id'], self.current_user, raise_if_none=True)
 
-        instrument = Instrument.query.get(json['instrument_id'])
-        if instrument is None:
-            raise ValidationError('Invalid instrument id.')
-
-        groups = []
-        group_ids = json.pop('group_ids', [])
-        for group_id in group_ids:
-            group = Group.query.get(group_id)
-            if group is None:
-                return self.error(f'Invalid group id: {group_id}.')
-            groups.append(group)
+        Instrument.get_if_accessible_by(
+            json['instrument_id'], self.current_user, raise_if_none=True
+        )
 
         # always add the single user group
-        single_user_group = (
-            DBSession()
-            .query(Group)
-            .join(GroupUser)
-            .filter(
-                Group.single_user_group == True,  # noqa
-                GroupUser.user_id == self.associated_user_object.id,
-            )
-            .first()
-        )
+        single_user_group = self.associated_user_object.single_user_group
+
+        group_ids = json.pop('group_ids', [])
+        if group_ids is None:
+            groups = [single_user_group]
+        else:
+            if group_ids == "all":
+                groups = Group.query.filter(
+                    Group.name == cfg['misc.public_group_name']
+                ).all()
+            else:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+
+        if single_user_group not in groups:
+            groups.append(single_user_group)
 
         reducers = []
         for reducer_id in json.get('reduced_by', []):
-            reducer = User.query.get(reducer_id)
+            reducer = User.get_if_accessible_by(reducer_id, self.current_user)
             if reducer is None:
                 raise ValidationError(f'Invalid reducer ID: {reducer_id}.')
             reducers.append(reducer)
 
         observers = []
         for observer_id in json.get('observed_by', []):
-            observer = User.query.get(observer_id)
+            observer = User.get_if_accessible_by(observer_id, self.current_user)
             if observer is None:
                 raise ValidationError(f'Invalid observer ID: {observer_id}.')
             observers.append(observer)
 
-        if single_user_group is not None:
-            if single_user_group not in groups:
-                groups.append(single_user_group)
-
         # will never KeyError as missing value is imputed
         followup_request_id = json.pop('followup_request_id', None)
         if followup_request_id is not None:
-            followup_request = FollowupRequest.query.get(followup_request_id)
-            if followup_request is None:
-                return self.error('Invalid followup request.')
+            followup_request = FollowupRequest.get_if_accessible_by(
+                followup_request_id, self.current_user, raise_if_none=True
+            )
             spec.followup_request = followup_request
             for group in followup_request.target_groups:
                 if group not in groups:
@@ -429,7 +402,9 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         assignment_id = json.pop('assignment_id', None)
         if assignment_id is not None:
-            assignment = ClassicalAssignment.query.get(assignment_id)
+            assignment = ClassicalAssignment.get_if_accessible_by(
+                assignment_id, self.current_user, raise_if_none=True
+            )
             if assignment is None:
                 return self.error('Invalid assignment.')
             spec.assignment = assignment
@@ -442,7 +417,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
         spec.observers = observers
 
         DBSession().add(spec)
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
@@ -458,6 +433,8 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
         """
         ---
         description: Parse spectrum from ASCII file
+        tags:
+          - spectra
         requestBody:
           content:
             application/json:
@@ -473,7 +450,10 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
                 schema: Error
         """
 
-        spec = self.spec_from_ascii_request(validator=SpectrumAsciiFileParseJSON)
+        try:
+            spec = self.spec_from_ascii_request(validator=SpectrumAsciiFileParseJSON)
+        except Exception as e:
+            return self.error(f'Error parsing spectrum: {e.args[0]}')
         return self.success(data=spec)
 
 
@@ -483,6 +463,8 @@ class ObjSpectraHandler(BaseHandler):
         """
         ---
         description: Retrieve all spectra associated with an Object
+        tags:
+          - spectra
         parameters:
           - in: path
             name: obj_id
@@ -490,42 +472,161 @@ class ObjSpectraHandler(BaseHandler):
             schema:
               type: string
             description: ID of the object to retrieve spectra for
+          - in: query
+            name: normalization
+            required: false
+            schema:
+              type: string
+            description: |
+              what normalization is needed for the spectra (e.g., "median").
+              If omitted, returns the original spectrum.
+              Options for normalization are:
+              - median: normalize the flux to have median==1
 
         responses:
           200:
             content:
               application/json:
-                schema: ArrayOfSpectrums
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            obj_id:
+                              type: string
+                              description: The ID of the requested Obj
+                            spectra:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/Spectrum'
           400:
             content:
               application/json:
                 schema: Error
         """
 
-        obj = Obj.query.get(obj_id)
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj is None:
             return self.error('Invalid object ID.')
-        spectra = Obj.get_spectra_owned_by(
-            obj_id, self.current_user, options=[joinedload(Spectrum.groups)]
+
+        spectra = (
+            Spectrum.query_records_accessible_by(self.current_user)
+            .filter(Spectrum.obj_id == obj_id)
+            .all()
         )
         return_values = []
         for spec in spectra:
-            spec_dict = spec.to_dict()
+            spec_dict = recursive_to_dict(spec)
             spec_dict["instrument_name"] = spec.instrument.name
             spec_dict["groups"] = spec.groups
             spec_dict["reducers"] = spec.reducers
             spec_dict["observers"] = spec.observers
+            spec_dict["owner"] = spec.owner
             return_values.append(spec_dict)
 
-        for s in return_values:
-            norm = np.median(s["fluxes"])
-            if not (np.isfinite(norm) and norm > 0):
-                # otherwise normalize the value at the median wavelength to 1
-                median_wave_index = np.argmin(
-                    np.abs(s["wavelengths"] - np.median(s["wavelengths"]))
+        normalization = self.get_query_argument('normalization', None)
+
+        if normalization is not None:
+            if normalization == "median":
+                for s in return_values:
+                    norm = np.median(np.abs(s["fluxes"]))
+                    norm = norm if norm != 0.0 else 1e-20
+                    if not (np.isfinite(norm) and norm > 0):
+                        # otherwise normalize the value at the median wavelength to 1
+                        median_wave_index = np.argmin(
+                            np.abs(s["wavelengths"] - np.median(s["wavelengths"]))
+                        )
+                        norm = s["fluxes"][median_wave_index]
+
+                    s["fluxes"] = s["fluxes"] / norm
+            else:
+                return self.error(
+                    f'Invalid "normalization" value "{normalization}, use '
+                    '"median" or None'
                 )
-                norm = s["fluxes"][median_wave_index]
+        self.verify_and_commit()
+        return self.success(data={'obj_id': obj.id, 'spectra': return_values})
 
-            s["fluxes"] = s["fluxes"] / norm
 
-        return self.success(data=return_values)
+class SpectrumRangeHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Retrieve spectra for given instrument within date range
+        tags:
+          - spectra
+        parameters:
+          - in: query
+            name: instrument_ids
+            required: false
+            schema:
+              type: list of integers
+            description: |
+              Instrument id numbers of spectrum.  If None, retrieve
+              for all instruments.
+          - in: query
+            name: min_date
+            required: false
+            schema:
+              type: ISO UTC date string
+            description: |
+              Minimum UTC date of range in ISOT format.  If None,
+              open ended range.
+          - in: query
+            name: max_date
+            required: false
+            schema:
+              type: ISO UTC date string
+            description: |
+              Maximum UTC date of range in ISOT format. If None,
+              open ended range.
+
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            obj_id:
+                              type: string
+                              description: The ID of the requested Obj
+                            spectra:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/Spectrum'
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        instrument_ids = self.get_query_arguments('instrument_ids')
+        min_date = self.get_query_argument('min_date', None)
+        max_date = self.get_query_argument('max_date', None)
+
+        if len(instrument_ids) > 0:
+            query = Spectrum.query_records_accessible_by(self.current_user).filter(
+                Spectrum.instrument_id.in_(instrument_ids)
+            )
+        else:
+            query = Spectrum.query_records_accessible_by(self.current_user)
+
+        if min_date is not None:
+            utc = Time(min_date, format='isot', scale='utc')
+            query = query.filter(Spectrum.observed_at >= utc.isot)
+        if max_date is not None:
+            utc = Time(max_date, format='isot', scale='utc')
+            query = query.filter(Spectrum.observed_at <= utc.isot)
+
+        self.verify_and_commit()
+        return self.success(data=query.all())

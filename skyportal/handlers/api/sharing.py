@@ -1,6 +1,6 @@
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Group, Photometry, Spectrum
+from ...models import Group, Photometry, Spectrum
 
 
 class SharingHandler(BaseHandler):
@@ -9,6 +9,8 @@ class SharingHandler(BaseHandler):
         """
         ---
         description: Share data with additional groups/users
+        tags:
+          - data_sharing
         requestBody:
           content:
             application/json:
@@ -109,7 +111,7 @@ class SharingHandler(BaseHandler):
                 # Grab obj_id for use in websocket message below
                 spec_obj_ids.append(spec.obj_id)
 
-        DBSession().commit()
+        self.verify_and_commit()
 
         spec_obj_ids = set(spec_obj_ids)
         phot_obj_ids = set(phot_obj_ids)

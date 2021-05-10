@@ -2,16 +2,10 @@ import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import Paper from "@material-ui/core/Paper";
-import Button from "@material-ui/core/Button";
-import ButtonGroup from "@material-ui/core/ButtonGroup";
-import Checkbox from "@material-ui/core/Checkbox";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import TextField from "@material-ui/core/TextField";
 import { makeStyles } from "@material-ui/core/styles";
 import Grid from "@material-ui/core/Grid";
 import Typography from "@material-ui/core/Typography";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import { useForm, Controller } from "react-hook-form";
 
 import * as sourcesActions from "../ducks/sources";
 import UninitializedDBMessage from "./UninitializedDBMessage";
@@ -43,9 +37,10 @@ const useStyles = makeStyles((theme) => ({
   },
   blockWrapper: {
     width: "100%",
+    marginBottom: "0.5rem",
   },
   title: {
-    margin: "1rem 0rem 0rem 0rem",
+    margin: "0.5rem 0rem 0rem 0rem",
   },
   spinner: {
     marginTop: "1rem",
@@ -67,36 +62,32 @@ const SourceList = () => {
     dispatch(sourcesActions.fetchSources());
   }, [dispatch]);
 
-  const { handleSubmit, register, getValues, control } = useForm();
-
-  const onSubmit = (data) => {
-    dispatch(sourcesActions.fetchSources(data));
-  };
-
-  const handleClickReset = () => {
-    setRowsPerPage(100);
-    dispatch(sourcesActions.fetchSources());
-  };
-
-  const handleSourceTablePagination = (pageNumber, numPerPage) => {
+  const handleSourceTablePagination = (
+    pageNumber,
+    numPerPage,
+    sortData,
+    filterData
+  ) => {
     setRowsPerPage(numPerPage);
     const data = {
-      ...getValues(),
+      ...filterData,
       pageNumber,
       numPerPage,
-      totalMatches: sourcesState.totalMatches,
     };
+    if (sortData && Object.keys(sortData).length > 0) {
+      data.sortBy = sortData.name;
+      data.sortOrder = sortData.direction;
+    }
     dispatch(sourcesActions.fetchSources(data));
   };
 
-  const handleSourceTableSorting = (formData) => {
+  const handleSourceTableSorting = (sortData, filterData) => {
     const data = {
-      ...getValues(),
+      ...filterData,
       pageNumber: 1,
       rowsPerPage,
-      totalMatches: sourcesState.totalMatches,
-      sortBy: formData.column,
-      sortOrder: formData.ascending ? "asc" : "desc",
+      sortBy: sortData.name,
+      sortOrder: sortData.direction,
     };
     dispatch(sourcesActions.fetchSources(data));
   };
@@ -114,123 +105,6 @@ const SourceList = () => {
         <Typography variant="h6" display="inline">
           Sources
         </Typography>
-        <Paper className={classes.paper} variant="outlined">
-          <form className={classes.root} onSubmit={handleSubmit(onSubmit)}>
-            <div className={classes.blockWrapper}>
-              <h4> Filter Sources </h4>
-            </div>
-            <div className={classes.blockWrapper}>
-              <h5 className={classes.title}> Filter by Name or ID </h5>
-            </div>
-            <div className={classes.blockWrapper}>
-              <TextField
-                fullWidth
-                label="Source ID/Name"
-                name="sourceID"
-                inputRef={register}
-              />
-            </div>
-
-            <div className={classes.blockWrapper}>
-              <h5 className={classes.title}> Filter by Position </h5>
-            </div>
-            <div className={classes.blockWrapper}>
-              <TextField
-                size="small"
-                label="RA (degrees)"
-                name="ra"
-                inputRef={register}
-              />
-              <TextField
-                size="small"
-                label="Dec (degrees)"
-                name="dec"
-                inputRef={register}
-              />
-              <TextField
-                size="small"
-                label="Radius (degrees)"
-                name="radius"
-                inputRef={register}
-              />
-            </div>
-            <div className={classes.blockWrapper}>
-              <h5 className={classes.title}>
-                Filter by Time Last Detected (UTC)
-              </h5>
-            </div>
-            <div className={classes.blockWrapper}>
-              <TextField
-                size="small"
-                label="Start Date"
-                name="startDate"
-                inputRef={register}
-                placeholder="2012-08-30T00:00:00"
-              />
-              <TextField
-                size="small"
-                label="End Date"
-                name="endDate"
-                inputRef={register}
-                placeholder="2012-08-30T00:00:00"
-              />
-            </div>
-            <div className={classes.blockWrapper}>
-              <h5 className={classes.title}> Filter by Simbad Class </h5>
-            </div>
-            <div className={classes.blockWrapper}>
-              <TextField
-                size="small"
-                label="Class Name"
-                type="text"
-                name="simbadClass"
-                inputRef={register}
-              />
-              <FormControlLabel
-                label="TNS Name"
-                labelPlacement="start"
-                control={
-                  <Controller
-                    render={({ onChange, value }) => (
-                      <Checkbox
-                        color="primary"
-                        type="checkbox"
-                        onChange={(event) => onChange(event.target.checked)}
-                        checked={value}
-                      />
-                    )}
-                    name="hasTNSname"
-                    control={control}
-                    defaultValue={false}
-                  />
-                }
-              />
-            </div>
-            <div className={classes.blockWrapper}>
-              <ButtonGroup
-                variant="contained"
-                color="primary"
-                aria-label="contained primary button group"
-              >
-                <Button
-                  variant="contained"
-                  color="primary"
-                  type="submit"
-                  disabled={sourcesState.queryInProgress}
-                >
-                  Submit
-                </Button>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleClickReset}
-                >
-                  Reset
-                </Button>
-              </ButtonGroup>
-            </div>
-          </form>
-        </Paper>
         {sourcesState.sources && (
           <Grid item className={classes.tableGrid}>
             <SourceTable

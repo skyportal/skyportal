@@ -22,7 +22,7 @@ from marshmallow_enum import EnumField
 
 
 from baselayer.app.models import Base as _Base, DBSession as _DBSession
-
+from baselayer.app.env import load_env
 from skyportal.enum_types import (
     py_allowed_bandpasses,
     py_allowed_magsystems,
@@ -40,10 +40,19 @@ import inspect
 import numpy as np
 from enum import Enum
 
+_, cfg = load_env()
+# The default lim mag n-sigma to consider a photometry point as a detection
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
+
+
+def validate_fluxerr(fluxerr):
+    if isinstance(fluxerr, (float, int, str)):
+        return float(fluxerr) >= 0
+    return all([float(el) >= 0 for el in fluxerr])
+
 
 class ApispecEnumField(EnumField):
-    """See https://github.com/justanr/marshmallow_enum/issues/24#issue-335162592
-    """
+    """See https://github.com/justanr/marshmallow_enum/issues/24#issue-335162592"""
 
     def __init__(self, enum, *args, **kwargs):
         super().__init__(enum, *args, **kwargs)
@@ -80,7 +89,9 @@ def success(schema_name, base_schema=None):
 
     if base_schema is not None:
         if isinstance(base_schema, list):
-            schema_fields['data'] = fields.List(fields.Nested(base_schema[0]),)
+            schema_fields['data'] = fields.List(
+                fields.Nested(base_schema[0]),
+            )
         else:
             schema_fields['data'] = fields.Nested(base_schema)
 
@@ -156,6 +167,16 @@ def setup_schema():
                     'last_modified_by_id',
                 ],
             )
+            if schema_class_name == "Obj":
+                add_schema(
+                    f'{schema_class_name}Post',
+                    exclude=[
+                        'created_at',
+                        'redshift_history',
+                        'modified',
+                        'internal_key',
+                    ],
+                )
 
 
 class PhotBaseFlexible(object):
@@ -246,7 +267,7 @@ class PhotBaseFlexible(object):
     origin = fields.Field(
         description="Provenance of the Photometry. If a record is "
         "already present with identical origin, only the "
-        "groups list will be updated (other data assumed "
+        "groups or streams list will be updated (other data assumed "
         "identical). Defaults to None.",
         missing=None,
     )
@@ -259,11 +280,18 @@ class PhotBaseFlexible(object):
         missing=[],
     )
 
+    stream_ids = fields.Field(
+        description="List of stream IDs to which photometry points will be visible.",
+        required=False,
+        missing=[],
+    )
+
     altdata = fields.Field(
         description="Misc. alternative metadata stored in JSON "
         "format, e.g. `{'calibration': {'source': 'ps1', "
         "'color_term': 0.012}, 'photometry_method': 'allstar', "
-        "'method_reference': 'Masci et al. (2015)'}`",
+        "'method_reference': 'Masci et al. (2015)'}`. Can be a list of "
+        "dicts or a single dict which will be broadcast to all values.",
         missing=None,
         default=None,
         required=False,
@@ -304,7 +332,8 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         'e.g., upper limits from ZTF1, where flux is not provided '
         'for non-detections. For a given photometry '
         'point, if `flux` is null, `fluxerr` is '
-        'used to derive a 5-sigma limiting magnitude '
+        'used to derive a n-sigma limiting magnitude '
+        '(where n is configurable; 3.0 by default) '
         'when the photometry point is requested in '
         'magnitude space from the Photomety GET api.',
         required=False,
@@ -317,6 +346,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         'If a scalar, will be broadcast to all values '
         'given as lists. Null values not allowed.',
         required=True,
+        validate=validate_fluxerr,
     )
 
     zp = fields.Field(
@@ -392,9 +422,9 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
         description='Number of standard deviations '
         'above the background that the limiting '
         'magnitudes correspond to. Null values '
-        'not allowed. Default = 5.',
+        f'not allowed. Default = {PHOT_DETECTION_THRESHOLD}.',
         required=False,
-        missing=5,
+        missing=PHOT_DETECTION_THRESHOLD,
     )
 
 
@@ -433,6 +463,14 @@ class PhotBase(object):
     assignment_id = fields.Integer(
         description='ID of the classical assignment which generated the photometry',
         required=False,
+        missing=None,
+    )
+
+    origin = fields.Field(
+        description="Provenance of the Photometry. If a record is "
+        "already present with identical origin, only the "
+        "groups or streams list will be updated (other data assumed "
+        "identical). Defaults to None.",
         missing=None,
     )
 
@@ -581,10 +619,10 @@ class PhotometryFlux(_Schema, PhotBase):
 
 class PhotometryMag(_Schema, PhotBase):
     """This is one of  two classes that are used for deserializing
-     and validating the postprocessed input data of `PhotometryHandler.post`
-     and `PhotometryHandler.put` and for generating the API docs of
-     `PhotometryHandler.get`.
-     """
+    and validating the postprocessed input data of `PhotometryHandler.post`
+    and `PhotometryHandler.put` and for generating the API docs of
+    `PhotometryHandler.get`.
+    """
 
     mag = fields.Number(
         description='Magnitude of the observation in the '
@@ -664,9 +702,9 @@ class PhotometryMag(_Schema, PhotBase):
             flux = 10 ** (-0.4 * (data['mag'] - PHOT_ZP))
             fluxerr = data['magerr'] / (2.5 / np.log(10)) * flux
         else:
-            fivesigflux = 10 ** (-0.4 * (data['limiting_mag'] - PHOT_ZP))
+            nsigflux = 10 ** (-0.4 * (data['limiting_mag'] - PHOT_ZP))
             flux = None
-            fluxerr = fivesigflux / 5
+            fluxerr = nsigflux / PHOT_DETECTION_THRESHOLD
 
         # convert flux to microJanskies.
         table = Table(
@@ -744,7 +782,10 @@ class ObservingRunPost(_Schema):
 
 class FollowupRequestPost(_Schema):
 
-    obj_id = fields.String(required=True, description="ID of the target Obj.",)
+    obj_id = fields.String(
+        required=True,
+        description="ID of the target Obj.",
+    )
 
     payload = fields.Field(
         required=False, description="Content of the followup request."
@@ -980,7 +1021,8 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
     )
 
     filename = fields.String(
-        description="The original filename (for bookkeeping purposes).", required=True,
+        description="The original filename (for bookkeeping purposes).",
+        required=True,
     )
     reduced_by = fields.List(
         fields.Integer,
@@ -1025,7 +1067,10 @@ class SpectrumPost(_Schema):
         description="Errors on the fluxes of the spectrum [F_lambda, same units as `fluxes`.]",
     )
 
-    obj_id = fields.String(required=True, description="ID of this Spectrum's Obj.",)
+    obj_id = fields.String(
+        required=True,
+        description="ID of this Spectrum's Obj.",
+    )
 
     observed_at = fields.DateTime(
         description='The ISO UTC time the spectrum was taken.', required=True
@@ -1046,7 +1091,8 @@ class SpectrumPost(_Schema):
     origin = fields.String(required=False, description="Origin of the spectrum.")
 
     instrument_id = fields.Integer(
-        required=True, description="ID of the Instrument that acquired the Spectrum.",
+        required=True,
+        description="ID of the Instrument that acquired the Spectrum.",
     )
 
     group_ids = fields.Field(

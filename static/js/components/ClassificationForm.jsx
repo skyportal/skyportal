@@ -1,52 +1,55 @@
-import React, { useReducer } from "react";
-import { useDispatch } from "react-redux";
+import React, { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
-import Select from "@material-ui/core/Select";
-import InputLabel from "@material-ui/core/InputLabel";
 import TextField from "@material-ui/core/TextField";
-import Button from "@material-ui/core/Button";
 import MenuItem from "@material-ui/core/MenuItem";
-import Autocomplete from "@material-ui/lab/Autocomplete";
+import Select from "@material-ui/core/Select";
+import Input from "@material-ui/core/Input";
+import InputLabel from "@material-ui/core/InputLabel";
+import Chip from "@material-ui/core/Chip";
 import { makeStyles } from "@material-ui/core/styles";
+import Form from "@rjsf/material-ui";
+
 import { showNotification } from "baselayer/components/Notifications";
 import * as Actions from "../ducks/source";
 
 const useStyles = makeStyles(() => ({
-  taxonomySelect: {
-    maxWidth: "100%",
-    fullWidth: "true",
+  chips: {
     display: "flex",
-    wrap: "nowrap",
+    flexWrap: "wrap",
+  },
+  chip: {
+    margin: 2,
   },
 }));
 
 // For each node in the hierarchy tree, add its full path from root
-// to the node_paths list
-const add_node_paths = (node_paths, hierarchy, prefix_path = []) => {
-  const this_node_path = [...prefix_path];
+// to the nodePaths list
+const addNodePaths = (nodePaths, hierarchy, prefix_path = []) => {
+  const thisNodePath = [...prefix_path];
 
   if (
     hierarchy.class !== undefined &&
     hierarchy.class !== "Time-domain Source"
   ) {
-    this_node_path.push(hierarchy.class);
-    node_paths.push(this_node_path);
+    thisNodePath.push(hierarchy.class);
+    nodePaths.push(thisNodePath);
   }
 
   hierarchy.subclasses?.forEach((item) => {
     if (typeof item === "object") {
-      add_node_paths(node_paths, item, this_node_path);
+      addNodePaths(nodePaths, item, thisNodePath);
     }
   });
 };
 
 // For each class in the hierarchy, return its name
 // as well as the path from the root of hierarchy to that class
-const allowed_classes = (hierarchy) => {
-  const class_paths = [];
-  add_node_paths(class_paths, hierarchy);
+export const allowedClasses = (hierarchy) => {
+  const classPaths = [];
+  addNodePaths(classPaths, hierarchy);
 
-  const classes = class_paths.map((path) => ({
+  const classes = classPaths.map((path) => ({
     class: path.pop(),
     context: path.reverse(),
   }));
@@ -56,197 +59,231 @@ const allowed_classes = (hierarchy) => {
 
 const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const classes = useStyles();
+  const dispatch = useDispatch();
+  const groups = useSelector((state) => state.groups.userAccessible);
+  const [submissionRequestInProcess, setSubmissionRequestInProcess] = useState(
+    false
+  );
+  const groupIDToName = {};
+  groups.forEach((g) => {
+    groupIDToName[g.id] = g.name;
+  });
+  const ITEM_HEIGHT = 48;
+  const MenuProps = {
+    PaperProps: {
+      style: {
+        maxHeight: ITEM_HEIGHT * 4.5,
+        width: 250,
+      },
+    },
+  };
+
   const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
 
-  function reducer(state, action) {
-    switch (action.name) {
-      case "taxonomy_index":
-        return {
-          ...state,
-          [action.name]: action.value,
-          allowed_classes: allowed_classes(
-            latestTaxonomyList[action.value].hierarchy
-          ),
-        };
-      default:
-        return {
-          ...state,
-          [action.name]: action.value,
-        };
-    }
-  }
-
-  const reduxDispatch = useDispatch();
-
-  const initialState = {
-    isSubmitting: false,
-    taxonomy_index: latestTaxonomyList.length > 0 ? 0 : null,
-    classification: null,
-    probability: 1.0,
-    class_select_enabled: false,
-    probability_select_enabled: false,
-    probability_errored: false,
-    allowed_classes:
-      latestTaxonomyList.length > 0
-        ? latestTaxonomyList[0].allowed_classes
-        : [null],
-  };
-  const [state, localDispatch] = useReducer(reducer, initialState);
-
-  if (latestTaxonomyList.length === 0) {
-    return <b>No taxonomies loaded...</b>;
-  }
-
-  const handleTaxonomyChange = (event) => {
-    localDispatch({ name: "taxonomy_index", value: event.target.value });
-    localDispatch({ name: "classification", value: "" });
-    localDispatch({ name: "class_select_enabled", value: true });
-    localDispatch({ name: "probability_select_enabled", value: false });
-    localDispatch({ name: "probability_errored", value: false });
-    localDispatch({ name: "probability", value: 1.0 });
-  };
-
-  const handleClasschange = (event, value) => {
-    localDispatch({ name: "classification", value });
-    localDispatch({ name: "probability_select_enabled", value: true });
-    localDispatch({ name: "probability", value: 1.0 });
-  };
-
-  const processProb = (event) => {
-    // make sure that the probability in in [0,1], otherwise set
-    // an error state on the entry
-    if (
-      Number.isNaN(parseFloat(event.target.value)) ||
-      parseFloat(event.target.value) > 1 ||
-      parseFloat(event.target.value) < 0
-    ) {
-      localDispatch({ name: "probability_errored", value: true });
-    } else {
-      localDispatch({ name: "probability_errored", value: false });
-      localDispatch({ name: "probability", value: event.target.value });
-    }
-  };
-
-  const onSubmit = async (event) => {
-    // TODO: allow fine-grained user groups in submission
-    event.preventDefault();
-    localDispatch({ name: "isSubmitting", value: true });
-    const formData = {
-      taxonomy_id: latestTaxonomyList[state.taxonomy_index].id,
+  const handleSubmit = async ({ formData }) => {
+    setSubmissionRequestInProcess(true);
+    // Get the classification without the context
+    const classification = formData.classification.split(" <> ")[0];
+    const data = {
+      taxonomy_id: parseInt(formData.taxonomy, 10),
       obj_id,
-      classification: state.classification.class,
-      probability: parseFloat(state.probability),
+      classification,
+      probability: formData.probability,
     };
-    const result = await reduxDispatch(Actions.addClassification(formData));
-    if (result.status === "success") {
-      reduxDispatch(showNotification("Classification saved"));
+    if (formData.groupIDs) {
+      data.group_ids = formData.groupIDs.map((id) => parseInt(id, 10));
     }
-    localDispatch({ name: "isSubmitting", value: false });
+    const result = await dispatch(Actions.addClassification(data));
+    setSubmissionRequestInProcess(false);
+    if (result.status === "success") {
+      dispatch(showNotification("Classification saved"));
+    }
+  };
+
+  // Custom form widget for the classifications to format and display the contexts as well
+  const CustomClassificationWidget = ({ value, onChange, options }) => (
+    <TextField
+      id="classification"
+      select
+      required
+      label="Classification"
+      value={value || ""}
+      onChange={(event) => {
+        onChange(event.target.value);
+      }}
+    >
+      {options.enumOptions.map((option) => {
+        const [classification, context] = option.value.split(" <> ");
+        return (
+          <MenuItem key={option.value} value={option.value}>
+            <span>
+              <b>{classification}</b>
+              &nbsp;
+              {context !== "" && <br />}
+              {context}
+            </span>
+          </MenuItem>
+        );
+      })}
+    </TextField>
+  );
+
+  CustomClassificationWidget.propTypes = {
+    value: PropTypes.string.isRequired,
+    onChange: PropTypes.func.isRequired,
+    options: PropTypes.shape({
+      enumOptions: PropTypes.arrayOf(PropTypes.shape({})),
+    }).isRequired,
+  };
+
+  // Custom form widget for probability because rxjs MUI UpdownWidget does not have working min/max/step
+  // https://github.com/rjsf-team/react-jsonschema-form/issues/2022
+  const CustomProbabilityWidget = ({ value, onChange }) => (
+    <TextField
+      id="probability"
+      label="Probability"
+      type="number"
+      helperText="[0-1]"
+      InputLabelProps={{
+        shrink: true,
+      }}
+      inputProps={{ min: "0", max: "1", step: "0.0001" }}
+      value={value || ""}
+      onChange={(event) => {
+        onChange(event.target.value);
+      }}
+    />
+  );
+  CustomProbabilityWidget.propTypes = {
+    value: PropTypes.string.isRequired,
+    onChange: PropTypes.func.isRequired,
+  };
+
+  const CustomGroupsWidget = ({ value, onChange, options }) => (
+    <>
+      <InputLabel id="classificationGroupSelectLabel">
+        Choose Group (all groups if blank)
+      </InputLabel>
+      <Select
+        id="groupSelect"
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+        input={<Input id="selectGroupsChip" />}
+        labelId="classificationGroupSelectLabel"
+        value={value || ""}
+        renderValue={(selected) => (
+          <div className={classes.chips}>
+            {selected.map((group) => (
+              <Chip
+                key={group}
+                label={groupIDToName[group]}
+                className={classes.chip}
+              />
+            ))}
+          </div>
+        )}
+        MenuProps={MenuProps}
+        fullWidth
+        multiple
+      >
+        {options.enumOptions.length > 0 &&
+          options.enumOptions.map((group) => (
+            <MenuItem
+              value={group.value}
+              key={group.value.toString()}
+              data-testid={`notificationGroupSelect_${group.value}`}
+            >
+              {group.label}
+            </MenuItem>
+          ))}
+      </Select>
+    </>
+  );
+
+  CustomGroupsWidget.propTypes = {
+    value: PropTypes.arrayOf(PropTypes.string).isRequired,
+    onChange: PropTypes.func.isRequired,
+    options: PropTypes.shape({
+      enumOptions: PropTypes.arrayOf(PropTypes.shape({})),
+    }).isRequired,
+  };
+
+  const widgets = {
+    customClassificationWidget: CustomClassificationWidget,
+    customProbabilityWidget: CustomProbabilityWidget,
+    customGroupsWidget: CustomGroupsWidget,
+  };
+
+  const formSchema = {
+    description: "Add Classification",
+    type: "object",
+    required: ["taxonomy", "classification", "probability"],
+    properties: {
+      groupIDs: {
+        type: "array",
+        items: {
+          type: "string",
+          enum: groups.map((group) => group.id.toString()),
+          enumNames: groups.map((group) => group.name),
+        },
+        uniqueItems: true,
+      },
+      taxonomy: {
+        type: "string",
+        title: "Taxonomy",
+        enum: latestTaxonomyList.map((taxonomy) => taxonomy.id.toString()),
+        enumNames: latestTaxonomyList.map(
+          (taxonomy) => `${taxonomy.name} (${taxonomy.version})`
+        ),
+      },
+    },
+    dependencies: {
+      taxonomy: {
+        oneOf: [],
+      },
+    },
+  };
+  latestTaxonomyList.forEach((taxonomy) => {
+    const currentClasses = allowedClasses(taxonomy.hierarchy).map(
+      (option) =>
+        `${option.class} <> ${
+          option.context.length > 0 ? option.context.join(" « ") : ""
+        }`
+    );
+    formSchema.dependencies.taxonomy.oneOf.push({
+      properties: {
+        taxonomy: {
+          enum: [taxonomy.id.toString()],
+        },
+        classification: {
+          type: "string",
+          name: "classification",
+          title: "Classification",
+          enum: currentClasses,
+        },
+        probability: {
+          type: "number",
+          name: "probability",
+          title: "Probability",
+        },
+      },
+    });
+  });
+  const uiSchema = {
+    groupIDs: { "ui:widget": "customGroupsWidget" },
+    classification: { "ui:widget": "customClassificationWidget" },
+    probability: { "ui:widget": "customProbabilityWidget" },
   };
 
   return (
-    <div>
-      <form onSubmit={onSubmit}>
-        <div>
-          <h3>Add Classification</h3>
-          <InputLabel id="taxonomy-label">Taxonomy</InputLabel>
-          <Select
-            id="tax-select"
-            defaultValue=""
-            onChange={handleTaxonomyChange}
-            className={classes.taxonomySelect}
-          >
-            {latestTaxonomyList.map((taxonomy, index) => (
-              <MenuItem value={index} key={index.toString()}>
-                {`${taxonomy.name} (${taxonomy.version})`}
-              </MenuItem>
-            ))}
-          </Select>
-          <div
-            style={{ display: state.class_select_enabled ? "block" : "none" }}
-          >
-            <Autocomplete
-              options={state.allowed_classes || []}
-              id="classification"
-              getOptionSelected={(option) => {
-                if (
-                  state.classification === null ||
-                  state.classification === ""
-                ) {
-                  return true;
-                }
-                if (state.classification.class === "") {
-                  return true;
-                }
-                return state.classification.class === option.class;
-              }}
-              value={state.classification || ""}
-              onChange={handleClasschange}
-              getOptionLabel={(option) => option.class || ""}
-              renderInput={(params) => (
-                <TextField
-                  /* eslint-disable-next-line react/jsx-props-no-spreading */
-                  {...params}
-                  style={{ width: "100%" }}
-                  label="Classification"
-                  fullWidth
-                />
-              )}
-              renderOption={
-                // Note: these come from "options", which in turn come from state.allowed_classes
-                // See the allowed_classes function defined above
-                (option) => (
-                  <span>
-                    <b>{option.class}</b>
-                    &nbsp;
-                    {option.context.length > 0 && <br />}
-                    {option.context.join(" « ")}
-                  </span>
-                )
-              }
-            />
-          </div>
-          <div
-            style={{
-              display:
-                state.class_select_enabled && state.probability_select_enabled
-                  ? "block"
-                  : "none",
-            }}
-          >
-            <TextField
-              id="probability"
-              label="Probability"
-              error={state.probability_errored}
-              type="number"
-              defaultValue="1.0"
-              helperText="[0-1]"
-              InputLabelProps={{
-                shrink: true,
-              }}
-              inputProps={{ min: "0", max: "1", step: "0.0001" }}
-              onBlur={processProb}
-            />
-          </div>
-          <br />
-          <Button
-            type="submit"
-            id="classificationSubmitButton"
-            disabled={
-              state.isSubmitting ||
-              !(
-                state.class_select_enabled &&
-                state.probability_select_enabled &&
-                !state.probability_errored
-              )
-            }
-            variant="contained"
-          >
-            ↵
-          </Button>
-        </div>
-      </form>
-    </div>
+    <Form
+      schema={formSchema}
+      uiSchema={uiSchema}
+      widgets={widgets}
+      onSubmit={handleSubmit}
+      disabled={submissionRequestInProcess}
+    />
   );
 };
 

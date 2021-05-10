@@ -22,6 +22,7 @@ all_acl_ids = [
 role_acls = {
     'Super admin': all_acl_ids,
     'Group admin': [
+        'Annotate',
         'Comment',
         'Manage sources',
         'Upload data',
@@ -29,17 +30,17 @@ role_acls = {
         'Manage users',
         'Classify',
     ],
-    'Full user': ['Comment', 'Upload data', 'Classify'],
+    'Full user': ['Annotate', 'Comment', 'Upload data', 'Classify'],
     'View only': [],
 }
 
 env, cfg = load_env()
 
 
-def add_user(username, roles=[], auth=False):
+def add_user(username, roles=[], auth=False, first_name=None, last_name=None):
     user = User.query.filter(User.username == username).first()
     if user is None:
-        user = User(username=username)
+        user = User(username=username, first_name=first_name, last_name=last_name)
         if auth:
             TornadoStorage.user.create_social_auth(user, user.username, 'google-oauth2')
 
@@ -82,9 +83,13 @@ def make_super_user(username):
 
 
 def provision_token():
-    """Provision an initial administrative token.
-    """
-    admin = add_user('provisioned_admin', roles=['Super admin'])
+    """Provision an initial administrative token."""
+    admin = add_user(
+        'provisioned_admin',
+        roles=['Super admin'],
+        first_name="provisioned",
+        last_name="admin",
+    )
     token_name = 'Initial admin token'
 
     token = (
@@ -134,3 +139,10 @@ def create_token(ACLs, user_id, name):
     DBSession().add(t)
     DBSession().commit()
     return t.id
+
+
+def delete_token(token_id):
+    t = Token.query.get(token_id)
+    if DBSession().query(Token).filter(Token.id == token_id).first():
+        DBSession().delete(t)
+        DBSession().commit()

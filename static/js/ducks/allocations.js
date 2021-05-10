@@ -8,7 +8,8 @@ const FETCH_ALLOCATIONS_OK = "skyportal/FETCH_ALLOCATIONS_OK";
 
 const REFRESH_ALLOCATIONS = "skyportal/REFRESH_ALLOCATIONS";
 
-export default function fetchAllocations() {
+// eslint-disable-next-line import/prefer-default-export
+export function fetchAllocations() {
   return API.GET("/api/allocation", FETCH_ALLOCATIONS);
 }
 

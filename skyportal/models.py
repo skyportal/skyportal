@@ -1,38 +1,39 @@
-import yaml
-import uuid
-import re
 import json
+import re
+import uuid
 import warnings
 from datetime import datetime, timezone, timedelta
-import requests
+
 import arrow
-
 import astroplan
+import healpix_alchemy as ha
 import numpy as np
-import timezonefinder
-from slugify import slugify
-
+import requests
 import sqlalchemy as sa
+import timezonefinder
+import yaml
+from astropy import coordinates as ap_coord
+from astropy import time as ap_time
+from astropy import units as u
+from astropy.io import fits, ascii
+from astropy.utils.exceptions import AstropyWarning
+from slugify import slugify
 from sqlalchemy import cast, event
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects import postgresql as psql
-from sqlalchemy.orm import relationship, joinedload
-from sqlalchemy.schema import UniqueConstraint
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
+from sqlalchemy.orm import relationship
+from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_utils import URLType, EmailType
+from sqlalchemy_utils.types import JSONType
+from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
 from sqlalchemy import func
 
 from twilio.rest import Client as TwilioClient
 
-from astropy import units as u
-from astropy import time as ap_time
-from astropy.utils.exceptions import AstropyWarning
-from astropy import coordinates as ap_coord
-from astropy.io import fits, ascii
-import healpix_alchemy as ha
-
-from .utils.cosmology import establish_cosmology
+from baselayer.app.env import load_env
+from baselayer.app.json_util import to_json
 from baselayer.app.models import (  # noqa
     init_db,
     join_model,
@@ -44,12 +45,18 @@ from baselayer.app.models import (  # noqa
     Token,
     UserACL,
     UserRole,
+    UserAccessControl,
+    AccessibleIfUserMatches,
+    CustomUserAccessControl,
+    accessible_by_owner,
+    restricted,
+    public,
+    AccessibleIfRelatedRowsAreAccessible,
+    CronJobRun,
 )
-from baselayer.app.custom_exceptions import AccessError
-from baselayer.app.env import load_env
-from baselayer.app.json_util import to_json
-
+from skyportal import facility_apis
 from . import schema
+from .email_utils import send_email
 from .enum_types import (
     allowed_bandpasses,
     thumbnail_types,
@@ -58,9 +65,8 @@ from .enum_types import (
     api_classnames,
     listener_classnames,
 )
-from .email_utils import send_email
-
-from skyportal import facility_apis
+from .utils.cosmology import establish_cosmology
+from .utils.thumbnail import image_is_grayscale
 
 # In the AB system, a brightness of 23.9 mag corresponds to 1 microJy.
 # All DB fluxes are stored in microJy (AB).
@@ -71,6 +77,9 @@ utcnow = func.timezone('UTC', func.current_timestamp())
 
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
+
+# The minimum signal-to-noise ratio to consider a photometry point as a detection
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 
 def get_app_base_url():
@@ -103,55 +112,108 @@ def user_to_dict(self):
 User.to_dict = user_to_dict
 
 
-def is_owned_by(self, user_or_token):
-    """Generic ownership logic for any `skyportal` ORM model.
-
-    Models with complicated ownership logic should implement their own method
-    instead of adding too many additional conditions here.
-    """
-    if hasattr(self, 'tokens'):
-        return user_or_token in self.tokens
-    if hasattr(self, 'groups'):
-        return bool(set(self.groups) & set(user_or_token.accessible_groups))
-    if hasattr(self, 'group'):
-        return self.group in user_or_token.accessible_groups
-    if hasattr(self, 'users'):
-        if hasattr(user_or_token, 'created_by'):
-            if user_or_token.created_by in self.users:
-                return True
-        return user_or_token in self.users
-
-    raise NotImplementedError(f"{type(self).__name__} object has no owner")
+accessible_by_groups_members = AccessibleIfUserMatches('groups.users')
+accessible_by_group_members = AccessibleIfUserMatches('group.users')
+accessible_by_members = AccessibleIfUserMatches('users')
+accessible_by_stream_members = AccessibleIfUserMatches('stream.users')
+accessible_by_streams_members = AccessibleIfUserMatches('streams.users')
 
 
-def is_modifiable_by(self, user):
-    """Return a boolean indicating whether an object point can be modified or
-    deleted by a given user.
+class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
+    def __init__(self, relationship_chain):
+        """A class that grants access to users related to a specific record
+        through a chain of relationships. The relationship chain must
+        contain a relationship called `group_users` and matches are only
+        valid if the `admin` property of the corresponding `group_users` rows
+        are true.
+        Parameters
+        ----------
+        relationship_chain: str
+            The chain of relationships to check the User or Token against in
+            `query_accessible_rows`. Should be specified as
 
-    Parameters
-    ----------
-    user: `baselayer.app.models.User`
-       The User to check.
+            >>>> f'{relationship1_name}.{relationship2_name}...{relationshipN_name}'
 
-    Returns
-    -------
-    owned: bool
-       Whether the Object can be modified by the User.
-    """
+            The first relationship should be defined on the target class, and
+            each subsequent relationship should be defined on the class pointed
+            to by the previous relationship. If the querying user matches any
+            record pointed to by the final relationship, the logic will grant
+            access to the querying user.
 
-    if not hasattr(self, 'owner'):
-        raise TypeError(
-            f'Object {self} does not have an `owner` attribute, '
-            f'and thus does not expose the interface that is needed '
-            f'to check for modification or deletion privileges.'
-        )
+        Examples
+        --------
 
-    is_admin = "System admin" in user.permissions
-    owns_spectrum = self.owner is user
-    return is_admin or owns_spectrum
+        Grant access if the querying user is an admin of any of the record's
+        groups:
+
+            >>>> AccessibleIfGroupUserIsAdminAndUserMatches('groups.group_users.user')
+
+        Grant access if the querying user is an admin of the record's group:
+
+            >>>> AccessibleIfUserMatches('group.group_users.user')
+        """
+        self.relationship_chain = relationship_chain
+
+    @property
+    def relationship_key(self):
+        return self._relationship_key
+
+    @relationship_key.setter
+    def relationship_chain(self, value):
+        if not isinstance(value, str):
+            raise ValueError(
+                f'Invalid value for relationship key: {value}, expected str, got {value.__class__.__name__}'
+            )
+        relationship_names = value.split('.')
+        if 'group_users' not in value:
+            raise ValueError('Relationship chain must contain "group_users".')
+        if len(relationship_names) < 1:
+            raise ValueError('Need at least 1 relationship to join on.')
+        self._relationship_key = value
+
+    def query_accessible_rows(self, cls, user_or_token, columns=None):
+        """Construct a Query object that, when executed, returns the rows of a
+        specified table that are accessible to a specified user or token.
+
+        Parameters
+        ----------
+        cls: `baselayer.app.models.DeclarativeMeta`
+            The mapped class of the target table.
+        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
+            The User or Token to check.
+        columns: list of sqlalchemy.Column, optional, default None
+            The columns to retrieve from the target table. If None, queries
+            the mapped class directly and returns mapped instances.
+
+        Returns
+        -------
+        query: sqlalchemy.Query
+            Query for the accessible rows.
+        """
+
+        query = super().query_accessible_rows(cls, user_or_token, columns=columns)
+        if not user_or_token.is_admin:
+            # this avoids name collisions
+            group_user_subq = (
+                DBSession()
+                .query(GroupUser)
+                .filter(GroupUser.admin.is_(True))
+                .subquery()
+            )
+            query = query.join(
+                group_user_subq,
+                sa.and_(
+                    Group.id == group_user_subq.c.group_id,
+                    User.id == group_user_subq.c.user_id,
+                ),
+            )
+        return query
 
 
-Base.is_owned_by = is_owned_by
+accessible_by_group_admins = AccessibleIfGroupUserIsAdminAndUserMatches(
+    'group.group_users.user'
+)
+accessible_by_admins = AccessibleIfGroupUserIsAdminAndUserMatches('group_users.user')
 
 
 class NumpyArray(sa.types.TypeDecorator):
@@ -163,6 +225,22 @@ class NumpyArray(sa.types.TypeDecorator):
         return np.array(value)
 
 
+def delete_group_access_logic(cls, user_or_token):
+    """User can delete a group that is not the sitewide public group, is not
+    a single user group, and that they are an admin member of."""
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = (
+        DBSession()
+        .query(cls)
+        .join(GroupUser)
+        .filter(cls.name != cfg['misc']['public_group_name'])
+        .filter(cls.single_user_group.is_(False))
+    )
+    if not user_or_token.is_system_admin:
+        query = query.filter(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
+    return query
+
+
 class Group(Base):
     """A user group. `Group`s controls `User` access to `Filter`s and serve as
     targets for data sharing requests. `Photometry` and `Spectra` shared with
@@ -171,13 +249,26 @@ class Group(Base):
     must have access to all of the `Group`'s data `Stream`s.
     """
 
+    update = accessible_by_admins
+    member = accessible_by_members
+
+    # require group admin access for group deletion and do not allow
+    # the public group to be deleted.
+    delete = CustomUserAccessControl(delete_group_access_logic)
+
     name = sa.Column(
         sa.String, unique=True, nullable=False, index=True, doc='Name of the group.'
     )
     nickname = sa.Column(
         sa.String, unique=True, nullable=True, index=True, doc='Short group nickname.'
     )
-
+    private = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        index=True,
+        doc="Boolean indicating whether group is invisible to non-members.",
+    )
     streams = relationship(
         'Stream',
         secondary='group_streams',
@@ -244,6 +335,12 @@ class Group(Base):
         passive_deletes=True,
         doc="Allocations made to this group.",
     )
+    admission_requests = relationship(
+        "GroupAdmissionRequest",
+        back_populates="group",
+        passive_deletes=True,
+        doc="User requests to join this group.",
+    )
 
 
 GroupUser = join_model('group_users', Group, User)
@@ -256,9 +353,68 @@ GroupUser.admin = sa.Column(
     doc="Boolean flag indicating whether the User is an admin of the group.",
 )
 
+User.group_admission_requests = relationship(
+    "GroupAdmissionRequest",
+    back_populates="user",
+    passive_deletes=True,
+    doc="User's requests to join groups.",
+)
+
+
+class GroupAdmissionRequest(Base):
+    """Table tracking requests from users to join groups."""
+
+    read = AccessibleIfUserMatches('user') | accessible_by_group_admins
+    create = delete = AccessibleIfUserMatches('user')
+    update = accessible_by_group_admins
+
+    user_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the User requesting to join the group",
+    )
+    user = relationship(
+        "User",
+        foreign_keys=[user_id],
+        back_populates="group_admission_requests",
+        doc="The User requesting to join a group",
+    )
+    group_id = sa.Column(
+        sa.ForeignKey("groups.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the Group to which admission is requested",
+    )
+    group = relationship(
+        "Group",
+        foreign_keys=[group_id],
+        back_populates="admission_requests",
+        doc="The Group to which admission is requested",
+    )
+    status = sa.Column(
+        sa.Enum(
+            "pending",
+            "accepted",
+            "declined",
+            name="admission_request_status",
+            validate_strings=True,
+        ),
+        nullable=False,
+        default="pending",
+        doc=(
+            "Admission request status. Can be one of either 'pending', "
+            "'accepted', or 'declined'."
+        ),
+    )
+
 
 class Stream(Base):
-    """A data stream producing alerts that can be programmatically filtered using a Filter."""
+    """A data stream producing alerts that can be programmatically filtered
+    using a Filter."""
+
+    read = AccessibleIfUserMatches('users')
+    create = update = delete = restricted
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Stream name.")
     altdata = sa.Column(
@@ -288,6 +444,14 @@ class Stream(Base):
         passive_deletes=True,
         doc="The filters with access to this stream.",
     )
+    photometry = relationship(
+        "Photometry",
+        secondary="stream_photometry",
+        back_populates="streams",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc='The photometry associated with this stream.',
+    )
 
 
 GroupStream = join_model('group_streams', Group, Stream)
@@ -296,7 +460,7 @@ GroupStream.__doc__ = "Join table mapping Groups to Streams."
 
 StreamUser = join_model('stream_users', Stream, User)
 StreamUser.__doc__ = "Join table mapping Streams to Users."
-
+StreamUser.create = restricted
 
 User.groups = relationship(
     'Group',
@@ -305,7 +469,6 @@ User.groups = relationship(
     passive_deletes=True,
     doc="The Groups this User is a member of.",
 )
-
 
 User.streams = relationship(
     'Stream',
@@ -364,9 +527,9 @@ Token.groups = token_groups
 
 class Obj(Base, ha.Point):
     """A record of an astronomical Object and its metadata, such as position,
-    positional uncertainties, name, and redshift. Permissioning rules,
-    such as group ownership, user visibility, etc., are managed by other
-    entities, namely Source and Candidate."""
+    positional uncertainties, name, and redshift."""
+
+    update = public
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precison numeric
@@ -390,9 +553,10 @@ class Obj(Base, ha.Point):
     )
     redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
     redshift_history = sa.Column(
-        JSONB, nullable=True, doc="Record of who set which redshift values and when.",
+        JSONB,
+        nullable=True,
+        doc="Record of who set which redshift values and when.",
     )
-
     # Contains all external metadata, e.g. simbad, pan-starrs, tns, gaia
     altdata = sa.Column(
         JSONB,
@@ -446,14 +610,16 @@ class Obj(Base, ha.Point):
         order_by="Candidate.passed_at",
         doc="Candidates associated with the object.",
     )
+
     comments = relationship(
         'Comment',
         back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
         passive_deletes=True,
         order_by="Comment.created_at",
         doc="Comments posted about the object.",
     )
+
     annotations = relationship(
         'Annotation',
         back_populates='obj',
@@ -466,7 +632,7 @@ class Obj(Base, ha.Point):
     classifications = relationship(
         'Classification',
         back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade='save-update, merge, refresh-expire, expunge, delete-orphan, delete',
         passive_deletes=True,
         order_by="Classification.created_at",
         doc="Classifications of the object.",
@@ -485,13 +651,13 @@ class Obj(Base, ha.Point):
     detect_photometry_count = sa.Column(
         sa.Integer,
         nullable=True,
-        doc="How many times the object was detected above :math:`S/N = 5`.",
+        doc="How many times the object was detected above :math:`S/N = phot_detection_threshold (3.0 by default)`.",
     )
 
     spectra = relationship(
         'Spectrum',
         back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
         single_parent=True,
         passive_deletes=True,
         order_by="Spectrum.observed_at",
@@ -508,35 +674,125 @@ class Obj(Base, ha.Point):
     followup_requests = relationship(
         'FollowupRequest',
         back_populates='obj',
+        passive_deletes=True,
         doc="Robotic follow-up requests of the object.",
     )
     assignments = relationship(
         'ClassicalAssignment',
         back_populates='obj',
+        passive_deletes=True,
         doc="Assignments of the object to classical observing runs.",
     )
 
     obj_notifications = relationship(
         "SourceNotification",
         back_populates="source",
+        passive_deletes=True,
         doc="Notifications regarding the object sent out by users",
     )
 
-    @hybrid_property
-    def last_detected(self):
-        """UTC ISO date at which the object was last detected above a S/N of 5."""
-        detections = [phot.iso for phot in self.photometry if phot.snr and phot.snr > 5]
+    @hybrid_method
+    def last_detected_at(self, user):
+        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
+        detections = [
+            phot.iso
+            for phot in Photometry.query_records_accessible_by(user)
+            .filter(Photometry.obj_id == self.id)
+            .all()
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
+        ]
         return max(detections) if detections else None
 
-    @last_detected.expression
-    def last_detected(cls):
-        """UTC ISO date at which the object was last detected above a S/N of 5."""
+    @last_detected_at.expression
+    def last_detected_at(cls, user):
+        """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
         return (
-            sa.select([sa.func.max(Photometry.iso)])
-            .where(Photometry.obj_id == cls.id)
-            .where(Photometry.snr > 5.0)
-            .group_by(Photometry.obj_id)
-            .label('last_detected')
+            Photometry.query_records_accessible_by(
+                user, columns=[sa.func.max(Photometry.iso)], mode="read"
+            )
+            .filter(Photometry.obj_id == cls.id)
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .label('last_detected_at')
+        )
+
+    @hybrid_method
+    def last_detected_mag(self, user):
+        """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
+        detections = [
+            (phot.iso, phot.mag)
+            for phot in Photometry.query_records_accessible_by(user)
+            .filter(Photometry.obj_id == self.id)
+            .all()
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
+        ]
+        return max(detections, key=(lambda x: x[0]))[1] if detections else None
+
+    @last_detected_mag.expression
+    def last_detected_mag(cls, user):
+        """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
+        return (
+            Photometry.query_records_accessible_by(
+                user, columns=[Photometry.mag], mode="read"
+            )
+            .filter(Photometry.obj_id == cls.id)
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .order_by(Photometry.mjd.desc())
+            .limit(1)
+            .label('last_detected_mag')
+        )
+
+    @hybrid_method
+    def peak_detected_at(self, user):
+        """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
+        detections = [
+            (phot.iso, phot.mag)
+            for phot in Photometry.query_records_accessible_by(user)
+            .filter(Photometry.obj_id == self.id)
+            .all()
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
+        ]
+        return max(detections, key=(lambda x: x[1]))[0] if detections else None
+
+    @peak_detected_at.expression
+    def peak_detected_at(cls, user):
+        """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
+        return (
+            Photometry.query_records_accessible_by(
+                user, columns=[Photometry.iso], mode="read"
+            )
+            .filter(Photometry.obj_id == cls.id)
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .order_by(Photometry.mag.desc())
+            .limit(1)
+            .label('peak_detected_at')
+        )
+
+    @hybrid_method
+    def peak_detected_mag(self, user):
+        """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
+        detections = [
+            phot.mag
+            for phot in Photometry.query_records_accessible_by(user)
+            .filter(Photometry.obj_id == self.id)
+            .all()
+            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
+        ]
+        return max(detections) if detections else None
+
+    @peak_detected_mag.expression
+    def peak_detected_mag(cls, user):
+        """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
+        return (
+            Photometry.query_records_accessible_by(
+                user, columns=[sa.func.max(Photometry.mag)], mode="read"
+            )
+            .filter(Photometry.obj_id == cls.id)
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .label('peak_detected_mag')
         )
 
     def add_linked_thumbnails(self):
@@ -556,7 +812,7 @@ class Obj(Base, ha.Point):
     def sdss_url(self):
         """Construct URL for public Sloan Digital Sky Survey (SDSS) cutout."""
         return (
-            f"http://skyserver.sdss.org/dr12/SkyserverWS/ImgCutout/getjpeg"
+            f"https://skyserver.sdss.org/dr12/SkyserverWS/ImgCutout/getjpeg"
             f"?ra={self.ra}&dec={self.dec}&scale=0.3&width=200&height=200"
             f"&opt=G&query=&Grid=on"
         )
@@ -578,7 +834,7 @@ class Obj(Base, ha.Point):
         want (in this case a combination of the g/r/i filters).
         """
         ps_query_url = (
-            f"http://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+            f"https://ps1images.stsci.edu/cgi-bin/ps1cutouts"
             f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
             f"&filter=r&filter=i&filetypes=stack&size=250"
         )
@@ -693,7 +949,7 @@ class Obj(Base, ha.Point):
            The airmass of the Obj at the requested times
         """
 
-        output_shape = np.shape(time)
+        output_shape = time.shape
         time = np.atleast_1d(time)
         altitude = self.altitude(telescope, time).to('degree').value
         above = altitude > 0
@@ -737,6 +993,15 @@ class Filter(Base):
     with exactly one Group, and a Group may have multiple operational Filters.
     """
 
+    # TODO: Track filter ownership and allow owners to update, delete filters
+    create = (
+        read
+    ) = (
+        update
+    ) = delete = accessible_by_group_members & AccessibleIfRelatedRowsAreAccessible(
+        stream="read"
+    )
+
     name = sa.Column(sa.String, nullable=False, unique=False, doc="Filter name.")
     stream_id = sa.Column(
         sa.ForeignKey("streams.id", ondelete="CASCADE"),
@@ -766,6 +1031,7 @@ class Filter(Base):
         'Candidate',
         back_populates='filter',
         cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
         order_by="Candidate.passed_at",
         doc="Candidates that have passed the filter.",
     )
@@ -773,6 +1039,10 @@ class Filter(Base):
 
 class Candidate(Base):
     "An Obj that passed a Filter, becoming scannable on the Filter's scanning page."
+    create = read = update = delete = AccessibleIfUserMatches(
+        'filter.group.group_users.user'
+    )
+
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
@@ -827,68 +1097,19 @@ Candidate.__table_args__ = (
 )
 
 
-def get_candidate_if_owned_by(obj_id, user_or_token, options=[]):
-    """Return an Obj from the database if the Obj is a Candidate in at least
-    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
-    Candidate in one of the User or Token owner's accessible Groups, raise an AccessError.
-    If the Obj does not exist, return `None`.
-
-    Parameters
-    ----------
-    obj_id : integer or string
-       Primary key of the Obj.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-    options : list of `sqlalchemy.orm.MapperOption`s
-       Options that wil be passed to `options()` in the loader query.
-
-    Returns
-    -------
-    obj : `skyportal.models.Obj`
-       The requested Obj.
-    """
-
-    if Candidate.query.filter(Candidate.obj_id == obj_id).first() is None:
-        return None
-    user_group_ids = [g.id for g in user_or_token.accessible_groups]
-    c = (
-        Candidate.query.filter(Candidate.obj_id == obj_id)
-        .filter(
-            Candidate.filter_id.in_(
-                DBSession.query(Filter.id).filter(Filter.group_id.in_(user_group_ids))
-            )
-        )
-        .options(options)
-        .first()
-    )
-    if c is None:
-        raise AccessError("Insufficient permissions.")
-    return c.obj
-
-
-def candidate_is_owned_by(self, user_or_token):
-    """Return a boolean indicating whether the Candidate passed the Filter
-    of any of a User or Token owner's accessible Groups.
-
-
-    Parameters
-    ----------
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    owned : bool
-       Whether the Candidate is owned by the User or Token owner.
-    """
-    return self.filter.group in user_or_token.accessible_groups
-
-
-Candidate.get_obj_if_owned_by = get_candidate_if_owned_by
-Candidate.is_owned_by = candidate_is_owned_by
+User.listings = relationship(
+    'Listing',
+    back_populates='user',
+    passive_deletes=True,
+    doc='The listings saved by this user',
+)
 
 
 Source = join_model("sources", Group, Obj)
+Source.create = Source.read = Source.update = Source.delete = (
+    accessible_by_group_members & Source.read
+)
+
 Source.__doc__ = (
     "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
     "the Obj is shielded in perpetuity from automatic database removal. "
@@ -941,289 +1162,31 @@ Source.unsaved_by = relationship(
     "User", foreign_keys=[Source.unsaved_by_id], doc="User who unsaved the Source."
 )
 Source.unsaved_at = sa.Column(
-    sa.DateTime, nullable=True, doc="ISO UTC time when the Obj was unsaved from Group.",
+    sa.DateTime,
+    nullable=True,
+    doc="ISO UTC time when the Obj was unsaved from Group.",
 )
 
 Obj.sources = relationship(
-    Source, back_populates='obj', doc="Instances in which a group saved this Obj."
+    Source,
+    back_populates='obj',
+    passive_deletes=True,
+    doc="Instances in which a group saved this Obj.",
 )
 Obj.candidates = relationship(
     Candidate,
     back_populates='obj',
+    passive_deletes=True,
     doc="Instances in which this Obj passed a group's filter.",
 )
-
-
-def source_is_owned_by(self, user_or_token):
-    """Return a boolean indicating whether the Source has been saved to
-    any of a User or Token owner's accessible Groups.
-
-    Parameters
-    ----------
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    owned : bool
-       Whether the Candidate is owned by the User or Token owner.
-    """
-
-    source_group_ids = [
-        row[0]
-        for row in DBSession.query(Source.group_id)
-        .filter(Source.obj_id == self.obj_id)
-        .all()
-    ]
-    return bool(set(source_group_ids) & {g.id for g in user_or_token.accessible_groups})
-
-
-def get_source_if_owned_by(obj_id, user_or_token, options=[]):
-    """Return an Obj from the database if the Obj is a Source in at least
-    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
-    Source in one of the User or Token owner's accessible Groups, raise an AccessError.
-    If the Obj does not exist, return `None`.
-
-    Parameters
-    ----------
-    obj_id : integer or string
-       Primary key of the Obj.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-    options : list of `sqlalchemy.orm.MapperOption`s
-       Options that wil be passed to `options()` in the loader query.
-
-    Returns
-    -------
-    obj : `skyportal.models.Obj`
-       The requested Obj.
-    """
-
-    if Source.query.filter(Source.obj_id == obj_id).first() is None:
-        return None
-    user_group_ids = [g.id for g in user_or_token.accessible_groups]
-    s = (
-        Source.query.filter(Source.obj_id == obj_id)
-        .filter(Source.group_id.in_(user_group_ids))
-        .options(options)
-        .first()
-    )
-    if s is None:
-        raise AccessError("Insufficient permissions.")
-    return s.obj
-
-
-Source.is_owned_by = source_is_owned_by
-Source.get_obj_if_owned_by = get_source_if_owned_by
-
-
-def get_obj_if_owned_by(obj_id, user_or_token, options=[]):
-    """Return an Obj from the database if the Obj is either a Source or a Candidate in at least
-    one of the requesting User or Token owner's accessible Groups. If the Obj is not a
-    Source or a Candidate in one of the User or Token owner's accessible Groups, raise an AccessError.
-    If the Obj does not exist, return `None`.
-
-    Parameters
-    ----------
-    obj_id : integer or string
-       Primary key of the Obj.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-    options : list of `sqlalchemy.orm.MapperOption`s
-       Options that wil be passed to `options()` in the loader query.
-
-    Returns
-    -------
-    obj : `skyportal.models.Obj`
-       The requested Obj.
-    """
-
-    def construct_joinedload(base, additional_attrs):
-        jl = joinedload(base)
-        for attr in additional_attrs:
-            jl = jl.joinedload(attr)
-        return jl
-
-    if Obj.query.get(obj_id) is None:
-        return None
-    if "System admin" in user_or_token.permissions:
-        return Obj.query.options(options).get(obj_id)
-
-    # the order of the following attempts is important -
-    # this one should come first
-    if Obj.get_photometry_owned_by_user(obj_id, user_or_token):
-        return Obj.query.options(options).get(obj_id)
-
-    try:
-        source_opts = [construct_joinedload(Source.obj, o.path) for o in options]
-        obj = Source.get_obj_if_owned_by(obj_id, user_or_token, source_opts)
-    except AccessError:  # They may still be able to view the associated Candidate
-        cand_opts = [construct_joinedload(Candidate.obj, o.path) for o in options]
-        obj = Candidate.get_obj_if_owned_by(obj_id, user_or_token, cand_opts)
-
-    if obj is None:
-        raise AccessError('Insufficient permissions.')
-
-    # If we get here, the user has access to either the associated Source or Candidate
-    return obj
-
-
-Obj.get_if_owned_by = get_obj_if_owned_by
-
-
-def get_obj_comments_owned_by(self, user_or_token):
-    """Query the database and return the Comments on this Obj that are accessible
-    to any of the User or Token owner's accessible Groups.
-
-    Parameters
-    ----------
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    comment_list : list of `skyportal.models.Comment`
-       The accessible comments attached to this Obj.
-    """
-    owned_comments = [
-        comment for comment in self.comments if comment.is_owned_by(user_or_token)
-    ]
-
-    # Grab basic author info for the comments
-    for comment in owned_comments:
-        comment.author_info = comment.construct_author_info_dict()
-
-    return owned_comments
-
-
-Obj.get_comments_owned_by = get_obj_comments_owned_by
-
-
-def get_obj_annotations_owned_by(self, user_or_token):
-    """Query the database and return the Annotations on this Obj that are accessible
-    to any of the User or Token owner's accessible Groups.
-
-    Parameters
-    ----------
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    annotation_list : list of `skyportal.models.Annotation`
-       The accessible annotations attached to this Obj.
-    """
-    owned_annotations = [
-        annotation
-        for annotation in self.annotations
-        if annotation.is_owned_by(user_or_token)
-    ]
-
-    # Grab basic author info for the annotations
-    for annotation in owned_annotations:
-        annotation.author_info = annotation.construct_author_info_dict()
-
-    return owned_annotations
-
-
-Obj.get_annotations_owned_by = get_obj_annotations_owned_by
-
-
-def get_obj_classifications_owned_by(self, user_or_token):
-    """Query the database and return the Classifications on this Obj that are accessible
-    to any of the User or Token owner's accessible Groups.
-
-    Parameters
-    ----------
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    classification_list : list of `skyportal.models.Classification`
-       The accessible classifications attached to this Obj.
-    """
-    return [
-        classifications
-        for classifications in self.classifications
-        if classifications.is_owned_by(user_or_token)
-    ]
-
-
-Obj.get_classifications_owned_by = get_obj_classifications_owned_by
-
-
-def get_photometry_owned_by_user(obj_id, user_or_token):
-    """Query the database and return the Photometry for this Obj that is shared
-    with any of the User or Token owner's accessible Groups.
-
-    Parameters
-    ----------
-    obj_id : string
-       The ID of the Obj to look up.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-
-    Returns
-    -------
-    photometry_list : list of `skyportal.models.Photometry`
-       The accessible Photometry of this Obj.
-    """
-    return (
-        Photometry.query.filter(Photometry.obj_id == obj_id)
-        .filter(
-            Photometry.groups.any(
-                Group.id.in_([g.id for g in user_or_token.accessible_groups])
-            )
-        )
-        .all()
-    )
-
-
-Obj.get_photometry_owned_by_user = get_photometry_owned_by_user
-
-
-def get_spectra_owned_by(obj_id, user_or_token, options=()):
-    """Query the database and return the Spectra for this Obj that are shared
-    with any of the User or Token owner's accessible Groups.
-
-    Parameters
-    ----------
-    obj_id : string
-       The ID of the Obj to look up.
-    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
-       The requesting `User` or `Token` object.
-    options : list of `sqlalchemy.orm.MapperOption`s
-       Options that wil be passed to `options()` in the loader query.
-
-    Returns
-    -------
-    photometry_list : list of `skyportal.models.Spectrum`
-       The accessible Spectra of this Obj.
-    """
-
-    return (
-        Spectrum.query.filter(Spectrum.obj_id == obj_id)
-        .filter(
-            Spectrum.groups.any(
-                Group.id.in_([g.id for g in user_or_token.accessible_groups])
-            )
-        )
-        .options(options)
-        .all()
-    )
-
-
-Obj.get_spectra_owned_by = get_spectra_owned_by
-
 
 User.sources = relationship(
     'Obj',
     backref='users',
     secondary='join(Group, sources).join(group_users)',
     primaryjoin='group_users.c.user_id == users.c.id',
-    passive_deletes=True,
     doc='The Sources accessible to this User.',
+    viewonly=True,
 )
 
 isadmin = property(lambda self: "System admin" in self.permissions)
@@ -1267,6 +1230,8 @@ class SourceView(Base):
 class Telescope(Base):
     """A ground or space-based observational facility that can host Instruments."""
 
+    create = restricted
+
     name = sa.Column(
         sa.String,
         unique=True,
@@ -1283,6 +1248,7 @@ class Telescope(Base):
     skycam_link = sa.Column(
         URLType, nullable=True, doc="Link to the telescope's sky camera."
     )
+    weather_link = sa.Column(URLType, doc="Link to the preferred weather site")
     robotic = sa.Column(
         sa.Boolean, default=False, nullable=False, doc="Is this telescope robotic?"
     )
@@ -1292,14 +1258,6 @@ class Telescope(Base):
         nullable=False,
         server_default='true',
         doc="Does this telescope have a fixed location (lon, lat, elev)?",
-    )
-
-    weather = sa.Column(JSONB, nullable=True, doc='Latest weather information')
-    weather_retrieved_at = sa.Column(
-        sa.DateTime, nullable=True, doc="When was the weather last retrieved?"
-    )
-    weather_link = sa.Column(
-        URLType, nullable=True, doc="Link to the preferred weather site."
     )
 
     instruments = relationship(
@@ -1417,6 +1375,28 @@ class Telescope(Base):
         }
 
 
+class Weather(Base):
+    update = public
+
+    weather_info = sa.Column(JSONB, doc="Latest weather information.")
+    retrieved_at = sa.Column(
+        sa.DateTime, doc="UTC time at which the weather was last retrieved."
+    )
+    telescope_id = sa.Column(
+        sa.ForeignKey("telescopes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        unique=True,
+        doc="ID of the associated Telescope.",
+    )
+    telescope = relationship(
+        "Telescope",
+        foreign_keys=[telescope_id],
+        uselist=False,
+        doc="The associated Telescope.",
+    )
+
+
 class ArrayOfEnum(ARRAY):
     def bind_expression(self, bindvalue):
         return cast(bindvalue, self)
@@ -1438,6 +1418,8 @@ class ArrayOfEnum(ARRAY):
 
 class Instrument(Base):
     """An instrument attached to a telescope."""
+
+    create = restricted
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Instrument name.")
     type = sa.Column(
@@ -1465,11 +1447,13 @@ class Instrument(Base):
     photometry = relationship(
         'Photometry',
         back_populates='instrument',
+        passive_deletes=True,
         doc="The Photometry produced by this instrument.",
     )
     spectra = relationship(
         'Spectrum',
         back_populates='instrument',
+        passive_deletes=True,
         doc="The Spectra produced by this instrument.",
     )
 
@@ -1490,6 +1474,7 @@ class Instrument(Base):
     observing_runs = relationship(
         'ObservingRun',
         back_populates='instrument',
+        passive_deletes=True,
         doc="List of ObservingRuns on the Instrument.",
     )
 
@@ -1526,6 +1511,14 @@ class Instrument(Base):
 
 class Allocation(Base):
     """An allocation of observing time on a robotic instrument."""
+
+    create = (
+        read
+    ) = (
+        update
+    ) = delete = accessible_by_group_members & AccessibleIfRelatedRowsAreAccessible(
+        instrument='read'
+    )
 
     pi = sa.Column(sa.String, doc="The PI of the allocation's proposal.")
     proposal_id = sa.Column(
@@ -1566,9 +1559,27 @@ class Allocation(Base):
         doc="The Instrument the allocation is associated with.",
     )
 
+    _altdata = sa.Column(
+        EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5')
+    )
+
+    @property
+    def altdata(self):
+        if self._altdata is None:
+            return {}
+        else:
+            return json.loads(self._altdata)
+
+    @altdata.setter
+    def altdata(self, value):
+        self._altdata = value
+
 
 class Taxonomy(Base):
     """An ontology within which Objs can be classified."""
+
+    # TODO: Add ownership logic to taxonomy
+    read = accessible_by_groups_members
 
     __tablename__ = 'taxonomies'
     name = sa.Column(
@@ -1620,8 +1631,42 @@ class Taxonomy(Base):
     )
 
 
+def taxonomy_update_delete_logic(cls, user_or_token):
+    """This function generates the query for taxonomies that the current user
+    can update or delete. If the querying user doesn't have System admin or
+    Delete taxonomy acl, then no taxonomies are accessible to that user under
+    this policy . Otherwise, the only taxonomies that the user can delete are
+    those that have no associated classifications, preventing classifications
+    from getting deleted in a cascade when their parent taxonomy is deleted.
+    """
+
+    if len({'Delete taxonomy', 'System admin'} & set(user_or_token.permissions)) == 0:
+        # nothing accessible
+        return restricted.query_accessible_rows(cls, user_or_token)
+
+    # dont allow deletion of any taxonomies that have classifications attached
+    return (
+        DBSession()
+        .query(cls)
+        .outerjoin(Classification)
+        .group_by(cls.id)
+        .having(sa.func.bool_and(Classification.id.is_(None)))
+    )
+
+
+# system admins can delete any taxonomy that has no classifications attached
+# people with the delete taxonomy ACL can delete any taxonomy that has no
+# classifications attached and is shared with at least one of their groups
+Taxonomy.update = Taxonomy.delete = (
+    CustomUserAccessControl(taxonomy_update_delete_logic) & Taxonomy.read
+)
+
+
 GroupTaxonomy = join_model("group_taxonomy", Group, Taxonomy)
 GroupTaxonomy.__doc__ = "Join table mapping Groups to Taxonomies."
+GroupTaxonomy.delete = GroupTaxonomy.update = (
+    accessible_by_group_admins & GroupTaxonomy.read
+)
 
 
 def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
@@ -1659,6 +1704,14 @@ Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 class Comment(Base):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read'
+    )
+
+    update = delete = AccessibleIfUserMatches('author')
+
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
     ctype = sa.Column(
         sa.Enum('text', 'redshift', name='comment_types', validate_strings=True),
@@ -1677,7 +1730,11 @@ class Comment(Base):
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
     author = relationship(
-        "User", back_populates="comments", doc="Comment's author.", uselist=False,
+        "User",
+        back_populates="comments",
+        doc="Comment's author.",
+        uselist=False,
+        foreign_keys="Comment.author_id",
     )
     author_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -1691,7 +1748,11 @@ class Comment(Base):
         index=True,
         doc="ID of the Comment's Obj.",
     )
-    obj = relationship('Obj', back_populates='comments', doc="The Comment's Obj.")
+    obj = relationship(
+        'Obj',
+        back_populates='comments',
+        doc="The Comment's Obj.",
+    )
     groups = relationship(
         "Group",
         secondary="group_comments",
@@ -1706,33 +1767,59 @@ class Comment(Base):
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
         }
 
-    @classmethod
-    def get_if_owned_by(cls, ident, user, options=[]):
-        comment = cls.query.options(options).get(ident)
-
-        if comment is not None and not comment.is_owned_by(user):
-            raise AccessError('Insufficient permissions.')
-
-        # Grab basic author info for the comment
-        comment.author_info = comment.construct_author_info_dict()
-
-        return comment
-
 
 GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
+GroupComment.delete = GroupComment.update = (
+    accessible_by_group_admins & GroupComment.read
+)
 
-User.comments = relationship("Comment", back_populates="author")
+User.comments = relationship(
+    "Comment",
+    back_populates="author",
+    foreign_keys="Comment.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+
+
+def user_update_delete_logic(cls, user_or_token):
+    """A user can update or delete themselves, and a super admin can delete
+    or update any user."""
+
+    if user_or_token.is_admin:
+        return public.query_accessible_rows(cls, user_or_token)
+
+    # non admin users can only update or delete themselves
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+
+    return DBSession().query(cls).filter(cls.id == user_id)
+
+
+User.update = User.delete = CustomUserAccessControl(user_update_delete_logic)
 
 
 class Annotation(Base):
-    """A sortable/searchable Annotation made by a filter or other robot, with a set of data as JSON """
+    """A sortable/searchable Annotation made by a filter or other robot,
+    with a set of data as JSON"""
+
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read'
+    )
+    update = delete = AccessibleIfUserMatches('author')
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
-    data = sa.Column(JSONB, default=None, doc="Searchable data in JSON format")
+    data = sa.Column(
+        JSONB, default=None, nullable=False, doc="Searchable data in JSON format"
+    )
     author = relationship(
-        "User", back_populates="annotations", doc="Annotation's author.", uselist=False,
+        "User",
+        back_populates="annotations",
+        doc="Annotation's author.",
+        uselist=False,
+        foreign_keys="Annotation.author_id",
     )
     author_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -1776,31 +1863,41 @@ class Annotation(Base):
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
         }
 
-    @classmethod
-    def get_if_owned_by(cls, ident, user, options=[]):
-        annotation = cls.query.options(options).get(ident)
-
-        if annotation is not None and not annotation.is_owned_by(user):
-            raise AccessError('Insufficient permissions.')
-
-        # Grab basic author info for the annotation
-        annotation.author_info = annotation.construct_author_info_dict()
-
-        return annotation
-
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
 
 GroupAnnotation = join_model("group_annotations", Group, Annotation)
 GroupAnnotation.__doc__ = "Join table mapping Groups to Annotation."
+GroupAnnotation.delete = GroupAnnotation.update = (
+    accessible_by_group_admins & GroupAnnotation.read
+)
 
-User.annotations = relationship("Annotation", back_populates="author")
+User.annotations = relationship(
+    "Annotation",
+    back_populates="author",
+    foreign_keys="Annotation.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+
+# To create or read a classification, you must have read access to the
+# underlying taxonomy, and be a member of at least one of the
+# classification's target groups
+ok_if_tax_and_obj_readable = AccessibleIfRelatedRowsAreAccessible(
+    taxonomy='read', obj='read'
+)
 
 
 class Classification(Base):
     """Classification of an Obj."""
 
-    classification = sa.Column(sa.String, nullable=False, doc="The assigned class.")
+    create = ok_if_tax_and_obj_readable
+    read = accessible_by_groups_members & ok_if_tax_and_obj_readable
+    update = delete = AccessibleIfUserMatches('author')
+
+    classification = sa.Column(
+        sa.String, nullable=False, index=True, doc="The assigned class."
+    )
     taxonomy_id = sa.Column(
         sa.ForeignKey('taxonomies.id', ondelete='CASCADE'),
         nullable=False,
@@ -1816,6 +1913,7 @@ class Classification(Base):
         sa.Float,
         doc='User-assigned probability of belonging to this class',
         nullable=True,
+        index=True,
     )
 
     author_id = sa.Column(
@@ -1848,14 +1946,24 @@ class Classification(Base):
     )
 
 
-GroupClassifications = join_model("group_classifications", Group, Classification)
-GroupClassifications.__doc__ = "Join table mapping Groups to Classifications."
+GroupClassification = join_model("group_classifications", Group, Classification)
+GroupClassification.__doc__ = "Join table mapping Groups to Classifications."
+GroupClassification.delete = GroupClassification.update = (
+    accessible_by_group_admins & GroupClassification.read
+)
 
 
-class Photometry(Base, ha.Point):
+class Photometry(ha.Point, Base):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
+
+    read = (
+        accessible_by_groups_members
+        | accessible_by_streams_members
+        | accessible_by_owner
+    )
+    update = delete = accessible_by_owner
 
     mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
     flux = sa.Column(
@@ -1920,8 +2028,16 @@ class Photometry(Base, ha.Point):
         passive_deletes=True,
         doc="Groups that can access this Photometry.",
     )
+    streams = relationship(
+        "Stream",
+        secondary="stream_photometry",
+        back_populates="photometry",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="Streams associated with this Photometry.",
+    )
     instrument_id = sa.Column(
-        sa.ForeignKey('instruments.id'),
+        sa.ForeignKey('instruments.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
         doc="ID of the Instrument that took this Photometry.",
@@ -1952,6 +2068,7 @@ class Photometry(Base, ha.Point):
         'User',
         back_populates='photometry',
         foreign_keys=[owner_id],
+        passive_deletes=True,
         cascade='save-update, merge, refresh-expire, expunge',
         doc="The User who uploaded the photometry.",
     )
@@ -1959,7 +2076,7 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def mag(self):
         """The magnitude of the photometry point in the AB system."""
-        if self.flux is not None and self.flux > 0:
+        if not np.isnan(self.flux) and self.flux > 0:
             return -2.5 * np.log10(self.flux) + PHOT_ZP
         else:
             return None
@@ -1967,7 +2084,7 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def e_mag(self):
         """The error on the magnitude of the photometry point."""
-        if self.flux is not None and self.flux > 0 and self.fluxerr > 0:
+        if not np.isnan(self.flux) and self.flux > 0 and self.fluxerr > 0:
             return (2.5 / np.log(10)) * (self.fluxerr / self.flux)
         else:
             return None
@@ -1978,7 +2095,7 @@ class Photometry(Base, ha.Point):
         return sa.case(
             [
                 (
-                    sa.and_(cls.flux != None, cls.flux > 0),  # noqa
+                    sa.and_(cls.flux != 'NaN', cls.flux > 0),  # noqa
                     -2.5 * sa.func.log(cls.flux) + PHOT_ZP,
                 )
             ],
@@ -1992,7 +2109,7 @@ class Photometry(Base, ha.Point):
             [
                 (
                     sa.and_(
-                        cls.flux != None, cls.flux > 0, cls.fluxerr > 0
+                        cls.flux != 'NaN', cls.flux > 0, cls.fluxerr > 0
                     ),  # noqa: E711
                     2.5 / sa.func.ln(10) * cls.fluxerr / cls.flux,
                 )
@@ -2019,15 +2136,25 @@ class Photometry(Base, ha.Point):
     @hybrid_property
     def snr(self):
         """Signal-to-noise ratio of this Photometry point."""
-        return self.flux / self.fluxerr if self.flux and self.fluxerr else None
+        return (
+            self.flux / self.fluxerr
+            if not np.isnan(self.flux) and not np.isnan(self.fluxerr)
+            else None
+        )
 
     @snr.expression
     def snr(self):
         """Signal-to-noise ratio of this Photometry point."""
-        return self.flux / self.fluxerr
+        return sa.case(
+            [
+                (
+                    sa.and_(self.flux != 'NaN', self.fluxerr != 0),  # noqa
+                    self.flux / self.fluxerr,
+                )
+            ],
+            else_=None,
+        )
 
-
-Photometry.is_modifiable_by = is_modifiable_by
 
 # Deduplication index. This is a unique index that prevents any photometry
 # point that has the same obj_id, instrument_id, origin, mjd, flux error,
@@ -2050,16 +2177,30 @@ Photometry.__table_args__ = (
 
 
 User.photometry = relationship(
-    'Photometry', doc='Photometry uploaded by this User.', back_populates='owner'
+    'Photometry',
+    doc='Photometry uploaded by this User.',
+    back_populates='owner',
+    passive_deletes=True,
+    foreign_keys="Photometry.owner_id",
 )
 
 GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
+GroupPhotometry.delete = GroupPhotometry.update = (
+    accessible_by_group_admins & GroupPhotometry.read
+)
+
+StreamPhotometry = join_model("stream_photometry", Stream, Photometry)
+StreamPhotometry.__doc__ = "Join table mapping Streams to Photometry."
+StreamPhotometry.create = accessible_by_stream_members
 
 
 class Spectrum(Base):
     """Wavelength-dependent measurement of the flux of an object through a
     dispersive element."""
+
+    read = accessible_by_groups_members
+    update = delete = accessible_by_owner
 
     __tablename__ = 'spectra'
     # TODO better numpy integration
@@ -2111,16 +2252,24 @@ class Spectrum(Base):
     )
 
     reducers = relationship(
-        "User", secondary="spectrum_reducers", doc="Users that reduced this spectrum."
+        "User",
+        secondary="spectrum_reducers",
+        doc="Users that reduced this spectrum.",
     )
     observers = relationship(
-        "User", secondary="spectrum_observers", doc="Users that observed this spectrum."
+        "User",
+        secondary="spectrum_observers",
+        doc="Users that observed this spectrum.",
     )
 
-    followup_request_id = sa.Column(sa.ForeignKey('followuprequests.id'), nullable=True)
+    followup_request_id = sa.Column(
+        sa.ForeignKey('followuprequests.id', ondelete='SET NULL'), nullable=True
+    )
     followup_request = relationship('FollowupRequest', back_populates='spectra')
 
-    assignment_id = sa.Column(sa.ForeignKey('classicalassignments.id'), nullable=True)
+    assignment_id = sa.Column(
+        sa.ForeignKey('classicalassignments.id', ondelete='SET NULL'), nullable=True
+    )
     assignment = relationship('ClassicalAssignment', back_populates='spectra')
 
     altdata = sa.Column(
@@ -2325,16 +2474,26 @@ class Spectrum(Base):
         )
 
 
-Spectrum.is_modifiable_by = is_modifiable_by
 User.spectra = relationship(
     'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
 )
 
 SpectrumReducer = join_model("spectrum_reducers", Spectrum, User)
 SpectrumObserver = join_model("spectrum_observers", Spectrum, User)
+SpectrumReducer.create = (
+    SpectrumReducer.delete
+) = SpectrumReducer.update = AccessibleIfUserMatches('spectrum.owner')
+SpectrumObserver.create = (
+    SpectrumObserver.delete
+) = SpectrumObserver.update = AccessibleIfUserMatches('spectrum.owner')
+
+# should be accessible only by spectrumowner ^^
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
+GroupSpectrum.update = GroupSpectrum.delete = (
+    accessible_by_group_admins & GroupSpectrum.read
+)
 
 
 # def format_public_url(context):
@@ -2350,13 +2509,53 @@ GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 #        return '/' + file_uri.lstrip('./')
 
 
+def updatable_by_token_with_listener_acl(cls, user_or_token):
+    if user_or_token.is_admin:
+        return public.query_accessible_rows(cls, user_or_token)
+
+    instruments_with_apis = (
+        Instrument.query_records_accessible_by(user_or_token)
+        .filter(Instrument.listener_classname.isnot(None))
+        .all()
+    )
+
+    api_map = {
+        instrument.id: instrument.listener_class.get_acl_id()
+        for instrument in instruments_with_apis
+    }
+
+    accessible_instrument_ids = [
+        instrument_id
+        for instrument_id, acl_id in api_map.items()
+        if acl_id in user_or_token.permissions
+    ]
+
+    return (
+        DBSession()
+        .query(cls)
+        .join(Allocation)
+        .join(Instrument)
+        .filter(Instrument.id.in_(accessible_instrument_ids))
+    )
+
+
 class FollowupRequest(Base):
     """A request for follow-up data (spectroscopy, photometry, or both) using a
     robotic instrument."""
 
+    # TODO: Make read-accessible via target groups
+    create = read = AccessibleIfRelatedRowsAreAccessible(obj="read", allocation="read")
+    update = delete = (
+        (
+            AccessibleIfUserMatches('allocation.group.users')
+            | AccessibleIfUserMatches('requester')
+        )
+        & read
+    ) | CustomUserAccessControl(updatable_by_token_with_listener_acl)
+
     requester_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
+        sa.ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=True,
         index=True,
         doc="ID of the User who requested the follow-up.",
     )
@@ -2370,7 +2569,7 @@ class FollowupRequest(Base):
 
     last_modified_by_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='SET NULL'),
-        nullable=False,
+        nullable=True,
         doc="The ID of the User who last modified the request.",
     )
 
@@ -2408,6 +2607,7 @@ class FollowupRequest(Base):
     transactions = relationship(
         'FacilityTransaction',
         back_populates='followup_request',
+        passive_deletes=True,
         order_by="FacilityTransaction.created_at.desc()",
     )
 
@@ -2425,27 +2625,14 @@ class FollowupRequest(Base):
     def instrument(self):
         return self.allocation.instrument
 
-    def is_owned_by(self, user_or_token):
-        """Return a boolean indicating whether a FollowupRequest belongs to
-        an allocation that is accessible to the given user or token.
-
-        Parameters
-        ----------
-        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
-           The User or Token to check.
-
-        Returns
-        -------
-        owned: bool
-           Whether the FollowupRequest belongs to an Allocation that is
-           accessible to the given user or token.
-        """
-
-        user_or_token_group_ids = [g.id for g in user_or_token.accessible_groups]
-        return self.allocation.group_id in user_or_token_group_ids
-
 
 FollowupRequestTargetGroup = join_model('request_groups', FollowupRequest, Group)
+FollowupRequestTargetGroup.create = (
+    FollowupRequestTargetGroup.update
+) = FollowupRequestTargetGroup.delete = (
+    AccessibleIfUserMatches('followuprequest.requester')
+    & FollowupRequestTargetGroup.read
+)
 
 
 class FacilityTransaction(Base):
@@ -2462,9 +2649,9 @@ class FacilityTransaction(Base):
     response = sa.Column(psql.JSONB, doc='Serialized HTTP response.')
 
     followup_request_id = sa.Column(
-        sa.ForeignKey('followuprequests.id', ondelete='CASCADE'),
+        sa.ForeignKey('followuprequests.id', ondelete='SET NULL'),
         index=True,
-        nullable=False,
+        nullable=True,
         doc="The ID of the FollowupRequest this message pertains to.",
     )
 
@@ -2477,19 +2664,21 @@ class FacilityTransaction(Base):
     initiator_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='SET NULL'),
         index=True,
-        nullable=False,
+        nullable=True,
         doc='The ID of the User who initiated the transaction.',
     )
     initiator = relationship(
         'User',
         back_populates='transactions',
         doc='The User who initiated the transaction.',
+        foreign_keys="FacilityTransaction.initiator_id",
     )
 
 
 User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
+    passive_deletes=True,
     doc="The follow-up requests this User has made.",
     foreign_keys=[FollowupRequest.requester_id],
 )
@@ -2498,11 +2687,69 @@ User.transactions = relationship(
     'FacilityTransaction',
     back_populates='initiator',
     doc="The FacilityTransactions initiated by this User.",
+    foreign_keys="FacilityTransaction.initiator_id",
+)
+
+
+class Listing(Base):
+    create = read = update = delete = AccessibleIfUserMatches("user")
+
+    user_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this Listing.",
+    )
+
+    user = relationship(
+        "User",
+        foreign_keys=user_id,
+        back_populates="listings",
+        doc="The user that saved this object/listing",
+    )
+
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the object that is on this Listing",
+    )
+
+    obj = relationship(
+        "Obj",
+        doc="The object referenced by this listing",
+    )
+
+    list_name = sa.Column(
+        sa.String,
+        index=True,
+        nullable=False,
+        doc="Name of the list, e.g., 'favorites'. ",
+    )
+
+
+Listing.__table_args__ = (
+    sa.Index(
+        "listings_main_index",
+        Listing.user_id,
+        Listing.obj_id,
+        Listing.list_name,
+        unique=True,
+    ),
+    sa.Index(
+        "listings_reverse_index",
+        Listing.list_name,
+        Listing.obj_id,
+        Listing.user_id,
+        unique=True,
+    ),
 )
 
 
 class Thumbnail(Base):
     """Thumbnail image centered on the location of an Obj."""
+
+    create = read = AccessibleIfRelatedRowsAreAccessible(obj='read')
 
     # TODO delete file after deleting row
     type = sa.Column(
@@ -2524,7 +2771,10 @@ class Thumbnail(Base):
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the Thumbnail.")
     obj = relationship(
-        'Obj', back_populates='thumbnails', uselist=False, doc="The Thumbnail's Obj.",
+        'Obj',
+        back_populates='thumbnails',
+        uselist=False,
+        doc="The Thumbnail's Obj.",
     )
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
@@ -2532,10 +2782,31 @@ class Thumbnail(Base):
         nullable=False,
         doc="ID of the thumbnail's obj.",
     )
+    is_grayscale = sa.Column(
+        sa.Boolean(),
+        nullable=False,
+        default=False,
+        doc="Boolean indicating whether the thumbnail is (mostly) grayscale or not.",
+    )
+
+
+@event.listens_for(Thumbnail, 'before_insert')
+def classify_thumbnail_grayscale(mapper, connection, target):
+    if target.file_uri is not None:
+        target.is_grayscale = image_is_grayscale(target.file_uri)
+    else:
+        try:
+            target.is_grayscale = image_is_grayscale(
+                requests.get(target.public_url, stream=True).raw
+            )
+        except requests.exceptions.RequestException:
+            pass
 
 
 class ObservingRun(Base):
     """A classical observing run with a target list (of Objs)."""
+
+    update = delete = accessible_by_owner
 
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete='CASCADE'),
@@ -2581,6 +2852,7 @@ class ObservingRun(Base):
         'User',
         back_populates='observing_runs',
         doc="The User who created this ObservingRun.",
+        foreign_keys="ObservingRun.owner_id",
     )
     owner_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='CASCADE'),
@@ -2654,12 +2926,18 @@ class ObservingRun(Base):
 User.observing_runs = relationship(
     'ObservingRun',
     cascade='save-update, merge, refresh-expire, expunge',
+    passive_deletes=True,
     doc="Observing Runs this User has created.",
+    foreign_keys="ObservingRun.owner_id",
 )
 
 
 class ClassicalAssignment(Base):
     """Assignment of an Obj to an Observing Run as a target."""
+
+    create = read = update = delete = AccessibleIfRelatedRowsAreAccessible(
+        obj='read', run='read'
+    )
 
     requester_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="CASCADE"),
@@ -2751,12 +3029,16 @@ class ClassicalAssignment(Base):
 User.assignments = relationship(
     'ClassicalAssignment',
     back_populates='requester',
+    passive_deletes=True,
     doc="Objs the User has assigned to ObservingRuns.",
     foreign_keys="ClassicalAssignment.requester_id",
 )
 
 
 class Invitation(Base):
+
+    read = update = delete = AccessibleIfUserMatches('invited_by')
+
     token = sa.Column(sa.String(), nullable=False, unique=True)
     groups = relationship(
         "Group",
@@ -2802,6 +3084,10 @@ def send_user_invite_email(mapper, connection, target):
 
 
 class SourceNotification(Base):
+
+    create = read = AccessibleIfRelatedRowsAreAccessible(source='read')
+    update = delete = AccessibleIfUserMatches('sent_by')
+
     groups = relationship(
         "Group",
         secondary="group_notifications",
@@ -2834,7 +3120,57 @@ class SourceNotification(Base):
     level = sa.Column(sa.String(), nullable=False)
 
 
+class UserNotification(Base):
+
+    read = update = delete = AccessibleIfUserMatches('user')
+
+    user_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of the associated User",
+    )
+    user = relationship(
+        "User",
+        back_populates="notifications",
+        doc="The associated User",
+    )
+    text = sa.Column(
+        sa.String(),
+        nullable=False,
+        doc="The notification text to display",
+    )
+
+    viewed = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        index=True,
+        doc="Boolean indicating whether notification has been viewed.",
+    )
+
+    url = sa.Column(
+        sa.String(),
+        nullable=True,
+        doc="URL to which to direct upon click, if relevant",
+    )
+
+
+User.notifications = relationship(
+    "UserNotification",
+    back_populates="user",
+    passive_deletes=True,
+    doc="Notifications to be displayed on front-end associated with User",
+)
+
 GroupSourceNotification = join_model('group_notifications', Group, SourceNotification)
+GroupSourceNotification.create = (
+    GroupSourceNotification.read
+) = accessible_by_group_members
+GroupSourceNotification.update = (
+    GroupSourceNotification.delete
+) = accessible_by_group_admins | AccessibleIfUserMatches('sourcenotification.sent_by')
+
 User.source_notifications = relationship(
     'SourceNotification',
     back_populates='sent_by',
@@ -2935,9 +3271,12 @@ def create_single_user_group(mapper, connection, target):
 
 @event.listens_for(User, 'before_delete')
 def delete_single_user_group(mapper, connection, target):
+    single_user_group = target.single_user_group
 
     # Delete single-user group
-    DBSession().delete(target.single_user_group)
+    @event.listens_for(DBSession(), "after_flush_postexec", once=True)
+    def receive_after_flush(session, context):
+        DBSession().delete(single_user_group)
 
 
 @event.listens_for(User, 'after_update')
@@ -2949,6 +3288,148 @@ def update_single_user_group(mapper, connection, target):
         single_user_group = target.single_user_group
         single_user_group.name = slugify(target.username)
         DBSession().add(single_user_group)
+
+
+# Group / user / stream permissions
+
+# group admins can set the admin status of other group members
+def groupuser_update_access_logic(cls, user_or_token):
+    aliased = sa.orm.aliased(cls)
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = DBSession().query(cls).join(aliased, cls.group_id == aliased.group_id)
+    if not user_or_token.is_system_admin:
+        query = query.filter(aliased.user_id == user_id, aliased.admin.is_(True))
+    return query
+
+
+GroupUser.update = CustomUserAccessControl(groupuser_update_access_logic)
+
+
+GroupUser.delete = (
+    # users can remove themselves from a group
+    # admins can remove users from a group
+    # no one can remove a user from their single user group
+    (accessible_by_group_admins | AccessibleIfUserMatches('user'))
+    & GroupUser.read
+    & CustomUserAccessControl(
+        lambda cls, user_or_token: DBSession()
+        .query(cls)
+        .join(Group)
+        .filter(Group.single_user_group.is_(False))
+    )
+)
+
+GroupUser.create = (
+    GroupUser.read
+    # only admins can add people to groups
+    & accessible_by_group_admins
+    & CustomUserAccessControl(
+        # Can only add a user to a group if they have all the requisite
+        # streams required for entry to the group. And users cannot
+        # be added to single user groups through the Groups API (only
+        # through event handlers).
+        lambda cls, user_or_token: DBSession()
+        .query(cls)
+        .join(Group)
+        .outerjoin(Stream, Group.streams)
+        .outerjoin(
+            StreamUser,
+            sa.and_(
+                StreamUser.user_id == cls.user_id,
+                StreamUser.stream_id == Stream.id,
+            ),
+        )
+        .filter(Group.single_user_group.is_(False))
+        .group_by(cls.id)
+        .having(
+            sa.or_(
+                sa.func.bool_and(StreamUser.stream_id.isnot(None)),
+                sa.func.bool_and(Stream.id.is_(None)),  # group has no streams
+            )
+        )
+    )
+)
+
+GroupStream.update = restricted
+GroupStream.delete = (
+    # only admins can delete streams from groups
+    accessible_by_group_admins
+    & GroupStream.read
+) & CustomUserAccessControl(
+    # Can only delete a stream from the group if none of the group's filters
+    # are operating on the stream.
+    lambda cls, user_or_token: DBSession()
+    .query(cls)
+    .outerjoin(Stream)
+    .outerjoin(
+        Filter,
+        sa.and_(Filter.stream_id == Stream.id, Filter.group_id == cls.group_id),
+    )
+    .group_by(cls.id)
+    .having(
+        sa.or_(
+            sa.func.bool_and(Filter.id.is_(None)),
+            sa.func.bool_and(Stream.id.is_(None)),  # group has no streams
+        )
+    )
+)
+
+GroupStream.create = (
+    # only admins can add streams to groups
+    accessible_by_group_admins
+    & GroupStream.read
+    & CustomUserAccessControl(
+        # Can only add a stream to a group if all users in the group have
+        # access to the stream.
+        # Also, cannot add stream access to single user groups.
+        lambda cls, user_or_token: DBSession()
+        .query(cls)
+        .join(Group, cls.group)
+        .outerjoin(User, Group.users)
+        .outerjoin(
+            StreamUser,
+            sa.and_(
+                cls.stream_id == StreamUser.stream_id,
+                User.id == StreamUser.user_id,
+            ),
+        )
+        .filter(Group.single_user_group.is_(False))
+        .group_by(cls.id)
+        .having(
+            sa.or_(
+                sa.func.bool_and(StreamUser.stream_id.isnot(None)),
+                sa.func.bool_and(User.id.is_(None)),
+            )
+        )
+    )
+)
+
+
+StreamUser.__doc__ = "Join table mapping Streams to Users."
+
+# only system admins can modify user stream permissions
+StreamUser.create = restricted
+
+# only system admins can modify user stream permissions
+StreamUser.delete = restricted & CustomUserAccessControl(
+    # Can only delete a stream from a user if none of the user's groups
+    # require that stream for membership
+    lambda cls, user_or_token: DBSession()
+    .query(cls)
+    .join(User, cls.user)
+    .outerjoin(Group, User.groups)
+    .outerjoin(
+        GroupStream,
+        sa.and_(
+            GroupStream.group_id == Group.id,
+            GroupStream.stream_id == cls.stream_id,
+        ),
+    )
+    .group_by(cls.id)
+    # no OR here because Users will always be a member of at least one
+    # group -- their single user group.
+    .having(sa.func.bool_and(GroupStream.stream_id.is_(None)))
+)
 
 
 schema.setup_schema()

@@ -6,11 +6,14 @@ from functools import wraps
 
 import pandas as pd
 import requests
+from requests.exceptions import HTTPError
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import numpy.ma as ma
 from scipy.ndimage.filters import gaussian_filter
+from joblib import Memory
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -24,12 +27,101 @@ from astropy.wcs.utils import pixel_to_skycoord
 from astropy.io import fits
 from astropy.visualization import ImageNormalize, ZScaleInterval
 from reproject import reproject_adaptive
+import pyvo as vo
+from pyvo.dal.exceptions import DALQueryError
 
 from .cache import Cache
 
 from baselayer.log import make_log
+from baselayer.app.env import load_env
 
 log = make_log('finder-chart')
+
+_, cfg = load_env()
+
+
+class GaiaQuery:
+
+    alt_tap = 'https://gaia.aip.de/tap'
+    alt_main_db = 'gaiaedr3'
+
+    # conversion for units in VO tables to astropy units
+    unit_conversion = {
+        'Dimensionless': None,
+        'Angle[deg]': u.deg,
+        'Time[Julian Years]': u.yr,
+        'Magnitude[mag]': u.mag,
+        'Angular Velocity[mas/year]': u.mas / u.yr,
+        'Angle[mas]': u.mas,
+    }
+
+    def __init__(self, main_db="gaiaedr3"):
+        self.main_db = main_db
+        self.db_connected = self._connect()
+        log(
+            f"Gaia connection {'succeeded' if self.db_connected else 'failed'}."
+            f" Main db = {self.main_db}{' (backup)' if self.is_backup else ''}."
+        )
+
+    def _connect(self):
+        """Try to connect to the main Gaia server of astroquery, else
+        fall over to backup server
+        """
+        try:
+            g = Gaia
+            q = f"SELECT TOP 1  * from {self.main_db}.gaia_source"
+            job = g.launch_job(q)
+            _ = job.get_results()
+            self.is_backup = False
+            self.connection = g
+            return True
+        except (HTTPError, ConnectionResetError):
+            log("Warning: main Gaia TAP+ server failed")
+            self.is_backup = True
+
+        if self.is_backup:
+            try:
+                self.main_db = GaiaQuery.alt_main_db
+                g = vo.dal.TAPService(GaiaQuery.alt_tap)
+                q = f"SELECT TOP 1 * from {self.alt_main_db}.gaia_source"
+                _ = g.search(q)
+                self.connection = g
+                return True
+            except DALQueryError:
+                log("Warning: backup TAP+ server failed")
+                self.connection = None
+                return False
+
+    def query(self, q):
+        if not self.db_connected or self.connection is None:
+            raise HTTPError("GaiaQuery not connected properly.")
+
+        # replace the main db name
+        q = q.format(main_db=self.main_db)
+        if not self.is_backup:
+            job = self.connection.launch_job(q)
+            rez = job.get_results()
+            return rez
+        else:
+            # native return type is pyvo.dal.tap.TAPResults
+            job = self.connection.search(q)
+            return self._standardize_table(job.to_table())
+
+    def _standardize_table(self, tab):
+
+        new_tab = tab.copy()
+        for col in tab.columns:
+            if tab[col].name == 'source_id':
+                new_tab[col] = tab[col].astype(np.int64)
+            if tab[col].unit is not None:
+                colunit = new_tab[col].unit.to_string()
+                new_tab[col].unit = GaiaQuery.unit_conversion.get(colunit)
+            if tab[col].name == 'pos':
+                ma.set_fill_value(new_tab[col], 180.0)
+                new_tab[col] = new_tab[col].astype(np.float64)
+                new_tab[col].name = 'dist'
+
+        return new_tab
 
 
 def warningfilter(action="ignore", category=RuntimeWarning):
@@ -75,6 +167,44 @@ irsa = {
 }
 
 
+starlist_formats = {
+    'Keck': {
+        "sep": ' ',
+        "commentstr": "#",
+        "giveoffsets": True,
+        "maxname_size": 15,
+        "first_line": None,
+    },
+    'P200': {
+        "sep": ':',
+        "commentstr": "!",
+        "giveoffsets": False,
+        "maxname_size": 20,
+        "first_line": None,
+    },
+    'Shane': {
+        "sep": ' ',
+        "commentstr": "#",
+        "giveoffsets": True,
+        "maxname_size": 15,
+        # see https://mthamilton.ucolick.org/techdocs/telescopes/Shane/coords/
+        "first_line": (
+            "!Data {name %16} ra_h ra_m ra_s dec_d dec_m dec_s "
+            "equinox keyval {comment *}"
+        ),
+    },
+}
+
+JOBLIB_CACHE_SIZE = 100e6  # 100 MB
+offsets_memory = Memory("./cache/offsets/", verbose=0, bytes_limit=JOBLIB_CACHE_SIZE)
+
+
+def memcache(f):
+    """Ensure that joblib memory cache stays within bytes limit."""
+    offsets_memory.reduce_size()
+    return offsets_memory.cache(f)
+
+
 def get_url(*args, **kwargs):
     # Connect and read timeouts
     kwargs['timeout'] = (6.05, 20)
@@ -84,6 +214,7 @@ def get_url(*args, **kwargs):
         return None
 
 
+@memcache
 def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
     """
     From:
@@ -175,6 +306,7 @@ source_image_parameters = {
 }
 
 
+@memcache
 def get_ztfcatalog(ra, dec, cache_dir="./cache/finder_cat/", cache_max_items=1000):
     """Finds the ZTF public catalog data around this position
 
@@ -268,7 +400,11 @@ def _calculate_best_position_for_offset_stars(
     # remove observations with distances more than max_offset away
     # from the median
     try:
-        med_ra, med_dec = np.median(df["ra"]), np.median(df["dec"])
+        # use nanmedian so that med_ra, med_dec are not returned as
+        # nan when df['ra'] or df['dec'] contains `None`s (can happen
+        # when there is no position information for a photometry
+        # point)
+        med_ra, med_dec = np.nanmedian(df["ra"]), np.nanmedian(df["dec"])
     except TypeError:
         log(
             "Warning: could not find the median of the positions"
@@ -325,8 +461,115 @@ def _calculate_best_position_for_offset_stars(
     return position
 
 
+def get_formatted_standards_list(
+    starlist_type='Keck',
+    standard_type='ESO',
+    dec_filter_range=(-90, 90),
+    ra_filter_range=(0, 360),
+    show_first_line=False,
+):
+    """Returns a list of standard stars in the preferred starlist format.
+
+    The standards collections are established in the config.yaml file
+    pointing to a CSV file with the standards
+
+    Parameters
+    ----------
+    starlist_type : str, optional
+        Type of starlist (Keck, P200, Shane)
+    standard_type : str, optional
+        Name of the collection of standards (ESO, ZTF, ...)
+    dec_filter_range: tuple, optional
+        Inclusive range in degrees to keep standards. Useful for showing
+        fewer sources which are not accessible to a given telescope
+    ra_filter_range: tuple, optional
+        Inclusive range in degrees to keep standards. Useful for showing
+        fewer sources which are not accessible to a given telescope. If
+        the first element is larger than the first, then assume the filter
+        request wraps around 0. Ie. if ra_filter_range = (150, 20) then
+        include all sources with ra > 150 or ra < 20.
+    show_first_line: bool, optional
+        Return the first formatting line  if the starlist type adds
+        a preamble
+    """
+    starlist = []
+    result = {"starlist_info": starlist, "success": False}
+    standard_stars = cfg.get("standard_stars")
+    if standard_stars is None:
+        log("Warning: No standard stars defined in the config.yaml.")
+        return result
+
+    standard_file = standard_stars.get(standard_type)
+    if standard_file is None:
+        log(f"Warning: '{standard_type}' not defined in the config.yaml.")
+        return result
+
+    starlist_format = starlist_formats.get(starlist_type)
+    if starlist_format is None:
+        log("Warning: Do not recognize this starlist format. Using Keck.")
+        starlist_format = starlist_formats["Keck"]
+
+    space = " "
+    sep = starlist_format["sep"]
+    commentstr = starlist_format["commentstr"]
+    maxname_size = starlist_format["maxname_size"]
+    if show_first_line and starlist_format["first_line"] not in [None, ""]:
+        starlist.append(starlist_format["first_line"])
+
+    df = pd.read_csv(standard_file, comment="#")
+    if not set(['name', 'ra', 'dec', 'epoch', 'comment']).issubset(
+        set(df.columns.values)
+    ):
+        log("Error: Standard star CSV file is missing necessary headers.")
+        return result
+
+    tab = SkyCoord(df["ra"], df["dec"], unit=(u.hourangle, u.deg))
+    df["ra_float"] = tab.ra.value
+    df["dec_float"] = tab.dec.value
+    df["skycoord"] = [
+        x[1:]
+        for x in tab.to_string(
+            'hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True
+        )
+    ]
+
+    # filter
+    df = df[
+        (df["dec_float"] >= dec_filter_range[0])
+        & (df["dec_float"] <= dec_filter_range[1])
+    ]
+    if ra_filter_range[1] > ra_filter_range[0]:
+        df = df[
+            (df["ra_float"] >= ra_filter_range[0])
+            & (df["ra_float"] <= ra_filter_range[1])
+        ]
+    else:
+        df = df[
+            (df["ra_float"] >= ra_filter_range[0])
+            | (df["ra_float"] <= ra_filter_range[1])
+        ]
+
+    if len(df) == 0:
+        log("Warning: No standards stars match the filter criteria.")
+        return result
+
+    for index, row in df.iterrows():
+        starlist.append(
+            {
+                "str": (
+                    f"{row['name'].replace(' ',''):{space}<{maxname_size}} "
+                    + f"{row.skycoord}"
+                    + f" {row.epoch} "
+                    + f" {commentstr} {row.comment}"
+                )
+            }
+        )
+    return {"starlist_info": starlist, "success": True}
+
+
 @warningfilter(action="ignore", category=DeprecationWarning)
 @warningfilter(action="ignore", category=AstropyWarning)
+@memcache
 def get_nearby_offset_stars(
     source_ra,
     source_dec,
@@ -403,7 +646,7 @@ def get_nearby_offset_stars(
         # TODO: check the obstime format
         source_obstime = Time(obstime)
 
-    gaia_obstime = "J2015.5"
+    gaia_obstime = "J2016.0"
 
     center = SkyCoord(
         source_ra,
@@ -422,7 +665,7 @@ def get_nearby_offset_stars(
                     POINT('ICRS', {source_ra}, {source_dec})) AS
                     dist, source_id, ra, dec, ref_epoch,
                     phot_rp_mean_mag, pmra, pmdec, parallax
-                  FROM gaiadr2.gaia_source
+                  FROM {{main_db}}.gaia_source
                   WHERE 1=CONTAINS(
                     POINT('ICRS', ra, dec),
                     CIRCLE('ICRS', {source_ra}, {source_dec},
@@ -430,11 +673,12 @@ def get_nearby_offset_stars(
                   AND phot_rp_mean_mag < {mag_limit + fainter_diff}
                   AND phot_rp_mean_mag > {mag_min}
                   AND parallax < 250
-                  ORDER BY phot_rp_mean_mag ASC
                 """
-    # TODO possibly: save the offset data (cache)
-    job = Gaia.launch_job(query_string)
-    r = job.get_results()
+
+    g = GaiaQuery()
+    r = g.query(query_string)
+    # get brighter stars at top:
+    r.sort("phot_rp_mean_mag")
     queries_issued += 1
 
     catalog = SkyCoord.guess_from_table(r)
@@ -542,29 +786,16 @@ def get_nearby_offset_stars(
             required_ztfref_source_distance=required_ztfref_source_distance,
         )
 
-    # default to Keck starlist
-
-    if starlist_type == 'Keck':
-        sep = ' '  # 'fromunit'
-        commentstr = "#"
-        giveoffsets = True
-        maxname_size = 15
-        first_line = None
-    elif starlist_type == 'P200':
-        sep = ':'  # 'fromunit'
-        commentstr = "!"
-        giveoffsets = False
-        maxname_size = 20
-        first_line = None
-    elif starlist_type == 'Shane':
-        sep = ' '  # 'fromunit'
-        commentstr = "#"
-        giveoffsets = True
-        maxname_size = 15
-        # see https://mthamilton.ucolick.org/techdocs/telescopes/Shane/coords/
-        first_line = "!Data {name %16} ra_h ra_m ra_s dec_d dec_m dec_s equinox keyval {comment *}"
-    else:
+    starlist_format = starlist_formats.get(starlist_type)
+    if starlist_format is None:
         log("Warning: Do not recognize this starlist format. Using Keck.")
+        starlist_format = starlist_formats["Keck"]
+
+    sep = starlist_format["sep"]
+    commentstr = starlist_format["commentstr"]
+    giveoffsets = starlist_format["giveoffsets"]
+    maxname_size = starlist_format["maxname_size"]
+    first_line = starlist_format["first_line"]
 
     basename = source_name.strip().replace(" ", "")
     if len(basename) > maxname_size:
@@ -576,9 +807,9 @@ def get_nearby_offset_stars(
 
     space = " "
     star_list_format = (
-        f"{basename:{space}<.{maxname_size}} "
+        f"{basename:{space}<{maxname_size}} "
         + f"{center.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
-        + f" 2000.0 {commentstr} source_name={source_name}"
+        + f" 2000.0  {commentstr} source_name={source_name}"
     )
 
     star_list = [{"str": first_line}] if first_line else []
@@ -606,9 +837,9 @@ def get_nearby_offset_stars(
         name = f"{abrev_basename}_o{i+1}"
 
         star_list_format = (
-            f"{name:{space}<.{maxname_size}} "
+            f"{name:{space}<{maxname_size}} "
             + f"{c.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
-            + f" 2000.0 {offsets} "
+            + f" 2000.0 {offsets}"
             + f" {commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
             + f"; {dras}, {ddecs} "
             + f" ID={source['source_id']}"
@@ -690,8 +921,7 @@ def fits_image(
     cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
 
     def get_hdu(url):
-        """Try to get HDU from cache, otherwise fetch.
-        """
+        """Try to get HDU from cache, otherwise fetch."""
         hash_name = f'{center_ra}{center_dec}{imsize}{image_source}'
         hdu_fn = cache[hash_name]
 

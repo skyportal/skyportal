@@ -6,6 +6,127 @@ import numpy as np
 import datetime
 
 
+def test_token_user_get_range_spectrum(
+    upload_data_token, public_source, public_group, lris
+):
+    # post two spectra at two different dates
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': '2020-01-10T00:00:00',
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [434.2, 432.1, 435.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # test range that includes first spectrum
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}'
+        f'&min_date=2020-01-01T00:00:00&max_date=2020-01-15T00:00:00',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 234.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # test open ended range that includes second spectrum
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 434.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # test open ended range that includes both spectra
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-01T00:00:00',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 2
+    assert data['status'] == 'success'
+
+    # test legal variations on input isot format
+    # 2020-01-15
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 434.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # 2020-01-15T00:00:00+00:00
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00&plus;00:00',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 434.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # 2020-01-15T00:00:00Z
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00Z',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 434.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # test with no instrument ids
+    status, data = api(
+        'GET',
+        f'spectrum/range?min_date=2020-01-01T00:00:00&max_date=2020-02-01',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 234.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+
 def test_token_user_post_get_spectrum_data(
     upload_data_token, public_source, public_group, lris
 ):

@@ -1,16 +1,14 @@
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_FILTER = "skyportal/FETCH_FILTER";
-export const FETCH_FILTER_OK = "skyportal/FETCH_FILTER_OK";
-export const FETCH_FILTER_ERROR = "skyportal/FETCH_FILTER_ERROR";
-export const FETCH_FILTER_FAIL = "skyportal/FETCH_FILTER_FAIL";
+const FETCH_FILTER = "skyportal/FETCH_FILTER";
+const FETCH_FILTER_OK = "skyportal/FETCH_FILTER_OK";
+const FETCH_FILTER_ERROR = "skyportal/FETCH_FILTER_ERROR";
+const FETCH_FILTER_FAIL = "skyportal/FETCH_FILTER_FAIL";
 
-export const ADD_GROUP_FILTER = "skyportal/ADD_GROUP_FILTER";
-export const ADD_GROUP_FILTER_OK = "skyportal/ADD_GROUP_FILTER_OK";
+const ADD_GROUP_FILTER = "skyportal/ADD_GROUP_FILTER";
 
-export const DELETE_GROUP_FILTER = "skyportal/DELETE_GROUP_FILTER";
-export const DELETE_GROUP_FILTER_OK = "skyportal/DELETE_GROUP_FILTER_OK";
+const DELETE_GROUP_FILTER = "skyportal/DELETE_GROUP_FILTER";
 
 export function fetchFilter(id) {
   return API.GET(`/api/filters/${id}`, FETCH_FILTER);

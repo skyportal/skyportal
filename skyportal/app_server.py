@@ -21,16 +21,20 @@ from skyportal.handlers.api import (
     GroupHandler,
     GroupUserHandler,
     GroupUsersFromOtherGroupsHandler,
+    GroupAdmissionRequestHandler,
     PublicGroupHandler,
     GroupStreamHandler,
     InstrumentHandler,
     InvalidEndpointHandler,
     InvitationHandler,
+    UserObjListHandler,
     NewsFeedHandler,
     ObservingRunHandler,
     PhotometryHandler,
     BulkDeletePhotometryHandler,
     ObjPhotometryHandler,
+    ObjClassificationHandler,
+    ObjAnnotationHandler,
     PhotometryRangeHandler,
     RoleHandler,
     UserRoleHandler,
@@ -39,11 +43,15 @@ from skyportal.handlers.api import (
     SourceOffsetsHandler,
     SourceFinderHandler,
     SourceNotificationHandler,
+    ObjGroupsHandler,
     SourceGroupsHandler,
+    ObjColorMagHandler,
     SpectrumHandler,
     SpectrumASCIIFileHandler,
     SpectrumASCIIFileParser,
+    SpectrumRangeHandler,
     ObjSpectraHandler,
+    StatsHandler,
     StreamHandler,
     StreamUserHandler,
     SysInfoHandler,
@@ -52,6 +60,7 @@ from skyportal.handlers.api import (
     ThumbnailHandler,
     UserHandler,
     WeatherHandler,
+    PS1ThumbnailHandler,
 )
 from skyportal.handlers.api.internal import (
     PlotPhotometryHandler,
@@ -68,6 +77,9 @@ from skyportal.handlers.api.internal import (
     PlotObjTelAirmassHandler,
     AnnotationsInfoHandler,
     EphemerisHandler,
+    StandardsHandler,
+    NotificationHandler,
+    BulkNotificationHandler,
 )
 
 from . import models, model_util, openapi
@@ -80,6 +92,7 @@ skyportal_handlers = [
     (r'/api/acls', ACLHandler),
     (r'/api/allocation(/.*)?', AllocationHandler),
     (r'/api/assignment(/.*)?', AssignmentHandler),
+    (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
     (r'/api/comment(/[0-9]+)?', CommentHandler),
@@ -95,8 +108,13 @@ skyportal_handlers = [
     (r'/api/groups/public', PublicGroupHandler),
     (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
     (r'/api/groups(/[0-9]+)/users(/.*)?', GroupUserHandler),
-    (r'/api/groups(/[0-9]+)/usersFromGroups(/.*)?', GroupUsersFromOtherGroupsHandler,),
+    (
+        r'/api/groups(/[0-9]+)/usersFromGroups(/.*)?',
+        GroupUsersFromOtherGroupsHandler,
+    ),
     (r'/api/groups(/[0-9]+)?', GroupHandler),
+    (r'/api/listing(/[0-9]+)?', UserObjListHandler),
+    (r'/api/group_admission_requests(/[0-9]+)?', GroupAdmissionRequestHandler),
     (r'/api/instrument(/[0-9]+)?', InstrumentHandler),
     (r'/api/invitations(/.*)?', InvitationHandler),
     (r'/api/newsfeed', NewsFeedHandler),
@@ -110,14 +128,20 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_]+)/spectra', ObjSpectraHandler),
     (r'/api/sources(/[0-9A-Za-z-_]+)/offsets', SourceOffsetsHandler),
     (r'/api/sources(/[0-9A-Za-z-_]+)/finder', SourceFinderHandler),
+    (r'/api/sources(/[0-9A-Za-z-_]+)/classifications', ObjClassificationHandler),
+    (r'/api/sources(/[0-9A-Za-z-_]+)/annotations', ObjAnnotationHandler),
+    (r'/api/sources(/[0-9A-Za-z-_]+)/groups', ObjGroupsHandler),
+    (r'/api/sources(/[0-9A-Za-z-_]+)/color_mag', ObjColorMagHandler),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),
     (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
     (r'/api/spectrum/parse/ascii', SpectrumASCIIFileParser),
     (r'/api/spectrum/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
+    (r'/api/spectrum/range(/.*)?', SpectrumRangeHandler),
     (r'/api/streams(/[0-9]+)/users(/.*)?', StreamUserHandler),
     (r'/api/streams(/[0-9]+)?', StreamHandler),
+    (r'/api/db_stats', StatsHandler),
     (r'/api/sysinfo', SysInfoHandler),
     (r'/api/taxonomy(/.*)?', TaxonomyHandler),
     (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
@@ -134,12 +158,19 @@ skyportal_handlers = [
     (r'/api/internal/plot/photometry/(.*)', PlotPhotometryHandler),
     (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
     (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
+    (r'/api/internal/standards', StandardsHandler),
     (r'/api/internal/plot/airmass/assignment/(.*)', PlotAssignmentAirmassHandler),
-    (r'/api/internal/plot/airmass/objtel/(.*)/([0-9]+)', PlotObjTelAirmassHandler,),
+    (
+        r'/api/internal/plot/airmass/objtel/(.*)/([0-9]+)',
+        PlotObjTelAirmassHandler,
+    ),
     (r'/api/internal/ephemeris/([0-9]+)', EphemerisHandler),
     (r'/api/internal/log', LogHandler),
     (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
     (r'/api/internal/annotations_info', AnnotationsInfoHandler),
+    (r'/api/internal/notifications(/[0-9]+)?', NotificationHandler),
+    (r'/api/internal/notifications/all', BulkNotificationHandler),
+    (r'/api/internal/ps1_thumbnail', PS1ThumbnailHandler),
     (r'/api/.*', InvalidEndpointHandler),
     (r'/become_user(/.*)?', BecomeUserHandler),
     (r'/logout', LogoutHandler),
@@ -152,7 +183,7 @@ skyportal_handlers = [
 ]
 
 
-def make_app(cfg, baselayer_handlers, baselayer_settings):
+def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None):
     """Create and return a `tornado.web.Application` object with specified
     handlers and settings.
 
@@ -165,6 +196,11 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         Tornado handlers needed for baselayer to function.
     baselayer_settings : cfg
         Settings needed for baselayer to function.
+    process : int
+        When launching multiple app servers, which number is this?
+    env : dict
+        Environment in which the app was launched.  Currently only has
+        one key, 'debug'---true if launched with `--debug`.
 
     """
     if cfg['cookie_secret'] == 'abc01234':
@@ -212,9 +248,18 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
     )
 
     app = tornado.web.Application(handlers, **settings)
-    models.init_db(**cfg['database'])
-    baselayer_model_util.create_tables()
+    models.init_db(
+        **cfg['database'],
+        autoflush=False,
+        engine_args={'pool_size': 10, 'max_overflow': 15, 'pool_recycle': 3600},
+    )
+
+    # If tables are found in the database, new tables will only be added
+    # in debug mode.  In production, we leave the tables alone, since
+    # migrations might be used.
+    baselayer_model_util.create_tables(add=env.debug)
     model_util.refresh_enums()
+
     model_util.setup_permissions()
     app.cfg = cfg
 
@@ -228,7 +273,6 @@ def make_app(cfg, baselayer_handlers, baselayer_settings):
         print('-' * 78)
 
     model_util.provision_public_group()
-
     app.openapi_spec = openapi.spec_from_handlers(handlers)
 
     return app

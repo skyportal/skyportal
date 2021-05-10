@@ -22,8 +22,6 @@ import TopSources from "./TopSources";
 import SourceCounts from "./SourceCounts";
 import WeatherWidget from "./WeatherWidget";
 
-import UninitializedDBMessage from "./UninitializedDBMessage";
-
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const useStyles = makeStyles(() => ({
@@ -38,6 +36,8 @@ const useStyles = makeStyles(() => ({
   widgetPaperDiv: {
     padding: "1rem",
     height: "100%",
+    display: "flex",
+    flexFlow: "column nowrap",
   },
   widgetPaperFillSpace: {
     height: "100%",
@@ -53,7 +53,8 @@ const defaultLayouts = {
   {%- for breakpoint in app.homepage_grid.breakpoints.keys() %}
   {{ breakpoint }}: [
     {%- for widgetName, widgetProps in app.homepage_widgets.items() %}
-    { i: "{{ widgetName }}", x: {{ widgetProps.layouts[breakpoint][0] }}, y: {{ widgetProps.layouts[breakpoint][1] }}, w: {{ widgetProps.layouts[breakpoint][2] }}, h: {{ widgetProps.layouts[breakpoint][3] }}, isResizable: {{ widgetProps.resizeable | lower }} },
+    { i: "{{ widgetName }}", x: {{ widgetProps.layouts[breakpoint][0] }}, y: {{ widgetProps.layouts[breakpoint][1] }}, w: {{ widgetProps.layouts[breakpoint][2] }}, h: {{ widgetProps.layouts[breakpoint][3] }}, isResizable: {{ widgetProps.resizeable | lower }},
+    {%- if widgetProps.minW is defined -%} minW: {{ widgetProps.minW }} {%- endif -%}},
     {%- endfor %}
   ],
   {%- endfor %}
@@ -71,22 +72,14 @@ const HomePage = () => {
 
   const groups = useSelector((state) => state.groups.user);
 
-  const sourceTableEmpty = useSelector(
-    (state) => state.dbInfo.source_table_empty
-  );
-
-  const preferredLayouts = useSelector(
-    (state) => state.profile.preferences.layouts
-  );
+  const profile = useSelector((state) => state.profile);
 
   let currentLayouts =
-    preferredLayouts == null ? defaultLayouts : preferredLayouts;
+    profile?.preferences.layouts == null
+      ? defaultLayouts
+      : profile.preferences.layouts;
 
   const dispatch = useDispatch();
-
-  if (sourceTableEmpty) {
-    return <UninitializedDBMessage />;
-  }
 
   const LayoutChangeHandler = (currentLayout, allLayouts) => {
     const prefs = {
@@ -104,60 +97,63 @@ const HomePage = () => {
   };
 
   return (
-    <div>
-      <ResponsiveGridLayout
-        className="layout"
-        layouts={currentLayouts}
-        breakpoints={{ '{' + app.homepage_grid.breakpoints|tojson + '}' }}
-        cols={{ '{' + app.homepage_grid.cols|tojson + '}' }}
-        margin={[10, 10]}
-        onLayoutChange={LayoutChangeHandler}
-        draggableHandle=".dragHandle"
-        rowHeight={gridRowHeight}
-      >
-        {%- for widgetName, widgetProps in app.homepage_widgets.items() %}
-          {%- if not (widgetProps.show is defined and not widgetProps.show) %}
-            {%- if widgetName == "GroupList" %}
-        <div key="{{ widgetName }}">
-          <{{ widgetName }}
-            groups={groups}
-            classes={classes}
-            {%- for key, value in widgetProps.props.items() -%}
-            {%- if value is string %}
-            {{ key }}={"{{ value }}"}
-            {%- else -%}
-            {{ key }}={ {{ value }} }
+    profile &&
+    profile.username !== "" &&  (
+      <div>
+        <ResponsiveGridLayout
+          className="layout"
+          layouts={currentLayouts}
+          breakpoints={{ '{' + app.homepage_grid.breakpoints|tojson + '}' }}
+          cols={{ '{' + app.homepage_grid.cols|tojson + '}' }}
+          margin={[10, 10]}
+          onLayoutChange={LayoutChangeHandler}
+          draggableHandle=".dragHandle"
+          rowHeight={gridRowHeight}
+        >
+          {%- for widgetName, widgetProps in app.homepage_widgets.items() %}
+            {%- if not (widgetProps.show is defined and not widgetProps.show) %}
+              {%- if widgetName == "GroupList" %}
+          <div key="{{ widgetName }}">
+            <{{ widgetName }}
+              groups={groups}
+              classes={classes}
+              {%- for key, value in widgetProps.props.items() -%}
+              {%- if value is string %}
+              {{ key }}={"{{ value }}"}
+              {%- else -%}
+              {{ key }}={ {{ value }} }
+              {%- endif -%}
+              {%- endfor %}
+            />
+          </div>
+              {%- else %}
+          <div key="{{ widgetName }}">
+            <{{ widgetName }}
+              classes={classes}
+              {%- if widgetProps.props is defined %}
+              {% for key, value in widgetProps.props.items() -%}
+              {%- if value is string %}
+              {{ key }}={"{{ value }}"}
+              {%- else -%}
+              {{ key }}={ {{ value }} }
+              {%- endif -%}
+              {%- endfor -%}
+              {%- endif %}
+            />
+          </div>
+              {%- endif -%}
             {%- endif -%}
-            {%- endfor %}
-          />
+          {%- endfor %}
+        </ResponsiveGridLayout>
+        <div className={classes.resetButton}>
+          <Tooltip title="Reset page layout">
+            <IconButton size="small" onClick={resetLayouts}>
+              <CachedIcon />
+            </IconButton>
+          </Tooltip>
         </div>
-            {%- else %}
-        <div key="{{ widgetName }}">
-          <{{ widgetName }}
-            classes={classes}
-            {%- if widgetProps.props is defined %}
-            {% for key, value in widgetProps.props.items() -%}
-            {%- if value is string %}
-            {{ key }}={"{{ value }}"}
-            {%- else -%}
-            {{ key }}={ {{ value }} }
-            {%- endif -%}
-            {%- endfor -%}
-            {%- endif %}
-          />
-        </div>
-            {%- endif -%}
-          {%- endif -%}
-        {%- endfor %}
-      </ResponsiveGridLayout>
-      <div className={classes.resetButton}>
-        <Tooltip title="Reset page layout">
-          <IconButton size="small" onClick={resetLayouts}>
-            <CachedIcon />
-          </IconButton>
-        </Tooltip>
       </div>
-    </div>
+    )
   );
 };
 

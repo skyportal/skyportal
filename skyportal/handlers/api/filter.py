@@ -1,8 +1,10 @@
 from marshmallow.exceptions import ValidationError
 
+from sqlalchemy.orm import joinedload
+
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Filter, Group, GroupUser, Stream
+from ...models import DBSession, Filter
 
 
 class FilterHandler(BaseHandler):
@@ -12,6 +14,8 @@ class FilterHandler(BaseHandler):
         ---
         single:
           description: Retrieve a filter
+          tags:
+            - filters
           parameters:
             - in: path
               name: filter_id
@@ -29,6 +33,8 @@ class FilterHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all filters
+          tags:
+            - filters
           responses:
             200:
               content:
@@ -39,39 +45,19 @@ class FilterHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        acls = self.current_user.permissions
 
         if filter_id is not None:
-            if self.current_user.is_system_admin or "Manage groups" in acls:
-                f = DBSession().query(Filter).get(filter_id)
-            else:
-                f = (
-                    DBSession()
-                    .query(Filter)
-                    .filter(
-                        Filter.id == filter_id,
-                        Filter.group_id.in_(
-                            [g.id for g in self.current_user.accessible_groups]
-                        ),
-                    )
-                    .first()
-                )
-            if f is None:
-                return self.error("Invalid filter ID.")
-            # get stream:
-            stream = DBSession().query(Stream).get(f.stream_id)
-            f.stream = stream
-
+            f = Filter.get_if_accessible_by(
+                filter_id,
+                self.current_user,
+                raise_if_none=True,
+                options=[joinedload(Filter.stream)],
+            )
+            self.verify_and_commit()
             return self.success(data=f)
 
-        filters = (
-            DBSession()
-            .query(Filter)
-            .filter(
-                Filter.group_id.in_([g.id for g in self.current_user.accessible_groups])
-            )
-            .all()
-        )
+        filters = Filter.get_records_accessible_by(self.current_user)
+        self.verify_and_commit()
         return self.success(data=filters)
 
     @auth_or_token
@@ -79,6 +65,8 @@ class FilterHandler(BaseHandler):
         """
         ---
         description: POST a new filter.
+        tags:
+          - filters
         requestBody:
           content:
             application/json:
@@ -107,34 +95,8 @@ class FilterHandler(BaseHandler):
             return self.error(
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
-
-        acls = self.current_user.permissions
-
-        # check that user is su or group admin
-        if not (self.current_user.is_system_admin or "Manage groups" in acls):
-            gu = GroupUser.query.filter(
-                GroupUser.group_id == fil.group_id,
-                GroupUser.user_id == self.associated_user_object.id,
-                GroupUser.admin.is_(True),
-            ).first()
-            if gu is None:
-                return self.error("Insufficient permissions.")
-
-        # check that stream access is authorized
-        # get group:
-        group = DBSession().query(Group).get(fil.group_id)
-        if group is None:
-            return self.error("Invalid group ID.")
-        # get stream:
-        stream = DBSession().query(Stream).get(fil.stream_id)
-        if stream is None:
-            return self.error("Invalid stream ID.")
-        if stream.id not in [gs.id for gs in group.streams]:
-            return self.error("Access to stream unauthorized for group.")
-
         DBSession().add(fil)
-        DBSession().commit()
-
+        self.verify_and_commit()
         return self.success(data={"id": fil.id})
 
     @auth_or_token
@@ -142,6 +104,8 @@ class FilterHandler(BaseHandler):
         """
         ---
         description: Update filter name
+        tags:
+          - filters
         parameters:
           - in: path
             name: filter_id
@@ -162,25 +126,9 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        acls = self.current_user.permissions
-
-        if self.current_user.is_system_admin or "Manage groups" in acls:
-            f = DBSession().query(Filter).get(filter_id)
-        else:
-            f = (
-                DBSession()
-                .query(Filter)
-                .filter(
-                    Filter.id == filter_id,
-                    Filter.group_id.in_(
-                        [g.id for g in self.current_user.accessible_groups]
-                    ),
-                )
-                .first()
-            )
-        if f is None:
-            return self.error("Invalid filter ID.")
-
+        f = Filter.get_if_accessible_by(
+            filter_id, self.current_user, mode="update", raise_if_none=True
+        )
         data = self.get_json()
         data["id"] = filter_id
 
@@ -195,7 +143,7 @@ class FilterHandler(BaseHandler):
         if fil.group_id != f.group_id or fil.stream_id != f.stream_id:
             return self.error("Cannot update group_id or stream_id.")
 
-        DBSession().commit()
+        self.verify_and_commit()
         return self.success()
 
     @auth_or_token
@@ -203,6 +151,8 @@ class FilterHandler(BaseHandler):
         """
         ---
         description: Delete a filter
+        tags:
+          - filters
         parameters:
           - in: path
             name: filter_id
@@ -215,26 +165,9 @@ class FilterHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        acls = self.current_user.permissions
-
-        if self.current_user.is_system_admin or "Manage groups" in acls:
-            f = DBSession().query(Filter).get(filter_id)
-        else:
-            f = (
-                DBSession()
-                .query(Filter)
-                .filter(
-                    Filter.id == filter_id,
-                    Filter.group_id.in_(
-                        [g.id for g in self.current_user.accessible_groups]
-                    ),
-                )
-                .first()
-            )
-        if f is None:
-            return self.error("Invalid filter ID.")
-
-        DBSession().delete(Filter.query.get(filter_id))
-        DBSession().commit()
-
+        f = Filter.get_if_accessible_by(
+            filter_id, self.current_user, mode="delete", raise_if_none=True
+        )
+        DBSession().delete(f)
+        self.verify_and_commit()
         return self.success()

@@ -1,40 +1,45 @@
 import React, { Suspense, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
+import { Link, useHistory } from "react-router-dom";
 
 import TableCell from "@material-ui/core/TableCell";
 import TableRow from "@material-ui/core/TableRow";
-
-import Typography from "@material-ui/core/Typography";
 import IconButton from "@material-ui/core/IconButton";
 import Button from "@material-ui/core/Button";
 import Grid from "@material-ui/core/Grid";
 import Chip from "@material-ui/core/Chip";
-import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import Popover from "@material-ui/core/Popover";
-import SortIcon from "@material-ui/icons/Sort";
-import ArrowUpward from "@material-ui/icons/ArrowUpward";
-import ArrowDownward from "@material-ui/icons/ArrowDownward";
-import Form from "@rjsf/material-ui";
 import MUIDataTable from "mui-datatables";
-import { makeStyles } from "@material-ui/core/styles";
+import {
+  makeStyles,
+  createMuiTheme,
+  MuiThemeProvider,
+  useTheme,
+} from "@material-ui/core/styles";
 import Tooltip from "@material-ui/core/Tooltip";
 import GroupIcon from "@material-ui/icons/Group";
+import CheckIcon from "@material-ui/icons/Check";
+import ClearIcon from "@material-ui/icons/Clear";
+import InfoIcon from "@material-ui/icons/Info";
 
 import dayjs from "dayjs";
+import { isMobileOnly } from "react-device-detect";
 
-import { ra_to_hours, dec_to_dms } from "../units";
+import { ra_to_hours, dec_to_dms, time_relative_to_local } from "../units";
 import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
+import SourceTableFilterForm from "./SourceTableFilterForm";
+import FavoritesButton from "./FavoritesButton";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
+import { filterOutEmptyValues } from "../API";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
+const VegaHR = React.lazy(() => import("./VegaHR"));
 
 const useStyles = makeStyles((theme) => ({
   chip: {
@@ -49,21 +54,128 @@ const useStyles = makeStyles((theme) => ({
   tableGrid: {
     width: "100%",
   },
-  sortButtton: {
-    "&:hover": {
-      color: theme.palette.primary.main,
-    },
+  groupSelect: {
+    maxWidth: "20rem",
   },
-  icon: {
-    verticalAlign: "top",
+  filterFormRow: {
+    margin: "0.75rem 0",
   },
-  sortFormContainer: {
-    padding: "1rem",
+  sourceName: {
+    verticalAlign: "middle",
+  },
+  objId: {
+    color: theme.palette.primary.main,
+  },
+  starButton: {
+    verticalAlign: "middle",
+  },
+  filterAlert: {
+    marginTop: "1rem",
+    display: "flex",
+    alignItems: "center",
+    fontSize: "1rem",
   },
 }));
 
+const getMuiTheme = (theme) =>
+  createMuiTheme({
+    palette: theme.palette,
+    overrides: {
+      MUIDataTableHeadCell: {
+        sortLabelRoot: {
+          height: "1.4rem",
+        },
+      },
+      // Hide default filter items for custom form
+      MuiGridList: {
+        root: {
+          display: "none",
+        },
+      },
+      MUIDataTableFilter: {
+        root: {
+          height: "100%",
+        },
+        header: {
+          display: "none",
+        },
+      },
+      MUIDataTablePagination: {
+        toolbar: {
+          flexFlow: "row wrap",
+          justifyContent: "flex-end",
+          padding: "0.5rem 1rem 0",
+          [theme.breakpoints.up("sm")]: {
+            // Cancel out small screen styling and replace
+            padding: "0px",
+            paddingRight: "2px",
+            flexFlow: "row nowrap",
+          },
+        },
+        navContainer: {
+          flexDirection: "column",
+          alignItems: "center",
+          [theme.breakpoints.up("sm")]: {
+            flexDirection: "row",
+          },
+        },
+        selectRoot: {
+          marginRight: "0.5rem",
+          [theme.breakpoints.up("sm")]: {
+            marginLeft: "0",
+            marginRight: "2rem",
+          },
+        },
+      },
+      MUIDataTableToolbar: {
+        filterPaper: {
+          // Use fullscreen dialog for small-screen filter form
+          width: "100%",
+          maxWidth: "100%",
+          margin: 0,
+          maxHeight: "calc(100vh - 1rem)",
+          borderRadius: 0,
+          top: "0 !important",
+          left: "0 !important",
+          [theme.breakpoints.up("md")]: {
+            // Override the overrides above for bigger screens
+            maxWidth: "50%",
+            top: "unset !important",
+            left: "unset !important",
+            float: "right",
+            position: "unset",
+            margin: "1rem",
+          },
+        },
+        filterCloseIcon: {
+          [theme.breakpoints.up("md")]: {
+            top: "1rem !important",
+            right: "1rem !important",
+          },
+        },
+      },
+      MUIDataTableFilterList: {
+        chip: {
+          maxWidth: "100%",
+        },
+      },
+    },
+  });
+
+let defaultDisplayedColumns = [
+  "Source ID",
+  "Favorites",
+  "RA (deg)",
+  "Dec (deg)",
+  "Redshift",
+  "Classification",
+  "Groups",
+  "Date Saved",
+  "Finder",
+];
+
 // MUI data table with pull out rows containing a summary of each source.
-// This component is used in GroupSources and SourceList.
+// This component is used in GroupSources, SourceList and Favorites page.
 const SourceTable = ({
   sources,
   title,
@@ -74,6 +186,7 @@ const SourceTable = ({
   totalMatches,
   numPerPage,
   sortingCallback,
+  favoritesRemoveButton = false,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -81,17 +194,23 @@ const SourceTable = ({
   const dispatch = useDispatch();
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const classes = useStyles();
+  const theme = useTheme();
 
-  const [sortAnchorEl, setSortAnchorEl] = useState(null);
-  const handleSortClick = (event) => {
-    setSortAnchorEl(event.currentTarget);
-  };
-  const handleSortClose = () => {
-    setSortAnchorEl(null);
-  };
-  const sortOpen = Boolean(sortAnchorEl);
-  const sortId = sortOpen ? "sort-popover" : undefined;
-  const [currentSortColumn, setCurrentSortColumn] = useState(null);
+  if (favoritesRemoveButton) {
+    defaultDisplayedColumns = defaultDisplayedColumns.filter(
+      (c) => c !== "Favorites"
+    );
+  }
+
+  const [displayedColumns, setDisplayedColumns] = useState(
+    defaultDisplayedColumns
+  );
+
+  const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
+
+  const [tableFilterList, setTableFilterList] = useState([]);
+  const [filterFormData, setFilterFormData] = useState(null);
+  const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
 
   // Color styling
   const userColorTheme = useSelector(
@@ -100,19 +219,32 @@ const SourceTable = ({
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
-  if (!sources) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
   const handleTableChange = (action, tableState) => {
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
-        paginateCallback(tableState.page + 1, tableState.rowsPerPage);
+        setRowsPerPage(tableState.rowsPerPage);
+        paginateCallback(
+          tableState.page + 1,
+          tableState.rowsPerPage,
+          tableState.sortOrder,
+          filterFormData
+        );
+        break;
+      case "viewColumnsChange":
+        // Save displayed column labels
+        setDisplayedColumns(
+          tableState.columns
+            .filter((column) => column.display === "true")
+            .map((column) => column.label)
+        );
+        break;
+      case "sort":
+        if (tableState.sortOrder.direction === "none") {
+          paginateCallback(1, tableState.rowsPerPage, {}, filterFormData);
+        } else {
+          sortingCallback(tableState.sortOrder, filterFormData);
+        }
         break;
       default:
     }
@@ -155,32 +287,16 @@ const SourceTable = ({
     }
   };
 
-  if (sources.length === 0 && sourceStatus === "saved") {
-    return (
-      <Grid item>
-        <div>
-          <Typography
-            variant="h4"
-            gutterBottom
-            color="textSecondary"
-            align="center"
-          >
-            <b>No sources have been saved...</b>
-          </Typography>
-        </div>
-      </Grid>
-    );
-  }
-  if (sources.length === 0 && sourceStatus === "requested") {
-    return null;
-  }
-
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     const colSpan = rowData.length + 1;
     const source = sources[rowMeta.dataIndex];
 
     const comments = source.comments || [];
+
+    const plotWidth = isMobileOnly ? 200 : 400;
+    const specPlotHeight = isMobileOnly ? 150 : 200;
+    const legendOrient = isMobileOnly ? "bottom" : "right";
 
     return (
       <TableRow data-testid={`groupSourceExpand_${source.id}`}>
@@ -202,14 +318,38 @@ const SourceTable = ({
               useGrid={false}
             />
             <Grid item>
-              <Suspense fallback={<div>Loading plot...</div>}>
-                <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
-              </Suspense>
+              {source.photometry_exists && (
+                <Suspense fallback={<div>Loading plot...</div>}>
+                  <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
+                </Suspense>
+              )}
+              {!source.photometry_exists && <div> no photometry exists </div>}
             </Grid>
             <Grid item>
-              <Suspense fallback={<div>Loading spectra...</div>}>
-                <VegaSpectrum dataUrl={`/api/sources/${source.id}/spectra`} />
-              </Suspense>
+              {source.color_magnitude.length ? (
+                <div data-testid={`hr_diagram_${source.id}`}>
+                  <Suspense fallback={<div>Loading HR diagram...</div>}>
+                    <VegaHR
+                      data={source.color_magnitude}
+                      width={200}
+                      height={200}
+                    />
+                  </Suspense>
+                </div>
+              ) : null}
+            </Grid>
+            <Grid item>
+              {source.spectrum_exists && (
+                <Suspense fallback={<div>Loading spectra...</div>}>
+                  <VegaSpectrum
+                    dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
+                    width={plotWidth}
+                    height={specPlotHeight}
+                    legendOrient={legendOrient}
+                  />
+                </Suspense>
+              )}
+              {!source.spectrum_exists && <div> no spectra exist </div>}
             </Grid>
             <Grid item>
               <div className={classes.commentListContainer}>
@@ -275,6 +415,14 @@ const SourceTable = ({
                 )}
               </div>
             </Grid>
+            {favoritesRemoveButton ? (
+              <div>
+                {" "}
+                <FavoritesButton sourceID={source.id} textMode />{" "}
+              </div>
+            ) : (
+              ""
+            )}
           </Grid>
         </TableCell>
       </TableRow>
@@ -285,19 +433,28 @@ const SourceTable = ({
   const renderObjId = (dataIndex) => {
     const objid = sources[dataIndex].id;
     return (
-      <a href={`/source/${objid}`} key={`${objid}_objid`}>
-        {objid}
-      </a>
+      <Link
+        to={`/source/${objid}`}
+        key={`${objid}_objid`}
+        data-testid={`${objid}`}
+      >
+        <span className={classes.objId}>{objid}</span>
+      </Link>
     );
+  };
+
+  const renderFavoritesStar = (dataIndex) => {
+    const objid = sources[dataIndex].id;
+    return <FavoritesButton sourceID={objid} />;
   };
 
   const renderAlias = (dataIndex) => {
     const { id: objid, alias } = sources[dataIndex];
 
     return (
-      <a href={`/source/${objid}`} key={`${objid}_alias`}>
+      <Link to={`/source/${objid}`} key={`${objid}_alias`}>
         {alias}
-      </a>
+      </Link>
     );
   };
 
@@ -327,11 +484,9 @@ const SourceTable = ({
   // helper function to get the classifications
   const getClassifications = (source) => {
     if (groupID !== undefined) {
-      return source.classifications.filter((cls) => {
-        return cls.groups.find((g) => {
-          return g.id === groupID;
-        });
-      });
+      return source.classifications.filter((cls) =>
+        cls.groups.find((g) => g.id === groupID)
+      );
     }
     return source.classifications;
   };
@@ -351,9 +506,8 @@ const SourceTable = ({
   };
 
   // helper function to get the source groups
-  const getGroups = (source) => {
-    return source.groups.filter((group) => group.active);
-  };
+  const getGroups = (source) => source.groups.filter((group) => group.active);
+  const history = useHistory();
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderGroups = (dataIndex) => {
@@ -367,6 +521,7 @@ const SourceTable = ({
               key={group.id}
               size="small"
               className={classes.chip}
+              onClick={() => history.push(`/group/${group.id}`)}
             />
             <br />
           </div>
@@ -378,16 +533,10 @@ const SourceTable = ({
   // helper function to get the source saved_at date
   const getDate = (source) => {
     if (groupID !== undefined) {
-      const group = source.groups.find((g) => {
-        return g.id === groupID;
-      });
+      const group = source.groups.find((g) => g.id === groupID);
       return group?.saved_at;
     }
-    const dates = source.groups
-      .map((g) => {
-        return g.saved_at;
-      })
-      .sort();
+    const dates = source.groups.map((g) => g.saved_at).sort();
     return dates[dates.length - 1];
   };
 
@@ -406,9 +555,9 @@ const SourceTable = ({
     const source = sources[dataIndex];
     return (
       <IconButton size="small" key={`${source.id}_actions`}>
-        <Link href={`/api/sources/${source.id}/finder`}>
+        <a href={`/api/sources/${source.id}/finder`}>
           <PictureAsPdfIcon />
-        </Link>
+        </a>
       </IconButton>
     );
   };
@@ -443,107 +592,148 @@ const SourceTable = ({
     );
   };
 
-  const renderHeader = (name, label) => {
-    const sortedOn = currentSortColumn && currentSortColumn.column === name;
+  const renderSpectrumExists = (dataIndex) => {
+    const source = sources[dataIndex];
+    return source.spectrum_exists ? (
+      <CheckIcon
+        size="small"
+        key={`${source.id}_spectrum_exists`}
+        color="primary"
+      />
+    ) : (
+      <ClearIcon
+        size="small"
+        key={`${source.id}_spectrum_exists`}
+        color="secondary"
+      />
+    );
+  };
+
+  const renderPeakMagnitude = (dataIndex) => {
+    const source = sources[dataIndex];
+    return source.peak_detected_mag ? (
+      <Tooltip title={time_relative_to_local(source.peak_detected_at)}>
+        <div>{`${source.peak_detected_mag.toFixed(4)}`}</div>
+      </Tooltip>
+    ) : (
+      <div>No photometry</div>
+    );
+  };
+
+  const renderLatestMagnitude = (dataIndex) => {
+    const source = sources[dataIndex];
+    return source.last_detected_mag ? (
+      <Tooltip title={time_relative_to_local(source.last_detected_at)}>
+        <div>{`${source.last_detected_mag.toFixed(4)}`}</div>
+      </Tooltip>
+    ) : (
+      <div>No photometry</div>
+    );
+  };
+
+  const renderTNSName = (dataIndex) => {
+    const source = sources[dataIndex];
     return (
       <div>
-        {label}
-        {sortedOn && currentSortColumn.ascending && (
-          <ArrowUpward fontSize="small" className={classes.icon} />
-        )}
-        {sortedOn && !currentSortColumn.ascending && (
-          <ArrowDownward fontSize="small" className={classes.icon} />
-        )}
+        {source.altdata && source.altdata.tns ? source.altdata.tns.name : ""}
       </div>
     );
   };
 
-  const handleSortSubmit = ({ formData }) => {
-    setCurrentSortColumn(formData);
-    handleSortClose();
-    sortingCallback(formData);
-  };
-  const sortingFormSchema = {
-    description: "Sort by column",
-    type: "object",
-    properties: {
-      column: {
-        type: "string",
-        title: "Column",
-        enum: ["id", "ra", "dec", "redshift", "saved_at"],
-        enumNames: ["Source ID", "RA", "Dec", "Redshift", "Date Saved"],
-      },
-      ascending: {
-        title: "Order",
-        type: "boolean",
-        enumNames: ["Ascending", "Descending"],
-      },
-    },
-  };
+  const handleFilterSubmit = async (formData) => {
+    // Remove empty position
+    if (
+      formData.position.ra === "" &&
+      formData.position.dec === "" &&
+      formData.position.radius === ""
+    ) {
+      delete formData.position;
+    }
 
-  const sortingFormUISchema = {
-    ascending: {
-      "ui:widget": "radio",
-    },
-  };
-
-  const renderSortForm = () => {
-    return (
-      <>
-        <Tooltip title="Sort">
-          <span>
-            <IconButton
-              aria-describedby={sortId}
-              onClick={handleSortClick}
-              className={classes.sortButtton}
-              data-testid="sortButton"
-            >
-              <SortIcon />
-            </IconButton>
-          </span>
-        </Tooltip>
-
-        <Popover
-          id={sortId}
-          open={sortOpen}
-          onClose={handleSortClose}
-          anchorEl={sortAnchorEl}
-          anchorOrigin={{
-            vertical: "center",
-            horizontal: "left",
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "right",
-          }}
-        >
-          <div className={classes.sortFormContainer}>
-            <Form
-              schema={sortingFormSchema}
-              onSubmit={handleSortSubmit}
-              uiSchema={sortingFormUISchema}
-            />
-          </div>
-        </Popover>
-      </>
+    const data = filterOutEmptyValues(formData);
+    setTableFilterList(
+      Object.entries(data).map(([key, value]) => {
+        if (key === "position") {
+          return `position: ${value.ra} (RA), ${value.dec} (Dec), ${value.radius} (Radius)`;
+        }
+        return `${key}: ${value}`;
+      })
     );
+
+    // Expand cone search params
+    if ("position" in data) {
+      data.ra = data.position.ra;
+      data.dec = data.position.dec;
+      data.radius = data.position.radius;
+      delete data.position;
+    }
+
+    setFilterFormData(data);
+    paginateCallback(1, rowsPerPage, {}, data);
+    setFilterFormSubmitted(true);
   };
 
+  const handleTableFilterChipChange = (column, filterList, type) => {
+    if (type === "chip") {
+      const sourceFilterList = filterList[0];
+      // Convert chip filter list to filter form data
+      const data = {};
+      sourceFilterList.forEach((filterChip) => {
+        const [key, value] = filterChip.split(": ");
+        if (key === "position") {
+          const fields = value.split(/\s*\(\D*\),*\s*/);
+          [data.ra, data.dec, data.radius] = fields;
+        } else {
+          data[key] = value;
+        }
+      });
+      setTableFilterList(sourceFilterList);
+      setFilterFormData(data);
+      paginateCallback(1, rowsPerPage, {}, data);
+    }
+  };
+
+  const customFilterDisplay = () =>
+    filterFormSubmitted ? (
+      <div className={classes.filterAlert}>
+        <InfoIcon /> &nbsp; Filters submitted to server!
+      </div>
+    ) : (
+      <SourceTableFilterForm handleFilterSubmit={handleFilterSubmit} />
+    );
   const columns = [
     {
       name: "id",
       label: "Source ID",
       options: {
+        // Hijack custom filtering for this column to use for the entire form
         filter: true,
+        filterType: "custom",
+        filterList: tableFilterList,
+        filterOptions: {
+          // eslint-disable-next-line react/display-name
+          display: () => <></>,
+        },
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Source ID"),
         customBodyRenderLite: renderObjId,
-        customHeadLabelRender: () => renderHeader("id", "Source ID"),
+      },
+    },
+    {
+      name: "favorites",
+      label: "Favorites",
+      options: {
+        display: displayedColumns.includes("Favorites"),
+        customBodyRenderLite: renderFavoritesStar,
       },
     },
     {
       name: "Alias",
       options: {
-        filter: true,
-        display: false,
+        filter: false,
+        sort: false,
+        display: displayedColumns.includes("Alias"),
         customBodyRenderLite: renderAlias,
       },
     },
@@ -552,8 +742,10 @@ const SourceTable = ({
       label: "RA (deg)",
       options: {
         filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("RA (deg)"),
         customBodyRenderLite: renderRA,
-        customHeadLabelRender: () => renderHeader("ra", "RA (deg)"),
       },
     },
     {
@@ -561,8 +753,10 @@ const SourceTable = ({
       label: "Dec (deg)",
       options: {
         filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Dec (deg)"),
         customBodyRenderLite: renderDec,
-        customHeadLabelRender: () => renderHeader("dec", "Dec (deg)"),
       },
     },
     {
@@ -570,9 +764,10 @@ const SourceTable = ({
       label: "RA (hh:mm:ss)",
       options: {
         filter: false,
-        display: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("RA (hh:mm:ss)"),
         customBodyRenderLite: renderRASex,
-        customHeadLabelRender: () => renderHeader("ra", "RA (hh:mm:ss)"),
       },
     },
     {
@@ -580,9 +775,10 @@ const SourceTable = ({
       label: "Dec (dd:mm:ss)",
       options: {
         filter: false,
-        display: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Dec (dd:mm:ss)"),
         customBodyRenderLite: renderDecSex,
-        customHeadLabelRender: () => renderHeader("dec", "Dec (dd:mm:ss)"),
       },
     },
     {
@@ -590,17 +786,20 @@ const SourceTable = ({
       label: "Redshift",
       options: {
         filter: false,
-        customHeadLabelRender: () => renderHeader("redshift", "Redshift"),
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Redshift"),
       },
     },
     {
       name: "classification",
       label: "Classification",
       options: {
-        filter: true,
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Classification"),
         customBodyRenderLite: renderClassification,
-        customHeadLabelRender: () =>
-          renderHeader("classification", "Classification"),
       },
     },
     {
@@ -608,6 +807,8 @@ const SourceTable = ({
       label: "Groups",
       options: {
         filter: false,
+        sort: false,
+        display: displayedColumns.includes("Groups"),
         customBodyRenderLite: renderGroups,
       },
     },
@@ -616,15 +817,55 @@ const SourceTable = ({
       label: "Date Saved",
       options: {
         filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Date Saved"),
         customBodyRenderLite: renderDateSaved,
-        customHeadLabelRender: () => renderHeader("saved_at", "Date Saved"),
       },
     },
     {
       name: "Finder",
       options: {
         filter: false,
+        sort: false,
+        display: displayedColumns.includes("Finder"),
         customBodyRenderLite: renderFinderButton,
+      },
+    },
+    {
+      name: "Spectrum?",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderSpectrumExists,
+        display: displayedColumns.includes("Spectrum?"),
+      },
+    },
+    {
+      name: "Peak Magnitude",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderPeakMagnitude,
+        display: displayedColumns.includes("Peak Magnitude"),
+      },
+    },
+    {
+      name: "Latest Magnitude",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderLatestMagnitude,
+        display: displayedColumns.includes("Latest Magnitude"),
+      },
+    },
+    {
+      name: "TNS Name",
+      options: {
+        filter: false,
+        sort: false,
+        customBodyRenderLite: renderTNSName,
+        display: displayedColumns.includes("TNS Name"),
       },
     },
   ];
@@ -634,8 +875,7 @@ const SourceTable = ({
     expandableRows: true,
     renderExpandableRow: renderPullOutRow,
     selectableRows: "none",
-    sort: false,
-    customToolbar: renderSortForm,
+    sort: true,
     onTableChange: handleTableChange,
     serverSide: true,
     rowsPerPage: numPerPage,
@@ -644,7 +884,10 @@ const SourceTable = ({
     jumpToPage: true,
     pagination: true,
     count: totalMatches,
-    filter: false,
+    filter: true,
+    customFilterDialogFooter: customFilterDisplay,
+    onFilterChange: handleTableFilterChipChange,
+    onFilterDialogOpen: () => setFilterFormSubmitted(false),
     search: false,
   };
 
@@ -659,7 +902,7 @@ const SourceTable = ({
   }
 
   return (
-    <div className={classes.source}>
+    <div className={classes.source} data-testid={`source_table_${title}`}>
       <div>
         <Grid
           container
@@ -669,12 +912,14 @@ const SourceTable = ({
           spacing={3}
         >
           <Grid item className={classes.tableGrid}>
-            <MUIDataTable
-              title={title}
-              columns={columns}
-              data={sources}
-              options={options}
-            />
+            <MuiThemeProvider theme={getMuiTheme(theme)}>
+              <MUIDataTable
+                title={title}
+                columns={columns}
+                data={sources}
+                options={options}
+              />
+            </MuiThemeProvider>
           </Grid>
         </Grid>
       </div>
@@ -704,6 +949,16 @@ SourceTable.propTypes = {
         })
       ),
       recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
+      altdata: PropTypes.shape({
+        tns: PropTypes.shape({
+          name: PropTypes.string,
+        }),
+      }),
+      spectrum_exists: PropTypes.bool,
+      last_detected_at: PropTypes.string,
+      last_detected_mag: PropTypes.number,
+      peak_detected_at: PropTypes.string,
+      peak_detected_mag: PropTypes.number,
       groups: PropTypes.arrayOf(
         PropTypes.shape({
           id: PropTypes.number,
@@ -720,6 +975,7 @@ SourceTable.propTypes = {
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
   sortingCallback: PropTypes.func,
+  favoritesRemoveButton: PropTypes.bool,
 };
 
 SourceTable.defaultProps = {
@@ -730,6 +986,7 @@ SourceTable.defaultProps = {
   totalMatches: 0,
   numPerPage: 10,
   sortingCallback: null,
+  favoritesRemoveButton: false,
 };
 
 export default SourceTable;

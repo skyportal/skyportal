@@ -1,14 +1,17 @@
 from baselayer.app.access import auth_or_token, permissions
 
 from ..base import BaseHandler
-from ...models import DBSession, Role, User, UserRole
+from ...models import Role, User, UserRole
 
 
 class RoleHandler(BaseHandler):
     @auth_or_token
     def get(self):
         """
+        ---
         description: Retrieve list of all Role IDs (strings)
+        tags:
+          - roles
         responses:
           200:
             content:
@@ -21,13 +24,14 @@ class RoleHandler(BaseHandler):
                         data:
                           type: array
                           items:
-                            - $ref: '#/components/schemas/Role'
+                            $ref: '#/components/schemas/Role'
                           description: List of all Roles.
         """
         roles = Role.query.all()
         for i, role in enumerate(roles):
             roles[i] = role.to_dict()
             roles[i]['acls'] = [acl.id for acl in role.acls]
+        self.verify_and_commit()
         return self.success(data=roles)
 
 
@@ -37,6 +41,8 @@ class UserRoleHandler(BaseHandler):
         """
         ---
         description: Grant new Role(s) to a user
+        tags:
+          - roles
         parameters:
           - in: path
             name: user_id
@@ -77,7 +83,7 @@ class UserRoleHandler(BaseHandler):
             return self.error("Invalid user_id parameter.")
         new_roles = Role.query.filter(Role.id.in_(new_role_ids)).all()
         user.roles = list(set(user.roles).union(set(new_roles)))
-        DBSession().commit()
+        self.verify_and_commit()
         return self.success()
 
     @permissions(["Manage users"])
@@ -85,6 +91,8 @@ class UserRoleHandler(BaseHandler):
         """
         ---
         description: Delete user role
+        tags:
+          - roles
         parameters:
           - in: path
             name: user_id
@@ -113,5 +121,5 @@ class UserRoleHandler(BaseHandler):
             .filter(UserRole.role_id == role_id)
             .delete()
         )
-        DBSession().commit()
+        self.verify_and_commit()
         return self.success()

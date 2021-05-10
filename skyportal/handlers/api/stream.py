@@ -16,6 +16,8 @@ class StreamHandler(BaseHandler):
         ---
         single:
           description: Retrieve a stream
+          tags:
+            - streams
           parameters:
             - in: path
               name: filter_id
@@ -33,6 +35,8 @@ class StreamHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all streams
+          tags:
+            - streams
           responses:
             200:
               content:
@@ -44,11 +48,12 @@ class StreamHandler(BaseHandler):
                   schema: Error
         """
         if stream_id is not None:
-            s = DBSession().query(Stream).filter(Stream.id == stream_id).first()
-            if s is None:
-                return self.error("Invalid stream ID.")
+            s = Stream.get_if_accessible_by(
+                stream_id, self.current_user, raise_if_none=True
+            )
             return self.success(data=s)
-        streams = DBSession().query(Stream).all()
+        streams = Stream.get_records_accessible_by(self.current_user)
+        self.verify_and_commit()
         return self.success(data=streams)
 
     @permissions(["System admin"])
@@ -56,6 +61,8 @@ class StreamHandler(BaseHandler):
         """
         ---
         description: POST a new stream.
+        tags:
+          - streams
         requestBody:
           content:
             application/json:
@@ -93,7 +100,7 @@ class StreamHandler(BaseHandler):
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
             )
         DBSession().add(stream)
-        DBSession().commit()
+        self.verify_and_commit()
 
         return self.success(data={"id": stream.id})
 
@@ -102,6 +109,8 @@ class StreamHandler(BaseHandler):
         """
         ---
         description: Update a stream
+        tags:
+          - streams
         parameters:
           - in: path
             name: stream_id
@@ -137,7 +146,7 @@ class StreamHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        DBSession().commit()
+        self.verify_and_commit()
         return self.success()
 
     @permissions(["System admin"])
@@ -145,6 +154,8 @@ class StreamHandler(BaseHandler):
         """
         ---
         description: Delete a stream
+        tags:
+          - streams
         parameters:
           - in: path
             name: stream_id
@@ -157,18 +168,24 @@ class StreamHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        DBSession().delete(Stream.query.get(stream_id))
-        DBSession().commit()
+        stream = Stream.get_if_accessible_by(
+            stream_id, self.current_user, mode="delete", raise_if_none=True
+        )
+        DBSession().delete(stream)
+        self.verify_and_commit()
 
         return self.success()
 
 
 class StreamUserHandler(BaseHandler):
-    @permissions(["Manage users"])
+    @auth_or_token
     def post(self, stream_id, *ignored_args):
         """
         ---
         description: Grant stream access to a user
+        tags:
+          - streams
+          - users
         parameters:
           - in: path
             name: stream_id
@@ -212,7 +229,8 @@ class StreamUserHandler(BaseHandler):
 
         stream_id = int(stream_id)
         su = (
-            StreamUser.query.filter(StreamUser.stream_id == stream_id)
+            StreamUser.query_records_accessible_by(self.current_user)
+            .filter(StreamUser.stream_id == stream_id)
             .filter(StreamUser.user_id == user_id)
             .first()
         )
@@ -220,15 +238,18 @@ class StreamUserHandler(BaseHandler):
             DBSession.add(StreamUser(stream_id=stream_id, user_id=user_id))
         else:
             return self.error("Specified user already has access to this stream.")
-        DBSession().commit()
+        self.verify_and_commit()
 
         return self.success(data={'stream_id': stream_id, 'user_id': user_id})
 
-    @permissions(["Manage users"])
+    @auth_or_token
     def delete(self, stream_id, user_id):
         """
         ---
         description: Delete a stream user (revoke stream access for user)
+        tags:
+          - streams
+          - users
         parameters:
           - in: path
             name: stream_id
@@ -247,12 +268,13 @@ class StreamUserHandler(BaseHandler):
                 schema: Success
         """
         su = (
-            StreamUser.query.filter(StreamUser.stream_id == stream_id)
+            StreamUser.query_records_accessible_by(self.current_user, mode="delete")
+            .filter(StreamUser.stream_id == stream_id)
             .filter(StreamUser.user_id == user_id)
             .first()
         )
         if su is None:
             return self.error("Stream user does not exist.")
         DBSession().delete(su)
-        DBSession().commit()
+        self.verify_and_commit()
         return self.success()

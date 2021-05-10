@@ -3,13 +3,14 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const REFRESH_STREAM = "skyportal/REFRESH_STREAM";
+const REFRESH_STREAM = "skyportal/REFRESH_STREAM";
 
-export const FETCH_STREAM = "skyportal/FETCH_STREAM";
-export const FETCH_STREAM_OK = "skyportal/FETCH_STREAM_OK";
+const FETCH_STREAM = "skyportal/FETCH_STREAM";
+const FETCH_STREAM_OK = "skyportal/FETCH_STREAM_OK";
 const FETCH_STREAM_ERROR = "skyportal/FETCH_STREAM_ERROR";
 const FETCH_STREAM_FAIL = "skyportal/FETCH_STREAM_FAIL";
 
+// eslint-disable-next-line import/prefer-default-export
 export function fetchStream(id) {
   return API.GET(`/api/streams/${id}`, FETCH_STREAM);
 }

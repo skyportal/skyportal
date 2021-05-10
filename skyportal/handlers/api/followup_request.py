@@ -1,11 +1,11 @@
 import jsonschema
 from marshmallow.exceptions import ValidationError
 
+
 from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from ...models import (
     DBSession,
-    Source,
     FollowupRequest,
     ClassicalAssignment,
     ObservingRun,
@@ -26,6 +26,8 @@ class AssignmentHandler(BaseHandler):
         ---
         single:
           description: Retrieve an observing run assignment
+          tags:
+            - assignments
           parameters:
             - in: path
               name: assignment_id
@@ -43,6 +45,8 @@ class AssignmentHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all observing run assignments
+          tags:
+            - assignments
           responses:
             200:
               content:
@@ -55,13 +59,7 @@ class AssignmentHandler(BaseHandler):
         """
 
         # get owned assignments
-        assignments = DBSession().query(ClassicalAssignment)
-        assignments = (
-            assignments.join(Obj)
-            .join(Source)
-            .join(Group)
-            .filter(Group.id.in_([g.id for g in self.current_user.accessible_groups]))
-        )
+        assignments = ClassicalAssignment.query_records_accessible_by(self.current_user)
 
         if assignment_id is not None:
             try:
@@ -94,6 +92,7 @@ class AssignmentHandler(BaseHandler):
         if assignment_id is not None:
             out_json = out_json[0]
 
+        self.verify_and_commit()
         return self.success(data=out_json)
 
     @permissions(['Upload data'])
@@ -101,6 +100,8 @@ class AssignmentHandler(BaseHandler):
         """
         ---
         description: Post new target assignment to observing run
+        tags:
+          - assignments
         requestBody:
           content:
             application/json:
@@ -132,27 +133,25 @@ class AssignmentHandler(BaseHandler):
 
         run_id = assignment.run_id
         data['priority'] = assignment.priority.name
-        run = ObservingRun.query.get(run_id)
-        if run is None:
-            return self.error(f'Invalid observing run: "{run_id}"')
+        ObservingRun.get_if_accessible_by(run_id, self.current_user, raise_if_none=True)
 
-        predecessor = ClassicalAssignment.query.filter(
-            ClassicalAssignment.obj_id == assignment.obj_id,
-            ClassicalAssignment.run_id == run_id,
-        ).first()
+        predecessor = (
+            ClassicalAssignment.query_records_accessible_by(self.current_user)
+            .filter(
+                ClassicalAssignment.obj_id == assignment.obj_id,
+                ClassicalAssignment.run_id == run_id,
+            )
+            .first()
+        )
 
         if predecessor is not None:
             return self.error('Object is already assigned to this run.')
 
         assignment = ClassicalAssignment(**data)
-        source = Source.get_obj_if_owned_by(assignment.obj_id, self.current_user)
-
-        if source is None:
-            return self.error(f'Invalid obj_id: "{assignment.obj_id}"')
 
         assignment.requester_id = self.associated_user_object.id
         DBSession().add(assignment)
-        DBSession().commit()
+        self.verify_and_commit()
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
             payload={"obj_key": assignment.obj.internal_key},
@@ -168,6 +167,8 @@ class AssignmentHandler(BaseHandler):
         """
         ---
         description: Update an assignment
+        tags:
+          - assignments
         parameters:
           - in: path
             name: assignment_id
@@ -188,10 +189,9 @@ class AssignmentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        assignment = ClassicalAssignment.query.get(int(assignment_id))
-
-        if assignment is None:
-            return self.error('No such assignment')
+        assignment = ClassicalAssignment.get_if_accessible_by(
+            int(assignment_id), self.current_user, mode="update", raise_if_none=True
+        )
 
         data = self.get_json()
         data['id'] = assignment_id
@@ -204,7 +204,7 @@ class AssignmentHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
@@ -221,6 +221,8 @@ class AssignmentHandler(BaseHandler):
         """
         ---
         description: Delete assignment.
+        tags:
+          - assignments
         parameters:
           - in: path
             name: assignment_id
@@ -233,14 +235,16 @@ class AssignmentHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        assignment = ClassicalAssignment.query.get(int(assignment_id))
+        assignment = ClassicalAssignment.get_if_accessible_by(
+            int(assignment_id), self.current_user, mode="delete", raise_if_none=True
+        )
         obj_key = assignment.obj.internal_key
-
         DBSession().delete(assignment)
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj_key},
+            action="skyportal/REFRESH_SOURCE",
+            payload={"obj_key": obj_key},
         )
         self.push_all(
             action="skyportal/REFRESH_OBSERVING_RUN",
@@ -256,6 +260,8 @@ class FollowupRequestHandler(BaseHandler):
         ---
         single:
           description: Retrieve a followup request
+          tags:
+            - followup_requests
           parameters:
             - in: path
               name: followup_request_id
@@ -273,6 +279,8 @@ class FollowupRequestHandler(BaseHandler):
                   schema: Error
         multiple:
           description: Retrieve all followup requests
+          tags:
+            - followup_requests
           responses:
             200:
               content:
@@ -285,12 +293,8 @@ class FollowupRequestHandler(BaseHandler):
         """
 
         # get owned assignments
-        followup_requests = DBSession().query(FollowupRequest)
-        followup_requests = (
-            followup_requests.join(Obj)
-            .join(Source)
-            .join(Group)
-            .filter(Group.id.in_([g.id for g in self.current_user.accessible_groups]))
+        followup_requests = FollowupRequest.query_records_accessible_by(
+            self.current_user
         )
 
         if followup_request_id is not None:
@@ -309,10 +313,11 @@ class FollowupRequestHandler(BaseHandler):
             followup_request = followup_requests.first()
             if followup_request is None:
                 return self.error("Could not retrieve followup request.")
+            self.verify_and_commit()
             return self.success(data=followup_request)
 
         followup_requests = followup_requests.all()
-
+        self.verify_and_commit()
         return self.success(data=followup_requests)
 
     @auth_or_token
@@ -320,6 +325,8 @@ class FollowupRequestHandler(BaseHandler):
         """
         ---
         description: Submit follow-up request.
+        tags:
+          - followup_requests
         requestBody:
           content:
             application/json:
@@ -341,7 +348,6 @@ class FollowupRequestHandler(BaseHandler):
                               description: New follow-up request ID
         """
         data = self.get_json()
-        _ = Source.get_obj_if_owned_by(data["obj_id"], self.current_user)
 
         try:
             data = FollowupRequestPost.load(data)
@@ -354,14 +360,9 @@ class FollowupRequestHandler(BaseHandler):
         data["last_modified_by_id"] = self.associated_user_object.id
         data['allocation_id'] = int(data['allocation_id'])
 
-        allocation = Allocation.query.get(data['allocation_id'])
-        if allocation is None:
-            return self.error('No such allocation.')
-        if allocation.group_id not in [
-            g.id for g in self.current_user.accessible_groups
-        ]:
-            return self.error('User does not have access to this allocation.')
-
+        allocation = Allocation.get_if_accessible_by(
+            data['allocation_id'], self.current_user, raise_if_none=True
+        )
         instrument = allocation.instrument
         if instrument.api_classname is None:
             return self.error('Instrument has no remote API.')
@@ -371,9 +372,9 @@ class FollowupRequestHandler(BaseHandler):
 
         target_groups = []
         for group_id in data.pop('target_group_ids', []):
-            g = Group.query.get(group_id)
-            if g is None:
-                return self.error(f'Invalid group id: {group_id}')
+            g = Group.get_if_accessible_by(
+                group_id, self.current_user, raise_if_none=True
+            )
             target_groups.append(g)
 
         # validate the payload
@@ -382,7 +383,7 @@ class FollowupRequestHandler(BaseHandler):
         followup_request = FollowupRequest.__schema__().load(data)
         followup_request.target_groups = target_groups
         DBSession().add(followup_request)
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
@@ -395,7 +396,7 @@ class FollowupRequestHandler(BaseHandler):
             followup_request.status = 'failed to submit'
             raise
         finally:
-            DBSession().commit()
+            self.verify_and_commit()
             self.push_all(
                 action="skyportal/REFRESH_SOURCE",
                 payload={"obj_key": followup_request.obj.internal_key},
@@ -408,6 +409,8 @@ class FollowupRequestHandler(BaseHandler):
         """
         ---
         description: Update a follow-up request
+        tags:
+          - followup_requests
         parameters:
           - in: path
             name: request_id
@@ -429,8 +432,13 @@ class FollowupRequestHandler(BaseHandler):
                 schema: Error
         """
 
-        followup_request = FollowupRequest.get_if_owned_by(
-            request_id, self.current_user
+        try:
+            request_id = int(request_id)
+        except ValueError:
+            return self.error('Request id must be an int.')
+
+        followup_request = FollowupRequest.get_if_accessible_by(
+            request_id, self.current_user, mode="update", raise_if_none=True
         )
 
         data = self.get_json()
@@ -454,9 +462,9 @@ class FollowupRequestHandler(BaseHandler):
         if target_group_ids is not None:
             target_groups = []
             for group_id in target_group_ids:
-                g = Group.query.get(group_id)
-                if g is None:
-                    return self.error(f'Invalid group id: {group_id}')
+                g = Group.get_if_accessible_by.get(
+                    group_id, self.current_user, raise_if_none=True
+                )
                 target_groups.append(g)
             followup_request.target_groups = target_groups
 
@@ -472,7 +480,7 @@ class FollowupRequestHandler(BaseHandler):
             setattr(followup_request, k, data[k])
 
         followup_request.instrument.api_class.update(followup_request)
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
@@ -485,6 +493,8 @@ class FollowupRequestHandler(BaseHandler):
         """
         ---
         description: Delete follow-up request.
+        tags:
+          - followup_requests
         parameters:
           - in: path
             name: request_id
@@ -497,16 +507,9 @@ class FollowupRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        followup_request = FollowupRequest.get_if_owned_by(
-            request_id, self.current_user
+        followup_request = FollowupRequest.get_if_accessible_by(
+            request_id, self.current_user, mode="delete", raise_if_none=True
         )
-        if not (
-            "Super admin" in [role.id for role in self.associated_user_object.roles]
-            or "Group admin" in [role.id for role in self.associated_user_object.roles]
-            or followup_request.requester.username
-            == self.associated_user_object.username
-        ):
-            return self.error("Insufficient permissions.")
 
         api = followup_request.instrument.api_class
         if not api.implements()['delete']:
@@ -514,7 +517,7 @@ class FollowupRequestHandler(BaseHandler):
 
         followup_request.last_modified_by_id = self.associated_user_object.id
         api.delete(followup_request)
-        DBSession().commit()
+        self.verify_and_commit()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",

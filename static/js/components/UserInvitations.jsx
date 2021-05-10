@@ -249,6 +249,7 @@ const UserInvitations = () => {
     const invitation = invitations[dataIndex];
     return (
       <Button
+        data-testid={`deleteInvitation_${invitation.user_email}`}
         variant="contained"
         onClick={() => {
           handleDeleteInvitation(invitation.id);
@@ -294,7 +295,7 @@ const UserInvitations = () => {
       <div>
         <IconButton
           aria-label="add-invitation-streams"
-          data-testid={`addInvitationStreamsButton${invitation.id}`}
+          data-testid={`addInvitationStreamsButton${invitation.user_email}`}
           onClick={() => {
             setClickedInvitation(invitation);
             setAddInvitationStreamsDialogOpen(true);
@@ -487,7 +488,11 @@ const UserInvitations = () => {
   return (
     <>
       <Typography variant="h5">Pending Invitations</Typography>
-      <Paper variant="outlined" className={classes.section}>
+      <Paper
+        variant="outlined"
+        className={classes.section}
+        data-testid="pendingInvitations"
+      >
         <MuiThemeProvider theme={dataTableStyles(theme)}>
           <MUIDataTable
             columns={columns}
@@ -516,7 +521,11 @@ const UserInvitations = () => {
           />
         </Box>
         <Box pl={5} pb={5}>
-          <Button variant="contained" onClick={handleClickAddUsers}>
+          <Button
+            data-testid="bulkAddUsersButton"
+            variant="contained"
+            onClick={handleClickAddUsers}
+          >
             Add Users
           </Button>
         </Box>
