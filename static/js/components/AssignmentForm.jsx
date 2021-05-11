@@ -115,6 +115,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             <InputLabel id="assignmentSelectLabel">Choose Run</InputLabel>
             <Controller
               as={Select}
+              inputProps={{ MenuProps: { disableScrollLock: true } }}
               labelId="assignmentSelectLabel"
               name="run_id"
               data-testid="assignmentSelect"
@@ -146,6 +147,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             <InputLabel id="prioritySelectLabel">Priority</InputLabel>
             <Controller
               as={Select}
+              inputProps={{ MenuProps: { disableScrollLock: true } }}
               labelId="prioritySelectLabel"
               defaultValue="1"
               name="priority"

@@ -60,7 +60,7 @@ const CommentList = () => {
     );
 
   return (
-    <div className={styles.comments}>
+    <div>
       <div className={styles.commentsList}>
         {comments.map(
           ({ id, author, created_at, text, attachment_name, groups }) => (

@@ -104,6 +104,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const CustomClassificationWidget = ({ value, onChange, options }) => (
     <TextField
       id="classification"
+      inputProps={{ MenuProps: { disableScrollLock: true } }}
       select
       required
       label="Classification"
@@ -147,7 +148,12 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       InputLabelProps={{
         shrink: true,
       }}
-      inputProps={{ min: "0", max: "1", step: "0.0001" }}
+      inputProps={{
+        MenuProps: { disableScrollLock: true },
+        min: "0",
+        max: "1",
+        step: "0.0001",
+      }}
       value={value || ""}
       onChange={(event) => {
         onChange(event.target.value);
@@ -166,6 +172,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       </InputLabel>
       <Select
         id="groupSelect"
+        inputProps={{ MenuProps: { disableScrollLock: true } }}
         onChange={(event) => {
           onChange(event.target.value);
         }}
