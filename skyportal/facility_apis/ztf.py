@@ -39,7 +39,7 @@ class ZTFRequest:
         start_mjd = Time(request.payload["start_date"], format='iso').mjd
         end_mjd = Time(request.payload["end_date"], format='iso').mjd
 
-        bands = {'g': 1, 'r': 2, 'i': 3, 'z': 4, 'J': 5}
+        bands = {'g': 1, 'r': 2, 'i': 3}
         json_data = {
             'queue_name': "ToO_" + request.payload["queue_name"],
             'validity_window_mjd': [start_mjd, end_mjd],
@@ -49,6 +49,8 @@ class ZTFRequest:
             program_id = 2
         elif request.payload["program_id"] == "Caltech":
             program_id = 3
+        else:
+            raise ValueError('Unknown program.')
 
         targets = []
         cnt = 1
