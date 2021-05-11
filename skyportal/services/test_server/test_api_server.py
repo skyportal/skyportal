@@ -134,8 +134,6 @@ def ztf_request_matcher(r1, r2):
     r1_uri = r1.uri.replace(":443", "")
     r2_uri = r2.uri.replace(":443", "")
 
-    print(r1.uri, r2.uri)
-
     def submit_type(uri):
         patterns = {
             "delete": r"/api/triggers/ztf",
@@ -162,67 +160,167 @@ class TestRouteHandler(tornado.web.RequestHandler):
     to the SkyPortal test API server.
     """
 
-    def put(self):
-        is_wsdl = self.get_query_argument('wsdl', None)
-        if self.request.uri in ["/api/requestgroups/", "/api/triggers/ztf"]:
+    def delete(self):
+        is_soap_action = "Soapaction" in self.request.headers
+        if "/api/requestgroups/" in self.request.uri:
+            cache = get_cache_file_static()
+        elif self.request.uri == "/api/triggers/ztf":
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()
-        with my_vcr.use_cassette(cache, record_mode="new_episodes") as cass:
-            base_route = self.request.uri.split("?")[0]
+        match_on = ['uri', 'method', 'body']
+        if self.request.uri == "/node_agent2/node_agent":
+            match_on = ["lt"]
+        elif "/api/requestgroups/" in self.request.uri:
+            match_on = ["lco"]
+        elif self.request.uri == "/api/triggers/ztf":
+            match_on = ["ztf"]
 
+        with my_vcr.use_cassette(
+            cache,
+            record_mode="new_episodes",
+            match_on=match_on,
+        ) as cass:
             real_host = None
             for route in cfg["test_server.redirects"].keys():
-                if re.match(route, base_route):
+                if re.match(route, self.request.uri):
                     real_host = cfg["test_server.redirects"][route]
 
             if real_host is not None:
                 url = real_host + self.request.uri
 
+                if is_soap_action:
+                    log(f"Forwarding SOAP method call {url}")
+                else:
+                    log(f"Forwarding DELETE call {url}")
+
                 # Convert Tornado HTTPHeaders object to a regular dict
                 headers = {}
                 for k, v in self.request.headers.get_all():
-                    # Multiple values for a header should be in a comma-separated list
-                    if k in headers:
-                        headers[k] += f",{v}"
-                    else:
-                        headers[k] = str(v)
+                    headers[k] = v
 
-                if is_wsdl is not None:
-                    log(f"Forwarding WSDL call {url}")
-                    Client(url=url, headers=headers, cache=None)
+                # Convert Tornado HTTPHeaders object to a regular dict
+                headers = {}
+                for k, v in self.request.headers.get_all():
+                    headers[k] = v
+
+                if "/api/requestgroups/" in self.request.uri:
+                    header = {'Authorization': headers['Authorization']}
+                    json_body = (
+                        json.loads(self.request.body.decode())
+                        if len(self.request.body) > 0
+                        else None
+                    )
+                    requests.delete(
+                        url,
+                        json=json_body,
+                        headers=header,
+                    )
                 else:
-                    log(f"Forwarding PUT call: {url}")
-                    requests.put(url, headers=headers)
+                    log(f"Forwarding DELETE call: {url}")
+                    s = requests.Session()
+                    req = requests.Request(
+                        'DELETE', url, data=self.request.body, headers=headers
+                    )
+                    prepped = req.prepare()
+                    s.send(prepped)
 
                 # Get recorded document and pass it back
                 response = cass.responses_of(
-                    vcr.request.Request("PUT", url, "", headers)
+                    vcr.request.Request("DELETE", url, self.request.body, headers)
                 )[0]
                 self.set_status(
                     response["status"]["code"], response["status"]["message"]
                 )
                 for k, v in response["headers"].items():
-                    # Content Length may change (for the SOAP call) as we overwrite the host
-                    # in the response WSDL. Similarly, the response from this test server
-                    # will not be chunked even if the real response was.
-                    if k != "Content-Length" and not (
-                        k == "Transfer-Encoding" and "chunked" in v
-                    ):
+                    # The response from this test server will not be chunked even if
+                    # the real response was
+                    if not (k == "Transfer-Encoding" and "chunked" in v):
                         self.set_header(k, v[0])
-                if is_wsdl is not None:
-                    # Override service location in the service definition
-                    # so we can intercept the followup POST call
-                    response_body = (
-                        response["body"]["string"]
-                        .decode("utf-8")
-                        .replace(
-                            real_host, f"http://localhost:{cfg['test_server.port']}"
-                        )
+                self.write(response["body"]["string"])
+
+            else:
+                self.set_status(500)
+                self.write("Could not find test route redirect")
+
+    def put(self):
+        is_soap_action = "Soapaction" in self.request.headers
+        if "/api/requestgroups/" in self.request.uri:
+            cache = get_cache_file_static()
+        elif self.request.uri == "/api/triggers/ztf":
+            cache = get_cache_file_static()
+        else:
+            cache = get_cache_file()
+        match_on = ['uri', 'method', 'body']
+        if self.request.uri == "/node_agent2/node_agent":
+            match_on = ["lt"]
+        elif "/api/requestgroups/" in self.request.uri:
+            match_on = ["lco"]
+        elif self.request.uri == "/api/triggers/ztf":
+            match_on = ["ztf"]
+
+        with my_vcr.use_cassette(
+            cache,
+            record_mode="new_episodes",
+            match_on=match_on,
+        ) as cass:
+            real_host = None
+            for route in cfg["test_server.redirects"].keys():
+                if re.match(route, self.request.uri):
+                    real_host = cfg["test_server.redirects"][route]
+
+            if real_host is not None:
+                url = real_host + self.request.uri
+
+                if is_soap_action:
+                    log(f"Forwarding SOAP method call {url}")
+                else:
+                    log(f"Forwarding PUT call {url}")
+
+                # Convert Tornado HTTPHeaders object to a regular dict
+                headers = {}
+                for k, v in self.request.headers.get_all():
+                    headers[k] = v
+
+                # Convert Tornado HTTPHeaders object to a regular dict
+                headers = {}
+                for k, v in self.request.headers.get_all():
+                    headers[k] = v
+
+                if "/api/requestgroups/" in self.request.uri:
+                    header = {'Authorization': headers['Authorization']}
+                    json_body = (
+                        json.loads(self.request.body.decode())
+                        if len(self.request.body) > 0
+                        else None
+                    )
+                    requests.put(
+                        url,
+                        json=json_body,
+                        headers=header,
                     )
                 else:
-                    response_body = response["body"]["string"]
-                self.write(response_body)
+                    log(f"Forwarding PUT call: {url}")
+                    s = requests.Session()
+                    req = requests.Request(
+                        'PUT', url, data=self.request.body, headers=headers
+                    )
+                    prepped = req.prepare()
+                    s.send(prepped)
+
+                # Get recorded document and pass it back
+                response = cass.responses_of(
+                    vcr.request.Request("PUT", url, self.request.body, headers)
+                )[0]
+                self.set_status(
+                    response["status"]["code"], response["status"]["message"]
+                )
+                for k, v in response["headers"].items():
+                    # The response from this test server will not be chunked even if
+                    # the real response was
+                    if not (k == "Transfer-Encoding" and "chunked" in v):
+                        self.set_header(k, v[0])
+                self.write(response["body"]["string"])
 
             else:
                 self.set_status(500)
