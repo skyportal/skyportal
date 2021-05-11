@@ -11,10 +11,10 @@ from ..utils import http
 env, cfg = load_env()
 
 
-if not cfg['app.ztf.port'] is None:
-    ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
-else:
+if cfg['app.ztf.port'] is None:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}"
+else:
+    ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
 
 
 class ZTFRequest:
