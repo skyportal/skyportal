@@ -75,6 +75,7 @@ app:
   lco_protocol: http
   lco_host: localhost
   lco_port: 64502
-  ztf_protocol: http
-  ztf_host: localhost
-  ztf_port: 64502
+  ztf:
+    protocol: http
+    host: localhost
+    port: 64502
