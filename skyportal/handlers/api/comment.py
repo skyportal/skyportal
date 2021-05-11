@@ -27,7 +27,7 @@ def users_mentioned(text):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, comment_id, comment_on_what=None):
+    def get(self, comment_id, associated_resource_type=None):
         """
         ---
         description: Retrieve a comment
@@ -40,7 +40,7 @@ class CommentHandler(BaseHandler):
             schema:
               type: integer
           - in: path
-            name: comment_on_what
+            name: associated_resource_type
             required: false
             schema:
               type: string
@@ -58,21 +58,21 @@ class CommentHandler(BaseHandler):
                 schema: Error
         """
 
-        if comment_on_what is None:
-            comment_on_what = 'object'
+        if associated_resource_type is None:
+            associated_resource_type = 'object'
 
-        if comment_on_what.lower() == "object":  # comment on object (default)
+        if associated_resource_type.lower() == "object":  # comment on object (default)
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
-        elif comment_on_what.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectrum":
             comment = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
         # add more options using elif
         else:
             return self.error(
-                f'Unsupported input "{comment_on_what}" given as "comment_on_what" argument.'
+                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
             )
 
         return self.success(data=comment)
@@ -138,9 +138,8 @@ class CommentHandler(BaseHandler):
                               description: New comment ID
         """
         data = self.get_json()
-        obj_id = data.get("obj_id")
-        if obj_id is None:
-            return self.error("Missing required field `obj_id`")
+        obj_id = data.get("obj_id", None)
+
         comment_text = data.get("text")
 
         spectrum_id = data.get("spectrum_id", None)
@@ -180,6 +179,8 @@ class CommentHandler(BaseHandler):
                 groups=groups,
             )
         else:  # the default is to post a comment directly on the object
+            if obj_id is None:
+                return self.error("Missing required field `obj_id`")
             comment = Comment(
                 text=comment_text,
                 obj_id=obj_id,
@@ -212,7 +213,7 @@ class CommentHandler(BaseHandler):
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
-    def put(self, comment_id, comment_on_what=None):
+    def put(self, comment_id, associated_resource_type=None):
         """
         ---
         description: Update a comment
@@ -225,7 +226,7 @@ class CommentHandler(BaseHandler):
             schema:
               type: integer
           - in: path
-            name: comment_on_what
+            name: associated_resource_type
             required: false
             schema:
               type: string
@@ -258,15 +259,15 @@ class CommentHandler(BaseHandler):
                 schema: Error
         """
 
-        if comment_on_what is None:
-            comment_on_what = 'object'
+        if associated_resource_type is None:
+            associated_resource_type = 'object'
 
-        if comment_on_what.lower() == "object":  # comment on object
+        if associated_resource_type.lower() == "object":  # comment on object
             schema = Comment.__schema__()
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="update", raise_if_none=True
             )
-        elif comment_on_what.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectrum":
             schema = CommentOnSpectrum.__schema__()
             c = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, mode="update", raise_if_none=True
@@ -274,7 +275,7 @@ class CommentHandler(BaseHandler):
         # add more options using elif
         else:
             return self.error(
-                f'Unsupported input "{comment_on_what}" given as "comment_on_what" argument.'
+                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
             )
 
         data = self.get_json()
@@ -314,7 +315,7 @@ class CommentHandler(BaseHandler):
         return self.success()
 
     @permissions(['Comment'])
-    def delete(self, comment_id, comment_on_what=None):
+    def delete(self, comment_id, associated_resource_type=None):
         """
         ---
         description: Delete a comment
@@ -327,7 +328,7 @@ class CommentHandler(BaseHandler):
             schema:
               type: integer
           - in: path
-            name: comment_on_what
+            name: associated_resource_type
             required: false
             schema:
               type: string
@@ -341,21 +342,21 @@ class CommentHandler(BaseHandler):
                 schema: Success
         """
 
-        if comment_on_what is None:
-            comment_on_what = 'object'
+        if associated_resource_type is None:
+            associated_resource_type = 'object'
 
-        if comment_on_what.lower() == "object":  # comment on object
+        if associated_resource_type.lower() == "object":  # comment on object
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
-        elif comment_on_what.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectrum":
             c = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
         # add more options using elif
         else:
             return self.error(
-                f'Unsupported input "{comment_on_what}" given as "comment_on_what" argument.'
+                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
             )
 
         obj_key = c.obj.internal_key
@@ -367,7 +368,7 @@ class CommentHandler(BaseHandler):
 
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
-    def get(self, comment_id, comment_on_what=None):
+    def get(self, comment_id, associated_resource_type=None):
         """
         ---
         description: Download comment attachment
@@ -380,7 +381,7 @@ class CommentAttachmentHandler(BaseHandler):
             schema:
               type: integer
           - in: path
-            name: comment_on_what
+            name: associated_resource_type
             required: false
             schema:
               type: string
@@ -420,21 +421,21 @@ class CommentAttachmentHandler(BaseHandler):
         """
         download = strtobool(self.get_query_argument('download', "True").lower())
 
-        if comment_on_what is None:
-            comment_on_what = 'object'
+        if associated_resource_type is None:
+            associated_resource_type = 'object'
 
-        if comment_on_what.lower() == "object":  # comment on object
+        if associated_resource_type.lower() == "object":  # comment on object
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
-        elif comment_on_what.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectrum":
             comment = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
         # add more options using elif
         else:
             return self.error(
-                f'Unsupported input "{comment_on_what}" given as "comment_on_what" argument.'
+                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
             )
 
         self.verify_and_commit()
