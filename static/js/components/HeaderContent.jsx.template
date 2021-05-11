@@ -1,11 +1,13 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useDispatch } from "react-redux";
 
 import Box from "@material-ui/core/Box";
 import { makeStyles } from "@material-ui/core/styles";
 import ProfileDropdown from "./ProfileDropdown";
 import Logo from "./Logo";
 import Notifications from "./Notifications";
+import hydrate from "../actions";
 
 const useStyles = makeStyles((theme) => ({
   topBannerContent: {
@@ -43,6 +45,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 const HeaderContent = () => {
   const classes = useStyles();
+  const dispatch = useDispatch();
   return (
     <div className={classes.topBannerContent}>
       <div style= {%- raw -%} {{display: "inline-flex", flexDirection: "row" }} {%- endraw -%} >
@@ -53,7 +56,7 @@ const HeaderContent = () => {
           </div>
           {%- endfor %}
         </div>
-        <Link className={classes.title} to="/">
+        <Link className={classes.title} onClick={() => dispatch(hydrate())} to="/">
           {{ app.title }}
         </Link>
         <Box p={2} />
