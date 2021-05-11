@@ -1067,12 +1067,11 @@ def grab_query_results(
             query_id = str(uuid.uuid4())
             if not os.path.exists("cache/candidate_queries"):
                 os.mkdir("cache/candidate_queries")
-            np.save(f"cache/candidate_queries/{query_id}.npy", ordered_ids.all())
-            results = (
-                ordered_ids.limit(n_items_per_page)
-                .offset((page - 1) * n_items_per_page)
-                .all()
-            )
+            all_ids = ordered_ids.all()
+            np.save(f"cache/candidate_queries/{query_id}.npy", all_ids)
+            results = all_ids[
+                ((page - 1) * n_items_per_page) : (page * n_items_per_page)  # noqa
+            ]
         else:
             ids = np.load(f"cache/candidate_queries/{query_id}.npy")
             results = ids[
