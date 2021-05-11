@@ -167,6 +167,13 @@ class SourceHandler(BaseHandler):
                 type: boolean
               description: |
                 Boolean indicating whether to return if a source has a spectra. Defaults to false.
+            - in: query
+              name: includeThumbnails
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated thumbnails. Defaults to false.
           responses:
             200:
               content:
@@ -383,6 +390,20 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to return if a source has a spectra. Defaults to false.
           - in: query
+            name: removeNested
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to remove nested output (does not apply to classifications). Defaults to false.
+          - in: query
+            name: includeThumbnails
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated thumbnails. Defaults to false.
+          - in: query
             name: classifications
             nullable: true
             schema:
@@ -483,6 +504,7 @@ class SourceHandler(BaseHandler):
         include_photometry = self.get_query_argument("includePhotometry", False)
         include_color_mag = self.get_query_argument("includeColorMagnitude", False)
         include_requested = self.get_query_argument("includeRequested", False)
+        include_thumbnails = self.get_query_argument("includeThumbnails", False)
         requested_only = self.get_query_argument("pendingOnly", False)
         saved_after = self.get_query_argument('savedAfter', None)
         saved_before = self.get_query_argument('savedBefore', None)
@@ -496,6 +518,7 @@ class SourceHandler(BaseHandler):
         include_spectrum_exists = self.get_query_argument(
             "includeSpectrumExists", False
         )
+        remove_nested = self.get_query_argument("removeNested", False)
         classifications = self.get_query_argument("classifications", None)
         min_redshift = self.get_query_argument("minRedshift", None)
         max_redshift = self.get_query_argument("maxRedshift", None)
@@ -525,6 +548,8 @@ class SourceHandler(BaseHandler):
             saved_after = UTCTZnaiveDateTime(required=False, missing=None)
             saved_before = UTCTZnaiveDateTime(required=False, missing=None)
             save_summary = fields.Boolean()
+            remove_nested = fields.Boolean()
+            include_thumbnails = fields.Boolean()
 
         validator_instance = Validator()
         params_to_be_validated = {}
@@ -534,6 +559,10 @@ class SourceHandler(BaseHandler):
             params_to_be_validated['saved_before'] = saved_before
         if save_summary is not None:
             params_to_be_validated['save_summary'] = save_summary
+        if include_thumbnails is not None:
+            params_to_be_validated['include_thumbnails'] = include_thumbnails
+        if remove_nested is not None:
+            params_to_be_validated['remove_nested'] = remove_nested
 
         try:
             validated = validator_instance.load(params_to_be_validated)
@@ -543,6 +572,8 @@ class SourceHandler(BaseHandler):
         saved_after = validated['saved_after']
         saved_before = validated['saved_before']
         save_summary = validated['save_summary']
+        remove_nested = validated['remove_nested']
+        include_thumbnails = validated['include_thumbnails']
 
         # parse the group ids:
         group_ids = self.get_query_argument('group_ids', None)
@@ -561,9 +592,12 @@ class SourceHandler(BaseHandler):
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
         if obj_id is not None:
-            s = Obj.get_if_accessible_by(
-                obj_id, self.current_user, options=[joinedload(Obj.thumbnails)]
-            )
+            if include_thumbnails:
+                s = Obj.get_if_accessible_by(
+                    obj_id, self.current_user, options=[joinedload(Obj.thumbnails)]
+                )
+            else:
+                s = Obj.get_if_accessible_by(obj_id, self.current_user)
             if s is None:
                 return self.error("Source not found", status=404)
             source_info = s.to_dict()
@@ -609,10 +643,11 @@ class SourceHandler(BaseHandler):
                 source_info = recursive_to_dict(source_info)
                 self.verify_and_commit()
 
-            if "ps1" not in [thumb.type for thumb in s.thumbnails]:
-                IOLoop.current().add_callback(
-                    lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self)
-                )
+            if include_thumbnails:
+                if "ps1" not in [thumb.type for thumb in s.thumbnails]:
+                    IOLoop.current().add_callback(
+                        lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self)
+                    )
             if include_comments:
                 comments = (
                     Comment.query_records_accessible_by(
@@ -741,7 +776,11 @@ class SourceHandler(BaseHandler):
             return self.success(data=source_info)
 
         # Fetch multiple sources
-        obj_query_options = [joinedload(Obj.thumbnails)]
+        obj_query_options = (
+            [joinedload(Obj.thumbnails)]
+            if include_thumbnails and not remove_nested
+            else []
+        )
 
         obj_query = Obj.query_records_accessible_by(
             self.current_user, options=obj_query_options
@@ -969,6 +1008,7 @@ class SourceHandler(BaseHandler):
                     num_per_page,
                     "sources",
                     order_by=order_by,
+                    include_thumbnails=include_thumbnails and not remove_nested,
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
@@ -984,6 +1024,7 @@ class SourceHandler(BaseHandler):
                 None,
                 "sources",
                 order_by=order_by,
+                include_thumbnails=include_thumbnails and not remove_nested,
             )
 
         if not save_summary:
@@ -1024,12 +1065,14 @@ class SourceHandler(BaseHandler):
                     readable_classifications_json.append(classification_dict)
 
                 obj_list[-1]["classifications"] = readable_classifications_json
-                obj_list[-1]["annotations"] = sorted(
-                    Annotation.query_records_accessible_by(self.current_user).filter(
-                        Annotation.obj_id == obj.id
-                    ),
-                    key=lambda x: x.origin,
-                )
+
+                if not remove_nested:
+                    obj_list[-1]["annotations"] = sorted(
+                        Annotation.query_records_accessible_by(
+                            self.current_user
+                        ).filter(Annotation.obj_id == obj.id),
+                        key=lambda x: x.origin,
+                    )
                 obj_list[-1]["last_detected_at"] = obj.last_detected_at(
                     self.current_user
                 )
@@ -1075,37 +1118,38 @@ class SourceHandler(BaseHandler):
                         > 0
                     )
 
-                source_query = Source.query_records_accessible_by(
-                    self.current_user
-                ).filter(Source.obj_id == obj_list[-1]["id"])
-                source_query = apply_active_or_requested_filtering(
-                    source_query, include_requested, requested_only
-                )
-                source_subquery = source_query.subquery()
-                groups = (
-                    Group.query_records_accessible_by(self.current_user)
-                    .join(source_subquery, Group.id == source_subquery.c.group_id)
-                    .all()
-                )
-                obj_list[-1]["groups"] = [g.to_dict() for g in groups]
-                for group in obj_list[-1]["groups"]:
-                    source_table_row = (
-                        Source.query_records_accessible_by(self.current_user)
-                        .filter(
-                            Source.obj_id == obj_list[-1]["id"],
-                            Source.group_id == group["id"],
-                        )
-                        .first()
+                if not remove_nested:
+                    source_query = Source.query_records_accessible_by(
+                        self.current_user
+                    ).filter(Source.obj_id == obj_list[-1]["id"])
+                    source_query = apply_active_or_requested_filtering(
+                        source_query, include_requested, requested_only
                     )
-                    if source_table_row is not None:
-                        group["active"] = source_table_row.active
-                        group["requested"] = source_table_row.requested
-                        group["saved_at"] = source_table_row.saved_at
-                        group["saved_by"] = (
-                            source_table_row.saved_by.to_dict()
-                            if source_table_row.saved_by is not None
-                            else None
+                    source_subquery = source_query.subquery()
+                    groups = (
+                        Group.query_records_accessible_by(self.current_user)
+                        .join(source_subquery, Group.id == source_subquery.c.group_id)
+                        .all()
+                    )
+                    obj_list[-1]["groups"] = [g.to_dict() for g in groups]
+                    for group in obj_list[-1]["groups"]:
+                        source_table_row = (
+                            Source.query_records_accessible_by(self.current_user)
+                            .filter(
+                                Source.obj_id == obj_list[-1]["id"],
+                                Source.group_id == group["id"],
+                            )
+                            .first()
                         )
+                        if source_table_row is not None:
+                            group["active"] = source_table_row.active
+                            group["requested"] = source_table_row.requested
+                            group["saved_at"] = source_table_row.saved_at
+                            group["saved_by"] = (
+                                source_table_row.saved_by.to_dict()
+                                if source_table_row.saved_by is not None
+                                else None
+                            )
                 if include_color_mag:
                     obj_list[-1]["color_magnitude"] = get_color_mag(
                         obj_list[-1]["annotations"]

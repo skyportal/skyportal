@@ -170,6 +170,15 @@
   skycam_link: null
   robotic: true
   =id: LCOGT1m
+- diameter: 2.0
+  elevation: 3052.0
+  lat: 20.7083
+  lon: -156.2571
+  nickname: LCOGT 2m Network
+  name: LCOGT2m
+  skycam_link: null
+  robotic: true
+  =id: LCOGT2m
 - diameter: 2.5
   elevation: 2282.0
   lat: -29.0033

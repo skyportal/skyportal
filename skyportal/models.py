@@ -1117,9 +1117,9 @@ User.listings = relationship(
 
 
 Source = join_model("sources", Group, Obj)
-Source.create = Source.read = Source.update = Source.delete = (
-    accessible_by_group_members & Source.read
-)
+Source.create = (
+    Source.read
+) = Source.update = Source.delete = accessible_by_group_members
 
 Source.__doc__ = (
     "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
