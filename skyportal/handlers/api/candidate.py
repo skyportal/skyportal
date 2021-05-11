@@ -3,8 +3,10 @@ from copy import copy
 import re
 import json
 import ast
+import uuid
 
 import arrow
+import numpy as np
 
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import case, func
@@ -439,6 +441,7 @@ class CandidateHandler(BaseHandler):
 
         page_number = self.get_query_argument("pageNumber", None) or 1
         n_per_page = self.get_query_argument("numPerPage", None) or 25
+        query_id = self.get_query_argument("queryID", None)
         saved_status = self.get_query_argument("savedStatus", "all")
         total_matches = self.get_query_argument("totalMatches", None)
         start_date = self.get_query_argument("startDate", None)
@@ -756,6 +759,7 @@ class CandidateHandler(BaseHandler):
                 n_per_page,
                 "candidates",
                 order_by=order_by,
+                query_id=query_id,
             )
         except ValueError as e:
             if "Page number out of range" in str(e):
@@ -1007,6 +1011,7 @@ def grab_query_results(
     items_name,
     order_by=None,
     include_thumbnails=True,
+    query_id=None,
 ):
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
@@ -1057,19 +1062,31 @@ def grab_query_results(
     )
 
     if page:
-        # Now bring in the full Obj info for the candidates
-        results = (
-            ordered_ids.limit(n_items_per_page)
-            .offset((page - 1) * n_items_per_page)
-            .all()
-        )
+        if query_id is None:
+            query_id = str(uuid.uuid4())
+            cached_query = False
+        else:
+            cached_query = True
+        if cached_query:
+            ids = np.load(f"/tmp/{query_id}.npy")
+            results = ids[
+                (page - 1) * n_items_per_page : (page) * n_items_per_page  # noqa
+            ]
+        else:
+            np.save(f"/tmp/{query_id}.npy", ordered_ids.all())
+            results = (
+                ordered_ids.limit(n_items_per_page)
+                .offset((page - 1) * n_items_per_page)
+                .all()
+            )
         info["pageNumber"] = page
         info["numPerPage"] = n_items_per_page
+        info["queryID"] = query_id
     else:
         results = ordered_ids.all()
 
     page_ids = map(lambda x: x[0], results)
-    info["totalMatches"] = results[0][1] if len(results) > 0 else 0
+    info["totalMatches"] = int(results[0][1]) if len(results) > 0 else 0
 
     if page:
         if (

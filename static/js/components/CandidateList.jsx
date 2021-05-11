@@ -359,6 +359,7 @@ const CandidateList = () => {
     candidates,
     pageNumber,
     totalMatches,
+    queryID,
     selectedAnnotationSortOptions,
   } = useSelector((state) => state.candidates);
   const [sortOrder, setSortOrder] = useState(
@@ -812,6 +813,7 @@ const CandidateList = () => {
     let data = {
       pageNumber: page + 1,
       numPerPage,
+      queryID,
       groupIDs: filterGroups.map((g) => g.id).join(),
     };
     if (selectedAnnotationSortOptions !== null) {
