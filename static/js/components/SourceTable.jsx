@@ -739,7 +739,7 @@ const SourceTable = ({
       },
     },
     {
-      name: "Alias",
+      name: "alias",
       options: {
         filter: true,
         sort: true,
@@ -749,7 +749,7 @@ const SourceTable = ({
       },
     },
     {
-      name: "Origin",
+      name: "origin",
       options: {
         filter: true,
         sort: true,

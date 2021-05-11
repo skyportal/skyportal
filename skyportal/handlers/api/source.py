@@ -875,9 +875,9 @@ class SourceHandler(BaseHandler):
                 func.lower(Obj.altdata['simbad']['class'].astext)
                 == simbad_class.lower()
             )
-        if alias:
+        if alias is not None:
             obj_query = obj_query.filter(Obj.alias.contains(alias.strip()))
-        if origin:
+        if origin is not None:
             obj_query = obj_query.filter(Obj.origin.contains(origin.strip()))
         if has_tns_name in ['true', True]:
             obj_query = obj_query.filter(Obj.altdata['tns']['name'].isnot(None))
@@ -982,13 +982,13 @@ class SourceHandler(BaseHandler):
         if sort_by is not None:
             if sort_by == "id":
                 order_by = [Obj.id] if sort_order == "asc" else [Obj.id.desc()]
-            elif sort_by == "Alias":
+            elif sort_by == "alias":
                 order_by = (
                     [Obj.alias.nullslast()]
                     if sort_order == "asc"
                     else [Obj.alias.desc().nullslast()]
                 )
-            elif sort_by == "Origin":
+            elif sort_by == "origin":
                 order_by = (
                     [Obj.origin.nullslast()]
                     if sort_order == "asc"
