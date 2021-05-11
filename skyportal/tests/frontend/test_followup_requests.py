@@ -156,6 +156,7 @@ def add_allocation_ztf(instrument_id, group_id, token):
             "instrument_id": instrument_id,
             "hours_allocated": 100,
             "pi": "Ed Hubble",
+            '_altdata': '{"access_token": "testtoken"}',
         },
         token=token,
     )
@@ -756,7 +757,7 @@ def test_edit_existing_followup_request(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not ztf_isonline, reason='ZTF server down')
 def test_delete_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -876,7 +877,7 @@ def test_delete_followup_request_SPRAT(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Sinistro(
     driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
