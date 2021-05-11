@@ -38,10 +38,10 @@ except requests.exceptions.ConnectTimeout:
 else:
     lco_isonline = True
 
-if not cfg['app.ztf.port'] is None:
-    ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
-else:
+if cfg['app.ztf.port'] is None:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}"
+else:
+    ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
 
 ztf_isonline = False
 try:
