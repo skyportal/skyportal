@@ -93,21 +93,21 @@ def upgrade():
     op.drop_column('comments', 'ctype')
     # ### end Alembic commands ###
 
-    op.execute('DROP TYPE "public"."comment_types"')
+    op.execute("DROP TYPE 'public'.'comment_types'")
     op.execute(
-        'ALTER TYPE "public"."followup_apis" RENAME TO "followup_apis__old_version_to_be_dropped"'
+        "ALTER TYPE 'public'.'followup_apis' RENAME TO 'followup_apis__old_version_to_be_dropped'"
     )
     op.execute(
-        'CREATE TYPE "public"."followup_apis" AS ENUM ("SEDMAPI", "IOOAPI", "IOIAPI", "SPRATAPI", "SINISTROAPI", "SPECTRALAPI", "FLOYDSAPI", "MUSCATAPI")'
+        "CREATE TYPE 'public'.'followup_apis' AS ENUM ('SEDMAPI', 'IOOAPI', 'IOIAPI', 'SPRATAPI', 'SINISTROAPI', 'SPECTRALAPI', 'FLOYDSAPI', 'MUSCATAPI')"
     )
     op.execute(
-        'ALTER TABLE "public"."instruments" ALTER COLUMN api_classname TYPE "public"."followup_apis" USING api_classname::text::"public"."followup_apis"'
+        "ALTER TABLE 'public'.'instruments' ALTER COLUMN api_classname TYPE 'public'.'followup_apis' USING api_classname::text::'public'.'followup_apis'"
     )
-    op.execute('DROP TYPE "public"."followup_apis__old_version_to_be_dropped"')
+    op.execute("DROP TYPE 'public'.'followup_apis__old_version_to_be_dropped'")
 
 
 def downgrade():
-    op.execute('CREATE TYPE comment_types AS ENUM ("text", "redshift"")')
+    op.execute('CREATE TYPE comment_types AS ENUM ("text", "redshift")')
     op.execute('CREATE TYPE followup_apis__old_version_to_be_dropped')
     op.execute(
         'ALTER TABLE "public"."instruments" ALTER COLUMN api_classname TYPE api_classname::text::"public"."followup_apis" USING "public"."followup_apis"'
