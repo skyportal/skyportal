@@ -271,6 +271,7 @@ services:
 
 misc:
   days_to_keep_unsaved_candidates: 7
+  hours_to_keep_candidate_query_cache: 1
   public_group_name: "Sitewide Group"
   # Use a named cosmology from `astropy.cosmology.parameters.available` cosmologies
   # or supply the arguments for an `astropy.cosmology.FLRW` cosmological instance.
@@ -306,6 +307,8 @@ external_logging:
 cron:
   - interval: 60
     script: jobs/count_unsaved_candidates.py
+  - interval: 30
+    script: jobs/delete_old_cands_query_cache.py
   # - interval: 1440
   #   script: jobs/delete_unsaved_candidates.py
   #   limit: ["01:00", "02:00"]

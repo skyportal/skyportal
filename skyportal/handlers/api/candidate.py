@@ -1,3 +1,4 @@
+import os
 import datetime
 from copy import copy
 import re
@@ -1064,14 +1065,16 @@ def grab_query_results(
     if page:
         if query_id is None:
             query_id = str(uuid.uuid4())
-            np.save(f"tmp/cands_query_cache_{query_id}.npy", ordered_ids.all())
+            if not os.path.exists("cache/candidate_queries"):
+                os.mkdir("cache/candidate_queries")
+            np.save(f"cache/candidate_queries/{query_id}.npy", ordered_ids.all())
             results = (
                 ordered_ids.limit(n_items_per_page)
                 .offset((page - 1) * n_items_per_page)
                 .all()
             )
         else:
-            ids = np.load(f"tmp/cands_query_cache_{query_id}.npy")
+            ids = np.load(f"cache/candidate_queries/{query_id}.npy")
             results = ids[
                 (page - 1) * n_items_per_page : (page) * n_items_per_page  # noqa
             ]
