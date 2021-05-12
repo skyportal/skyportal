@@ -22,6 +22,7 @@ import GroupIcon from "@material-ui/icons/Group";
 import CheckIcon from "@material-ui/icons/Check";
 import ClearIcon from "@material-ui/icons/Clear";
 import InfoIcon from "@material-ui/icons/Info";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import dayjs from "dayjs";
 import { isMobileOnly } from "react-device-detect";
@@ -211,6 +212,7 @@ const SourceTable = ({
   const [tableFilterList, setTableFilterList] = useState([]);
   const [filterFormData, setFilterFormData] = useState(null);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+  const [queryInProgress, setQueryInProgress] = useState(false);
 
   // Color styling
   const userColorTheme = useSelector(
@@ -641,6 +643,8 @@ const SourceTable = ({
   };
 
   const handleFilterSubmit = async (formData) => {
+    setQueryInProgress(true);
+
     // Remove empty position
     if (
       formData.position.ra === "" &&
@@ -671,9 +675,13 @@ const SourceTable = ({
     setFilterFormData(data);
     paginateCallback(1, rowsPerPage, {}, data);
     setFilterFormSubmitted(true);
+
+    //     setQueryInProgress(false);
   };
 
   const handleTableFilterChipChange = (column, filterList, type) => {
+    setQueryInProgress(true);
+
     if (type === "chip") {
       const sourceFilterList = filterList[0];
       // Convert chip filter list to filter form data
@@ -691,6 +699,7 @@ const SourceTable = ({
       setFilterFormData(data);
       paginateCallback(1, rowsPerPage, {}, data);
     }
+    //     setQueryInProgress(false);
   };
 
   const customFilterDisplay = () =>
@@ -911,16 +920,22 @@ const SourceTable = ({
           justify="flex-start"
           spacing={3}
         >
-          <Grid item className={classes.tableGrid}>
-            <MuiThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title={title}
-                columns={columns}
-                data={sources}
-                options={options}
-              />
-            </MuiThemeProvider>
-          </Grid>
+          {queryInProgress ? (
+            <Grid className={classes.spinnerDiv}>
+              <CircularProgress />
+            </Grid>
+          ) : (
+            <Grid item className={classes.tableGrid}>
+              <MuiThemeProvider theme={getMuiTheme(theme)}>
+                <MUIDataTable
+                  title={title}
+                  columns={columns}
+                  data={sources}
+                  options={options}
+                />
+              </MuiThemeProvider>
+            </Grid>
+          )}
         </Grid>
       </div>
     </div>
