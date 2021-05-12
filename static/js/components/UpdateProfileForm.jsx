@@ -21,6 +21,7 @@ import * as ProfileActions from "../ducks/profile";
 
 import UIPreferences from "./UIPreferences";
 import NotificationPreferences from "./NotificationPreferences";
+import CandidatesPreferences from "./CandidatesPreferences";
 
 const UpdateProfileForm = () => {
   const profile = useSelector((state) => state.profile);
@@ -163,6 +164,9 @@ const UpdateProfileForm = () => {
         </CardContent>
         <CardContent>
           <UIPreferences />
+        </CardContent>
+        <CardContent>
+          <CandidatesPreferences />
         </CardContent>
       </Card>
       <Dialog

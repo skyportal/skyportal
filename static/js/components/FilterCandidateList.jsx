@@ -77,12 +77,12 @@ function getStyles(classification, selectedClassifications, theme) {
   };
 }
 
-const rejectedStatusSelectOptions = [
+export const rejectedStatusSelectOptions = [
   { value: "hide", label: "Hide rejected candidates" },
   { value: "show", label: "Show rejected candidates" },
 ];
 
-const savedStatusSelectOptions = [
+export const savedStatusSelectOptions = [
   { value: "all", label: "regardless of saved status" },
   { value: "savedToAllSelected", label: "and is saved to all selected groups" },
   {
@@ -118,9 +118,25 @@ const FilterCandidateList = ({
   const classes = useStyles();
   const theme = useTheme();
 
+  const { scanningProfiles } = useSelector(
+    (state) => state.profile.preferences
+  );
+
+  const defaultScanningProfile = scanningProfiles?.find(
+    (profile) => profile.default
+  );
+
   const defaultStartDate = new Date();
-  defaultStartDate.setDate(defaultStartDate.getDate() - 1);
-  const defaultEndDate = null;
+  let defaultEndDate = null;
+  if (defaultScanningProfile?.timeRange) {
+    defaultEndDate = new Date();
+    defaultStartDate.setHours(
+      defaultStartDate.getHours() -
+        parseInt(defaultScanningProfile.timeRange, 10)
+    );
+  } else {
+    defaultStartDate.setDate(defaultStartDate.getDate() - 1);
+  }
 
   const ITEM_HEIGHT = 48;
   const MenuProps = {
@@ -152,15 +168,20 @@ const FilterCandidateList = ({
   });
 
   useEffect(() => {
+    const selectedGroupIDs = Array(userAccessibleGroups.length).fill(false);
+    const groupIDs = userAccessibleGroups.map((g) => g.id);
+    groupIDs.forEach((ID, i) => {
+      selectedGroupIDs[i] = defaultScanningProfile?.groupIDs.includes(ID);
+    });
     reset({
-      groupIDs: Array(userAccessibleGroups.length).fill(false),
+      groupIDs: selectedGroupIDs,
       startDate: defaultStartDate,
       endDate: defaultEndDate,
     });
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reset, userAccessibleGroups]);
+  }, [reset, defaultScanningProfile, userAccessibleGroups]);
 
   const dispatch = useDispatch();
   // Set initial form values in the redux state
@@ -297,7 +318,7 @@ const FilterCandidateList = ({
               name="savedStatus"
               control={control}
               input={<Input data-testid="savedStatusSelect" />}
-              defaultValue="all"
+              defaultValue={defaultScanningProfile?.savedStatus || "all"}
             >
               {savedStatusSelectOptions.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
@@ -352,7 +373,7 @@ const FilterCandidateList = ({
               )}
               name="classifications"
               control={control}
-              defaultValue={[]}
+              defaultValue={defaultScanningProfile?.classifications || []}
             />
           </div>
           <div className={classes.formRow}>
@@ -377,7 +398,7 @@ const FilterCandidateList = ({
                 name="redshiftMinimum"
                 labelId="redshift-select-label"
                 control={control}
-                defaultValue=""
+                defaultValue={defaultScanningProfile?.redshiftMinimum || ""}
               />
             </div>
             <div className={classes.redshiftField}>
@@ -399,7 +420,7 @@ const FilterCandidateList = ({
                 )}
                 name="redshiftMaximum"
                 control={control}
-                defaultValue=""
+                defaultValue={defaultScanningProfile?.redshiftMaximum || ""}
               />
             </div>
           </div>
@@ -413,7 +434,7 @@ const FilterCandidateList = ({
               name="rejectedStatus"
               control={control}
               input={<Input data-testid="rejectedStatusSelect" />}
-              defaultValue="hide"
+              defaultValue={defaultScanningProfile?.rejectedStatus || "hide"}
             >
               {rejectedStatusSelectOptions.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
