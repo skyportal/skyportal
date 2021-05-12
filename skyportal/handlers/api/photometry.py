@@ -775,11 +775,13 @@ class PhotometryHandler(BaseHandler):
             .query(values_table.c.pdidx, Photometry)
             .join(Photometry, condition)
             .options(joinedload(Photometry.groups))
+            .options(joinedload(Photometry.streams))
         )
 
         for df_index, duplicate in duplicated_photometry:
             id_map[df_index] = duplicate.id
             duplicate_group_ids = set([g.id for g in duplicate.groups])
+            duplicate_stream_ids = set([s.id for s in duplicate.streams])
 
             # posting to new groups?
             if len(set(group_ids) - duplicate_group_ids) > 0:
@@ -796,24 +798,12 @@ class PhotometryHandler(BaseHandler):
 
             # posting to new streams?
             if stream_ids:
-                streams = Stream.get_if_accessible_by(
-                    stream_ids, self.current_user, raise_if_none=True
-                )
                 # Add new stream_photometry rows if not already present
-                for stream in streams:
-                    if (
-                        StreamPhotometry.query_records_accessible_by(self.current_user)
-                        .filter(
-                            StreamPhotometry.stream_id == stream.id,
-                            StreamPhotometry.photometr_id == duplicate.id,
-                        )
-                        .first()
-                        is None
-                    ):
+                stream_ids_update = set(stream_ids) - duplicate_stream_ids
+                if len(stream_ids_update) > 0:
+                    for id in stream_ids_update:
                         DBSession().add(
-                            StreamPhotometry(
-                                photometr_id=duplicate.id, stream_id=stream.id
-                            )
+                            StreamPhotometry(photometr_id=duplicate.id, stream_id=id)
                         )
 
         # now safely drop the duplicates:
