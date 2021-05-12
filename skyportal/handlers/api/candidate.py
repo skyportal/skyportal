@@ -761,6 +761,7 @@ class CandidateHandler(BaseHandler):
                 "candidates",
                 order_by=order_by,
                 query_id=query_id,
+                use_cache=True,
             )
         except ValueError as e:
             if "Page number out of range" in str(e):
@@ -1013,6 +1014,7 @@ def grab_query_results(
     order_by=None,
     include_thumbnails=True,
     query_id=None,
+    use_cache=False,
 ):
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
@@ -1063,23 +1065,30 @@ def grab_query_results(
     )
 
     if page:
-        if query_id is None:
-            query_id = str(uuid.uuid4())
-            if not os.path.exists("cache/candidate_queries"):
-                os.mkdir("cache/candidate_queries")
-            all_ids = ordered_ids.all()
-            np.save(f"cache/candidate_queries/{query_id}.npy", all_ids)
-            results = all_ids[
-                ((page - 1) * n_items_per_page) : (page * n_items_per_page)  # noqa
-            ]
+        if use_cache:
+            if query_id is None:
+                query_id = str(uuid.uuid4())
+                if not os.path.exists("cache/candidate_queries"):
+                    os.mkdir("cache/candidate_queries")
+                all_ids = ordered_ids.all()
+                np.save(f"cache/candidate_queries/{query_id}.npy", all_ids)
+                results = all_ids[
+                    ((page - 1) * n_items_per_page) : (page * n_items_per_page)  # noqa
+                ]
+            else:
+                ids = np.load(f"cache/candidate_queries/{query_id}.npy")
+                results = ids[
+                    (page - 1) * n_items_per_page : (page) * n_items_per_page  # noqa
+                ]
+            info["queryID"] = query_id
         else:
-            ids = np.load(f"cache/candidate_queries/{query_id}.npy")
-            results = ids[
-                (page - 1) * n_items_per_page : (page) * n_items_per_page  # noqa
-            ]
+            results = (
+                ordered_ids.limit(n_items_per_page)
+                .offset((page - 1) * n_items_per_page)
+                .all()
+            )
         info["pageNumber"] = page
         info["numPerPage"] = n_items_per_page
-        info["queryID"] = query_id
     else:
         results = ordered_ids.all()
 
