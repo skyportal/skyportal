@@ -799,7 +799,7 @@ class PhotometryHandler(BaseHandler):
                 # Add new stream_photometry rows if not already present
                 duplicate_stream_ids = set(
                     StreamPhotometry.query_records_accessible_by(
-                        self.current_user, column=[StreamPhotometry.stream_id]
+                        self.current_user, columns=[StreamPhotometry.stream_id]
                     )
                     .filter(
                         StreamPhotometry.photometr_id == duplicate.id,
