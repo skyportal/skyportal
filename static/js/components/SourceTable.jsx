@@ -1,4 +1,4 @@
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link, useHistory } from "react-router-dom";
@@ -214,6 +214,12 @@ const SourceTable = ({
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
   const [queryInProgress, setQueryInProgress] = useState(false);
 
+  useEffect(() => {
+    if (sources) {
+      setQueryInProgress(false);
+    }
+  }, [sources]);
+
   // Color styling
   const userColorTheme = useSelector(
     (state) => state.profile.preferences.theme
@@ -225,6 +231,7 @@ const SourceTable = ({
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
+        setQueryInProgress(true);
         setRowsPerPage(tableState.rowsPerPage);
         paginateCallback(
           tableState.page + 1,
@@ -675,8 +682,6 @@ const SourceTable = ({
     setFilterFormData(data);
     paginateCallback(1, rowsPerPage, {}, data);
     setFilterFormSubmitted(true);
-
-    //     setQueryInProgress(false);
   };
 
   const handleTableFilterChipChange = (column, filterList, type) => {
@@ -699,7 +704,6 @@ const SourceTable = ({
       setFilterFormData(data);
       paginateCallback(1, rowsPerPage, {}, data);
     }
-    //     setQueryInProgress(false);
   };
 
   const customFilterDisplay = () =>
