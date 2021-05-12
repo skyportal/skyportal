@@ -24,6 +24,7 @@ import { isMobile } from "react-device-detect";
 import QuickSearchBar from "./QuickSearchBar";
 import HeaderContent from "./HeaderContent";
 import * as Actions from "../ducks/sidebar";
+import hydrate from "../actions";
 
 const drawerWidth = 190;
 
@@ -154,6 +155,12 @@ const SidebarAndHeader = () => {
 
   const drawerType = isMobile ? "temporary" : "persistent";
 
+  const hydrateIfDashboardClicked = (url) => {
+    if (url === "/") {
+      dispatch(hydrate());
+    }
+  };
+
   return (
     <>
       <AppBar
@@ -187,7 +194,7 @@ const SidebarAndHeader = () => {
           {%- if item.url.startswith('http') %}
           <a href="{{ item.url }}" className={classes.link}>
           {% else %}
-          <Link to="{{ item.url }}" className={classes.link}>
+          <Link to="{{ item.url }}" onClick={() => hydrateIfDashboardClicked("{{ item.url }}")} className={classes.link}>
           {%- endif %}
             <ListItem button name="sidebar{{ item.name }}Button">
               <ListItemIcon>

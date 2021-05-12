@@ -407,7 +407,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: boolean
             description: |
-              Boolean indicating whether to remove nested output (does not apply to classifications). Defaults to false.
+              Boolean indicating whether to remove nested output. Defaults to false.
           - in: query
             name: includeThumbnails
             nullable: true
@@ -1080,23 +1080,23 @@ class SourceHandler(BaseHandler):
                         reverse=True,
                     )
 
-                readable_classifications = (
-                    Classification.query_records_accessible_by(self.current_user)
-                    .filter(Classification.obj_id == obj.id)
-                    .all()
-                )
-
-                readable_classifications_json = []
-                for classification in readable_classifications:
-                    classification_dict = classification.to_dict()
-                    classification_dict['groups'] = [
-                        g.to_dict() for g in classification.groups
-                    ]
-                    readable_classifications_json.append(classification_dict)
-
-                obj_list[-1]["classifications"] = readable_classifications_json
-
                 if not remove_nested:
+                    readable_classifications = (
+                        Classification.query_records_accessible_by(self.current_user)
+                        .filter(Classification.obj_id == obj.id)
+                        .all()
+                    )
+
+                    readable_classifications_json = []
+                    for classification in readable_classifications:
+                        classification_dict = classification.to_dict()
+                        classification_dict['groups'] = [
+                            g.to_dict() for g in classification.groups
+                        ]
+                        readable_classifications_json.append(classification_dict)
+
+                    obj_list[-1]["classifications"] = readable_classifications_json
+
                     obj_list[-1]["annotations"] = sorted(
                         Annotation.query_records_accessible_by(
                             self.current_user

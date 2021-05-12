@@ -110,11 +110,11 @@ def test_token_user_retrieving_source_without_nested(
     assert len(data["data"]["sources"]) == 2
     assert all(
         k in data["data"]["sources"][0]
-        for k in ["ra", "dec", "redshift", "created_at", "id", "classifications"]
+        for k in ["ra", "dec", "redshift", "created_at", "id"]
     )
     assert all(
         k not in data["data"]["sources"][0]
-        for k in ["annotations", "groups", "thumbnails"]
+        for k in ["annotations", "groups", "thumbnails", "classifications"]
     )
 
 
