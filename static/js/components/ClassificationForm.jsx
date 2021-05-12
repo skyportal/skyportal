@@ -61,9 +61,8 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);
-  const [submissionRequestInProcess, setSubmissionRequestInProcess] = useState(
-    false
-  );
+  const [submissionRequestInProcess, setSubmissionRequestInProcess] =
+    useState(false);
   const groupIDToName = {};
   groups.forEach((g) => {
     groupIDToName[g.id] = g.name;
