@@ -1,6 +1,7 @@
 from pathlib import Path
 import hashlib
 import os
+import time
 
 from baselayer.log import make_log
 
@@ -8,7 +9,7 @@ log = make_log('cache')
 
 
 class Cache:
-    def __init__(self, cache_dir, max_items=10):
+    def __init__(self, cache_dir, max_items=10, max_age=None):
         """
         Parameters
         ----------
@@ -16,6 +17,9 @@ class Cache:
             Path to cache.  Will be created if necessary.
         max_items : int, optional
             Maximum number of items ever held in the cache.
+        max_age : int, optional
+            Maximum age (in seconds) of an item in the cache before it
+            gets removed.
         """
         cache_dir = Path(cache_dir)
         if not cache_dir.is_dir():
@@ -23,6 +27,7 @@ class Cache:
 
         self._cache_dir = Path(cache_dir)
         self._max_items = max_items
+        self._max_age = max_age
 
     def _hash_fn(self, fn):
         m = hashlib.md5()
@@ -71,20 +76,40 @@ class Cache:
 
         self.clean_cache()
 
-    def clean_cache(self):
-        # Remove stale cache files
-        cached_files = [
-            (f.stat().st_mtime, f.absolute()) for f in self._cache_dir.glob('*')
-        ]
-        cached_files = sorted(cached_files, key=lambda x: x[0], reverse=True)
+    def _remove(self, files):
+        """Remove given items from the cache.
+
+        Parameters
+        ----------
+        files : list of str
+            Files to remove from the cache.
+        """
         # fmt: off
-        for t, f in cached_files[self._max_items:]:
+        for f in files:
             try:
                 os.remove(f)
                 log(f'cleanup [{os.path.basename(f)}]')
             except FileNotFoundError:
                 pass
         # fmt: on
+
+    def clean_cache(self):
+        # Remove stale cache files
+        cached_files = [
+            (f.stat().st_mtime, f.absolute()) for f in self._cache_dir.glob('*')
+        ]
+        cached_files = sorted(cached_files, key=lambda x: x[0], reverse=True)
+
+        now = time.time()
+
+        if self._max_age is not None:
+            removed_by_time = [
+                f for (t, f) in cached_files if (now - t) > self._max_age
+            ]
+            self._remove(removed_by_time)
+
+        oldest = cached_files[self._max_items :]
+        self._remove([f for (t, f) in oldest])
 
     def __len__(self):
         return len(list(self._cache_dir.glob('*')))

@@ -18,7 +18,7 @@ def cache_parent_dir(tmpdir_factory):
 @pytest.fixture()
 def cache(cache_parent_dir):
     cache_path = pjoin(cache_parent_dir, 'cache')
-    cache = Cache(cache_path, max_items=3)
+    cache = Cache(cache_path, max_items=3, max_age=3)
     yield cache
     shutil.rmtree(cache_path)
 
@@ -53,6 +53,19 @@ def test_cache_cleanup(cache):
 
     for key in range(2, 5):
         assert cache[str(key)] is not None
+
+
+def test_cache_cleanup_by_age(cache):
+    cache['first'] = b'one'
+    f = cache['first']
+    assert f is not None
+
+    # Let object time out of cache
+    time.sleep(3)
+    # Trigger cleanup
+    cache['second'] = b'two'
+    f = cache['first']
+    assert f is None
 
 
 def test_cache_reference_refresh(cache):
