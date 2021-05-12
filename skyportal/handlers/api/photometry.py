@@ -796,24 +796,22 @@ class PhotometryHandler(BaseHandler):
 
             # posting to new streams?
             if stream_ids:
-                streams = Stream.get_if_accessible_by(
-                    stream_ids, self.current_user, raise_if_none=True
-                )
                 # Add new stream_photometry rows if not already present
-                for stream in streams:
-                    if (
-                        StreamPhotometry.query_records_accessible_by(self.current_user)
-                        .filter(
-                            StreamPhotometry.stream_id == stream.id,
-                            StreamPhotometry.photometr_id == duplicate.id,
-                        )
-                        .first()
-                        is None
-                    ):
+                duplicate_stream_ids = set(
+                    StreamPhotometry.query_records_accessible_by(
+                        self.current_user, column=[StreamPhotometry.stream_id]
+                    )
+                    .filter(
+                        StreamPhotometry.photometr_id == duplicate.id,
+                    )
+                    .all()
+                )
+                # select new streams
+                stream_ids_update = set(stream_ids) - duplicate_stream_ids
+                if len(stream_ids_update) > 0:
+                    for id in stream_ids_update:
                         DBSession().add(
-                            StreamPhotometry(
-                                photometr_id=duplicate.id, stream_id=stream.id
-                            )
+                            StreamPhotometry(photometr_id=duplicate.id, stream_id=id)
                         )
 
         # now safely drop the duplicates:
