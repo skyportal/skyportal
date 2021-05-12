@@ -1076,9 +1076,22 @@ def grab_query_results(
                     ((page - 1) * n_items_per_page) : (page * n_items_per_page)  # noqa
                 ]
             else:
-                ids = np.load(f"cache/candidate_queries/{query_id}.npy")
+                try:
+                    ids = np.load(f"cache/candidate_queries/{query_id}.npy")
+                except FileNotFoundError:
+                    # Cache expired/removed; create new cache file
+                    query_id = str(uuid.uuid4())
+                    if not os.path.exists("cache/candidate_queries"):
+                        os.mkdir("cache/candidate_queries")
+                    all_ids = ordered_ids.all()
+                    np.save(f"cache/candidate_queries/{query_id}.npy", all_ids)
+                    results = all_ids[
+                        ((page - 1) * n_items_per_page) : (  # noqa
+                            page * n_items_per_page
+                        )
+                    ]
                 results = ids[
-                    (page - 1) * n_items_per_page : (page) * n_items_per_page  # noqa
+                    ((page - 1) * n_items_per_page) : (page * n_items_per_page)  # noqa
                 ]
             info["queryID"] = query_id
         else:
