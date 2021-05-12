@@ -22,21 +22,6 @@ from ...models import (
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
-gcn.include_notice_types(
-    gcn.NoticeType.FERMI_GBM_FLT_POS,
-    gcn.NoticeType.FERMI_GBM_GND_POS,
-    gcn.NoticeType.FERMI_GBM_FIN_POS,
-    gcn.NoticeType.FERMI_GBM_SUBTHRESH,
-    gcn.NoticeType.LVC_PRELIMINARY,
-    gcn.NoticeType.LVC_INITIAL,
-    gcn.NoticeType.LVC_UPDATE,
-    gcn.NoticeType.LVC_RETRACTION,
-    gcn.NoticeType.AMON_ICECUBE_COINC,
-    gcn.NoticeType.AMON_ICECUBE_HESE,
-    gcn.NoticeType.ICECUBE_ASTROTRACK_GOLD,
-    gcn.NoticeType.ICECUBE_ASTROTRACK_BRONZE,
-)
-
 _, cfg = load_env()
 
 
