@@ -920,12 +920,12 @@ const SourceTable = ({
         <Grid
           container
           direction="column"
-          alignItems="center"
+          alignItems="flex-start"
           justify="flex-start"
           spacing={3}
         >
           {queryInProgress ? (
-            <Grid className={classes.spinnerDiv}>
+            <Grid item>
               <CircularProgress />
             </Grid>
           ) : (
