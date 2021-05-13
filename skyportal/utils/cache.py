@@ -29,9 +29,9 @@ class Cache:
         self._max_items = max_items
         self._max_age = max_age
 
-    def _hash_fn(self, fn):
+    def _hash_filename(self, filename):
         m = hashlib.md5()
-        m.update(fn.encode('utf-8'))
+        m.update(filename.encode('utf-8'))
         return self._cache_dir / f'{m.hexdigest()}'
 
     def __getitem__(self, name):
@@ -45,7 +45,7 @@ class Cache:
         if self._max_items == 0:
             return None
 
-        cache_file = self._hash_fn(name)
+        cache_file = self._hash_filename(name)
         if not cache_file.exists():
             return None
 
@@ -68,7 +68,7 @@ class Cache:
         if self._max_items == 0:
             return
 
-        fn = self._hash_fn(name)
+        fn = self._hash_filename(name)
         with open(fn, 'wb') as f:
             f.write(data)
 
@@ -76,16 +76,16 @@ class Cache:
 
         self.clean_cache()
 
-    def _remove(self, files):
+    def _remove(self, filenames):
         """Remove given items from the cache.
 
         Parameters
         ----------
-        files : list of str
+        filenames : list of str
             Files to remove from the cache.
         """
         # fmt: off
-        for f in files:
+        for f in filenames:
             try:
                 os.remove(f)
                 log(f'cleanup [{os.path.basename(f)}]')
@@ -104,12 +104,14 @@ class Cache:
 
         if self._max_age is not None:
             removed_by_time = [
-                f for (t, f) in cached_files if (now - t) > self._max_age
+                filename
+                for (mtime, filename) in cached_files
+                if (now - mtime) > self._max_age
             ]
             self._remove(removed_by_time)
 
         oldest = cached_files[self._max_items :]
-        self._remove([f for (t, f) in oldest])
+        self._remove([filename for (mtime, filename) in oldest])
 
     def __len__(self):
         return len(list(self._cache_dir.glob('*')))
