@@ -73,9 +73,17 @@ function getStyles(classification, selectedClassifications, theme) {
 
 const CandidatesPreferences = () => {
   const preferences = useSelector((state) => state.profile.preferences);
+  // const availableAnnotationsInfo = useSelector(
+  //   (state) => state.candidates.annotationsInfo
+  // );
   const classes = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    // Grab the available annotation fields for filtering
+    dispatch(candidatesActions.fetchAnnotationsInfo());
+  }, [dispatch]);
 
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible
@@ -133,6 +141,17 @@ const CandidatesPreferences = () => {
   const validateGroups = () => {
     formState = getValues({ nest: true });
     return formState.groupIDs.filter((value) => Boolean(value)).length >= 1;
+  };
+
+  const validateRedshifts = () => {
+    formState = getValues({ nest: true });
+    // Need both ends of the range
+    return (
+      formState.redshiftMinimum !== null &&
+      formState.redshiftMaximum !== null &&
+      parseFloat(formState.redshiftMaximum) >
+        parseFloat(formState.redshiftMinimum)
+    );
   };
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -296,7 +315,7 @@ const CandidatesPreferences = () => {
               </div>
               <div className={classes.formRow}>
                 {errors.redshiftMinimum && (
-                  <FormValidationError message="Both redshift minimum/maximum must be defined" />
+                  <FormValidationError message="Both redshift minimum/maximum must be defined, with maximum > minimum" />
                 )}
                 <InputLabel id="redshift-select-label">Redshift</InputLabel>
                 <div className={classes.redshiftField}>
@@ -319,6 +338,7 @@ const CandidatesPreferences = () => {
                     name="redshiftMinimum"
                     labelId="redshift-select-label"
                     control={control}
+                    rules={{ validate: validateRedshifts }}
                     defaultValue=""
                   />
                 </div>

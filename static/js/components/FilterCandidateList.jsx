@@ -212,6 +212,17 @@ const FilterCandidateList = ({
     return true;
   };
 
+  const validateRedshifts = () => {
+    formState = getValues({ nest: true });
+    // Need both ends of the range
+    return (
+      formState.redshiftMinimum !== null &&
+      formState.redshiftMaximum !== null &&
+      parseFloat(formState.redshiftMaximum) >
+        parseFloat(formState.redshiftMinimum)
+    );
+  };
+
   const onSubmit = async (formData) => {
     setQueryInProgress(true);
     const groupIDs = userAccessibleGroups.map((g) => g.id);
@@ -377,6 +388,9 @@ const FilterCandidateList = ({
             />
           </div>
           <div className={classes.formRow}>
+            {errors.redshiftMinimum && (
+              <FormValidationError message="Both redshift minimum/maximum must be defined, with maximum > minimum" />
+            )}
             <InputLabel id="redshift-select-label">Redshift</InputLabel>
             <div className={classes.redshiftField}>
               <Controller
@@ -398,6 +412,7 @@ const FilterCandidateList = ({
                 name="redshiftMinimum"
                 labelId="redshift-select-label"
                 control={control}
+                rules={{ validate: validateRedshifts }}
                 defaultValue={defaultScanningProfile?.redshiftMinimum || ""}
               />
             </div>

@@ -106,6 +106,7 @@ const ScanningProfilesList = () => {
       <div>
         <Checkbox
           checked={profile.default}
+          key={`default${dataIndex}`}
           onChange={(event) =>
             handleDefaultChange(event.target.checked, dataIndex)
           }
@@ -124,9 +125,9 @@ const ScanningProfilesList = () => {
 
   const renderClassifications = (dataIndex) => {
     const profile = profiles[dataIndex];
-    return profile ? (
+    return profile?.classifications ? (
       <div>
-        {profile.classifications?.map((classification) => (
+        {profile.classifications.map((classification) => (
           <Chip
             size="small"
             key={classification}
@@ -143,16 +144,16 @@ const ScanningProfilesList = () => {
 
   const renderGroups = (dataIndex) => {
     const profile = profiles[dataIndex];
-    return profile ? (
+    return profile?.groupIDs ? (
       <div>
-        {profile.groupIDs?.map((groupID) => {
+        {profile.groupIDs.map((groupID) => {
           const groupName = userAccessibleGroups?.find(
             (group) => group.id === groupID
           )?.name;
           return (
             <Chip
               size="small"
-              key={groupName}
+              key={`group${groupID}`}
               label={groupName}
               color="primary"
               className={classes.chip}
@@ -178,13 +179,13 @@ const ScanningProfilesList = () => {
     return profile?.rejectedStatus === "show" ? (
       <CheckIcon
         size="small"
-        key={`${profile?.id}_rejected_status`}
+        key={`${dataIndex}RejectedStatus`}
         color="primary"
       />
     ) : (
       <ClearIcon
         size="small"
-        key={`${profile?.id}_rejected_status`}
+        key={`${dataIndex}RejectedStatus`}
         color="secondary"
       />
     );
