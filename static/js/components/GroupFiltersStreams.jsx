@@ -45,9 +45,8 @@ const GroupFiltersStreams = ({
 }) => {
   const [addFilterDialogOpen, setAddFilterDialogOpen] = useState(false);
   const [addStreamOpen, setAddStreamOpen] = useState(false);
-  const [panelStreamsExpanded, setPanelStreamsExpanded] = useState(
-    "panel-streams"
-  );
+  const [panelStreamsExpanded, setPanelStreamsExpanded] =
+    useState("panel-streams");
   const dispatch = useDispatch();
   const streams = useSelector((state) => state.streams);
 
