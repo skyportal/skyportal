@@ -219,6 +219,7 @@ const CandidatesPreferences = () => {
       <div className={classes.button}>
         <Button
           variant="contained"
+          data-testid="addScanningProfileButton"
           onClick={() => {
             setAddDialogOpen(true);
           }}
@@ -249,6 +250,8 @@ const CandidatesPreferences = () => {
                       type="number"
                       value={value}
                       inputProps={{ step: 1 }}
+                      // eslint-disable-next-line react/jsx-no-duplicate-props
+                      InputProps={{ "data-testid": "timeRange" }}
                       InputLabelProps={{
                         shrink: true,
                       }}
@@ -288,14 +291,13 @@ const CandidatesPreferences = () => {
                   labelId="classifications-select-label"
                   render={({ onChange, value }) => (
                     <Select
-                      id="classifications-select"
                       multiple
                       value={value}
                       onChange={(event) => {
                         setSelectedClassifications(event.target.value);
                         onChange(event.target.value);
                       }}
-                      input={<Input id="classifications-select" />}
+                      input={<Input data-testid="classifications-select" />}
                       renderValue={(selected) => (
                         <div className={classes.chips}>
                           {selected.map((classification) => (
@@ -338,7 +340,7 @@ const CandidatesPreferences = () => {
                   <Controller
                     render={({ onChange, value }) => (
                       <TextField
-                        id="minimum-redshift"
+                        data-testid="minimum-redshift"
                         label="Minimum"
                         type="number"
                         value={value}
@@ -362,7 +364,7 @@ const CandidatesPreferences = () => {
                   <Controller
                     render={({ onChange, value }) => (
                       <TextField
-                        id="maximum-redshift"
+                        data-testid="maximum-redshift"
                         label="Maximum"
                         type="number"
                         value={value}
@@ -527,6 +529,7 @@ const CandidatesPreferences = () => {
                   variant="contained"
                   type="submit"
                   endIcon={<SaveIcon />}
+                  data-testid="saveScanningProfileButton"
                   color="primary"
                 >
                   Save

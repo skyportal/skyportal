@@ -1,5 +1,6 @@
 import pytest
 import uuid
+from skyportal.tests import api
 
 
 def test_token_acls_options_rendering1(driver, user):
@@ -98,3 +99,94 @@ def test_profile_dropdown(driver, user):
     driver.wait_for_xpath("//p[contains(@data-testid, 'firstLastName')]")
     driver.wait_for_xpath("//p[contains(@data-testid, 'username')]")
     driver.wait_for_xpath("//a[contains(@data-testid, 'signOutButton')]")
+
+
+def test_add_scanning_profile(
+    driver, user, public_group, public_source, annotation_token
+):
+
+    # Post an annotation to the test source, to test setting annotation sorting
+    status, _ = api(
+        'POST',
+        'annotation',
+        data={
+            'obj_id': public_source.id,
+            'origin': 'kowalski',
+            'data': {'offset_from_host_galaxy': 1.5},
+            'group_ids': [public_group.id],
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/profile")
+    driver.click_xpath('//button[@data-testid="addScanningProfileButton"]')
+
+    # Fill out form
+    time_range_input = driver.wait_for_xpath('//div[@data-testid="timeRange"]//input')
+    time_range_input.clear()
+    time_range_input.send_keys("48")
+
+    driver.click_xpath('//div[@data-testid="savedStatusSelect"]')
+    saved_status_option = "and is saved to at least one group I have access to"
+    driver.click_xpath(f'//li[text()="{saved_status_option}"]')
+
+    redshift_minimum_input = driver.wait_for_xpath(
+        '//div[@data-testid="minimum-redshift"]//input'
+    )
+    redshift_minimum_input.send_keys("0.0")
+    redshift_maximum_input = driver.wait_for_xpath(
+        '//div[@data-testid="maximum-redshift"]//input'
+    )
+    redshift_maximum_input.send_keys("1.0")
+
+    driver.click_xpath('//div[@data-testid="annotationSortingOriginSelect"]')
+    driver.click_xpath('//li[text()="kowalski"]')
+    driver.click_xpath('//div[@data-testid="annotationSortingKeySelect"]')
+    driver.click_xpath('//li[text()="offset_from_host_galaxy"]')
+    driver.click_xpath('//div[@data-testid="annotationSortingOrderSelect"]')
+    driver.click_xpath('//li[text()="descending"]')
+
+    driver.click_xpath(
+        f'//span[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    )
+
+    # Submit and check it shows up in table of profiles
+    driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
+    driver.wait_for_xpath(f'//div[text()="{saved_status_option}"]')
+
+    # Navigate to scanning page and check that form is populated properly
+    driver.get("/candidates")
+    driver.wait_for_xpath(f'//div[text()="{saved_status_option}"]')
+    driver.wait_for_xpath('//input[@id="minimum-redshift"][@value="0.0"]')
+    driver.wait_for_xpath('//input[@id="maximum-redshift"][@value="1.0"]')
+    driver.wait_for_xpath(
+        f'//span[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]//input[@value]'
+    )
+
+    # TODO: Check that annotation sorting options have been set, once
+    # the front-end to display that has been implemented
+
+
+def test_delete_scanning_profile(driver, user, public_group):
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/profile")
+    driver.click_xpath('//button[@data-testid="addScanningProfileButton"]')
+
+    # Fill out form
+    time_range_input = driver.wait_for_xpath('//div[@data-testid="timeRange"]//input')
+    time_range_input.clear()
+    time_range_input.send_keys("123")
+
+    driver.click_xpath(
+        f'//span[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    )
+
+    # Submit and check it shows up in table of profiles
+    driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
+    driver.wait_for_xpath('//div[text()="123hrs"]')
+    # Delete and check that it disappears
+    driver.click_xpath('//tr[.//div[text()="123hrs"]]//button[./span[text()="Delete"]]')
+    driver.wait_for_xpath_to_disappear('//div[text()="123hrs"]')
