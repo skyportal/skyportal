@@ -24,7 +24,7 @@ const CommentList = () => {
 
   const handleMouseHover = (id, userProfile, author) => {
     if (
-      userProfile.roles.includes("Super admin") ||
+      userProfile.permissions.includes("System admin") ||
       userProfile.username === author
     ) {
       setHoverID(id);
