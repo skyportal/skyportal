@@ -553,7 +553,7 @@ class Obj(Base, ha.Point):
     offset = sa.Column(
         sa.Float, default=0.0, doc="Offset from nearest static object [arcsec]."
     )
-    redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
+    redshift = sa.Column(sa.Float, nullable=True, index=True, doc="Redshift.")
     redshift_history = sa.Column(
         JSONB,
         nullable=True,
