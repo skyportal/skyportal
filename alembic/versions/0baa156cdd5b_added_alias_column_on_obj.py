@@ -1,8 +1,8 @@
 """added alias column on obj
 
-Revision ID: 5374c88c91dd
-Revises: 31d3251df20b
-Create Date: 2021-05-12 18:04:19.824529
+Revision ID: 0baa156cdd5b
+Revises: d8a478c3d94c
+Create Date: 2021-05-13 21:19:18.256737
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '5374c88c91dd'
-down_revision = '31d3251df20b'
+revision = '0baa156cdd5b'
+down_revision = 'd8a478c3d94c'
 branch_labels = None
 depends_on = None
 
