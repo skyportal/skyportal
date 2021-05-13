@@ -60,6 +60,14 @@ const useStyles = makeStyles(() => ({
       fontSize: "1rem",
     },
   },
+  annotationSorting: {
+    "& label": {
+      marginTop: "1rem",
+    },
+    "& div": {
+      width: "100%",
+    },
+  },
 }));
 
 function getStyles(classification, selectedClassifications, theme) {
@@ -73,9 +81,9 @@ function getStyles(classification, selectedClassifications, theme) {
 
 const CandidatesPreferences = () => {
   const preferences = useSelector((state) => state.profile.preferences);
-  // const availableAnnotationsInfo = useSelector(
-  //   (state) => state.candidates.annotationsInfo
-  // );
+  const availableAnnotationsInfo = useSelector(
+    (state) => state.candidates.annotationsInfo
+  );
   const classes = useStyles();
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -112,6 +120,7 @@ const CandidatesPreferences = () => {
   classifications = Array.from(new Set(classifications)).sort();
 
   const [selectedClassifications, setSelectedClassifications] = useState([]);
+  const [selectedAnnotationOrigin, setSelectedAnnotationOrigin] = useState();
 
   const { handleSubmit, getValues, control, errors, reset } = useForm();
 
@@ -145,12 +154,14 @@ const CandidatesPreferences = () => {
 
   const validateRedshifts = () => {
     formState = getValues({ nest: true });
-    // Need both ends of the range
     return (
-      formState.redshiftMinimum !== null &&
-      formState.redshiftMaximum !== null &&
-      parseFloat(formState.redshiftMaximum) >
-        parseFloat(formState.redshiftMinimum)
+      // Both null
+      (formState.redshiftMinimum === "" && formState.redshiftMaximum === "") ||
+      // Or both filled out
+      (formState.redshiftMinimum !== "" &&
+        formState.redshiftMaximum !== "" &&
+        parseFloat(formState.redshiftMaximum) >
+          parseFloat(formState.redshiftMinimum))
     );
   };
 
@@ -181,6 +192,11 @@ const CandidatesPreferences = () => {
     if (formData.redshiftMinimum && formData.redshiftMaximum) {
       data.redshiftMinimum = formData.redshiftMinimum;
       data.redshiftMaximum = formData.redshiftMaximum;
+    }
+    if (formData.sortingOrigin) {
+      data.sortingOrigin = formData.sortingOrigin;
+      data.sortingKey = formData.sortingKey;
+      data.sortingOrder = formData.sortingOrder;
     }
 
     // Add new profile as the default in the preferences
@@ -315,7 +331,7 @@ const CandidatesPreferences = () => {
               </div>
               <div className={classes.formRow}>
                 {errors.redshiftMinimum && (
-                  <FormValidationError message="Both redshift minimum/maximum must be defined, with maximum > minimum" />
+                  <FormValidationError message="Redshift minimum/maximum must both be defined or left empty, with maximum > minimum" />
                 )}
                 <InputLabel id="redshift-select-label">Redshift</InputLabel>
                 <div className={classes.redshiftField}>
@@ -383,6 +399,94 @@ const CandidatesPreferences = () => {
                     </MenuItem>
                   ))}
                 </Controller>
+              </div>
+              <div
+                className={`${classes.formRow} ${classes.annotationSorting}`}
+              >
+                <Responsive
+                  element={FoldBox}
+                  title="Annotation Sorting"
+                  mobileProps={{ folded: true }}
+                >
+                  <InputLabel id="sorting-select-label">
+                    Annotation Origin
+                  </InputLabel>
+                  <Controller
+                    labelId="sorting-select-label"
+                    name="sortingOrigin"
+                    control={control}
+                    render={({ onChange, value }) => (
+                      <Select
+                        id="annotationSortingOriginSelect"
+                        value={value}
+                        onChange={(event) => {
+                          setSelectedAnnotationOrigin(event.target.value);
+                          onChange(event.target.value);
+                        }}
+                        input={
+                          <Input data-testid="annotationSortingOriginSelect" />
+                        }
+                      >
+                        {availableAnnotationsInfo ? (
+                          Object.keys(availableAnnotationsInfo).map(
+                            (option) => (
+                              <MenuItem key={option} value={option}>
+                                {option}
+                              </MenuItem>
+                            )
+                          )
+                        ) : (
+                          <div />
+                        )}
+                      </Select>
+                    )}
+                    defaultValue=""
+                  />
+                  <InputLabel id="sorting-select-key-label">
+                    Annotation Key
+                  </InputLabel>
+                  <Controller
+                    labelId="sorting-select-key-label"
+                    as={Select}
+                    name="sortingKey"
+                    control={control}
+                    input={<Input data-testid="annotationSortingKeySelect" />}
+                    defaultValue=""
+                  >
+                    {availableAnnotationsInfo ? (
+                      availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
+                        (option) => (
+                          <MenuItem
+                            key={Object.keys(option)[0]}
+                            value={Object.keys(option)[0]}
+                          >
+                            {Object.keys(option)[0]}
+                          </MenuItem>
+                        )
+                      )
+                    ) : (
+                      <div />
+                    )}
+                  </Controller>
+                  <InputLabel id="sorting-select-order-label">
+                    Annotation Sort Order
+                  </InputLabel>
+                  <Controller
+                    labelId="sorting-select-order-label"
+                    as={Select}
+                    name="sortingOrder"
+                    control={control}
+                    input={<Input data-testid="annotationSortingOrderSelect" />}
+                    defaultValue=""
+                  >
+                    <MenuItem key="desc" value="desc">
+                      descending
+                    </MenuItem>
+                    <MenuItem key="asc" value="asc">
+                      ascending
+                    </MenuItem>
+                  </Controller>
+                </Responsive>
               </div>
               <div>
                 <Responsive

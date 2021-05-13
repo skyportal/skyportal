@@ -174,6 +174,20 @@ const ScanningProfilesList = () => {
     return option?.label || "";
   };
 
+  const renderRedshift = (dataIndex) => {
+    const profile = profiles[dataIndex];
+    return profile?.redshiftMinimum
+      ? `[${profile.redshiftMinimum}, ${profile.redshiftMaximum}]`
+      : "";
+  };
+
+  const renderSorting = (dataIndex) => {
+    const profile = profiles[dataIndex];
+    return profile?.sortingOrigin
+      ? `${profile.sortingOrigin}: ${profile.sortingKey}, ${profile.sortingOrder}`
+      : "";
+  };
+
   const renderRejectedStatus = (dataIndex) => {
     const profile = profiles[dataIndex];
     return profile?.rejectedStatus === "show" ? (
@@ -232,11 +246,17 @@ const ScanningProfilesList = () => {
     },
     {
       name: "redshiftMinimum",
-      label: "Redshift Minimum",
+      label: "Redshift Range",
+      options: {
+        customBodyRenderLite: renderRedshift,
+      },
     },
     {
-      name: "redshiftMaximum",
-      label: "Redshift Maximum",
+      name: "sortingOrigin",
+      label: "Annotation Sorting",
+      options: {
+        customBodyRenderLite: renderSorting,
+      },
     },
     {
       name: "rejectedStatus",

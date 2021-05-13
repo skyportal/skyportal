@@ -214,12 +214,14 @@ const FilterCandidateList = ({
 
   const validateRedshifts = () => {
     formState = getValues({ nest: true });
-    // Need both ends of the range
     return (
-      formState.redshiftMinimum !== null &&
-      formState.redshiftMaximum !== null &&
-      parseFloat(formState.redshiftMaximum) >
-        parseFloat(formState.redshiftMinimum)
+      // Both null
+      (formState.redshiftMinimum === "" && formState.redshiftMaximum === "") ||
+      // Or both filled out
+      (formState.redshiftMinimum !== "" &&
+        formState.redshiftMaximum !== "" &&
+        parseFloat(formState.redshiftMaximum) >
+          parseFloat(formState.redshiftMinimum))
     );
   };
 
@@ -256,16 +258,29 @@ const FilterCandidateList = ({
     setFilterGroups(
       userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
     );
+    const fetchParams = { ...data };
 
-    // Clear annotation sort params
-    await dispatch(candidatesActions.setCandidatesAnnotationSortOptions(null));
-    setSortOrder(null);
+    // Clear annotation sort params, if a default sort is not defined
+    if (defaultScanningProfile?.sortingOrigin === undefined) {
+      await dispatch(
+        candidatesActions.setCandidatesAnnotationSortOptions(null)
+      );
+      setSortOrder(null);
+    } else {
+      fetchParams.sortByAnnotationOrigin = defaultScanningProfile.sortingOrigin;
+      fetchParams.sortByAnnotationKey = defaultScanningProfile.sortingKey;
+      fetchParams.sortByAnnotationOrder = defaultScanningProfile.sortingOrder;
+    }
 
     // Save form-specific data, formatted for the API query
     await dispatch(candidatesActions.setFilterFormData(data));
 
     await dispatch(
-      candidatesActions.fetchCandidates({ pageNumber: 1, numPerPage, ...data })
+      candidatesActions.fetchCandidates({
+        pageNumber: 1,
+        numPerPage,
+        ...fetchParams,
+      })
     );
     setQueryInProgress(false);
   };
@@ -389,7 +404,7 @@ const FilterCandidateList = ({
           </div>
           <div className={classes.formRow}>
             {errors.redshiftMinimum && (
-              <FormValidationError message="Both redshift minimum/maximum must be defined, with maximum > minimum" />
+              <FormValidationError message="Redshift minimum/maximum must both be defined or left empty, with maximum > minimum" />
             )}
             <InputLabel id="redshift-select-label">Redshift</InputLabel>
             <div className={classes.redshiftField}>
