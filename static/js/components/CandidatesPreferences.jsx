@@ -155,13 +155,27 @@ const CandidatesPreferences = () => {
   const validateRedshifts = () => {
     formState = getValues({ nest: true });
     return (
-      // Both null
+      // Both empty
       (formState.redshiftMinimum === "" && formState.redshiftMaximum === "") ||
       // Or both filled out
       (formState.redshiftMinimum !== "" &&
         formState.redshiftMaximum !== "" &&
         parseFloat(formState.redshiftMaximum) >
           parseFloat(formState.redshiftMinimum))
+    );
+  };
+
+  const validateSorting = () => {
+    formState = getValues({ nest: true });
+    return (
+      // All left empty
+      (formState.sortingOrigin === "" &&
+        formState.sortingKey === "" &&
+        formState.sortingOrder === "") ||
+      // Or all filled out
+      (formState.sortingOrigin !== "" &&
+        formState.sortingKey !== "" &&
+        formState.sortingOrder !== "")
     );
   };
 
@@ -405,6 +419,9 @@ const CandidatesPreferences = () => {
               <div
                 className={`${classes.formRow} ${classes.annotationSorting}`}
               >
+                {errors.sortingOrigin && (
+                  <FormValidationError message="All sorting fields must be left empty or all filled out" />
+                )}
                 <Responsive
                   element={FoldBox}
                   title="Annotation Sorting"
@@ -442,6 +459,7 @@ const CandidatesPreferences = () => {
                         )}
                       </Select>
                     )}
+                    rules={{ validate: validateSorting }}
                     defaultValue=""
                   />
                   <InputLabel id="sorting-select-key-label">

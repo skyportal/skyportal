@@ -215,7 +215,7 @@ const FilterCandidateList = ({
   const validateRedshifts = () => {
     formState = getValues({ nest: true });
     return (
-      // Both null
+      // Both empty
       (formState.redshiftMinimum === "" && formState.redshiftMaximum === "") ||
       // Or both filled out
       (formState.redshiftMinimum !== "" &&
