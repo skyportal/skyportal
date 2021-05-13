@@ -58,12 +58,6 @@ def test_add_sources_two_groups(
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
 
-    # Close filter form
-    driver.click_xpath(
-        "//button[contains(@class, 'MUIDataTableToolbar-filterCloseIcon')]",
-        wait_clickable=False,
-    )
-
     # find the date it was saved
     saved_at_element = driver.wait_for_xpath(
         f"//*[text()[contains(., '{t1.strftime('%Y-%m-%dT%H:%M')}')]]"
@@ -419,12 +413,6 @@ def test_hr_diagram(
 
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{source_id}')]")
-
-    # Close filter form
-    driver.click_xpath(
-        "//button[contains(@class, 'MUIDataTableToolbar-filterCloseIcon')]",
-        wait_clickable=False,
-    )
 
     # little triangle you push to expand the table
     driver.click_xpath("//*[@id='expandable-button']")
