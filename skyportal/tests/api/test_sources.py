@@ -253,7 +253,7 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
             "transient": False,
             "ra_dis": 2.3,
             "group_ids": [public_group.id],
-            "alias": alias,
+            "alias": [alias],
             "origin": origin,
         },
         token=upload_data_token,
@@ -269,7 +269,7 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
     saved_at = parser.parse(data["data"]["groups"][0]["saved_at"] + " UTC")
     assert abs(saved_at - t0) < timedelta(seconds=60)
 
-    assert alias == data["data"]["alias"]
+    assert alias == data["data"]["alias"][0]
     assert origin == data["data"]["origin"]
 
 

@@ -329,7 +329,7 @@ candidates:
     redshift: 0.0
     varstar: false
     passed_at: "2020-10-30 21:19:06.475748"
-    alias: 'ZTF21whatnow'
+    alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
   - id: 16fil
     filter_ids:
       - =example_filter
@@ -338,7 +338,7 @@ candidates:
     redshift: 0.0
     varstar: false
     passed_at: "2020-10-30 21:13:06.475748"
-    alias: 'ZTF21whatnow'
+    alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
   - id: ZTFe028h94k
     filter_ids:
       - =example_filter
@@ -350,7 +350,7 @@ candidates:
       simbad:
         class: RRLyr
     passed_at: "2020-10-30 11:13:06.475748"
-    alias: 'SN2020abc'
+    alias: ['SN2020abc']
   - id: ZTFrlh6cyjh
     filter_ids:
       - =example_filter
@@ -381,7 +381,7 @@ sources:
     group_ids:
       - =public_group_id
       - =program_A
-    alias: 'ZTF21whatnow'
+    alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
   - id: ZTFe028h94k
     ra: 229.9620403
     dec: 34.8442757
@@ -389,7 +389,7 @@ sources:
       - =public_group_id
       - =program_A
       - =program_B
-    alias: 'SN2020abc'
+    alias: ['SN2020abc']
   - id: ZTFrlh6cyjh
     ra: 342.4596
     dec: 51.2634

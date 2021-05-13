@@ -302,7 +302,7 @@ def test_filter_by_alias_and_origin(
             "transient": False,
             "ra_dis": 2.3,
             "group_ids": [public_group.id],
-            "alias": alias,
+            "alias": [alias],
             "origin": origin,
         },
         token=upload_data_token,

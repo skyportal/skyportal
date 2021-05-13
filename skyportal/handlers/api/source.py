@@ -222,7 +222,9 @@ class SourceHandler(BaseHandler):
             name: alias
             nullable: true
             schema:
-              type: string
+              type: array
+              items:
+                types: string
             description: additional name for the same object
           - in: query
             name: origin
@@ -876,7 +878,7 @@ class SourceHandler(BaseHandler):
                 == simbad_class.lower()
             )
         if alias is not None:
-            obj_query = obj_query.filter(Obj.alias.contains(alias.strip()))
+            obj_query = obj_query.filter(Obj.alias.any(alias.strip()))
         if origin is not None:
             obj_query = obj_query.filter(Obj.origin.contains(origin.strip()))
         if has_tns_name in ['true', True]:
