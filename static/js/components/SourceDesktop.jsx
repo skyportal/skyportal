@@ -178,6 +178,11 @@ const SourceDesktop = ({ source }) => {
           <div className={classes.alignRight}>
             <FavoritesButton sourceID={source.id} />
           </div>
+          <div className={classes.alignRight}>
+            {source.alias ? (
+              <div key="aliases"> ({source.alias.join(", ")}) </div>
+            ) : null}
+          </div>
           <br />
           <div className={classes.sourceInfo}>
             <div className={classes.infoLine}>
@@ -614,6 +619,7 @@ SourceDesktop.propTypes = {
         origin: PropTypes.string,
       })
     ),
+    alias: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
 };
 

@@ -451,9 +451,26 @@ const SourceTable = ({
   const renderAlias = (dataIndex) => {
     const { id: objid, alias } = sources[dataIndex];
 
+    if (alias) {
+      const alias_str = Array.isArray(alias)
+        ? alias.map((name) => <div key={name}> {name} </div>)
+        : alias;
+
+      return (
+        <Link to={`/source/${objid}`} key={`${objid}_alias`}>
+          {alias_str}
+        </Link>
+      );
+    }
+    return null;
+  };
+
+  const renderOrigin = (dataIndex) => {
+    const { id: objid, origin } = sources[dataIndex];
+
     return (
-      <Link to={`/source/${objid}`} key={`${objid}_alias`}>
-        {alias}
+      <Link to={`/source/${objid}`} key={`${objid}_origin`}>
+        {origin}
       </Link>
     );
   };
@@ -729,12 +746,24 @@ const SourceTable = ({
       },
     },
     {
-      name: "Alias",
+      name: "alias",
+      label: "Alias",
       options: {
-        filter: false,
+        filter: true,
         sort: false,
         display: displayedColumns.includes("Alias"),
         customBodyRenderLite: renderAlias,
+      },
+    },
+    {
+      name: "origin",
+      label: "Origin",
+      options: {
+        filter: true,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Origin"),
+        customBodyRenderLite: renderOrigin,
       },
     },
     {
@@ -933,7 +962,8 @@ SourceTable.propTypes = {
       id: PropTypes.string,
       ra: PropTypes.number,
       dec: PropTypes.number,
-      alias: PropTypes.string,
+      origin: PropTypes.string,
+      alias: PropTypes.arrayOf(PropTypes.string),
       redshift: PropTypes.number,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({
