@@ -166,7 +166,9 @@ def test_add_scanning_profile(
     )
 
     # TODO: Check that annotation sorting options have been set, once
-    # the front-end to display that has been implemented
+    # the front-end to display that has been implemented. Maybe just
+    # add it to the FilterCandidateList form on top of the existing way
+    # of clicking in the CandidateList table
 
 
 def test_delete_scanning_profile(driver, user, public_group):
