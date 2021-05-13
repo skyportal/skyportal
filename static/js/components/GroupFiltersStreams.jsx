@@ -184,7 +184,7 @@ const GroupFiltersStreams = ({
 
             <div>
               {/* only Super admins can add streams to groups */}
-              {currentUser.roles.includes("Super admin") &&
+              {currentUser.permissions.includes("System admin") &&
                 streams?.length > 0 &&
                 group?.streams?.length < streams?.length && (
                   <Button
