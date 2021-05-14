@@ -20,6 +20,7 @@ import Papa from "papaparse";
 import { showNotification } from "baselayer/components/Notifications";
 
 import FormValidationError from "./FormValidationError";
+import CommentList from "./CommentList";
 
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
@@ -124,12 +125,22 @@ const useStyles = makeStyles(() => ({
   groupSelect: {
     width: "20rem",
   },
+  comments: {
+    justify: "flex-end",
+  },
+  container: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+  },
 }));
 
 const SpectrumRow = ({ rowData, route }) => {
   const styles = useSourceStyles();
+  const classes = useStyles();
+
   return (
-    <div>
+    <div className={classes.container}>
       <Paper className={styles.photometryContainer}>
         <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
           <Plot
@@ -139,12 +150,19 @@ const SpectrumRow = ({ rowData, route }) => {
           />
         </Suspense>
       </Paper>
+
+      <Paper className={classes.comments}>
+        <Typography variant="h6">Comments</Typography>
+        <CommentList />
+      </Paper>
     </div>
   );
 };
 
 SpectrumRow.propTypes = {
-  route: PropTypes.string.isRequired,
+  route: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+  }).isRequired,
   rowData: PropTypes.arrayOf(PropTypes.number).isRequired,
 };
 

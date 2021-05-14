@@ -3,6 +3,8 @@ from pathlib import Path
 from astropy.time import Time
 import numpy as np
 
+from sqlalchemy.orm import joinedload
+
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
@@ -154,7 +156,10 @@ class SpectrumHandler(BaseHandler):
         """
 
         spectrum = Spectrum.get_if_accessible_by(
-            spectrum_id, self.current_user, raise_if_none=True
+            spectrum_id,
+            self.current_user,
+            raise_if_none=True,
+            options=[joinedload(Spectrum.comments)],
         )
 
         spec_dict = recursive_to_dict(spectrum)
@@ -163,6 +168,7 @@ class SpectrumHandler(BaseHandler):
         spec_dict["reducers"] = spectrum.reducers
         spec_dict["observers"] = spectrum.observers
         spec_dict["owner"] = spectrum.owner
+        spec_dict["comments"] = spectrum.comments
         self.verify_and_commit()
         return self.success(data=spec_dict)
 
@@ -513,7 +519,9 @@ class ObjSpectraHandler(BaseHandler):
             return self.error('Invalid object ID.')
 
         spectra = (
-            Spectrum.query_records_accessible_by(self.current_user)
+            Spectrum.query_records_accessible_by(
+                self.current_user, options=[joinedload(Spectrum.comments)]
+            )
             .filter(Spectrum.obj_id == obj_id)
             .all()
         )
@@ -525,6 +533,7 @@ class ObjSpectraHandler(BaseHandler):
             spec_dict["reducers"] = spec.reducers
             spec_dict["observers"] = spec.observers
             spec_dict["owner"] = spec.owner
+            spec_dict["comments"] = spec.comments
             return_values.append(spec_dict)
 
         normalization = self.get_query_argument('normalization', None)
