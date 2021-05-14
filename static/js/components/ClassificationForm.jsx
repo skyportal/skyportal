@@ -61,9 +61,8 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const groups = useSelector((state) => state.groups.userAccessible);
-  const [submissionRequestInProcess, setSubmissionRequestInProcess] = useState(
-    false
-  );
+  const [submissionRequestInProcess, setSubmissionRequestInProcess] =
+    useState(false);
   const groupIDToName = {};
   groups.forEach((g) => {
     groupIDToName[g.id] = g.name;
@@ -104,6 +103,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const CustomClassificationWidget = ({ value, onChange, options }) => (
     <TextField
       id="classification"
+      inputProps={{ MenuProps: { disableScrollLock: true } }}
       select
       required
       label="Classification"
@@ -147,7 +147,12 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       InputLabelProps={{
         shrink: true,
       }}
-      inputProps={{ min: "0", max: "1", step: "0.0001" }}
+      inputProps={{
+        MenuProps: { disableScrollLock: true },
+        min: "0",
+        max: "1",
+        step: "0.0001",
+      }}
       value={value || ""}
       onChange={(event) => {
         onChange(event.target.value);
@@ -166,6 +171,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       </InputLabel>
       <Select
         id="groupSelect"
+        inputProps={{ MenuProps: { disableScrollLock: true } }}
         onChange={(event) => {
           onChange(event.target.value);
         }}

@@ -128,6 +128,7 @@ const FollowupRequestForm = ({
     <div className={classes.container}>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
       <Select
+        inputProps={{ MenuProps: { disableScrollLock: true } }}
         labelId="allocationSelectLabel"
         value={selectedAllocationId}
         onChange={handleSelectedAllocationChange}
