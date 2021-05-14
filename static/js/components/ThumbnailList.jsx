@@ -114,7 +114,11 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
             onError={(e) => {
               if (url !== "#") {
                 e.target.onerror = null;
-                e.target.src = "/static/images/outside_survey.png";
+                if (name === "dr8") {
+                  e.target.src = "/static/images/outside_survey.png";
+                } else {
+                  e.target.src = "/static/images/currently_unavailable.png";
+                }
               }
             }}
           />
