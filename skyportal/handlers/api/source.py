@@ -963,7 +963,6 @@ class SourceHandler(BaseHandler):
             obj_query = obj_query.join(
                 classification_subquery,
                 Obj.id == classification_subquery.c.obj_id,
-                isouter=True,
             )
         source_query = apply_active_or_requested_filtering(
             source_query, include_requested, requested_only
