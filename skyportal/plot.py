@@ -68,8 +68,8 @@ SPEC_LINES = {
         '#00a64d',
     ),
     '[O II]': ([3726, 3729], '#b9d2c5'),
-    'O III': ([4959, 5007], '#00bf59'),
-    '[OIII]': ([4363, 4959, 5007], '#aeefcc'),
+    # 'O III': ([4959, 5007], '#00bf59'), # these lines are actually forbidden O III lines
+    '[O III]': ([4363, 4959, 5007], '#aeefcc'),
     'O V': ([3145, 4124, 4930, 5598, 6500], '#03d063'),
     'O VI': ([3811, 3834], '#01e46b'),
     'Na I': ([5890, 5896, 8183, 8195], '#aba000'),
@@ -178,12 +178,117 @@ SPEC_LINES = {
     # NaI 5890,5896; MgII 2798; SII 6717,6731; CaII H&K 3969,3934
     # ZnII 2025; CrII 2056,2062,2066; FeII 2249,2260,2343,2374,2382,2586,2599;
     # MnII 2576,2594; MgI 2852
+    'Tellurics-1': ([6867, 6884], '#ff0000'),
+    'Tellurics-2': ([7594, 7621], '#ff0000'),
+    'Sky Lines': (
+        [
+            4168,
+            4917,
+            4993,
+            5199,
+            5577,
+            5890,
+            6236,
+            6300,
+            6363,
+            6831,
+            6863,
+            6923,
+            6949,
+            7242,
+            7276,
+            7316,
+            7329,
+            7341,
+            7359,
+            7369,
+            7402,
+            7437,
+            7470,
+            7475,
+            7480,
+            7524,
+            7570,
+            7713,
+            7725,
+            7749,
+            7758,
+            7776,
+            7781,
+            7793,
+            7809,
+            7821,
+            7840,
+            7853,
+            7869,
+            7879,
+            7889,
+            7914,
+            7931,
+            7947,
+            7965,
+            7978,
+            7993,
+            8015,
+            8026,
+            8063,
+            8281,
+            8286,
+            8299,
+            8311,
+            8346,
+            8365,
+            8384,
+            8399,
+            8418,
+            8432,
+            8455,
+            8468,
+            8496,
+            8507,
+            8542,
+            8552,
+            8632,
+            8660,
+            8665,
+            8768,
+            8781,
+            8795,
+            8831,
+            8854,
+            8871,
+            8889,
+            8907,
+            8923,
+            8947,
+            8961,
+            8991,
+            9004,
+            9040,
+            9051,
+            9093,
+            9103,
+            9158,
+        ],
+        '#6dcff6',
+    ),
 }
 
+# SKYLINES from GM
+
+# SKYLINES = {[ 4168, 4917, 4993,5199,5577,5890,6236,6300,6363,6831,6863,6923,6949,7242,7276,7316,7329,7341,7359,7369,
+# 7402,7437,7470,7475,7480,7524,7570,7713,7725,7749,7758,7776,7781,7793,7809,7821,7840,7853,7869,7879,7889,7914,7931,
+# 7947,7965,7978,7993,8015,8026,8063,8281,8286,8299,8311,8346,8365,8384,8399,8418,8432,8455,8468,8496,8507,8542,8552,
+# 8632,8660,8665,8768,8781,8795,8831,8854,8871,8889,8907,8923,8947,8961,8991,9004,9040,9051,9093,9103,9158]}
+
+# TODO:  - generate the telluric lines and sky lines.
 # Tellurics
 # 'Tellurics': (np.append(list(np.linspace(6867,6884)), list(np.linspace(7594,7621))), '#99FFFF')
 
-# TODO:  - generate the telluric lines
+# TELLURICS = {
+
+#     # 6867-6884, 7594-7621
+# }
 
 
 class CheckboxWithLegendGroup(CheckboxGroup):
@@ -1499,10 +1604,19 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         margin=(0, 10, 0, 10),
     )
 
+    name_line_list = list(SPEC_LINES.items())
+
     for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
+
         el_data = pd.DataFrame({'wavelength': wavelengths})
-        obj_redshift = 0 if obj.redshift is None else obj.redshift
-        el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
+
+        if name_line_list[i][0] == 'SKYLINES':  # No redshift correction of skylines
+            el_data['x'] = el_data['wavelength']
+
+        else:
+            obj_redshift = 0 if obj.redshift is None else obj.redshift
+            el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
+
         model_dict[f'el{i}'] = plot.segment(
             x0='x',
             x1='x',
