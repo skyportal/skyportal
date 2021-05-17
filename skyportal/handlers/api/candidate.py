@@ -28,6 +28,7 @@ from ...models import (
     Listing,
     Comment,
 )
+from sqlalchemy.dialects import postgresql
 
 
 def update_redshift_history_if_relevant(request_data, obj, user):
@@ -1055,6 +1056,7 @@ def grab_query_results(
         )
         .order_by(ids_with_row_nums.c.row_num)
     )
+    print(ordered_ids.statement.compile(dialect=postgresql.dialect()))
 
     if page:
         # Now bring in the full Obj info for the candidates
