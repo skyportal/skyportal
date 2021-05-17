@@ -8,6 +8,8 @@ import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogContentText from "@material-ui/core/DialogContentText";
 import DialogTitle from "@material-ui/core/DialogTitle";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
 import Typography from "@material-ui/core/Typography";
 import { makeStyles } from "@material-ui/core/styles";
 
@@ -21,21 +23,30 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+const defaultState = {
+  newUserEmail: "",
+  role: "Full user",
+  admin: false,
+};
+
 const InviteNewGroupUserForm = ({ group_id }) => {
   const dispatch = useDispatch();
-  const [formState, setFormState] = useState({
-    newUserEmail: "",
-    admin: false,
-  });
+  const [formState, setFormState] = useState(defaultState);
   const [confirmDialogOpen, setConfirmDialogOpen] = React.useState(false);
   const classes = useStyles();
 
   const handleClickSubmit = async () => {
+    // Admin should always be false for view-only users
+    let admin = false;
+    if (formState.role === "Full user") {
+      admin = formState.admin;
+    }
     const result = await dispatch(
       invitationsActions.inviteUser({
         userEmail: formState.newUserEmail,
         groupIDs: [group_id],
-        groupAdmin: [formState.admin],
+        groupAdmin: [admin],
+        role: formState.role,
         streamIDs: null,
       })
     );
@@ -45,11 +56,15 @@ const InviteNewGroupUserForm = ({ group_id }) => {
           `Invitation successfully sent to ${formState.newUserEmail}`
         )
       );
-      setFormState({
-        newUserEmail: "",
-        admin: false,
-      });
+      setFormState(defaultState);
     }
+  };
+
+  const handleRoleChange = (event) => {
+    setFormState({
+      ...formState,
+      role: event.target.value,
+    });
   };
 
   const toggleAdmin = (event) => {
@@ -75,12 +90,23 @@ const InviteNewGroupUserForm = ({ group_id }) => {
           label="Enter user email"
         />
       </div>
-      <input
-        type="checkbox"
-        checked={formState?.admin || false}
-        onChange={toggleAdmin}
-      />
-      Group Admin &nbsp;&nbsp;
+      <Select defaultValue="Full user" onChange={handleRoleChange}>
+        {["Full user", "View only"].map((role) => (
+          <MenuItem key={role} value={role}>
+            {role}
+          </MenuItem>
+        ))}
+      </Select>
+      {formState.role === "Full user" && (
+        <>
+          <input
+            type="checkbox"
+            checked={formState?.admin || false}
+            onChange={toggleAdmin}
+          />
+          Group Admin &nbsp;&nbsp;
+        </>
+      )}
       <Button
         data-testid="inviteNewUserButton"
         onClick={() => setConfirmDialogOpen(true)}

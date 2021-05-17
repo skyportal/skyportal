@@ -14,6 +14,7 @@ from ...models import (
     User,
     Invitation,
     Stream,
+    Role,
 )
 
 _, cfg = load_env()
@@ -35,6 +36,12 @@ class InvitationHandler(BaseHandler):
                 properties:
                   userEmail:
                     type: string
+                  role:
+                    type: string
+                    description: |
+                      The role the new user will have in the system.
+                      If provided, must be one of either "Full user" or "View only".
+                      Defaults to "Full user".
                   streamIDs:
                     type: array
                     items:
@@ -81,6 +88,13 @@ class InvitationHandler(BaseHandler):
             return self.error("Invitations are not enabled in current deployment.")
         data = self.get_json()
 
+        role_id = data.get("role", "Full user")
+        if role_id not in ["Full user", "View only"]:
+            return self.error(
+                f"Unsupported value provided for parameter `role`: {role_id}. "
+                "Must be one of either 'Full user' or 'View only'."
+            )
+        role = Role.query.get(role_id)
         if data.get("userEmail") in [None, "", "None", "null"]:
             return self.error("Missing required parameter `userEmail`")
         user_email = data["userEmail"].strip()
@@ -147,6 +161,7 @@ class InvitationHandler(BaseHandler):
             admin_for_groups=admin_for_groups,
             streams=streams,
             user_email=user_email,
+            role=role,
             invited_by=self.associated_user_object,
         )
         DBSession().add(invitation)
