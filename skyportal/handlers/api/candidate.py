@@ -442,6 +442,8 @@ class CandidateHandler(BaseHandler):
 
         page_number = self.get_query_argument("pageNumber", None) or 1
         n_per_page = self.get_query_argument("numPerPage", None) or 25
+        # Not documented in API docs as this is for frontend-only usage & will confuse
+        # users looking through the API docs
         query_id = self.get_query_argument("queryID", None)
         saved_status = self.get_query_argument("savedStatus", "all")
         total_matches = self.get_query_argument("totalMatches", None)
