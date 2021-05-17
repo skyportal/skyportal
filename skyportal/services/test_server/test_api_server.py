@@ -129,26 +129,22 @@ def ztf_request_matcher(r1, r2):
     Helper function to help determine if two requests to the ZTF API are equivalent
     """
 
-    # A request matches an LCO request if the URI and method matches
+    # A request matches an ZTF request if the URI and method matches
 
     r1_uri = r1.uri.replace(":443", "")
     r2_uri = r2.uri.replace(":443", "")
 
-    def submit_type(uri):
-        patterns = {
-            "delete": r"/api/triggers/ztf",
-            "put": r"/api/triggers/ztf/",
-        }
-        for (submit_type, pattern) in patterns.items():
-            if re.search(pattern, uri) is not None:
-                return submit_type
+    def is_ztf_request(uri):
+        pattern = r"/api/triggers/ztf"
+        if re.search(pattern, uri) is not None:
+            return True
 
-        return None
+        return False
 
-    r1_type = submit_type(r1_uri)
-    r2_type = submit_type(r2_uri)
+    r1_is_ztf = is_ztf_request(r1_uri)
+    r2_is_ztf = is_ztf_request(r2_uri)
 
-    assert r1_type == r2_type and r1.method == r2.method
+    assert r1_is_ztf and r2_is_ztf and r1.method == r2.method
 
 
 class TestRouteHandler(tornado.web.RequestHandler):

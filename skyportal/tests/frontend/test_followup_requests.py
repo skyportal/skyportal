@@ -757,7 +757,7 @@ def test_edit_existing_followup_request(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not ztf_isonline, reason='ZTF server down')
 def test_delete_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
