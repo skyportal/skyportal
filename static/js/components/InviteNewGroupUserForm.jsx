@@ -79,7 +79,7 @@ const InviteNewGroupUserForm = ({ group_id }) => {
       <Typography className={classes.heading}>
         Invite a new user to the site and add them to this group
       </Typography>
-      <div style={{ paddingBottom: "1rem" }}>
+      <div style={{ paddingBottom: "0.5rem" }}>
         <TextField
           id="newUserEmail"
           data-testid="newUserEmail"
@@ -90,13 +90,15 @@ const InviteNewGroupUserForm = ({ group_id }) => {
           label="Enter user email"
         />
       </div>
-      <Select defaultValue="Full user" onChange={handleRoleChange}>
-        {["Full user", "View only"].map((role) => (
-          <MenuItem key={role} value={role}>
-            {role}
-          </MenuItem>
-        ))}
-      </Select>
+      <div style={{ paddingBottom: "0.5rem" }}>
+        <Select defaultValue="Full user" onChange={handleRoleChange}>
+          {["Full user", "View only"].map((role) => (
+            <MenuItem key={role} value={role}>
+              {role}
+            </MenuItem>
+          ))}
+        </Select>
+      </div>
       {formState.role === "Full user" && (
         <>
           <input
