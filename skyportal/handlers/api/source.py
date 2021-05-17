@@ -8,7 +8,7 @@ import io
 import math
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func, or_, tuple_
+from sqlalchemy import func, or_
 import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
@@ -803,38 +803,6 @@ class SourceHandler(BaseHandler):
         )
         source_query = Source.query_records_accessible_by(self.current_user)
 
-        if list_name:
-            listing_subquery = Listing.query_records_accessible_by(
-                self.current_user
-            ).subquery()
-            obj_query = obj_query.join(
-                listing_subquery, Obj.id == listing_subquery.c.obj_id
-            )
-        if classifications is not None or sort_by == "classification":
-            if classifications is not None:
-                taxonomy_subquery = Taxonomy.query_records_accessible_by(
-                    self.current_user
-                ).subquery()
-                classification_subquery = Classification.query_records_accessible_by(
-                    self.current_user,
-                    columns=[Classification, taxonomy_subquery.c.name.label("name")],
-                )
-                classification_subquery = classification_subquery.join(
-                    taxonomy_subquery,
-                    Classification.taxonomy_id == taxonomy_subquery.c.id,
-                )
-            else:
-                classification_subquery = Classification.query_records_accessible_by(
-                    self.current_user
-                )
-
-            classification_subquery = classification_subquery.subquery()
-            obj_query = obj_query.join(
-                classification_subquery,
-                Obj.id == classification_subquery.c.obj_id,
-                isouter=True,
-            )
-
         if sourceID:
             obj_query = obj_query.filter(Obj.id.contains(sourceID.strip()))
         if any([ra, dec, radius]):
@@ -868,9 +836,14 @@ class SourceHandler(BaseHandler):
         if saved_after:
             source_query = source_query.filter(Source.saved_at >= saved_after)
         if list_name:
-            obj_query = obj_query.filter(
-                listing_subquery.c.list_name == list_name,
-                listing_subquery.c.user_id == self.associated_user_object.id,
+            listing_subquery = (
+                Listing.query_records_accessible_by(self.current_user)
+                .filter(Listing.list_name == list_name)
+                .filter(Listing.user_id == self.associated_user_object.id)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                listing_subquery, Obj.id == listing_subquery.c.obj_id
             )
         if simbad_class:
             obj_query = obj_query.filter(
@@ -946,27 +919,50 @@ class SourceHandler(BaseHandler):
             obj_query = obj_query.filter(
                 Obj.last_detected_mag(self.current_user) <= max_latest_magnitude
             )
-        if classifications is not None:
-            if isinstance(classifications, str) and "," in classifications:
-                classifications = [c.strip() for c in classifications.split(",")]
-            elif isinstance(classifications, str):
-                classifications = [classifications]
+        if classifications is not None or sort_by == "classification":
+            if classifications is not None:
+                if isinstance(classifications, str) and "," in classifications:
+                    classifications = [c.strip() for c in classifications.split(",")]
+                elif isinstance(classifications, str):
+                    classifications = [classifications]
+                else:
+                    return self.error(
+                        "Invalid classifications value -- must provide at least one string value"
+                    )
+                taxonomy_names, classifications = list(
+                    zip(
+                        *list(
+                            map(
+                                lambda c: (
+                                    c.split(":")[0].strip(),
+                                    c.split(":")[1].strip(),
+                                ),
+                                classifications,
+                            )
+                        )
+                    )
+                )
+                taxonomy_subquery = (
+                    Taxonomy.query_records_accessible_by(self.current_user)
+                    .filter(Taxonomy.name.in_(taxonomy_names))
+                    .subquery()
+                )
+                classification_query = Classification.query_records_accessible_by(
+                    self.current_user
+                ).filter(Classification.classification.in_(classifications))
+                classification_query = classification_query.join(
+                    taxonomy_subquery,
+                    Classification.taxonomy_id == taxonomy_subquery.c.id,
+                )
             else:
-                return self.error(
-                    "Invalid classifications value -- must provide at least one string value"
+                # Not filtering on classifications, but ordering on them
+                classification_query = Classification.query_records_accessible_by(
+                    self.current_user
                 )
-            # Parse into tuples of taxonomy: classification
-            classifications = list(
-                map(
-                    lambda c: (c.split(":")[0].strip(), c.split(":")[1].strip()),
-                    classifications,
-                )
-            )
-            obj_query = obj_query.filter(
-                tuple_(
-                    classification_subquery.c.name,
-                    classification_subquery.c.classification,
-                ).in_(classifications)
+            classification_subquery = classification_query.subquery()
+            obj_query = obj_query.join(
+                classification_subquery,
+                Obj.id == classification_subquery.c.obj_id,
             )
         source_query = apply_active_or_requested_filtering(
             source_query, include_requested, requested_only
