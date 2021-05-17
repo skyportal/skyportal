@@ -84,3 +84,13 @@ def test_cache_reference_refresh(cache):
 
 def test_cache_nested_root(cache_parent_dir):
     Cache(cache_parent_dir / 'some/deeper/path', 1)
+
+
+def test_cache_no_max_limit(cache_parent_dir):
+    cache = Cache(
+        pjoin(cache_parent_dir, 'cache_nm_limit'), max_items=None, max_age=None
+    )
+    for i in range(100):
+        cache[str(i)] = b'x'
+
+    assert len(cache) == 100

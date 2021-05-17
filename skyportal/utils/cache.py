@@ -9,17 +9,20 @@ log = make_log('cache')
 
 
 class Cache:
-    def __init__(self, cache_dir, max_items=10, max_age=None):
+    def __init__(self, cache_dir, max_items=None, max_age=None):
         """
         Parameters
         ----------
         cache_dir : Path or str
             Path to cache.  Will be created if necessary.
         max_items : int, optional
-            Maximum number of items ever held in the cache.
+            Maximum number of items ever held in the cache.  If
+            unspecified, then the cache size is only controlled by
+            `max_age`.
         max_age : int, optional
             Maximum age (in seconds) of an item in the cache before it
-            gets removed.
+            gets removed.  If unspecified, the cache size is only
+            controlled by `max_items`.
         """
         cache_dir = Path(cache_dir)
         if not cache_dir.is_dir():
@@ -110,8 +113,9 @@ class Cache:
             ]
             self._remove(removed_by_time)
 
-        oldest = cached_files[self._max_items :]
-        self._remove([filename for (mtime, filename) in oldest])
+        if self._max_items is not None:
+            oldest = cached_files[self._max_items :]
+            self._remove([filename for (mtime, filename) in oldest])
 
     def __len__(self):
         return len(list(self._cache_dir.glob('*')))
