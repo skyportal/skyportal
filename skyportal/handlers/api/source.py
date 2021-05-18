@@ -8,7 +8,7 @@ import io
 import math
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, distinct
 import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
@@ -942,28 +942,52 @@ class SourceHandler(BaseHandler):
                         )
                     )
                 )
-                taxonomy_subquery = (
-                    Taxonomy.query_records_accessible_by(self.current_user)
+                classification_accessible_query = (
+                    Classification.query_records_accessible_by(
+                        self.current_user
+                    ).subquery()
+                )
+
+                classification_query = (
+                    DBSession()
+                    .query(
+                        distinct(Classification.obj_id).label("obj_id"),
+                        Classification.classification,
+                    )
+                    .join(Taxonomy)
+                    .filter(Classification.classification.in_(classifications))
                     .filter(Taxonomy.name.in_(taxonomy_names))
-                    .subquery()
                 )
-                classification_query = Classification.query_records_accessible_by(
-                    self.current_user
-                ).filter(Classification.classification.in_(classifications))
-                classification_query = classification_query.join(
-                    taxonomy_subquery,
-                    Classification.taxonomy_id == taxonomy_subquery.c.id,
+                classification_subquery = classification_query.subquery()
+
+                # We join in the classifications being filtered for first before
+                # the filter for accessible classifications to speed up the query
+                # (this way seems to help the query planner come to more optimal join
+                # strategies)
+                obj_query = obj_query.join(
+                    classification_subquery,
+                    Obj.id == classification_subquery.c.obj_id,
                 )
+                obj_query = obj_query.join(
+                    classification_accessible_query,
+                    Obj.id == classification_accessible_query.c.obj_id,
+                )
+
             else:
                 # Not filtering on classifications, but ordering on them
                 classification_query = Classification.query_records_accessible_by(
                     self.current_user
                 )
-            classification_subquery = classification_query.subquery()
-            obj_query = obj_query.join(
-                classification_subquery,
-                Obj.id == classification_subquery.c.obj_id,
-            )
+                classification_subquery = classification_query.subquery()
+
+                # We need an outer join here when just sorting by classifications
+                # to support sources with no classifications being sorted to the end
+                obj_query = obj_query.join(
+                    classification_subquery,
+                    Obj.id == classification_subquery.c.obj_id,
+                    isouter=True,
+                )
+
         source_query = apply_active_or_requested_filtering(
             source_query, include_requested, requested_only
         )
