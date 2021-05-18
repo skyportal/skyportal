@@ -1625,10 +1625,9 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
 
             sz_dict[f'el{i}'].visible = False
 
-        elif name_line_list[i][0] == 'Tellurics-1':
+        elif name_line_list[i][0] in ('Tellurics-1', 'Tellurics-2'):
 
             el_data['x'] = el_data['wavelength']
-            # [6867, 6884]
             midtel1 = (el_data['x'][0] + el_data['x'][1]) / 2
             widtel1 = el_data['x'][1] - el_data['x'][0]
 
@@ -1639,27 +1638,6 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
                 top=1e4,
                 color=color,
                 alpha=0.3,
-                # source=ColumnDataSource(tel1),
-            )
-
-            sz_dict[f'el{i}'].visible = False
-
-        elif name_line_list[i][0] == 'Tellurics-2':
-
-            el_data['x'] = el_data['wavelength']
-            # [7594, 7621]
-
-            midtel2 = (el_data['x'][0] + el_data['x'][1]) / 2
-            widtel2 = el_data['x'][1] - el_data['x'][0]
-
-            sz_dict[f'el{i}'] = plot.vbar(
-                x=midtel2,
-                width=widtel2,
-                # TODO change limits
-                top=1e4,
-                color=color,
-                alpha=0.3,
-                # source=ColumnDataSource(tel2),
             )
 
             sz_dict[f'el{i}'].visible = False
@@ -1692,7 +1670,6 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     callbacks = []  # The checkbox callbacks for each element
 
     full_model_dict = {**model_dict, **sz_dict}
-    # dict3 = {**dict1 , **dict2}
 
     for column_idx, element_dict in enumerate(element_dicts):
         element_dict = [e for e in element_dict if e is not None]
@@ -1708,7 +1685,6 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
                 'elements': elements,
                 'z': z_textinput,
                 'v_exp': v_exp_textinput,
-                # **model_dict,
                 **full_model_dict,
             },
             code=f"""
@@ -1738,7 +1714,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
                 **model_dict,  # only on the spec lines, not tellurics or sky lines
             },
             code=f"""
-            let c = 299792.458; // speed of light in km / s
+            const c = 299792.458; // speed of light in km / s
             const i_max = {column_idx} +  {columns} * elements.labels.length;
             let local_i = 0;
             for (let i = {column_idx}; i < i_max; i = i + {columns}) {{
@@ -1792,11 +1768,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     )
 
     # Update the element spectral lines as well
-    for (
-        callback
-    ) in (
-        callbacks
-    ):  # it's all the callbacks and it's wroth for every one of them. should separate here also
+    for callback in callbacks:  
+        # it's all the callbacks and it's wroth for every one of them. should separate here also
         z_textinput.js_on_change('value', callback)
         v_exp_textinput.js_on_change('value', callback)
 
