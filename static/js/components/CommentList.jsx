@@ -4,7 +4,6 @@ import { useSelector, useDispatch } from "react-redux";
 import { Button } from "@material-ui/core";
 import Tooltip from "@material-ui/core/Tooltip";
 import GroupIcon from "@material-ui/icons/Group";
-import Checkbox from "@material-ui/core/Checkbox";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -22,7 +21,6 @@ dayjs.extend(utc);
 
 const CommentList = () => {
   const [hoverID, setHoverID] = useState(null);
-  const [compact, setCompact] = useState(false);
 
   const handleMouseHover = (id, userProfile, author) => {
     if (
@@ -37,14 +35,13 @@ const CommentList = () => {
     setHoverID(null);
   };
 
-  const handleCompact = (event) => {
-    setCompact(event.target.checked);
-  };
-
   const dispatch = useDispatch();
   const obj = useSelector((state) => state.source);
   const userProfile = useSelector((state) => state.profile);
   const permissions = useSelector((state) => state.profile.permissions);
+  const compactComments = useSelector(
+    (state) => state.profile.preferences.compactedComments
+  );
 
   // Color styling
   const userColorTheme = useSelector(
@@ -68,14 +65,6 @@ const CommentList = () => {
   return (
     <div className={styles.comments}>
       <div className={styles.commentsList}>
-        <div>
-          Compact
-          <Checkbox
-            checked={compact}
-            onChange={handleCompact}
-            inputProps={{ "aria-label": "primary checkbox" }}
-          />
-        </div>
         {comments.map(
           ({ id, author, created_at, text, attachment_name, groups }) => (
             <span
@@ -88,7 +77,7 @@ const CommentList = () => {
               onFocus={() => handleMouseHover(id, userProfile, author.username)}
               onBlur={() => handleMouseLeave()}
             >
-              {compact ? (
+              {compactComments ? (
                 <div className={styles.compactContainer}>
                   <span className={styles.commentUserName}>
                     {author.username}
