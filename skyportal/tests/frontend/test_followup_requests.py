@@ -38,6 +38,19 @@ except requests.exceptions.ConnectTimeout:
 else:
     lco_isonline = True
 
+if cfg['app.ztf.port'] is None:
+    ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}"
+else:
+    ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
+
+ztf_isonline = False
+try:
+    requests.get(ZTF_URL, timeout=5)
+except requests.exceptions.ConnectTimeout:
+    pass
+else:
+    ztf_isonline = True
+
 
 def add_telescope_and_instrument(instrument_name, token):
     status, data = api("GET", f"instrument?name={instrument_name}", token=token)
@@ -132,6 +145,70 @@ def add_allocation_lco(instrument_id, group_id, token):
     assert status == 200
     assert data["status"] == "success"
     return data["data"]
+
+
+def add_allocation_ztf(instrument_id, group_id, token):
+    status, data = api(
+        "POST",
+        "allocation",
+        data={
+            "group_id": group_id,
+            "instrument_id": instrument_id,
+            "hours_allocated": 100,
+            "pi": "Ed Hubble",
+            '_altdata': '{"access_token": "testtoken"}',
+        },
+        token=token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    return data["data"]
+
+
+def add_followup_request_using_frontend_and_verify_ZTF(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+    idata = add_telescope_and_instrument("ZTF", super_admin_token)
+    add_allocation_ztf(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "ZTF")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    driver.click_xpath(submit_button_xpath)
+
+    driver.click_xpath("//div[@data-testid='ZTF-requests-header']")
+    driver.wait_for_xpath(
+        '//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "GRB")]'
+    )
+    driver.wait_for_xpath(
+        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "300")]'''
+    )
+    driver.wait_for_xpath(
+        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "g,r,i")]'''
+    )
+    driver.wait_for_xpath(
+        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]'''
+    )
 
 
 def add_followup_request_using_frontend_and_verify_Floyds(
@@ -544,6 +621,17 @@ def add_followup_request_using_frontend_and_verify_IOO(
     )
 
 
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not ztf_isonline, reason="ZTF server down")
+def test_submit_new_followup_request_ZTF(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+
+    add_followup_request_using_frontend_and_verify_ZTF(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+
 # @pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason="SEDM server down")
 def test_submit_new_followup_request_SEDM(
@@ -670,6 +758,30 @@ def test_edit_existing_followup_request(
 
 
 @pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not ztf_isonline, reason='ZTF server down')
+def test_delete_followup_request_ZTF(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    add_followup_request_using_frontend_and_verify_ZTF(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+    driver.click_xpath(
+        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
+    )
+
+    driver.wait_for_xpath_to_disappear(
+        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "GRB")]'''
+    )
+    driver.wait_for_xpath_to_disappear(
+        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "300")]'''
+    )
+    driver.wait_for_xpath_to_disappear(
+        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]'''
+    )
+
+
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not sedm_isonline, reason='SEDM server down')
 def test_delete_followup_request_SEDM(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -765,7 +877,7 @@ def test_delete_followup_request_SPRAT(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_delete_followup_request_Sinistro(
     driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
