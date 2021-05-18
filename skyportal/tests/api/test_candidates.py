@@ -1,6 +1,9 @@
+import os
+import time
 import datetime
-import numpy.testing as npt
 import uuid
+import subprocess
+import numpy.testing as npt
 
 from skyportal.tests import api
 
@@ -1456,6 +1459,39 @@ def test_candidate_list_pagination(
     )
     assert status == 200
     assert data["data"]["candidates"][0]["id"] == obj_id1
+    assert "queryID" in data["data"]
+    query_id = data["data"]["queryID"]
+
+    status, data = api(
+        "GET",
+        "candidates",
+        params={"pageNumber": 1, "queryID": query_id},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["data"]["queryID"] == query_id
+
+    # Wait until cache is expired
+    time.sleep(3)
+
+    # Run cron job that deletes old query cache files
+    root_project_dir = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    )
+    subprocess.call(
+        f"export PYTHONPATH={root_project_dir} && jobs/delete_old_cands_query_cache.py --config=test_config.yaml",
+        shell=True,
+    )
+
+    # Cache should now be removed, so we expect a new query ID
+    status, data = api(
+        "GET",
+        "candidates",
+        params={"pageNumber": 1, "queryID": query_id},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["data"]["queryID"] != query_id
 
     # Invalid page
     status, data = api(
