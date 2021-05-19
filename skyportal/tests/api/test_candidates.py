@@ -1,8 +1,6 @@
-import os
 import time
 import datetime
 import uuid
-import subprocess
 import numpy.testing as npt
 
 from skyportal.tests import api
@@ -1474,14 +1472,14 @@ def test_candidate_list_pagination(
     # Wait until cache is expired
     time.sleep(3)
 
-    # Run cron job that deletes old query cache files
-    root_project_dir = os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    # Submit new request, which will create new (unrelated) cache, triggering
+    # cleanup of expired cache files
+    status, data = api(
+        "GET",
+        "candidates",
+        token=view_only_token,
     )
-    subprocess.call(
-        f"export PYTHONPATH={root_project_dir} && jobs/delete_old_cands_query_cache.py --config=test_config.yaml",
-        shell=True,
-    )
+    assert status == 200
 
     # Cache should now be removed, so we expect a new query ID
     status, data = api(
