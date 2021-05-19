@@ -36,11 +36,15 @@ def update_redshift_history_if_relevant(request_data, obj, user):
             redshift_history = []
         else:
             redshift_history = copy(obj.redshift_history)
+        # TODO: check if redshift is None before appending record?
         redshift_history.append(
             {
                 "set_by_user_id": user.id,
                 "set_at_utc": datetime.datetime.utcnow().isoformat(),
                 "value": request_data["redshift"],
+                "uncertainty": request_data["redshift_error"]
+                if "redshift_error" in request_data
+                else None,
             }
         )
         obj.redshift_history = redshift_history
