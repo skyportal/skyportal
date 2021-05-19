@@ -36,7 +36,6 @@ def update_redshift_history_if_relevant(request_data, obj, user):
             redshift_history = []
         else:
             redshift_history = copy(obj.redshift_history)
-        # TODO: check if redshift is None before appending record?
         redshift_history.append(
             {
                 "set_by_user_id": user.id,

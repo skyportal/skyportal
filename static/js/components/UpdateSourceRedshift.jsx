@@ -33,6 +33,10 @@ const UpdateSourceRedshift = ({ source }) => {
   const [state, setState] = useState(
     source.redshift ? String(source.redshift) : ""
   );
+  const [uncstate, setUncState] = useState(
+    source.redshift_error ? String(source.redshift_error) : ""
+  );
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invalid, setInvalid] = useState(true);
@@ -41,6 +45,11 @@ const UpdateSourceRedshift = ({ source }) => {
     // eslint-disable-next-line no-restricted-globals
     setInvalid(!String(source.redshift) || isNaN(String(source.redshift)));
     setState(source.redshift ? String(source.redshift) : "");
+    setInvalid(
+      // eslint-disable-next-line no-restricted-globals
+      !String(source.redshift_error) || isNaN(String(source.redshift_error))
+    );
+    setUncState(source.redshift_error ? String(source.redshift_error) : "");
   }, [source, setInvalid]);
 
   const handleChange = (e) => {
@@ -49,11 +58,20 @@ const UpdateSourceRedshift = ({ source }) => {
     setInvalid(!value || isNaN(value));
     setState(value);
   };
+  const handleUncChange = (e) => {
+    const uncvalue = String(e.target.value).trim();
+    // eslint-disable-next-line no-restricted-globals
+    setInvalid(!uncvalue || isNaN(uncvalue));
+    setUncState(uncvalue);
+  };
 
-  const handleSubmit = async (value) => {
+  const handleSubmit = async (value, uncvalue) => {
     setIsSubmitting(true);
     const result = await dispatch(
-      sourceActions.updateSource(source.id, { redshift: value })
+      sourceActions.updateSource(source.id, {
+        redshift: value,
+        redshift_error: uncvalue,
+      })
     );
     setIsSubmitting(false);
     if (result.status === "success") {
@@ -94,11 +112,25 @@ const UpdateSourceRedshift = ({ source }) => {
               variant="outlined"
             />
           </div>
+          <p />
+          <div>
+            {invalid && (
+              <FormValidationError message="Please enter a valid float" />
+            )}
+            <TextField
+              data-testid="updateRedshiftErrorTextfield"
+              size="small"
+              label="z_err"
+              value={uncstate}
+              onChange={handleUncChange}
+              variant="outlined"
+            />
+          </div>
           <div className={classes.saveButton}>
             <Button
               color="primary"
               onClick={() => {
-                handleSubmit(state);
+                handleSubmit(state, uncstate);
               }}
               startIcon={<SaveIcon />}
               size="large"
@@ -113,7 +145,7 @@ const UpdateSourceRedshift = ({ source }) => {
               <Button
                 color="primary"
                 onClick={() => {
-                  handleSubmit(null);
+                  handleSubmit(null, null);
                 }}
                 startIcon={<ClearIcon />}
                 size="large"
@@ -134,6 +166,7 @@ UpdateSourceRedshift.propTypes = {
   source: PropTypes.shape({
     id: PropTypes.string,
     redshift: PropTypes.number,
+    redshift_error: PropTypes.number,
   }).isRequired,
 };
 
