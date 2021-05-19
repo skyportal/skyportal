@@ -21,6 +21,7 @@ def upgrade():
     op.add_column('invitations', sa.Column('role_id', sa.String(), nullable=False))
     op.create_foreign_key(None, 'invitations', 'roles', ['role_id'], ['id'])
 
+    # Back-populate existing rows
     invitations = sa.Table(
         "invitations",
         sa.MetaData(),
