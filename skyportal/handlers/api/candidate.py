@@ -1,10 +1,10 @@
-import os
 import datetime
 from copy import copy
 import re
 import json
 import ast
 import uuid
+import io
 
 import arrow
 import numpy as np
@@ -16,6 +16,7 @@ from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -30,6 +31,15 @@ from ...models import (
     Classification,
     Listing,
     Comment,
+)
+from ...utils.cache import Cache
+
+
+_, cfg = load_env()
+cache_dir = "cache/candidates_queries"
+cache = Cache(
+    cache_dir=cache_dir,
+    max_age=cfg["misc"]["minutes_to_keep_candidate_query_cache"] * 60,
 )
 
 
@@ -1068,34 +1078,27 @@ def grab_query_results(
 
     if page:
         if use_cache:
-            cache_dir = "cache/candidate_queries"
             if query_id is None:
                 query_id = str(uuid.uuid4())
-                if not os.path.exists(cache_dir):
-                    os.mkdir(cache_dir)
                 all_ids = ordered_ids.all()
-                np.save(f"{cache_dir}/{query_id}.npy", all_ids)
-                results = all_ids[
-                    ((page - 1) * n_items_per_page) : (page * n_items_per_page)  # noqa
-                ]
+                bytes_data = io.BytesIO()
+                np.save(bytes_data, all_ids)
+                cache[query_id] = bytes_data.getvalue()
             else:
-                try:
-                    ids = np.load(f"{cache_dir}/{query_id}.npy")
-                except FileNotFoundError:
+                cache_filename = cache[query_id]
+                if cache_filename is not None:
+                    all_ids = np.load(cache_filename)
+                else:
                     # Cache expired/removed; create new cache file
                     query_id = str(uuid.uuid4())
-                    if not os.path.exists(cache_dir):
-                        os.mkdir(cache_dir)
                     all_ids = ordered_ids.all()
-                    np.save(f"{cache_dir}/{query_id}.npy", all_ids)
-                    results = all_ids[
-                        ((page - 1) * n_items_per_page) : (  # noqa
-                            page * n_items_per_page
-                        )
-                    ]
-                results = ids[
-                    ((page - 1) * n_items_per_page) : (page * n_items_per_page)  # noqa
-                ]
+                    bytes_data = io.BytesIO()
+                    np.save(bytes_data, all_ids)
+                    cache[query_id] = bytes_data.getvalue()
+
+            results = all_ids[
+                ((page - 1) * n_items_per_page) : (page * n_items_per_page)
+            ]
             info["queryID"] = query_id
         else:
             results = (
