@@ -4,7 +4,6 @@ import re
 import json
 import ast
 import uuid
-import io
 
 import arrow
 import numpy as np
@@ -32,7 +31,7 @@ from ...models import (
     Listing,
     Comment,
 )
-from ...utils.cache import Cache
+from ...utils.cache import Cache, array_to_bytes
 
 
 _, cfg = load_env()
@@ -1078,23 +1077,14 @@ def grab_query_results(
 
     if page:
         if use_cache:
-            if query_id is None:
+            cache_filename = cache[query_id]
+            if cache_filename is not None:
+                all_ids = np.load(cache_filename)
+            else:
+                # Cache expired/removed/non-existent; create new cache file
                 query_id = str(uuid.uuid4())
                 all_ids = ordered_ids.all()
-                bytes_data = io.BytesIO()
-                np.save(bytes_data, all_ids)
-                cache[query_id] = bytes_data.getvalue()
-            else:
-                cache_filename = cache[query_id]
-                if cache_filename is not None:
-                    all_ids = np.load(cache_filename)
-                else:
-                    # Cache expired/removed; create new cache file
-                    query_id = str(uuid.uuid4())
-                    all_ids = ordered_ids.all()
-                    bytes_data = io.BytesIO()
-                    np.save(bytes_data, all_ids)
-                    cache[query_id] = bytes_data.getvalue()
+                cache[query_id] = array_to_bytes(all_ids)
 
             results = all_ids[
                 ((page - 1) * n_items_per_page) : (page * n_items_per_page)
