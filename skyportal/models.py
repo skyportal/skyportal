@@ -836,14 +836,17 @@ class Obj(Base, ha.Point):
     @hybrid_method
     def last_detected_mag(self, user):
         """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
-        detections = [
-            (phot.iso, phot.mag)
-            for phot in Photometry.query_records_accessible_by(user)
+        return (
+            Photometry.query_records_accessible_by(
+                user, columns=[Photometry.mag], mode="read"
+            )
             .filter(Photometry.obj_id == self.id)
-            .all()
-            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
-        ]
-        return max(detections, key=(lambda x: x[0]))[1] if detections else None
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .order_by(Photometry.mjd.desc())
+            .limit(1)
+            .scalar()
+        )
 
     @last_detected_mag.expression
     def last_detected_mag(cls, user):
@@ -890,14 +893,15 @@ class Obj(Base, ha.Point):
     @hybrid_method
     def peak_detected_mag(self, user):
         """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
-        detections = [
-            phot.mag
-            for phot in Photometry.query_records_accessible_by(user)
+        return (
+            Photometry.query_records_accessible_by(
+                user, columns=[sa.func.max(Photometry.mag)], mode="read"
+            )
             .filter(Photometry.obj_id == self.id)
-            .all()
-            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
-        ]
-        return max(detections) if detections else None
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .scalar()
+        )
 
     @peak_detected_mag.expression
     def peak_detected_mag(cls, user):

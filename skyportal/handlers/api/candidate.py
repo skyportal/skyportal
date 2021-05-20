@@ -7,8 +7,10 @@ import ast
 import arrow
 
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.expression import case, func
-from sqlalchemy.types import Float, Boolean
+from sqlalchemy.sql.expression import case, func, FromClause
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql import column
+from sqlalchemy.types import Float, Boolean, String, Integer
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -28,7 +30,6 @@ from ...models import (
     Listing,
     Comment,
 )
-from sqlalchemy.dialects import postgresql
 
 
 def update_redshift_history_if_relevant(request_data, obj, user):
@@ -1000,6 +1001,69 @@ class CandidateHandler(BaseHandler):
         return self.success()
 
 
+def get_obj_id_values(obj_ids):
+    """Return a Postgres VALUES representation of ordered list of Obj IDs
+    to be returned by the Candidates/Sources query.
+
+    Parameters
+    ----------
+    obj_ids: `list`
+        List of Obj IDs
+
+    Returns
+    -------
+    values_table: `sqlalchemy.sql.expression.FromClause`
+        The VALUES representation of the Obj IDs list.
+    """
+    # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
+    class _obj_id_values(FromClause):
+        named_with_column = True
+
+        def __init__(self, columns, *args, **kw):
+            self._column_args = columns
+            self.list = args
+            self.alias_name = self.name = kw.pop("alias_name", None)
+
+        def _populate_column_collection(self):
+            for c in self._column_args:
+                c._make_proxy(self)
+
+        @property
+        def _from_objects(self):
+            return [self]
+
+    # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
+    @compiles(_obj_id_values)
+    def compile_values(element, compiler, asfrom=False, **kw):
+        columns = element.columns
+        v = "VALUES %s" % ", ".join(
+            "(%s)"
+            % ", ".join(
+                compiler.render_literal_value(elem, column.type)
+                for elem, column in zip(tup, columns)
+            )
+            for tup in element.list
+        )
+        if asfrom:
+            if element.alias_name:
+                v = "(%s) AS %s (%s)" % (
+                    v,
+                    element.alias_name,
+                    (", ".join(c.name for c in element.columns)),
+                )
+            else:
+                v = "(%s)" % v
+        return v
+
+    values_table = _obj_id_values(
+        (column("id", String), column("ordering", Integer)),
+        *[(obj_id, idx) for idx, obj_id in enumerate(obj_ids)],
+        alias_name="values_table",
+    )
+
+    return values_table
+
+
 def grab_query_results(
     q,
     total_matches,
@@ -1056,7 +1120,6 @@ def grab_query_results(
         )
         .order_by(ids_with_row_nums.c.row_num)
     )
-    print(ordered_ids.statement.compile(dialect=postgresql.dialect()))
 
     if page:
         # Now bring in the full Obj info for the candidates
@@ -1070,7 +1133,7 @@ def grab_query_results(
     else:
         results = ordered_ids.all()
 
-    page_ids = map(lambda x: x[0], results)
+    page_ids = list(map(lambda x: x[0], results))
     info["totalMatches"] = results[0][1] if len(results) > 0 else 0
 
     if page:
@@ -1093,7 +1156,22 @@ def grab_query_results(
 
     items = []
     query_options = [joinedload(Obj.thumbnails)] if include_thumbnails else []
-    for item_id in page_ids:
-        items.append(Obj.query.options(query_options).get(item_id))
+
+    if len(page_ids) > 0:
+        page_ids_values = get_obj_id_values(page_ids)
+        items = (
+            DBSession()
+            .query(Obj)
+            .options(query_options)
+            .join(page_ids_values, page_ids_values.c.id == Obj.id)
+            .order_by(page_ids_values.c.ordering)
+        )
+    else:
+        # If there are no values, the VALUES statement above will cause a syntax error,
+        # so just switch to this simple IN query. Should return nothing either way
+        items = (
+            DBSession().query(Obj).options(query_options).filter(Obj.id.in_(page_ids))
+        )
+
     info[items_name] = items
     return info
