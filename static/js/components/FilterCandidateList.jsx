@@ -15,6 +15,7 @@ import Chip from "@material-ui/core/Chip";
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
 import TextField from "@material-ui/core/TextField";
+import Tooltip from "@material-ui/core/Tooltip";
 import { makeStyles, useTheme } from "@material-ui/core/styles";
 
 import dayjs from "dayjs";
@@ -469,14 +470,16 @@ const FilterCandidateList = ({
             </Responsive>
           </div>
           <div className={classes.searchButton}>
-            <Button
-              variant="contained"
-              type="submit"
-              endIcon={<SearchIcon />}
-              color="primary"
-            >
-              Search
-            </Button>
+            <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
+              <Button
+                variant="contained"
+                type="submit"
+                endIcon={<SearchIcon />}
+                color="primary"
+              >
+                Search
+              </Button>
+            </Tooltip>
           </div>
         </form>
         <br />

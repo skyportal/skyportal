@@ -6,7 +6,6 @@ from .models import (
     Group,
     GroupUser,
     Invitation,
-    Role,
     StreamUser,
 )
 from baselayer.app.env import load_env
@@ -53,7 +52,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
             last_name=details["last_name"],
             oauth_uid=uid,
         )
-        user.roles.append(Role.query.get("Full user"))
+        user.roles.append(invitation.role)
         DBSession().add(user)
         DBSession().commit()
         return {"is_new": True, "user": user}

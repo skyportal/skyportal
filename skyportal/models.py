@@ -3235,6 +3235,16 @@ class Invitation(Base):
     read = update = delete = AccessibleIfUserMatches('invited_by')
 
     token = sa.Column(sa.String(), nullable=False, unique=True)
+    role_id = sa.Column(
+        sa.ForeignKey('roles.id'),
+        nullable=False,
+    )
+    role = relationship(
+        "Role",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        uselist=False,
+    )
     groups = relationship(
         "Group",
         secondary="group_invitations",
