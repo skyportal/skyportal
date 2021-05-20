@@ -328,8 +328,7 @@ candidates:
       - =example_filter
     ra: 322.718872
     dec: 27.574113
-    redshift: null
-    redshift_error: null
+    redshift: 0.001
     varstar: false
     passed_at: "2020-10-30 21:19:06.475748"
     alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
@@ -338,8 +337,7 @@ candidates:
       - =example_filter
     ra: 322.718872
     dec: 27.574113
-    redshift: null
-    redshift_error: null
+    redshift: 0.001
     varstar: false
     passed_at: "2020-10-30 21:13:06.475748"
     alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
@@ -348,8 +346,6 @@ candidates:
       - =example_filter
     ra: 229.9620403
     dec: 34.8442757
-    redshift: null
-    redshift_error: null
     varstar: true
     altdata:
       simbad:
@@ -361,8 +357,6 @@ candidates:
       - =example_filter
     ra: 342.4596
     dec: 51.2634
-    redshift: null
-    redshift_error: null
     varstar: true
     altdata:
       simbad:
