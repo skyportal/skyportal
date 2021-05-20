@@ -124,6 +124,29 @@ def lco_request_matcher(r1, r2):
     assert r1_type == r2_type and r1.method == r2.method
 
 
+def ztf_request_matcher(r1, r2):
+    """
+    Helper function to help determine if two requests to the ZTF API are equivalent
+    """
+
+    # A request matches an ZTF request if the URI and method matches
+
+    r1_uri = r1.uri.replace(":443", "")
+    r2_uri = r2.uri.replace(":443", "")
+
+    def is_ztf_request(uri):
+        pattern = r"/api/triggers/ztf"
+        if re.search(pattern, uri) is not None:
+            return True
+
+        return False
+
+    r1_is_ztf = is_ztf_request(r1_uri)
+    r2_is_ztf = is_ztf_request(r2_uri)
+
+    assert r1_is_ztf and r2_is_ztf and r1.method == r2.method
+
+
 class TestRouteHandler(tornado.web.RequestHandler):
     """
     This handler intercepts calls coming from SkyPortal API handlers which make
@@ -133,9 +156,175 @@ class TestRouteHandler(tornado.web.RequestHandler):
     to the SkyPortal test API server.
     """
 
+    def delete(self):
+        is_soap_action = "Soapaction" in self.request.headers
+        if "/api/requestgroups/" in self.request.uri:
+            cache = get_cache_file_static()
+        elif self.request.uri == "/api/triggers/ztf":
+            cache = get_cache_file_static()
+        else:
+            cache = get_cache_file()
+        match_on = ['uri', 'method', 'body']
+        if self.request.uri == "/node_agent2/node_agent":
+            match_on = ["lt"]
+        elif "/api/requestgroups/" in self.request.uri:
+            match_on = ["lco"]
+        elif self.request.uri == "/api/triggers/ztf":
+            match_on = ["ztf"]
+
+        with my_vcr.use_cassette(
+            cache,
+            record_mode="new_episodes",
+            match_on=match_on,
+        ) as cass:
+            real_host = None
+            for route in cfg["test_server.redirects"].keys():
+                if re.match(route, self.request.uri):
+                    real_host = cfg["test_server.redirects"][route]
+
+            if real_host is not None:
+                url = real_host + self.request.uri
+
+                if is_soap_action:
+                    log(f"Forwarding SOAP method call {url}")
+                else:
+                    log(f"Forwarding DELETE call {url}")
+
+                # Convert Tornado HTTPHeaders object to a regular dict
+                headers = {}
+                for k, v in self.request.headers.get_all():
+                    headers[k] = v
+
+                # Convert Tornado HTTPHeaders object to a regular dict
+                headers = {}
+                for k, v in self.request.headers.get_all():
+                    headers[k] = v
+
+                if "/api/requestgroups/" in self.request.uri:
+                    header = {'Authorization': headers['Authorization']}
+                    json_body = (
+                        json.loads(self.request.body.decode())
+                        if len(self.request.body) > 0
+                        else None
+                    )
+                    requests.delete(
+                        url,
+                        json=json_body,
+                        headers=header,
+                    )
+                else:
+                    log(f"Forwarding DELETE call: {url}")
+                    s = requests.Session()
+                    req = requests.Request(
+                        'DELETE', url, data=self.request.body, headers=headers
+                    )
+                    prepped = req.prepare()
+                    s.send(prepped)
+
+                # Get recorded document and pass it back
+                response = cass.responses_of(
+                    vcr.request.Request("DELETE", url, self.request.body, headers)
+                )[0]
+                self.set_status(
+                    response["status"]["code"], response["status"]["message"]
+                )
+                for k, v in response["headers"].items():
+                    # The response from this test server will not be chunked even if
+                    # the real response was
+                    if not (k == "Transfer-Encoding" and "chunked" in v):
+                        self.set_header(k, v[0])
+                self.write(response["body"]["string"])
+
+            else:
+                self.set_status(500)
+                self.write("Could not find test route redirect")
+
+    def put(self):
+        is_soap_action = "Soapaction" in self.request.headers
+        if "/api/requestgroups/" in self.request.uri:
+            cache = get_cache_file_static()
+        elif self.request.uri == "/api/triggers/ztf":
+            cache = get_cache_file_static()
+        else:
+            cache = get_cache_file()
+        match_on = ['uri', 'method', 'body']
+        if self.request.uri == "/node_agent2/node_agent":
+            match_on = ["lt"]
+        elif "/api/requestgroups/" in self.request.uri:
+            match_on = ["lco"]
+        elif self.request.uri == "/api/triggers/ztf":
+            match_on = ["ztf"]
+
+        with my_vcr.use_cassette(
+            cache,
+            record_mode="new_episodes",
+            match_on=match_on,
+        ) as cass:
+            real_host = None
+            for route in cfg["test_server.redirects"].keys():
+                if re.match(route, self.request.uri):
+                    real_host = cfg["test_server.redirects"][route]
+
+            if real_host is not None:
+                url = real_host + self.request.uri
+
+                if is_soap_action:
+                    log(f"Forwarding SOAP method call {url}")
+                else:
+                    log(f"Forwarding PUT call {url}")
+
+                # Convert Tornado HTTPHeaders object to a regular dict
+                headers = {}
+                for k, v in self.request.headers.get_all():
+                    headers[k] = v
+
+                # Convert Tornado HTTPHeaders object to a regular dict
+                headers = {}
+                for k, v in self.request.headers.get_all():
+                    headers[k] = v
+
+                if "/api/requestgroups/" in self.request.uri:
+                    header = {'Authorization': headers['Authorization']}
+                    json_body = (
+                        json.loads(self.request.body.decode())
+                        if len(self.request.body) > 0
+                        else None
+                    )
+                    requests.put(
+                        url,
+                        json=json_body,
+                        headers=header,
+                    )
+                else:
+                    log(f"Forwarding PUT call: {url}")
+                    s = requests.Session()
+                    req = requests.Request(
+                        'PUT', url, data=self.request.body, headers=headers
+                    )
+                    prepped = req.prepare()
+                    s.send(prepped)
+
+                # Get recorded document and pass it back
+                response = cass.responses_of(
+                    vcr.request.Request("PUT", url, self.request.body, headers)
+                )[0]
+                self.set_status(
+                    response["status"]["code"], response["status"]["message"]
+                )
+                for k, v in response["headers"].items():
+                    # The response from this test server will not be chunked even if
+                    # the real response was
+                    if not (k == "Transfer-Encoding" and "chunked" in v):
+                        self.set_header(k, v[0])
+                self.write(response["body"]["string"])
+
+            else:
+                self.set_status(500)
+                self.write("Could not find test route redirect")
+
     def get(self):
         is_wsdl = self.get_query_argument('wsdl', None)
-        if self.request.uri == "/api/requestgroups/":
+        if self.request.uri in ["/api/requestgroups/", "/api/triggers/ztf"]:
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()
@@ -211,6 +400,8 @@ class TestRouteHandler(tornado.web.RequestHandler):
             match_on = ["lt"]
         elif "/api/requestgroups/" in self.request.uri:
             match_on = ["lco"]
+        elif self.request.uri == "/api/triggers/ztf":
+            match_on = ["ztf"]
 
         with my_vcr.use_cassette(
             cache,
@@ -283,6 +474,7 @@ if __name__ == "__main__":
     my_vcr = vcr.VCR()
     my_vcr.register_matcher("lt", lt_request_matcher)
     my_vcr.register_matcher("lco", lco_request_matcher)
+    my_vcr.register_matcher("ztf", ztf_request_matcher)
     if "test_server" in cfg:
         app = make_app()
         server = tornado.httpserver.HTTPServer(app)
