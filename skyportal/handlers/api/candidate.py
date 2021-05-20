@@ -1166,7 +1166,7 @@ def grab_query_results(
     else:
         results = ordered_ids.all()
 
-    page_ids = list(map(lambda x: x[0], results))
+    obj_ids_in_page = list(map(lambda x: x[0], results))
     info["totalMatches"] = int(results[0][1]) if len(results) > 0 else 0
 
     if page:
@@ -1190,20 +1190,23 @@ def grab_query_results(
     items = []
     query_options = [joinedload(Obj.thumbnails)] if include_thumbnails else []
 
-    if len(page_ids) > 0:
-        page_ids_values = get_obj_id_values(page_ids)
+    if len(obj_ids_in_page) > 0:
+        obj_ids_values = get_obj_id_values(obj_ids_in_page)
         items = (
             DBSession()
             .query(Obj)
             .options(query_options)
-            .join(page_ids_values, page_ids_values.c.id == Obj.id)
-            .order_by(page_ids_values.c.ordering)
+            .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+            .order_by(obj_ids_values.c.ordering)
         )
     else:
         # If there are no values, the VALUES statement above will cause a syntax error,
         # so just switch to this simple IN query. Should return nothing either way
         items = (
-            DBSession().query(Obj).options(query_options).filter(Obj.id.in_(page_ids))
+            DBSession()
+            .query(Obj)
+            .options(query_options)
+            .filter(Obj.id.in_(obj_ids_in_page))
         )
 
     info[items_name] = items
