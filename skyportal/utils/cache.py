@@ -59,6 +59,7 @@ class Cache:
         ----------
         name : str
         """
+        self.clean_cache()
         if name is None:
             return None
 

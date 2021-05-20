@@ -62,8 +62,7 @@ def test_cache_cleanup_by_age(cache):
 
     # Let object time out of cache
     time.sleep(3)
-    # Trigger cleanup
-    cache['second'] = b'two'
+
     f = cache['first']
     assert f is None
 
