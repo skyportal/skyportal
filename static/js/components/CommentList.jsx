@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { Button } from "@material-ui/core";
 import Tooltip from "@material-ui/core/Tooltip";
 import GroupIcon from "@material-ui/icons/Group";
+import PropTypes from "prop-types";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -19,7 +20,11 @@ import CommentAttachmentPreview from "./CommentAttachmentPreview";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const CommentList = () => {
+const CommentList = ({
+  underlying_resource_type = "object",
+  obj_id = null,
+  spectrum_id = null,
+}) => {
   const [hoverID, setHoverID] = useState(null);
 
   const handleMouseHover = (id, userProfile, author) => {
@@ -37,8 +42,50 @@ const CommentList = () => {
 
   const dispatch = useDispatch();
   const obj = useSelector((state) => state.source);
+  const spectra = useSelector((state) => state.spectra);
   const userProfile = useSelector((state) => state.profile);
   const permissions = useSelector((state) => state.profile.permissions);
+
+  if (!obj_id) {
+    obj_id = obj.id;
+  }
+
+  let comments = null;
+  let addComment = null;
+  let deleteComment = null;
+
+  if (underlying_resource_type === "object") {
+    comments = obj.comments;
+
+    addComment = (formData) => {
+      dispatch(sourceActions.addComment({ obj_id, ...formData }));
+    };
+    deleteComment = (id) => {
+      dispatch(sourceActions.deleteComment(id));
+    };
+  } else if (underlying_resource_type === "spectrum") {
+    if (spectrum_id === null) {
+      throw new Error("Must specify a spectrum_id for comments on spectra");
+    }
+    const spectrum = spectra[obj_id].find((spec) => spec.id === spectrum_id);
+    comments = spectrum?.comments;
+
+    addComment = (formData) => {
+      dispatch(
+        sourceActions.addComment(
+          { obj_id, spectrum_id, ...formData },
+          "spectrum"
+        )
+      );
+    };
+    deleteComment = (id) => {
+      dispatch(sourceActions.deleteComment(id, "spectrum"));
+    };
+  } else {
+    throw new Error(
+      `Illegal input ${underlying_resource_type} to CommentList. `
+    );
+  }
 
   // Color styling
   const userColorTheme = useSelector(
@@ -46,11 +93,6 @@ const CommentList = () => {
   );
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
-
-  let { comments } = obj;
-  const addComment = (formData) => {
-    dispatch(sourceActions.addComment({ obj_id: obj.id, ...formData }));
-  };
 
   comments = comments || [];
 
@@ -120,7 +162,7 @@ const CommentList = () => {
                     type="button"
                     name={`deleteCommentButton${id}`}
                     onClick={() => {
-                      dispatch(sourceActions.deleteComment(id));
+                      deleteComment(id);
                     }}
                     className={styles.commentDelete}
                   >
@@ -146,6 +188,18 @@ const CommentList = () => {
       )}
     </div>
   );
+};
+
+CommentList.propTypes = {
+  obj_id: PropTypes.string,
+  underlying_resource_type: PropTypes.string,
+  spectrum_id: PropTypes.number,
+};
+
+CommentList.defaultProps = {
+  obj_id: "",
+  underlying_resource_type: "object",
+  spectrum_id: null,
 };
 
 export default CommentList;

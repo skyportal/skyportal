@@ -84,8 +84,11 @@ export function addComment(formData) {
   return API.POST(`/api/comment`, ADD_COMMENT, formData);
 }
 
-export function deleteComment(comment_id) {
-  return API.DELETE(`/api/comment/${comment_id}`, DELETE_COMMENT);
+export function deleteComment(comment_id, underlying_resource = "object") {
+  return API.DELETE(
+    `/api/comment/${comment_id}/${underlying_resource}`,
+    DELETE_COMMENT
+  );
 }
 
 export function getCommentAttachment(comment_id) {

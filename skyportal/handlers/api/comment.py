@@ -206,10 +206,17 @@ class CommentHandler(BaseHandler):
             for user_mentioned in users_mentioned_in_comment:
                 self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': comment.obj.internal_key},
-        )
+        if spectrum_id is not None:
+            self.push_all(
+                action='skyportal/REFRESH_SPECTRUM',
+                payload={'obj_key': comment.obj.internal_key},
+            )
+        else:
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': comment.obj.internal_key},
+            )
+
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])

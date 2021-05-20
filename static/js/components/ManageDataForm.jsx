@@ -153,7 +153,11 @@ const SpectrumRow = ({ rowData, route }) => {
 
       <Paper className={classes.comments}>
         <Typography variant="h6">Comments</Typography>
-        <CommentList />
+        <CommentList
+          underlying_resource_type="spectrum"
+          obj_id={route.id}
+          spectrum_id={rowData[0]}
+        />
       </Paper>
     </div>
   );

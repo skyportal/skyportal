@@ -14,6 +14,7 @@ from ...models import (
     DBSession,
     FollowupRequest,
     Group,
+    CommentOnSpectrum,
     Instrument,
     Obj,
     Spectrum,
@@ -519,21 +520,49 @@ class ObjSpectraHandler(BaseHandler):
             return self.error('Invalid object ID.')
 
         spectra = (
-            Spectrum.query_records_accessible_by(
-                self.current_user, options=[joinedload(Spectrum.comments)]
-            )
+            Spectrum.query_records_accessible_by(self.current_user)
             .filter(Spectrum.obj_id == obj_id)
             .all()
         )
+
         return_values = []
         for spec in spectra:
             spec_dict = recursive_to_dict(spec)
+            comments = (
+                CommentOnSpectrum.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(CommentOnSpectrum.author),
+                        joinedload(CommentOnSpectrum.groups),
+                    ],
+                )
+                .filter(CommentOnSpectrum.spectrum_id == spec.id)
+                .all()
+            )
+            spec_dict["comments"] = sorted(
+                [
+                    {
+                        **{
+                            k: v
+                            for k, v in c.to_dict().items()
+                            if k != "attachment_bytes"
+                        },
+                        "author": {
+                            **c.author.to_dict(),
+                            "gravatar_url": c.author.gravatar_url,
+                        },
+                    }
+                    for c in comments
+                ],
+                key=lambda x: x["created_at"],
+                reverse=True,
+            )
             spec_dict["instrument_name"] = spec.instrument.name
             spec_dict["groups"] = spec.groups
             spec_dict["reducers"] = spec.reducers
             spec_dict["observers"] = spec.observers
             spec_dict["owner"] = spec.owner
-            spec_dict["comments"] = spec.comments
+
             return_values.append(spec_dict)
 
         normalization = self.get_query_argument('normalization', None)
