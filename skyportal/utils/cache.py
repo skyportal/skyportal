@@ -2,10 +2,25 @@ from pathlib import Path
 import hashlib
 import os
 import time
+import io
+import numpy as np
 
 from baselayer.log import make_log
 
 log = make_log('cache')
+
+
+def array_to_bytes(array):
+    """Convert np.array-like object to bytes (for use w/ caching infrastructure).
+
+    Parameters
+    ----------
+    array : list or numpy array-like object
+        Object to be converted to bytes
+    """
+    b = io.BytesIO()
+    np.save(b, array)
+    return b.getvalue()
 
 
 class Cache:
@@ -18,7 +33,7 @@ class Cache:
         max_items : int, optional
             Maximum number of items ever held in the cache.  If
             unspecified, then the cache size is only controlled by
-            `max_age`.
+            `max_age`. If zero, caching will be disabled.
         max_age : int, optional
             Maximum age (in seconds) of an item in the cache before it
             gets removed.  If unspecified, the cache size is only
@@ -44,6 +59,9 @@ class Cache:
         ----------
         name : str
         """
+        if name is None:
+            return None
+
         # Cache is disabled, return nothing
         if self._max_items == 0:
             return None

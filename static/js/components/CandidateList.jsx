@@ -359,6 +359,7 @@ const CandidateList = () => {
     candidates,
     pageNumber,
     totalMatches,
+    queryID,
     selectedAnnotationSortOptions,
   } = useSelector((state) => state.candidates);
   const [sortOrder, setSortOrder] = useState(
@@ -512,10 +513,8 @@ const CandidateList = () => {
     handleFilterSubmit(newFilterListQueryStrings.join());
   };
 
-  const [
-    ps1GenerationInProgressList,
-    setPS1GenerationInProgressList,
-  ] = useState([]);
+  const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
+    useState([]);
   const generatePS1Thumbnail = (objID) => {
     setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
     dispatch(candidatesActions.generatePS1Thumbnail(objID));
@@ -812,6 +811,7 @@ const CandidateList = () => {
     let data = {
       pageNumber: page + 1,
       numPerPage,
+      queryID,
       groupIDs: filterGroups.map((g) => g.id).join(),
     };
     if (selectedAnnotationSortOptions !== null) {

@@ -1,6 +1,7 @@
+import time
 import datetime
-import numpy.testing as npt
 import uuid
+import numpy.testing as npt
 
 from skyportal.tests import api
 
@@ -1456,6 +1457,39 @@ def test_candidate_list_pagination(
     )
     assert status == 200
     assert data["data"]["candidates"][0]["id"] == obj_id1
+    assert "queryID" in data["data"]
+    query_id = data["data"]["queryID"]
+
+    status, data = api(
+        "GET",
+        "candidates",
+        params={"pageNumber": 1, "queryID": query_id},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["data"]["queryID"] == query_id
+
+    # Wait until cache is expired
+    time.sleep(3)
+
+    # Submit new request, which will create new (unrelated) cache, triggering
+    # cleanup of expired cache files
+    status, data = api(
+        "GET",
+        "candidates",
+        token=view_only_token,
+    )
+    assert status == 200
+
+    # Cache should now be removed, so we expect a new query ID
+    status, data = api(
+        "GET",
+        "candidates",
+        params={"pageNumber": 1, "queryID": query_id},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["data"]["queryID"] != query_id
 
     # Invalid page
     status, data = api(
