@@ -116,6 +116,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   comments: {
     marginLeft: "1rem",
     padding: "1rem",
+    width: "100%",
   },
   classifications: {
     display: "flex",

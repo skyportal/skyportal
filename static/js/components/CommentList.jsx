@@ -170,12 +170,7 @@ const CommentList = () => {
                                   lineHeight: "0",
                                   padding: "0",
                                 }
-                              : {
-                                  display: "block",
-                                  minWidth: "0",
-                                  lineHeight: "0",
-                                  padding: "0",
-                                }
+                              : { display: "none" }
                           }
                           size="small"
                           color="primary"

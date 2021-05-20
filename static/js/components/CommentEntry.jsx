@@ -122,7 +122,9 @@ const CommentEntry = ({ addComment }) => {
         </Box>
       </div>
       <div className={styles.inputDiv}>
-        <input type="submit" value="↵" name="submitCommentButton" />
+        <Button variant="contained" color="primary" type="submit">
+          Add Comment
+        </Button>
       </div>
     </form>
   );
