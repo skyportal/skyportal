@@ -132,7 +132,7 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.]+)/annotations', ObjAnnotationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.]+)/color_mag', ObjColorMagHandler),
-    (r'/api/sources(/[0-9A-Za-z-_\.]+)?', SourceHandler),
+    (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),
     (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
