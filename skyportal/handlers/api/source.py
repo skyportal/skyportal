@@ -1,5 +1,6 @@
 import datetime
 from json.decoder import JSONDecodeError
+from dateutil.tz import UTC
 import python_http_client.exceptions
 from twilio.base.exceptions import TwilioException
 import tornado
@@ -1082,8 +1083,40 @@ class SourceHandler(BaseHandler):
         if not save_summary:
             # Records are Objs, not Sources
             obj_list = []
-            for obj in query_results["sources"]:
+
+            # Load in all last_detected_at values at once
+            last_detected_at = Obj.last_detected_at(self.current_user)
+            query_results["sources"] = query_results["sources"].add_columns(
+                last_detected_at
+            )
+
+            # Load in all last_detected_mag values at once
+            last_detected_mag = Obj.last_detected_mag(self.current_user)
+            query_results["sources"] = query_results["sources"].add_columns(
+                last_detected_mag
+            )
+
+            # Load in all peak_detected_at values at once
+            peak_detected_at = Obj.peak_detected_at(self.current_user)
+            query_results["sources"] = query_results["sources"].add_columns(
+                peak_detected_at
+            )
+
+            # Load in all peak_detected_mag values at once
+            peak_detected_mag = Obj.peak_detected_mag(self.current_user)
+            query_results["sources"] = query_results["sources"].add_columns(
+                peak_detected_mag
+            )
+
+            for (
+                obj,
+                last_detected_at,
+                last_detected_mag,
+                peak_detected_at,
+                peak_detected_mag,
+            ) in query_results["sources"]:
                 obj_list.append(obj.to_dict())
+
                 if include_comments:
                     obj_list[-1]["comments"] = sorted(
                         [
@@ -1125,18 +1158,24 @@ class SourceHandler(BaseHandler):
                         ).filter(Annotation.obj_id == obj.id),
                         key=lambda x: x.origin,
                     )
-                obj_list[-1]["last_detected_at"] = obj.last_detected_at(
-                    self.current_user
+
+                obj_list[-1]["last_detected_at"] = (
+                    (last_detected_at - last_detected_at.utcoffset()).replace(
+                        tzinfo=UTC
+                    )
+                    if last_detected_at
+                    else None
                 )
-                obj_list[-1]["last_detected_mag"] = obj.last_detected_mag(
-                    self.current_user
+                obj_list[-1]["last_detected_mag"] = last_detected_mag
+                obj_list[-1]["peak_detected_at"] = (
+                    (peak_detected_at - peak_detected_at.utcoffset()).replace(
+                        tzinfo=UTC
+                    )
+                    if peak_detected_at
+                    else None
                 )
-                obj_list[-1]["peak_detected_at"] = obj.peak_detected_at(
-                    self.current_user
-                )
-                obj_list[-1]["peak_detected_mag"] = obj.peak_detected_mag(
-                    self.current_user
-                )
+                obj_list[-1]["peak_detected_mag"] = peak_detected_mag
+
                 obj_list[-1]["gal_lon"] = obj.gal_lon_deg
                 obj_list[-1]["gal_lat"] = obj.gal_lat_deg
                 obj_list[-1]["luminosity_distance"] = obj.luminosity_distance
@@ -1144,6 +1183,7 @@ class SourceHandler(BaseHandler):
                 obj_list[-1][
                     "angular_diameter_distance"
                 ] = obj.angular_diameter_distance
+
                 if include_photometry:
                     photometry = Photometry.query_records_accessible_by(
                         self.current_user
@@ -1184,6 +1224,7 @@ class SourceHandler(BaseHandler):
                         .all()
                     )
                     obj_list[-1]["groups"] = [g.to_dict() for g in groups]
+
                     for group in obj_list[-1]["groups"]:
                         source_table_row = (
                             Source.query_records_accessible_by(self.current_user)
@@ -1202,6 +1243,7 @@ class SourceHandler(BaseHandler):
                                 if source_table_row.saved_by is not None
                                 else None
                             )
+
                 if include_color_mag:
                     obj_list[-1]["color_magnitude"] = get_color_mag(
                         obj_list[-1]["annotations"]
