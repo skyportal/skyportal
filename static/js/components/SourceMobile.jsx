@@ -222,6 +222,11 @@ const SourceMobile = WidthProvider(
                 <div className={classes.alignRight}>
                   <FavoritesButton sourceID={source.id} />
                 </div>
+                <div className={classes.alignRight}>
+                  {source.alias ? (
+                    <div key="aliases"> ({source.alias.join(", ")}) </div>
+                  ) : null}
+                </div>
               </div>
               <div>
                 <div className={classes.sourceInfo}>
@@ -658,6 +663,7 @@ SourceMobile.propTypes = {
         origin: PropTypes.string,
       })
     ),
+    alias: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
 };
 

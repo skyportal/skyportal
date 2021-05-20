@@ -66,7 +66,16 @@ test_server:
     # test server, cached, and responses played back to the API as if it came
     # from the real server.
     /node_agent2/node_agent: http://161.72.57.3:8080 # LT
+    /api/requestgroups/: https://observe.lco.global # LCO
+    /api/triggers/ztf: http://skipper.caltech.edu:4000 # ZTF
 
 app:
   lt_host: localhost
   lt_port: 64502
+  lco_protocol: http
+  lco_host: localhost
+  lco_port: 64502
+  ztf:
+    protocol: http
+    host: localhost
+    port: 64502

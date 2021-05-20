@@ -1,0 +1,44 @@
+name: Test Skyportal Docker Build
+
+on:
+  push:
+    branches:
+      - master
+      - test-docker
+
+jobs:
+  test:
+    name: Test SkyPortal Docker build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/setup-python@v1
+        with:
+          python-version: "3.8"
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache
+            ~/.local
+            ~/.npm
+          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Build Docker image
+        run: |
+          make docker-local
+
+      - name: Start containers
+        run: |
+          docker-compose up -d
+
+      - name: Test loading demo data
+        run: |
+          docker exec skyportal_web_1 bash -c 'source /skyportal_env/bin/activate && FLAGS="--create_tables --config=config.yaml" make load_demo_data'

@@ -24,6 +24,15 @@ app:
   lt_host: 161.72.57.3
   lt_port: 8080
 
+  lco_protocol: https
+  lco_host: observe.lco.global
+  lco_port: 443
+
+  ztf:
+    protocol: http
+    host: skipper.caltech.edu
+    port: 4000
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:

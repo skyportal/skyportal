@@ -26,7 +26,7 @@ const CommentList = () => {
 
   const handleMouseHover = (id, userProfile, author) => {
     if (
-      userProfile.roles.includes("Super admin") ||
+      userProfile.permissions.includes("System admin") ||
       userProfile.username === author
     ) {
       setHoverID(id);
@@ -65,7 +65,7 @@ const CommentList = () => {
     );
 
   return (
-    <div className={styles.comments}>
+    <div>
       <div className={styles.commentsList}>
         {comments.map(
           ({ id, author, created_at, text, attachment_name, groups }) => (

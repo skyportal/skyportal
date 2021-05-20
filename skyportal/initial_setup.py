@@ -88,7 +88,7 @@ if __name__ == "__main__":
     for model in Base.metadata.tables:
         print('    -', model)
 
-    with status(f"Creating permissions"):
+    with status("Creating permissions"):
         model_util.setup_permissions()
 
     if adminuser != '':

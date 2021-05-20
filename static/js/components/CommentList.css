@@ -64,7 +64,7 @@
 }
 
 .commentMessage {
-  max-width: 20em;
+  max-width: 25em;
 }
 
 .commentMessage > p {
@@ -103,7 +103,7 @@
   justify-content: space-between;
   align-items: center;
   min-height: 27px;
-  max-width: 20em;
+  max-width: 25em;
 }
 
 .compactContainer {

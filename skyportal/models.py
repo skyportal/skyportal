@@ -23,6 +23,8 @@ from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
+
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_utils import URLType, EmailType
@@ -551,7 +553,7 @@ class Obj(Base, ha.Point):
     offset = sa.Column(
         sa.Float, default=0.0, doc="Offset from nearest static object [arcsec]."
     )
-    redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
+    redshift = sa.Column(sa.Float, nullable=True, index=True, doc="Redshift.")
     redshift_history = sa.Column(
         JSONB,
         nullable=True,
@@ -594,6 +596,9 @@ class Obj(Base, ha.Point):
     score = sa.Column(sa.Float, nullable=True, doc="Machine learning score.")
 
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")
+    alias = sa.Column(
+        sa.ARRAY(sa.String), nullable=True, doc="Alternative names for this object."
+    )
 
     internal_key = sa.Column(
         sa.String,
@@ -618,6 +623,15 @@ class Obj(Base, ha.Point):
         passive_deletes=True,
         order_by="Comment.created_at",
         doc="Comments posted about the object.",
+    )
+
+    comments_on_spectra = relationship(
+        'CommentOnSpectrum',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        order_by="CommentOnSpectrum.created_at",
+        doc="Comments posted about spectra belonging to the object.",
     )
 
     annotations = relationship(
@@ -1106,9 +1120,9 @@ User.listings = relationship(
 
 
 Source = join_model("sources", Group, Obj)
-Source.create = Source.read = Source.update = Source.delete = (
-    accessible_by_group_members & Source.read
-)
+Source.create = (
+    Source.read
+) = Source.update = Source.delete = accessible_by_group_members
 
 Source.__doc__ = (
     "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
@@ -1701,22 +1715,9 @@ def get_taxonomy_usable_by_user(taxonomy_id, user_or_token):
 Taxonomy.get_taxonomy_usable_by_user = get_taxonomy_usable_by_user
 
 
-class Comment(Base):
-    """A comment made by a User or a Robot (via the API) on a Source."""
-
-    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
-
-    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        obj='read'
-    )
-
-    update = delete = AccessibleIfUserMatches('author')
+class CommentMixin:
 
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
-    ctype = sa.Column(
-        sa.Enum('text', 'redshift', name='comment_types', validate_strings=True),
-        doc="Comment type. Can be one of 'text' or 'redshift'.",
-    )
 
     attachment_name = sa.Column(
         sa.String, nullable=True, doc="Filename of the attachment."
@@ -1729,37 +1730,59 @@ class Comment(Base):
     )
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
-    author = relationship(
-        "User",
-        back_populates="comments",
-        doc="Comment's author.",
-        uselist=False,
-        foreign_keys="Comment.author_id",
-    )
-    author_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="ID of the Comment author's User instance.",
-    )
-    obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="ID of the Comment's Obj.",
-    )
-    obj = relationship(
-        'Obj',
-        back_populates='comments',
-        doc="The Comment's Obj.",
-    )
-    groups = relationship(
-        "Group",
-        secondary="group_comments",
-        cascade="save-update, merge, refresh-expire, expunge",
-        passive_deletes=True,
-        doc="Groups that can see the comment.",
-    )
+
+    @classmethod
+    def backref_name(cls):
+        if cls.__name__ == 'Comment':
+            return "comments"
+        if cls.__name__ == 'CommentOnSpectrum':
+            return 'comments_on_spectra'
+
+    @declared_attr
+    def author(cls):
+        return relationship(
+            "User",
+            back_populates=cls.backref_name(),
+            doc="Comment's author.",
+            uselist=False,
+            foreign_keys=f"{cls.__name__}.author_id",
+        )
+
+    @declared_attr
+    def author_id(cls):
+        return sa.Column(
+            sa.ForeignKey('users.id', ondelete='CASCADE'),
+            nullable=False,
+            index=True,
+            doc="ID of the Comment author's User instance.",
+        )
+
+    @declared_attr
+    def obj_id(cls):
+        return sa.Column(
+            sa.ForeignKey('objs.id', ondelete='CASCADE'),
+            nullable=False,
+            index=True,
+            doc="ID of the Comment's Obj.",
+        )
+
+    @declared_attr
+    def obj(cls):
+        return relationship(
+            'Obj',
+            back_populates=cls.backref_name(),
+            doc="The Comment's Obj.",
+        )
+
+    @declared_attr
+    def groups(cls):
+        return relationship(
+            "Group",
+            secondary="group_" + cls.backref_name(),
+            cascade="save-update, merge, refresh-expire, expunge",
+            passive_deletes=True,
+            doc="Groups that can see the comment.",
+        )
 
     def construct_author_info_dict(self):
         return {
@@ -1768,11 +1791,24 @@ class Comment(Base):
         }
 
 
+class Comment(Base, CommentMixin):
+    """A comment made by a User or a Robot (via the API) on a Source."""
+
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read'
+    )
+
+    update = delete = AccessibleIfUserMatches('author')
+
+
 GroupComment = join_model("group_comments", Group, Comment)
 GroupComment.__doc__ = "Join table mapping Groups to Comments."
 GroupComment.delete = GroupComment.update = (
     accessible_by_group_admins & GroupComment.read
 )
+
 
 User.comments = relationship(
     "Comment",
@@ -2298,6 +2334,15 @@ class Spectrum(Base):
         doc="The User who uploaded the spectrum.",
     )
 
+    comments = relationship(
+        'CommentOnSpectrum',
+        back_populates='spectrum',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="CommentOnSpectrum.created_at",
+        doc="Comments posted about this spectrum.",
+    )
+
     @classmethod
     def from_ascii(
         cls,
@@ -2493,6 +2538,49 @@ GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 GroupSpectrum.update = GroupSpectrum.delete = (
     accessible_by_group_admins & GroupSpectrum.read
+)
+
+
+class CommentOnSpectrum(Base, CommentMixin):
+
+    __tablename__ = 'comments_on_spectra'
+
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read', spectrum='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read',
+        spectrum='read',
+    )
+
+    update = delete = AccessibleIfUserMatches('author')
+
+    spectrum_id = sa.Column(
+        sa.ForeignKey('spectra.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Comment's Spectrum.",
+    )
+    spectrum = relationship(
+        'Spectrum',
+        back_populates='comments',
+        doc="The Spectrum referred to by this comment.",
+    )
+
+
+User.comments_on_spectra = relationship(
+    "CommentOnSpectrum",
+    back_populates="author",
+    foreign_keys="CommentOnSpectrum.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+
+GroupCommentOnSpectrum = join_model(
+    "group_comments_on_spectra", Group, CommentOnSpectrum
+)
+GroupCommentOnSpectrum.__doc__ = "Join table mapping Groups to CommentOnSpectrum."
+GroupCommentOnSpectrum.delete = GroupCommentOnSpectrum.update = (
+    accessible_by_group_admins & GroupCommentOnSpectrum.read
 )
 
 
@@ -3040,6 +3128,16 @@ class Invitation(Base):
     read = update = delete = AccessibleIfUserMatches('invited_by')
 
     token = sa.Column(sa.String(), nullable=False, unique=True)
+    role_id = sa.Column(
+        sa.ForeignKey('roles.id'),
+        nullable=False,
+    )
+    role = relationship(
+        "Role",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        uselist=False,
+    )
     groups = relationship(
         "Group",
         secondary="group_invitations",

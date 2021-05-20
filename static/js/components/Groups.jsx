@@ -24,7 +24,7 @@ const useStyles = makeStyles(() => ({
 
 const Groups = () => {
   const classes = useStyles();
-  const { roles } = useSelector((state) => state.profile);
+  const { permissions } = useSelector((state) => state.profile);
   const { user: userGroups, all: allGroups } = useSelector(
     (state) => state.groups
   );
@@ -47,7 +47,7 @@ const Groups = () => {
         </>
       )}
       <NewGroupForm />
-      {roles.includes("Super admin") && <GroupManagement />}
+      {permissions.includes("System admin") && <GroupManagement />}
     </div>
   );
 };
