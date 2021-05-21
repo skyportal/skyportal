@@ -1,6 +1,6 @@
 from sqlalchemy import or_
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import auth_or_token, AccessError
+from baselayer.app.access import auth_or_token, permissions, AccessError
 from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
@@ -214,7 +214,7 @@ class GroupHandler(BaseHandler):
 
         return self.success(data=info)
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -282,7 +282,7 @@ class GroupHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(data={"id": g.id})
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def put(self, group_id):
         """
         ---
@@ -328,7 +328,7 @@ class GroupHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(action='skyportal/FETCH_GROUPS')
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, group_id):
         """
         ---
@@ -360,7 +360,7 @@ class GroupHandler(BaseHandler):
 
 
 class GroupUserHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self, group_id, *ignored_args):
         """
         ---
@@ -456,7 +456,7 @@ class GroupUserHandler(BaseHandler):
             data={'group_id': group_id, 'user_id': user_id, 'admin': admin}
         )
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def patch(self, group_id, *ignored_args):
         """
         ---
@@ -518,7 +518,7 @@ class GroupUserHandler(BaseHandler):
         self.verify_and_commit()
         return self.success()
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, group_id, user_id):
         """
         ---
@@ -568,7 +568,7 @@ class GroupUserHandler(BaseHandler):
 
 
 class GroupUsersFromOtherGroupsHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self, group_id, *ignored_args):
         """
         ---
@@ -656,7 +656,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
 
 
 class GroupStreamHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self, group_id, *ignored_args):
         """
         ---
@@ -716,7 +716,7 @@ class GroupStreamHandler(BaseHandler):
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         return self.success(data={'group_id': group_id, 'stream_id': stream_id})
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, group_id, stream_id):
         """
         ---

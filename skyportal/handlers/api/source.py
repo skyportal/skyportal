@@ -1835,7 +1835,7 @@ class SourceFinderHandler(BaseHandler):
 
 
 class SourceNotificationHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -1975,7 +1975,7 @@ class SourceNotificationHandler(BaseHandler):
 
 
 class PS1ThumbnailHandler(BaseHandler):
-    @auth_or_token
+    @auth_or_token  # We should allow these requests from view-only users (triggered on source page)
     def post(self):
         data = self.get_json()
         obj_id = data.get("objID")

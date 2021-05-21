@@ -976,7 +976,7 @@ class CandidateHandler(BaseHandler):
 
         return self.success(data={"ids": [c.id for c in candidates]})
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, obj_id, filter_id):
         """
         ---
