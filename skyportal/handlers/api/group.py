@@ -518,7 +518,7 @@ class GroupUserHandler(BaseHandler):
         self.verify_and_commit()
         return self.success()
 
-    @permissions(["Upload data"])
+    @auth_or_token
     def delete(self, group_id, user_id):
         """
         ---
