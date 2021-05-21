@@ -30,47 +30,50 @@ const useStyles = makeStyles(() => ({
 const UpdateSourceRedshift = ({ source }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const [state, setState] = useState(
-    source.redshift ? String(source.redshift) : ""
-  );
-  const [uncstate, setUncState] = useState(
-    source.redshift_error ? String(source.redshift_error) : ""
-  );
+  const [state, setState] = useState({
+    redshift: source.redshift ? String(source.redshift) : "",
+    redshift_error: source.redshift_error ? String(source.redshift_error) : "",
+  });
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invalid, setInvalid] = useState(true);
 
   useEffect(() => {
-    // eslint-disable-next-line no-restricted-globals
-    setInvalid(!String(source.redshift) || isNaN(String(source.redshift)));
-    setState(source.redshift ? String(source.redshift) : "");
     setInvalid(
-      // eslint-disable-next-line no-restricted-globals
-      !String(source.redshift_error) || isNaN(String(source.redshift_error))
+      !String(source.redshift) ||
+        // eslint-disable-next-line no-restricted-globals
+        isNaN(String(source.redshift)) ||
+        !String(source.redshift_error) ||
+        // eslint-disable-next-line no-restricted-globals
+        isNaN(String(source.redshift_error))
     );
-    setUncState(source.redshift_error ? String(source.redshift_error) : "");
+    setState({
+      redshift: source.redshift ? String(source.redshift) : "",
+      redshift_error: source.redshift_error
+        ? String(source.redshift_error)
+        : "",
+    });
   }, [source, setInvalid]);
 
   const handleChange = (e) => {
+    const newState = {};
+    newState[e.target.name] = e.target.value;
     const value = String(e.target.value).trim();
     // eslint-disable-next-line no-restricted-globals
     setInvalid(!value || isNaN(value));
-    setState(value);
-  };
-  const handleUncChange = (e) => {
-    const uncvalue = String(e.target.value).trim();
-    // eslint-disable-next-line no-restricted-globals
-    setInvalid(!uncvalue || isNaN(uncvalue));
-    setUncState(uncvalue);
+    setState({
+      ...state,
+      ...newState,
+    });
   };
 
-  const handleSubmit = async (value, uncvalue) => {
+  const handleSubmit = async (subState) => {
     setIsSubmitting(true);
     const result = await dispatch(
       sourceActions.updateSource(source.id, {
-        redshift: value,
-        redshift_error: uncvalue,
+        redshift: subState.redshift,
+        redshift_error: subState.redshift_error,
       })
     );
     setIsSubmitting(false);
@@ -107,7 +110,8 @@ const UpdateSourceRedshift = ({ source }) => {
               data-testid="updateRedshiftTextfield"
               size="small"
               label="z"
-              value={state}
+              value={state.redshift}
+              name="redshift"
               onChange={handleChange}
               variant="outlined"
             />
@@ -121,8 +125,9 @@ const UpdateSourceRedshift = ({ source }) => {
               data-testid="updateRedshiftErrorTextfield"
               size="small"
               label="z_err"
-              value={uncstate}
-              onChange={handleUncChange}
+              value={state.redshift_error}
+              name="redshift_error"
+              onChange={handleChange}
               variant="outlined"
             />
           </div>
@@ -130,7 +135,7 @@ const UpdateSourceRedshift = ({ source }) => {
             <Button
               color="primary"
               onClick={() => {
-                handleSubmit(state, uncstate);
+                handleSubmit(state);
               }}
               startIcon={<SaveIcon />}
               size="large"
@@ -145,12 +150,16 @@ const UpdateSourceRedshift = ({ source }) => {
               <Button
                 color="primary"
                 onClick={() => {
-                  handleSubmit(null, null);
+                  handleSubmit({ redshift: null, redshift_error: null });
                 }}
                 startIcon={<ClearIcon />}
                 size="large"
                 data-testid="nullifyRedshiftButton"
-                disabled={isSubmitting || source.redshift === null}
+                disabled={
+                  isSubmitting ||
+                  source.redshift === null ||
+                  source.redshift_error === null
+                }
               >
                 Clear
               </Button>
