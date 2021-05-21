@@ -916,6 +916,15 @@ def view_only_token_group2(user_group2):
 
 
 @pytest.fixture()
+def upload_data_token_group2(user_group2):
+    token_id = create_token(
+        ACLs=["Upload data"], user_id=user_group2.id, name=str(uuid.uuid4())
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
 def view_only_token_two_groups(user_two_groups):
     token_id = create_token(ACLs=[], user_id=user_two_groups.id, name=str(uuid.uuid4()))
     yield token_id
