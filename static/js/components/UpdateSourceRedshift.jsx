@@ -41,12 +41,8 @@ const UpdateSourceRedshift = ({ source }) => {
 
   useEffect(() => {
     setInvalid(
-      !String(source.redshift) ||
-        // eslint-disable-next-line no-restricted-globals
-        isNaN(String(source.redshift)) ||
-        !String(source.redshift_error) ||
-        // eslint-disable-next-line no-restricted-globals
-        isNaN(String(source.redshift_error))
+      // eslint-disable-next-line no-restricted-globals
+      !String(source.redshift) || isNaN(String(source.redshift))
     );
     setState({
       redshift: source.redshift ? String(source.redshift) : "",
@@ -60,8 +56,10 @@ const UpdateSourceRedshift = ({ source }) => {
     const newState = {};
     newState[e.target.name] = e.target.value;
     const value = String(e.target.value).trim();
-    // eslint-disable-next-line no-restricted-globals
-    setInvalid(!value || isNaN(value));
+    if (e.target.name === "redshift") {
+      // eslint-disable-next-line no-restricted-globals
+      setInvalid(!value || isNaN(value));
+    }
     setState({
       ...state,
       ...newState,
@@ -70,10 +68,14 @@ const UpdateSourceRedshift = ({ source }) => {
 
   const handleSubmit = async (subState) => {
     setIsSubmitting(true);
+    const newState = {};
+    newState.redshift = subState.redshift ? subState.redshift : null;
+    newState.redshift_error = subState.redshift_error
+      ? subState.redshift_error
+      : null;
     const result = await dispatch(
       sourceActions.updateSource(source.id, {
-        redshift: subState.redshift,
-        redshift_error: subState.redshift_error,
+        ...newState,
       })
     );
     setIsSubmitting(false);
@@ -118,9 +120,6 @@ const UpdateSourceRedshift = ({ source }) => {
           </div>
           <p />
           <div>
-            {invalid && (
-              <FormValidationError message="Please enter a valid float" />
-            )}
             <TextField
               data-testid="updateRedshiftErrorTextfield"
               size="small"
@@ -155,11 +154,7 @@ const UpdateSourceRedshift = ({ source }) => {
                 startIcon={<ClearIcon />}
                 size="large"
                 data-testid="nullifyRedshiftButton"
-                disabled={
-                  isSubmitting ||
-                  source.redshift === null ||
-                  source.redshift_error === null
-                }
+                disabled={isSubmitting || source.redshift === null}
               >
                 Clear
               </Button>
