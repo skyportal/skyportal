@@ -264,7 +264,6 @@ const FilterCandidateList = ({
 
   const validateSorting = () => {
     formState = getValues({ nest: true });
-    console.log(formState);
     return (
       // All left empty
       (formState.sortingOrigin === "" &&
