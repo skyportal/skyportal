@@ -24,13 +24,16 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+const defaultState = {
+  userID: null,
+  admin: false,
+  canSave: true,
+};
+
 const NewGroupUserForm = ({ group_id }) => {
   const dispatch = useDispatch();
   const { users: allUsers } = useSelector((state) => state.users);
-  const [formState, setFormState] = useState({
-    userID: null,
-    admin: false,
-  });
+  const [formState, setFormState] = useState(defaultState);
   const classes = useStyles();
 
   useEffect(() => {
@@ -45,24 +48,20 @@ const NewGroupUserForm = ({ group_id }) => {
     } else {
       const result = await dispatch(
         groupsActions.addGroupUser({
-          userID: formState.userID,
-          admin: formState.admin,
           group_id,
+          ...formState,
         })
       );
       if (result.status === "success") {
-        setFormState({
-          userID: null,
-          admin: false,
-        });
+        setFormState(defaultState);
       }
     }
   };
 
-  const toggleAdmin = (event) => {
+  const toggleCheckbox = (event) => {
     setFormState({
       ...formState,
-      admin: event.target.checked,
+      [event.target.name]: event.target.checked,
     });
   };
 
@@ -106,10 +105,22 @@ const NewGroupUserForm = ({ group_id }) => {
       />
       <input
         type="checkbox"
-        checked={formState.admin || false}
-        onChange={toggleAdmin}
+        checked={formState.canSave || false}
+        onChange={toggleCheckbox}
+        name="canSave"
       />
-      Group Admin &nbsp;&nbsp;
+      Can save to group &nbsp;&nbsp;
+      {formState.canSave && (
+        <>
+          <input
+            type="checkbox"
+            checked={formState.admin || false}
+            onChange={toggleCheckbox}
+            name="admin"
+          />
+          Group Admin &nbsp;&nbsp;
+        </>
+      )}
       <Button
         onClick={handleClickSubmit}
         variant="contained"

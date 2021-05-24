@@ -33,11 +33,12 @@ export function deleteGroup(group_id) {
   return API.DELETE(`/api/groups/${group_id}`, DELETE_GROUP);
 }
 
-export function addGroupUser({ userID, admin, group_id }) {
+export function addGroupUser({ userID, admin, group_id, canSave }) {
   return API.POST(`/api/groups/${group_id}/users`, ADD_GROUP_USER, {
     userID,
     admin,
     group_id,
+    canSave,
   });
 }
 

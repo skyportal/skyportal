@@ -384,6 +384,9 @@ class GroupUserHandler(BaseHandler):
                     type: integer
                   admin:
                     type: boolean
+                  canSave:
+                    type: boolean
+                    description: Boolean indicating whether user can save sources to group. Defaults to true.
                 required:
                   - userID
                   - admin
@@ -412,7 +415,7 @@ class GroupUserHandler(BaseHandler):
 
         data = self.get_json()
 
-        user_id = data.pop("userID", None)
+        user_id = data.get("userID", None)
         if user_id is None:
             return self.error("userID parameter must be specified")
         try:
@@ -420,8 +423,8 @@ class GroupUserHandler(BaseHandler):
         except (ValueError, TypeError):
             return self.error("Invalid userID parameter: unable to parse to integer")
 
-        admin = data.pop("admin", False)
-        group_id = int(group_id)
+        admin = data.get("admin", False)
+        can_save = data.get("canSave", True)
         group = Group.get_if_accessible_by(
             group_id, self.current_user, raise_if_none=True, mode='read'
         )
@@ -440,7 +443,11 @@ class GroupUserHandler(BaseHandler):
                 f"User {user_id} is already a member of group {group_id}."
             )
 
-        DBSession().add(GroupUser(group_id=group_id, user_id=user_id, admin=admin))
+        DBSession().add(
+            GroupUser(
+                group_id=group_id, user_id=user_id, admin=admin, can_save=can_save
+            )
+        )
         DBSession().add(
             UserNotification(
                 user=user,
