@@ -194,10 +194,6 @@ const FilterCandidateList = ({
   const [selectedAnnotationOrigin, setSelectedAnnotationOrigin] = useState(
     selectedScanningProfile?.sortingOrigin
   );
-  useEffect(() => {
-    // Once the selected profile is fully fetched, set the annotation origin
-    setSelectedAnnotationOrigin(selectedScanningProfile?.sortingOrigin);
-  }, [selectedScanningProfile]);
 
   const { handleSubmit, getValues, control, errors, reset } = useForm({
     startDate: defaultStartDate,
@@ -210,11 +206,29 @@ const FilterCandidateList = ({
     groupIDs.forEach((ID, i) => {
       selectedGroupIDs[i] = selectedScanningProfile?.groupIDs.includes(ID);
     });
-    reset({
-      groupIDs: selectedGroupIDs,
-      startDate: defaultStartDate,
-      endDate: defaultEndDate,
-    });
+
+    const resetFormFields = async () => {
+      // Wait for the selected annotation origin state to update before setting
+      // the new default form fields, so that the sortingKey options list can
+      // update
+      await setSelectedAnnotationOrigin(selectedScanningProfile?.sortingOrigin);
+
+      reset({
+        groupIDs: selectedGroupIDs,
+        startDate: defaultStartDate,
+        endDate: defaultEndDate,
+        classifications: selectedScanningProfile?.classifications || [],
+        redshiftMinimum: selectedScanningProfile?.redshiftMinimum || "",
+        redshiftMaximum: selectedScanningProfile?.redshiftMaximum || "",
+        rejectedStatus: selectedScanningProfile?.rejectedStatus || "hide",
+        savedStatus: selectedScanningProfile?.savedStatus || "all",
+        sortingOrigin: selectedScanningProfile?.sortingOrigin || "",
+        sortingKey: selectedScanningProfile?.sortingKey || "",
+        sortingOrder: selectedScanningProfile?.sortingOrder || "",
+      });
+    };
+
+    resetFormFields();
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -250,6 +264,7 @@ const FilterCandidateList = ({
 
   const validateSorting = () => {
     formState = getValues({ nest: true });
+    console.log(formState);
     return (
       // All left empty
       (formState.sortingOrigin === "" &&
@@ -557,52 +572,58 @@ const FilterCandidateList = ({
                   </Select>
                 )}
                 rules={{ validate: validateSorting }}
-                defaultValue={selectedScanningProfile?.sortingOrigin || ""}
+                defaultValue={selectedAnnotationOrigin || ""}
               />
-              <InputLabel id="sorting-select-key-label">
-                Annotation Key
-              </InputLabel>
-              <Controller
-                labelId="sorting-select-key-label"
-                as={Select}
-                name="sortingKey"
-                control={control}
-                input={<Input data-testid="annotationSortingKeySelect" />}
-                defaultValue={selectedScanningProfile?.sortingKey || ""}
-              >
-                {availableAnnotationsInfo ? (
-                  availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
-                    (option) => (
-                      <MenuItem
-                        key={Object.keys(option)[0]}
-                        value={Object.keys(option)[0]}
-                      >
-                        {Object.keys(option)[0]}
-                      </MenuItem>
-                    )
-                  )
-                ) : (
-                  <div />
-                )}
-              </Controller>
-              <InputLabel id="sorting-select-order-label">
-                Annotation Sort Order
-              </InputLabel>
-              <Controller
-                labelId="sorting-select-order-label"
-                as={Select}
-                name="sortingOrder"
-                control={control}
-                input={<Input data-testid="annotationSortingOrderSelect" />}
-                defaultValue={selectedScanningProfile?.sortingOrder || ""}
-              >
-                <MenuItem key="desc" value="desc">
-                  descending
-                </MenuItem>
-                <MenuItem key="asc" value="asc">
-                  ascending
-                </MenuItem>
-              </Controller>
+              {selectedAnnotationOrigin ? (
+                <>
+                  <InputLabel id="sorting-select-key-label">
+                    Annotation Key
+                  </InputLabel>
+                  <Controller
+                    labelId="sorting-select-key-label"
+                    as={Select}
+                    name="sortingKey"
+                    control={control}
+                    input={<Input data-testid="annotationSortingKeySelect" />}
+                    defaultValue={selectedScanningProfile?.sortingKey || ""}
+                  >
+                    {availableAnnotationsInfo ? (
+                      availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
+                        (option) => (
+                          <MenuItem
+                            key={Object.keys(option)[0]}
+                            value={Object.keys(option)[0]}
+                          >
+                            {Object.keys(option)[0]}
+                          </MenuItem>
+                        )
+                      )
+                    ) : (
+                      <div />
+                    )}
+                  </Controller>
+                  <InputLabel id="sorting-select-order-label">
+                    Annotation Sort Order
+                  </InputLabel>
+                  <Controller
+                    labelId="sorting-select-order-label"
+                    as={Select}
+                    name="sortingOrder"
+                    control={control}
+                    input={<Input data-testid="annotationSortingOrderSelect" />}
+                    defaultValue={selectedScanningProfile?.sortingOrder || ""}
+                  >
+                    <MenuItem key="desc" value="desc">
+                      descending
+                    </MenuItem>
+                    <MenuItem key="asc" value="asc">
+                      ascending
+                    </MenuItem>
+                  </Controller>
+                </>
+              ) : (
+                <div />
+              )}
             </Responsive>
           </div>
           <div>
