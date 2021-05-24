@@ -458,6 +458,13 @@ GroupUser.admin = sa.Column(
     doc="Boolean flag indicating whether the User is an admin of the group.",
 )
 
+GroupUser.can_save = sa.Column(
+    sa.Boolean,
+    nullable=False,
+    server_default="true",
+    doc="Boolean flag indicating whether the user should be able to save sources to the group",
+)
+
 User.group_admission_requests = relationship(
     "GroupAdmissionRequest",
     back_populates="user",
@@ -1228,9 +1235,21 @@ User.listings = relationship(
 
 
 Source = join_model("sources", Group, Obj)
-Source.create = (
-    Source.read
-) = Source.update = Source.delete = accessible_by_group_members
+
+
+def source_create_access_logic(cls, user_or_token):
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = DBSession().query(cls)
+    if not user_or_token.is_system_admin:
+        query = query.join(Group).join(GroupUser)
+        query = query.filter(GroupUser.user_id == user_id, GroupUser.can_save.is_(True))
+    return query
+
+
+Source.create = accessible_by_group_members & CustomUserAccessControl(
+    source_create_access_logic
+)
+Source.read = Source.update = Source.delete = accessible_by_group_members
 
 Source.__doc__ = (
     "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
