@@ -11,8 +11,11 @@ import TextareaAutosize from "@material-ui/core/TextareaAutosize";
 import Box from "@material-ui/core/Box";
 import Autocomplete from "@material-ui/lab/Autocomplete";
 import Button from "@material-ui/core/Button";
+import Select from "@material-ui/core/Select";
+import MenuItem from "@material-ui/core/MenuItem";
 import TextField from "@material-ui/core/TextField";
 import AddCircleIcon from "@material-ui/icons/AddCircle";
+import EditIcon from "@material-ui/icons/Edit";
 import IconButton from "@material-ui/core/IconButton";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
@@ -92,6 +95,7 @@ const UserInvitations = () => {
     addInvitationStreamsDialogOpen,
     setAddInvitationStreamsDialogOpen,
   ] = useState(false);
+  const [updateRoleDialogOpen, setUpdateRoleDialogOpen] = useState(false);
   const [clickedInvitation, setClickedInvitation] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
 
@@ -205,6 +209,21 @@ const UserInvitations = () => {
     }
   };
 
+  const handleUpdateInvitationRole = async (formData) => {
+    const result = await dispatch(
+      invitationsActions.updateInvitation(clickedInvitation.id, {
+        role: formData.invitationRole,
+      })
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("Invitation successfully updated."));
+      dispatch(invitationsActions.fetchInvitations(fetchParams));
+      reset({ invitationRole: "" });
+      setUpdateRoleDialogOpen(false);
+      setClickedInvitation(null);
+    }
+  };
+
   const handleDeleteInvitation = async (invitationID) => {
     const result = await dispatch(
       invitationsActions.deleteInvitation(invitationID)
@@ -257,6 +276,27 @@ const UserInvitations = () => {
       >
         Delete
       </Button>
+    );
+  };
+
+  const renderRole = (dataIndex) => {
+    const invitation = invitations[dataIndex];
+    return (
+      <div>
+        {invitation.role_id}
+        &nbsp;
+        <IconButton
+          aria-label="edit-invitation-role"
+          data-testid={`editInvitationRoleButton${invitation.user_email}`}
+          onClick={() => {
+            setClickedInvitation(invitation);
+            setUpdateRoleDialogOpen(true);
+          }}
+          size="small"
+        >
+          <EditIcon color="disabled" />
+        </IconButton>
+      </div>
     );
   };
 
@@ -425,6 +465,15 @@ const UserInvitations = () => {
           // eslint-disable-next-line react/display-name
           display: () => <div />,
         },
+      },
+    },
+    {
+      name: "role",
+      label: "Role",
+      options: {
+        sort: false,
+        customBodyRenderLite: renderRole,
+        filter: false,
       },
     },
     {
@@ -649,6 +698,50 @@ const UserInvitations = () => {
                 type="submit"
                 name="submitAddInvitationStreamsButton"
                 data-testid="submitAddInvitationStreamsButton"
+              >
+                Submit
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={updateRoleDialogOpen}
+        onClose={() => {
+          setUpdateRoleDialogOpen(false);
+        }}
+        style={{ position: "fixed" }}
+      >
+        <DialogTitle>
+          {`Edit user role for ${clickedInvitation?.user_email}:`}
+        </DialogTitle>
+        <DialogContent>
+          <form onSubmit={handleSubmit(handleUpdateInvitationRole)}>
+            {!!errors.invitationRole && (
+              <FormValidationError message="Please select one role" />
+            )}
+            <Controller
+              name="invitationRole"
+              as={
+                <Select data-testid="invitationRoleSelect">
+                  {["Full user", "View only"].map((role) => (
+                    <MenuItem key={role} value={role}>
+                      {role}
+                    </MenuItem>
+                  ))}
+                </Select>
+              }
+              control={control}
+              rules={{ required: true }}
+              defaultValue={clickedInvitation?.role_id}
+            />
+            <br />
+            <div>
+              <Button
+                variant="contained"
+                type="submit"
+                name="submitEditRoleButton"
+                data-testid="submitEditRoleButton"
               >
                 Submit
               </Button>
