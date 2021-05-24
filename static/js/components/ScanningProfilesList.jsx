@@ -1,5 +1,6 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
+import PropTypes from "prop-types";
 
 import Button from "@material-ui/core/Button";
 import Checkbox from "@material-ui/core/Checkbox";
@@ -15,9 +16,32 @@ import {
 } from "@material-ui/core/styles";
 
 import MUIDataTable from "mui-datatables";
-
-import { savedStatusSelectOptions } from "./FilterCandidateList";
 import * as profileActions from "../ducks/profile";
+
+const savedStatusSelectOptions = [
+  { value: "all", label: "regardless of saved status" },
+  { value: "savedToAllSelected", label: "and is saved to all selected groups" },
+  {
+    value: "savedToAnySelected",
+    label: "and is saved to at least one of the selected groups",
+  },
+  {
+    value: "savedToAnyAccessible",
+    label: "and is saved to at least one group I have access to",
+  },
+  {
+    value: "notSavedToAnyAccessible",
+    label: "and is not saved to any of group I have access to",
+  },
+  {
+    value: "notSavedToAnySelected",
+    label: "and is not saved to any of the selected groups",
+  },
+  {
+    value: "notSavedToAllSelected",
+    label: "and is not saved to all of the selected groups",
+  },
+];
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -60,7 +84,10 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const ScanningProfilesList = () => {
+const ScanningProfilesList = ({
+  selectedScanningProfile,
+  setSelectedScanningProfile,
+}) => {
   const classes = useStyles();
   const theme = useTheme();
   const profiles = useSelector(
@@ -74,6 +101,32 @@ const ScanningProfilesList = () => {
   if (!profiles) {
     return <div />;
   }
+
+  const handleLoadedChange = (checked, dataIndex) => {
+    if (checked) {
+      setSelectedScanningProfile(profiles[dataIndex]);
+    } else {
+      setSelectedScanningProfile(undefined);
+    }
+  };
+
+  const renderLoaded = (dataIndex) => {
+    const profile = profiles[dataIndex];
+    return profile ? (
+      <div>
+        <Checkbox
+          checked={selectedScanningProfile?.id === profile.id}
+          key={`loaded${dataIndex}`}
+          onChange={(event) =>
+            handleLoadedChange(event.target.checked, dataIndex)
+          }
+          inputProps={{ "aria-label": "primary checkbox" }}
+        />
+      </div>
+    ) : (
+      <div />
+    );
+  };
 
   const deleteProfile = (dataIndex) => {
     profiles.splice(dataIndex, 1);
@@ -206,19 +259,28 @@ const ScanningProfilesList = () => {
   };
 
   const renderDelete = (dataIndex) => (
-    <Button
-      variant="contained"
-      size="small"
-      onClick={() => deleteProfile(dataIndex)}
-    >
-      Delete
-    </Button>
+    <div>
+      <Button
+        variant="contained"
+        size="small"
+        onClick={() => deleteProfile(dataIndex)}
+      >
+        Delete
+      </Button>
+    </div>
   );
 
   const columns = [
     {
+      name: "loaded",
+      label: "Currently Loaded",
+      options: {
+        customBodyRenderLite: renderLoaded,
+      },
+    },
+    {
       name: "default",
-      label: "Default?",
+      label: "Default",
       options: {
         customBodyRenderLite: renderDefault,
       },
@@ -295,11 +357,23 @@ const ScanningProfilesList = () => {
     <div>
       <Paper className={classes.container}>
         <MuiThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable data={profiles} options={options} columns={columns} />
+          <MUIDataTable
+            data={profiles}
+            options={options}
+            columns={columns}
+            title="Saved Scanning Profiles"
+          />
         </MuiThemeProvider>
       </Paper>
     </div>
   );
 };
 
+ScanningProfilesList.propTypes = {
+  selectedScanningProfile: PropTypes.shape({ id: PropTypes.string }),
+  setSelectedScanningProfile: PropTypes.func.isRequired,
+};
+ScanningProfilesList.defaultProps = {
+  selectedScanningProfile: null,
+};
 export default ScanningProfilesList;

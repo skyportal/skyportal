@@ -2,7 +2,6 @@ import datetime
 from copy import copy
 import re
 import json
-import ast
 
 import arrow
 
@@ -278,12 +277,19 @@ class CandidateHandler(BaseHandler):
               Comma-separated string of classification(s) to filter for candidates matching
               that/those classification(s).
           - in: query
-            name: redshiftRange
-            nullable: True
+            name: minRedshift
+            nullable: true
             schema:
-                type: list
+              type: number
             description: |
-                lowest and highest redshift to return, e.g. "(0,0.5)"
+              If provided, return only candidates with a redshift of at least this value
+          - in: query
+            name: maxRedshift
+            nullable: true
+            schema:
+              type: number
+            description: |
+              If provided, return only candidates with a redshift of at most this value
           - in: query
             name: listName
             nullable: true
@@ -454,7 +460,8 @@ class CandidateHandler(BaseHandler):
         sort_by_origin = self.get_query_argument("sortByAnnotationOrigin", None)
         annotation_filter_list = self.get_query_argument("annotationFilterList", None)
         classifications = self.get_query_argument("classifications", None)
-        redshift_range_str = self.get_query_argument("redshiftRange", None)
+        min_redshift = self.get_query_argument("minRedshift", None)
+        max_redshift = self.get_query_argument("maxRedshift", None)
         list_name = self.get_query_argument('listName', None)
         list_name_reject = self.get_query_argument('listNameReject', None)
 
@@ -601,20 +608,22 @@ class CandidateHandler(BaseHandler):
                 f"Invalid savedStatus: {saved_status}. Must be one of the enumerated options."
             )
 
-        if redshift_range_str is not None:
-            redshift_range = ast.literal_eval(redshift_range_str)
-            if not (
-                isinstance(redshift_range, (list, tuple)) and len(redshift_range) == 2
-            ):
-                return self.error('Invalid argument for `redshiftRange`')
-            if not (
-                isinstance(redshift_range[0], (float, int))
-                and isinstance(redshift_range[1], (float, int))
-            ):
-                return self.error('Invalid arguments in `redshiftRange`')
-            q = q.filter(
-                Obj.redshift >= redshift_range[0], Obj.redshift <= redshift_range[1]
-            )
+        if min_redshift is not None:
+            try:
+                min_redshift = float(min_redshift)
+            except ValueError:
+                return self.error(
+                    "Invalid values for minRedshift - could not convert to float"
+                )
+            q = q.filter(Obj.redshift >= min_redshift)
+        if max_redshift is not None:
+            try:
+                max_redshift = float(max_redshift)
+            except ValueError:
+                return self.error(
+                    "Invalid values for maxRedshift - could not convert to float"
+                )
+            q = q.filter(Obj.redshift <= max_redshift)
 
         if annotation_exclude_origin is not None:
             if annotation_exclude_date is None:

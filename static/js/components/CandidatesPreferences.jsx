@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
+import PropTypes from "prop-types";
 
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
+import IconButton from "@material-ui/core/IconButton";
 import Typography from "@material-ui/core/Typography";
+import CloseIcon from "@material-ui/icons/Close";
 import Button from "@material-ui/core/Button";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
-import DialogTitle from "@material-ui/core/DialogTitle";
+import Toolbar from "@material-ui/core/Toolbar";
+
 import Input from "@material-ui/core/Input";
 import InputLabel from "@material-ui/core/InputLabel";
 import Chip from "@material-ui/core/Chip";
@@ -16,6 +20,9 @@ import TextField from "@material-ui/core/TextField";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Checkbox from "@material-ui/core/Checkbox";
 import SaveIcon from "@material-ui/icons/Save";
+import Grid from "@material-ui/core/Grid";
+import Paper from "@material-ui/core/Paper";
+import Slide from "@material-ui/core/Slide";
 import { makeStyles, useTheme } from "@material-ui/core/styles";
 
 import dayjs from "dayjs";
@@ -27,22 +34,45 @@ import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
 import FormValidationError from "./FormValidationError";
 import { allowedClasses } from "./ClassificationForm";
-import {
-  savedStatusSelectOptions,
-  rejectedStatusSelectOptions,
-} from "./FilterCandidateList";
 import ScanningProfilesList from "./ScanningProfilesList";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles(() => ({
+const rejectedStatusSelectOptions = [
+  { value: "hide", label: "Hide rejected candidates" },
+  { value: "show", label: "Show rejected candidates" },
+];
+
+const savedStatusSelectOptions = [
+  { value: "all", label: "regardless of saved status" },
+  { value: "savedToAllSelected", label: "and is saved to all selected groups" },
+  {
+    value: "savedToAnySelected",
+    label: "and is saved to at least one of the selected groups",
+  },
+  {
+    value: "savedToAnyAccessible",
+    label: "and is saved to at least one group I have access to",
+  },
+  {
+    value: "notSavedToAnyAccessible",
+    label: "and is not saved to any of group I have access to",
+  },
+  {
+    value: "notSavedToAnySelected",
+    label: "and is not saved to any of the selected groups",
+  },
+  {
+    value: "notSavedToAllSelected",
+    label: "and is not saved to all of the selected groups",
+  },
+];
+
+const useStyles = makeStyles((theme) => ({
   filterListContainer: {
     padding: "1rem",
     display: "flex",
     flexFlow: "column nowrap",
-  },
-  button: {
-    marginTop: "1rem",
   },
   formRow: {
     margin: "1rem 0",
@@ -68,6 +98,15 @@ const useStyles = makeStyles(() => ({
       width: "100%",
     },
   },
+  saveButton: {
+    marginTop: "1rem",
+  },
+  dialogContent: {
+    backgroundColor: theme.palette.background.default,
+  },
+  header: {
+    justifyContent: "space-between",
+  },
 }));
 
 function getStyles(classification, selectedClassifications, theme) {
@@ -79,7 +118,16 @@ function getStyles(classification, selectedClassifications, theme) {
   };
 }
 
-const CandidatesPreferences = () => {
+// eslint-disable-next-line react/display-name
+const Transition = React.forwardRef((props, ref) => (
+  // eslint-disable-next-line react/jsx-props-no-spreading
+  <Slide direction="up" ref={ref} {...props} />
+));
+
+const CandidatesPreferences = ({
+  selectedScanningProfile,
+  setSelectedScanningProfile,
+}) => {
   const preferences = useSelector((state) => state.profile.preferences);
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo
@@ -90,8 +138,10 @@ const CandidatesPreferences = () => {
 
   useEffect(() => {
     // Grab the available annotation fields for filtering
-    dispatch(candidatesActions.fetchAnnotationsInfo());
-  }, [dispatch]);
+    if (!availableAnnotationsInfo) {
+      dispatch(candidatesActions.fetchAnnotationsInfo());
+    }
+  }, [dispatch, availableAnnotationsInfo]);
 
   const userAccessibleGroups = useSelector(
     (state) => state.groups.userAccessible
@@ -152,19 +202,6 @@ const CandidatesPreferences = () => {
     return formState.groupIDs.filter((value) => Boolean(value)).length >= 1;
   };
 
-  const validateRedshifts = () => {
-    formState = getValues({ nest: true });
-    return (
-      // Both empty
-      (formState.redshiftMinimum === "" && formState.redshiftMaximum === "") ||
-      // Or both filled out
-      (formState.redshiftMinimum !== "" &&
-        formState.redshiftMaximum !== "" &&
-        parseFloat(formState.redshiftMaximum) >
-          parseFloat(formState.redshiftMinimum))
-    );
-  };
-
   const validateSorting = () => {
     formState = getValues({ nest: true });
     return (
@@ -191,6 +228,7 @@ const CandidatesPreferences = () => {
       groupIDs: selectedGroupIDs,
       savedStatus: formData.savedStatus,
       default: true,
+      selected: true,
     };
     // decide if to show rejected candidates
     if (formData.rejectedStatus) {
@@ -203,8 +241,10 @@ const CandidatesPreferences = () => {
     if (formData.classifications.length > 0) {
       data.classifications = formData.classifications;
     }
-    if (formData.redshiftMinimum && formData.redshiftMaximum) {
+    if (formData.redshiftMinimum) {
       data.redshiftMinimum = formData.redshiftMinimum;
+    }
+    if (formData.redshiftMaximum) {
       data.redshiftMaximum = formData.redshiftMaximum;
     }
     if (formData.sortingOrigin) {
@@ -217,20 +257,18 @@ const CandidatesPreferences = () => {
     const currentProfiles = preferences.scanningProfiles || [];
     currentProfiles.forEach((profile) => {
       profile.default = false;
+      profile.selected = false;
     });
     currentProfiles.push(data);
     const prefs = {
       scanningProfiles: currentProfiles,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
-    setAddDialogOpen(false);
   };
 
   return (
     <div>
-      <Typography variant="h6">Default Scanning Profiles</Typography>
-      <ScanningProfilesList />
-      <div className={classes.button}>
+      <div>
         <Button
           variant="contained"
           data-testid="addScanningProfileButton"
@@ -238,327 +276,365 @@ const CandidatesPreferences = () => {
             setAddDialogOpen(true);
           }}
         >
-          Add new scanning profile
+          Manage scanning profiles
         </Button>
       </div>
       <Dialog
         open={addDialogOpen}
+        fullScreen
         onClose={() => {
           setAddDialogOpen(false);
         }}
+        TransitionComponent={Transition}
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
       >
-        <DialogTitle id="alert-dialog-title">
-          Save a set of scanning options as your default
-        </DialogTitle>
-        <DialogContent>
-          <div className={classes.filterListContainer}>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <div className={classes.formRow}>
-                <Controller
-                  render={({ onChange, value }) => (
-                    <TextField
-                      id="time-range"
-                      label="Time range (hours before now)"
-                      type="number"
-                      value={value}
-                      inputProps={{ step: 1 }}
-                      // eslint-disable-next-line react/jsx-no-duplicate-props
-                      InputProps={{ "data-testid": "timeRange" }}
-                      InputLabelProps={{
-                        shrink: true,
-                      }}
-                      onChange={(event) => onChange(event.target.value)}
-                    />
-                  )}
-                  name="timeRange"
-                  control={control}
-                  defaultValue="24"
-                />
-              </div>
-              <div className={classes.savedStatusSelect}>
-                <InputLabel id="savedStatusSelectLabel">
-                  Show only candidates which passed a filter from the selected
-                  groups...
-                </InputLabel>
-                <Controller
-                  labelId="savedStatusSelectLabel"
-                  as={Select}
-                  name="savedStatus"
-                  control={control}
-                  input={<Input data-testid="savedStatusSelect" />}
-                  defaultValue="all"
-                >
-                  {savedStatusSelectOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Controller>
-              </div>
-              <div className={classes.formRow}>
-                <InputLabel id="classifications-select-label">
-                  Classifications
-                </InputLabel>
-                <Controller
-                  labelId="classifications-select-label"
-                  render={({ onChange, value }) => (
-                    <Select
-                      multiple
-                      value={value}
-                      onChange={(event) => {
-                        setSelectedClassifications(event.target.value);
-                        onChange(event.target.value);
-                      }}
-                      input={<Input data-testid="classifications-select" />}
-                      renderValue={(selected) => (
-                        <div className={classes.chips}>
-                          {selected.map((classification) => (
-                            <Chip
-                              key={classification}
-                              label={classification}
-                              className={classes.chip}
-                            />
-                          ))}
-                        </div>
-                      )}
-                      MenuProps={MenuProps}
-                    >
-                      {classifications.map((classification) => (
-                        <MenuItem
-                          key={classification}
-                          value={classification}
-                          style={getStyles(
-                            classification,
-                            selectedClassifications,
-                            theme
-                          )}
-                        >
-                          {classification}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  )}
-                  name="classifications"
-                  control={control}
-                  defaultValue={[]}
-                />
-              </div>
-              <div className={classes.formRow}>
-                {errors.redshiftMinimum && (
-                  <FormValidationError message="Redshift minimum/maximum must both be defined or left empty, with maximum > minimum" />
-                )}
-                <InputLabel id="redshift-select-label">Redshift</InputLabel>
-                <div className={classes.redshiftField}>
-                  <Controller
-                    render={({ onChange, value }) => (
-                      <TextField
-                        data-testid="minimum-redshift"
-                        label="Minimum"
-                        type="number"
-                        value={value}
-                        inputProps={{ step: 0.001 }}
-                        size="small"
-                        margin="dense"
-                        InputLabelProps={{
-                          shrink: true,
-                        }}
-                        onChange={(event) => onChange(event.target.value)}
-                      />
-                    )}
-                    name="redshiftMinimum"
-                    labelId="redshift-select-label"
-                    control={control}
-                    rules={{ validate: validateRedshifts }}
-                    defaultValue=""
-                  />
-                </div>
-                <div className={classes.redshiftField}>
-                  <Controller
-                    render={({ onChange, value }) => (
-                      <TextField
-                        data-testid="maximum-redshift"
-                        label="Maximum"
-                        type="number"
-                        value={value}
-                        inputProps={{ step: 0.001 }}
-                        size="small"
-                        margin="dense"
-                        InputLabelProps={{
-                          shrink: true,
-                        }}
-                        onChange={(event) => onChange(event.target.value)}
-                      />
-                    )}
-                    name="redshiftMaximum"
-                    control={control}
-                    defaultValue=""
-                  />
-                </div>
-              </div>
-              <div className={classes.formRow}>
-                <InputLabel id="rejectedCandidatesLabel">
-                  Show/hide rejected candidates
-                </InputLabel>
-                <Controller
-                  labelId="rejectedCandidatesLabel"
-                  as={Select}
-                  name="rejectedStatus"
-                  control={control}
-                  input={<Input data-testid="rejectedStatusSelect" />}
-                  defaultValue="hide"
-                >
-                  {rejectedStatusSelectOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Controller>
-              </div>
-              <div
-                className={`${classes.formRow} ${classes.annotationSorting}`}
-              >
-                {errors.sortingOrigin && (
-                  <FormValidationError message="All sorting fields must be left empty or all filled out" />
-                )}
-                <Responsive
-                  element={FoldBox}
-                  title="Annotation Sorting"
-                  mobileProps={{ folded: true }}
-                >
-                  <InputLabel id="sorting-select-label">
-                    Annotation Origin
-                  </InputLabel>
-                  <Controller
-                    labelId="sorting-select-label"
-                    name="sortingOrigin"
-                    control={control}
-                    render={({ onChange, value }) => (
-                      <Select
-                        id="annotationSortingOriginSelect"
-                        value={value}
-                        onChange={(event) => {
-                          setSelectedAnnotationOrigin(event.target.value);
-                          onChange(event.target.value);
-                        }}
-                        input={
-                          <Input data-testid="annotationSortingOriginSelect" />
-                        }
-                      >
-                        {availableAnnotationsInfo ? (
-                          Object.keys(availableAnnotationsInfo).map(
-                            (option) => (
-                              <MenuItem key={option} value={option}>
-                                {option}
-                              </MenuItem>
-                            )
-                          )
-                        ) : (
-                          <div />
+        <Toolbar className={classes.header}>
+          <Typography variant="h6">Scanning Profiles</Typography>
+          <IconButton
+            edge="start"
+            color="inherit"
+            onClick={() => {
+              setAddDialogOpen(false);
+            }}
+            aria-label="close"
+          >
+            <CloseIcon />
+          </IconButton>
+        </Toolbar>
+        <DialogContent className={classes.dialogContent}>
+          <Grid container spacing={2}>
+            <Grid item md={7} sm={12}>
+              <ScanningProfilesList
+                selectedScanningProfile={selectedScanningProfile}
+                setSelectedScanningProfile={setSelectedScanningProfile}
+              />
+            </Grid>
+            <Grid item md={5} sm={12}>
+              <Paper>
+                <div className={classes.filterListContainer}>
+                  <Typography variant="h6">
+                    Add a New Scanning Profile
+                  </Typography>
+                  <form onSubmit={handleSubmit(onSubmit)}>
+                    <div className={classes.formRow}>
+                      <Controller
+                        render={({ onChange, value }) => (
+                          <TextField
+                            id="time-range"
+                            label="Time range (hours before now)"
+                            type="number"
+                            value={value}
+                            inputProps={{ step: 1 }}
+                            // eslint-disable-next-line react/jsx-no-duplicate-props
+                            InputProps={{ "data-testid": "timeRange" }}
+                            InputLabelProps={{
+                              shrink: true,
+                            }}
+                            onChange={(event) => onChange(event.target.value)}
+                          />
                         )}
-                      </Select>
-                    )}
-                    rules={{ validate: validateSorting }}
-                    defaultValue=""
-                  />
-                  <InputLabel id="sorting-select-key-label">
-                    Annotation Key
-                  </InputLabel>
-                  <Controller
-                    labelId="sorting-select-key-label"
-                    as={Select}
-                    name="sortingKey"
-                    control={control}
-                    input={<Input data-testid="annotationSortingKeySelect" />}
-                    defaultValue=""
-                  >
-                    {availableAnnotationsInfo ? (
-                      availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
-                        (option) => (
-                          <MenuItem
-                            key={Object.keys(option)[0]}
-                            value={Object.keys(option)[0]}
-                          >
-                            {Object.keys(option)[0]}
+                        name="timeRange"
+                        control={control}
+                        defaultValue="24"
+                      />
+                    </div>
+                    <div className={classes.savedStatusSelect}>
+                      <InputLabel id="savedStatusSelectLabel">
+                        Show only candidates which passed a filter from the
+                        selected groups...
+                      </InputLabel>
+                      <Controller
+                        labelId="savedStatusSelectLabel"
+                        as={Select}
+                        name="savedStatus"
+                        control={control}
+                        input={<Input data-testid="savedStatusSelect" />}
+                        defaultValue="all"
+                      >
+                        {savedStatusSelectOptions.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
                           </MenuItem>
-                        )
-                      )
-                    ) : (
-                      <div />
-                    )}
-                  </Controller>
-                  <InputLabel id="sorting-select-order-label">
-                    Annotation Sort Order
-                  </InputLabel>
-                  <Controller
-                    labelId="sorting-select-order-label"
-                    as={Select}
-                    name="sortingOrder"
-                    control={control}
-                    input={<Input data-testid="annotationSortingOrderSelect" />}
-                    defaultValue=""
-                  >
-                    <MenuItem key="desc" value="desc">
-                      descending
-                    </MenuItem>
-                    <MenuItem key="asc" value="asc">
-                      ascending
-                    </MenuItem>
-                  </Controller>
-                </Responsive>
-              </div>
-              <div>
-                <Responsive
-                  element={FoldBox}
-                  title="Program Selection"
-                  mobileProps={{ folded: true }}
-                >
-                  {errors.groupIDs && (
-                    <FormValidationError message="Select at least one group." />
-                  )}
-                  {userAccessibleGroups.map((group, idx) => (
-                    <FormControlLabel
-                      key={group.id}
-                      control={
+                        ))}
+                      </Controller>
+                    </div>
+                    <div className={classes.formRow}>
+                      <InputLabel id="classifications-select-label">
+                        Classifications
+                      </InputLabel>
+                      <Controller
+                        labelId="classifications-select-label"
+                        render={({ onChange, value }) => (
+                          <Select
+                            multiple
+                            value={value}
+                            onChange={(event) => {
+                              setSelectedClassifications(event.target.value);
+                              onChange(event.target.value);
+                            }}
+                            input={
+                              <Input data-testid="classifications-select" />
+                            }
+                            renderValue={(selected) => (
+                              <div className={classes.chips}>
+                                {selected.map((classification) => (
+                                  <Chip
+                                    key={classification}
+                                    label={classification}
+                                    className={classes.chip}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                            MenuProps={MenuProps}
+                          >
+                            {classifications.map((classification) => (
+                              <MenuItem
+                                key={classification}
+                                value={classification}
+                                style={getStyles(
+                                  classification,
+                                  selectedClassifications,
+                                  theme
+                                )}
+                              >
+                                {classification}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        )}
+                        name="classifications"
+                        control={control}
+                        defaultValue={[]}
+                      />
+                    </div>
+                    <div className={classes.formRow}>
+                      <InputLabel id="redshift-select-label">
+                        Redshift
+                      </InputLabel>
+                      <div className={classes.redshiftField}>
                         <Controller
                           render={({ onChange, value }) => (
-                            <Checkbox
-                              onChange={(event) => {
-                                onChange(event.target.checked);
+                            <TextField
+                              data-testid="minimum-redshift"
+                              label="Minimum"
+                              type="number"
+                              value={value}
+                              inputProps={{ step: 0.001 }}
+                              size="small"
+                              margin="dense"
+                              InputLabelProps={{
+                                shrink: true,
                               }}
-                              checked={value}
-                              data-testid={`filteringFormGroupCheckbox-${group.id}`}
+                              onChange={(event) => onChange(event.target.value)}
                             />
                           )}
-                          name={`groupIDs[${idx}]`}
+                          name="redshiftMinimum"
+                          labelId="redshift-select-label"
                           control={control}
-                          rules={{ validate: validateGroups }}
-                          defaultValue={false}
+                          defaultValue=""
                         />
-                      }
-                      label={group.name}
-                    />
-                  ))}
-                </Responsive>
-              </div>
-              <div className={classes.button}>
-                <Button
-                  variant="contained"
-                  type="submit"
-                  endIcon={<SaveIcon />}
-                  data-testid="saveScanningProfileButton"
-                  color="primary"
-                >
-                  Save
-                </Button>
-              </div>
-            </form>
-          </div>
+                      </div>
+                      <div className={classes.redshiftField}>
+                        <Controller
+                          render={({ onChange, value }) => (
+                            <TextField
+                              data-testid="maximum-redshift"
+                              label="Maximum"
+                              type="number"
+                              value={value}
+                              inputProps={{ step: 0.001 }}
+                              size="small"
+                              margin="dense"
+                              InputLabelProps={{
+                                shrink: true,
+                              }}
+                              onChange={(event) => onChange(event.target.value)}
+                            />
+                          )}
+                          name="redshiftMaximum"
+                          control={control}
+                          defaultValue=""
+                        />
+                      </div>
+                    </div>
+                    <div className={classes.formRow}>
+                      <InputLabel id="rejectedCandidatesLabel">
+                        Show/hide rejected candidates
+                      </InputLabel>
+                      <Controller
+                        labelId="rejectedCandidatesLabel"
+                        as={Select}
+                        name="rejectedStatus"
+                        control={control}
+                        input={<Input data-testid="rejectedStatusSelect" />}
+                        defaultValue="hide"
+                      >
+                        {rejectedStatusSelectOptions.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Controller>
+                    </div>
+                    <div
+                      className={`${classes.formRow} ${classes.annotationSorting}`}
+                    >
+                      {errors.sortingOrigin && (
+                        <FormValidationError message="All sorting fields must be left empty or all filled out" />
+                      )}
+                      <Responsive
+                        element={FoldBox}
+                        title="Annotation Sorting"
+                        mobileProps={{ folded: true }}
+                      >
+                        <InputLabel id="sorting-select-label">
+                          Annotation Origin
+                        </InputLabel>
+                        <Controller
+                          labelId="sorting-select-label"
+                          name="sortingOrigin"
+                          control={control}
+                          render={({ onChange, value }) => (
+                            <Select
+                              id="annotationSortingOriginSelect"
+                              value={value}
+                              onChange={(event) => {
+                                setSelectedAnnotationOrigin(event.target.value);
+                                onChange(event.target.value);
+                              }}
+                              input={
+                                <Input data-testid="annotationSortingOriginSelect" />
+                              }
+                            >
+                              {availableAnnotationsInfo ? (
+                                Object.keys(availableAnnotationsInfo).map(
+                                  (option) => (
+                                    <MenuItem key={option} value={option}>
+                                      {option}
+                                    </MenuItem>
+                                  )
+                                )
+                              ) : (
+                                <div />
+                              )}
+                            </Select>
+                          )}
+                          rules={{ validate: validateSorting }}
+                          defaultValue=""
+                        />
+                        <InputLabel id="sorting-select-key-label">
+                          Annotation Key
+                        </InputLabel>
+                        <Controller
+                          labelId="sorting-select-key-label"
+                          as={Select}
+                          name="sortingKey"
+                          control={control}
+                          input={
+                            <Input data-testid="annotationSortingKeySelect" />
+                          }
+                          defaultValue=""
+                        >
+                          {availableAnnotationsInfo ? (
+                            availableAnnotationsInfo[
+                              selectedAnnotationOrigin
+                            ]?.map((option) => (
+                              <MenuItem
+                                key={Object.keys(option)[0]}
+                                value={Object.keys(option)[0]}
+                              >
+                                {Object.keys(option)[0]}
+                              </MenuItem>
+                            ))
+                          ) : (
+                            <div />
+                          )}
+                        </Controller>
+                        <InputLabel id="sorting-select-order-label">
+                          Annotation Sort Order
+                        </InputLabel>
+                        <Controller
+                          labelId="sorting-select-order-label"
+                          as={Select}
+                          name="sortingOrder"
+                          control={control}
+                          input={
+                            <Input data-testid="annotationSortingOrderSelect" />
+                          }
+                          defaultValue=""
+                        >
+                          <MenuItem key="desc" value="desc">
+                            descending
+                          </MenuItem>
+                          <MenuItem key="asc" value="asc">
+                            ascending
+                          </MenuItem>
+                        </Controller>
+                      </Responsive>
+                    </div>
+                    <div>
+                      <Responsive
+                        element={FoldBox}
+                        title="Program Selection"
+                        mobileProps={{ folded: true }}
+                      >
+                        {errors.groupIDs && (
+                          <FormValidationError message="Select at least one group." />
+                        )}
+                        {userAccessibleGroups.map((group, idx) => (
+                          <FormControlLabel
+                            key={group.id}
+                            control={
+                              <Controller
+                                render={({ onChange, value }) => (
+                                  <Checkbox
+                                    onChange={(event) => {
+                                      onChange(event.target.checked);
+                                    }}
+                                    checked={value}
+                                    data-testid={`filteringFormGroupCheckbox-${group.id}`}
+                                  />
+                                )}
+                                name={`groupIDs[${idx}]`}
+                                control={control}
+                                rules={{ validate: validateGroups }}
+                                defaultValue={false}
+                              />
+                            }
+                            label={group.name}
+                          />
+                        ))}
+                      </Responsive>
+                    </div>
+                    <div className={classes.saveButton}>
+                      <Button
+                        variant="contained"
+                        type="submit"
+                        endIcon={<SaveIcon />}
+                        data-testid="saveScanningProfileButton"
+                        color="primary"
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </Paper>
+            </Grid>
+          </Grid>
         </DialogContent>
       </Dialog>
     </div>
   );
 };
 
+CandidatesPreferences.propTypes = {
+  selectedScanningProfile: PropTypes.shape({}),
+  setSelectedScanningProfile: PropTypes.func.isRequired,
+};
+CandidatesPreferences.defaultProps = {
+  selectedScanningProfile: null,
+};
 export default CandidatesPreferences;
