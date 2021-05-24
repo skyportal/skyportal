@@ -210,7 +210,7 @@ const SourceDesktop = ({ source }) => {
             <div className={classes.redshiftInfo}>
               <b>Redshift: &nbsp;</b>
               {source.redshift && source.redshift.toFixed(z_round)}
-              <b>&nbsp; &plusmn; &nbsp;</b>
+              {source.redshift_error && <b>&nbsp; &plusmn; &nbsp;</b>}
               {source.redshift_error && source.redshift_error.toFixed(z_round)}
               <UpdateSourceRedshift source={source} />
               <SourceRedshiftHistory
