@@ -53,6 +53,7 @@ def update_redshift_history_if_relevant(request_data, obj, user):
                 "set_by_user_id": user.id,
                 "set_at_utc": datetime.datetime.utcnow().isoformat(),
                 "value": request_data["redshift"],
+                "uncertainty": request_data.get("redshift_error", None),
             }
         )
         obj.redshift_history = redshift_history

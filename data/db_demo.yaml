@@ -316,6 +316,7 @@ candidates:
     ra: 353.36647
     dec: 33.646149
     redshift: 0.063
+    redshift_error: 0.002
     varstar: false
     passed_at: "2020-10-30 21:17:06.475748"
     origin: "ASAS-SN"
@@ -326,6 +327,7 @@ candidates:
     ra: 353.36647
     dec: 33.646149
     redshift: 0.063
+    redshift_error: 0.002
     varstar: false
     passed_at: "2020-10-30 21:18:06.475748"
     origin: "ASAS-SN"
@@ -334,7 +336,7 @@ candidates:
       - =example_filter
     ra: 322.718872
     dec: 27.574113
-    redshift: 0.0
+    redshift: 0.001
     varstar: false
     passed_at: "2020-10-30 21:19:06.475748"
     alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
@@ -343,7 +345,7 @@ candidates:
       - =example_filter
     ra: 322.718872
     dec: 27.574113
-    redshift: 0.0
+    redshift: 0.001
     varstar: false
     passed_at: "2020-10-30 21:13:06.475748"
     alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
@@ -352,7 +354,6 @@ candidates:
       - =example_filter
     ra: 229.9620403
     dec: 34.8442757
-    redshift: 0.0
     varstar: true
     altdata:
       simbad:
@@ -364,7 +365,6 @@ candidates:
       - =example_filter
     ra: 342.4596
     dec: 51.2634
-    redshift: 0.0
     varstar: true
     altdata:
       simbad:
