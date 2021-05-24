@@ -25,7 +25,6 @@ import emoji from "emoji-dictionary";
 import * as sourceActions from "../ducks/source";
 import CommentList from "./CommentList";
 import CommmentAttachmentPreview from "./CommentAttachmentPreview";
-import styles from "./CommentList.css";
 import UserAvatar from "./UserAvatar";
 
 dayjs.extend(relativeTime);
@@ -42,6 +41,123 @@ const useStyles = makeStyles(() => ({
   dialogButton: {
     textAlign: "center",
     margin: "1.5rem",
+  },
+  comment: {
+    fontSize: "90%",
+    display: "flex",
+    flexDirection: "row",
+    padding: "0.125rem",
+    margin: "0 0.125rem 0.125rem 0",
+    borderRadius: "1rem",
+    "&:hover": {
+      backgroundColor: "#e0e0e0",
+    },
+    "& .commentDelete": {
+      "&:hover": {
+        color: "#e63946",
+      },
+    },
+  },
+  commentDark: {
+    fontSize: "90%",
+    display: "flex",
+    flexDirection: "row",
+    padding: "0.125rem",
+    margin: "0 0.125rem 0.125rem 0",
+    borderRadius: "1rem",
+    "&:hover": {
+      backgroundColor: "#3a3a3a",
+    },
+    "& .commentDelete": {
+      color: "#b1dae9",
+      "&:hover": {
+        color: "#e63946",
+      },
+    },
+  },
+  commentContent: {
+    display: "flex",
+    flexFlow: "column nowrap",
+    padding: "0.3125rem 0.625rem 0.3125rem 0.875rem",
+    borderRadius: "15px",
+    width: "100%",
+  },
+  spacer: {
+    width: "20px",
+    padding: "0 10px",
+  },
+  commentHeader: {
+    display: "flex",
+    alignItems: "center",
+  },
+  commentHeaderContent: {
+    width: "70%",
+  },
+  commentTime: {
+    color: "gray",
+    fontSize: "80%",
+    marginRight: "1em",
+  },
+  commentMessage: {
+    maxWidth: "25em",
+    "& > p": {
+      margin: "0",
+    },
+  },
+  commentUserName: {
+    fontWeight: "bold",
+    marginRight: "0.5em",
+    whiteSpace: "nowrap",
+    color: "#76aace",
+  },
+  commentUserDomain: {
+    color: "lightgray",
+    fontSize: "80%",
+    paddingRight: "0.5em",
+  },
+  commentUserAvatar: {
+    display: "block",
+    margin: "0.5em",
+  },
+  commentUserGroup: {
+    display: "inline-block",
+    "& > svg": {
+      fontSize: "1rem",
+    },
+  },
+  wrap: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    minHeight: "27px",
+    maxWidth: "25em",
+  },
+  compactContainer: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    height: "25px",
+    margin: "0 15px",
+    width: "100%",
+  },
+  compactWrap: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    padding: "0 5px",
+  },
+  compactButtons: {
+    display: "flex",
+    alignItems: "center",
+  },
+  defaultCommentDelete: {
+    display: "flex",
+    justifyContent: "end",
+    width: "30%",
   },
 }));
 
@@ -76,7 +192,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
 );
 
 const CommentListMobile = ({ isCandidate }) => {
-  const classes = useStyles();
+  const styles = useStyles();
 
   const [hoverID, setHoverID] = useState(null);
 
@@ -126,8 +242,8 @@ const CommentListMobile = ({ isCandidate }) => {
     text.value.replace(/:\w+:/gi, (name) => emoji.getUnicode(name));
 
   return (
-    <div className={classes.container}>
-      <div className={classes.commentsList}>
+    <div className={styles.container}>
+      <div className={styles.commentsList}>
         {comments
           .slice(0, 3)
           .map(({ id, author, created_at, text, attachment_name, groups }) => (
@@ -184,7 +300,7 @@ const CommentListMobile = ({ isCandidate }) => {
                           onClick={() => {
                             dispatch(sourceActions.deleteComment(id));
                           }}
-                          className={styles.commentDelete}
+                          className="commentDelete"
                         >
                           <CloseIcon fontSize="small" />
                         </Button>
@@ -241,7 +357,7 @@ const CommentListMobile = ({ isCandidate }) => {
                           onClick={() => {
                             dispatch(sourceActions.deleteComment(id));
                           }}
-                          className={styles.commentDelete}
+                          className="commentDelete"
                         >
                           <CloseIcon fontSize="small" />
                         </Button>
@@ -269,7 +385,7 @@ const CommentListMobile = ({ isCandidate }) => {
             </span>
           ))}
       </div>
-      <div className={classes.dialogButton}>
+      <div className={styles.dialogButton}>
         <Button
           color="primary"
           variant="outlined"
