@@ -195,10 +195,12 @@ const FilterCandidateList = ({
     selectedScanningProfile?.sortingOrigin
   );
 
-  const { handleSubmit, getValues, control, errors, reset } = useForm({
-    startDate: defaultStartDate,
-    endDate: defaultEndDate,
-  });
+  const { handleSubmit, getValues, control, errors, reset, setValue } = useForm(
+    {
+      startDate: defaultStartDate,
+      endDate: defaultEndDate,
+    }
+  );
 
   useEffect(() => {
     const selectedGroupIDs = Array(userAccessibleGroups.length).fill(false);
@@ -551,6 +553,7 @@ const FilterCandidateList = ({
                     value={value}
                     onChange={(event) => {
                       setSelectedAnnotationOrigin(event.target.value);
+                      setValue("sortingKey", "");
                       onChange(event.target.value);
                     }}
                     input={
