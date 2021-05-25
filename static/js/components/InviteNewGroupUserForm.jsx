@@ -27,6 +27,7 @@ const defaultState = {
   newUserEmail: "",
   role: "Full user",
   admin: false,
+  canSave: true,
 };
 
 const InviteNewGroupUserForm = ({ group_id }) => {
@@ -48,6 +49,7 @@ const InviteNewGroupUserForm = ({ group_id }) => {
         groupAdmin: [admin],
         role: formState.role,
         streamIDs: null,
+        canSave: [formState.canSave],
       })
     );
     if (result.status === "success") {
@@ -70,10 +72,10 @@ const InviteNewGroupUserForm = ({ group_id }) => {
     });
   };
 
-  const toggleAdmin = (event) => {
+  const toggleCheckbox = (event) => {
     setFormState({
       ...formState,
-      admin: event.target.checked,
+      [event.target.name]: event.target.checked,
     });
   };
 
@@ -106,8 +108,20 @@ const InviteNewGroupUserForm = ({ group_id }) => {
         <>
           <input
             type="checkbox"
+            checked={formState.canSave || false}
+            onChange={toggleCheckbox}
+            name="canSave"
+          />
+          Can save to group &nbsp;&nbsp;
+        </>
+      )}
+      {formState.role === "Full user" && formState.canSave && (
+        <>
+          <input
+            type="checkbox"
             checked={formState?.admin || false}
-            onChange={toggleAdmin}
+            onChange={toggleCheckbox}
+            name="admin"
           />
           Group Admin &nbsp;&nbsp;
         </>

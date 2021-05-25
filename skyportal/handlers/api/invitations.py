@@ -64,7 +64,14 @@ class InvitationHandler(BaseHandler):
                       type: boolean
                     description: |
                       List of booleans indicating whether user should be granted admin
-                      status for respective specified group(s).
+                      status for respective specified group(s). Defaults to all false.
+                  canSave:
+                    type: array
+                    items:
+                      type: boolean
+                    description: |
+                      List of booleans indicating whether user should be able to save
+                      sources to respective specified group(s). Defaults to all true.
                 required:
                   - userEmail
                   - groupIDs
@@ -148,6 +155,7 @@ class InvitationHandler(BaseHandler):
                 .all()
             )
         group_admin = data.get("groupAdmin", [False] * len(groups))
+        can_save = data.get("canSave", [True] * len(groups))
         admin_for_groups = [
             el in [True, "True", "true", "t", "T"] for el in group_admin
         ]
@@ -159,6 +167,7 @@ class InvitationHandler(BaseHandler):
             token=invite_token,
             groups=groups,
             admin_for_groups=admin_for_groups,
+            can_save_to_groups=can_save,
             streams=streams,
             user_email=user_email,
             role=role,
