@@ -1084,29 +1084,32 @@ class SourceHandler(BaseHandler):
             # Records are Objs, not Sources
             obj_list = []
 
-            # Load in all last_detected_at values at once
-            last_detected_at = Obj.last_detected_at(self.current_user)
-            query_results["sources"] = query_results["sources"].add_columns(
-                last_detected_at
-            )
+            # The query_results could be an empty list instead of a SQLAlchemy
+            # Query object if there are no matching sources
+            if query_results["sources"] != []:
+                # Load in all last_detected_at values at once
+                last_detected_at = Obj.last_detected_at(self.current_user)
+                query_results["sources"] = query_results["sources"].add_columns(
+                    last_detected_at
+                )
 
-            # Load in all last_detected_mag values at once
-            last_detected_mag = Obj.last_detected_mag(self.current_user)
-            query_results["sources"] = query_results["sources"].add_columns(
-                last_detected_mag
-            )
+                # Load in all last_detected_mag values at once
+                last_detected_mag = Obj.last_detected_mag(self.current_user)
+                query_results["sources"] = query_results["sources"].add_columns(
+                    last_detected_mag
+                )
 
-            # Load in all peak_detected_at values at once
-            peak_detected_at = Obj.peak_detected_at(self.current_user)
-            query_results["sources"] = query_results["sources"].add_columns(
-                peak_detected_at
-            )
+                # Load in all peak_detected_at values at once
+                peak_detected_at = Obj.peak_detected_at(self.current_user)
+                query_results["sources"] = query_results["sources"].add_columns(
+                    peak_detected_at
+                )
 
-            # Load in all peak_detected_mag values at once
-            peak_detected_mag = Obj.peak_detected_mag(self.current_user)
-            query_results["sources"] = query_results["sources"].add_columns(
-                peak_detected_mag
-            )
+                # Load in all peak_detected_mag values at once
+                peak_detected_mag = Obj.peak_detected_mag(self.current_user)
+                query_results["sources"] = query_results["sources"].add_columns(
+                    peak_detected_mag
+                )
 
             for (
                 obj,

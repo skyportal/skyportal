@@ -1092,6 +1092,10 @@ def grab_query_results(
     query_id=None,
     use_cache=False,
 ):
+    """
+    Returns a SQLAlchemy Query object (which is iterable) for the sorted Obj IDs desired.
+    If there are no matching Objs, an empty list [] is returned instead.
+    """
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
     # for any annotations with origins not equal to the one being sorted on (if applicable).
@@ -1191,6 +1195,8 @@ def grab_query_results(
     query_options = [joinedload(Obj.thumbnails)] if include_thumbnails else []
 
     if len(obj_ids_in_page) > 0:
+        # If there are no values, the VALUES statement above will cause a syntax error,
+        # so only filter on the values if they exist
         obj_ids_values = get_obj_id_values(obj_ids_in_page)
         items = (
             DBSession()
@@ -1198,15 +1204,6 @@ def grab_query_results(
             .options(query_options)
             .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
             .order_by(obj_ids_values.c.ordering)
-        )
-    else:
-        # If there are no values, the VALUES statement above will cause a syntax error,
-        # so just switch to this simple IN query. Should return nothing either way
-        items = (
-            DBSession()
-            .query(Obj)
-            .options(query_options)
-            .filter(Obj.id.in_(obj_ids_in_page))
         )
 
     info[items_name] = items
