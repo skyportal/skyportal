@@ -51,7 +51,6 @@ def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
-@pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_admin(
     driver, super_admin_user, super_admin_token, user_no_groups, public_group
 ):
@@ -64,7 +63,7 @@ def test_add_new_group_user_admin(
     driver.click_xpath('//div[@data-testid="newGroupUserTextInput"]')
     driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
     # Default is unchecked; just need to click once to make group admin
-    driver.click_xpath('//input[@data-testid="adminCheckbox"]')
+    driver.click_xpath('//*[@data-testid="adminCheckbox"]')
     driver.click_xpath('//button[contains(.,"Add user")]')
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
@@ -90,7 +89,6 @@ def test_add_new_group_user_admin(
     assert group_user["can_save"]
 
 
-@pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_nonadmin(
     driver, super_admin_user, super_admin_token, user_no_groups, public_group
 ):
@@ -127,7 +125,6 @@ def test_add_new_group_user_nonadmin(
     assert group_user["can_save"]
 
 
-@pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_cant_save(
     driver, super_admin_user, super_admin_token, user_no_groups, public_group
 ):
@@ -140,7 +137,7 @@ def test_add_new_group_user_cant_save(
     driver.click_xpath('//div[@data-testid="newGroupUserTextInput"]')
     driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
     # Checkbox is checked by default
-    driver.click_xpath('//input[@data-testid="canSaveCheckbox"]')
+    driver.click_xpath('//*[@data-testid="canSaveCheckbox"]')
     driver.click_xpath('//button[contains(.,"Add user")]')
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (

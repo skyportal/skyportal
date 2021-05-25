@@ -111,18 +111,14 @@ const NewGroupUserForm = ({ group_id }) => {
         data-testid="canSaveCheckbox"
       />
       Can save to group &nbsp;&nbsp;
-      {formState.canSave && (
-        <>
-          <input
-            type="checkbox"
-            checked={formState.admin || false}
-            onChange={toggleCheckbox}
-            name="admin"
-            data-testid="adminCheckbox"
-          />
-          Group Admin &nbsp;&nbsp;
-        </>
-      )}
+      <input
+        type="checkbox"
+        checked={formState.admin || false}
+        onChange={toggleCheckbox}
+        name="admin"
+        data-testid="adminCheckbox"
+      />
+      Group Admin &nbsp;&nbsp;
       <Button
         onClick={handleClickSubmit}
         variant="contained"
