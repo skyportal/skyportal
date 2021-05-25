@@ -321,6 +321,8 @@ class InvitationHandler(BaseHandler):
                     type: array
                     items:
                       type: integer
+                  role:
+                    type: string
         responses:
           200:
             content:
@@ -340,9 +342,10 @@ class InvitationHandler(BaseHandler):
 
         group_ids = data.get("groupIDs")
         stream_ids = data.get("streamIDs")
-        if group_ids is None and stream_ids is None:
+        role_id = data.get("role")
+        if group_ids is None and stream_ids is None and role_id is None:
             return self.error(
-                "At least one of either groupIDs or streamIDs are required."
+                "At least one of `groupIDs`, `streamIDs` or `role` is required."
             )
         if group_ids is not None:
             group_ids = [int(gid) for gid in group_ids]
@@ -386,6 +389,8 @@ class InvitationHandler(BaseHandler):
             invitation.groups = groups
         if stream_ids is not None:
             invitation.streams = streams
+        if role_id is not None:
+            invitation.role_id = role_id
 
         self.verify_and_commit()
         return self.success()
