@@ -266,9 +266,7 @@ const FilterCandidateList = ({
     formState = getValues({ nest: true });
     return (
       // All left empty
-      (formState.sortingOrigin === "" &&
-        formState.sortingKey === "" &&
-        formState.sortingOrder === "") ||
+      formState.sortingOrigin === "" ||
       // Or all filled out
       (formState.sortingOrigin !== "" &&
         formState.sortingKey !== "" &&
@@ -301,10 +299,10 @@ const FilterCandidateList = ({
       data.classifications = formData.classifications;
     }
     if (formData.redshiftMinimum) {
-      data.redshiftMinimum = formData.redshiftMinimum;
+      data.minRedshift = formData.redshiftMinimum;
     }
     if (formData.redshiftMaximum) {
-      data.redshiftMaximum = formData.redshiftMaximum;
+      data.maxRedshift = formData.redshiftMaximum;
     }
     if (formData.sortingOrigin) {
       data.sortingOrigin = formData.sortingOrigin;
