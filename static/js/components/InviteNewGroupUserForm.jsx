@@ -11,6 +11,7 @@ import DialogTitle from "@material-ui/core/DialogTitle";
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
 import Typography from "@material-ui/core/Typography";
+import InputLabel from "@material-ui/core/InputLabel";
 import { makeStyles } from "@material-ui/core/styles";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -84,7 +85,7 @@ const InviteNewGroupUserForm = ({ group_id }) => {
       <Typography className={classes.heading}>
         Invite a new user to the site and add them to this group
       </Typography>
-      <div style={{ paddingBottom: "0.5rem" }}>
+      <div style={{ paddingBottom: "1rem" }}>
         <TextField
           id="newUserEmail"
           data-testid="newUserEmail"
@@ -96,7 +97,12 @@ const InviteNewGroupUserForm = ({ group_id }) => {
         />
       </div>
       <div style={{ paddingBottom: "0.5rem" }}>
-        <Select defaultValue="Full user" onChange={handleRoleChange}>
+        <InputLabel id="roleSelectLabel">Site-wide user role</InputLabel>
+        <Select
+          defaultValue="Full user"
+          onChange={handleRoleChange}
+          labelId="roleSelectLabel"
+        >
           {["Full user", "View only"].map((role) => (
             <MenuItem key={role} value={role}>
               {role}
@@ -112,7 +118,7 @@ const InviteNewGroupUserForm = ({ group_id }) => {
             onChange={toggleCheckbox}
             name="canSave"
           />
-          Can save to group &nbsp;&nbsp;
+          Can save to this group &nbsp;&nbsp;
         </>
       )}
       {formState.role === "Full user" && formState.canSave && (
