@@ -98,9 +98,6 @@ const ScanningProfilesList = ({
   );
 
   const dispatch = useDispatch();
-  if (!profiles) {
-    return <div />;
-  }
 
   const handleLoadedChange = (checked, dataIndex) => {
     if (checked) {
