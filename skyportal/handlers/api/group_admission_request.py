@@ -86,7 +86,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(data=response_data)
 
-    @permissions(["Upload data"])
+    @auth_or_token
     def post(self):
         """
         ---
