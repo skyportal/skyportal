@@ -467,7 +467,7 @@ class GroupUserHandler(BaseHandler):
     def patch(self, group_id, *ignored_args):
         """
         ---
-        description: Update a group user's admin status
+        description: Update a group user's admin or save access status
         tags:
           - groups
           - users
@@ -487,9 +487,16 @@ class GroupUserHandler(BaseHandler):
                     type: integer
                   admin:
                     type: boolean
+                    description: |
+                      Boolean indicating whether user is group admin. Either this
+                      or `canSave` must be provided in request body.
+                  canSave:
+                    type: boolean
+                    description: |
+                      Boolean indicating whether user can save sources to group. Either
+                      this or `admin` must be provided in request body.
                 required:
                   - userID
-                  - admin
         responses:
           200:
             content:
@@ -518,10 +525,20 @@ class GroupUserHandler(BaseHandler):
         if groupuser is None:
             return self.error(f"User {user_id} is not a member of group {group_id}.")
 
-        if data.get("admin") is None:
-            return self.error("Missing required parameter: `admin`")
-        admin = data.get("admin") in [True, "true", "True", "t", "T"]
+        if data.get("admin") is None and data.get("canSave") is None:
+            return self.error(
+                "Missing required parameter: at least one of `admin` or `canSave`"
+            )
+        admin = data.get("admin", groupuser.admin) in [True, "true", "True", "t", "T"]
+        can_save = data.get("canSave", groupuser.can_save) in [
+            True,
+            "true",
+            "True",
+            "t",
+            "T",
+        ]
         groupuser.admin = admin
+        groupuser.can_save = can_save
         self.verify_and_commit()
         return self.success()
 
