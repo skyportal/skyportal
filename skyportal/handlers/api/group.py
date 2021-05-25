@@ -155,6 +155,7 @@ class GroupHandler(BaseHandler):
                         "contact_phone": gu.user.contact_phone,
                         "oauth_uid": gu.user.oauth_uid,
                         "admin": gu.admin,
+                        "can_save": gu.can_save,
                     }
                     for gu in group.group_users
                 ]
