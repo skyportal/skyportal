@@ -45,9 +45,8 @@ const GroupFiltersStreams = ({
 }) => {
   const [addFilterDialogOpen, setAddFilterDialogOpen] = useState(false);
   const [addStreamOpen, setAddStreamOpen] = useState(false);
-  const [panelStreamsExpanded, setPanelStreamsExpanded] = useState(
-    "panel-streams"
-  );
+  const [panelStreamsExpanded, setPanelStreamsExpanded] =
+    useState("panel-streams");
   const dispatch = useDispatch();
   const streams = useSelector((state) => state.streams);
 
@@ -184,7 +183,7 @@ const GroupFiltersStreams = ({
 
             <div>
               {/* only Super admins can add streams to groups */}
-              {currentUser.roles.includes("Super admin") &&
+              {currentUser.permissions.includes("System admin") &&
                 streams?.length > 0 &&
                 group?.streams?.length < streams?.length && (
                   <Button

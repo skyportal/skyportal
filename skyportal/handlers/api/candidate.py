@@ -2,8 +2,10 @@ import datetime
 from copy import copy
 import re
 import json
+import uuid
 
 import arrow
+import numpy as np
 
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import case, func
@@ -12,6 +14,7 @@ from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -27,6 +30,15 @@ from ...models import (
     Listing,
     Comment,
 )
+from ...utils.cache import Cache, array_to_bytes
+
+
+_, cfg = load_env()
+cache_dir = "cache/candidates_queries"
+cache = Cache(
+    cache_dir=cache_dir,
+    max_age=cfg["misc"]["minutes_to_keep_candidate_query_cache"] * 60,
+)
 
 
 def update_redshift_history_if_relevant(request_data, obj, user):
@@ -40,6 +52,7 @@ def update_redshift_history_if_relevant(request_data, obj, user):
                 "set_by_user_id": user.id,
                 "set_at_utc": datetime.datetime.utcnow().isoformat(),
                 "value": request_data["redshift"],
+                "uncertainty": request_data.get("redshift_error", None),
             }
         )
         obj.redshift_history = redshift_history
@@ -445,6 +458,9 @@ class CandidateHandler(BaseHandler):
 
         page_number = self.get_query_argument("pageNumber", None) or 1
         n_per_page = self.get_query_argument("numPerPage", None) or 25
+        # Not documented in API docs as this is for frontend-only usage & will confuse
+        # users looking through the API docs
+        query_id = self.get_query_argument("queryID", None)
         saved_status = self.get_query_argument("savedStatus", "all")
         total_matches = self.get_query_argument("totalMatches", None)
         start_date = self.get_query_argument("startDate", None)
@@ -765,6 +781,8 @@ class CandidateHandler(BaseHandler):
                 n_per_page,
                 "candidates",
                 order_by=order_by,
+                query_id=query_id,
+                use_cache=True,
             )
         except ValueError as e:
             if "Page number out of range" in str(e):
@@ -1016,6 +1034,8 @@ def grab_query_results(
     items_name,
     order_by=None,
     include_thumbnails=True,
+    query_id=None,
+    use_cache=False,
 ):
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
@@ -1066,19 +1086,33 @@ def grab_query_results(
     )
 
     if page:
-        # Now bring in the full Obj info for the candidates
-        results = (
-            ordered_ids.limit(n_items_per_page)
-            .offset((page - 1) * n_items_per_page)
-            .all()
-        )
+        if use_cache:
+            cache_filename = cache[query_id]
+            if cache_filename is not None:
+                all_ids = np.load(cache_filename)
+            else:
+                # Cache expired/removed/non-existent; create new cache file
+                query_id = str(uuid.uuid4())
+                all_ids = ordered_ids.all()
+                cache[query_id] = array_to_bytes(all_ids)
+
+            results = all_ids[
+                ((page - 1) * n_items_per_page) : (page * n_items_per_page)
+            ]
+            info["queryID"] = query_id
+        else:
+            results = (
+                ordered_ids.limit(n_items_per_page)
+                .offset((page - 1) * n_items_per_page)
+                .all()
+            )
         info["pageNumber"] = page
         info["numPerPage"] = n_items_per_page
     else:
         results = ordered_ids.all()
 
     page_ids = map(lambda x: x[0], results)
-    info["totalMatches"] = results[0][1] if len(results) > 0 else 0
+    info["totalMatches"] = int(results[0][1]) if len(results) > 0 else 0
 
     if page:
         if (

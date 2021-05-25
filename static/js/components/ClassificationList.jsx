@@ -21,8 +21,8 @@ const ClassificationList = () => {
 
   const handleMouseHover = (id, userProfile, author) => {
     if (
-      userProfile.roles.includes("Super admin") ||
-      userProfile.roles.includes("Group admin") ||
+      userProfile.permissions.includes("System admin") ||
+      userProfile.permissions.includes("Manage groups") ||
       userProfile.username === author
     ) {
       setHoverID(id);

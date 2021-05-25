@@ -17,7 +17,6 @@ const useStyles = makeStyles(() => ({
     height: "100%",
   },
   widgetPaperFillSpace: {
-    maxHeight: "80vh",
     marginTop: "1rem",
   },
   container: {

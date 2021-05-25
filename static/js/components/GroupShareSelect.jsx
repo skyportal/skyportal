@@ -53,6 +53,7 @@ const GroupShareSelect = ({
       <Select
         labelId="select-groups-label"
         id="selectGroups"
+        MenuProps={{ disableScrollLock: true }}
         multiple
         value={groupIDs}
         onChange={handleChange}

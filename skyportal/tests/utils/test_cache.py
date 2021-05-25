@@ -18,7 +18,7 @@ def cache_parent_dir(tmpdir_factory):
 @pytest.fixture()
 def cache(cache_parent_dir):
     cache_path = pjoin(cache_parent_dir, 'cache')
-    cache = Cache(cache_path, max_items=3)
+    cache = Cache(cache_path, max_items=3, max_age=3)
     yield cache
     shutil.rmtree(cache_path)
 
@@ -55,6 +55,18 @@ def test_cache_cleanup(cache):
         assert cache[str(key)] is not None
 
 
+def test_cache_cleanup_by_age(cache):
+    cache['first'] = b'one'
+    f = cache['first']
+    assert f is not None
+
+    # Let object time out of cache
+    time.sleep(3)
+
+    f = cache['first']
+    assert f is None
+
+
 def test_cache_reference_refresh(cache):
     """Last referred item should be last to be removed from cache."""
     for i in range(3):
@@ -71,3 +83,13 @@ def test_cache_reference_refresh(cache):
 
 def test_cache_nested_root(cache_parent_dir):
     Cache(cache_parent_dir / 'some/deeper/path', 1)
+
+
+def test_cache_no_max_limit(cache_parent_dir):
+    cache = Cache(
+        pjoin(cache_parent_dir, 'cache_nm_limit'), max_items=None, max_age=None
+    )
+    for i in range(100):
+        cache[str(i)] = b'x'
+
+    assert len(cache) == 100

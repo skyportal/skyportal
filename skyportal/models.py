@@ -553,7 +553,8 @@ class Obj(Base, ha.Point):
     offset = sa.Column(
         sa.Float, default=0.0, doc="Offset from nearest static object [arcsec]."
     )
-    redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
+    redshift = sa.Column(sa.Float, nullable=True, index=True, doc="Redshift.")
+    redshift_error = sa.Column(sa.Float, nullable=True, doc="Redshift error.")
     redshift_history = sa.Column(
         JSONB,
         nullable=True,
@@ -596,6 +597,9 @@ class Obj(Base, ha.Point):
     score = sa.Column(sa.Float, nullable=True, doc="Machine learning score.")
 
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")
+    alias = sa.Column(
+        sa.ARRAY(sa.String), nullable=True, doc="Alternative names for this object."
+    )
 
     internal_key = sa.Column(
         sa.String,
@@ -3125,6 +3129,16 @@ class Invitation(Base):
     read = update = delete = AccessibleIfUserMatches('invited_by')
 
     token = sa.Column(sa.String(), nullable=False, unique=True)
+    role_id = sa.Column(
+        sa.ForeignKey('roles.id'),
+        nullable=False,
+    )
+    role = relationship(
+        "Role",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        uselist=False,
+    )
     groups = relationship(
         "Group",
         secondary="group_invitations",

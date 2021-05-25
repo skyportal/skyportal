@@ -28,6 +28,11 @@ app:
   lco_host: observe.lco.global
   lco_port: 443
 
+  ztf:
+    protocol: http
+    host: skipper.caltech.edu
+    port: 4000
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
@@ -266,6 +271,7 @@ services:
 
 misc:
   days_to_keep_unsaved_candidates: 7
+  minutes_to_keep_candidate_query_cache: 60
   public_group_name: "Sitewide Group"
   # Use a named cosmology from `astropy.cosmology.parameters.available` cosmologies
   # or supply the arguments for an `astropy.cosmology.FLRW` cosmological instance.

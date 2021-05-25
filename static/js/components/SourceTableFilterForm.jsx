@@ -341,6 +341,32 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
         </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
+            Alias
+          </Typography>
+          <TextField
+            size="small"
+            label="Alias"
+            type="text"
+            name="alias"
+            inputRef={register}
+            data-testid="alias-text"
+          />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Origin
+          </Typography>
+          <TextField
+            size="small"
+            label="Origin"
+            type="text"
+            name="origin"
+            inputRef={register}
+            data-testid="origin-text"
+          />
+        </div>
+        <div className={classes.formItem}>
+          <Typography variant="subtitle2" className={classes.title}>
             Latest Magnitude
           </Typography>
           <TextField
