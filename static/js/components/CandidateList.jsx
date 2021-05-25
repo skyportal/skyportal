@@ -533,10 +533,8 @@ const CandidateList = () => {
     handleFilterSubmit(newFilterListQueryStrings.join());
   };
 
-  const [
-    ps1GenerationInProgressList,
-    setPS1GenerationInProgressList,
-  ] = useState([]);
+  const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
+    useState([]);
   const generatePS1Thumbnail = (objID) => {
     setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
     dispatch(candidatesActions.generatePS1Thumbnail(objID));
