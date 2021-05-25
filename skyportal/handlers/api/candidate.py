@@ -9,8 +9,10 @@ import arrow
 import numpy as np
 
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.expression import case, func
-from sqlalchemy.types import Float, Boolean
+from sqlalchemy.sql.expression import case, func, FromClause
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql import column
+from sqlalchemy.types import Float, Boolean, String, Integer
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -1017,6 +1019,69 @@ class CandidateHandler(BaseHandler):
         return self.success()
 
 
+def get_obj_id_values(obj_ids):
+    """Return a Postgres VALUES representation of ordered list of Obj IDs
+    to be returned by the Candidates/Sources query.
+
+    Parameters
+    ----------
+    obj_ids: `list`
+        List of Obj IDs
+
+    Returns
+    -------
+    values_table: `sqlalchemy.sql.expression.FromClause`
+        The VALUES representation of the Obj IDs list.
+    """
+    # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
+    class _obj_id_values(FromClause):
+        named_with_column = True
+
+        def __init__(self, columns, *args, **kw):
+            self._column_args = columns
+            self.list = args
+            self.alias_name = self.name = kw.pop("alias_name", None)
+
+        def _populate_column_collection(self):
+            for c in self._column_args:
+                c._make_proxy(self)
+
+        @property
+        def _from_objects(self):
+            return [self]
+
+    # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
+    @compiles(_obj_id_values)
+    def compile_values(element, compiler, asfrom=False, **kw):
+        columns = element.columns
+        v = "VALUES %s" % ", ".join(
+            "(%s)"
+            % ", ".join(
+                compiler.render_literal_value(elem, column.type)
+                for elem, column in zip(tup, columns)
+            )
+            for tup in element.list
+        )
+        if asfrom:
+            if element.alias_name:
+                v = "(%s) AS %s (%s)" % (
+                    v,
+                    element.alias_name,
+                    (", ".join(c.name for c in element.columns)),
+                )
+            else:
+                v = "(%s)" % v
+        return v
+
+    values_table = _obj_id_values(
+        (column("id", String), column("ordering", Integer)),
+        *[(obj_id, idx) for idx, obj_id in enumerate(obj_ids)],
+        alias_name="values_table",
+    )
+
+    return values_table
+
+
 def grab_query_results(
     q,
     total_matches,
@@ -1028,6 +1093,10 @@ def grab_query_results(
     query_id=None,
     use_cache=False,
 ):
+    """
+    Returns a SQLAlchemy Query object (which is iterable) for the sorted Obj IDs desired.
+    If there are no matching Objs, an empty list [] is returned instead.
+    """
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
     # for any annotations with origins not equal to the one being sorted on (if applicable).
@@ -1102,7 +1171,7 @@ def grab_query_results(
     else:
         results = ordered_ids.all()
 
-    page_ids = map(lambda x: x[0], results)
+    obj_ids_in_page = list(map(lambda x: x[0], results))
     info["totalMatches"] = int(results[0][1]) if len(results) > 0 else 0
 
     if page:
@@ -1125,7 +1194,18 @@ def grab_query_results(
 
     items = []
     query_options = [joinedload(Obj.thumbnails)] if include_thumbnails else []
-    for item_id in page_ids:
-        items.append(Obj.query.options(query_options).get(item_id))
+
+    if len(obj_ids_in_page) > 0:
+        # If there are no values, the VALUES statement above will cause a syntax error,
+        # so only filter on the values if they exist
+        obj_ids_values = get_obj_id_values(obj_ids_in_page)
+        items = (
+            DBSession()
+            .query(Obj)
+            .options(query_options)
+            .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+            .order_by(obj_ids_values.c.ordering)
+        )
+
     info[items_name] = items
     return info
