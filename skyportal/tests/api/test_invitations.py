@@ -107,15 +107,22 @@ def test_patch_invitation(
         "PATCH", f"invitations/{invitation_id}", token=manage_users_token
     )
     assert status == 400
-    assert (
-        "At least one of either groupIDs or streamIDs are required" in data["message"]
-    )
+    assert "At least one of" in data["message"]
 
     # Try adding group2 to the invited user
     status, _ = api(
         "PATCH",
         f"invitations/{invitation_id}",
         data={"groupIDs": [public_group2.id]},
+        token=manage_users_token,
+    )
+    assert status == 200
+
+    # Try updaint role to View only
+    status, _ = api(
+        "PATCH",
+        f"invitations/{invitation_id}",
+        data={"role": "View only"},
         token=manage_users_token,
     )
     assert status == 200
