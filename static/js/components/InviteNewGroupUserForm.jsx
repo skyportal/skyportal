@@ -56,7 +56,10 @@ const InviteNewGroupUserForm = ({ group_id }) => {
           `Invitation successfully sent to ${formState.newUserEmail}`
         )
       );
-      setFormState(defaultState);
+      setFormState({
+        ...defaultState,
+        role: formState.role,
+      });
     }
   };
 
