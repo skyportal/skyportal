@@ -87,14 +87,10 @@ const UserInvitations = () => {
     (state) => state.invitations
   );
   const [csvData, setCsvData] = useState("");
-  const [
-    addInvitationGroupsDialogOpen,
-    setAddInvitationGroupsDialogOpen,
-  ] = useState(false);
-  const [
-    addInvitationStreamsDialogOpen,
-    setAddInvitationStreamsDialogOpen,
-  ] = useState(false);
+  const [addInvitationGroupsDialogOpen, setAddInvitationGroupsDialogOpen] =
+    useState(false);
+  const [addInvitationStreamsDialogOpen, setAddInvitationStreamsDialogOpen] =
+    useState(false);
   const [updateRoleDialogOpen, setUpdateRoleDialogOpen] = useState(false);
   const [clickedInvitation, setClickedInvitation] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
