@@ -272,7 +272,7 @@ const CandidatesPreferences = ({
         <Tooltip title="Save and load pre-set search options">
           <Button
             variant="contained"
-            data-testid="addScanningProfileButton"
+            data-testid="manageScanningProfilesButton"
             onClick={() => {
               setAddDialogOpen(true);
             }}
@@ -296,6 +296,7 @@ const CandidatesPreferences = ({
           <IconButton
             edge="start"
             color="inherit"
+            data-testid="closeScanningProfilesButton"
             onClick={() => {
               setAddDialogOpen(false);
             }}
@@ -342,7 +343,7 @@ const CandidatesPreferences = ({
                       />
                     </div>
                     <div className={classes.savedStatusSelect}>
-                      <InputLabel id="savedStatusSelectLabel">
+                      <InputLabel id="profileSavedStatusSelectLabel">
                         Show only candidates which passed a filter from the
                         selected groups...
                       </InputLabel>
@@ -351,7 +352,7 @@ const CandidatesPreferences = ({
                         as={Select}
                         name="savedStatus"
                         control={control}
-                        input={<Input data-testid="savedStatusSelect" />}
+                        input={<Input data-testid="profileSavedStatusSelect" />}
                         defaultValue="all"
                       >
                         {savedStatusSelectOptions.map((option) => (
@@ -362,11 +363,11 @@ const CandidatesPreferences = ({
                       </Controller>
                     </div>
                     <div className={classes.formRow}>
-                      <InputLabel id="classifications-select-label">
+                      <InputLabel id="profile-classifications-select-label">
                         Classifications
                       </InputLabel>
                       <Controller
-                        labelId="classifications-select-label"
+                        labelId="profile-classifications-select-label"
                         render={({ onChange, value }) => (
                           <Select
                             multiple
@@ -376,7 +377,7 @@ const CandidatesPreferences = ({
                               onChange(event.target.value);
                             }}
                             input={
-                              <Input data-testid="classifications-select" />
+                              <Input data-testid="profile-classifications-select" />
                             }
                             renderValue={(selected) => (
                               <div className={classes.chips}>
@@ -412,14 +413,14 @@ const CandidatesPreferences = ({
                       />
                     </div>
                     <div className={classes.formRow}>
-                      <InputLabel id="redshift-select-label">
+                      <InputLabel id="profile-redshift-select-label">
                         Redshift
                       </InputLabel>
                       <div className={classes.redshiftField}>
                         <Controller
                           render={({ onChange, value }) => (
                             <TextField
-                              data-testid="minimum-redshift"
+                              data-testid="profile-minimum-redshift"
                               label="Minimum"
                               type="number"
                               value={value}
@@ -433,7 +434,7 @@ const CandidatesPreferences = ({
                             />
                           )}
                           name="redshiftMinimum"
-                          labelId="redshift-select-label"
+                          labelId="profile-redshift-select-label"
                           control={control}
                           defaultValue=""
                         />
@@ -442,7 +443,7 @@ const CandidatesPreferences = ({
                         <Controller
                           render={({ onChange, value }) => (
                             <TextField
-                              data-testid="maximum-redshift"
+                              data-testid="profile-maximum-redshift"
                               label="Maximum"
                               type="number"
                               value={value}
@@ -462,15 +463,17 @@ const CandidatesPreferences = ({
                       </div>
                     </div>
                     <div className={classes.formRow}>
-                      <InputLabel id="rejectedCandidatesLabel">
+                      <InputLabel id="profileRejectedCandidatesLabel">
                         Show/hide rejected candidates
                       </InputLabel>
                       <Controller
-                        labelId="rejectedCandidatesLabel"
+                        labelId="profileRejectedCandidatesLabel"
                         as={Select}
                         name="rejectedStatus"
                         control={control}
-                        input={<Input data-testid="rejectedStatusSelect" />}
+                        input={
+                          <Input data-testid="profileRejectedStatusSelect" />
+                        }
                         defaultValue="hide"
                       >
                         {rejectedStatusSelectOptions.map((option) => (
@@ -491,23 +494,23 @@ const CandidatesPreferences = ({
                         title="Annotation Sorting"
                         mobileProps={{ folded: true }}
                       >
-                        <InputLabel id="sorting-select-label">
+                        <InputLabel id="profile-sorting-select-label">
                           Annotation Origin
                         </InputLabel>
                         <Controller
-                          labelId="sorting-select-label"
+                          labelId="profile-sorting-select-label"
                           name="sortingOrigin"
                           control={control}
                           render={({ onChange, value }) => (
                             <Select
-                              id="annotationSortingOriginSelect"
+                              id="profileAnnotationSortingOriginSelect"
                               value={value}
                               onChange={(event) => {
                                 setSelectedAnnotationOrigin(event.target.value);
                                 onChange(event.target.value);
                               }}
                               input={
-                                <Input data-testid="annotationSortingOriginSelect" />
+                                <Input data-testid="profileAnnotationSortingOriginSelect" />
                               }
                             >
                               {availableAnnotationsInfo ? (
@@ -526,16 +529,16 @@ const CandidatesPreferences = ({
                           rules={{ validate: validateSorting }}
                           defaultValue=""
                         />
-                        <InputLabel id="sorting-select-key-label">
+                        <InputLabel id="profile-sorting-select-key-label">
                           Annotation Key
                         </InputLabel>
                         <Controller
-                          labelId="sorting-select-key-label"
+                          labelId="profile-sorting-select-key-label"
                           as={Select}
                           name="sortingKey"
                           control={control}
                           input={
-                            <Input data-testid="annotationSortingKeySelect" />
+                            <Input data-testid="profileAnnotationSortingKeySelect" />
                           }
                           defaultValue=""
                         >
@@ -554,16 +557,16 @@ const CandidatesPreferences = ({
                             <div />
                           )}
                         </Controller>
-                        <InputLabel id="sorting-select-order-label">
+                        <InputLabel id="profile-sorting-select-order-label">
                           Annotation Sort Order
                         </InputLabel>
                         <Controller
-                          labelId="sorting-select-order-label"
+                          labelId="profile-sorting-select-order-label"
                           as={Select}
                           name="sortingOrder"
                           control={control}
                           input={
-                            <Input data-testid="annotationSortingOrderSelect" />
+                            <Input data-testid="profileAnnotationSortingOrderSelect" />
                           }
                           defaultValue=""
                         >
@@ -596,7 +599,7 @@ const CandidatesPreferences = ({
                                       onChange(event.target.checked);
                                     }}
                                     checked={value}
-                                    data-testid={`filteringFormGroupCheckbox-${group.id}`}
+                                    data-testid={`profileFilteringFormGroupCheckbox-${group.id}`}
                                   />
                                 )}
                                 name={`groupIDs[${idx}]`}

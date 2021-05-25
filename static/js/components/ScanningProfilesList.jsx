@@ -116,7 +116,8 @@ const ScanningProfilesList = ({
       <div>
         <Checkbox
           checked={selectedScanningProfile?.id === profile.id}
-          key={`loaded${dataIndex}`}
+          key={`loaded_${dataIndex}`}
+          data-testid={`loaded_${dataIndex}`}
           onChange={(event) =>
             handleLoadedChange(event.target.checked, dataIndex)
           }
@@ -229,9 +230,9 @@ const ScanningProfilesList = ({
 
   const renderRedshift = (dataIndex) => {
     const profile = profiles[dataIndex];
-    return profile?.redshiftMinimum
-      ? `[${profile.redshiftMinimum}, ${profile.redshiftMaximum}]`
-      : "";
+    return `Min: ${profile?.redshiftMinimum || "N/A"}, Max: ${
+      profile?.redshiftMaximum || "N/A"
+    }`;
   };
 
   const renderSorting = (dataIndex) => {

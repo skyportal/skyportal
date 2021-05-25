@@ -672,7 +672,11 @@ def test_candidate_list_redshift_range(
     status, data = api(
         "GET",
         "candidates",
-        params={"redshiftRange": "(0,0.5)", "groupIDs": f"{public_group.id}"},
+        params={
+            "minRedshift": "0",
+            "maxRedshift": "0.5",
+            "groupIDs": f"{public_group.id}",
+        },
         token=view_only_token,
     )
     assert status == 200
