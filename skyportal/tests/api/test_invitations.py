@@ -118,7 +118,7 @@ def test_patch_invitation(
     )
     assert status == 200
 
-    # Try updaint role to View only
+    # Try updating role to View only
     status, _ = api(
         "PATCH",
         f"invitations/{invitation_id}",
