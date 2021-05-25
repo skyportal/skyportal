@@ -809,7 +809,9 @@ const CandidateList = () => {
             different origins. <br />
             <b>Sorting: </b> Clicking on an annotation field will display it, if
             available, in the Info column. You can then click on the sort tool
-            button at the top of the table to sort on that annotation field.
+            button at the top of the table to sort on that annotation field. You
+            can also set the initial sorting parameters when submitting a new
+            candidates search via the form at the top of the page.
             <br />
             <b>Filtering: </b> Filtering on annotations is available through the
             filtering tool at the top right of the table. <br />

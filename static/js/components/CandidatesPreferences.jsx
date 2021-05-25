@@ -12,7 +12,7 @@ import Button from "@material-ui/core/Button";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
 import Toolbar from "@material-ui/core/Toolbar";
-
+import Tooltip from "@material-ui/core/Tooltip";
 import Input from "@material-ui/core/Input";
 import InputLabel from "@material-ui/core/InputLabel";
 import Chip from "@material-ui/core/Chip";
@@ -269,15 +269,17 @@ const CandidatesPreferences = ({
   return (
     <div>
       <div>
-        <Button
-          variant="contained"
-          data-testid="addScanningProfileButton"
-          onClick={() => {
-            setAddDialogOpen(true);
-          }}
-        >
-          Manage scanning profiles
-        </Button>
+        <Tooltip title="Save and load pre-set search options">
+          <Button
+            variant="contained"
+            data-testid="addScanningProfileButton"
+            onClick={() => {
+              setAddDialogOpen(true);
+            }}
+          >
+            Manage scanning profiles
+          </Button>
+        </Tooltip>
       </div>
       <Dialog
         open={addDialogOpen}
