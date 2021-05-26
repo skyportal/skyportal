@@ -114,7 +114,7 @@ const InviteNewGroupUserForm = ({ group_id }) => {
         <>
           <input
             type="checkbox"
-            checked={formState.canSave || false}
+            checked={formState.canSave}
             onChange={toggleCheckbox}
             name="canSave"
           />
@@ -125,7 +125,7 @@ const InviteNewGroupUserForm = ({ group_id }) => {
         <>
           <input
             type="checkbox"
-            checked={formState?.admin || false}
+            checked={formState.admin}
             onChange={toggleCheckbox}
             name="admin"
           />
