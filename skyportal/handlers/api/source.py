@@ -27,6 +27,7 @@ from ...models import (
     Instrument,
     Obj,
     Source,
+    Thumbnail,
     Token,
     Photometry,
     Group,
@@ -1061,7 +1062,9 @@ class SourceHandler(BaseHandler):
                     num_per_page,
                     "sources",
                     order_by=order_by,
-                    include_thumbnails=include_thumbnails and not remove_nested,
+                    # We'll join thumbnails in manually, as they lead to duplicate
+                    # results downstream with the detection stats being added in
+                    include_thumbnails=False,
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
@@ -1077,7 +1080,9 @@ class SourceHandler(BaseHandler):
                 None,
                 "sources",
                 order_by=order_by,
-                include_thumbnails=include_thumbnails and not remove_nested,
+                # We'll join thumbnails in manually, as they lead to duplicate
+                # results downstream with the detection stats being added in
+                include_thumbnails=False,
             )
 
         if not save_summary:
@@ -1136,6 +1141,13 @@ class SourceHandler(BaseHandler):
                         ],
                         key=lambda x: x["created_at"],
                         reverse=True,
+                    )
+
+                if include_thumbnails and not remove_nested:
+                    obj_list[-1]["thumbnails"] = (
+                        Thumbnail.query_records_accessible_by(self.current_user)
+                        .filter(Thumbnail.obj_id == obj.id)
+                        .all()
                     )
 
                 if not remove_nested:
