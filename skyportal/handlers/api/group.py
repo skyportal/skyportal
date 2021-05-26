@@ -426,6 +426,7 @@ class GroupUserHandler(BaseHandler):
 
         admin = data.get("admin", False)
         can_save = data.get("canSave", True)
+        group_id = int(group_id)
         group = Group.get_if_accessible_by(
             group_id, self.current_user, raise_if_none=True, mode='read'
         )
