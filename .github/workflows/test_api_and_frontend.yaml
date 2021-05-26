@@ -117,7 +117,7 @@ jobs:
           make db_init
 
           pip list --format=columns
-          npm ls --depth 0
+          npm ls --depth 0 || true
 
           # Stamp Alembic HEAD
           PYTHONPATH=. alembic -x config=config.yaml stamp head
