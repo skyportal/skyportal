@@ -420,6 +420,14 @@ class SourceHandler(BaseHandler):
             description: |
               Boolean indicating whether to include associated thumbnails. Defaults to false.
           - in: query
+            name: includeDetectionStats
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include photometry detection statistics for each source
+              (last detection and peak detection). Defaults to false.
+          - in: query
             name: classifications
             nullable: true
             schema:
@@ -535,6 +543,9 @@ class SourceHandler(BaseHandler):
             "includeSpectrumExists", False
         )
         remove_nested = self.get_query_argument("removeNested", False)
+        include_detection_stats = self.get_query_argument(
+            "includeDetectionStats", False
+        )
         classifications = self.get_query_argument("classifications", None)
         min_redshift = self.get_query_argument("minRedshift", None)
         max_redshift = self.get_query_argument("maxRedshift", None)
@@ -719,10 +730,15 @@ class SourceHandler(BaseHandler):
                 readable_classifications_json.append(classification_dict)
 
             source_info["classifications"] = readable_classifications_json
-            source_info["last_detected_at"] = s.last_detected_at(self.current_user)
-            source_info["last_detected_mag"] = s.last_detected_mag(self.current_user)
-            source_info["peak_detected_at"] = s.peak_detected_at(self.current_user)
-            source_info["peak_detected_mag"] = s.peak_detected_mag(self.current_user)
+            if include_detection_stats:
+                source_info["last_detected_at"] = s.last_detected_at(self.current_user)
+                source_info["last_detected_mag"] = s.last_detected_mag(
+                    self.current_user
+                )
+                source_info["peak_detected_at"] = s.peak_detected_at(self.current_user)
+                source_info["peak_detected_mag"] = s.peak_detected_mag(
+                    self.current_user
+                )
             source_info["gal_lat"] = s.gal_lat_deg
             source_info["gal_lon"] = s.gal_lon_deg
             source_info["luminosity_distance"] = s.luminosity_distance
@@ -1091,7 +1107,7 @@ class SourceHandler(BaseHandler):
 
             # The query_results could be an empty list instead of a SQLAlchemy
             # Query object if there are no matching sources
-            if query_results["sources"] != []:
+            if query_results["sources"] != [] and include_detection_stats:
                 # Load in all last_detected_at values at once
                 last_detected_at = Obj.last_detected_at(self.current_user)
                 query_results["sources"] = query_results["sources"].add_columns(
@@ -1116,13 +1132,17 @@ class SourceHandler(BaseHandler):
                     peak_detected_mag
                 )
 
-            for (
-                obj,
-                last_detected_at,
-                last_detected_mag,
-                peak_detected_at,
-                peak_detected_mag,
-            ) in query_results["sources"]:
+            for result in query_results["sources"]:
+                if include_detection_stats:
+                    (
+                        obj,
+                        last_detected_at,
+                        last_detected_mag,
+                        peak_detected_at,
+                        peak_detected_mag,
+                    ) = result
+                else:
+                    obj = result
                 obj_list.append(obj.to_dict())
 
                 if include_comments:
@@ -1173,23 +1193,23 @@ class SourceHandler(BaseHandler):
                         ).filter(Annotation.obj_id == obj.id),
                         key=lambda x: x.origin,
                     )
-
-                obj_list[-1]["last_detected_at"] = (
-                    (last_detected_at - last_detected_at.utcoffset()).replace(
-                        tzinfo=UTC
+                if include_detection_stats:
+                    obj_list[-1]["last_detected_at"] = (
+                        (last_detected_at - last_detected_at.utcoffset()).replace(
+                            tzinfo=UTC
+                        )
+                        if last_detected_at
+                        else None
                     )
-                    if last_detected_at
-                    else None
-                )
-                obj_list[-1]["last_detected_mag"] = last_detected_mag
-                obj_list[-1]["peak_detected_at"] = (
-                    (peak_detected_at - peak_detected_at.utcoffset()).replace(
-                        tzinfo=UTC
+                    obj_list[-1]["last_detected_mag"] = last_detected_mag
+                    obj_list[-1]["peak_detected_at"] = (
+                        (peak_detected_at - peak_detected_at.utcoffset()).replace(
+                            tzinfo=UTC
+                        )
+                        if peak_detected_at
+                        else None
                     )
-                    if peak_detected_at
-                    else None
-                )
-                obj_list[-1]["peak_detected_mag"] = peak_detected_mag
+                    obj_list[-1]["peak_detected_mag"] = peak_detected_mag
 
                 obj_list[-1]["gal_lon"] = obj.gal_lon_deg
                 obj_list[-1]["gal_lat"] = obj.gal_lat_deg
