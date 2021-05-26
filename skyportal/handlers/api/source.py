@@ -1144,9 +1144,11 @@ class SourceHandler(BaseHandler):
                     )
 
                 if include_thumbnails and not remove_nested:
-                    obj_list[-1]["thumbnails"] = Thumbnail.query.filter(
-                        Thumbnail.obj_id == obj.id
-                    ).all()
+                    obj_list[-1]["thumbnails"] = (
+                        Thumbnail.query_records_accessible_by(self.current_user)
+                        .filter(Thumbnail.obj_id == obj.id)
+                        .all()
+                    )
 
                 if not remove_nested:
                     readable_classifications = (
