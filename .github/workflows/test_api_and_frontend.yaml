@@ -97,6 +97,9 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           make dependencies
 
+      - name: Debugging with ssh
+        uses: lhotari/action-upterm@v1
+
       - name: Initialize SkyPortal
         run: |
           # Usually, we create databases on the local machine, so
