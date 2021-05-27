@@ -38,7 +38,7 @@ jobs:
           path: |
             ~/.cache
             ~/.local
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+          key: ${{ runner.os }}-v2-${{ hashFiles('**/lockfiles') }}
 
       - name: Checkout master
         uses: actions/checkout@v2

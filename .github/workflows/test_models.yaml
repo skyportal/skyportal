@@ -39,7 +39,7 @@ jobs:
             ~/.cache
             ~/.local
             ~/.npm
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+          key: ${{ runner.os }}-v2-${{ hashFiles('**/lockfiles') }}
 
       - name: Checkout
         uses: actions/checkout@v2
