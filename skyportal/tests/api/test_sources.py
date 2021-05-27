@@ -643,7 +643,12 @@ def test_object_last_detected(
     assert status == 200
     assert data['status'] == 'success'
 
-    status, data = api("GET", f"sources/{public_source.id}", token=view_only_token)
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}",
+        params={"includeDetectionStats": "true"},
+        token=view_only_token,
+    )
     assert status == 200
     assert data["status"] == "success"
     assert (
@@ -688,6 +693,7 @@ def test_source_photometry_summary_info(
     status, data = api(
         "GET",
         f"sources/{public_source_no_data.id}",
+        params={"includeDetectionStats": "true"},
         token=view_only_token,
     )
     assert status == 200
