@@ -428,10 +428,7 @@ def test_source_notifications_unauthorized(
         token=source_notification_user_token,
     )
     assert status == 400
-    # Test server should have no valid Twilio API credentials
-    assert data["message"].startswith(
-        "Twilio Communication SMS API authorization error"
-    )
+    assert "Forbidden" in data["message"]
 
 
 def test_token_user_source_summary(
