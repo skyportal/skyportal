@@ -40,12 +40,12 @@ jobs:
             ~/.local
           key: ${{ runner.os }}-v2-${{ hashFiles('**/lockfiles') }}
 
-      - name: Checkout master
+      - name: Checkout branch being tested
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          ref: master
           submodules: true
+          clean: false
 
       - name: Write SkyPortal configs
         run: |
@@ -97,9 +97,6 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           make dependencies
 
-      - name: Debugging with ssh
-        uses: lhotari/action-upterm@v1
-
       - name: Initialize SkyPortal
         run: |
           # Usually, we create databases on the local machine, so
@@ -142,13 +139,6 @@ jobs:
           make run &
           sleep 10 && make load_demo_data
           kill %1
-
-      - name: Checkout branch being tested
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          submodules: true
-          clean: false
 
       - name: Formatting and linting checks
         if: github.ref != 'refs/heads/master'
