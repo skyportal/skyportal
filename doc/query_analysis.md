@@ -55,7 +55,7 @@ x = :x_1
 x = %(x_1)s
 ```
 
-Finally, you should note that in the SkyPortal API handlers, most of the SQLAlchemy `Query` objets
+Finally, you should note that in the SkyPortal API handlers, most of the SQLAlchemy `Query` objects
 that you would print out in this manner originate from our [permissions framework](permissions.html)
 through the `query_accessible_rows()` method. Thus, if you're ever lost looking for those
 `DBSession().query()...` lines to do this sort of print-debugging, you may want to look for the
