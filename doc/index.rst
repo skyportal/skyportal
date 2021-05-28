@@ -88,6 +88,7 @@ User Guide
    styling
    database
    migrations
+   query_analysis
    permissions
    advanced_usage
 
