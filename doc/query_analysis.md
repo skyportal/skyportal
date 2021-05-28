@@ -65,7 +65,7 @@ defined in `skyportal/models.py` for the database model being queried can be a g
 
 ## PostgreSQL
 
-Once you have the full SQL query, it can be easier to spot errors/inefficiencies an to experiment
+Once you have the full SQL query, it can be easier to spot errors/inefficiencies and to experiment
 with different approaches. It is easier, after all, to directly edit the SQL and try different ways
 of joining, moving around subqueries, etc. without also trying to figure out how to get SQLAlchemy
 to produce the exact queries you're envisioning.
