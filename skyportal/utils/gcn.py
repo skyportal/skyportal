@@ -16,21 +16,6 @@ import ligo.skymap.io
 import ligo.skymap.postprocess
 import ligo.skymap.moc
 
-gcn.include_notice_types(
-    gcn.NoticeType.FERMI_GBM_FLT_POS,
-    gcn.NoticeType.FERMI_GBM_GND_POS,
-    gcn.NoticeType.FERMI_GBM_FIN_POS,
-    gcn.NoticeType.FERMI_GBM_SUBTHRESH,
-    gcn.NoticeType.LVC_PRELIMINARY,
-    gcn.NoticeType.LVC_INITIAL,
-    gcn.NoticeType.LVC_UPDATE,
-    gcn.NoticeType.LVC_RETRACTION,
-    gcn.NoticeType.AMON_ICECUBE_COINC,
-    gcn.NoticeType.AMON_ICECUBE_HESE,
-    gcn.NoticeType.ICECUBE_ASTROTRACK_GOLD,
-    gcn.NoticeType.ICECUBE_ASTROTRACK_BRONZE,
-)
-
 
 def get_dateobs(root):
     """Get the UTC event time from a GCN notice, rounded to the nearest second,
