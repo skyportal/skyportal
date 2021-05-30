@@ -32,6 +32,8 @@ export function fetchSources(filterParams = {}) {
   filterParams.includePhotometryExists = true;
   filterParams.includeSpectrumExists = true;
   filterParams.includeColorMagnitude = true;
+  filterParams.includeThumbnails = true;
+  filterParams.includeDetectionStats = true;
   return API.GET("/api/sources", FETCH_SOURCES, filterParams);
 }
 
@@ -40,6 +42,8 @@ export function fetchSavedGroupSources(filterParams = {}) {
   filterParams.includePhotometryExists = true;
   filterParams.includeSpectrumExists = true;
   filterParams.includeColorMagnitude = true;
+  filterParams.includeThumbnails = true;
+  filterParams.includeDetectionStats = true;
   return API.GET("/api/sources", FETCH_SAVED_GROUP_SOURCES, filterParams);
 }
 
@@ -49,6 +53,8 @@ export function fetchPendingGroupSources(filterParams = {}) {
   filterParams.includePhotometryExists = true;
   filterParams.includeSpectrumExists = true;
   filterParams.includeColorMagnitude = true;
+  filterParams.includeThumbnails = true;
+  filterParams.includeDetectionStats = true;
   return API.GET("/api/sources", FETCH_PENDING_GROUP_SOURCES, filterParams);
 }
 
@@ -58,6 +64,8 @@ export function fetchFavoriteSources(filterParams = {}) {
   filterParams.includeSpectrumExists = true;
   filterParams.listName = "favorites";
   filterParams.includeColorMagnitude = true;
+  filterParams.includeThumbnails = true;
+  filterParams.includeDetectionStats = true;
   return API.GET("/api/sources", FETCH_FAVORITE_SOURCES, filterParams);
 }
 

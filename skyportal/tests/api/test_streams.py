@@ -52,3 +52,52 @@ def test_token_user_delete_stream(super_admin_token, public_stream):
     status, data = api("DELETE", f"streams/{stream_id}", token=super_admin_token)
     assert status == 200
     assert data["status"] == "success"
+
+
+def test_super_admin_grant_delete_user_stream_access(
+    super_admin_token, user, public_stream2
+):
+    status, data = api(
+        "POST",
+        f"streams/{public_stream2.id}/users",
+        data={"user_id": user.id},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api(
+        "DELETE",
+        f"streams/{public_stream2.id}/users/{user.id}",
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+
+def test_group_admin_cannot_grant_delete_user_stream_access(
+    group_admin_token, user, public_stream, public_stream2
+):
+    status, data = api(
+        "POST",
+        f"streams/{public_stream2.id}/users",
+        data={"user_id": user.id},
+        token=group_admin_token,
+    )
+    assert status == 400
+
+    status, data = api(
+        "DELETE", f"streams/{public_stream.id}/users/{user.id}", token=group_admin_token
+    )
+    assert status == 400
+
+
+def test_user_cannot_grant_self_stream_access(view_only_token, user, public_stream2):
+    status, data = api(
+        "POST",
+        f"streams/{public_stream2.id}/users",
+        data={"user_id": user.id},
+        token=view_only_token,
+    )
+    assert status == 400
+    assert "Forbidden" in data["message"]

@@ -506,16 +506,44 @@ def test_update_redshift_and_history(driver, user, public_source):
         "//div[@data-testid='updateRedshiftTextfield']//input"
     )
     input_field.send_keys("0.9999")
+    input_field = driver.wait_for_xpath(
+        "//div[@data-testid='updateRedshiftErrorTextfield']//input"
+    )
+    input_field.send_keys("0.0001")
     driver.click_xpath("//button[@data-testid='updateRedshiftSubmitButton']")
     driver.wait_for_xpath("//*[text()='Source redshift successfully updated.']")
     driver.wait_for_xpath("//body").click()  # Close dialog
     driver.wait_for_xpath("//*[contains(., '0.9999')]")
+    driver.wait_for_xpath("//*[contains(., '0.0001')]")
 
     driver.click_xpath(
         "//*[@data-testid='redshiftHistoryIconButton']", wait_clickable=False
     )
     driver.wait_for_xpath("//th[text()='Set By']")
     driver.wait_for_xpath("//td[text()='0.9999']")
+    driver.wait_for_xpath("//td[text()='0.0001']")
+    driver.wait_for_xpath(f"//td[text()='{user.username}']")
+
+
+def test_update_redshift_and_history_without_error(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.click_xpath("//*[@data-testid='updateRedshiftIconButton']")
+    input_field = driver.wait_for_xpath(
+        "//div[@data-testid='updateRedshiftTextfield']//input"
+    )
+    input_field.send_keys("0.9998")
+    driver.click_xpath("//button[@data-testid='updateRedshiftSubmitButton']")
+    driver.wait_for_xpath("//*[text()='Source redshift successfully updated.']")
+    driver.wait_for_xpath("//body").click()  # Close dialog
+    driver.wait_for_xpath("//*[contains(., '0.9998')]")
+
+    driver.click_xpath(
+        "//*[@data-testid='redshiftHistoryIconButton']", wait_clickable=False
+    )
+    driver.wait_for_xpath("//th[text()='Set By']")
+    driver.wait_for_xpath("//td[text()='0.9998']")
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
 
 
@@ -526,7 +554,7 @@ def test_obj_page_unsaved_source(public_obj, driver, user):
     # wait for the plots to load
     driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
     # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//span[text()="Mg"]', timeout=20)
+    driver.wait_for_xpath('//span[text()="Mg I"]', timeout=20)
 
     driver.wait_for_xpath_to_disappear('//div[contains(@data-testid, "groupChip")]')
 
@@ -538,7 +566,7 @@ def test_show_photometry_table(public_source, driver, user):
     # wait for the plots to load
     driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
     # this waits for the spectroscopy plot by looking for the element Mg
-    driver.wait_for_xpath('//span[text()="Mg"]')
+    driver.wait_for_xpath('//span[text()="Mg I"]')
 
     driver.click_xpath('//*[@data-testid="show-photometry-table-button"]')
     driver.wait_for_xpath(f'//*[contains(text(), "Photometry of {public_source.id}")]')

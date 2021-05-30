@@ -95,12 +95,13 @@ skyportal_handlers = [
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
-    (r'/api/comment(/[0-9]+)?', CommentHandler),
+    (r'/api/comment', CommentHandler),
     (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
     # Allow the '.pdf' suffix for the attachment route, as the
     # react-file-previewer package expects URLs ending with '.pdf' to
     # load PDF files.
     (r'/api/comment(/[0-9]+)/attachment.pdf', CommentAttachmentHandler),
+    (r'/api/comment(/[0-9]+)?(/.+)?', CommentHandler),
     (r'/api/annotation(/[0-9]+)?', AnnotationHandler),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
@@ -124,14 +125,14 @@ skyportal_handlers = [
     (r'/api/photometry/bulk_delete/(.*)', BulkDeletePhotometryHandler),
     (r'/api/photometry/range(/.*)?', PhotometryRangeHandler),
     (r'/api/roles', RoleHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/photometry', ObjPhotometryHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/spectra', ObjSpectraHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/offsets', SourceOffsetsHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/finder', SourceFinderHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/classifications', ObjClassificationHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/annotations', ObjAnnotationHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/groups', ObjGroupsHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/color_mag', ObjColorMagHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/photometry', ObjPhotometryHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/spectra', ObjSpectraHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/offsets', SourceOffsetsHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/finder', SourceFinderHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations', ObjAnnotationHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),
@@ -248,7 +249,11 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     )
 
     app = tornado.web.Application(handlers, **settings)
-    models.init_db(**cfg['database'], autoflush=False)
+    models.init_db(
+        **cfg['database'],
+        autoflush=False,
+        engine_args={'pool_size': 10, 'max_overflow': 15, 'pool_recycle': 3600},
+    )
 
     # If tables are found in the database, new tables will only be added
     # in debug mode.  In production, we leave the tables alone, since

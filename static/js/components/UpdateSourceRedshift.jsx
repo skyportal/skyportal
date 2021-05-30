@@ -30,30 +30,53 @@ const useStyles = makeStyles(() => ({
 const UpdateSourceRedshift = ({ source }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const [state, setState] = useState(
-    source.redshift ? String(source.redshift) : ""
-  );
+  const [state, setState] = useState({
+    redshift: source.redshift ? String(source.redshift) : "",
+    redshift_error: source.redshift_error ? String(source.redshift_error) : "",
+  });
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invalid, setInvalid] = useState(true);
 
   useEffect(() => {
-    // eslint-disable-next-line no-restricted-globals
-    setInvalid(!String(source.redshift) || isNaN(String(source.redshift)));
-    setState(source.redshift ? String(source.redshift) : "");
+    setInvalid(
+      // eslint-disable-next-line no-restricted-globals
+      !String(source.redshift) || isNaN(String(source.redshift))
+    );
+    setState({
+      redshift: source.redshift ? String(source.redshift) : "",
+      redshift_error: source.redshift_error
+        ? String(source.redshift_error)
+        : "",
+    });
   }, [source, setInvalid]);
 
   const handleChange = (e) => {
+    const newState = {};
+    newState[e.target.name] = e.target.value;
     const value = String(e.target.value).trim();
-    // eslint-disable-next-line no-restricted-globals
-    setInvalid(!value || isNaN(value));
-    setState(value);
+    if (e.target.name === "redshift") {
+      // eslint-disable-next-line no-restricted-globals
+      setInvalid(!value || isNaN(value));
+    }
+    setState({
+      ...state,
+      ...newState,
+    });
   };
 
-  const handleSubmit = async (value) => {
+  const handleSubmit = async (subState) => {
     setIsSubmitting(true);
+    const newState = {};
+    newState.redshift = subState.redshift ? subState.redshift : null;
+    newState.redshift_error = subState.redshift_error
+      ? subState.redshift_error
+      : null;
     const result = await dispatch(
-      sourceActions.updateSource(source.id, { redshift: value })
+      sourceActions.updateSource(source.id, {
+        ...newState,
+      })
     );
     setIsSubmitting(false);
     if (result.status === "success") {
@@ -89,7 +112,20 @@ const UpdateSourceRedshift = ({ source }) => {
               data-testid="updateRedshiftTextfield"
               size="small"
               label="z"
-              value={state}
+              value={state.redshift}
+              name="redshift"
+              onChange={handleChange}
+              variant="outlined"
+            />
+          </div>
+          <p />
+          <div>
+            <TextField
+              data-testid="updateRedshiftErrorTextfield"
+              size="small"
+              label="z_err"
+              value={state.redshift_error}
+              name="redshift_error"
               onChange={handleChange}
               variant="outlined"
             />
@@ -113,7 +149,7 @@ const UpdateSourceRedshift = ({ source }) => {
               <Button
                 color="primary"
                 onClick={() => {
-                  handleSubmit(null);
+                  handleSubmit({ redshift: null, redshift_error: null });
                 }}
                 startIcon={<ClearIcon />}
                 size="large"
@@ -134,6 +170,7 @@ UpdateSourceRedshift.propTypes = {
   source: PropTypes.shape({
     id: PropTypes.string,
     redshift: PropTypes.number,
+    redshift_error: PropTypes.number,
   }).isRequired,
 };
 

@@ -1,11 +1,11 @@
 from skyportal.tests import api
 
 
-def test_group_admission_existing_member(user, public_group, view_only_token):
+def test_group_admission_existing_member(user, public_group, upload_data_token):
     request_data = {'groupID': public_group.id, 'userID': user.id}
 
     status, data = api(
-        'POST', 'group_admission_requests', data=request_data, token=view_only_token
+        'POST', 'group_admission_requests', data=request_data, token=upload_data_token
     )
     assert status == 400
     assert "already a member of group" in data["message"]
@@ -14,8 +14,8 @@ def test_group_admission_existing_member(user, public_group, view_only_token):
 def test_group_admission_read_access(
     public_group,
     user_group2,
-    view_only_token,
-    view_only_token_group2,
+    upload_data_token,
+    upload_data_token_group2,
     manage_sources_token,
 ):
     # Have user_group2 request access to public_group
@@ -25,7 +25,7 @@ def test_group_admission_read_access(
         "POST",
         "group_admission_requests",
         data=request_data,
-        token=view_only_token_group2,
+        token=upload_data_token_group2,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -35,7 +35,7 @@ def test_group_admission_read_access(
     status, data = api(
         "GET",
         f"group_admission_requests/{request_id}",
-        token=view_only_token_group2,
+        token=upload_data_token_group2,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -50,24 +50,24 @@ def test_group_admission_read_access(
     assert status == 200
     assert data["status"] == "success"
 
-    # Regular user (view_only_token) should not be able to see the request
+    # Regular user (upload_data_token) should not be able to see the request
     # as they are neither a group admin nor the requesting user
     status, data = api(
         "GET",
         f"group_admission_requests/{request_id}",
-        token=view_only_token,
+        token=upload_data_token,
     )
     assert status == 400
     assert "Insufficient permissions" in data["message"]
 
 
 # test get doesn't exist
-def test_group_admission_read_nonexistent(view_only_token):
+def test_group_admission_read_nonexistent(upload_data_token):
     request_id = 9999999
     status, data = api(
         "GET",
         f"group_admission_requests/{request_id}",
-        token=view_only_token,
+        token=upload_data_token,
     )
     assert status == 400
     assert "Invalid GroupAdmissionRequest id" in data["message"]
@@ -75,12 +75,12 @@ def test_group_admission_read_nonexistent(view_only_token):
 
 # test post for someone not me
 def test_group_admission_post_for_another_user(
-    user_group2, public_group, view_only_token
+    user_group2, public_group, upload_data_token
 ):
     request_data = {'groupID': public_group.id, 'userID': user_group2.id}
 
     status, data = api(
-        'POST', 'group_admission_requests', data=request_data, token=view_only_token
+        'POST', 'group_admission_requests', data=request_data, token=upload_data_token
     )
     assert status == 400
     assert "Insufficient permissions" in data["message"]
@@ -90,9 +90,9 @@ def test_group_admission_post_for_another_user(
 def test_group_admission_patch_permissions(
     public_group,
     user_group2,
-    view_only_token,
-    view_only_token_group2,
-    manage_sources_token,
+    upload_data_token,
+    upload_data_token_group2,
+    group_admin_token,
 ):
     # Have user_group2 request access to public_group
     request_data = {"groupID": public_group.id, "userID": user_group2.id}
@@ -101,7 +101,7 @@ def test_group_admission_patch_permissions(
         "POST",
         "group_admission_requests",
         data=request_data,
-        token=view_only_token_group2,
+        token=upload_data_token_group2,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -112,7 +112,7 @@ def test_group_admission_patch_permissions(
         "PATCH",
         f"group_admission_requests/{request_id}",
         data={"status": "accepted"},
-        token=view_only_token,
+        token=upload_data_token,
     )
     assert status == 400
     assert "Insufficient permissions" in data["message"]
@@ -122,7 +122,7 @@ def test_group_admission_patch_permissions(
         "PATCH",
         f"group_admission_requests/{request_id}",
         data={"status": "accepted"},
-        token=view_only_token_group2,
+        token=upload_data_token_group2,
     )
     assert status == 400
     assert "Insufficient permissions" in data["message"]
@@ -132,7 +132,7 @@ def test_group_admission_patch_permissions(
         "PATCH",
         f"group_admission_requests/{request_id}",
         data={"status": "accepted"},
-        token=manage_sources_token,
+        token=group_admin_token,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -142,9 +142,9 @@ def test_group_admission_patch_permissions(
 def test_group_admission_delete_permissions(
     public_group,
     user_group2,
-    view_only_token,
-    view_only_token_group2,
-    manage_sources_token,
+    upload_data_token,
+    upload_data_token_group2,
+    group_admin_token,
 ):
     # Have user_group2 request access to public_group
     request_data = {"groupID": public_group.id, "userID": user_group2.id}
@@ -153,7 +153,7 @@ def test_group_admission_delete_permissions(
         "POST",
         "group_admission_requests",
         data=request_data,
-        token=view_only_token_group2,
+        token=upload_data_token_group2,
     )
     assert status == 200
     assert data["status"] == "success"
@@ -164,7 +164,7 @@ def test_group_admission_delete_permissions(
         "DELETE",
         f"group_admission_requests/{request_id}",
         data={"status": "accepted"},
-        token=view_only_token,
+        token=upload_data_token,
     )
     assert status == 400
     assert "Insufficient permissions" in data["message"]
@@ -174,7 +174,7 @@ def test_group_admission_delete_permissions(
         "DELETE",
         f"group_admission_requests/{request_id}",
         data={"status": "accepted"},
-        token=manage_sources_token,
+        token=group_admin_token,
     )
     assert status == 400
     assert "Insufficient permissions" in data["message"]
@@ -184,7 +184,7 @@ def test_group_admission_delete_permissions(
         "DELETE",
         f"group_admission_requests/{request_id}",
         data={"status": "accepted"},
-        token=view_only_token_group2,
+        token=upload_data_token_group2,
     )
     assert status == 200
     assert data["status"] == "success"

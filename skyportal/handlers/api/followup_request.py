@@ -133,9 +133,7 @@ class AssignmentHandler(BaseHandler):
 
         run_id = assignment.run_id
         data['priority'] = assignment.priority.name
-        run = ObservingRun.query.get(run_id)
-        if run is None:
-            return self.error(f'Invalid observing run: "{run_id}"')
+        ObservingRun.get_if_accessible_by(run_id, self.current_user, raise_if_none=True)
 
         predecessor = (
             ClassicalAssignment.query_records_accessible_by(self.current_user)
@@ -322,7 +320,7 @@ class FollowupRequestHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(data=followup_requests)
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -406,7 +404,7 @@ class FollowupRequestHandler(BaseHandler):
 
         return self.success(data={"id": followup_request.id})
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def put(self, request_id):
         """
         ---
@@ -490,7 +488,7 @@ class FollowupRequestHandler(BaseHandler):
         )
         return self.success()
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, request_id):
         """
         ---

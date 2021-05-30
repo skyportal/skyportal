@@ -1,4 +1,4 @@
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link, useHistory } from "react-router-dom";
@@ -22,6 +22,7 @@ import GroupIcon from "@material-ui/icons/Group";
 import CheckIcon from "@material-ui/icons/Check";
 import ClearIcon from "@material-ui/icons/Clear";
 import InfoIcon from "@material-ui/icons/Info";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import dayjs from "dayjs";
 import { isMobileOnly } from "react-device-detect";
@@ -211,6 +212,13 @@ const SourceTable = ({
   const [tableFilterList, setTableFilterList] = useState([]);
   const [filterFormData, setFilterFormData] = useState(null);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+  const [queryInProgress, setQueryInProgress] = useState(false);
+
+  useEffect(() => {
+    if (sources) {
+      setQueryInProgress(false);
+    }
+  }, [sources]);
 
   // Color styling
   const userColorTheme = useSelector(
@@ -223,6 +231,7 @@ const SourceTable = ({
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
+        setQueryInProgress(true);
         setRowsPerPage(tableState.rowsPerPage);
         paginateCallback(
           tableState.page + 1,
@@ -451,9 +460,26 @@ const SourceTable = ({
   const renderAlias = (dataIndex) => {
     const { id: objid, alias } = sources[dataIndex];
 
+    if (alias) {
+      const alias_str = Array.isArray(alias)
+        ? alias.map((name) => <div key={name}> {name} </div>)
+        : alias;
+
+      return (
+        <Link to={`/source/${objid}`} key={`${objid}_alias`}>
+          {alias_str}
+        </Link>
+      );
+    }
+    return null;
+  };
+
+  const renderOrigin = (dataIndex) => {
+    const { id: objid, origin } = sources[dataIndex];
+
     return (
-      <Link to={`/source/${objid}`} key={`${objid}_alias`}>
-        {alias}
+      <Link to={`/source/${objid}`} key={`${objid}_origin`}>
+        {origin}
       </Link>
     );
   };
@@ -641,6 +667,8 @@ const SourceTable = ({
   };
 
   const handleFilterSubmit = async (formData) => {
+    setQueryInProgress(true);
+
     // Remove empty position
     if (
       formData.position.ra === "" &&
@@ -674,6 +702,8 @@ const SourceTable = ({
   };
 
   const handleTableFilterChipChange = (column, filterList, type) => {
+    setQueryInProgress(true);
+
     if (type === "chip") {
       const sourceFilterList = filterList[0];
       // Convert chip filter list to filter form data
@@ -729,12 +759,24 @@ const SourceTable = ({
       },
     },
     {
-      name: "Alias",
+      name: "alias",
+      label: "Alias",
       options: {
-        filter: false,
+        filter: true,
         sort: false,
         display: displayedColumns.includes("Alias"),
         customBodyRenderLite: renderAlias,
+      },
+    },
+    {
+      name: "origin",
+      label: "Origin",
+      options: {
+        filter: true,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Origin"),
+        customBodyRenderLite: renderOrigin,
       },
     },
     {
@@ -907,20 +949,26 @@ const SourceTable = ({
         <Grid
           container
           direction="column"
-          alignItems="center"
+          alignItems="flex-start"
           justify="flex-start"
           spacing={3}
         >
-          <Grid item className={classes.tableGrid}>
-            <MuiThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title={title}
-                columns={columns}
-                data={sources}
-                options={options}
-              />
-            </MuiThemeProvider>
-          </Grid>
+          {queryInProgress ? (
+            <Grid item>
+              <CircularProgress />
+            </Grid>
+          ) : (
+            <Grid item className={classes.tableGrid}>
+              <MuiThemeProvider theme={getMuiTheme(theme)}>
+                <MUIDataTable
+                  title={title}
+                  columns={columns}
+                  data={sources}
+                  options={options}
+                />
+              </MuiThemeProvider>
+            </Grid>
+          )}
         </Grid>
       </div>
     </div>
@@ -933,7 +981,8 @@ SourceTable.propTypes = {
       id: PropTypes.string,
       ra: PropTypes.number,
       dec: PropTypes.number,
-      alias: PropTypes.string,
+      origin: PropTypes.string,
+      alias: PropTypes.arrayOf(PropTypes.string),
       redshift: PropTypes.number,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({

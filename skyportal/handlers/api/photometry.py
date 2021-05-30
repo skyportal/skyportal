@@ -23,11 +23,13 @@ from ..base import BaseHandler
 from ...models import (
     DBSession,
     Group,
+    Stream,
     Photometry,
     Instrument,
     Obj,
     PHOT_ZP,
     GroupPhotometry,
+    StreamPhotometry,
 )
 
 from ...schema import (
@@ -205,6 +207,7 @@ class PhotometryHandler(BaseHandler):
                         len(data[key])
                         for key in data
                         if isinstance(data[key], (list, tuple))
+                        and key not in ["group_ids", "stream_ids"]
                     ]
                     + [1]
                 )
@@ -231,6 +234,7 @@ class PhotometryHandler(BaseHandler):
 
         # not used here
         _ = data.pop('group_ids', None)
+        _ = data.pop('stream_ids', None)
 
         if allscalar(data):
             data = [data]
@@ -512,7 +516,7 @@ class PhotometryHandler(BaseHandler):
         return values_table, condition
 
     def insert_new_photometry_data(
-        self, df, instrument_cache, group_ids, validate=True
+        self, df, instrument_cache, group_ids, stream_ids, validate=True
     ):
         # check for existing photometry and error if any is found
 
@@ -520,10 +524,7 @@ class PhotometryHandler(BaseHandler):
             values_table, condition = self.get_values_table_and_condition(df)
 
             duplicated_photometry = (
-                DBSession()
-                .query(Photometry)
-                .join(values_table, condition)
-                .options(joinedload(Photometry.groups))
+                DBSession().query(Photometry).join(values_table, condition)
             )
 
             dict_rep = [d.to_dict() for d in duplicated_photometry]
@@ -609,6 +610,20 @@ class PhotometryHandler(BaseHandler):
         # Persist the new photometry so the ids are present for the group photometry post
         self.verify_and_commit()
 
+        groupquery = GroupPhotometry.__table__.insert()
+        params = []
+        for id in ids:
+            for group_id in group_ids:
+                params.append({'photometr_id': id, 'group_id': group_id})
+        DBSession().execute(groupquery, params)
+
+        if stream_ids:
+            stream_query = StreamPhotometry.__table__.insert()
+            params = []
+            for id in ids:
+                for stream_id in stream_ids:
+                    params.append({'photometr_id': id, 'stream_id': stream_id})
+            DBSession().execute(stream_query, params)
         # Bulk COPY in the group_photometry records
         #
         # Note that we don't the same with inserting the photometry data
@@ -663,6 +678,28 @@ class PhotometryHandler(BaseHandler):
         group_ids = list(set(group_ids))
         return group_ids
 
+    def get_stream_ids(self):
+        data = self.get_json()
+        stream_ids = data.pop("stream_ids", [])
+        if isinstance(stream_ids, (list, tuple)):
+            for stream_id in stream_ids:
+                try:
+                    stream_id = int(stream_id)
+                except TypeError:
+                    raise ValidationError(
+                        f"Invalid format for stream id {stream_id}, must be an integer."
+                    )
+                stream = Stream.get_if_accessible_by(stream_id, self.current_user)
+                if stream is None:
+                    raise ValidationError(f'No stream with ID {stream_id}')
+        else:
+            raise ValidationError(
+                "Invalid stream_ids parameter value. Must be a list of IDs (integers)."
+            )
+
+        stream_ids = list(set(stream_ids))
+        return stream_ids
+
     @permissions(['Upload data'])
     def post(self):
         """
@@ -706,6 +743,10 @@ class PhotometryHandler(BaseHandler):
             group_ids = self.get_group_ids()
         except ValidationError as e:
             return self.error(e.args[0])
+        try:
+            stream_ids = self.get_stream_ids()
+        except ValidationError as e:
+            return self.error(e.args[0])
 
         try:
             df, instrument_cache = self.standardize_photometry_data()
@@ -723,7 +764,7 @@ class PhotometryHandler(BaseHandler):
         )
         try:
             ids, upload_id = self.insert_new_photometry_data(
-                df, instrument_cache, group_ids
+                df, instrument_cache, group_ids, stream_ids
             )
         except ValidationError as e:
             return self.error(e.args[0])
@@ -775,6 +816,11 @@ class PhotometryHandler(BaseHandler):
             return self.error(e.args[0])
 
         try:
+            stream_ids = self.get_stream_ids()
+        except ValidationError as e:
+            return self.error(e.args[0])
+
+        try:
             df, instrument_cache = self.standardize_photometry_data()
         except ValidationError as e:
             return self.error(e.args[0])
@@ -807,11 +853,13 @@ class PhotometryHandler(BaseHandler):
             .query(values_table.c.pdidx, Photometry)
             .join(Photometry, condition)
             .options(joinedload(Photometry.groups))
+            .options(joinedload(Photometry.streams))
         )
 
         for df_index, duplicate in duplicated_photometry:
             id_map[df_index] = duplicate.id
             duplicate_group_ids = set([g.id for g in duplicate.groups])
+            duplicate_stream_ids = set([s.id for s in duplicate.streams])
 
             # posting to new groups?
             if len(set(group_ids) - duplicate_group_ids) > 0:
@@ -826,13 +874,27 @@ class PhotometryHandler(BaseHandler):
                 # update the corresponding photometry entry in the db
                 duplicate.groups = groups
 
+            # posting to new streams?
+            if stream_ids:
+                # Add new stream_photometry rows if not already present
+                stream_ids_update = set(stream_ids) - duplicate_stream_ids
+                if len(stream_ids_update) > 0:
+                    for id in stream_ids_update:
+                        DBSession().add(
+                            StreamPhotometry(photometr_id=duplicate.id, stream_id=id)
+                        )
+
         # now safely drop the duplicates:
         new_photometry = df.loc[new_photometry_df_idxs]
 
         if len(new_photometry) > 0:
             try:
                 ids, _ = self.insert_new_photometry_data(
-                    new_photometry, instrument_cache, group_ids, validate=False
+                    new_photometry,
+                    instrument_cache,
+                    group_ids,
+                    stream_ids,
+                    validate=False,
                 )
             except ValidationError as e:
                 return self.error(e.args[0])
@@ -851,9 +913,9 @@ class PhotometryHandler(BaseHandler):
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
-        phot = Photometry.get_if_readable_by(photometry_id, self.current_user)
-        if phot is None:
-            return self.error('Invalid photometry ID')
+        phot = Photometry.get_if_accessible_by(
+            photometry_id, self.current_user, raise_if_none=True
+        )
 
         # get the desired output format
         format = self.get_query_argument('format', 'mag')
@@ -898,14 +960,13 @@ class PhotometryHandler(BaseHandler):
         except ValueError:
             return self.error('Photometry id must be an int.')
 
-        photometry = Photometry.get_if_readable_by(photometry_id, self.current_user)
-        if not photometry.is_modifiable_by(self.associated_user_object):
-            return self.error(
-                f'Cannot delete photometry point that is owned by {photometry.owner}.'
-            )
+        photometry = Photometry.get_if_accessible_by(
+            photometry_id, self.current_user, mode="update", raise_if_none=True
+        )
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
+        stream_ids = data.pop("stream_ids", None)
 
         try:
             phot = PhotometryFlux.load(data)
@@ -930,15 +991,37 @@ class PhotometryHandler(BaseHandler):
             groups = Group.query.filter(Group.id.in_(group_ids)).all()
             if not groups:
                 return self.error(
-                    "Invalid group_ids field. " "Specify at least one valid group ID."
+                    "Invalid group_ids field. Specify at least one valid group ID."
                 )
             if not all(
                 [group in self.current_user.accessible_groups for group in groups]
             ):
                 return self.error(
-                    "Cannot upload photometry to groups you " "are not a member of."
+                    "Cannot upload photometry to groups you are not a member of."
                 )
             photometry.groups = groups
+
+        # Update streams, if relevant
+        if stream_ids is not None:
+            streams = Stream.get_if_accessible_by(
+                stream_ids, self.current_user, raise_if_none=True
+            )
+            # Add new stream_photometry rows if not already present
+            for stream in streams:
+                if (
+                    StreamPhotometry.query_records_accessible_by(self.current_user)
+                    .filter(
+                        StreamPhotometry.stream_id == stream.id,
+                        StreamPhotometry.photometr_id == photometry_id,
+                    )
+                    .first()
+                    is None
+                ):
+                    DBSession().add(
+                        StreamPhotometry(
+                            photometr_id=photometry_id, stream_id=stream.id
+                        )
+                    )
 
         self.verify_and_commit()
         return self.success()
@@ -966,15 +1049,11 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        photometry = Photometry.get_if_readable_by(photometry_id, self.current_user)
-        if not photometry.is_modifiable_by(self.associated_user_object):
-            return self.error(
-                f'Cannot delete photometry point that is owned by {photometry.owner}.'
-            )
+        photometry = Photometry.get_if_accessible_by(
+            photometry_id, self.current_user, mode="delete", raise_if_none=True
+        )
 
-        DBSession().query(Photometry).filter(
-            Photometry.id == int(photometry_id)
-        ).delete()
+        DBSession().delete(photometry)
         self.verify_and_commit()
 
         return self.success()
@@ -983,10 +1062,10 @@ class PhotometryHandler(BaseHandler):
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
-        obj = Obj.query.get(obj_id)
-        if obj is None:
-            return self.error('Invalid object id.')
-        photometry = Obj.get_photometry_readable_by_user(obj_id, self.current_user)
+        Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
+        photometry = Photometry.query_records_accessible_by(self.current_user).filter(
+            Photometry.obj_id == obj_id
+        )
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
         self.verify_and_commit()
@@ -996,7 +1075,7 @@ class ObjPhotometryHandler(BaseHandler):
 
 
 class BulkDeletePhotometryHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, upload_id):
         """
         ---
@@ -1019,14 +1098,11 @@ class BulkDeletePhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-
-        # dont check permissions here -- pull all the photometry associated with
-        # the upload, not necessarily just the photometry that is accessible
-        # to the user. if any of the photometry fails to be deleted, send back
-        # 400
-        photometry_to_delete = Photometry.query.filter(
-            Photometry.upload_id == upload_id
-        ).all()
+        photometry_to_delete = (
+            Photometry.query_records_accessible_by(self.current_user, mode="delete")
+            .filter(Photometry.upload_id == upload_id)
+            .all()
+        )
 
         n = len(photometry_to_delete)
         if n == 0:
@@ -1035,8 +1111,6 @@ class BulkDeletePhotometryHandler(BaseHandler):
         for phot in photometry_to_delete:
             DBSession().delete(phot)
 
-        # this will return self.error if the user does not have access
-        # to delete any of the photometry points
         self.verify_and_commit()
         return self.success(f"Deleted {n} photometry points.")
 
@@ -1068,12 +1142,12 @@ class PhotometryRangeHandler(BaseHandler):
 
         gids = [g.id for g in self.current_user.accessible_groups]
 
-        query = (
-            DBSession()
-            .query(Photometry)
-            .join(GroupPhotometry)
+        group_phot_subquery = (
+            GroupPhotometry.query_records_accessible_by(self.current_user)
             .filter(GroupPhotometry.group_id.in_(gids))
+            .subquery()
         )
+        query = Photometry.query_records_accessible_by(self.current_user)
 
         if instrument_ids is not None:
             query = query.filter(Photometry.instrument_id.in_(instrument_ids))
@@ -1083,6 +1157,10 @@ class PhotometryRangeHandler(BaseHandler):
         if max_date is not None:
             mjd = Time(max_date, format='datetime').mjd
             query = query.filter(Photometry.mjd <= mjd)
+
+        query = query.join(
+            group_phot_subquery, Photometry.id == group_phot_subquery.c.photometr_id
+        )
 
         output = [serialize(p, magsys, format) for p in query]
         self.verify_and_commit()

@@ -1,10 +1,10 @@
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import permissions
 from ..base import BaseHandler
 from ...models import Group, Photometry, Spectrum
 
 
 class SharingHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self):
         """
         ---

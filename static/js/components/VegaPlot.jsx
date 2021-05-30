@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import embed from "vega-embed";
 import { isMobileOnly } from "react-device-detect";
 
-const mjdNow = Math.floor(Date.now() / 86400000.0 + 40587.5);
+const mjdNow = Date.now() / 86400000.0 + 40587.0;
 
 const spec = (url) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",

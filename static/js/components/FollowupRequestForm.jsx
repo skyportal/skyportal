@@ -112,10 +112,23 @@ const FollowupRequestForm = ({
     setIsSubmitting(false);
   };
 
+  const validate = (formData, errors) => {
+    if (
+      formData.start_date &&
+      formData.end_date &&
+      formData.start_date > formData.end_date
+    ) {
+      errors.start_date.addError("Start Date must come before End Date");
+    }
+
+    return errors;
+  };
+
   return (
     <div className={classes.container}>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
       <Select
+        inputProps={{ MenuProps: { disableScrollLock: true } }}
         labelId="allocationSelectLabel"
         value={selectedAllocationId}
         onChange={handleSelectedAllocationChange}
@@ -154,6 +167,8 @@ const FollowupRequestForm = ({
               allocationLookUp[selectedAllocationId].instrument_id
             ].uiSchema
           }
+          liveValidate
+          validate={validate}
           onSubmit={handleSubmit}
           disabled={isSubmitting}
         />

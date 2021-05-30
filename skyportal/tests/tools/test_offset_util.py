@@ -7,7 +7,7 @@ import requests
 from requests.exceptions import HTTPError, Timeout, ConnectionError
 
 from skyportal.tests import api
-from skyportal.utils import (
+from skyportal.utils.offset import (
     get_nearby_offset_stars,
     get_finding_chart,
     get_ztfref_url,

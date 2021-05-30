@@ -18,7 +18,7 @@ repos:
         pass_filenames: true
         exclude: baselayer|node_modules|static|__init__.py
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: "" # Use the sha or tag you want to point at
+    rev: "v2.3.0" # Use the sha or tag you want to point at
     hooks:
       - id: prettier
         pass_filenames: true

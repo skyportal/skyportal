@@ -1,6 +1,7 @@
 import uuid
 import pytest
 from baselayer.app.env import load_env
+from skyportal.tests import api
 
 
 _, cfg = load_env()
@@ -150,10 +151,19 @@ def test_delete_group(driver, super_admin_user, user, public_group):
 
 
 @pytest.mark.flaky(reruns=2)
-# @pytest.mark.xfail(strict=False)
 def test_add_stream_add_delete_filter_group(
-    driver, super_admin_user, user, public_group, public_stream2
+    driver, super_admin_user, super_admin_token, public_group, public_stream2
 ):
+    status, data = api(
+        'POST',
+        f'streams/{public_stream2.id}/users',
+        data={
+            'user_id': super_admin_user.id,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
     driver.click_xpath('//h6[text()="All Groups"]', scroll_parent=True)
@@ -161,12 +171,11 @@ def test_add_stream_add_delete_filter_group(
         f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
     )
 
-    # add stream
+    # Add stream
     driver.click_xpath('//button[contains(.,"Add stream")]')
     driver.click_xpath('//input[@name="stream_id"]/..')
 
     driver.click_xpath(f'//li[contains(.,"{public_stream2.name}")]', scroll_parent=True)
-
     driver.click_xpath('//button[@data-testid="add-stream-dialog-submit"]')
 
     # add filter
@@ -188,3 +197,22 @@ def test_add_stream_add_delete_filter_group(
     # delete filter
     driver.click_xpath(f'//a[contains(.,"{filter_name}")]')
     driver.wait_for_xpath_to_disappear(f'//a[contains(.,"{filter_name}")]')
+
+
+def test_cannot_add_stream_group_users_cant_access(
+    driver, super_admin_user, user, public_group, public_stream2
+):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/groups')
+    driver.click_xpath('//h6[text()="All Groups"]', scroll_parent=True)
+    driver.click_xpath(
+        f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
+    )
+
+    # Cannot add stream that group members don't have access to
+    driver.click_xpath('//button[contains(.,"Add stream")]')
+    driver.click_xpath('//input[@name="stream_id"]/..')
+
+    driver.click_xpath(f'//li[contains(.,"{public_stream2.name}")]', scroll_parent=True)
+    driver.click_xpath('//button[@data-testid="add-stream-dialog-submit"]')
+    driver.wait_for_xpath('//*[contains(.,"Insufficient permissions")]')

@@ -61,6 +61,17 @@ if not DBSession.query(User).filter(User.username == "test factory").scalar():
     DBSession.add(User(username="test factory"))
     DBSession.commit()
 
+# Also add the test driver user (testuser-cesium-ml-org) if needed so that the driver
+# fixture has a user to login as (without needing an invitation token).
+# With invitations enabled on the test configs, the driver fails to login properly
+# without this user because the authenticator looks for the user or an
+# invitation token when neither exists initially on fresh test databases.
+if not DBSession.query(User).filter(User.username == "testuser-cesium-ml-org").scalar():
+    DBSession.add(
+        User(username="testuser-cesium-ml-org", oauth_uid="testuser@cesium-ml.org")
+    )
+    DBSession.commit()
+
 
 def pytest_runtest_setup(item):
     # Print timestamp when running each test
@@ -208,6 +219,22 @@ def public_group2(public_stream):
 
 
 @pytest.fixture()
+def public_group_stream2(public_stream2):
+    group = GroupFactory(streams=[public_stream2])
+    group_id = group.id
+    yield group
+    GroupFactory.teardown(group_id)
+
+
+@pytest.fixture()
+def public_group_two_streams(public_stream, public_stream2):
+    group = GroupFactory(streams=[public_stream, public_stream2])
+    group_id = group.id
+    yield group
+    GroupFactory.teardown(group_id)
+
+
+@pytest.fixture()
 def public_group_no_streams():
     group = GroupFactory()
     group_id = group.id
@@ -265,6 +292,19 @@ def public_streamuser(public_stream, user):
 
 
 @pytest.fixture()
+def public_streamuser_no_groups(public_stream, user_no_groups):
+    return (
+        DBSession()
+        .query(StreamUser)
+        .filter(
+            StreamUser.user_id == user_no_groups.id,
+            StreamUser.stream_id == public_stream.id,
+        )
+        .first()
+    )
+
+
+@pytest.fixture()
 def public_filter(public_group, public_stream):
     filter_ = FilterFactory(group=public_group, stream=public_stream)
     filter_id = filter_.id
@@ -283,6 +323,15 @@ def public_filter2(public_group2, public_stream):
 @pytest.fixture()
 def public_ZTF20acgrjqm(public_group):
     obj = ObjFactory(groups=[public_group], ra=65.0630767, dec=82.5880983)
+    DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
+    DBSession().commit()
+    yield obj
+    ObjFactory.teardown(obj)
+
+
+@pytest.fixture()
+def public_ZTF21aaeyldq(public_group):
+    obj = ObjFactory(groups=[public_group], ra=123.813909, dec=-5.867007)
     DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
     DBSession().commit()
     yield obj
@@ -609,6 +658,18 @@ def user(public_group, public_stream):
 
 
 @pytest.fixture()
+def user_stream2_only(public_group, public_stream2):
+    user = UserFactory(
+        groups=[public_group],
+        roles=[models.Role.query.get("Full user")],
+        streams=[public_stream2],
+    )
+    user_id = user.id
+    yield user
+    UserFactory.teardown(user_id)
+
+
+@pytest.fixture()
 def user_group2(public_group2, public_stream):
     user = UserFactory(
         groups=[public_group2],
@@ -655,11 +716,78 @@ def user_no_groups(public_stream):
 
 
 @pytest.fixture()
+def user_no_groups_two_streams(public_stream, public_stream2):
+    user = UserFactory(
+        roles=[models.Role.query.get("Full user")],
+        streams=[public_stream, public_stream2],
+    )
+    user_id = user.id
+    yield user
+    UserFactory.teardown(user_id)
+
+
+@pytest.fixture()
 def user_no_groups_no_streams():
     user = UserFactory(roles=[models.Role.query.get("Full user")], streams=[])
     user_id = user.id
     yield user
     UserFactory.teardown(user_id)
+
+
+@pytest.fixture()
+def view_only_token_no_groups(user_no_groups):
+    token_id = create_token(ACLs=[], user_id=user_no_groups.id, name=str(uuid.uuid4()))
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def upload_data_token_stream2(user_stream2_only):
+    token_id = create_token(
+        ACLs=["Upload data"], user_id=user_stream2_only.id, name=str(uuid.uuid4())
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def view_only_token_no_groups_no_streams(user_no_groups_no_streams):
+    token_id = create_token(
+        ACLs=[], user_id=user_no_groups_no_streams.id, name=str(uuid.uuid4())
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def upload_data_token_no_groups(user_no_groups):
+    token_id = create_token(
+        ACLs=["Upload data"], user_id=user_no_groups.id, name=str(uuid.uuid4())
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def upload_data_token_no_groups_two_streams(user_no_groups_two_streams):
+    token_id = create_token(
+        ACLs=["Upload data"],
+        user_id=user_no_groups_two_streams.id,
+        name=str(uuid.uuid4()),
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def upload_data_token_no_groups_no_streams(user_no_groups_no_streams):
+    token_id = create_token(
+        ACLs=["Upload data"],
+        user_id=user_no_groups_no_streams.id,
+        name=str(uuid.uuid4()),
+    )
+    yield token_id
+    delete_token(token_id)
 
 
 @pytest.fixture()
@@ -743,6 +871,18 @@ def super_admin_user(public_group, public_stream):
 
 
 @pytest.fixture()
+def super_admin_user_group2(public_group2, public_stream):
+    user = UserFactory(
+        groups=[public_group2],
+        roles=[models.Role.query.get("Super admin")],
+        streams=[public_stream],
+    )
+    user_id = user.id
+    yield user
+    UserFactory.teardown(user_id)
+
+
+@pytest.fixture()
 def super_admin_user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
         groups=[public_group, public_group2],
@@ -771,6 +911,15 @@ def view_only_token2(user2):
 @pytest.fixture()
 def view_only_token_group2(user_group2):
     token_id = create_token(ACLs=[], user_id=user_group2.id, name=str(uuid.uuid4()))
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def upload_data_token_group2(user_group2):
+    token_id = create_token(
+        ACLs=["Upload data"], user_id=user_group2.id, name=str(uuid.uuid4())
+    )
     yield token_id
     delete_token(token_id)
 
@@ -827,7 +976,7 @@ def upload_data_token_two_groups(user_two_groups):
 @pytest.fixture()
 def manage_groups_token(super_admin_user):
     token_id = create_token(
-        ACLs=["Manage groups"],
+        ACLs=["Manage groups", "Upload data"],
         user_id=super_admin_user.id,
         name=str(uuid.uuid4()),
     )
@@ -836,10 +985,30 @@ def manage_groups_token(super_admin_user):
 
 
 @pytest.fixture()
+def group_admin_token(group_admin_user):
+    token_id = create_token(
+        ACLs=["Upload data"], user_id=group_admin_user.id, name=str(uuid.uuid4())
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
 def manage_users_token(super_admin_user):
     token_id = create_token(
-        ACLs=["Manage users"],
+        ACLs=["Manage users", "Upload data"],
         user_id=super_admin_user.id,
+        name=str(uuid.uuid4()),
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
+def manage_users_token_group2(super_admin_user_group2):
+    token_id = create_token(
+        ACLs=["Manage users", "Upload data"],
+        user_id=super_admin_user_group2.id,
         name=str(uuid.uuid4()),
     )
     yield token_id

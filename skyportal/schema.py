@@ -45,6 +45,12 @@ _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
 
+def validate_fluxerr(fluxerr):
+    if isinstance(fluxerr, (float, int, str)):
+        return float(fluxerr) >= 0
+    return all([float(el) >= 0 for el in fluxerr])
+
+
 class ApispecEnumField(EnumField):
     """See https://github.com/justanr/marshmallow_enum/issues/24#issue-335162592"""
 
@@ -161,6 +167,16 @@ def setup_schema():
                     'last_modified_by_id',
                 ],
             )
+            if schema_class_name == "Obj":
+                add_schema(
+                    f'{schema_class_name}Post',
+                    exclude=[
+                        'created_at',
+                        'redshift_history',
+                        'modified',
+                        'internal_key',
+                    ],
+                )
 
 
 class PhotBaseFlexible(object):
@@ -251,7 +267,7 @@ class PhotBaseFlexible(object):
     origin = fields.Field(
         description="Provenance of the Photometry. If a record is "
         "already present with identical origin, only the "
-        "groups list will be updated (other data assumed "
+        "groups or streams list will be updated (other data assumed "
         "identical). Defaults to None.",
         missing=None,
     )
@@ -260,6 +276,12 @@ class PhotBaseFlexible(object):
         description="List of group IDs to which photometry points will be visible. "
         "If 'all', will be shared with site-wide public group (visible to all users "
         "who can view associated source).",
+        required=False,
+        missing=[],
+    )
+
+    stream_ids = fields.Field(
+        description="List of stream IDs to which photometry points will be visible.",
         required=False,
         missing=[],
     )
@@ -324,6 +346,7 @@ class PhotFluxFlexible(_Schema, PhotBaseFlexible):
         'If a scalar, will be broadcast to all values '
         'given as lists. Null values not allowed.',
         required=True,
+        validate=validate_fluxerr,
     )
 
     zp = fields.Field(
@@ -440,6 +463,14 @@ class PhotBase(object):
     assignment_id = fields.Integer(
         description='ID of the classical assignment which generated the photometry',
         required=False,
+        missing=None,
+    )
+
+    origin = fields.Field(
+        description="Provenance of the Photometry. If a record is "
+        "already present with identical origin, only the "
+        "groups or streams list will be updated (other data assumed "
+        "identical). Defaults to None.",
         missing=None,
     )
 

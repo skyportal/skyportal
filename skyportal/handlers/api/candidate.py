@@ -3,16 +3,21 @@ from copy import copy
 import re
 import json
 import ast
+import uuid
 
 import arrow
+import numpy as np
 
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.expression import case, func
-from sqlalchemy.types import Float, Boolean
+from sqlalchemy.sql.expression import case, func, FromClause
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql import column
+from sqlalchemy.types import Float, Boolean, String, Integer
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -28,6 +33,15 @@ from ...models import (
     Listing,
     Comment,
 )
+from ...utils.cache import Cache, array_to_bytes
+
+
+_, cfg = load_env()
+cache_dir = "cache/candidates_queries"
+cache = Cache(
+    cache_dir=cache_dir,
+    max_age=cfg["misc"]["minutes_to_keep_candidate_query_cache"] * 60,
+)
 
 
 def update_redshift_history_if_relevant(request_data, obj, user):
@@ -41,6 +55,7 @@ def update_redshift_history_if_relevant(request_data, obj, user):
                 "set_by_user_id": user.id,
                 "set_at_utc": datetime.datetime.utcnow().isoformat(),
                 "value": request_data["redshift"],
+                "uncertainty": request_data.get("redshift_error", None),
             }
         )
         obj.redshift_history = redshift_history
@@ -410,14 +425,15 @@ class CandidateHandler(BaseHandler):
                 > 0
             )
             if candidate_info["is_source"]:
-                source_subquery = Source.query_records_accessible_by(
-                    self.current_user
-                ).subquery()
+                source_subquery = (
+                    Source.query_records_accessible_by(self.current_user)
+                    .filter(Source.obj_id == obj_id)
+                    .filter(Source.active.is_(True))
+                    .subquery()
+                )
                 candidate_info["saved_groups"] = (
                     Group.query_records_accessible_by(self.current_user)
                     .join(source_subquery, Group.id == source_subquery.c.group_id)
-                    .filter(Source.obj_id == obj_id)
-                    .filter(Source.active.is_(True))
                     .all()
                 )
                 candidate_info["classifications"] = (
@@ -438,6 +454,9 @@ class CandidateHandler(BaseHandler):
 
         page_number = self.get_query_argument("pageNumber", None) or 1
         n_per_page = self.get_query_argument("numPerPage", None) or 25
+        # Not documented in API docs as this is for frontend-only usage & will confuse
+        # users looking through the API docs
+        query_id = self.get_query_argument("queryID", None)
         saved_status = self.get_query_argument("savedStatus", "all")
         total_matches = self.get_query_argument("totalMatches", None)
         start_date = self.get_query_argument("startDate", None)
@@ -755,6 +774,8 @@ class CandidateHandler(BaseHandler):
                 n_per_page,
                 "candidates",
                 order_by=order_by,
+                query_id=query_id,
+                use_cache=True,
             )
         except ValueError as e:
             if "Page number out of range" in str(e):
@@ -865,7 +886,7 @@ class CandidateHandler(BaseHandler):
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/Obj'
+                  - $ref: '#/components/schemas/ObjPost'
                   - type: object
                     properties:
                       filter_ids:
@@ -957,7 +978,7 @@ class CandidateHandler(BaseHandler):
 
         return self.success(data={"ids": [c.id for c in candidates]})
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, obj_id, filter_id):
         """
         ---
@@ -998,6 +1019,69 @@ class CandidateHandler(BaseHandler):
         return self.success()
 
 
+def get_obj_id_values(obj_ids):
+    """Return a Postgres VALUES representation of ordered list of Obj IDs
+    to be returned by the Candidates/Sources query.
+
+    Parameters
+    ----------
+    obj_ids: `list`
+        List of Obj IDs
+
+    Returns
+    -------
+    values_table: `sqlalchemy.sql.expression.FromClause`
+        The VALUES representation of the Obj IDs list.
+    """
+    # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
+    class _obj_id_values(FromClause):
+        named_with_column = True
+
+        def __init__(self, columns, *args, **kw):
+            self._column_args = columns
+            self.list = args
+            self.alias_name = self.name = kw.pop("alias_name", None)
+
+        def _populate_column_collection(self):
+            for c in self._column_args:
+                c._make_proxy(self)
+
+        @property
+        def _from_objects(self):
+            return [self]
+
+    # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
+    @compiles(_obj_id_values)
+    def compile_values(element, compiler, asfrom=False, **kw):
+        columns = element.columns
+        v = "VALUES %s" % ", ".join(
+            "(%s)"
+            % ", ".join(
+                compiler.render_literal_value(elem, column.type)
+                for elem, column in zip(tup, columns)
+            )
+            for tup in element.list
+        )
+        if asfrom:
+            if element.alias_name:
+                v = "(%s) AS %s (%s)" % (
+                    v,
+                    element.alias_name,
+                    (", ".join(c.name for c in element.columns)),
+                )
+            else:
+                v = "(%s)" % v
+        return v
+
+    values_table = _obj_id_values(
+        (column("id", String), column("ordering", Integer)),
+        *[(obj_id, idx) for idx, obj_id in enumerate(obj_ids)],
+        alias_name="values_table",
+    )
+
+    return values_table
+
+
 def grab_query_results(
     q,
     total_matches,
@@ -1005,7 +1089,14 @@ def grab_query_results(
     n_items_per_page,
     items_name,
     order_by=None,
+    include_thumbnails=True,
+    query_id=None,
+    use_cache=False,
 ):
+    """
+    Returns a SQLAlchemy Query object (which is iterable) for the sorted Obj IDs desired.
+    If there are no matching Objs, an empty list [] is returned instead.
+    """
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
     # for any annotations with origins not equal to the one being sorted on (if applicable).
@@ -1055,19 +1146,33 @@ def grab_query_results(
     )
 
     if page:
-        # Now bring in the full Obj info for the candidates
-        results = (
-            ordered_ids.limit(n_items_per_page)
-            .offset((page - 1) * n_items_per_page)
-            .all()
-        )
+        if use_cache:
+            cache_filename = cache[query_id]
+            if cache_filename is not None:
+                all_ids = np.load(cache_filename)
+            else:
+                # Cache expired/removed/non-existent; create new cache file
+                query_id = str(uuid.uuid4())
+                all_ids = ordered_ids.all()
+                cache[query_id] = array_to_bytes(all_ids)
+
+            results = all_ids[
+                ((page - 1) * n_items_per_page) : (page * n_items_per_page)
+            ]
+            info["queryID"] = query_id
+        else:
+            results = (
+                ordered_ids.limit(n_items_per_page)
+                .offset((page - 1) * n_items_per_page)
+                .all()
+            )
         info["pageNumber"] = page
         info["numPerPage"] = n_items_per_page
     else:
         results = ordered_ids.all()
 
-    page_ids = map(lambda x: x[0], results)
-    info["totalMatches"] = results[0][1] if len(results) > 0 else 0
+    obj_ids_in_page = list(map(lambda x: x[0], results))
+    info["totalMatches"] = int(results[0][1]) if len(results) > 0 else 0
 
     if page:
         if (
@@ -1088,8 +1193,19 @@ def grab_query_results(
             raise ValueError("Page number out of range.")
 
     items = []
-    query_options = [joinedload(Obj.thumbnails)]
-    for item_id in page_ids:
-        items.append(Obj.query.options(query_options).get(item_id))
+    query_options = [joinedload(Obj.thumbnails)] if include_thumbnails else []
+
+    if len(obj_ids_in_page) > 0:
+        # If there are no values, the VALUES statement above will cause a syntax error,
+        # so only filter on the values if they exist
+        obj_ids_values = get_obj_id_values(obj_ids_in_page)
+        items = (
+            DBSession()
+            .query(Obj)
+            .options(query_options)
+            .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+            .order_by(obj_ids_values.c.ordering)
+        )
+
     info[items_name] = items
     return info

@@ -22,6 +22,7 @@ import {
   withOrientationChange,
 } from "react-device-detect";
 import { WidthProvider } from "react-grid-layout";
+import { log10, abs, ceil } from "mathjs";
 
 import CommentListMobile from "./CommentListMobile";
 import ClassificationList from "./ClassificationList";
@@ -199,6 +200,10 @@ const SourceMobile = WidthProvider(
       (g) => !g.single_user_group
     );
 
+    const z_round = source.redshift_error
+      ? ceil(abs(log10(source.redshift_error)))
+      : 4;
+
     let device = "browser";
     if (isMobileOnly) {
       device = isLandscape ? "mobile_landscape" : "mobile_portrait";
@@ -220,6 +225,11 @@ const SourceMobile = WidthProvider(
                 <div className={classes.name}>{source.id}</div>
                 <div className={classes.alignRight}>
                   <FavoritesButton sourceID={source.id} />
+                </div>
+                <div className={classes.alignRight}>
+                  {source.alias ? (
+                    <div key="aliases"> ({source.alias.join(", ")}) </div>
+                  ) : null}
                 </div>
               </div>
               <div>
@@ -256,7 +266,10 @@ const SourceMobile = WidthProvider(
                   <div className={classes.infoLine}>
                     <div className={classes.redshiftInfo}>
                       <b>Redshift: &nbsp;</b>
-                      {source.redshift && source.redshift.toFixed(4)}
+                      {source.redshift && source.redshift.toFixed(z_round)}
+                      {source.redshift_error && <b>&nbsp; &plusmn; &nbsp;</b>}
+                      {source.redshift_error &&
+                        source.redshift_error.toFixed(z_round)}
                       <UpdateSourceRedshift source={source} />
                       <SourceRedshiftHistory
                         redshiftHistory={source.redshift_history}
@@ -623,6 +636,7 @@ SourceMobile.propTypes = {
     loadError: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     redshift: PropTypes.number,
+    redshift_error: PropTypes.number,
     groups: PropTypes.arrayOf(PropTypes.shape({})),
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,
@@ -657,6 +671,7 @@ SourceMobile.propTypes = {
         origin: PropTypes.string,
       })
     ),
+    alias: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
 };
 

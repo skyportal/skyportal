@@ -200,7 +200,7 @@ class TaxonomyHandler(BaseHandler):
 
         return self.success(data={'taxonomy_id': taxonomy.id})
 
-    @auth_or_token
+    @permissions(['Delete taxonomy'])
     def delete(self, taxonomy_id):
         """
         ---

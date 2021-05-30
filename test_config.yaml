@@ -13,6 +13,7 @@ server:
 
 misc:
   photometry_detection_threshold_nsigma: 3.0
+  minutes_to_keep_candidate_query_cache: 0.033333 # 2 seconds
 
 twilio:
   # Twilio Sendgrid API configs
@@ -28,13 +29,22 @@ twilio:
   sms_auth_token:
 
 invitations:
-  enabled: False
+  enabled: True
   days_until_expiry: 3
   email_subject: "You've been invited to collaborate on SkyPortal"
   email_body_preamble: | # This can include HTML tags
     Welcome to <b>SkyPortal</b>!
     <br />
     Some other text here.
+
+smtp:
+  from_email: test@skyportal.com # This is both the email used to authenticate with smtplib and the sender address
+  password: password123
+  host: localhost # Local test server
+  port: 64503 # Local test server
+
+# This value needs to be either "sendgrid" or "smtp" (without quotes)
+email_service: smtp
 
 notifications:
   enabled: True
@@ -48,6 +58,7 @@ services:
 
 test_server:
   port: 64502
+  smtp_port: 64503
   # Reset the cache every * days
   refresh_cache_days: 7
   redirects:
@@ -56,7 +67,16 @@ test_server:
     # test server, cached, and responses played back to the API as if it came
     # from the real server.
     /node_agent2/node_agent: http://161.72.57.3:8080 # LT
+    /api/requestgroups/: https://observe.lco.global # LCO
+    /api/triggers/ztf: http://skipper.caltech.edu:4000 # ZTF
 
 app:
   lt_host: localhost
   lt_port: 64502
+  lco_protocol: http
+  lco_host: localhost
+  lco_port: 64502
+  ztf:
+    protocol: http
+    host: localhost
+    port: 64502

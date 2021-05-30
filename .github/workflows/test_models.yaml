@@ -121,7 +121,7 @@ jobs:
           make db_init
 
           pip list --format=columns
-          npm ls --depth 0
+          npm ls --depth 0 || true
 
       - name: Install Geckodriver / Selenium
         run: |

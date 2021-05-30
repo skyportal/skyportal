@@ -111,6 +111,16 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
             className={imgClasses}
             title={alt}
             loading="lazy"
+            onError={(e) => {
+              if (url !== "#") {
+                e.target.onerror = null;
+                if (name === "dr8") {
+                  e.target.src = "/static/images/outside_survey.png";
+                } else {
+                  e.target.src = "/static/images/currently_unavailable.png";
+                }
+              }
+            }}
           />
         </a>
         {name !== "sdss" && (
