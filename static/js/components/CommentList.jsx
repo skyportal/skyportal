@@ -51,7 +51,13 @@ const CommentList = ({
   }
 
   const addComment = (formData) => {
-    dispatch(sourceActions.addComment({ objID, spectrumID, ...formData }));
+    dispatch(
+      sourceActions.addComment({
+        obj_id: objID,
+        spectrum_id: spectrumID,
+        ...formData,
+      })
+    );
   };
   const deleteComment = (id) => {
     dispatch(sourceActions.deleteComment(id, associatedResourceType));
