@@ -41,6 +41,7 @@ export function uploadASCIISpectrum(data) {
 messageHandler.add((actionType, payload, dispatch, getState) => {
   if (actionType === REFRESH_SOURCE_SPECTRA) {
     const state = getState().spectra;
+
     if (Object.keys(state).includes(payload.obj_id)) {
       dispatch(fetchSourceSpectra(payload.obj_id));
     }

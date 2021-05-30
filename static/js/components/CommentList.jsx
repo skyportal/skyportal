@@ -21,9 +21,9 @@ dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
 const CommentList = ({
-  underlying_resource_type = "object",
-  obj_id = null,
-  spectrum_id = null,
+  associatedResourceType = "object",
+  objID = null,
+  spectrumID = null,
 }) => {
   const [hoverID, setHoverID] = useState(null);
 
@@ -46,45 +46,28 @@ const CommentList = ({
   const userProfile = useSelector((state) => state.profile);
   const permissions = useSelector((state) => state.profile.permissions);
 
-  if (!obj_id) {
-    obj_id = obj.id;
+  if (!objID) {
+    objID = obj.id;
   }
 
+  const addComment = (formData) => {
+    dispatch(sourceActions.addComment({ objID, spectrumID, ...formData }));
+  };
+  const deleteComment = (id) => {
+    dispatch(sourceActions.deleteComment(id, associatedResourceType));
+  };
+
   let comments = null;
-  let addComment = null;
-  let deleteComment = null;
-
-  if (underlying_resource_type === "object") {
+  if (associatedResourceType === "object") {
     comments = obj.comments;
-
-    addComment = (formData) => {
-      dispatch(sourceActions.addComment({ obj_id, ...formData }));
-    };
-    deleteComment = (id) => {
-      dispatch(sourceActions.deleteComment(id));
-    };
-  } else if (underlying_resource_type === "spectrum") {
-    if (spectrum_id === null) {
-      throw new Error("Must specify a spectrum_id for comments on spectra");
+  } else if (associatedResourceType === "spectrum") {
+    if (spectrumID === null) {
+      throw new Error("Must specify a spectrumID for comments on spectra");
     }
-    const spectrum = spectra[obj_id].find((spec) => spec.id === spectrum_id);
+    const spectrum = spectra[objID].find((spec) => spec.id === spectrumID);
     comments = spectrum?.comments;
-
-    addComment = (formData) => {
-      dispatch(
-        sourceActions.addComment(
-          { obj_id, spectrum_id, ...formData },
-          "spectrum"
-        )
-      );
-    };
-    deleteComment = (id) => {
-      dispatch(sourceActions.deleteComment(id, "spectrum"));
-    };
   } else {
-    throw new Error(
-      `Illegal input ${underlying_resource_type} to CommentList. `
-    );
+    throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
   }
 
   // Color styling
@@ -191,15 +174,15 @@ const CommentList = ({
 };
 
 CommentList.propTypes = {
-  obj_id: PropTypes.string,
-  underlying_resource_type: PropTypes.string,
-  spectrum_id: PropTypes.number,
+  objID: PropTypes.string,
+  associatedResourceType: PropTypes.string,
+  spectrumID: PropTypes.number,
 };
 
 CommentList.defaultProps = {
-  obj_id: "",
-  underlying_resource_type: "object",
-  spectrum_id: null,
+  objID: "",
+  associatedResourceType: "object",
+  spectrumID: null,
 };
 
 export default CommentList;

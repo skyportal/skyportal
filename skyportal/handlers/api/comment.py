@@ -208,8 +208,8 @@ class CommentHandler(BaseHandler):
 
         if spectrum_id is not None:
             self.push_all(
-                action='skyportal/REFRESH_SPECTRUM',
-                payload={'obj_key': comment.obj.internal_key},
+                action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_key': obj_id},
             )
         else:
             self.push_all(
