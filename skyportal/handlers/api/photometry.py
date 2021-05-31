@@ -1,6 +1,8 @@
 import uuid
 import math
 import datetime
+import json
+from io import StringIO
 
 from astropy.time import Time
 from astropy.table import Table
@@ -41,60 +43,35 @@ from ...schema import (
 )
 from ...enum_types import ALLOWED_MAGSYSTEMS
 
-
 _, cfg = load_env()
 
 
-def save_group_photometry_using_copy(rows):
-    import subprocess
-
-    # Build command
-    cmd = [
-        "psql",
-        "-d",
-        str(cfg["database.database"]),
-        "-h",
-        str(cfg["database.host"]),
-        "-p",
-        str(cfg["database.port"]),
-        '-U',
-        str(cfg["database.user"]),
-    ]
-
-    if cfg["database.password"] is not None:
-        env = {"PGPASSWORD": cfg['database']['password']}
-    else:
-        cmd.append("--no-password")
-        env = None
-
-    cmd += [
-        "-c",
-        "COPY group_photometry(group_id, photometr_id, created_at, modified) FROM STDIN",
-        "--set=ON_ERROR_STOP=true",
-    ]
-
-    p = subprocess.Popen(
-        cmd,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=env,
+def save_data_using_copy(rows, table, columns):
+    # Prepare data
+    output = StringIO()
+    df = pd.DataFrame.from_records(rows)
+    df.to_csv(
+        output,
+        index=False,
+        sep='\t',
+        header=False,
+        encoding='utf8',
+        quotechar="'",
     )
+    output.seek(0)
 
-    error_message = ""
-    for row in rows:
-        utcnow = datetime.datetime.utcnow().isoformat()
-        p.stdin.write(
-            f"{row['group_id']}\t{row['photometr_id']}\t{utcnow}\t{utcnow}\n".encode()
-        )
-
-    p.stdin.close()
-    p.wait()
-
-    if p.returncode:
-        error_message = p.stderr.readline().decode()
-
-    return p.returncode, error_message
+    # Insert data
+    connection = DBSession().connection().connection
+    cursor = connection.cursor()
+    cursor.copy_from(
+        output,
+        table,
+        sep='\t',
+        null='',
+        columns=columns,
+    )
+    cursor.close()
+    output.close()
 
 
 def nan_to_none(value):
@@ -258,8 +235,8 @@ class PhotometryHandler(BaseHandler):
         # -dataframe-to-integers-in-pandas-0-17-0/34844867
         df = df.apply(pd.to_numeric, errors='ignore')
 
-        # set origin to '' where it is None.
-        df.loc[df['origin'].isna(), 'origin'] = ''
+        # set origin to 'None' where it is None.
+        df.loc[df['origin'].isna(), 'origin'] = 'None'
 
         if kind == 'mag':
             # ensure that neither or both mag and magerr are null
@@ -559,6 +536,7 @@ class PhotometryHandler(BaseHandler):
 
         params = []
         group_photometry_params = []
+        stream_photometry_params = []
         for packet in rows:
             if (
                 packet["filter"]
@@ -579,14 +557,18 @@ class PhotometryHandler(BaseHandler):
             if original_user_data == {}:
                 original_user_data = None
 
+            utcnow = datetime.datetime.utcnow().isoformat()
             phot = dict(
                 id=packet['id'],
-                original_user_data=original_user_data,
+                original_user_data=json.dumps(original_user_data),
                 upload_id=upload_id,
-                flux=flux,
+                # The psycopg copy_to function cannot automatically
+                # use defaults like SQLAlchemy inserts, so just provide
+                # the NaN value manually here.
+                flux="NaN" if np.isnan(flux) else flux,
                 fluxerr=fluxerr,
                 obj_id=packet['obj_id'],
-                altdata=packet['altdata'],
+                altdata=json.dumps(packet['altdata']),
                 instrument_id=packet['instrument_id'],
                 ra_unc=packet['ra_unc'],
                 dec_unc=packet['dec_unc'],
@@ -596,53 +578,75 @@ class PhotometryHandler(BaseHandler):
                 dec=packet['dec'],
                 origin=packet["origin"],
                 owner_id=self.associated_user_object.id,
+                created_at=utcnow,
+                modified=utcnow,
             )
 
             params.append(phot)
 
             for group_id in group_ids:
                 group_photometry_params.append(
-                    {'photometr_id': packet['id'], 'group_id': group_id}
+                    {
+                        'photometr_id': packet['id'],
+                        'group_id': group_id,
+                        'created_at': utcnow,
+                        'modified': utcnow,
+                    }
                 )
 
-        query = Photometry.__table__.insert()
-        DBSession().execute(query, params)
-        # Persist the new photometry so the ids are present for the group photometry post
+            for stream_id in stream_ids:
+                stream_photometry_params.append(
+                    {
+                        'photometr_id': packet['id'],
+                        'stream_id': stream_id,
+                        'created_at': utcnow,
+                        'modified': utcnow,
+                    }
+                )
+
+        if len(params) > 0:
+            save_data_using_copy(
+                params,
+                "photometry",
+                (
+                    'id',
+                    'original_user_data',
+                    'upload_id',
+                    'flux',
+                    'fluxerr',
+                    'obj_id',
+                    'altdata',
+                    'instrument_id',
+                    'ra_unc',
+                    'dec_unc',
+                    'mjd',
+                    'filter',
+                    'ra',
+                    'dec',
+                    'origin',
+                    'owner_id',
+                    'created_at',
+                    'modified',
+                ),
+            )
+
+        if len(group_photometry_params) > 0:
+            # Bulk COPY in the group_photometry records
+            save_data_using_copy(
+                group_photometry_params,
+                "group_photometry",
+                ('photometr_id', 'group_id', 'created_at', 'modified'),
+            )
+
+        if len(stream_photometry_params) > 0:
+            # Bulk COPY in the stream_photometry records
+            save_data_using_copy(
+                stream_photometry_params,
+                "stream_photometry",
+                ('photometr_id', 'stream_id', 'created_at', 'modified'),
+            )
+
         self.verify_and_commit()
-
-        groupquery = GroupPhotometry.__table__.insert()
-        params = []
-        for id in ids:
-            for group_id in group_ids:
-                params.append({'photometr_id': id, 'group_id': group_id})
-        DBSession().execute(groupquery, params)
-
-        if stream_ids:
-            stream_query = StreamPhotometry.__table__.insert()
-            params = []
-            for id in ids:
-                for stream_id in stream_ids:
-                    params.append({'photometr_id': id, 'stream_id': stream_id})
-            DBSession().execute(stream_query, params)
-        # Bulk COPY in the group_photometry records
-        #
-        # Note that we don't the same with inserting the photometry data
-        # itself because of complications with the handler's Session holding
-        # locks for the relevant tables for things like reserving the photometry
-        # primary key IDs, checking for duplicate photometry, etc, such that
-        # a subprocess cannot actually insert into photometry on a separate
-        # connection.
-        exit_code, message = save_group_photometry_using_copy(group_photometry_params)
-        if exit_code:
-            # Returned with non-zero - rollback the photometry post
-            query = Photometry.__table__.delete().where(
-                Photometry.upload_id == upload_id
-            )
-            DBSession().execute(query)
-            raise RuntimeError(
-                f"Something went wrong during posting of GroupPhotometry:\n{message}"
-            )
-
         return ids, upload_id
 
     def get_group_ids(self):
