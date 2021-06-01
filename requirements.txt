@@ -33,7 +33,7 @@ alembic==1.5.5
 marshmallow-jsonschema==0.11.1
 requests_toolbelt==0.9.1
 sendgrid==6.7.0
-twilio==6.50.1
+twilio==6.59.0
 jsonschema-to-openapi==0.2.1
 responses==0.13.3
 numba==0.53.1
