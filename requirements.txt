@@ -29,7 +29,7 @@ pytest-rerunfailures==9.1.1
 timezonefinder==5.2.0
 astroplan==0.8
 py3-validate-email==0.2.12
-alembic==1.5.5
+alembic==1.6.5
 marshmallow-jsonschema==0.11.1
 requests_toolbelt==0.9.1
 sendgrid==6.7.0
