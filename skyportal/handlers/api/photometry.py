@@ -49,6 +49,7 @@ _, cfg = load_env()
 
 def save_data_using_copy(rows, table, columns):
     # Prepare data
+    t = time.time()
     output = StringIO()
     df = pd.DataFrame.from_records(rows)
     df.to_csv(
@@ -60,6 +61,8 @@ def save_data_using_copy(rows, table, columns):
         quotechar="'",
     )
     output.seek(0)
+    print(f"Preparing data took {time.time() - t}s")
+    t = time.time()
 
     # Insert data
     connection = DBSession().connection().connection
@@ -73,6 +76,8 @@ def save_data_using_copy(rows, table, columns):
     )
     cursor.close()
     output.close()
+    print(f"Inserting data took {time.time() - t}s")
+    t = time.time()
 
 
 def nan_to_none(value):
