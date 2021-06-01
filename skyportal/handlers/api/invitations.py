@@ -154,11 +154,18 @@ class InvitationHandler(BaseHandler):
                 .filter(GroupStream.group_id.in_(group_ids))
                 .all()
             )
-        group_admin = data.get("groupAdmin", [False] * len(groups))
+        admin_for_groups = data.get("groupAdmin", [False] * len(groups))
+        if not all([isinstance(admin, bool) for admin in admin_for_groups]):
+            return self.error(
+                "Invalid value provided for `groupAdmin` parameter: "
+                "all elements must be booleans"
+            )
         can_save = data.get("canSave", [True] * len(groups))
-        admin_for_groups = [
-            el in [True, "True", "true", "t", "T"] for el in group_admin
-        ]
+        if not all([isinstance(can_save_el, bool) for can_save_el in can_save]):
+            return self.error(
+                "Invalid value provided for `canSave` parameter: "
+                "all elements must be booleans"
+            )
         if len(admin_for_groups) != len(groups):
             return self.error("groupAdmin and groupIDs must be the same length")
 

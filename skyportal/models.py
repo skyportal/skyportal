@@ -1246,9 +1246,7 @@ def source_create_access_logic(cls, user_or_token):
     return query
 
 
-Source.create = accessible_by_group_members & CustomUserAccessControl(
-    source_create_access_logic
-)
+Source.create = CustomUserAccessControl(source_create_access_logic)
 Source.read = Source.update = Source.delete = accessible_by_group_members
 
 Source.__doc__ = (

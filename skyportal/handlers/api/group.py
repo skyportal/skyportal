@@ -425,7 +425,15 @@ class GroupUserHandler(BaseHandler):
             return self.error("Invalid userID parameter: unable to parse to integer")
 
         admin = data.get("admin", False)
+        if not isinstance(admin, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `admin`"
+            )
         can_save = data.get("canSave", True)
+        if not isinstance(can_save, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `canSave`"
+            )
         group_id = int(group_id)
         group = Group.get_if_accessible_by(
             group_id, self.current_user, raise_if_none=True, mode='read'
@@ -531,14 +539,16 @@ class GroupUserHandler(BaseHandler):
             return self.error(
                 "Missing required parameter: at least one of `admin` or `canSave`"
             )
-        admin = data.get("admin", groupuser.admin) in [True, "true", "True", "t", "T"]
-        can_save = data.get("canSave", groupuser.can_save) in [
-            True,
-            "true",
-            "True",
-            "t",
-            "T",
-        ]
+        admin = data.get("admin", groupuser.admin)
+        if not isinstance(admin, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `admin`"
+            )
+        can_save = data.get("canSave", groupuser.can_save)
+        if not isinstance(can_save, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `canSave`"
+            )
         groupuser.admin = admin
         groupuser.can_save = can_save
         self.verify_and_commit()
