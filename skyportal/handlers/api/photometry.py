@@ -42,6 +42,7 @@ from ...schema import (
     PhotometryRangeQuery,
 )
 from ...enum_types import ALLOWED_MAGSYSTEMS
+import time
 
 _, cfg = load_env()
 
@@ -604,6 +605,11 @@ class PhotometryHandler(BaseHandler):
                     }
                 )
 
+        if len(params) == 50000:
+            print("Doing big photometry test")
+
+        t = time.time()
+        print("Test timings:")
         if len(params) > 0:
             save_data_using_copy(
                 params,
@@ -629,6 +635,8 @@ class PhotometryHandler(BaseHandler):
                     'modified',
                 ),
             )
+            print(f"Test timings: Saving photometry took {time.time() - t}s")
+            t = time.time()
 
         if len(group_photometry_params) > 0:
             # Bulk COPY in the group_photometry records
@@ -637,6 +645,8 @@ class PhotometryHandler(BaseHandler):
                 "group_photometry",
                 ('photometr_id', 'group_id', 'created_at', 'modified'),
             )
+            print(f"Test timings: Saving group_photometry took {time.time() - t}s")
+            t = time.time()
 
         if len(stream_photometry_params) > 0:
             # Bulk COPY in the stream_photometry records
@@ -645,6 +655,8 @@ class PhotometryHandler(BaseHandler):
                 "stream_photometry",
                 ('photometr_id', 'stream_id', 'created_at', 'modified'),
             )
+            print(f"Test timings: Saving stream_photometry took {time.time() - t}s")
+            t = time.time()
 
         self.verify_and_commit()
         return ids, upload_id
