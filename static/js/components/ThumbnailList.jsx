@@ -100,11 +100,13 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
     <Card className={classes.root} variant="outlined">
       <CardContent className={classes.cardTitle}>
         <Typography className={classes.title} color="textSecondary">
-          <a href={link}>{name.toUpperCase()}</a>
+          <a href={link} target="_blank" rel="noreferrer">
+            {name.toUpperCase()}
+          </a>
         </Typography>
       </CardContent>
       <div className={classes.mediaDiv}>
-        <a href={link}>
+        <a href={link} target="_blank" rel="noreferrer">
           <img
             src={url}
             alt={alt}
