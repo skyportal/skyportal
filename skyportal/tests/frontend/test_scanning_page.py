@@ -812,4 +812,3 @@ def test_user_without_save_access_cannot_save(
     )
     driver.scroll_to_element_and_click(save_button)
     driver.wait_for_xpath("//*[contains(.,'Insufficient permissions')]")
-
