@@ -7,7 +7,7 @@ from ... import facility_apis, enum_types
 
 
 class FacilityMessageHandler(BaseHandler):
-    @auth_or_token
+    @auth_or_token  # ACLs checked in method body below
     def post(self):
         """Docstring rendered as format string below."""
         user = self.current_user

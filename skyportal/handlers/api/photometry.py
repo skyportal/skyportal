@@ -997,7 +997,7 @@ class ObjPhotometryHandler(BaseHandler):
 
 
 class BulkDeletePhotometryHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, upload_id):
         """
         ---

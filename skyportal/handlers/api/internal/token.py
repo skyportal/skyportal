@@ -1,6 +1,6 @@
 from ...base import BaseHandler
 from baselayer.app.access import auth_or_token
-from ....models import User, Token, DBSession
+from ....models import Token, DBSession
 from ....model_util import create_token
 
 import tornado.web
@@ -34,7 +34,7 @@ class TokenHandler(BaseHandler):
         """
         data = self.get_json()
 
-        user = User.query.filter(User.username == self.current_user.username).first()
+        user = self.associated_user_object
         token_acls = set(data['acls'])
         if not all([acl_id in user.permissions for acl_id in token_acls]):
             return self.error(
