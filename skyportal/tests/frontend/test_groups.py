@@ -53,7 +53,7 @@ def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
 
 @pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_admin(
-    driver, super_admin_user, user_no_groups, public_group
+    driver, super_admin_user, super_admin_token, user_no_groups, public_group
 ):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
@@ -63,7 +63,8 @@ def test_add_new_group_user_admin(
     )
     driver.click_xpath('//div[@data-testid="newGroupUserTextInput"]')
     driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
-    driver.click_xpath('//input[@type="checkbox"]')
+    # Default is unchecked; just need to click once to make group admin
+    driver.click_xpath('//*[@data-testid="adminCheckbox"]')
     driver.click_xpath('//button[contains(.,"Add user")]')
     driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
     assert (
@@ -75,10 +76,23 @@ def test_add_new_group_user_admin(
         == 1
     )
 
+    status, data = api(
+        "GET",
+        f"groups/{public_group.id}?includeGroupUsers=true",
+        token=super_admin_token,
+    )
+    group_user = None
+    for gu in data["data"]["users"]:
+        if gu["id"] == user_no_groups.id:
+            group_user = gu
+    assert group_user is not None
+    assert group_user["admin"]
+    assert group_user["can_save"]
+
 
 @pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_nonadmin(
-    driver, super_admin_user, user_no_groups, public_group
+    driver, super_admin_user, super_admin_token, user_no_groups, public_group
 ):
     driver.get(f'/become_user/{super_admin_user.id}')
     driver.get('/groups')
@@ -98,6 +112,58 @@ def test_add_new_group_user_nonadmin(
         )
         == 0
     )
+
+    status, data = api(
+        "GET",
+        f"groups/{public_group.id}?includeGroupUsers=true",
+        token=super_admin_token,
+    )
+    group_user = None
+    for gu in data["data"]["users"]:
+        if gu["id"] == user_no_groups.id:
+            group_user = gu
+    assert group_user is not None
+    assert not group_user["admin"]
+    assert group_user["can_save"]
+
+
+@pytest.mark.flaky(reruns=2)
+def test_add_new_group_user_cant_save(
+    driver, super_admin_user, super_admin_token, user_no_groups, public_group
+):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/groups')
+    driver.wait_for_xpath('//h6[text()="All Groups"]')
+    driver.click_xpath(
+        f'//div[@data-testid="All Groups-{public_group.name}"]', scroll_parent=True
+    )
+    driver.click_xpath('//div[@data-testid="newGroupUserTextInput"]')
+    driver.click_xpath(f'//li[text()="{user_no_groups.username}"]', scroll_parent=True)
+    # Checkbox is checked by default
+    driver.click_xpath('//*[@data-testid="canSaveCheckbox"]')
+    driver.click_xpath('//button[contains(.,"Add user")]')
+    driver.wait_for_xpath(f'//a[contains(.,"{user_no_groups.username}")]')
+    assert (
+        len(
+            driver.find_elements_by_xpath(
+                f'//div[@id="{user_no_groups.id}-admin-chip"]'
+            )
+        )
+        == 0
+    )
+
+    status, data = api(
+        "GET",
+        f"groups/{public_group.id}?includeGroupUsers=true",
+        token=super_admin_token,
+    )
+    group_user = None
+    for gu in data["data"]["users"]:
+        if gu["id"] == user_no_groups.id:
+            group_user = gu
+    assert group_user is not None
+    assert not group_user["admin"]
+    assert not group_user["can_save"]
 
 
 @pytest.mark.flaky(reruns=2)
