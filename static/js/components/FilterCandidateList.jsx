@@ -24,6 +24,7 @@ import utc from "dayjs/plugin/utc";
 import * as candidatesActions from "../ducks/candidates";
 import Responsive from "./Responsive";
 import FoldBox from "./FoldBox";
+import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "./FormValidationError";
 import { allowedClasses } from "./ClassificationForm";
 
@@ -35,8 +36,13 @@ const useStyles = makeStyles(() => ({
     display: "flex",
     flexFlow: "column nowrap",
   },
-  searchButton: {
+  buttonsRow: {
     marginTop: "1rem",
+    display: "flex",
+    flexFlow: "row wrap",
+    "& > div": {
+      marginRight: "1rem",
+    },
   },
   pages: {
     marginTop: "1rem",
@@ -65,6 +71,11 @@ const useStyles = makeStyles(() => ({
     margin: "1rem 0",
     "& input": {
       fontSize: "1rem",
+    },
+  },
+  annotationSorting: {
+    "& label": {
+      marginTop: "1rem",
     },
   },
 }));
@@ -119,9 +130,44 @@ const FilterCandidateList = ({
   const classes = useStyles();
   const theme = useTheme();
 
+  const availableAnnotationsInfo = useSelector(
+    (state) => state.candidates.annotationsInfo
+  );
+  const dispatch = useDispatch();
+  useEffect(() => {
+    // Grab the available annotation fields for filtering
+    if (!availableAnnotationsInfo) {
+      dispatch(candidatesActions.fetchAnnotationsInfo());
+    }
+  }, [dispatch, availableAnnotationsInfo]);
+
+  const { scanningProfiles } = useSelector(
+    (state) => state.profile.preferences
+  );
+
+  const defaultScanningProfile = scanningProfiles?.find(
+    (profile) => profile.default
+  );
+  const [selectedScanningProfile, setSelectedScanningProfile] = useState(
+    defaultScanningProfile
+  );
+
+  useEffect(() => {
+    // Once the default profile is fully fetched, set it to the selected
+    setSelectedScanningProfile(defaultScanningProfile);
+  }, [defaultScanningProfile]);
+
   const defaultStartDate = new Date();
-  defaultStartDate.setDate(defaultStartDate.getDate() - 1);
-  const defaultEndDate = null;
+  let defaultEndDate = null;
+  if (selectedScanningProfile?.timeRange) {
+    defaultEndDate = new Date();
+    defaultStartDate.setHours(
+      defaultStartDate.getHours() -
+        parseInt(selectedScanningProfile.timeRange, 10)
+    );
+  } else {
+    defaultStartDate.setDate(defaultStartDate.getDate() - 1);
+  }
 
   const ITEM_HEIGHT = 48;
   const MenuProps = {
@@ -146,24 +192,51 @@ const FilterCandidateList = ({
   classifications = Array.from(new Set(classifications)).sort();
 
   const [selectedClassifications, setSelectedClassifications] = useState([]);
+  const [selectedAnnotationOrigin, setSelectedAnnotationOrigin] = useState(
+    selectedScanningProfile?.sortingOrigin
+  );
 
-  const { handleSubmit, getValues, control, errors, reset } = useForm({
-    startDate: defaultStartDate,
-    endDate: defaultEndDate,
-  });
-
-  useEffect(() => {
-    reset({
-      groupIDs: Array(userAccessibleGroups.length).fill(false),
+  const { handleSubmit, getValues, control, errors, reset, setValue } = useForm(
+    {
       startDate: defaultStartDate,
       endDate: defaultEndDate,
+    }
+  );
+
+  useEffect(() => {
+    const selectedGroupIDs = Array(userAccessibleGroups.length).fill(false);
+    const groupIDs = userAccessibleGroups.map((g) => g.id);
+    groupIDs.forEach((ID, i) => {
+      selectedGroupIDs[i] = selectedScanningProfile?.groupIDs.includes(ID);
     });
+
+    const resetFormFields = async () => {
+      // Wait for the selected annotation origin state to update before setting
+      // the new default form fields, so that the sortingKey options list can
+      // update
+      await setSelectedAnnotationOrigin(selectedScanningProfile?.sortingOrigin);
+
+      reset({
+        groupIDs: selectedGroupIDs,
+        startDate: defaultStartDate,
+        endDate: defaultEndDate,
+        classifications: selectedScanningProfile?.classifications || [],
+        redshiftMinimum: selectedScanningProfile?.redshiftMinimum || "",
+        redshiftMaximum: selectedScanningProfile?.redshiftMaximum || "",
+        rejectedStatus: selectedScanningProfile?.rejectedStatus || "hide",
+        savedStatus: selectedScanningProfile?.savedStatus || "all",
+        sortingOrigin: selectedScanningProfile?.sortingOrigin || "",
+        sortingKey: selectedScanningProfile?.sortingKey || "",
+        sortingOrder: selectedScanningProfile?.sortingOrder || "",
+      });
+    };
+
+    resetFormFields();
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reset, userAccessibleGroups]);
+  }, [reset, selectedScanningProfile, userAccessibleGroups]);
 
-  const dispatch = useDispatch();
   // Set initial form values in the redux state
   useEffect(() => {
     dispatch(
@@ -192,6 +265,18 @@ const FilterCandidateList = ({
     return true;
   };
 
+  const validateSorting = () => {
+    formState = getValues({ nest: true });
+    return (
+      // All left empty
+      formState.sortingOrigin === "" ||
+      // Or all filled out
+      (formState.sortingOrigin !== "" &&
+        formState.sortingKey !== "" &&
+        formState.sortingOrder !== "")
+    );
+  };
+
   const onSubmit = async (formData) => {
     setQueryInProgress(true);
     const groupIDs = userAccessibleGroups.map((g) => g.id);
@@ -216,25 +301,49 @@ const FilterCandidateList = ({
     if (formData.classifications.length > 0) {
       data.classifications = formData.classifications;
     }
-    if (formData.redshiftMinimum && formData.redshiftMaximum) {
-      data.redshiftRange = `(${formData.redshiftMinimum},${formData.redshiftMaximum})`;
+    if (formData.redshiftMinimum) {
+      data.minRedshift = formData.redshiftMinimum;
     }
+    if (formData.redshiftMaximum) {
+      data.maxRedshift = formData.redshiftMaximum;
+    }
+    if (formData.sortingOrigin) {
+      data.sortingOrigin = formData.sortingOrigin;
+      data.sortingKey = formData.sortingKey;
+      data.sortingOrder = formData.sortingOrder;
+    }
+
+    // Submit a new search for candidates
     if (annotationFilterList) {
       data.annotationFilterList = annotationFilterList;
     }
     setFilterGroups(
       userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
     );
+    const fetchParams = { ...data };
 
-    // Clear annotation sort params
-    await dispatch(candidatesActions.setCandidatesAnnotationSortOptions(null));
-    setSortOrder(null);
+    // Clear annotation sort params, if a default sort is not defined
+    if (selectedScanningProfile?.sortingOrigin === undefined) {
+      await dispatch(
+        candidatesActions.setCandidatesAnnotationSortOptions(null)
+      );
+      setSortOrder(null);
+    } else {
+      fetchParams.sortByAnnotationOrigin =
+        selectedScanningProfile.sortingOrigin;
+      fetchParams.sortByAnnotationKey = selectedScanningProfile.sortingKey;
+      fetchParams.sortByAnnotationOrder = selectedScanningProfile.sortingOrder;
+    }
 
     // Save form-specific data, formatted for the API query
     await dispatch(candidatesActions.setFilterFormData(data));
 
     await dispatch(
-      candidatesActions.fetchCandidates({ pageNumber: 1, numPerPage, ...data })
+      candidatesActions.fetchCandidates({
+        pageNumber: 1,
+        numPerPage,
+        ...fetchParams,
+      })
     );
     setQueryInProgress(false);
   };
@@ -298,7 +407,7 @@ const FilterCandidateList = ({
               name="savedStatus"
               control={control}
               input={<Input data-testid="savedStatusSelect" />}
-              defaultValue="all"
+              defaultValue={selectedScanningProfile?.savedStatus || "all"}
             >
               {savedStatusSelectOptions.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
@@ -353,7 +462,7 @@ const FilterCandidateList = ({
               )}
               name="classifications"
               control={control}
-              defaultValue={[]}
+              defaultValue={selectedScanningProfile?.classifications || []}
             />
           </div>
           <div className={classes.formRow}>
@@ -378,7 +487,7 @@ const FilterCandidateList = ({
                 name="redshiftMinimum"
                 labelId="redshift-select-label"
                 control={control}
-                defaultValue=""
+                defaultValue={selectedScanningProfile?.redshiftMinimum || ""}
               />
             </div>
             <div className={classes.redshiftField}>
@@ -400,7 +509,7 @@ const FilterCandidateList = ({
                 )}
                 name="redshiftMaximum"
                 control={control}
-                defaultValue=""
+                defaultValue={selectedScanningProfile?.redshiftMaximum || ""}
               />
             </div>
           </div>
@@ -414,7 +523,7 @@ const FilterCandidateList = ({
               name="rejectedStatus"
               control={control}
               input={<Input data-testid="rejectedStatusSelect" />}
-              defaultValue="hide"
+              defaultValue={selectedScanningProfile?.rejectedStatus || "hide"}
             >
               {rejectedStatusSelectOptions.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
@@ -422,6 +531,101 @@ const FilterCandidateList = ({
                 </MenuItem>
               ))}
             </Controller>
+          </div>
+          <div className={`${classes.formRow} ${classes.annotationSorting}`}>
+            {errors.sortingOrigin && (
+              <FormValidationError message="All sorting fields must be left empty or all filled out" />
+            )}
+            <Responsive
+              element={FoldBox}
+              title="Annotation Sorting"
+              mobileProps={{ folded: true }}
+            >
+              <InputLabel id="sorting-select-label">
+                Annotation Origin
+              </InputLabel>
+              <Controller
+                labelId="sorting-select-label"
+                name="sortingOrigin"
+                control={control}
+                render={({ onChange, value }) => (
+                  <Select
+                    id="annotationSortingOriginSelect"
+                    value={value}
+                    onChange={(event) => {
+                      setSelectedAnnotationOrigin(event.target.value);
+                      setValue("sortingKey", "");
+                      onChange(event.target.value);
+                    }}
+                    input={
+                      <Input data-testid="annotationSortingOriginSelect" />
+                    }
+                  >
+                    {availableAnnotationsInfo ? (
+                      Object.keys(availableAnnotationsInfo).map((option) => (
+                        <MenuItem key={option} value={option}>
+                          {option}
+                        </MenuItem>
+                      ))
+                    ) : (
+                      <div />
+                    )}
+                  </Select>
+                )}
+                rules={{ validate: validateSorting }}
+                defaultValue={selectedAnnotationOrigin || ""}
+              />
+              {selectedAnnotationOrigin ? (
+                <>
+                  <InputLabel id="sorting-select-key-label">
+                    Annotation Key
+                  </InputLabel>
+                  <Controller
+                    labelId="sorting-select-key-label"
+                    as={Select}
+                    name="sortingKey"
+                    control={control}
+                    input={<Input data-testid="annotationSortingKeySelect" />}
+                    defaultValue={selectedScanningProfile?.sortingKey || ""}
+                  >
+                    {availableAnnotationsInfo ? (
+                      availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
+                        (option) => (
+                          <MenuItem
+                            key={Object.keys(option)[0]}
+                            value={Object.keys(option)[0]}
+                          >
+                            {Object.keys(option)[0]}
+                          </MenuItem>
+                        )
+                      )
+                    ) : (
+                      <div />
+                    )}
+                  </Controller>
+                  <InputLabel id="sorting-select-order-label">
+                    Annotation Sort Order
+                  </InputLabel>
+                  <Controller
+                    labelId="sorting-select-order-label"
+                    as={Select}
+                    name="sortingOrder"
+                    control={control}
+                    input={<Input data-testid="annotationSortingOrderSelect" />}
+                    defaultValue={selectedScanningProfile?.sortingOrder || ""}
+                  >
+                    <MenuItem key="desc" value="desc">
+                      descending
+                    </MenuItem>
+                    <MenuItem key="asc" value="asc">
+                      ascending
+                    </MenuItem>
+                  </Controller>
+                </>
+              ) : (
+                <div />
+              )}
+            </Responsive>
           </div>
           <div>
             <Responsive
@@ -469,20 +673,25 @@ const FilterCandidateList = ({
               ))}
             </Responsive>
           </div>
-          <div className={classes.searchButton}>
-            <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
-              <Button
-                variant="contained"
-                type="submit"
-                endIcon={<SearchIcon />}
-                color="primary"
-              >
-                Search
-              </Button>
-            </Tooltip>
+          <div className={classes.buttonsRow}>
+            <CandidatesPreferences
+              selectedScanningProfile={selectedScanningProfile}
+              setSelectedScanningProfile={setSelectedScanningProfile}
+            />
+            <div>
+              <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
+                <Button
+                  variant="contained"
+                  type="submit"
+                  endIcon={<SearchIcon />}
+                  color="primary"
+                >
+                  Search
+                </Button>
+              </Tooltip>
+            </div>
           </div>
         </form>
-        <br />
         <br />
       </div>
     </Paper>

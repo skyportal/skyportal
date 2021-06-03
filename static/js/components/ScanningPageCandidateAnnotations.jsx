@@ -103,26 +103,24 @@ const ScanningPageCandidateAnnotations = ({ annotations }) => {
             unmountOnExit
           >
             <List component="div" dense disablePadding>
-              {Object.entries(annotation.data).map(([key, value]) => {
-                return (
-                  <ListItem
-                    key={`key_${annotation.origin}_${key}`}
-                    button
-                    className={classes.nested}
-                    selected={
-                      selectedAnnotationSortOptions &&
-                      selectedAnnotationSortOptions.origin ===
-                        annotation.origin &&
-                      selectedAnnotationSortOptions.key === key
-                    }
-                    onClick={() => handleItemSelect(annotation.origin, key)}
-                  >
-                    <ListItemText
-                      secondary={`${key}: ${getAnnotationValueString(value)}`}
-                    />
-                  </ListItem>
-                );
-              })}
+              {Object.entries(annotation.data).map(([key, value]) => (
+                <ListItem
+                  key={`key_${annotation.origin}_${key}`}
+                  button
+                  className={classes.nested}
+                  selected={
+                    selectedAnnotationSortOptions &&
+                    selectedAnnotationSortOptions.origin ===
+                      annotation.origin &&
+                    selectedAnnotationSortOptions.key === key
+                  }
+                  onClick={() => handleItemSelect(annotation.origin, key)}
+                >
+                  <ListItemText
+                    secondary={`${key}: ${getAnnotationValueString(value)}`}
+                  />
+                </ListItem>
+              ))}
             </List>
           </Collapse>
           <Divider />
