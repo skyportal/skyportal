@@ -87,6 +87,17 @@ from . import models, model_util, openapi
 
 log = make_log('app_server')
 
+
+class CustomApplication(tornado.web.Application):
+    def log_request(self, handler):
+        # We don't want to log expected exceptions intentionally raised
+        # during auth pipeline; such exceptions will have "google-oauth2" in
+        # their request route
+        if "google-oauth2" in str(handler.request.uri):
+            return
+        return super().log_request(handler)
+
+
 skyportal_handlers = [
     # API endpoints
     (r'/api/acls', ACLHandler),
@@ -248,7 +259,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         }
     )
 
-    app = tornado.web.Application(handlers, **settings)
+    app = CustomApplication(handlers, **settings)
     models.init_db(
         **cfg['database'],
         autoflush=False,
