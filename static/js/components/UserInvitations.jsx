@@ -239,7 +239,11 @@ const UserInvitations = () => {
       row[0].trim(),
       PapaParse.parse(row[1].trim(), { delimiter: " " }).data[0],
       PapaParse.parse(row[2].trim(), { delimiter: " " }).data[0],
-      PapaParse.parse(row[3].trim(), { delimiter: " " }).data[0],
+      PapaParse.parse(row[3].trim(), {
+        delimiter: " ",
+        dynamicTyping: true,
+        quotes: false,
+      }).data[0],
     ]);
     const promises = rows.map((row) =>
       dispatch(

@@ -651,3 +651,42 @@ def test_candidate_rejection_filtering(
 
     # make sure candidate appears and that it has a "rejected" icon
     driver.wait_for_xpath(f'//*[@data-testid="rejected_invisible_{candidate_id}"]')
+
+
+def test_user_without_save_access_cannot_save(
+    driver, super_admin_token, public_group, public_candidate, user_group2
+):
+    status, data = api(
+        "POST",
+        f"groups/{public_group.id}/users",
+        data={"userID": user_group2.id, "admin": False, "canSave": False},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        f"groups/{public_group.id}?includeGroupUsers=true",
+        token=super_admin_token,
+    )
+    group_user = None
+    for gu in data["data"]["users"]:
+        if gu["id"] == user_group2.id:
+            group_user = gu
+    assert group_user is not None
+    assert not group_user["can_save"]
+    assert not group_user["admin"]
+
+    driver.get(f"/become_user/{user_group2.id}")
+    driver.get("/candidates")
+    driver.click_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
+        wait_clickable=False,
+    )
+    driver.click_xpath('//span[text()="Search"]', wait_clickable=False)
+    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
+    save_button = driver.wait_for_xpath(
+        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+    )
+    driver.scroll_to_element_and_click(save_button)
+    driver.wait_for_xpath("//*[contains(.,'Insufficient permissions')]")

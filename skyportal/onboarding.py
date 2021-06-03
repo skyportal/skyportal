@@ -137,8 +137,14 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
         DBSession.add(StreamUser(stream_id=stream_id, user_id=user.id))
 
     # Add user to specified groups
-    for group_id, admin in zip(group_ids, invitation.admin_for_groups):
-        DBSession.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
+    for group_id, admin, can_save in zip(
+        group_ids, invitation.admin_for_groups, invitation.can_save_to_groups
+    ):
+        DBSession.add(
+            GroupUser(
+                user_id=user.id, group_id=group_id, admin=admin, can_save=can_save
+            )
+        )
 
     # Add user to sitewide public group
     public_group = (

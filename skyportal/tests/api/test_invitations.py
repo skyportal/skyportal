@@ -10,7 +10,7 @@ def test_invite_new_user(manage_users_token, public_stream, public_group):
             "userEmail": "string",
             "streamIDs": [public_stream.id],
             "groupIDs": [public_group.id],
-            "groupAdmin": ["true"],
+            "groupAdmin": [True],
         },
         token=manage_users_token,
     )
@@ -25,7 +25,7 @@ def test_invite_new_user_forbidden(view_only_token, public_stream, public_group)
             "userEmail": "string",
             "streamIDs": [public_stream.id],
             "groupIDs": [public_group.id],
-            "groupAdmin": ["true"],
+            "groupAdmin": [True],
         },
         token=view_only_token,
     )
@@ -44,7 +44,7 @@ def test_get_invitations(
             "userEmail": "string",
             "streamIDs": [public_stream.id],
             "groupIDs": [public_group.id],
-            "groupAdmin": ["true"],
+            "groupAdmin": [True],
         },
         token=manage_users_token,
     )
@@ -88,7 +88,7 @@ def test_patch_invitation(
             "userEmail": user_email,
             "streamIDs": [public_stream.id],
             "groupIDs": [public_group.id],
-            "groupAdmin": ["true"],
+            "groupAdmin": [True],
         },
         token=manage_users_token,
     )
@@ -143,7 +143,7 @@ def test_delete_invitation(
             "userEmail": user_email,
             "streamIDs": [public_stream.id],
             "groupIDs": [public_group.id],
-            "groupAdmin": ["true"],
+            "groupAdmin": [True],
         },
         token=manage_users_token,
     )
