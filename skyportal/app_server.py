@@ -93,7 +93,7 @@ class CustomApplication(tornado.web.Application):
         # We don't want to log expected exceptions intentionally raised
         # during auth pipeline; such exceptions will have "google-oauth2" in
         # their request route
-        if "google-oauth2" in str(handler._request_summary()):
+        if "google-oauth2" in str(handler.request.uri):
             return
         return super().log_request(handler)
 
