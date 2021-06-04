@@ -1,6 +1,6 @@
-import React, { useState, Suspense } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
@@ -12,6 +12,7 @@ import AccordionSummary from "@material-ui/core/AccordionSummary";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
+import Paper from "@material-ui/core/Paper";
 
 import CommentList from "./CommentList";
 import ClassificationList from "./ClassificationList";
@@ -34,6 +35,8 @@ import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
+
+import * as spectraActions from "../ducks/spectra";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -151,6 +154,7 @@ export const useSourceStyles = makeStyles((theme) => ({
 }));
 
 const SourceDesktop = ({ source }) => {
+  const dispatch = useDispatch();
   const classes = useSourceStyles();
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
@@ -163,9 +167,15 @@ const SourceDesktop = ({ source }) => {
 
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
+  const spectra = useSelector((state) => state.spectra);
+
   const groups = (useSelector((state) => state.groups.all) || []).filter(
     (g) => !g.single_user_group
   );
+
+  useEffect(() => {
+    dispatch(spectraActions.fetchSourceSpectra(source.id));
+  }, [source.id, dispatch]);
 
   return (
     <div className={classes.source}>
@@ -407,6 +417,44 @@ const SourceDesktop = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </div>
+
+        <div className={classes.columnItem}>
+          <Accordion defaultExpanded>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="spectroscopy-content"
+              id="spectroscopy-individual-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Individual Spectra
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              {spectra[source.id] &&
+                spectra[source.id].map((spec) => (
+                  <div key={spec.id} className={classes.photometryContainer}>
+                    <Suspense
+                      fallback={<div>Loading spectroscopy plot...</div>}
+                    >
+                      <Plot
+                        url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&spectrumID=${spec.id}`}
+                      />
+                    </Suspense>
+
+                    <Paper className={classes.comments}>
+                      <Typography variant="h6">Comments</Typography>
+                      <CommentList
+                        associatedResourceType="spectrum"
+                        objID={source.id}
+                        spectrumID={spec.id}
+                      />
+                    </Paper>
+                  </div>
+                ))}
+            </AccordionDetails>
+          </Accordion>
+        </div>
+
         {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>
