@@ -44,7 +44,7 @@ class ObjHandler(BaseHandler):
                 "Insufficient permissions: Objs may only be deleted by system admins"
             )
             if cfg["misc.allow_nonadmins_delete_objs"]:
-                error_msg += " or by users who own all associated data with the Obj"
+                error_msg += " or by users who own all data associated with the Obj"
 
             return self.error(f"{error_msg}. (Original exception: {e})")
 
