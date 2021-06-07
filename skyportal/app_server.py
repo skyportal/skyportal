@@ -87,6 +87,17 @@ from . import models, model_util, openapi
 
 log = make_log('app_server')
 
+
+class CustomApplication(tornado.web.Application):
+    def log_request(self, handler):
+        # We don't want to log expected exceptions intentionally raised
+        # during auth pipeline; such exceptions will have "google-oauth2" in
+        # their request route
+        if "google-oauth2" in str(handler.request.uri):
+            return
+        return super().log_request(handler)
+
+
 skyportal_handlers = [
     # API endpoints
     (r'/api/acls', ACLHandler),
@@ -125,14 +136,14 @@ skyportal_handlers = [
     (r'/api/photometry/bulk_delete/(.*)', BulkDeletePhotometryHandler),
     (r'/api/photometry/range(/.*)?', PhotometryRangeHandler),
     (r'/api/roles', RoleHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/photometry', ObjPhotometryHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/spectra', ObjSpectraHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/offsets', SourceOffsetsHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/finder', SourceFinderHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/classifications', ObjClassificationHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/annotations', ObjAnnotationHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/groups', ObjGroupsHandler),
-    (r'/api/sources(/[0-9A-Za-z-_]+)/color_mag', ObjColorMagHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/photometry', ObjPhotometryHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/spectra', ObjSpectraHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/offsets', SourceOffsetsHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/finder', SourceFinderHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations', ObjAnnotationHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),
@@ -248,7 +259,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         }
     )
 
-    app = tornado.web.Application(handlers, **settings)
+    app = CustomApplication(handlers, **settings)
     models.init_db(
         **cfg['database'],
         autoflush=False,

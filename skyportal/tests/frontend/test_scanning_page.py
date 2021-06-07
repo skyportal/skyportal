@@ -651,3 +651,164 @@ def test_candidate_rejection_filtering(
 
     # make sure candidate appears and that it has a "rejected" icon
     driver.wait_for_xpath(f'//*[@data-testid="rejected_invisible_{candidate_id}"]')
+
+
+def test_add_scanning_profile(
+    driver, user, public_group, public_source, annotation_token
+):
+
+    # Post an annotation to the test source, to test setting annotation sorting
+    status, _ = api(
+        'POST',
+        'annotation',
+        data={
+            'obj_id': public_source.id,
+            'origin': 'kowalski',
+            'data': {'offset_from_host_galaxy': 1.5},
+            'group_ids': [public_group.id],
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/candidates")
+    driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
+
+    # Fill out form
+    time_range_input = driver.wait_for_xpath('//div[@data-testid="timeRange"]//input')
+    time_range_input.clear()
+    time_range_input.send_keys("48")
+
+    driver.click_xpath('//div[@data-testid="profileSavedStatusSelect"]')
+    saved_status_option = "and is saved to at least one group I have access to"
+    driver.click_xpath(f'//li[text()="{saved_status_option}"]')
+
+    redshift_minimum_input = driver.wait_for_xpath(
+        '//div[@data-testid="profile-minimum-redshift"]//input'
+    )
+    redshift_minimum_input.send_keys("0.0")
+    redshift_maximum_input = driver.wait_for_xpath(
+        '//div[@data-testid="profile-maximum-redshift"]//input'
+    )
+    redshift_maximum_input.send_keys("1.0")
+
+    driver.click_xpath('//div[@data-testid="profileAnnotationSortingOriginSelect"]')
+    driver.click_xpath('//li[text()="kowalski"]')
+    driver.click_xpath('//div[@data-testid="profileAnnotationSortingKeySelect"]')
+    driver.click_xpath('//li[text()="offset_from_host_galaxy"]')
+    driver.click_xpath('//div[@data-testid="profileAnnotationSortingOrderSelect"]')
+    driver.click_xpath('//li[text()="descending"]')
+
+    driver.click_xpath(
+        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
+    )
+
+    # Submit and check it shows up in table of profiles
+    driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
+    driver.wait_for_xpath(f'//div[text()="{saved_status_option}"]')
+
+    # Navigate back to scanning page and check that form is populated properly
+    driver.click_xpath('//button[@data-testid="closeScanningProfilesButton"]')
+    driver.wait_for_xpath(f'//div[text()="{saved_status_option}"]')
+    driver.wait_for_xpath('//input[@id="minimum-redshift"][@value="0.0"]')
+    driver.wait_for_xpath('//input[@id="maximum-redshift"][@value="1.0"]')
+    driver.wait_for_xpath(
+        f'//span[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]//input[@value]'
+    )
+    driver.wait_for_xpath('//div[text()="kowalski"]')
+    driver.wait_for_xpath('//div[text()="offset_from_host_galaxy"]')
+    driver.wait_for_xpath('//div[text()="descending"]')
+
+
+def test_delete_scanning_profile(driver, user, public_group):
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/candidates")
+    driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
+
+    # Fill out form
+    time_range_input = driver.wait_for_xpath('//div[@data-testid="timeRange"]//input')
+    time_range_input.clear()
+    time_range_input.send_keys("123")
+
+    driver.click_xpath(
+        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
+    )
+
+    # Submit and check it shows up in table of profiles
+    driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
+    driver.wait_for_xpath('//div[text()="123hrs"]')
+    # Delete and check that it disappears
+    driver.click_xpath('//tr[.//div[text()="123hrs"]]//button[./span[text()="Delete"]]')
+    driver.wait_for_xpath_to_disappear('//div[text()="123hrs"]')
+
+
+def test_load_scanning_profile(
+    driver, user, public_group, public_source, annotation_token
+):
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/candidates")
+
+    # Add two scanning profiles with different max redshifts
+    driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
+    redshift_maximum_input = driver.wait_for_xpath(
+        '//div[@data-testid="profile-maximum-redshift"]//input'
+    )
+    redshift_maximum_input.send_keys("0.5")
+    driver.click_xpath(
+        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
+    )
+    driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
+    driver.wait_for_xpath('//div[contains(text(), "0.5")]')
+
+    redshift_maximum_input.clear()
+    redshift_maximum_input.send_keys("1.0")
+    driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
+    driver.wait_for_xpath('//div[contains(text(), "1.0")]')
+
+    # The latest (second) one should be the default. Choose to load the first one instead.
+    driver.click_xpath('//span[@data-testid="loaded_0"]')
+
+    # Navigate back to scanning page and check that form is populated properly
+    driver.click_xpath('//button[@data-testid="closeScanningProfilesButton"]')
+    driver.wait_for_xpath('//input[@id="maximum-redshift"][@value="0.5"]')
+
+
+def test_user_without_save_access_cannot_save(
+    driver, super_admin_token, public_group, public_candidate, user_group2
+):
+    status, data = api(
+        "POST",
+        f"groups/{public_group.id}/users",
+        data={"userID": user_group2.id, "admin": False, "canSave": False},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        f"groups/{public_group.id}?includeGroupUsers=true",
+        token=super_admin_token,
+    )
+    group_user = None
+    for gu in data["data"]["users"]:
+        if gu["id"] == user_group2.id:
+            group_user = gu
+    assert group_user is not None
+    assert not group_user["can_save"]
+    assert not group_user["admin"]
+
+    driver.get(f"/become_user/{user_group2.id}")
+    driver.get("/candidates")
+    driver.click_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
+        wait_clickable=False,
+    )
+    driver.click_xpath('//span[text()="Search"]', wait_clickable=False)
+    driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
+    save_button = driver.wait_for_xpath(
+        f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
+    )
+    driver.scroll_to_element_and_click(save_button)
+    driver.wait_for_xpath("//*[contains(.,'Insufficient permissions')]")

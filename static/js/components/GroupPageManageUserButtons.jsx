@@ -5,6 +5,7 @@ import { useDispatch } from "react-redux";
 import Button from "@material-ui/core/Button";
 import DeleteIcon from "@material-ui/icons/Delete";
 import IconButton from "@material-ui/core/IconButton";
+import Tooltip from "@material-ui/core/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -20,6 +21,13 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
       numAdmins += 1;
     }
   });
+
+  const canSave = (usr) => {
+    const matchingGroupUser = group?.users?.filter(
+      (groupUser) => groupUser.id === usr.id
+    )[0];
+    return Boolean(matchingGroupUser?.can_save);
+  };
 
   const toggleUserAdmin = async (usr) => {
     const result = await dispatch(
@@ -37,6 +45,24 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
       dispatch(groupActions.fetchGroup(loadedId));
     }
   };
+
+  const toggleUserCanSave = async (usr) => {
+    const result = await dispatch(
+      groupsActions.updateGroupUser(loadedId, {
+        userID: usr.id,
+        canSave: !canSave(usr),
+      })
+    );
+    if (result.status === "success") {
+      dispatch(
+        showNotification(
+          "User's save access status for this group successfully updated."
+        )
+      );
+      dispatch(groupActions.fetchGroup(loadedId));
+    }
+  };
+
   return (
     <div>
       <Button
@@ -50,6 +76,20 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
           {isAdmin(user) ? "Revoke admin status" : "Grant admin status"}
         </span>
       </Button>
+      &nbsp;|&nbsp;
+      <Tooltip title="Manage whether user can save sources to this group.">
+        <Button
+          size="small"
+          onClick={() => {
+            toggleUserCanSave(user);
+          }}
+        >
+          <span style={{ whiteSpace: "nowrap" }}>
+            {canSave(user) ? "Revoke save access" : "Grant save access"}
+          </span>
+        </Button>
+      </Tooltip>
+      &nbsp;|&nbsp;
       <IconButton
         edge="end"
         aria-label="delete"

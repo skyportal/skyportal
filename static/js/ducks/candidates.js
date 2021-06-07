@@ -78,17 +78,19 @@ const initialState = {
   selectedAnnotationSortOptions: null,
   annotationsInfo: null,
   filterFormData: null,
+  queryID: null,
 };
 
 const reducer = (state = initialState, action) => {
   switch (action.type) {
     case FETCH_CANDIDATES_OK: {
-      const { candidates, pageNumber, totalMatches } = action.data;
+      const { candidates, pageNumber, totalMatches, queryID } = action.data;
       return {
         ...state,
         candidates,
         pageNumber,
         totalMatches,
+        queryID,
       };
     }
     case FETCH_CANDIDATE_AND_MERGE_OK: {

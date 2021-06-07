@@ -1,4 +1,4 @@
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
 from ..base import BaseHandler
 from ...models import (
@@ -203,7 +203,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             self.flow.push(group_admin.id, "skyportal/FETCH_NOTIFICATIONS", {})
         return self.success(data={"id": admission_request.id})
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def patch(self, admission_request_id):
         """
         ---
@@ -270,7 +270,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
         self.flow.push(admission_request.user_id, "skyportal/FETCH_NOTIFICATIONS", {})
         return self.success()
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, admission_request_id):
         """
         ---

@@ -18,13 +18,10 @@ import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   container: {
     width: "100%",
     margin: "auto",
-    [theme.breakpoints.up("md")]: {
-      width: "27.5rem",
-    },
   },
 }));
 

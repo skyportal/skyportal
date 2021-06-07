@@ -113,12 +113,115 @@ def user_to_dict(self):
 
 User.to_dict = user_to_dict
 
-
-accessible_by_groups_members = AccessibleIfUserMatches('groups.users')
-accessible_by_group_members = AccessibleIfUserMatches('group.users')
 accessible_by_members = AccessibleIfUserMatches('users')
 accessible_by_stream_members = AccessibleIfUserMatches('stream.users')
 accessible_by_streams_members = AccessibleIfUserMatches('streams.users')
+
+
+class AccessibleIfGroupUserMatches(AccessibleIfUserMatches):
+    def __init__(self, relationship_chain):
+        """A class that grants access to users related to a specific GroupUser record
+        through a chain of relationships pointing to a "groups.users" or "group.users"
+        as the last two relationships.
+
+        Parameters
+        ----------
+        relationship_chain: str
+            The chain of relationships to check the User or Token against in
+            `query_accessible_rows`. Should be specified as
+
+            >>>> f'{relationship1_name}.{relationship2_name}...{relationshipN_name}'
+
+            The first relationship should be defined on the target class, and
+            each subsequent relationship should be defined on the class pointed
+            to by the previous relationship. The final relationships should be a
+            "groups.users" or "group.users" series.
+        Examples
+        --------
+
+        Grant access if the querying user is a member of one of the target
+        class's groups:
+
+            >>>> AccessibleIfGroupUserMatches('groups.users')
+        """
+        self.relationship_chain = relationship_chain
+
+    @property
+    def relationship_key(self):
+        return self._relationship_key
+
+    @relationship_key.setter
+    def relationship_chain(self, value):
+        if not isinstance(value, str):
+            raise ValueError(
+                f'Invalid value for relationship key: {value}, expected str, got {value.__class__.__name__}'
+            )
+        relationship_names = value.split('.')
+        if len(relationship_names) < 2:
+            raise ValueError('Need at least 2 relationships to join on.')
+        if relationship_names[-1] != 'users' and relationship_names[-2] not in [
+            'group',
+            'groups',
+        ]:
+            raise ValueError(
+                'Relationship chain must end with "group.users" or "groups.users".'
+            )
+        self._relationship_key = value
+
+    def query_accessible_rows(self, cls, user_or_token, columns=None):
+        """Construct a Query object that, when executed, returns the rows of a
+        specified table that are accessible to a specified user or token.
+
+        Parameters
+        ----------
+        cls: `baselayer.app.models.DeclarativeMeta`
+            The mapped class of the target table.
+        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
+            The User or Token to check.
+        columns: list of sqlalchemy.Column, optional, default None
+            The columns to retrieve from the target table. If None, queries
+            the mapped class directly and returns mapped instances.
+
+        Returns
+        -------
+        query: sqlalchemy.Query
+            Query for the accessible rows.
+        """
+
+        # system admins automatically get full access
+        if user_or_token.is_admin:
+            return public.query_accessible_rows(cls, user_or_token, columns=columns)
+
+        # return only selected columns if requested
+        if columns is not None:
+            query = DBSession().query(*columns).select_from(cls)
+        else:
+            query = DBSession().query(cls)
+
+        # traverse the relationship chain via sequential JOINs
+        for relationship_name in self.relationship_names:
+            self.check_cls_for_attributes(cls, [relationship_name])
+            relationship = sa.inspect(cls).mapper.relationships[relationship_name]
+            # not a private attribute, just has an underscore to avoid name
+            # collision with python keyword
+            cls = relationship.entity.class_
+
+            if str(relationship) == "Group.users":
+                # For the last relationship between Group and User, just join
+                # in the join table and not the join table and the full User table
+                # since we only need the GroupUser.user_id field to match on
+                query = query.join(GroupUser)
+            else:
+                query = query.join(relationship.class_attribute)
+
+        # filter for records with at least one matching user
+        user_id = self.user_id_from_user_or_token(user_or_token)
+        query = query.filter(GroupUser.user_id == user_id)
+        return query
+
+
+accessible_by_groups_members = AccessibleIfGroupUserMatches('groups.users')
+accessible_by_group_members = AccessibleIfGroupUserMatches('group.users')
 
 
 class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
@@ -355,6 +458,13 @@ GroupUser.admin = sa.Column(
     doc="Boolean flag indicating whether the User is an admin of the group.",
 )
 
+GroupUser.can_save = sa.Column(
+    sa.Boolean,
+    nullable=False,
+    server_default="true",
+    doc="Boolean flag indicating whether the user should be able to save sources to the group",
+)
+
 User.group_admission_requests = relationship(
     "GroupAdmissionRequest",
     back_populates="user",
@@ -554,6 +664,7 @@ class Obj(Base, ha.Point):
         sa.Float, default=0.0, doc="Offset from nearest static object [arcsec]."
     )
     redshift = sa.Column(sa.Float, nullable=True, index=True, doc="Redshift.")
+    redshift_error = sa.Column(sa.Float, nullable=True, doc="Redshift error.")
     redshift_history = sa.Column(
         JSONB,
         nullable=True,
@@ -733,14 +844,17 @@ class Obj(Base, ha.Point):
     @hybrid_method
     def last_detected_mag(self, user):
         """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
-        detections = [
-            (phot.iso, phot.mag)
-            for phot in Photometry.query_records_accessible_by(user)
+        return (
+            Photometry.query_records_accessible_by(
+                user, columns=[Photometry.mag], mode="read"
+            )
             .filter(Photometry.obj_id == self.id)
-            .all()
-            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
-        ]
-        return max(detections, key=(lambda x: x[0]))[1] if detections else None
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .order_by(Photometry.mjd.desc())
+            .limit(1)
+            .scalar()
+        )
 
     @last_detected_mag.expression
     def last_detected_mag(cls, user):
@@ -787,14 +901,15 @@ class Obj(Base, ha.Point):
     @hybrid_method
     def peak_detected_mag(self, user):
         """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
-        detections = [
-            phot.mag
-            for phot in Photometry.query_records_accessible_by(user)
+        return (
+            Photometry.query_records_accessible_by(
+                user, columns=[sa.func.max(Photometry.mag)], mode="read"
+            )
             .filter(Photometry.obj_id == self.id)
-            .all()
-            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
-        ]
-        return max(detections) if detections else None
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .scalar()
+        )
 
     @peak_detected_mag.expression
     def peak_detected_mag(cls, user):
@@ -1120,9 +1235,19 @@ User.listings = relationship(
 
 
 Source = join_model("sources", Group, Obj)
-Source.create = (
-    Source.read
-) = Source.update = Source.delete = accessible_by_group_members
+
+
+def source_create_access_logic(cls, user_or_token):
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = DBSession().query(cls)
+    if not user_or_token.is_system_admin:
+        query = query.join(Group).join(GroupUser)
+        query = query.filter(GroupUser.user_id == user_id, GroupUser.can_save.is_(True))
+    return query
+
+
+Source.create = CustomUserAccessControl(source_create_access_logic)
+Source.read = Source.update = Source.delete = accessible_by_group_members
 
 Source.__doc__ = (
     "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
@@ -3128,6 +3253,16 @@ class Invitation(Base):
     read = update = delete = AccessibleIfUserMatches('invited_by')
 
     token = sa.Column(sa.String(), nullable=False, unique=True)
+    role_id = sa.Column(
+        sa.ForeignKey('roles.id'),
+        nullable=False,
+    )
+    role = relationship(
+        "Role",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        uselist=False,
+    )
     groups = relationship(
         "Group",
         secondary="group_invitations",
@@ -3141,6 +3276,7 @@ class Invitation(Base):
         passive_deletes=True,
     )
     admin_for_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
+    can_save_to_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
     user_email = sa.Column(EmailType(), nullable=True)
     invited_by = relationship(
         "User",

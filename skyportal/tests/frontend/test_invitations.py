@@ -98,3 +98,37 @@ def test_add_invitation_stream(
     driver.wait_for_xpath(
         f"//*[@data-testid='pendingInvitations']//*[text()='{public_stream2.name}']"
     )
+
+
+def test_edit_invitation_role(
+    driver, super_admin_user, public_group, public_stream, public_stream2
+):
+    driver.get(f'/become_user/{super_admin_user.id}')
+    driver.get('/user_management')
+
+    user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
+
+    csv = f"{user_email},{public_stream.id},{public_group.id},false"
+
+    textarea = driver.wait_for_xpath("//textarea[@name='bulkInviteCSVInput']")
+    driver.scroll_to_element_and_click(textarea)
+    textarea.send_keys(csv)
+
+    driver.click_xpath("//*[@data-testid='bulkAddUsersButton']")
+
+    # Check that the users show up in pending invitations
+    driver.wait_for_xpath(
+        f"//*[@data-testid='pendingInvitations']//*[text()='{user_email}']"
+    )
+    driver.wait_for_xpath(
+        "//*[@data-testid='pendingInvitations']//*[text()='Full user']"
+    )
+
+    # Edit role
+    driver.click_xpath(f"//*[@data-testid='editInvitationRoleButton{user_email}']")
+    driver.click_xpath("//*[@data-testid='invitationRoleSelect']")
+    driver.click_xpath("//*[text()='View only']")
+    driver.click_xpath("//*[@data-testid='submitEditRoleButton']")
+    driver.wait_for_xpath(
+        "//*[@data-testid='pendingInvitations']//*[text()='View only']"
+    )

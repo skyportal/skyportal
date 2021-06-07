@@ -2,7 +2,7 @@ from marshmallow.exceptions import ValidationError
 
 from sqlalchemy.orm import joinedload
 
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from ...models import DBSession, Filter
 
@@ -60,7 +60,7 @@ class FilterHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(data=filters)
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -99,7 +99,7 @@ class FilterHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(data={"id": fil.id})
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def patch(self, filter_id):
         """
         ---
@@ -146,7 +146,7 @@ class FilterHandler(BaseHandler):
         self.verify_and_commit()
         return self.success()
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, filter_id):
         """
         ---

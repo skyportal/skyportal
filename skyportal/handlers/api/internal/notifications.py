@@ -21,6 +21,7 @@ class NotificationHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(data=notifications)
 
+    @auth_or_token
     def patch(self, notification_id):
         """Update a notification"""
         UserNotification.get_if_accessible_by(
@@ -33,6 +34,7 @@ class NotificationHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(action="skyportal/FETCH_NOTIFICATIONS")
 
+    @auth_or_token
     def delete(self, notification_id):
         """Delete a notification"""
         if notification_id is None:
@@ -49,6 +51,7 @@ class BulkNotificationHandler(BaseHandler):
     """Handler for operating on all of requesting user's notifications, e.g.
     deleting all notifications or marking all notifications as read."""
 
+    @auth_or_token
     def patch(self):
         """Update all notifications associated with requesting user."""
         data = self.get_json()
@@ -63,6 +66,7 @@ class BulkNotificationHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(action="skyportal/FETCH_NOTIFICATIONS")
 
+    @auth_or_token
     def delete(self):
         """Delete all notifications associated with requesting user"""
         notifications = (
