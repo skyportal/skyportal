@@ -562,11 +562,13 @@ const FilterCandidateList = ({
                     }
                   >
                     {availableAnnotationsInfo ? (
-                      Object.keys(availableAnnotationsInfo).map((option) => (
-                        <MenuItem key={option} value={option}>
-                          {option}
-                        </MenuItem>
-                      ))
+                      [""]
+                        .concat(Object.keys(availableAnnotationsInfo))
+                        .map((option) => (
+                          <MenuItem key={option} value={option}>
+                            {option === "" ? "None" : option}
+                          </MenuItem>
+                        ))
                     ) : (
                       <div />
                     )}

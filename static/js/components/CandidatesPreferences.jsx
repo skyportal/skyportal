@@ -514,13 +514,13 @@ const CandidatesPreferences = ({
                               }
                             >
                               {availableAnnotationsInfo ? (
-                                Object.keys(availableAnnotationsInfo).map(
-                                  (option) => (
+                                [""]
+                                  .concat(Object.keys(availableAnnotationsInfo))
+                                  .map((option) => (
                                     <MenuItem key={option} value={option}>
-                                      {option}
+                                      {option === "" ? "None" : option}
                                     </MenuItem>
-                                  )
-                                )
+                                  ))
                               ) : (
                                 <div />
                               )}
