@@ -1,4 +1,3 @@
-from sqlalchemy.orm import joinedload
 from baselayer.app.access import auth_or_token, AccessError
 from baselayer.app.env import load_env
 from ..base import BaseHandler
@@ -31,30 +30,14 @@ class ObjHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        obj = Obj.get_if_accessible_by(
-            obj_id,
-            self.current_user,
-            mode='delete',
-            raise_if_none=True,
-            # Load in all related entities into the session
-            # so that they can be checked by the permission verification
-            options=[
-                joinedload(Obj.photometry),
-                joinedload(Obj.spectra),
-                joinedload(Obj.comments),
-                joinedload(Obj.comments_on_spectra),
-                joinedload(Obj.annotations),
-                joinedload(Obj.candidates),
-                joinedload(Obj.sources),
-                joinedload(Obj.classifications),
-                joinedload(Obj.followup_requests),
-                joinedload(Obj.assignments),
-                joinedload(Obj.obj_notifications),
-            ],
-        )
-
-        DBSession().delete(obj)
         try:
+            obj = Obj.get_if_accessible_by(
+                obj_id,
+                self.current_user,
+                mode='delete',
+                raise_if_none=False,
+            )
+            DBSession().delete(obj)
             self.verify_and_commit()
         except AccessError as e:
             error_msg = (
