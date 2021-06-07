@@ -637,11 +637,110 @@ def token_groups(self):
 Token.groups = token_groups
 
 
+def delete_obj_if_all_data_owned(cls, user_or_token):
+    allow_nonadmins = cfg["misc.allow_nonadmins_delete_objs"] or False
+
+    deletable_photometry = Photometry.query_records_accessible_by(
+        user_or_token, mode="delete"
+    ).subquery()
+    nondeletable_photometry = (
+        DBSession()
+        .query(Photometry.obj_id)
+        .join(
+            deletable_photometry,
+            deletable_photometry.c.id == Photometry.id,
+            isouter=True,
+        )
+        .filter(deletable_photometry.c.id.is_(None))
+        .distinct(Photometry.obj_id)
+        .subquery()
+    )
+
+    deletable_spectra = Spectrum.query_records_accessible_by(
+        user_or_token, mode="delete"
+    ).subquery()
+    nondeletable_spectra = (
+        DBSession()
+        .query(Spectrum.obj_id)
+        .join(
+            deletable_spectra,
+            deletable_spectra.c.id == Spectrum.id,
+            isouter=True,
+        )
+        .filter(deletable_spectra.c.id.is_(None))
+        .distinct(Spectrum.obj_id)
+        .subquery()
+    )
+
+    deletable_candidates = Candidate.query_records_accessible_by(
+        user_or_token, mode="delete"
+    ).subquery()
+    nondeletable_candidates = (
+        DBSession()
+        .query(Candidate.obj_id)
+        .join(
+            deletable_candidates,
+            deletable_candidates.c.id == Candidate.id,
+            isouter=True,
+        )
+        .filter(deletable_candidates.c.id.is_(None))
+        .distinct(Candidate.obj_id)
+        .subquery()
+    )
+
+    deletable_sources = Source.query_records_accessible_by(
+        user_or_token, mode="delete"
+    ).subquery()
+    nondeletable_sources = (
+        DBSession()
+        .query(Source.obj_id)
+        .join(
+            deletable_sources,
+            deletable_sources.c.id == Source.id,
+            isouter=True,
+        )
+        .filter(deletable_sources.c.id.is_(None))
+        .distinct(Source.obj_id)
+        .subquery()
+    )
+
+    return (
+        DBSession()
+        .query(cls)
+        .join(
+            nondeletable_photometry,
+            nondeletable_photometry.c.obj_id == cls.id,
+            isouter=True,
+        )
+        .filter(nondeletable_photometry.c.obj_id.is_(None))
+        .join(
+            nondeletable_spectra,
+            nondeletable_spectra.c.obj_id == cls.id,
+            isouter=True,
+        )
+        .filter(nondeletable_spectra.c.obj_id.is_(None))
+        .join(
+            nondeletable_candidates,
+            nondeletable_candidates.c.obj_id == cls.id,
+            isouter=True,
+        )
+        .filter(nondeletable_candidates.c.obj_id.is_(None))
+        .join(
+            nondeletable_sources,
+            nondeletable_sources.c.obj_id == cls.id,
+            isouter=True,
+        )
+        .filter(nondeletable_sources.c.obj_id.is_(None))
+        .filter(sa.literal(allow_nonadmins))
+    )
+
+
 class Obj(Base, ha.Point):
     """A record of an astronomical Object and its metadata, such as position,
     positional uncertainties, name, and redshift."""
 
     update = public
+    delete = restricted | CustomUserAccessControl(delete_obj_if_all_data_owned)
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precison numeric
@@ -2712,107 +2811,6 @@ GroupCommentOnSpectrum.__doc__ = "Join table mapping Groups to CommentOnSpectrum
 GroupCommentOnSpectrum.delete = GroupCommentOnSpectrum.update = (
     accessible_by_group_admins & GroupCommentOnSpectrum.read
 )
-
-
-def delete_obj_if_all_data_owned(cls, user_or_token):
-    allow_nonadmins = cfg["misc.allow_nonadmins_delete_objs"] or False
-
-    deletable_photometry = Photometry.query_records_accessible_by(
-        user_or_token, mode="delete"
-    ).subquery()
-    nondeletable_photometry = (
-        DBSession()
-        .query(Photometry.obj_id)
-        .join(
-            deletable_photometry,
-            deletable_photometry.c.id == Photometry.id,
-            isouter=True,
-        )
-        .filter(deletable_photometry.c.id.is_(None))
-        .distinct(Photometry.obj_id)
-        .subquery()
-    )
-
-    deletable_spectra = Spectrum.query_records_accessible_by(
-        user_or_token, mode="delete"
-    ).subquery()
-    nondeletable_spectra = (
-        DBSession()
-        .query(Spectrum.obj_id)
-        .join(
-            deletable_spectra,
-            deletable_spectra.c.id == Spectrum.id,
-            isouter=True,
-        )
-        .filter(deletable_spectra.c.id.is_(None))
-        .distinct(Spectrum.obj_id)
-        .subquery()
-    )
-
-    deletable_candidates = Candidate.query_records_accessible_by(
-        user_or_token, mode="delete"
-    ).subquery()
-    nondeletable_candidates = (
-        DBSession()
-        .query(Candidate.obj_id)
-        .join(
-            deletable_candidates,
-            deletable_candidates.c.id == Candidate.id,
-            isouter=True,
-        )
-        .filter(deletable_candidates.c.id.is_(None))
-        .distinct(Candidate.obj_id)
-        .subquery()
-    )
-
-    deletable_sources = Source.query_records_accessible_by(
-        user_or_token, mode="delete"
-    ).subquery()
-    nondeletable_sources = (
-        DBSession()
-        .query(Source.obj_id)
-        .join(
-            deletable_sources,
-            deletable_sources.c.id == Source.id,
-            isouter=True,
-        )
-        .filter(deletable_sources.c.id.is_(None))
-        .distinct(Source.obj_id)
-        .subquery()
-    )
-
-    return (
-        DBSession()
-        .query(cls)
-        .join(
-            nondeletable_photometry,
-            nondeletable_photometry.c.obj_id == cls.id,
-            isouter=True,
-        )
-        .filter(nondeletable_photometry.c.obj_id.is_(None))
-        .join(
-            nondeletable_spectra,
-            nondeletable_spectra.c.obj_id == cls.id,
-            isouter=True,
-        )
-        .filter(nondeletable_spectra.c.obj_id.is_(None))
-        .join(
-            nondeletable_candidates,
-            nondeletable_candidates.c.obj_id == cls.id,
-            isouter=True,
-        )
-        .filter(nondeletable_candidates.c.obj_id.is_(None))
-        .join(
-            nondeletable_sources,
-            nondeletable_sources.c.obj_id == cls.id,
-            isouter=True,
-        )
-        .filter(nondeletable_sources.c.obj_id.is_(None))
-        .filter(allow_nonadmins)
-    )
-
-
-Obj.delete = restricted | CustomUserAccessControl(delete_obj_if_all_data_owned)
 
 
 # def format_public_url(context):

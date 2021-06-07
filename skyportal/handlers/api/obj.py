@@ -35,7 +35,7 @@ class ObjHandler(BaseHandler):
                 obj_id,
                 self.current_user,
                 mode='delete',
-                raise_if_none=False,
+                raise_if_none=True,
             )
             DBSession().delete(obj)
             self.verify_and_commit()
