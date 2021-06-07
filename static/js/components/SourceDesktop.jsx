@@ -12,7 +12,7 @@ import AccordionSummary from "@material-ui/core/AccordionSummary";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
-import Paper from "@material-ui/core/Paper";
+import Grid from "@material-ui/core/Grid";
 
 import CommentList from "./CommentList";
 import ClassificationList from "./ClassificationList";
@@ -419,8 +419,9 @@ const SourceDesktop = ({ source }) => {
         </div>
 
         <div className={classes.columnItem}>
-          <Accordion defaultExpanded>
+          <Accordion defaultExpanded={false}>
             <AccordionSummary
+              data-testid="individual-spectra-accordion"
               expandIcon={<ExpandMoreIcon />}
               aria-controls="spectroscopy-content"
               id="spectroscopy-individual-header"
@@ -430,27 +431,50 @@ const SourceDesktop = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              {spectra[source.id] &&
-                spectra[source.id].map((spec) => (
-                  <div key={spec.id} className={classes.photometryContainer}>
-                    <Suspense
-                      fallback={<div>Loading spectroscopy plot...</div>}
-                    >
-                      <Plot
-                        url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&spectrumID=${spec.id}`}
-                      />
-                    </Suspense>
-
-                    <Paper className={classes.comments}>
-                      <Typography variant="h6">Comments</Typography>
-                      <CommentList
-                        associatedResourceType="spectrum"
-                        objID={source.id}
-                        spectrumID={spec.id}
-                      />
-                    </Paper>
-                  </div>
-                ))}
+              <Grid
+                container
+                direction="row"
+                alignItems="flex-start"
+                justify="flex-start"
+              >
+                {spectra[source.id] &&
+                  spectra[source.id].map((spec) => (
+                    <div key={spec.id}>
+                      <Grid container item>
+                        <Grid item className={classes.photometryContainer}>
+                          <Suspense
+                            fallback={<div>Loading spectroscopy plot...</div>}
+                          >
+                            <Plot
+                              url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&spectrumID=${spec.id}`}
+                            />
+                          </Suspense>
+                        </Grid>
+                        <Grid
+                          container
+                          item
+                          direction="row"
+                          justify="space-evenly"
+                          alignItems="flex-start"
+                          className={classes.comments}
+                        >
+                          <Grid item>
+                            <Typography variant="h6">Comments</Typography>
+                            <CommentList
+                              associatedResourceType="spectrum"
+                              objID={source.id}
+                              spectrumID={spec.id}
+                            />
+                          </Grid>
+                          <Grid item>
+                            <Typography variant="h6">Annotations</Typography>
+                            To be added soon...
+                          </Grid>
+                        </Grid>
+                      </Grid>
+                    </div>
+                  ))}
+              </Grid>
             </AccordionDetails>
           </Accordion>
         </div>

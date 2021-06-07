@@ -176,6 +176,8 @@ const ManageDataForm = ({ route }) => {
   const dispatch = useDispatch();
   const [selectedPhotRows, setSelectedPhotRows] = useState([]);
   const [selectedSpecRows, setSelectedSpecRows] = useState([]);
+  const [openedSpecRows, setOpenedSpecRows] = useState([]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { all: groups } = useSelector((state) => state.groups);
   const photometry = useSelector((state) => state.photometry);
@@ -472,6 +474,13 @@ const ManageDataForm = ({ route }) => {
                 <SpectrumRow rowData={rowData} route={route} />
               ),
               expandableRowsOnClick: false,
+              rowsExpanded: openedSpecRows,
+              onRowExpansionChange: (currentRowsExpanded) => {
+                // console.log(currentRowsExpanded);
+                // console.log(allRowsExpanded);
+                // console.log(rowsExpanded);
+                setOpenedSpecRows(currentRowsExpanded);
+              },
             }}
             data-testid="spectrum-table"
           />
