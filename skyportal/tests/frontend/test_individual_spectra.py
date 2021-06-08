@@ -9,18 +9,20 @@ from selenium.common.exceptions import TimeoutException
 
 
 def enter_comment_text(driver, comment_text):
-    comment_xpath = "//input[@name='text']"
+    comment_xpath = (
+        "//*[@data-testid=individual-spectra-accordion]//input[@name='text']"
+    )
+    comment_xpath = "//div[@data-testid='comments-accordion']//input[@name='text']"
     comment_box = driver.wait_for_xpath(comment_xpath)
     driver.click_xpath(comment_xpath)
-    # driver.execute_script("arguments[0].setAttribute('value','arguments[1]')", comment_box, comment_text)
     comment_box.send_keys(comment_text)
 
 
 def add_comment(driver, comment_text):
     enter_comment_text(driver, comment_text)
-    driver.click_xpath('//*[@name="submitCommentButton"]')
-    # element = driver.wait_for_xpath('//*[@name="submitCommentButton"]')
-    # driver.execute_script("arguments[0].click();", element)
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
 
 
 def add_comment_and_wait_for_display(driver, comment_text):

@@ -530,7 +530,11 @@ const SourceDesktop = ({ source }) => {
           </Accordion>
         </div>
         <div className={classes.columnItem}>
-          <Accordion defaultExpanded className={classes.comments}>
+          <Accordion
+            defaultExpanded
+            className={classes.comments}
+            data-testid="comments-accordion"
+          >
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls="comments-content"
