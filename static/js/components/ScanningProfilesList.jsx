@@ -405,7 +405,7 @@ const ScanningProfilesList = ({
             userAccessibleGroups={userAccessibleGroups}
             availableAnnotationsInfo={availableAnnotationsInfo}
             classifications={classifications}
-            type="Edit"
+            addOrEdit="Edit"
             editingProfile={profileToEdit}
             closeDialog={() => setEditDialogOpen(false)}
             selectedScanningProfile={selectedScanningProfile}

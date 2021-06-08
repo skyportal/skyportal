@@ -105,7 +105,7 @@ const CandidatesPreferencesForm = ({
   userAccessibleGroups,
   availableAnnotationsInfo,
   classifications,
-  type,
+  addOrEdit,
   editingProfile,
   closeDialog,
   selectedScanningProfile,
@@ -131,11 +131,11 @@ const CandidatesPreferencesForm = ({
   const { handleSubmit, getValues, control, errors, reset } = useForm();
 
   useEffect(() => {
-    if (type === "Add") {
+    if (addOrEdit === "Add") {
       reset({
         groupIDs: Array(userAccessibleGroups.length).fill(false),
       });
-    } else if (type === "Edit") {
+    } else if (addOrEdit === "Edit") {
       const currentOptions = { ...editingProfile };
       // Translated selected group IDs to group IDs form indices
       const groupIds = Array(userAccessibleGroups.length).fill(false);
@@ -205,11 +205,11 @@ const CandidatesPreferencesForm = ({
       savedStatus: formData.savedStatus,
     };
 
-    if (type === "Add") {
+    if (addOrEdit === "Add") {
       // Assign a random ID to the new profile
       data.id = Math.random().toString(36).substr(2, 5);
       data.default = true;
-    } else if (type === "Edit") {
+    } else if (addOrEdit === "Edit") {
       data.id = editingProfile?.id;
       data.default = editingProfile?.default;
     }
@@ -238,13 +238,13 @@ const CandidatesPreferencesForm = ({
     }
 
     const currentProfiles = preferences.scanningProfiles || [];
-    if (type === "Add") {
+    if (addOrEdit === "Add") {
       // Add new profile as the default in the preferences
       currentProfiles.forEach((profile) => {
         profile.default = false;
       });
       currentProfiles.push(data);
-    } else if (type === "Edit") {
+    } else if (addOrEdit === "Edit") {
       // Update profile
       const profileIndex = currentProfiles.findIndex(
         (profile) => profile.id === editingProfile?.id
@@ -259,7 +259,7 @@ const CandidatesPreferencesForm = ({
     };
     dispatch(profileActions.updateUserPreferences(prefs));
 
-    if (type === "Edit") {
+    if (addOrEdit === "Edit") {
       // If we just edited the selected profile, let the
       // parent component know we updated some fields
       if (selectedScanningProfile?.id === data.id) {
@@ -272,7 +272,7 @@ const CandidatesPreferencesForm = ({
   return (
     <div className={classes.filterListContainer}>
       <Typography variant="h6">
-        {type === "Add"
+        {addOrEdit === "Add"
           ? "Add a New Scanning Profile"
           : "Edit a Scanning Profile"}
       </Typography>
@@ -604,7 +604,7 @@ CandidatesPreferencesForm.propTypes = {
   userAccessibleGroups: PropTypes.arrayOf(PropTypes.shape({})),
   availableAnnotationsInfo: PropTypes.shape({}),
   classifications: PropTypes.arrayOf(PropTypes.string),
-  type: PropTypes.string.isRequired,
+  addOrEdit: PropTypes.string.isRequired,
   // Args below required for editing
   editingProfile: PropTypes.shape({
     id: PropTypes.string,

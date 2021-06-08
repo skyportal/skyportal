@@ -131,7 +131,7 @@ const CandidatesPreferences = ({
                   userAccessibleGroups={userAccessibleGroups}
                   availableAnnotationsInfo={availableAnnotationsInfo}
                   classifications={classifications}
-                  type="Add"
+                  addOrEdit="Add"
                 />
               </Paper>
             </Grid>
