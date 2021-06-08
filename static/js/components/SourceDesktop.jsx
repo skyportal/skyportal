@@ -430,7 +430,10 @@ const SourceDesktop = ({ source }) => {
               >
                 {spectra[source.id] &&
                   spectra[source.id].map((spec) => (
-                    <div key={spec.id}>
+                    <div
+                      key={spec.id}
+                      data-testid={`individual-spectrum-id_${spec.id}`}
+                    >
                       <Grid container item>
                         <Grid item className={classes.photometryContainer}>
                           <Suspense

@@ -151,7 +151,10 @@ const SpectrumRow = ({ rowData, route }) => {
         </Suspense>
       </Paper>
 
-      <Paper className={classes.comments}>
+      <Paper
+        className={classes.comments}
+        data-testid={`individual-spectrum-id_${rowData[0]}`}
+      >
         <Typography variant="h6">Comments</Typography>
         <CommentList
           associatedResourceType="spectrum"
@@ -176,7 +179,7 @@ const ManageDataForm = ({ route }) => {
   const dispatch = useDispatch();
   const [selectedPhotRows, setSelectedPhotRows] = useState([]);
   const [selectedSpecRows, setSelectedSpecRows] = useState([]);
-  const [openedSpecRows, setOpenedSpecRows] = useState([]);
+  //  const [openedSpecRows, setOpenedSpecRows] = useState([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { all: groups } = useSelector((state) => state.groups);
@@ -474,13 +477,13 @@ const ManageDataForm = ({ route }) => {
                 <SpectrumRow rowData={rowData} route={route} />
               ),
               expandableRowsOnClick: false,
-              rowsExpanded: openedSpecRows,
-              onRowExpansionChange: (currentRowsExpanded) => {
-                // console.log(currentRowsExpanded);
-                // console.log(allRowsExpanded);
-                // console.log(rowsExpanded);
-                setOpenedSpecRows(currentRowsExpanded);
-              },
+              // rowsExpanded: openedSpecRows,
+              // onRowExpansionChange: (currentRowsExpanded) => {
+              // console.log(currentRowsExpanded);
+              // console.log(allRowsExpanded);
+              // console.log(rowsExpanded);
+              // setOpenedSpecRows(currentRowsExpanded);
+              // },
             }}
             data-testid="spectrum-table"
           />
