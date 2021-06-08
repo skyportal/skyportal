@@ -276,8 +276,6 @@ const ScanningProfilesList = ({
     );
   };
 
-  // TODO: Make into renderActions with edit dialog
-  // instance of CandidatesPreferencesForm with type="add"
   const renderActions = (dataIndex) => (
     <div className={classes.actionButtons}>
       <Button
