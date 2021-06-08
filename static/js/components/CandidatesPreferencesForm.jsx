@@ -168,9 +168,10 @@ const CandidatesPreferencesForm = ({
 
   const validateName = () => {
     formState = getValues({ nest: true });
-    return !preferences.scanningProfiles
-      ?.map((profile) => profile.name)
-      .includes(formState.name);
+    const otherProfiles = preferences.scanningProfiles
+      ?.filter((profile) => profile.id !== editingProfile?.id)
+      .map((profile) => profile.name);
+    return !otherProfiles.includes(formState.name);
   };
 
   const validateGroups = () => {
