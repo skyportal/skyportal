@@ -632,10 +632,10 @@ const FilterCandidateList = ({
                     defaultValue={selectedScanningProfile?.sortingOrder || ""}
                   >
                     <MenuItem key="desc" value="desc">
-                      descending
+                      Descending
                     </MenuItem>
                     <MenuItem key="asc" value="asc">
-                      ascending
+                      Ascending
                     </MenuItem>
                   </Controller>
                 </>

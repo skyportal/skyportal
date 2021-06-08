@@ -538,11 +538,14 @@ const CandidatesPreferencesForm = ({
               }
               defaultValue=""
             >
+              <MenuItem key="none" value="">
+                None
+              </MenuItem>
               <MenuItem key="desc" value="desc">
-                descending
+                Descending
               </MenuItem>
               <MenuItem key="asc" value="asc">
-                ascending
+                Ascending
               </MenuItem>
             </Controller>
           </Responsive>
