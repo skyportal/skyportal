@@ -34,7 +34,7 @@ const UIPreferences = () => {
 
   const commentsToggled = (event) => {
     const prefs = {
-      compactedComments: event.target.checked,
+      compactComments: event.target.checked,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
