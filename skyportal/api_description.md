@@ -85,18 +85,6 @@ response = requests.put(
 )
 ```
 
-Alternatively, when using Python's `requests` library, a dictionary
-of query parameters (aka path parameters, or URL parameters) can be
-passed in via the `params` keyword argument, e.g.
-
-```python
-token = 'abc'
-params = {"includeComments": True, "includeThumbnails": False}
-response = requests.get(
-    "http://localhost:5000/api/sources",
-    params=params,
-    headers={'Authorization': f'token {token}'},
-)
 ```
 
 Note well the distinction between query/path/URL parameters and request
