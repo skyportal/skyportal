@@ -8,9 +8,6 @@ inside of `.tokens.yaml`.
 
 Once you have a token, you may access SkyPortal programmatically as
 follows.
-Any JSON request body parameters (all parameters listed under
-"REQUEST BODY SCHEMA: application/json" in API docs below) must be
-passed in to `requests.request` to the `json` keyword argument as below.
 
 #### Python
 
