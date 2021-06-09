@@ -9,11 +9,11 @@ import { useForm, Controller } from "react-hook-form";
 import Autocomplete from "@material-ui/lab/Autocomplete";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
-import Paper from "@material-ui/core/Paper";
 import IconButton from "@material-ui/core/IconButton";
 import DeleteForeverIcon from "@material-ui/icons/DeleteForever";
 import GetAppIcon from "@material-ui/icons/GetApp";
 import Dialog from "@material-ui/core/Dialog";
+import Grid from "@material-ui/core/Grid";
 import DialogContent from "@material-ui/core/DialogContent";
 import Papa from "papaparse";
 
@@ -141,27 +141,30 @@ const SpectrumRow = ({ rowData, route }) => {
 
   return (
     <div className={classes.container}>
-      <Paper className={styles.photometryContainer}>
-        <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
-          <Plot
-            className={styles.plot}
-            // eslint-disable-next-line react/prop-types
-            url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
-          />
-        </Suspense>
-      </Paper>
+      <Grid container direction="row" justify="center" alignItems="center">
+        <Grid item className={styles.photometryContainer}>
+          <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+            <Plot
+              className={styles.plot}
+              // eslint-disable-next-line react/prop-types
+              url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
+            />
+          </Suspense>
+        </Grid>
 
-      <Paper
-        className={classes.comments}
-        data-testid={`individual-spectrum-id_${rowData[0]}`}
-      >
-        <Typography variant="h6">Comments</Typography>
-        <CommentList
-          associatedResourceType="spectrum"
-          objID={route.id}
-          spectrumID={rowData[0]}
-        />
-      </Paper>
+        <Grid
+          item
+          className={classes.comments}
+          data-testid={`individual-spectrum-id_${rowData[0]}`}
+        >
+          <Typography variant="h6">Comments</Typography>
+          <CommentList
+            associatedResourceType="spectrum"
+            objID={route.id}
+            spectrumID={rowData[0]}
+          />
+        </Grid>
+      </Grid>
     </div>
   );
 };
@@ -179,7 +182,7 @@ const ManageDataForm = ({ route }) => {
   const dispatch = useDispatch();
   const [selectedPhotRows, setSelectedPhotRows] = useState([]);
   const [selectedSpecRows, setSelectedSpecRows] = useState([]);
-  //  const [openedSpecRows, setOpenedSpecRows] = useState([]);
+  const [openedSpecRows, setOpenedSpecRows] = useState([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { all: groups } = useSelector((state) => state.groups);
@@ -477,13 +480,10 @@ const ManageDataForm = ({ route }) => {
                 <SpectrumRow rowData={rowData} route={route} />
               ),
               expandableRowsOnClick: false,
-              // rowsExpanded: openedSpecRows,
-              // onRowExpansionChange: (currentRowsExpanded) => {
-              // console.log(currentRowsExpanded);
-              // console.log(allRowsExpanded);
-              // console.log(rowsExpanded);
-              // setOpenedSpecRows(currentRowsExpanded);
-              // },
+              rowsExpanded: openedSpecRows,
+              onRowExpansionChange: (currentRowsExpanded) => {
+                setOpenedSpecRows(currentRowsExpanded.map((i) => i.dataIndex));
+              },
             }}
             data-testid="spectrum-table"
           />
