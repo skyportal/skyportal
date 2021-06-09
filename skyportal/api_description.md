@@ -87,12 +87,6 @@ response = requests.post(
 )
 ```
 
-```
-
-Note well the distinction between path (AKA query or URL) parameters and request
-body parameters, how they're denoted in the docs below, and the sample
-usage of each in the examples above.
-
 ### Response
 
 In the above examples, the SkyPortal server is located at
@@ -103,7 +97,7 @@ In the above examples, the SkyPortal server is located at
 HTTP code: 200, OK
 JSON response: {'status': 'success', 'data': {}, 'version': '0.9.dev0+git20200819.84c453a'}
 
-````
+```
 
 On failure, it is 400; the JSON response has `status="error"` with the reason
 for the failure given in `message`:
@@ -115,4 +109,4 @@ for the failure given in `message`:
   "data": {},
   "version": "0.9.1"
 }
-````
+```
