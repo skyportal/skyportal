@@ -132,6 +132,7 @@ const CandidatesPreferences = ({
                   availableAnnotationsInfo={availableAnnotationsInfo}
                   classifications={classifications}
                   addOrEdit="Add"
+                  setSelectedScanningProfile={setSelectedScanningProfile}
                 />
               </Paper>
             </Grid>

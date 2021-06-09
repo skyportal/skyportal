@@ -171,7 +171,7 @@ const CandidatesPreferencesForm = ({
     const otherProfiles = preferences.scanningProfiles
       ?.filter((profile) => profile.id !== editingProfile?.id)
       .map((profile) => profile.name);
-    return !otherProfiles.includes(formState.name);
+    return !otherProfiles?.includes(formState.name);
   };
 
   const validateGroups = () => {
@@ -266,6 +266,9 @@ const CandidatesPreferencesForm = ({
         setSelectedScanningProfile(data);
       }
       closeDialog();
+    } else if (addOrEdit === "Add") {
+      // New profiles are set to default/loaded immediately
+      setSelectedScanningProfile(data);
     }
   };
 
@@ -286,6 +289,7 @@ const CandidatesPreferencesForm = ({
               <TextField
                 id="name"
                 label="Name"
+                data-testid="profile-name"
                 value={value}
                 // eslint-disable-next-line react/jsx-no-duplicate-props
                 InputProps={{ "data-testid": "name" }}
@@ -458,7 +462,10 @@ const CandidatesPreferencesForm = ({
             ))}
           </Controller>
         </div>
-        <div className={`${classes.formRow} ${classes.annotationSorting}`}>
+        <div
+          className={`${classes.formRow} ${classes.annotationSorting}`}
+          data-testid="annotation-sorting-accordion"
+        >
           {errors.sortingOrigin && (
             <FormValidationError message="All sorting fields must be left empty or all filled out" />
           )}

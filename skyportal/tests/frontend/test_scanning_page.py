@@ -692,13 +692,13 @@ def test_add_scanning_profile(
         '//div[@data-testid="profile-maximum-redshift"]//input'
     )
     redshift_maximum_input.send_keys("1.0")
-
+    driver.click_xpath('//div[@data-testid="annotation-sorting-accordion"]')
     driver.click_xpath('//div[@data-testid="profileAnnotationSortingOriginSelect"]')
     driver.click_xpath('//li[text()="kowalski"]')
     driver.click_xpath('//div[@data-testid="profileAnnotationSortingKeySelect"]')
     driver.click_xpath('//li[text()="offset_from_host_galaxy"]')
     driver.click_xpath('//div[@data-testid="profileAnnotationSortingOrderSelect"]')
-    driver.click_xpath('//li[text()="descending"]')
+    driver.click_xpath('//li[text()="Descending"]')
 
     driver.click_xpath(
         f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
@@ -718,7 +718,7 @@ def test_add_scanning_profile(
     )
     driver.wait_for_xpath('//div[text()="kowalski"]')
     driver.wait_for_xpath('//div[text()="offset_from_host_galaxy"]')
-    driver.wait_for_xpath('//div[text()="descending"]')
+    driver.wait_for_xpath('//div[text()="Descending"]')
 
 
 def test_delete_scanning_profile(driver, user, public_group):
@@ -764,6 +764,8 @@ def test_load_scanning_profile(
 
     redshift_maximum_input.clear()
     redshift_maximum_input.send_keys("1.0")
+    name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
+    name_input.send_keys("profile2")
     driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
     driver.wait_for_xpath('//div[contains(text(), "1.0")]')
 
