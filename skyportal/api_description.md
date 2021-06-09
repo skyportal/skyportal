@@ -87,7 +87,7 @@ response = requests.put(
 
 ```
 
-Note well the distinction between query/path/URL parameters and request
+Note well the distinction between path (AKA query or URL) parameters and request
 body parameters, how they're denoted in the docs below, and the sample
 usage of each in the examples above.
 
