@@ -74,11 +74,16 @@ When using Python's `requests` library, body parameters are specified
 using the `json` keyword argument:
 
 ```python
-token = 'abc'
-response = requests.put(
+token = "abc"
+response = requests.post(
     "http://localhost:5000/api/sources",
-    json={...},
-    headers={'Authorization': f'token {token}'},
+    json={
+        "id": "14gqr",
+        "ra": 353.36647,
+        "dec": 33.646149,
+        "group_ids": [52, 97],
+    },
+    headers={"Authorization": f"token {token}"},
 )
 ```
 
@@ -94,9 +99,11 @@ In the above examples, the SkyPortal server is located at
 `http://localhost:5000`. In case of success, the HTTP response is 200:
 
 ```
+
 HTTP code: 200, OK
 JSON response: {'status': 'success', 'data': {}, 'version': '0.9.dev0+git20200819.84c453a'}
-```
+
+````
 
 On failure, it is 400; the JSON response has `status="error"` with the reason
 for the failure given in `message`:
@@ -108,4 +115,4 @@ for the failure given in `message`:
   "data": {},
   "version": "0.9.1"
 }
-```
+````
