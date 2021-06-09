@@ -8,6 +8,9 @@ inside of `.tokens.yaml`.
 
 Once you have a token, you may access SkyPortal programmatically as
 follows.
+Any JSON request body parameters (all parameters listed under
+"REQUEST BODY SCHEMA: application/json" in API docs below) must be
+passed in to `requests.request` to the `json` keyword argument as below.
 
 #### Python
 
@@ -34,7 +37,7 @@ if response.status_code in (200, 400):
 curl -s -H 'Authorization: token ea70a5f0-b321-43c6-96a1-b2de225e0339' http://localhost:5000/api/sysinfo
 ```
 
-#### Using query parameters
+#### Using query parameters (specified as "PATH PARAMETERS" in API docs below)
 
 ```python
 import requests
@@ -50,6 +53,24 @@ print(f'HTTP code: {response.status_code}, {response.reason}')
 if response.status_code in (200, 400):
     print(f'JSON response: {response.json()}')
 ```
+
+Alternatively, when using Python's `requests` library, a dictionary
+of query parameters (aka path parameters, or URL parameters) can be
+passed in via the `params` keyword argument, e.g.
+
+```python
+token = 'abc'
+params = {"includeComments": True, "includeThumbnails": False}
+response = requests.get(
+    "http://localhost:5000/api/sources",
+    params=params,
+    headers={'Authorization': f'token {token}'},
+)
+```
+
+Note well the distinction between query/path/URL parameters and request
+body parameters, how they're denoted in the docs below, and the sample
+usage of each in the examples above.
 
 ### Response
 
