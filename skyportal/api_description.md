@@ -61,7 +61,7 @@ token = 'ea70a5f0-b321-43c6-96a1-b2de225e0339'
 
 response = requests.get(
     "http://localhost:5000/api/sources",
-    params={"includeComments": True, includeThumbnails: False},
+    params={"includeComments": True, "includeThumbnails": False},
     headers={'Authorization': f'token {token}'},
 )
 ```
