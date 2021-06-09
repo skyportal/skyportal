@@ -14,7 +14,7 @@ const UIPreferences = () => {
   const preferences = useSelector((state) => state.profile.preferences);
   const currentTheme = preferences?.theme;
   const invertThumbnails = preferences?.invertThumbnails || false;
-  const compactedComments = preferences?.compactedComments || false;
+  const compactComments = preferences?.compactComments || false;
   const dispatch = useDispatch();
 
   const themeToggled = (event) => {
