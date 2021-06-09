@@ -58,7 +58,7 @@ const UIPreferences = () => {
   const commpactCommentsSwitch = (
     <Switch
       value="Compact Comments"
-      checked={compactedComments}
+      checked={compactComments}
       onChange={commentsToggled}
     />
   );
