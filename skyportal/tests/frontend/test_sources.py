@@ -177,11 +177,19 @@ def test_comment_groups_validation(
     # public_group that user belongs to
     group_checkbox_xpath = f"//div[@data-testid='comments-accordion']//*[@data-testid='commentGroupCheckBox{public_group.id}']"
     driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
-    driver.click_xpath('//*[@name="submitCommentButton"]')
-    driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@data-testid="comments-accordion"]//div[contains(.,"Select at least one group")]'
+    )
     driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
-    driver.click_xpath('//*[@name="submitCommentButton"]')
-    driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
+    driver.wait_for_xpath_to_disappear(
+        '//div[@data-testid="comments-accordion"]//div[contains(.,"Select at least one group")]'
+    )
     try:
         driver.wait_for_xpath(
             f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]',
@@ -207,7 +215,10 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     comment_text = str(uuid.uuid4())
     enter_comment_text(driver, comment_text)
-    attachment_file = driver.find_element_by_css_selector('input[type=file]')
+    # attachment_file = driver.find_element_by_css_selector('input[type=file]')
+    attachment_file = driver.wait_for_xpath(
+        "//div[@data-testid='comments-accordion']//input[@name='attachment']"
+    )
     attachment_file.send_keys(
         pjoin(os.path.dirname(os.path.dirname(__file__)), 'data', 'spec.csv')
     )
@@ -216,7 +227,8 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     )
     try:
         comment_text_p = driver.wait_for_xpath(
-            f'//p[text()="{comment_text}"]', timeout=20
+            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]',
+            timeout=20,
         )
     except TimeoutException:
         driver.refresh()
@@ -237,7 +249,7 @@ def test_upload_download_comment_attachment(driver, user, public_source):
         "//div[@data-testid='comments-accordion']//div[contains(text(), 'Attachment:')]"
     )
     attachment_button = driver.wait_for_xpath(
-        '//button[@data-testid="attachmentButton_spec"]'
+        '//div[@data-testid="comments-accordion"]//button[@data-testid="attachmentButton_spec"]'
     )
     # Try to open the preview dialog twice before failing to make it more robust
     try:
@@ -246,18 +258,14 @@ def test_upload_download_comment_attachment(driver, user, public_source):
             0.5
         ).click().perform()
         # Preview dialog
-        driver.click_xpath(
-            '//div[@data-testid="comments-accordion"]//a[@data-testid="attachmentDownloadButton_spec"]'
-        )
+        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
     except TimeoutException:
         ActionChains(driver).move_to_element(attachment_div).pause(0.5).perform()
         ActionChains(driver).move_to_element(attachment_button).pause(
             0.5
         ).click().perform()
         # Preview dialog
-        driver.click_xpath(
-            '//div[@data-testid="comments-accordion"]//a[@data-testid="attachmentDownloadButton_spec"]'
-        )
+        driver.click_xpath('//a[@data-testid="attachmentDownloadButton_spec"]')
 
     fpath = str(os.path.abspath(pjoin(cfg['paths.downloads_folder'], 'spec.csv')))
     try_count = 1
