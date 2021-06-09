@@ -37,21 +37,52 @@ if response.status_code in (200, 400):
 curl -s -H 'Authorization: token ea70a5f0-b321-43c6-96a1-b2de225e0339' http://localhost:5000/api/sysinfo
 ```
 
-#### Using query parameters (specified as "PATH PARAMETERS" in API docs below)
+### Request parameters
+
+There are two ways to pass information along with a request: path and body parameters.
+
+#### Path parameters
+
+Path parameters (also called query or URL parameters) are embedded in
+the URL called. For example, you can specify `numPerPage` or
+`pageNumber` path parameters when calling `/api/candidates` as
+follows:
+
+```shell
+curl -s -H 'Authorization: token ea70a5f0-b321-43c6-96a1-b2de225e0339' \
+     http://localhost:5000/api/candidates?numPerPage=100&pageNumber=1
+```
+
+When using Python's `requests` library, a dictionary of path
+parameters can be passed in via the `params` keyword argument:
 
 ```python
-import requests
-
 token = 'ea70a5f0-b321-43c6-96a1-b2de225e0339'
 
 response = requests.get(
-    'http://localhost:5000/api/candidates?numPerPage=100&pageNumber=1',
-    headers={'Authorization': f'token {token}'}
+    "http://localhost:5000/api/sources",
+    params={"includeComments": True, includeThumbnails: False},
+    headers={'Authorization': f'token {token}'},
 )
+```
 
-print(f'HTTP code: {response.status_code}, {response.reason}')
-if response.status_code in (200, 400):
-    print(f'JSON response: {response.json()}')
+#### Body parameters
+
+Request body parameters (or simply: the body of the request)
+contains data uploaded to a specific endpoint. These are the
+parameters listed under `REQUEST BODY SCHEMA: application/json` in the
+API docs.
+
+When using Python's `requests` library, body parameters are specified
+using the `json` keyword argument:
+
+```python
+token = 'abc'
+response = requests.put(
+    "http://localhost:5000/api/sources",
+    json={...},
+    headers={'Authorization': f'token {token}'},
+)
 ```
 
 Alternatively, when using Python's `requests` library, a dictionary
