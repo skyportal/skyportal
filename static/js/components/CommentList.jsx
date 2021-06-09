@@ -171,7 +171,7 @@ const CommentList = () => {
   const userProfile = useSelector((state) => state.profile);
   const permissions = useSelector((state) => state.profile.permissions);
   const compactComments = useSelector(
-    (state) => state.profile.preferences.compactedComments
+    (state) => state.profile.preferences?.compactComments
   );
 
   // Color styling
