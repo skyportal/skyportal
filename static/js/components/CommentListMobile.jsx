@@ -224,7 +224,7 @@ const CommentListMobile = ({ isCandidate }) => {
   const obj = isCandidate ? candidate : source;
   const userProfile = useSelector((state) => state.profile);
   const compactComments = useSelector(
-    (state) => state.profile.preferences.compactedComments
+    (state) => state.profile.preferences.compactComments
   );
 
   // Color styling
