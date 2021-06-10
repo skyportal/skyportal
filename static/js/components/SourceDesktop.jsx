@@ -77,7 +77,9 @@ export const useSourceStyles = makeStyles((theme) => ({
     width: "350px",
     overflow: "auto",
   },
-  comments: {},
+  comments: {
+    width: "100%",
+  },
   classifications: {
     display: "flex",
     flexDirection: "column",
