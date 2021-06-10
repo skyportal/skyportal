@@ -285,6 +285,8 @@ misc:
   # consider a photometry point as a detection
   photometry_detection_threshold_nsigma: 3.0
 
+  allow_nonadmins_delete_objs: False
+
 weather:
   # time in seconds to wait before fetching weather for a given telescope
   refresh_time: 3600.0

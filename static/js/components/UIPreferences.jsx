@@ -14,6 +14,7 @@ const UIPreferences = () => {
   const preferences = useSelector((state) => state.profile.preferences);
   const currentTheme = preferences?.theme;
   const invertThumbnails = preferences?.invertThumbnails || false;
+  const compactComments = preferences?.compactComments || false;
   const dispatch = useDispatch();
 
   const themeToggled = (event) => {
@@ -27,6 +28,13 @@ const UIPreferences = () => {
   const thumbnailInvertToggled = (event) => {
     const prefs = {
       invertThumbnails: event.target.checked,
+    };
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
+  const commentsToggled = (event) => {
+    const prefs = {
+      compactComments: event.target.checked,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
@@ -47,6 +55,14 @@ const UIPreferences = () => {
     />
   );
 
+  const commpactCommentsSwitch = (
+    <Switch
+      value="Compact Comments"
+      checked={compactComments}
+      onChange={commentsToggled}
+    />
+  );
+
   /* To get hold of the current theme:
 
   const themeCtx = useTheme();
@@ -62,6 +78,10 @@ const UIPreferences = () => {
         <FormControlLabel
           control={thumbnailInvertSwitch}
           label="Invert thumbnails"
+        />
+        <FormControlLabel
+          control={commpactCommentsSwitch}
+          label="Compact Comments"
         />
       </FormGroup>
     </div>

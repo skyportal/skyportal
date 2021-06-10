@@ -4,15 +4,29 @@ import { useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 import Checkbox from "@material-ui/core/Checkbox";
 import TextField from "@material-ui/core/TextField";
+import { makeStyles } from "@material-ui/core/styles";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Typography from "@material-ui/core/Typography";
 import Button from "@material-ui/core/Button";
 import Box from "@material-ui/core/Box";
 
 import FormValidationError from "./FormValidationError";
-import styles from "./CommentEntry.css";
+
+const useStyles = makeStyles(() => ({
+  commentEntry: {
+    position: "relative",
+  },
+  inputDiv: {
+    padding: "0.3rem",
+  },
+  customizeGroupsContainer: {
+    flexWrap: "wrap",
+    width: "25rem",
+  },
+}));
 
 const CommentEntry = ({ addComment }) => {
+  const styles = useStyles();
   const { userAccessible: groups } = useSelector((state) => state.groups);
 
   const {
@@ -122,7 +136,14 @@ const CommentEntry = ({ addComment }) => {
         </Box>
       </div>
       <div className={styles.inputDiv}>
-        <input type="submit" value="↵" name="submitCommentButton" />
+        <Button
+          variant="contained"
+          color="primary"
+          type="submit"
+          name="submitCommentButton"
+        >
+          Add Comment
+        </Button>
       </div>
     </form>
   );
