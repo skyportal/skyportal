@@ -744,6 +744,24 @@ const SourceTable = ({
     );
   };
 
+  const getSavedBy = (source) => {
+    // Get the user who saved the source to the specified group
+    if (groupID !== undefined) {
+      const group = source.groups.find((g) => g.id === groupID);
+      return group?.saved_by.username;
+    }
+    // Otherwise, get whoever saved it last
+    const usernames = source.groups
+      .sort((g1, g2) => (g1.saved_at < g2.saved_at ? -1 : 1))
+      .map((g) => g.saved_by.username);
+    return usernames[usernames.length - 1];
+  };
+
+  const renderSavedBy = (dataIndex) => {
+    const source = sources[dataIndex];
+    return getSavedBy(source);
+  };
+
   const handleFilterSubmit = async (formData) => {
     setQueryInProgress(true);
 
@@ -941,6 +959,18 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Date Saved"),
         customBodyRenderLite: renderDateSaved,
+      },
+    },
+    {
+      name: "saved_by",
+      label: groupID ? "Saved To Group By" : "Last Saved By",
+      options: {
+        filter: false,
+        sort: false,
+        display: displayedColumns.includes(
+          groupID ? "Saved To Group By" : "Last Saved By"
+        ),
+        customBodyRenderLite: renderSavedBy,
       },
     },
     {
