@@ -211,7 +211,7 @@ phot_markers = [
     "triangle",
     "square",
     "diamond",
-    "star",
+    "inverted_triangle",
     "plus",
     "cross",
     "triangle_pin",
