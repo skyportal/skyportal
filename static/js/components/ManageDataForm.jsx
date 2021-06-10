@@ -15,6 +15,8 @@ import GetAppIcon from "@material-ui/icons/GetApp";
 import Dialog from "@material-ui/core/Dialog";
 import Grid from "@material-ui/core/Grid";
 import DialogContent from "@material-ui/core/DialogContent";
+import TableRow from "@material-ui/core/TableRow";
+import TableCell from "@material-ui/core/TableCell";
 import Papa from "papaparse";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -125,47 +127,39 @@ const useStyles = makeStyles(() => ({
   groupSelect: {
     width: "20rem",
   },
-  comments: {
-    justify: "flex-end",
-  },
-  container: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "flex-start",
-  },
 }));
 
 const SpectrumRow = ({ rowData, route }) => {
   const styles = useSourceStyles();
-  const classes = useStyles();
-
+  const colSpan = rowData.length + 1;
   return (
-    <div className={classes.container}>
-      <Grid container direction="row" justify="center" alignItems="center">
-        <Grid item className={styles.photometryContainer}>
-          <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
-            <Plot
-              className={styles.plot}
-              // eslint-disable-next-line react/prop-types
-              url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
+    <TableRow>
+      <TableCell colSpan={colSpan}>
+        <Grid container direction="row" justify="center" alignItems="center">
+          <Grid item className={styles.photometryContainer} sm={6}>
+            <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+              <Plot
+                className={styles.plot}
+                // eslint-disable-next-line react/prop-types
+                url={`/api/internal/plot/spectroscopy/${route.id}?spectrumID=${rowData[0]}`}
+              />
+            </Suspense>
+          </Grid>
+          <Grid
+            item
+            data-testid={`individual-spectrum-id_${rowData[0]}`}
+            sm={6}
+          >
+            <Typography variant="h6">Comments</Typography>
+            <CommentList
+              associatedResourceType="spectrum"
+              objID={route.id}
+              spectrumID={rowData[0]}
             />
-          </Suspense>
+          </Grid>
         </Grid>
-
-        <Grid
-          item
-          className={classes.comments}
-          data-testid={`individual-spectrum-id_${rowData[0]}`}
-        >
-          <Typography variant="h6">Comments</Typography>
-          <CommentList
-            associatedResourceType="spectrum"
-            objID={route.id}
-            spectrumID={rowData[0]}
-          />
-        </Grid>
-      </Grid>
-    </div>
+      </TableCell>
+    </TableRow>
   );
 };
 
