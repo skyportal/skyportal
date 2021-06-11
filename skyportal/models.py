@@ -3459,9 +3459,7 @@ class GcnNotice(Base):
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
-    ivorn = sa.Column(
-        sa.String, primary_key=True, comment='Unique identifier of VOEvent'
-    )
+    ivorn = sa.Column(sa.String, primary_key=True, doc='Unique identifier of VOEvent')
 
     notice_type = sa.Column(
         sa.Enum(gcn.NoticeType),
@@ -3470,10 +3468,10 @@ class GcnNotice(Base):
     )
 
     stream = sa.Column(
-        sa.String, nullable=False, comment='Event stream or mission (i.e., "Fermi")'
+        sa.String, nullable=False, doc='Event stream or mission (i.e., "Fermi")'
     )
 
-    date = sa.Column(sa.DateTime, nullable=False, comment='UTC message timestamp')
+    date = sa.Column(sa.DateTime, nullable=False, doc='UTC message timestamp')
 
     dateobs = sa.Column(
         sa.DateTime,
@@ -3483,7 +3481,7 @@ class GcnNotice(Base):
     )
 
     content = deferred(
-        sa.Column(sa.LargeBinary, nullable=False, comment='Raw VOEvent content')
+        sa.Column(sa.LargeBinary, nullable=False, doc='Raw VOEvent content')
     )
 
     def _get_property(self, property_name, value=None):
@@ -3543,15 +3541,13 @@ class Localization(Base):
         comment='UTC event timestamp',
     )
 
-    localization_name = sa.Column(
-        sa.String, primary_key=True, comment='Localization name'
-    )
+    localization_name = sa.Column(sa.String, primary_key=True, doc='Localization name')
 
     uniq = deferred(
         sa.Column(
             sa.ARRAY(sa.BigInteger),
             nullable=False,
-            comment='Multiresolution HEALPix UNIQ pixel index array',
+            doc='Multiresolution HEALPix UNIQ pixel index array',
         )
     )
 
@@ -3559,30 +3555,28 @@ class Localization(Base):
         sa.Column(
             sa.ARRAY(sa.Float),
             nullable=False,
-            comment='Multiresolution HEALPix probability density array',
+            doc='Multiresolution HEALPix probability density array',
         )
     )
 
     distmu = deferred(
-        sa.Column(
-            sa.ARRAY(sa.Float), comment='Multiresolution HEALPix distance mu array'
-        )
+        sa.Column(sa.ARRAY(sa.Float), doc='Multiresolution HEALPix distance mu array')
     )
 
     distsigma = deferred(
         sa.Column(
-            sa.ARRAY(sa.Float), comment='Multiresolution HEALPix distance sigma array'
+            sa.ARRAY(sa.Float), doc='Multiresolution HEALPix distance sigma array'
         )
     )
 
     distnorm = deferred(
         sa.Column(
             sa.ARRAY(sa.Float),
-            comment='Multiresolution HEALPix distance normalization array',
+            doc='Multiresolution HEALPix distance normalization array',
         )
     )
 
-    contour = deferred(sa.Column(JSONB, comment='GeoJSON contours'))
+    contour = deferred(sa.Column(JSONB, doc='GeoJSON contours'))
 
     @hybrid_property
     def is_3d(self):
