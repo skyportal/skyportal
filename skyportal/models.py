@@ -9,6 +9,7 @@ import astroplan
 import gcn
 import healpix_alchemy as ha
 import healpy as hp
+import lxml
 import numpy as np
 import requests
 import sqlalchemy as sa
