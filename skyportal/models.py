@@ -3464,7 +3464,7 @@ class GcnNotice(Base):
     notice_type = sa.Column(
         sa.Enum(gcn.NoticeType),
         nullable=False,
-        comment='GCN Notice type',
+        doc='GCN Notice type',
     )
 
     stream = sa.Column(
@@ -3477,7 +3477,7 @@ class GcnNotice(Base):
         sa.DateTime,
         sa.ForeignKey('gcnevents.dateobs'),
         nullable=False,
-        comment='UTC event timestamp',
+        doc='UTC event timestamp',
     )
 
     content = deferred(
@@ -3538,7 +3538,7 @@ class Localization(Base):
         sa.DateTime,
         sa.ForeignKey('gcnevents.dateobs'),
         nullable=False,
-        comment='UTC event timestamp',
+        doc='UTC event timestamp',
     )
 
     localization_name = sa.Column(sa.String, primary_key=True, doc='Localization name')
