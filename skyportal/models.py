@@ -3530,7 +3530,7 @@ class Localization(Base):
     map."""
 
     nside = 512
-    """HEALPix resolution used for flat (non-multiresolution) operations."""
+    # HEALPix resolution used for flat (non-multiresolution) operations.
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
