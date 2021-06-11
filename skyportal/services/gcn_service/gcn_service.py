@@ -1,6 +1,3 @@
-import os
-import requests
-import urllib
 import yaml
 
 import gcn
@@ -12,18 +9,19 @@ from skyportal.tests import api
 
 env, cfg = load_env()
 
+
 def get_token():
     try:
         token = yaml.load(open('.tokens.yaml'), Loader=yaml.Loader)['INITIAL_ADMIN']
         print('Token loaded from `.tokens.yaml`')
         return token
-    except (FileNotFoundError, TypeError, KeyError) as e:
-        print(
-            'Error: no token specified, and no suitable token found in .tokens.yaml'
-        )
+    except (FileNotFoundError, TypeError, KeyError):
+        print('Error: no token specified, and no suitable token found in .tokens.yaml')
         return None
 
+
 admin_token = get_token()
+
 
 @gcn.include_notice_types(
     gcn.NoticeType.FERMI_GBM_FLT_POS,
@@ -38,12 +36,14 @@ admin_token = get_token()
     gcn.NoticeType.AMON_ICECUBE_COINC,
     gcn.NoticeType.AMON_ICECUBE_HESE,
     gcn.NoticeType.ICECUBE_ASTROTRACK_GOLD,
-    gcn.NoticeType.ICECUBE_ASTROTRACK_BRONZE)
+    gcn.NoticeType.ICECUBE_ASTROTRACK_BRONZE,
+)
 def handle(payload, root):
-    response_status, data = api('PUT', 'gcn/upload',
-                                data={'xml': payload},
-                                token=admin_token)
- 
+    response_status, data = api(
+        'PUT', 'gcn/upload', data={'xml': payload}, token=admin_token
+    )
+
+
 if __name__ == "__main__":
     log = make_log("gcnserver")
 
