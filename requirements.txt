@@ -12,7 +12,7 @@ aplpy==2.0.3
 reproject==0.7.1
 avro-python3==1.10.2
 fastavro==1.2.4
-tqdm>=4.23,<4.62
+tqdm>=4.27,<4.62
 matplotlib==3.4.2
 astroquery==0.4.2
 apispec==4.0.0

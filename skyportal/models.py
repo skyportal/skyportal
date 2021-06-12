@@ -3587,11 +3587,11 @@ class Localization(Base):
         )
 
     @is_3d.expression
-    def is_3d(self):
-        return (
-            self.distmu.isnot(None)
-            and self.distsigma.isnot(None)
-            and self.distnorm.isnot(None)
+    def is_3d(cls):
+        return sa.and_(
+            cls.distmu.isnot(None),
+            cls.distsigma.isnot(None),
+            cls.distnorm.isnot(None),
         )
 
     @property
@@ -3662,10 +3662,10 @@ class GcnEvent(Base):
 
     dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
 
-    gcn_notices = relationship(GcnNotice, order_by=GcnNotice.date)
+    gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)
 
     _tags = relationship(
-        GcnTag,
+        "GcnTag",
         order_by=(
             sa.func.lower(GcnTag.text).notin_({'fermi', 'swift', 'amon', 'lvc'}),
             sa.func.lower(GcnTag.text).notin_({'long', 'short'}),
@@ -3673,12 +3673,22 @@ class GcnEvent(Base):
         ),
     )
 
-    localizations = relationship(Localization)
+    localizations = relationship("Localization")
 
-    @property
+    @hybrid_property
     def tags(self):
         """List of tags."""
         return [tag.text for tag in self._tags]
+
+    @tags.expression
+    def tags(cls):
+        """List of tags."""
+        return (
+            DBSession()
+            .query(GcnTag.text)
+            .filter(GcnTag.dateobs == cls.dateobs)
+            .subquery()
+        )
 
     @hybrid_property
     def retracted(self):
