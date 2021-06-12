@@ -1,8 +1,8 @@
-"""add skymap tables
+"""add skymaps
 
-Revision ID: 144b4963a35d
+Revision ID: d04fdcd012e3
 Revises: fb0304aeca6c
-Create Date: 2021-06-11 09:56:53.577918
+Create Date: 2021-06-11 20:11:10.491064
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '144b4963a35d'
+revision = 'd04fdcd012e3'
 down_revision = 'fb0304aeca6c'
 branch_labels = None
 depends_on = None
@@ -35,9 +35,7 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('modified', sa.DateTime(), nullable=False),
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column(
-            'ivorn', sa.String(), nullable=False, comment='Unique identifier of VOEvent'
-        ),
+        sa.Column('ivorn', sa.String(), nullable=False),
         sa.Column(
             'notice_type',
             sa.Enum(
@@ -188,23 +186,11 @@ def upgrade():
                 name='noticetype',
             ),
             nullable=False,
-            comment='GCN Notice type',
         ),
-        sa.Column(
-            'stream',
-            sa.String(),
-            nullable=False,
-            comment='Event stream or mission (i.e., "Fermi")',
-        ),
-        sa.Column(
-            'date', sa.DateTime(), nullable=False, comment='UTC message timestamp'
-        ),
-        sa.Column(
-            'dateobs', sa.DateTime(), nullable=False, comment='UTC event timestamp'
-        ),
-        sa.Column(
-            'content', sa.LargeBinary(), nullable=False, comment='Raw VOEvent content'
-        ),
+        sa.Column('stream', sa.String(), nullable=False),
+        sa.Column('date', sa.DateTime(), nullable=False),
+        sa.Column('dateobs', sa.DateTime(), nullable=False),
+        sa.Column('content', sa.LargeBinary(), nullable=False),
         sa.ForeignKeyConstraint(
             ['dateobs'],
             ['gcnevents.dateobs'],
@@ -235,51 +221,14 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('modified', sa.DateTime(), nullable=False),
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column(
-            'dateobs', sa.DateTime(), nullable=False, comment='UTC event timestamp'
-        ),
-        sa.Column(
-            'localization_name',
-            sa.String(),
-            nullable=False,
-            comment='Localization name',
-        ),
-        sa.Column(
-            'uniq',
-            sa.ARRAY(sa.BigInteger()),
-            nullable=False,
-            comment='Multiresolution HEALPix UNIQ pixel index array',
-        ),
-        sa.Column(
-            'probdensity',
-            sa.ARRAY(sa.Float()),
-            nullable=False,
-            comment='Multiresolution HEALPix probability density array',
-        ),
-        sa.Column(
-            'distmu',
-            sa.ARRAY(sa.Float()),
-            nullable=True,
-            comment='Multiresolution HEALPix distance mu array',
-        ),
-        sa.Column(
-            'distsigma',
-            sa.ARRAY(sa.Float()),
-            nullable=True,
-            comment='Multiresolution HEALPix distance sigma array',
-        ),
-        sa.Column(
-            'distnorm',
-            sa.ARRAY(sa.Float()),
-            nullable=True,
-            comment='Multiresolution HEALPix distance normalization array',
-        ),
-        sa.Column(
-            'contour',
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=True,
-            comment='GeoJSON contours',
-        ),
+        sa.Column('dateobs', sa.DateTime(), nullable=False),
+        sa.Column('localization_name', sa.String(), nullable=False),
+        sa.Column('uniq', sa.ARRAY(sa.BigInteger()), nullable=False),
+        sa.Column('probdensity', sa.ARRAY(sa.Float()), nullable=False),
+        sa.Column('distmu', sa.ARRAY(sa.Float()), nullable=True),
+        sa.Column('distsigma', sa.ARRAY(sa.Float()), nullable=True),
+        sa.Column('distnorm', sa.ARRAY(sa.Float()), nullable=True),
+        sa.Column('contour', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.ForeignKeyConstraint(
             ['dateobs'],
             ['gcnevents.dateobs'],
