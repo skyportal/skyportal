@@ -3667,7 +3667,6 @@ class GcnTag(Base):
 class GcnEvent(Base):
     """Event information, including an event ID, mission, and time of the event."""
 
-    create = read = public
     update = delete = AccessibleIfUserMatches('sent_by')
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
