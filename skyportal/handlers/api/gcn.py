@@ -57,7 +57,6 @@ class GcnHandler(BaseHandler):
             event = GcnEvent.query.filter_by(dateobs=dateobs).one()
         except NoResultFound:
             event = DBSession().merge(GcnEvent(dateobs=dateobs))
-            DBSession().commit()
 
         tags = [GcnTag(dateobs=event.dateobs, text=_) for _ in get_tags(root)]
 
@@ -73,7 +72,6 @@ class GcnHandler(BaseHandler):
         for tag in tags:
             DBSession().merge(tag)
         DBSession().merge(gcn_notice)
-        DBSession().commit()
 
         skymap = get_skymap(root, gcn_notice)
         skymap["dateobs"] = event.dateobs
@@ -156,6 +154,7 @@ class LocalizationHandler(BaseHandler):
         localization = q.first()
 
         data = {
+            'flat_2d': localization.flat_2d,
             'contour': localization.contour,
             'dateobs': localization.dateobs,
             'localization_name': localization.localization_name,

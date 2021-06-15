@@ -3457,6 +3457,9 @@ class SourceNotification(Base):
 class GcnNotice(Base):
     """Records of ingested GCN notices"""
 
+    create = read = public
+    update = delete = AccessibleIfUserMatches('sent_by')
+
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     ivorn = sa.Column(sa.String, primary_key=True, doc='Unique identifier of VOEvent')
@@ -3528,6 +3531,9 @@ class Localization(Base):
     """Localization information, including the localization ID, event ID, right
     ascension, declination, error radius (if applicable), and the healpix
     map."""
+
+    create = read = public
+    update = delete = AccessibleIfUserMatches('sent_by')
 
     nside = 512
     # HEALPix resolution used for flat (non-multiresolution) operations.
@@ -3643,6 +3649,9 @@ class Localization(Base):
 class GcnTag(Base):
     """Store qualitative tags for events."""
 
+    create = read = public
+    update = delete = AccessibleIfUserMatches('sent_by')
+
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     dateobs = sa.Column(
@@ -3657,6 +3666,9 @@ class GcnTag(Base):
 
 class GcnEvent(Base):
     """Event information, including an event ID, mission, and time of the event."""
+
+    create = read = public
+    update = delete = AccessibleIfUserMatches('sent_by')
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
