@@ -3669,7 +3669,6 @@ class GcnEvent(Base):
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
-    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
 
