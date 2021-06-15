@@ -22,7 +22,6 @@ from ...models import (
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
-_, cfg = load_env()
 
 
 class GcnHandler(BaseHandler):
