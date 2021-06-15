@@ -70,7 +70,7 @@ class GcnHandler(BaseHandler):
         )
 
         for tag in tags:
-            DBSession().merge(tag)
+            DBSession().add(tag)
         DBSession().merge(gcn_notice)
 
         skymap = get_skymap(root, gcn_notice)
