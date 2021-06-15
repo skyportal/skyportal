@@ -7,7 +7,6 @@ from baselayer.log import make_log
 
 from skyportal.tests import api
 
-env, cfg = load_env()
 
 
 def get_token():
