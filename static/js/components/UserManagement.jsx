@@ -13,11 +13,13 @@ import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
 import AddCircleIcon from "@material-ui/icons/AddCircle";
 import HelpIcon from "@material-ui/icons/Help";
+import EditIcon from "@material-ui/icons/Edit";
 import IconButton from "@material-ui/core/IconButton";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import Tooltip from "@material-ui/core/Tooltip";
+import { DatePicker } from "@material-ui/pickers";
 import {
   makeStyles,
   createMuiTheme,
@@ -25,6 +27,9 @@ import {
   useTheme,
 } from "@material-ui/core/styles";
 import Form from "@rjsf/material-ui";
+
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -36,6 +41,8 @@ import * as streamsActions from "../ducks/streams";
 import * as invitationsActions from "../ducks/invitations";
 import * as aclsActions from "../ducks/acls";
 import * as rolesActions from "../ducks/roles";
+
+dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
   icon: {
@@ -89,9 +96,12 @@ const UserManagement = () => {
   const [addUserGroupsDialogOpen, setAddUserGroupsDialogOpen] = useState(false);
   const [addUserRolesDialogOpen, setAddUserRolesDialogOpen] = useState(false);
   const [addUserACLsDialogOpen, setAddUserACLsDialogOpen] = useState(false);
-  const [addUserStreamsDialogOpen, setAddUserStreamsDialogOpen] = useState(
-    false
-  );
+  const [addUserStreamsDialogOpen, setAddUserStreamsDialogOpen] =
+    useState(false);
+  const [
+    editUserExpirationDateDialogOpen,
+    setEditUserExpirationDateDialogOpen,
+  ] = useState(false);
   const [clickedUser, setClickedUser] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
 
@@ -278,6 +288,21 @@ const UserManagement = () => {
     }
   };
 
+  const handleEditUserExpirationDate = async (formData) => {
+    const result = await dispatch(
+      usersActions.patchUser(clickedUser.id, {
+        expirationDate: formData.date.format("YYYY/MM/DD"),
+      })
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("User expiration date successfully updated."));
+      reset({ date: "" });
+      setEditUserExpirationDateDialogOpen(false);
+      dispatch(usersActions.fetchUsers(fetchParams));
+      setClickedUser(null);
+    }
+  };
+
   // MUI DataTable functions
   const renderName = (dataIndex) => {
     const user = users[dataIndex];
@@ -446,6 +471,26 @@ const UserManagement = () => {
             data-testid={`deleteStreamUserButton_${user.id}_${stream.id}`}
           />
         ))}
+      </div>
+    );
+  };
+
+  const renderExpirationDate = (dataIndex) => {
+    const user = users[dataIndex];
+    return (
+      <div>
+        {dayjs.utc(user.expiration_date).format("YYYY/MM/DD")}
+        <IconButton
+          aria-label="edit-expiration"
+          data-testid={`editUserExpirationDate${user.id}`}
+          onClick={() => {
+            setClickedUser(user);
+            setEditUserExpirationDateDialogOpen(true);
+          }}
+          size="small"
+        >
+          <EditIcon color="disabled" />
+        </IconButton>
       </div>
     );
   };
@@ -629,6 +674,16 @@ const UserManagement = () => {
         sort: false,
         customBodyRenderLite: renderStreams,
         filter: false,
+      },
+    },
+    {
+      name: "expiration_date",
+      label: "Expiration Date",
+      options: {
+        sort: false,
+        filter: false,
+        display: false,
+        customBodyRenderLite: renderExpirationDate,
       },
     },
   ];
@@ -899,6 +954,49 @@ const UserManagement = () => {
                 type="submit"
                 name="submitAddRolesButton"
                 data-testid="submitAddRolesButton"
+              >
+                Submit
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={editUserExpirationDateDialogOpen}
+        onClose={() => {
+          setEditUserExpirationDateDialogOpen(false);
+        }}
+        style={{ position: "fixed" }}
+      >
+        <DialogTitle>
+          {`Edit user ${clickedUser?.username} expiration date:`}
+        </DialogTitle>
+        <DialogContent>
+          <form onSubmit={handleSubmit(handleEditUserExpirationDate)}>
+            <Controller
+              render={({ onChange, value }) => (
+                <DatePicker
+                  value={value}
+                  onChange={(date) =>
+                    date ? onChange(dayjs.utc(date)) : onChange(date)
+                  }
+                  label="Expiration date (UTC)"
+                  format="YYYY/MM/DD"
+                  disablePast
+                  data-testid="expirationDatePicker"
+                />
+              )}
+              name="date"
+              control={control}
+              defaultValue={dayjs.utc().format("YYYY/MM/DD")}
+            />
+            <br />
+            <div>
+              <Button
+                variant="contained"
+                type="submit"
+                name="submitAddACLsButton"
+                data-testid="submitAddACLsButton"
               >
                 Submit
               </Button>

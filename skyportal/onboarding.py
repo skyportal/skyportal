@@ -55,6 +55,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
             first_name=details["first_name"],
             last_name=details["last_name"],
             oauth_uid=uid,
+            expiration_date=invitation.user_expiration_date,
         )
         user.roles.append(invitation.role)
         DBSession().add(user)

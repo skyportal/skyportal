@@ -3390,6 +3390,7 @@ class Invitation(Base):
         uselist=False,
     )
     used = sa.Column(sa.Boolean, nullable=False, default=False)
+    user_expiration_date = sa.Column(sa.DateTime, nullable=True)
 
 
 GroupInvitation = join_model('group_invitations', Group, Invitation)
