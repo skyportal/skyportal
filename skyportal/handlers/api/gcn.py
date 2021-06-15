@@ -71,7 +71,7 @@ class GcnHandler(BaseHandler):
 
         for tag in tags:
             DBSession().add(tag)
-        DBSession().merge(gcn_notice)
+        DBSession().add(gcn_notice)
 
         skymap = get_skymap(root, gcn_notice)
         skymap["dateobs"] = event.dateobs
