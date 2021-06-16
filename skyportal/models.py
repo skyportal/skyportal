@@ -3764,7 +3764,6 @@ StreamUser.delete = restricted & CustomUserAccessControl(
 @event.listens_for(Spectrum, 'after_insert')
 @event.listens_for(Comment, 'after_insert')
 def add_user_notifications(mapper, connection, target):
-
     # Add front-end user notifications
     @event.listens_for(DBSession(), "after_flush", once=True)
     def receive_after_flush(session, context):
