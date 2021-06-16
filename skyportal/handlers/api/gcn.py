@@ -7,8 +7,6 @@ import lxml
 import xmlschema
 from urllib.parse import urlparse
 
-from baselayer.app.env import load_env
-
 from sqlalchemy.orm.exc import NoResultFound
 
 from baselayer.app.access import auth_or_token
@@ -23,13 +21,21 @@ from ...models import (
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
 
-
 class GcnHandler(BaseHandler):
     @auth_or_token
     def put(self):
         """
         ---
         description: Ingest GCN xml file
+        tags:
+          - gcnevents
+          - gcntags
+          - gcnnotices
+          - localizations
+        requestBody:
+          content:
+            application/json:
+              schema: GcnHandlerPut
         responses:
           200:
             content:
@@ -56,6 +62,7 @@ class GcnHandler(BaseHandler):
             event = GcnEvent.query.filter_by(dateobs=dateobs).one()
         except NoResultFound:
             event = DBSession().add(GcnEvent(dateobs=dateobs))
+            DBSession().commit()
 
         tags = [GcnTag(dateobs=event.dateobs, text=_) for _ in get_tags(root)]
 
@@ -98,6 +105,21 @@ default_prefs = {'maxNumGcnEvents': 10, 'sinceDaysAgo': 3650}
 class GcnEventViewsHandler(BaseHandler):
     @auth_or_token
     def get(self):
+        """
+        ---
+        description: Retrieve GCN events
+        tags:
+          - gcnevents
+        responses:
+          200:
+            content:
+              application/json:
+                schema: GcnEventViewsHandlerGet
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         user_prefs = getattr(self.current_user, 'preferences', None) or {}
         top_events_prefs = user_prefs.get('topGcnEvents', {})
         top_events_prefs = {**default_prefs, **top_events_prefs}
@@ -127,6 +149,28 @@ class GcnEventViewsHandler(BaseHandler):
 class GcnEventHandler(BaseHandler):
     @auth_or_token
     def get(self, dateobs):
+        """
+        ---
+        description: Retrieve a GCN event
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: dateobs
+        responses:
+          200:
+            content:
+              application/json:
+                schema: GcnEventHandlerGet
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
         q = GcnEvent.query.filter_by(dateobs=dateobs)
         event = q.first()
         tags = [_ for _ in event.tags]
@@ -147,6 +191,32 @@ class GcnEventHandler(BaseHandler):
 class LocalizationHandler(BaseHandler):
     @auth_or_token
     def get(self, dateobs, localization_name):
+        """
+        ---
+        description: Retrieve a GCN localization
+        tags:
+          - localizations
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: dateobs
+          - in: path
+            name: localization_name
+            required: true
+            schema:
+              type: localization_name
+        responses:
+          200:
+            content:
+              application/json:
+                schema: LocalizationHandlerGet
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         q = Localization.query.filter_by(
             dateobs=dateobs, localization_name=localization_name
         )
@@ -157,45 +227,6 @@ class LocalizationHandler(BaseHandler):
             'contour': localization.contour,
             'dateobs': localization.dateobs,
             'localization_name': localization.localization_name,
-        }
-
-        return self.success(data=data)
-
-
-class ZTFFieldsHandler(BaseHandler):
-    @auth_or_token
-    def get(self):
-        contours = []
-        import numpy as np
-        import copy
-        import gwemopt.utils
-
-        fields = np.loadtxt('ZTF.tess')[:, :3]
-        for field_id, ra, dec in fields:
-            ipix, radecs, patch, area = gwemopt.utils.getSquarePixels(ra, dec, 7.3, 256)
-            if len(radecs) == 0:
-                continue
-            corners = np.vstack((radecs, radecs[0, :]))
-            if corners.size == 10:
-                corners_copy = copy.deepcopy(corners)
-                corners[2] = corners_copy[3]
-                corners[3] = corners_copy[2]
-            contour = {
-                'type': 'Feature',
-                'geometry': {
-                    'type': 'MultiLineString',
-                    'coordinates': [corners.tolist()],
-                },
-                'properties': {
-                    'telescope': 'ZTF',
-                    'field_id': int(field_id),
-                    'ra': ra,
-                    'dec': dec,
-                },
-            }
-            contours.append(contour)
-        data = {
-            'contour': contours,
         }
 
         return self.success(data=data)

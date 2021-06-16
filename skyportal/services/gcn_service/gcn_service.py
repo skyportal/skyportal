@@ -2,11 +2,9 @@ import yaml
 
 import gcn
 
-from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from skyportal.tests import api
-
 
 
 def get_token():
@@ -37,7 +35,7 @@ admin_token = get_token()
     gcn.NoticeType.ICECUBE_ASTROTRACK_GOLD,
     gcn.NoticeType.ICECUBE_ASTROTRACK_BRONZE,
 )
-def handle(payload, root):
+def handle(payload):
     response_status, data = api(
         'PUT', 'gcn/upload', data={'xml': payload}, token=admin_token
     )

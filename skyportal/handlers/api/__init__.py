@@ -13,7 +13,6 @@ from .gcn import (
     GcnEventHandler,
     GcnEventViewsHandler,
     LocalizationHandler,
-    ZTFFieldsHandler,
 )
 from .group import (
     GroupHandler,
