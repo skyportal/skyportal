@@ -3775,9 +3775,9 @@ def add_user_notifications(mapper, connection, target):
         users = (
             User.query.join(listing_subquery, User.id == listing_subquery.c.user_id)
             .filter(
-                User.preferences["favorite_sources_activity_notifications"][
-                    "comments"
-                ].is_(True)
+                User.preferences["favorite_sources_activity_notifications"]["comments"]
+                .astext.cast(sa.Boolean)
+                .is_(True)
             )
             .all()
         )
