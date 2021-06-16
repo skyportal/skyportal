@@ -111,4 +111,4 @@ def test_comment_on_favorite_source_triggers_notification(
     driver.get("/")
     driver.wait_for_xpath("//span[text()='1']")
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
-    driver.wait_for_xpath('//*[text()=" on your favorite source "]')
+    driver.wait_for_xpath('//*[text()="New comment on your favorite source "]')

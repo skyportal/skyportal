@@ -3790,7 +3790,7 @@ def add_user_notifications(mapper, connection, target):
                 session.add(
                     UserNotification(
                         user=user,
-                        text=f"New *{target.__class__.__name__}* on your favorite source *{target.obj_id}*",
+                        text=f"New {target.__class__.__name__.lower()} on your favorite source *{target.obj_id}*",
                         url=f"/source/{target.obj_id}",
                     )
                 )
