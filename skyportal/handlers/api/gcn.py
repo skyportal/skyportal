@@ -61,8 +61,9 @@ class GcnHandler(BaseHandler):
         try:
             event = GcnEvent.query.filter_by(dateobs=dateobs).one()
         except NoResultFound:
-            event = DBSession().add(GcnEvent(dateobs=dateobs))
+            DBSession().add(GcnEvent(dateobs=dateobs))
             DBSession().commit()
+            event = GcnEvent.query.filter_by(dateobs=dateobs).one()
 
         tags = [GcnTag(dateobs=event.dateobs, text=_) for _ in get_tags(root)]
 
