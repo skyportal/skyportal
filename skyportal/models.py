@@ -3785,7 +3785,7 @@ def add_user_notifications(mapper, connection, target):
             session.add(
                 UserNotification(
                     user=user,
-                    text=f"New comment on your favorite source *{target.obj_id}*",
+                    text=f"*{target.author.username}* commented on your favorite source *{target.obj_id}*",
                     url=f"/source/{target.obj_id}",
                 )
             )
