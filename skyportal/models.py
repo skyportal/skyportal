@@ -3760,4 +3760,35 @@ StreamUser.delete = restricted & CustomUserAccessControl(
 )
 
 
+@event.listens_for(Comment, 'after_insert')
+def add_user_notifications(mapper, connection, target):
+
+    # Add front-end user notifications
+    @event.listens_for(DBSession(), "after_flush", once=True)
+    def receive_after_flush(session, context):
+        listing_subquery = (
+            Listing.query.filter(Listing.list_name == "favorites")
+            .filter(Listing.obj_id == target.obj_id)
+            .distinct(Listing.user_id)
+            .subquery()
+        )
+        users = (
+            User.query.join(listing_subquery, User.id == listing_subquery.c.user_id)
+            .filter(
+                User.preferences["favorite_sources_activity_notifications"][
+                    "comments"
+                ].is_(True)
+            )
+            .all()
+        )
+        for user in users:
+            session.add(
+                UserNotification(
+                    user=user,
+                    text=f"New comment on your favorite source *{target.obj_id}*",
+                    url=f"/source/{target.obj_id}",
+                )
+            )
+
+
 schema.setup_schema()
