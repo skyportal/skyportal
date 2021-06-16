@@ -3760,6 +3760,8 @@ StreamUser.delete = restricted & CustomUserAccessControl(
 )
 
 
+@event.listens_for(Classification, 'after_insert')
+@event.listens_for(Spectrum, 'after_insert')
 @event.listens_for(Comment, 'after_insert')
 def add_user_notifications(mapper, connection, target):
 
@@ -3775,20 +3777,24 @@ def add_user_notifications(mapper, connection, target):
         users = (
             User.query.join(listing_subquery, User.id == listing_subquery.c.user_id)
             .filter(
-                User.preferences["favorite_sources_activity_notifications"]["comments"]
+                User.preferences["favorite_sources_activity_notifications"][
+                    target.__tablename__
+                ]
                 .astext.cast(sa.Boolean)
                 .is_(True)
             )
             .all()
         )
         for user in users:
-            session.add(
-                UserNotification(
-                    user=user,
-                    text=f"*{target.author.username}* commented on your favorite source *{target.obj_id}*",
-                    url=f"/source/{target.obj_id}",
+            # Only notify users who have read access to the new record in question
+            if target.__class__.get_if_accessible_by(target.id, user) is not None:
+                session.add(
+                    UserNotification(
+                        user=user,
+                        text=f"New *{target.__class__.__name__}* on your favorite source *{target.obj_id}*",
+                        url=f"/source/{target.obj_id}",
+                    )
                 )
-            )
 
 
 schema.setup_schema()
