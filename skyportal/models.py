@@ -3669,7 +3669,6 @@ class GcnEvent(Base):
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
-
     dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
 
     gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)
