@@ -285,9 +285,10 @@ class SEDMAPI(FollowUpAPI):
                 "default": "IFU",
             },
             "priority": {
-                "type": "string",
-                "enum": ["1", "2", "3", "4", "5"],
-                "default": "1",
+                "type": "number",
+                "default": 1.0,
+                "minimum": 1,
+                "maximum": 5,
                 "title": "Priority",
             },
             "start_date": {
