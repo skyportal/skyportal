@@ -161,9 +161,14 @@ class SpectrumHandler(BaseHandler):
             self.current_user,
             raise_if_none=True,
         )
-        comments = CommentOnSpectrum.query_records_accessible_by(
-            self.current_user,
-        ).filter(CommentOnSpectrum.spectrum_id == spectrum_id)
+        comments = (
+            CommentOnSpectrum.query_records_accessible_by(
+                self.current_user,
+                options=[joinedload(CommentOnSpectrum.groups)],
+            )
+            .filter(CommentOnSpectrum.spectrum_id == spectrum_id)
+            .all()
+        )
 
         spec_dict = recursive_to_dict(spectrum)
         spec_dict["instrument_name"] = spectrum.instrument.name
@@ -171,7 +176,7 @@ class SpectrumHandler(BaseHandler):
         spec_dict["reducers"] = spectrum.reducers
         spec_dict["observers"] = spectrum.observers
         spec_dict["owner"] = spectrum.owner
-        spec_dict["comments"] = comments.all()
+        spec_dict["comments"] = comments
         self.verify_and_commit()
         return self.success(data=spec_dict)
 
@@ -538,15 +543,6 @@ class ObjSpectraHandler(BaseHandler):
                 .filter(CommentOnSpectrum.spectrum_id == spec.id)
                 .all()
             )
-            for c in comments:
-                author = (
-                    User.query_records_accessible_by(
-                        self.current_user,
-                    )
-                    .filter(User.id == c.author_id)
-                    .first()
-                )
-                c.author = author
 
             spec_dict["comments"] = sorted(
                 [

@@ -155,6 +155,7 @@ const CommentList = ({
   associatedResourceType = "object",
   objID = null,
   spectrumID = null,
+  includeCommentsOnAll = true,
 }) => {
   const styles = useStyles();
   const [hoverID, setHoverID] = useState(null);
@@ -196,8 +197,22 @@ const CommentList = ({
   };
 
   let comments = null;
+  let spec_comments = null;
+
   if (associatedResourceType === "object") {
     comments = obj.comments;
+    if (
+      includeCommentsOnAll &&
+      typeof spectra === "object" &&
+      spectra !== null &&
+      objID in spectra
+    ) {
+      spec_comments = spectra[objID].map((spec) => spec.comments).flat();
+    }
+    if (comments !== null && spec_comments !== null) {
+      comments = spec_comments.concat(comments);
+      comments.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    }
   } else if (associatedResourceType === "spectrum") {
     if (spectrumID === null) {
       throw new Error("Must specify a spectrumID for comments on spectra");
@@ -217,6 +232,14 @@ const CommentList = ({
 
   comments = comments || [];
 
+  const renderCommentText = (text, spectrum_id) => {
+    if (spectrum_id && associatedResourceType === "object") {
+      return `**S${spectrum_id}** ${text}`;
+    }
+
+    return text;
+  };
+
   const emojiSupport = (text) =>
     text.value.replace(/:\w+:/gi, (name) =>
       emoji.getUnicode(name) ? emoji.getUnicode(name) : name
@@ -226,7 +249,15 @@ const CommentList = ({
     <div className={styles.commentsContainer}>
       <div className={styles.commentsList}>
         {comments.map(
-          ({ id, author, created_at, text, attachment_name, groups }) => (
+          ({
+            id,
+            author,
+            created_at,
+            text,
+            attachment_name,
+            groups,
+            spectrum_id,
+          }) => (
             <span
               key={id}
               className={commentStyle}
@@ -250,7 +281,11 @@ const CommentList = ({
                   </div>
                   <div className={styles.compactWrap} name={`commentDiv${id}`}>
                     <ReactMarkdown
-                      source={text}
+                      source={renderCommentText(
+                        text,
+                        spectrum_id,
+                        associatedResourceType
+                      )}
                       escapeHtml={false}
                       className={styles.commentMessage}
                       renderers={{ text: emojiSupport }}
@@ -355,7 +390,11 @@ const CommentList = ({
                     </div>
                     <div className={styles.wrap} name={`commentDiv${id}`}>
                       <ReactMarkdown
-                        source={text}
+                        source={renderCommentText(
+                          text,
+                          spectrum_id,
+                          associatedResourceType
+                        )}
                         escapeHtml={false}
                         className={styles.commentMessage}
                         renderers={{ text: emojiSupport }}
@@ -388,12 +427,14 @@ CommentList.propTypes = {
   objID: PropTypes.string,
   associatedResourceType: PropTypes.string,
   spectrumID: PropTypes.number,
+  includeCommentsOnAll: PropTypes.bool,
 };
 
 CommentList.defaultProps = {
-  objID: "",
+  objID: null,
   associatedResourceType: "object",
   spectrumID: null,
+  includeCommentsOnAll: true,
 };
 
 export default CommentList;

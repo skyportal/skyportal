@@ -156,7 +156,6 @@ const SourceDesktop = ({ source }) => {
 
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const spectra = useSelector((state) => state.spectra);
 
   const groups = (useSelector((state) => state.groups.all) || []).filter(
     (g) => !g.single_user_group
@@ -407,70 +406,6 @@ const SourceDesktop = ({ source }) => {
                   </Link>
                 </div>
               </div>
-            </AccordionDetails>
-          </Accordion>
-        </div>
-
-        <div className={classes.columnItem}>
-          <Accordion defaultExpanded={false}>
-            <AccordionSummary
-              data-testid="individual-spectra-accordion"
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="spectroscopy-content"
-              id="spectroscopy-individual-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Individual Spectra
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid
-                container
-                direction="row"
-                alignItems="flex-start"
-                justify="flex-start"
-              >
-                {spectra[source.id] &&
-                  spectra[source.id].map((spec) => (
-                    <div
-                      key={spec.id}
-                      data-testid={`individual-spectrum-id_${spec.id}`}
-                    >
-                      <Grid container item>
-                        <Grid item className={classes.photometryContainer}>
-                          <Suspense
-                            fallback={<div>Loading spectroscopy plot...</div>}
-                          >
-                            <Plot
-                              url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&spectrumID=${spec.id}`}
-                            />
-                          </Suspense>
-                        </Grid>
-                        <Grid
-                          container
-                          item
-                          direction="row"
-                          justify="space-evenly"
-                          alignItems="flex-start"
-                          className={classes.comments}
-                        >
-                          <Grid item>
-                            <Typography variant="h6">Comments</Typography>
-                            <CommentList
-                              associatedResourceType="spectrum"
-                              objID={source.id}
-                              spectrumID={spec.id}
-                            />
-                          </Grid>
-                          <Grid item>
-                            <Typography variant="h6">Annotations</Typography>
-                            To be added soon...
-                          </Grid>
-                        </Grid>
-                      </Grid>
-                    </div>
-                  ))}
-              </Grid>
             </AccordionDetails>
           </Accordion>
         </div>

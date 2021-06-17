@@ -358,8 +358,6 @@ class CommentHandler(BaseHandler):
                 schema: Success
         """
 
-        spectrum_id = None
-
         if associated_resource_type is None:
             associated_resource_type = 'object'
 
@@ -371,7 +369,6 @@ class CommentHandler(BaseHandler):
             c = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
-            spectrum_id = c.spectrum_id
         # add more options using elif
         else:
             return self.error(
@@ -383,15 +380,15 @@ class CommentHandler(BaseHandler):
         DBSession().delete(c)
         self.verify_and_commit()
 
-        if spectrum_id is not None:
-            self.push_all(
-                action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_id': obj_id},
-            )
-        else:
+        if associated_resource_type.lower() == "object":
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': obj_key},
+            )
+        elif associated_resource_type.lower() == "spectrum":
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_id': obj_id},
             )
 
         return self.success()
