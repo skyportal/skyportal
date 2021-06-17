@@ -1,4 +1,6 @@
 import pytest
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.wait import WebDriverWait
 
 from skyportal.tests import api
 from skyportal.tests.frontend.test_sources import add_comment_and_wait_for_display
@@ -81,3 +83,32 @@ def test_group_admission_requests_notifications(
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
     driver.wait_for_xpath('//em[text()="accepted"]')
     driver.wait_for_xpath(f'//em[text()="{public_group2.name}"]')
+
+
+def test_comment_on_favorite_source_triggers_notification(
+    driver, user, user2, public_source
+):
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/profile")
+
+    # Enable browser notifications for favorite source comments
+    driver.click_xpath('//*[@name="comments"]', wait_clickable=False)
+    checkbox_el = driver.wait_for_xpath('//*[@name="comments"]')
+    WebDriverWait(driver, 3).until(EC.element_to_be_selected(checkbox_el))
+
+    # Make public_source a favorite
+    driver.get(f"/source/{public_source.id}")
+    driver.click_xpath(f'//*[@data-testid="favorites-exclude_{public_source.id}"]')
+    driver.wait_for_xpath(f'//*[@data-testid="favorites-include_{public_source.id}"]')
+
+    # Become user2 and submit comment on source
+    driver.get(f'/become_user/{user2.id}')
+    driver.get(f"/source/{public_source.id}")
+    add_comment_and_wait_for_display(driver, "comment text")
+
+    # Check that notification was created
+    driver.get(f'/become_user/{user.id}')
+    driver.get("/")
+    driver.wait_for_xpath("//span[text()='1']")
+    driver.click_xpath('//*[@data-testid="notificationsButton"]')
+    driver.wait_for_xpath('//*[text()="New comment on your favorite source "]')
