@@ -138,7 +138,7 @@ const useStyles = makeStyles(() => ({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    height: "25px",
+    minHeight: "25px",
     margin: "0 15px",
     width: "100%",
   },
