@@ -335,6 +335,8 @@ class UserObjListHandler(BaseHandler):
         if listing is None:
             return self.error("Listing does not exist.")
 
+        list_name = listing.list_name
+
         DBSession.delete(listing)
         self.verify_and_commit()
 
