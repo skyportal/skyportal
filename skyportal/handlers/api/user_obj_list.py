@@ -246,9 +246,11 @@ class UserObjListHandler(BaseHandler):
 
         self.verify_and_commit()
 
-        self.push(action='skyportal/REFRESH_FAVORITES')
-        self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
-        self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
+        if list_name == "favorites":
+            self.push(action='skyportal/REFRESH_FAVORITES')
+            self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+        if list_name == "rejected_candidates":
+            self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
 
         return self.success()
 
@@ -336,8 +338,10 @@ class UserObjListHandler(BaseHandler):
         DBSession.delete(listing)
         self.verify_and_commit()
 
-        self.push(action='skyportal/REFRESH_FAVORITES')
-        self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
-        self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
+        if list_name == "favorites":
+            self.push(action='skyportal/REFRESH_FAVORITES')
+            self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+        if list_name == "rejected_candidates":
+            self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
 
         return self.success()
