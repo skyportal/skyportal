@@ -3475,7 +3475,7 @@ class GcnNotice(Base):
 
     dateobs = sa.Column(
         sa.DateTime,
-        sa.ForeignKey('gcnevents.dateobs'),
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
         nullable=False,
         doc='UTC event timestamp',
     )
@@ -3536,7 +3536,7 @@ class Localization(Base):
 
     dateobs = sa.Column(
         sa.DateTime,
-        sa.ForeignKey('gcnevents.dateobs'),
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
         nullable=False,
         doc='UTC event timestamp',
     )
@@ -3647,7 +3647,7 @@ class GcnTag(Base):
 
     dateobs = sa.Column(
         sa.DateTime,
-        sa.ForeignKey('gcnevents.dateobs'),
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
         nullable=False,
     )
 
