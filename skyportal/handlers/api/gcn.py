@@ -88,7 +88,6 @@ class GcnHandler(BaseHandler):
         ).all()
         if len(localization) == 0:
             DBSession().add(Localization(**skymap))
-            DBSession().commit()
         localization = Localization.query.filter_by(
             dateobs=dateobs, localization_name=skymap["localization_name"]
         ).one()
