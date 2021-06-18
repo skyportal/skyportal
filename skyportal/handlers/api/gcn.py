@@ -137,7 +137,7 @@ class GcnEventViewsHandler(BaseHandler):
             dateobs = event.dateobs
             if dateobs < cutoff_day:
                 continue
-            tags = [_ for _ in event.tags]
+            tags = [tag for tag in event.tags]
             localizations = [l.localization_name for l in event.localizations]
             events.append(
                 {'localizations': localizations, 'dateobs': dateobs, 'tags': tags}
