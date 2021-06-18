@@ -20,7 +20,7 @@ def test_gcn(super_admin_token):
         'GET', f'gcn/event/{dateobs}', data=data, token=super_admin_token
     )
     assert status == 200
-    data = data["data"][0]
+    data = data["data"]
     assert data["dateobs"] == "2019-04-25T08:18:05"
     assert 'GW' in data["tags"]
 
@@ -51,7 +51,7 @@ def test_gcn(super_admin_token):
         'GET', f'gcn/event/{dateobs}', data=data, token=super_admin_token
     )
     assert status == 200
-    data = data["data"][0]
+    data = data["data"]
     assert data["dateobs"] == "2018-01-16T00:36:53"
     assert 'GRB' in data["tags"]
 

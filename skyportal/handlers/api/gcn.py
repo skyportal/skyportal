@@ -8,6 +8,7 @@ import xmlschema
 from urllib.parse import urlparse
 
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
@@ -84,14 +85,14 @@ class GcnHandler(BaseHandler):
         skymap = get_skymap(root, gcn_notice)
         skymap["dateobs"] = event.dateobs
 
-        localization = Localization.query.filter_by(
-            dateobs=dateobs, localization_name=skymap["localization_name"]
-        ).all()
-        if len(localization) == 0:
+        try:
+            localization = Localization.query.filter_by(
+                dateobs=dateobs, localization_name=skymap["localization_name"]
+            ).one()
+        except NoResultFound:
             localization = Localization(**skymap)
-
-        localization = get_contour(localization)
-        DBSession().add(localization)
+            localization = get_contour(localization)
+            DBSession().add(localization)
 
         self.verify_and_commit()
 
@@ -127,9 +128,17 @@ class GcnEventViewsHandler(BaseHandler):
         since_days_ago = int(top_events_prefs['sinceDaysAgo'])
 
         cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
-        q = GcnEvent.query.filter(GcnEvent.dateobs > cutoff_day).limit(max_num_events)
+        q = (
+            GcnEvent.query.options(joinedload(GcnEvent.localizations))
+            .filter(GcnEvent.dateobs > cutoff_day)
+            .limit(max_num_events)
+        )
 
-        return self.success(data=q.all())
+        events = []
+        for event in q.all():
+            events.append({**event.to_dict(), "tags": event.tags})
+
+        return self.success(data=events)
 
 
 class GcnEventHandler(BaseHandler):
@@ -157,19 +166,17 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
 
-        event = GcnEvent.query.filter_by(dateobs=dateobs).first()
-        tags = [tag for tag in event.tags]
-        localizations = [loc.localization_name for loc in event.localizations]
-        notices = [notice.content for notice in event.gcn_notices]
-        data = [
-            {
-                'tags': tags,
-                'dateobs': event.dateobs,
-                'localizations': localizations,
-                'lightcurve': event.lightcurve,
-                'notices': notices,
-            }
-        ]
+        event = (
+            GcnEvent.query.options(
+                joinedload(GcnEvent.localizations),
+                joinedload(GcnEvent.gcn_notices),
+                joinedload(GcnEvent._tags),
+            )
+            .filter_by(dateobs=dateobs)
+            .first()
+        )
+        data = {**event.to_dict(), "tags": event.tags}
+
         return self.success(data=data)
 
 
@@ -205,5 +212,6 @@ class LocalizationHandler(BaseHandler):
         localization = Localization.query.filter_by(
             dateobs=dateobs, localization_name=localization_name
         ).first()
+        data = {**localization.to_dict(), "flat_2d": localization.flat_2d}
 
-        return self.success(data=localization)
+        return self.success(data=data)

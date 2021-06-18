@@ -3459,8 +3459,7 @@ class GcnNotice(Base):
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
-
-    ivorn = sa.Column(sa.String, primary_key=True, doc='Unique identifier of VOEvent')
+    ivorn = sa.Column(sa.String, doc='Unique identifier of VOEvent')
 
     notice_type = sa.Column(
         sa.Enum(gcn.NoticeType),
@@ -3535,7 +3534,6 @@ class Localization(Base):
     nside = 512
     # HEALPix resolution used for flat (non-multiresolution) operations.
 
-
     dateobs = sa.Column(
         sa.DateTime,
         sa.ForeignKey('gcnevents.dateobs'),
@@ -3543,7 +3541,7 @@ class Localization(Base):
         doc='UTC event timestamp',
     )
 
-    localization_name = sa.Column(sa.String, primary_key=True, doc='Localization name')
+    localization_name = sa.Column(sa.String, doc='Localization name')
 
     uniq = deferred(
         sa.Column(
@@ -3647,15 +3645,13 @@ class GcnTag(Base):
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
-
     dateobs = sa.Column(
         sa.DateTime,
         sa.ForeignKey('gcnevents.dateobs'),
         nullable=False,
-        primary_key=True,
     )
 
-    text = sa.Column(sa.Unicode, nullable=False, primary_key=True)
+    text = sa.Column(sa.Unicode, nullable=False)
 
 
 class GcnEvent(Base):
