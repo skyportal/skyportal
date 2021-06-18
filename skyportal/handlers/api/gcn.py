@@ -94,7 +94,7 @@ class GcnHandler(BaseHandler):
 
         localization = get_contour(localization)
         DBSession().merge(localization)
-        DBSession().commit()
+        self.verify_and_commit()
 
         return self.success()
 
