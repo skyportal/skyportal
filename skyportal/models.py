@@ -3646,7 +3646,6 @@ class Localization(Base):
 class GcnTag(Base):
     """Store qualitative tags for events."""
 
-    create = read = public
     update = delete = AccessibleIfUserMatches('sent_by')
 
 
