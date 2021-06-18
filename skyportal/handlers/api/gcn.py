@@ -216,10 +216,9 @@ class LocalizationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        q = Localization.query.filter_by(
+        localization = Localization.query.filter_by(
             dateobs=dateobs, localization_name=localization_name
-        )
-        localization = q.first()
+        ).first()
 
         data = {
             'flat_2d': localization.flat_2d,
