@@ -173,7 +173,7 @@ class GcnEventHandler(BaseHandler):
 
         q = GcnEvent.query.filter_by(dateobs=dateobs)
         event = q.first()
-        tags = [_ for _ in event.tags]
+        tags = [tag for tag in event.tags]
         localizations = [_.localization_name for _ in event.localizations]
         notices = [_.content for _ in event.gcn_notices]
         data = [
