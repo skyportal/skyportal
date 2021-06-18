@@ -56,7 +56,7 @@ const useStyles = makeStyles(() => ({
   spinnerDiv: {
     paddingTop: "2rem",
   },
-  submitFilterButton: {
+  submitButton: {
     marginTop: "1rem",
   },
 }));
@@ -479,7 +479,9 @@ const UserManagement = () => {
     const user = users[dataIndex];
     return (
       <div>
-        {dayjs.utc(user.expiration_date).format("YYYY/MM/DD")}
+        {user.expiration_date
+          ? dayjs.utc(user.expiration_date).format("YYYY/MM/DD")
+          : ""}
         <IconButton
           aria-label="edit-expiration"
           data-testid={`editUserExpirationDate${user.id}`}
@@ -494,6 +496,23 @@ const UserManagement = () => {
       </div>
     );
   };
+
+  const renderExpirationDateHeader = () => (
+    <>
+      Expiration Date
+      <Tooltip
+        interactive
+        title={
+          <>
+            This is the expiration date assigned to the new user account. After
+            this date, the new user will be relegated to a view only role.
+          </>
+        }
+      >
+        <HelpIcon color="disabled" size="small" className={classes.icon} />
+      </Tooltip>
+    </>
+  );
 
   const handleFilterSubmit = async (formData) => {
     setQueryInProgress(true);
@@ -682,8 +701,8 @@ const UserManagement = () => {
       options: {
         sort: false,
         filter: false,
-        display: false,
         customBodyRenderLite: renderExpirationDate,
+        customHeadLabelRender: renderExpirationDateHeader,
       },
     },
   ];
@@ -991,12 +1010,13 @@ const UserManagement = () => {
               defaultValue={dayjs.utc().format("YYYY/MM/DD")}
             />
             <br />
-            <div>
+            <div className={classes.submitButton}>
               <Button
                 variant="contained"
+                color="primary"
                 type="submit"
-                name="submitAddACLsButton"
-                data-testid="submitAddACLsButton"
+                name="submitExpirationDateButton"
+                data-testid="submitExpirationDateButton"
               >
                 Submit
               </Button>
