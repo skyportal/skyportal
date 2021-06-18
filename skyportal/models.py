@@ -3459,7 +3459,6 @@ class GcnNotice(Base):
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
-    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     ivorn = sa.Column(sa.String, primary_key=True, doc='Unique identifier of VOEvent')
 
