@@ -78,6 +78,7 @@ class GcnHandler(BaseHandler):
 
         for tag in tags:
             DBSession().add(tag)
+            DBSession().commit()
         DBSession().add(gcn_notice)
 
         skymap = get_skymap(root, gcn_notice)
@@ -87,13 +88,11 @@ class GcnHandler(BaseHandler):
             dateobs=dateobs, localization_name=skymap["localization_name"]
         ).all()
         if len(localization) == 0:
-            DBSession().add(Localization(**skymap))
-        localization = Localization.query.filter_by(
-            dateobs=dateobs, localization_name=skymap["localization_name"]
-        ).one()
+            localization = Localization(**skymap)
 
         localization = get_contour(localization)
-        DBSession().merge(localization)
+        DBSession().add(localization)
+
         self.verify_and_commit()
 
         return self.success()
@@ -128,22 +127,9 @@ class GcnEventViewsHandler(BaseHandler):
         since_days_ago = int(top_events_prefs['sinceDaysAgo'])
 
         cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
-        q = GcnEvent.query
+        q = GcnEvent.query.filter(GcnEvent.dateobs > cutoff_day).limit(max_num_events)
 
-        events = []
-        for event in q.all():
-            if len(events) >= max_num_events:
-                continue
-            dateobs = event.dateobs
-            if dateobs < cutoff_day:
-                continue
-            tags = [tag for tag in event.tags]
-            localizations = [l.localization_name for l in event.localizations]
-            events.append(
-                {'localizations': localizations, 'dateobs': dateobs, 'tags': tags}
-            )
-
-        return self.success(data=events)
+        return self.success(data=q.all())
 
 
 class GcnEventHandler(BaseHandler):
@@ -173,8 +159,8 @@ class GcnEventHandler(BaseHandler):
 
         event = GcnEvent.query.filter_by(dateobs=dateobs).first()
         tags = [tag for tag in event.tags]
-        localizations = [_.localization_name for _ in event.localizations]
-        notices = [_.content for _ in event.gcn_notices]
+        localizations = [loc.localization_name for loc in event.localizations]
+        notices = [notice.content for notice in event.gcn_notices]
         data = [
             {
                 'tags': tags,
@@ -220,11 +206,4 @@ class LocalizationHandler(BaseHandler):
             dateobs=dateobs, localization_name=localization_name
         ).first()
 
-        data = {
-            'flat_2d': localization.flat_2d,
-            'contour': localization.contour,
-            'dateobs': localization.dateobs,
-            'localization_name': localization.localization_name,
-        }
-
-        return self.success(data=data)
+        return self.success(data=localization)
