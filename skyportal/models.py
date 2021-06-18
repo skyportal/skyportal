@@ -3659,6 +3659,20 @@ class GcnEvent(Base):
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnEvent.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcnevents",
+        doc="The user that saved this GcnEvent",
+    )
+
     dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
 
     gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)
@@ -3779,6 +3793,14 @@ class GcnEvent(Base):
                 return 'FAR: ' + elem.attrib.get('value', '')
             except Exception:
                 return None
+
+
+User.gcnevents = relationship(
+    'GcnEvent',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcnevents saved by this user',
+)
 
 
 class UserNotification(Base):

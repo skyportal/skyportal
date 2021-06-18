@@ -62,7 +62,9 @@ class GcnHandler(BaseHandler):
         try:
             event = GcnEvent.query.filter_by(dateobs=dateobs).one()
         except NoResultFound:
-            DBSession().add(GcnEvent(dateobs=dateobs))
+            DBSession().add(
+                GcnEvent(dateobs=dateobs, sent_by_id=self.associated_user_object.id)
+            )
             DBSession().commit()
             event = GcnEvent.query.filter_by(dateobs=dateobs).one()
 
@@ -170,7 +172,6 @@ class GcnEventHandler(BaseHandler):
             GcnEvent.query.options(
                 joinedload(GcnEvent.localizations),
                 joinedload(GcnEvent.gcn_notices),
-                joinedload(GcnEvent._tags),
             )
             .filter_by(dateobs=dateobs)
             .first()
