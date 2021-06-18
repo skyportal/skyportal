@@ -171,8 +171,7 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
 
-        q = GcnEvent.query.filter_by(dateobs=dateobs)
-        event = q.first()
+        event = GcnEvent.query.filter_by(dateobs=dateobs).first()
         tags = [tag for tag in event.tags]
         localizations = [_.localization_name for _ in event.localizations]
         notices = [_.content for _ in event.gcn_notices]
