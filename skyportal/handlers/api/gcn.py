@@ -87,7 +87,7 @@ class GcnHandler(BaseHandler):
             dateobs=dateobs, localization_name=skymap["localization_name"]
         ).all()
         if len(localization) == 0:
-            DBSession().merge(Localization(**skymap))
+            DBSession().add(Localization(**skymap))
             DBSession().commit()
         localization = Localization.query.filter_by(
             dateobs=dateobs, localization_name=skymap["localization_name"]
