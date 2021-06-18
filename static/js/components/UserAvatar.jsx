@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { makeStyles } from "@material-ui/core/styles";
 import Avatar from "@material-ui/core/Avatar";
+import Tooltip from "@material-ui/core/Tooltip";
 
 const useStyles = makeStyles((theme) => ({
   avatar: (props) => ({
@@ -22,11 +23,10 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 // Return true if all characters in a string are Korean characters
-export const isAllKoreanCharacters = (str) => {
-  return str.match(
+export const isAllKoreanCharacters = (str) =>
+  str.match(
     /^([\uac00-\ud7af]|[\u1100-\u11ff]|[\u3130-\u318f]|[\ua960-\ua97f]|[\ud7b0-\ud7ff])+$/g
   );
-};
 
 const getInitials = (firstName, lastName) => {
   // Korean names are almost always <=2 characters; last names are written first,
@@ -60,16 +60,23 @@ const UserAvatar = ({ size, firstName, lastName, username, gravatarUrl }) => {
   const props = { size, usercolor, backUpLetters };
   const classes = useStyles(props);
 
+  let tooltipText = username;
+  if (firstName && lastName) {
+    tooltipText += ` (${firstName} ${lastName})`;
+  }
+
   return (
-    <Avatar
-      alt={backUpLetters}
-      src={`${gravatarUrl}&s=${size}`}
-      size={size}
-      classes={{
-        root: classes.avatar,
-        img: classes.avatarImg,
-      }}
-    />
+    <Tooltip title={tooltipText} arrow placement="top-start">
+      <Avatar
+        alt={backUpLetters}
+        src={`${gravatarUrl}&s=${size}`}
+        size={size}
+        classes={{
+          root: classes.avatar,
+          img: classes.avatarImg,
+        }}
+      />
+    </Tooltip>
   );
 };
 
