@@ -65,7 +65,7 @@ class GcnHandler(BaseHandler):
             DBSession().commit()
             event = GcnEvent.query.filter_by(dateobs=dateobs).one()
 
-        tags = [GcnTag(dateobs=event.dateobs, text=_) for _ in get_tags(root)]
+        tags = [GcnTag(dateobs=event.dateobs, text=text) for text in get_tags(root)]
 
         gcn_notice = GcnNotice(
             content=payload.encode('ascii'),
