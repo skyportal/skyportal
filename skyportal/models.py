@@ -3535,7 +3535,6 @@ class Localization(Base):
     nside = 512
     # HEALPix resolution used for flat (non-multiresolution) operations.
 
-    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
     dateobs = sa.Column(
         sa.DateTime,
