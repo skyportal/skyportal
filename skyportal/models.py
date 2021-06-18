@@ -3457,7 +3457,6 @@ class SourceNotification(Base):
 class GcnNotice(Base):
     """Records of ingested GCN notices"""
 
-    create = read = public
     update = delete = AccessibleIfUserMatches('sent_by')
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
