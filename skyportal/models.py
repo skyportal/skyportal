@@ -3530,7 +3530,6 @@ class Localization(Base):
     ascension, declination, error radius (if applicable), and the healpix
     map."""
 
-    create = read = public
     update = delete = AccessibleIfUserMatches('sent_by')
 
     nside = 512
