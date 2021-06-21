@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { useSelector, useDispatch } from "react-redux";
+
+import PropTypes from "prop-types";
+
 import { Button } from "@material-ui/core";
 import Tooltip from "@material-ui/core/Tooltip";
 import GroupIcon from "@material-ui/icons/Group";
-
-import PropTypes from "prop-types";
 import CloseIcon from "@material-ui/icons/Close";
 import { makeStyles } from "@material-ui/core/styles";
 import InfoOutlinedIcon from "@material-ui/icons/InfoOutlined";
@@ -155,7 +156,7 @@ const CommentList = ({
   associatedResourceType = "object",
   objID = null,
   spectrumID = null,
-  includeCommentsOnAll = true,
+  includeCommentsOnAllResourceTypes = true,
 }) => {
   const styles = useStyles();
   const [hoverID, setHoverID] = useState(null);
@@ -197,20 +198,20 @@ const CommentList = ({
   };
 
   let comments = null;
-  let spec_comments = null;
+  let specComments = null;
 
   if (associatedResourceType === "object") {
     comments = obj.comments;
     if (
-      includeCommentsOnAll &&
+      includeCommentsOnAllResourceTypes &&
       typeof spectra === "object" &&
       spectra !== null &&
       objID in spectra
     ) {
-      spec_comments = spectra[objID].map((spec) => spec.comments).flat();
+      specComments = spectra[objID].map((spec) => spec.comments).flat();
     }
-    if (comments !== null && spec_comments !== null) {
-      comments = spec_comments.concat(comments);
+    if (comments !== null && specComments !== null) {
+      comments = specComments.concat(comments);
       comments.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
     }
   } else if (associatedResourceType === "spectrum") {
@@ -233,8 +234,18 @@ const CommentList = ({
   comments = comments || [];
 
   const renderCommentText = (text, spectrum_id) => {
-    if (spectrum_id && associatedResourceType === "object") {
-      return `**S${spectrum_id}** ${text}`;
+    if (
+      spectrum_id &&
+      objID in spectra &&
+      associatedResourceType === "object"
+    ) {
+      const spectrum = spectra[objID].find((spec) => spec.id === spectrum_id);
+      const dayFraction =
+        (parseFloat(spectrum.observed_at.substring(11, 13)) / 24) * 10;
+      return `**Spectrum ${spectrum.observed_at.substring(
+        2,
+        10
+      )}.${dayFraction.toFixed(0)}** ${text}`;
     }
 
     return text;
@@ -427,14 +438,14 @@ CommentList.propTypes = {
   objID: PropTypes.string,
   associatedResourceType: PropTypes.string,
   spectrumID: PropTypes.number,
-  includeCommentsOnAll: PropTypes.bool,
+  includeCommentsOnAllResourceTypes: PropTypes.bool,
 };
 
 CommentList.defaultProps = {
   objID: null,
   associatedResourceType: "object",
   spectrumID: null,
-  includeCommentsOnAll: true,
+  includeCommentsOnAllResourceTypes: true,
 };
 
 export default CommentList;
