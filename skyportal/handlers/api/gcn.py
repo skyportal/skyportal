@@ -65,7 +65,7 @@ class GcnHandler(BaseHandler):
             DBSession().add(
                 GcnEvent(dateobs=dateobs, sent_by_id=self.associated_user_object.id)
             )
-            DBSession().commit()
+            self.verify_and_commit()
             event = GcnEvent.query.filter_by(dateobs=dateobs).one()
 
         tags = [GcnTag(dateobs=event.dateobs, text=text) for text in get_tags(root)]
@@ -81,7 +81,7 @@ class GcnHandler(BaseHandler):
 
         for tag in tags:
             DBSession().add(tag)
-            DBSession().commit()
+            self.verify_and_commit()
         DBSession().add(gcn_notice)
 
         skymap = get_skymap(root, gcn_notice)

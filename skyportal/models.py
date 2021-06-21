@@ -3459,7 +3459,9 @@ class GcnNotice(Base):
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
-    ivorn = sa.Column(sa.String, unique=True, index=True, doc='Unique identifier of VOEvent')
+    ivorn = sa.Column(
+        sa.String, unique=True, index=True, doc='Unique identifier of VOEvent'
+    )
 
     notice_type = sa.Column(
         sa.Enum(gcn.NoticeType),
@@ -3538,10 +3540,11 @@ class Localization(Base):
         sa.DateTime,
         sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
         nullable=False,
+        index=True,
         doc='UTC event timestamp',
     )
 
-    localization_name = sa.Column(sa.String, doc='Localization name')
+    localization_name = sa.Column(sa.String, doc='Localization name', index=True)
 
     uniq = deferred(
         sa.Column(
@@ -3649,6 +3652,7 @@ class GcnTag(Base):
         sa.DateTime,
         sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
 
     text = sa.Column(sa.Unicode, nullable=False)
