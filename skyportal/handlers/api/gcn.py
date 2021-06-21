@@ -65,7 +65,14 @@ class GcnHandler(BaseHandler):
             event = GcnEvent(dateobs=dateobs, sent_by_id=self.associated_user_object.id)
             DBSession().add(event)
 
-        tags = [GcnTag(dateobs=event.dateobs, text=text) for text in get_tags(root)]
+        tags = [
+            GcnTag(
+                dateobs=event.dateobs,
+                text=text,
+                sent_by_id=self.associated_user_object.id,
+            )
+            for text in get_tags(root)
+        ]
 
         gcn_notice = GcnNotice(
             content=payload.encode('ascii'),
@@ -74,15 +81,16 @@ class GcnHandler(BaseHandler):
             stream=urlparse(root.attrib['ivorn']).path.lstrip('/'),
             date=root.find('./Who/Date').text,
             dateobs=event.dateobs,
+            sent_by_id=self.associated_user_object.id,
         )
 
         for tag in tags:
             DBSession().add(tag)
-            self.verify_and_commit()
         DBSession().add(gcn_notice)
 
         skymap = get_skymap(root, gcn_notice)
         skymap["dateobs"] = event.dateobs
+        skymap["sent_by_id"] = self.associated_user_object.id
 
         try:
             localization = Localization.query.filter_by(
@@ -177,6 +185,35 @@ class GcnEventHandler(BaseHandler):
 
         return self.success(data=data)
 
+    @auth_or_token
+    def delete(self, dateobs):
+        """
+        ---
+        description: Delete a GCN event
+        tags:
+          - gcnevents
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: dateobs
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        event = GcnEvent.query.filter_by(dateobs=dateobs).first()
+        DBSession().delete(event)
+        self.verify_and_commit()
+
+        return self.success()
+
 
 class LocalizationHandler(BaseHandler):
     @auth_or_token
@@ -213,3 +250,41 @@ class LocalizationHandler(BaseHandler):
         data = {**localization.to_dict(), "flat_2d": localization.flat_2d}
 
         return self.success(data=data)
+
+    @auth_or_token
+    def delete(self, dateobs, localization_name):
+        """
+        ---
+        description: Delete a GCN localization
+        tags:
+          - localizations
+        parameters:
+          - in: path
+            name: dateobs
+            required: true
+            schema:
+              type: dateobs
+          - in: path
+            name: localization_name
+            required: true
+            schema:
+              type: localization_name
+        responses:
+          200:
+            content:
+              application/json:
+                schema: LocalizationHandlerGet
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        localization = Localization.query.filter_by(
+            dateobs=dateobs, localization_name=localization_name
+        ).first()
+
+        DBSession().delete(localization)
+        self.verify_and_commit()
+
+        return self.success()

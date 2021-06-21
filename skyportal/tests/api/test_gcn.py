@@ -4,7 +4,7 @@ import numpy as np
 from skyportal.tests import api
 
 
-def test_gcn(super_admin_token):
+def test_gcn_GW(super_admin_token, view_only_token):
 
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
@@ -37,6 +37,25 @@ def test_gcn(super_admin_token):
     assert data["localization_name"] == "bayestar.fits.gz"
     assert np.isclose(np.sum(data["flat_2d"]), 1)
 
+    status, data = api(
+        'DELETE',
+        f'gcn/localization/{dateobs}/name/{skymap}',
+        data=data,
+        token=view_only_token,
+    )
+    assert status == 413
+
+    status, data = api(
+        'DELETE',
+        f'gcn/localization/{dateobs}/name/{skymap}',
+        data=data,
+        token=super_admin_token,
+    )
+    assert status == 200
+
+
+def test_gcn_Fermi(super_admin_token, view_only_token):
+
     datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
@@ -67,3 +86,19 @@ def test_gcn(super_admin_token):
     assert data["dateobs"] == "2018-01-16T00:36:53"
     assert data["localization_name"] == "214.74000_28.14000_11.19000"
     assert np.isclose(np.sum(data["flat_2d"]), 1)
+
+    status, data = api(
+        'DELETE',
+        f'gcn/localization/{dateobs}/name/{skymap}',
+        data=data,
+        token=view_only_token,
+    )
+    assert status == 413
+
+    status, data = api(
+        'DELETE',
+        f'gcn/localization/{dateobs}/name/{skymap}',
+        data=data,
+        token=super_admin_token,
+    )
+    assert status == 200

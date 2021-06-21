@@ -3459,6 +3459,20 @@ class GcnNotice(Base):
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnNotice.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcnnotices",
+        doc="The user that saved this GcnNotice",
+    )
+
     ivorn = sa.Column(
         sa.String, unique=True, index=True, doc='Unique identifier of VOEvent'
     )
@@ -3476,7 +3490,6 @@ class GcnNotice(Base):
     date = sa.Column(sa.DateTime, nullable=False, doc='UTC message timestamp')
 
     dateobs = sa.Column(
-        sa.DateTime,
         sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
         nullable=False,
         doc='UTC event timestamp',
@@ -3526,6 +3539,14 @@ class GcnNotice(Base):
         return self._get_property(property_name="Terrestrial")
 
 
+User.gcnnotices = relationship(
+    'GcnNotice',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The GcnNotices saved by this user',
+)
+
+
 class Localization(Base):
     """Localization information, including the localization ID, event ID, right
     ascension, declination, error radius (if applicable), and the healpix
@@ -3533,11 +3554,24 @@ class Localization(Base):
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this Localization.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="localizations",
+        doc="The user that saved this Localization",
+    )
+
     nside = 512
     # HEALPix resolution used for flat (non-multiresolution) operations.
 
     dateobs = sa.Column(
-        sa.DateTime,
         sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -3643,19 +3677,48 @@ class Localization(Base):
             return (self.flat_2d,)
 
 
+User.localizations = relationship(
+    'Localization',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The localizations saved by this user',
+)
+
+
 class GcnTag(Base):
     """Store qualitative tags for events."""
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnTag.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcntags",
+        doc="The user that saved this GcnTag",
+    )
+
     dateobs = sa.Column(
-        sa.DateTime,
         sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
 
     text = sa.Column(sa.Unicode, nullable=False)
+
+
+User.gcntags = relationship(
+    'GcnTag',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcntags saved by this user',
+)
 
 
 class GcnEvent(Base):
