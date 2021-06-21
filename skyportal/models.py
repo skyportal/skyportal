@@ -3459,7 +3459,7 @@ class GcnNotice(Base):
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
-    ivorn = sa.Column(sa.String, doc='Unique identifier of VOEvent')
+    ivorn = sa.Column(sa.String, unique=True, index=True, doc='Unique identifier of VOEvent')
 
     notice_type = sa.Column(
         sa.Enum(gcn.NoticeType),
