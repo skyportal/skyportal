@@ -87,8 +87,6 @@ utcnow = func.timezone('UTC', func.current_timestamp())
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
 
-ws_flow = Flow()
-
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
@@ -4209,6 +4207,7 @@ def add_user_notifications(mapper, connection, target):
             )
             .all()
         )
+        ws_flow = Flow()
         for user in users:
             # Only notify users who have read access to the new record in question
             if target.__class__.get_if_accessible_by(target.id, user) is not None:
