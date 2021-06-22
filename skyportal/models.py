@@ -41,6 +41,7 @@ from sqlalchemy import func
 from twilio.rest import Client as TwilioClient
 
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.app.json_util import to_json
 from baselayer.app.models import (  # noqa
     init_db,
@@ -4206,6 +4207,7 @@ def add_user_notifications(mapper, connection, target):
             )
             .all()
         )
+        ws_flow = Flow()
         for user in users:
             # Only notify users who have read access to the new record in question
             if target.__class__.get_if_accessible_by(target.id, user) is not None:
@@ -4216,6 +4218,7 @@ def add_user_notifications(mapper, connection, target):
                         url=f"/source/{target.obj_id}",
                     )
                 )
+                ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")
 
 
 schema.setup_schema()
