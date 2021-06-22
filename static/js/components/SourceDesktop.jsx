@@ -239,6 +239,18 @@ const SourceDesktop = ({ source }) => {
               )}
             </div>
           </div>
+          {source.duplicates && (
+            <div className={classes.infoLine}>
+              <div className={classes.sourceInfo}>
+                Possible duplicate of:&nbsp;
+                {source.duplicates.map((dupID) => (
+                  <Link to={`/source/${dupID}`} role="link" key={dupID}>
+                    <Button size="small">{dupID}</Button>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
           <div className={`${classes.infoLine} ${classes.findingChart}`}>
             <b>Finding Chart:&nbsp;</b>
             <Button
@@ -615,6 +627,7 @@ SourceDesktop.propTypes = {
         origin: PropTypes.string,
       })
     ),
+    duplicates: PropTypes.arrayOf(PropTypes.string),
     alias: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
 };

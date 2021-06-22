@@ -296,6 +296,18 @@ const SourceMobile = WidthProvider(
                       )}
                     </div>
                   </div>
+                  {source.duplicates && (
+                    <div className={classes.infoLine}>
+                      <div className={classes.sourceInfo}>
+                        Possible duplicate of:&nbsp;
+                        {source.duplicates.map((dupID) => (
+                          <Link to={`/source/${dupID}`} role="link" key={dupID}>
+                            <Button size="small">{dupID}</Button>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div
                     className={`${classes.infoLine} ${classes.findingChart}`}
                   >
@@ -665,6 +677,7 @@ SourceMobile.propTypes = {
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
     redshift_history: PropTypes.arrayOf(PropTypes.any),
+    duplicates: PropTypes.arrayOf(PropTypes.string),
     color_magnitude: PropTypes.arrayOf(
       PropTypes.shape({
         abs_mag: PropTypes.number,
