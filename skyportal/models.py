@@ -41,6 +41,7 @@ from sqlalchemy import func
 from twilio.rest import Client as TwilioClient
 
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.app.json_util import to_json
 from baselayer.app.models import (  # noqa
     init_db,
@@ -85,6 +86,8 @@ utcnow = func.timezone('UTC', func.current_timestamp())
 
 _, cfg = load_env()
 cosmo = establish_cosmology(cfg)
+
+ws_flow = Flow()
 
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
@@ -4216,6 +4219,7 @@ def add_user_notifications(mapper, connection, target):
                         url=f"/source/{target.obj_id}",
                     )
                 )
+                ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")
 
 
 schema.setup_schema()
