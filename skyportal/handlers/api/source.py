@@ -659,6 +659,19 @@ class SourceHandler(BaseHandler):
                 .filter(ClassicalAssignment.obj_id == obj_id)
                 .all()
             )
+            point = ha.Point(ra=s.ra, dec=s.dec)
+            # Check for duplicates (within 4 arcsecs, magnitude 13 or brighter)
+            duplicates = (
+                Obj.query_records_accessible_by(self.current_user)
+                .filter(Obj.within(point, 4 / 3600))
+                .filter(Obj.last_detected_mag(self.current_user) <= 13)
+                .filter(Obj.id != s.id)
+                .all()
+            )
+            if len(duplicates) > 0:
+                source_info["duplicates"] = [dup.id for dup in duplicates]
+            else:
+                source_info["duplicates"] = None
 
             if is_token_request:
                 # Logic determining whether to register front-end request as view lives in front-end
