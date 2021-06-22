@@ -35,6 +35,7 @@ def test_token_user_retrieving_source(view_only_token, public_source):
         k in data["data"] for k in ["ra", "dec", "redshift", "dm", "created_at", "id"]
     )
     assert "photometry" not in data["data"]
+    assert data["data"]["duplicates"] is None
 
 
 def test_token_user_retrieving_source_with_phot(view_only_token, public_source):
@@ -116,6 +117,89 @@ def test_token_user_retrieving_source_without_nested(
         k not in data["data"]["sources"][0]
         for k in ["annotations", "groups", "thumbnails", "classifications"]
     )
+
+
+def test_duplicate_sources(public_group, upload_data_token, ztf_camera):
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id2,
+            "ra": 234.2201,
+            "dec": -22.3305,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": obj_id1,
+            "mjd": 59801.4,
+            "instrument_id": ztf_camera.id,
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "mag": 12.4,
+            "magerr": 0.3,
+            "limiting_mag": 22,
+            "magsys": "ab",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": obj_id2,
+            "mjd": 59801.3,
+            "instrument_id": ztf_camera.id,
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "mag": 12.4,
+            "magerr": 0.3,
+            "limiting_mag": 22,
+            "magsys": "ab",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        f"sources/{obj_id1}",
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert data["data"]["duplicates"] == [obj_id2]
+
+    status, data = api(
+        "GET",
+        f"sources/{obj_id2}",
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert data["data"]["duplicates"] == [obj_id1]
 
 
 def test_token_user_update_source(upload_data_token, public_source):
