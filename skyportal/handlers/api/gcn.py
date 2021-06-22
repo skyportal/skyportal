@@ -61,6 +61,12 @@ class GcnHandler(BaseHandler):
 
         try:
             event = GcnEvent.query.filter_by(dateobs=dateobs).one()
+
+            if not event.is_accessible_by(self.current_user, mode="update"):
+                return self.error(
+                    "Insufficient permissions: GCN event can only be updated by original poster"
+                )
+
         except NoResultFound:
             event = GcnEvent(dateobs=dateobs, sent_by_id=self.associated_user_object.id)
             DBSession().add(event)
@@ -93,9 +99,16 @@ class GcnHandler(BaseHandler):
         skymap["sent_by_id"] = self.associated_user_object.id
 
         try:
-            localization = Localization.query.filter_by(
-                dateobs=dateobs, localization_name=skymap["localization_name"]
-            ).one()
+            localization = (
+                Localization.query_records_accessible_by(
+                    self.current_user,
+                )
+                .filter(
+                    Localization.dateobs == dateobs,
+                    Localization.localization_name == skymap["localization_name"],
+                )
+                .one()
+            )
         except NoResultFound:
             localization = Localization(**skymap)
             localization = get_contour(localization)
@@ -136,7 +149,10 @@ class GcnEventViewsHandler(BaseHandler):
 
         cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
         q = (
-            GcnEvent.query.options(joinedload(GcnEvent.localizations))
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+                options=[joinedload(GcnEvent.localizations)],
+            )
             .filter(GcnEvent.dateobs > cutoff_day)
             .limit(max_num_events)
         )
@@ -174,13 +190,19 @@ class GcnEventHandler(BaseHandler):
         """
 
         event = (
-            GcnEvent.query.options(
-                joinedload(GcnEvent.localizations),
-                joinedload(GcnEvent.gcn_notices),
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(GcnEvent.localizations),
+                    joinedload(GcnEvent.gcn_notices),
+                ],
             )
-            .filter_by(dateobs=dateobs)
+            .filter(GcnEvent.dateobs == dateobs)
             .first()
         )
+        if event is None:
+            return self.error("GCN event not found", status=404)
+
         data = {**event.to_dict(), "tags": event.tags}
 
         return self.success(data=data)
@@ -209,6 +231,14 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
         event = GcnEvent.query.filter_by(dateobs=dateobs).first()
+        if event is None:
+            return self.error("GCN event not found", status=404)
+
+        if not event.is_accessible_by(self.current_user, mode="delete"):
+            return self.error(
+                "Insufficient permissions: GCN event can only be deleted by original poster"
+            )
+
         DBSession().delete(event)
         self.verify_and_commit()
 
@@ -244,11 +274,18 @@ class LocalizationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        localization = Localization.query.filter_by(
-            dateobs=dateobs, localization_name=localization_name
-        ).first()
-        data = {**localization.to_dict(), "flat_2d": localization.flat_2d}
+        localization = (
+            Localization.query_records_accessible_by(self.current_user)
+            .filter(
+                Localization.dateobs == dateobs,
+                Localization.localization_name == localization_name,
+            )
+            .first()
+        )
+        if localization is None:
+            return self.error("Localization not found", status=404)
 
+        data = {**localization.to_dict(), "flat_2d": localization.flat_2d}
         return self.success(data=data)
 
     @auth_or_token
@@ -283,6 +320,14 @@ class LocalizationHandler(BaseHandler):
         localization = Localization.query.filter_by(
             dateobs=dateobs, localization_name=localization_name
         ).first()
+
+        if localization is None:
+            return self.error("Localization not found", status=404)
+
+        if not localization.is_accessible_by(self.current_user, mode="delete"):
+            return self.error(
+                "Insufficient permissions: Localization can only be deleted by original poster"
+            )
 
         DBSession().delete(localization)
         self.verify_and_commit()

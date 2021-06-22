@@ -16,9 +16,7 @@ def test_gcn_GW(super_admin_token, view_only_token):
     assert data['status'] == 'success'
 
     dateobs = "2019-04-25 08:18:05"
-    status, data = api(
-        'GET', f'gcn/event/{dateobs}', data=data, token=super_admin_token
-    )
+    status, data = api('GET', f'gcn/event/{dateobs}', token=super_admin_token)
     assert status == 200
     data = data["data"]
     assert data["dateobs"] == "2019-04-25T08:18:05"
@@ -28,7 +26,6 @@ def test_gcn_GW(super_admin_token, view_only_token):
     status, data = api(
         'GET',
         f'gcn/localization/{dateobs}/name/{skymap}',
-        data=data,
         token=super_admin_token,
     )
 
@@ -40,15 +37,13 @@ def test_gcn_GW(super_admin_token, view_only_token):
     status, data = api(
         'DELETE',
         f'gcn/localization/{dateobs}/name/{skymap}',
-        data=data,
         token=view_only_token,
     )
-    assert status == 413
+    assert status == 400
 
     status, data = api(
         'DELETE',
         f'gcn/localization/{dateobs}/name/{skymap}',
-        data=data,
         token=super_admin_token,
     )
     assert status == 200
@@ -66,9 +61,7 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
     assert data['status'] == 'success'
 
     dateobs = "2018-01-16 00:36:53"
-    status, data = api(
-        'GET', f'gcn/event/{dateobs}', data=data, token=super_admin_token
-    )
+    status, data = api('GET', f'gcn/event/{dateobs}', token=super_admin_token)
     assert status == 200
     data = data["data"]
     assert data["dateobs"] == "2018-01-16T00:36:53"
@@ -78,7 +71,6 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
     status, data = api(
         'GET',
         f'gcn/localization/{dateobs}/name/{skymap}',
-        data=data,
         token=super_admin_token,
     )
 
@@ -90,15 +82,13 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
     status, data = api(
         'DELETE',
         f'gcn/localization/{dateobs}/name/{skymap}',
-        data=data,
         token=view_only_token,
     )
-    assert status == 413
+    assert status == 400
 
     status, data = api(
         'DELETE',
         f'gcn/localization/{dateobs}/name/{skymap}',
-        data=data,
         token=super_admin_token,
     )
     assert status == 200
