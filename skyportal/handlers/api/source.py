@@ -660,11 +660,11 @@ class SourceHandler(BaseHandler):
                 .all()
             )
             point = ha.Point(ra=s.ra, dec=s.dec)
-            # Check for duplicates (within 4 arcsecs, magnitude 13 or brighter)
+            # Check for duplicates (within 4 arcsecs, magnitude 18 or brighter)
             duplicates = (
                 Obj.query_records_accessible_by(self.current_user)
                 .filter(Obj.within(point, 4 / 3600))
-                .filter(Obj.last_detected_mag(self.current_user) <= 13)
+                .filter(Obj.last_detected_mag(self.current_user) <= 18)
                 .filter(Obj.id != s.id)
                 .all()
             )
