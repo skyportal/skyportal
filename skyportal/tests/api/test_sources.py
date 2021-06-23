@@ -127,8 +127,8 @@ def test_duplicate_sources(public_group, upload_data_token, ztf_camera):
         "sources",
         data={
             "id": obj_id1,
-            "ra": 234.22,
-            "dec": -22.33,
+            "ra": 230.22,
+            "dec": -21.33,
             "redshift": 3,
             "group_ids": [public_group.id],
         },
@@ -140,8 +140,8 @@ def test_duplicate_sources(public_group, upload_data_token, ztf_camera):
         "sources",
         data={
             "id": obj_id2,
-            "ra": 234.2201,
-            "dec": -22.3305,
+            "ra": 230.2201,
+            "dec": -21.3305,
             "redshift": 3,
             "group_ids": [public_group.id],
         },
