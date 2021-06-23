@@ -9,9 +9,8 @@ from baselayer.app.env import load_env
 env, cfg = load_env()
 init_db(**cfg["database"])
 
-cutoff_datetime = datetime.datetime.now() + datetime.timedelta(days=1)
 expired_users = (
-    DBSession().query(User).filter(User.expiration_date < cutoff_datetime).all()
+    DBSession().query(User).filter(User.expiration_date < datetime.datetime.now()).all()
 )
 
 for user in expired_users:
