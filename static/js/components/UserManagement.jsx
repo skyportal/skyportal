@@ -296,7 +296,7 @@ const UserManagement = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("User expiration date successfully updated."));
-      reset({ date: "" });
+      reset({ date: null });
       setEditUserExpirationDateDialogOpen(false);
       dispatch(usersActions.fetchUsers(fetchParams));
       setClickedUser(null);
@@ -1007,7 +1007,7 @@ const UserManagement = () => {
               )}
               name="date"
               control={control}
-              defaultValue={dayjs.utc().format("YYYY/MM/DD")}
+              defaultValue={null}
             />
             <br />
             <div className={classes.submitButton}>

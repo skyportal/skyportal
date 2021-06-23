@@ -285,7 +285,7 @@ const UserInvitations = () => {
     );
     if (result.status === "success") {
       dispatch(showNotification("User expiration date successfully updated."));
-      reset({ date: "" });
+      reset({ date: null });
       setEditUserExpirationDateDialogOpen(false);
       dispatch(invitationsActions.fetchInvitations(fetchParams));
       setClickedInvitation(null);
@@ -852,7 +852,7 @@ const UserInvitations = () => {
               )}
               name="date"
               control={control}
-              defaultValue={dayjs.utc().format("YYYY/MM/DD")}
+              defaultValue={null}
             />
             <br />
             <div className={classes.submitButton}>
