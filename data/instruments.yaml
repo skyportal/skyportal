@@ -118,7 +118,8 @@
   name: ALFOSC
   telescope_id: =NOT
   type: imaging spectrograph
-  filters: ['bessellux', 'bessellb', 'bessellv', 'bessellr',
+  filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz',
+            'bessellux', 'bessellb', 'bessellv', 'bessellr',
             'besselli']
 - band: ir
   name: NOTCam
