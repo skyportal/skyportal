@@ -8,11 +8,18 @@ import Typography from "@material-ui/core/Typography";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
-import { makeStyles, useTheme } from "@material-ui/core/styles";
+import { makeStyles } from "@material-ui/core/styles";
+
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
 
 import * as profileActions from "../ducks/profile";
 import * as topEventsActions from "../ducks/topGcnEvents";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
   header: {},
@@ -31,16 +38,12 @@ const useStyles = makeStyles((theme) => ({
   },
   eventNameContainer: {
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "row",
   },
   eventNameLink: {
     color: theme.palette.primary.main,
   },
 }));
-
-const getStyles = (theme) => ({
-  fontWeight: theme.typography.fontWeightMedium,
-});
 
 const defaultPrefs = {
   maxNumEvents: "",
@@ -55,7 +58,6 @@ const TopGcnEvents = ({ classes }) => {
     useSelector((state) => state.profile.preferences.topGcnEvents) ||
     defaultPrefs;
 
-  const theme = useTheme();
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -94,8 +96,9 @@ const TopGcnEvents = ({ classes }) => {
                       color="primary"
                     />
                   </Link>
+                  {dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))}
                   {gcnEvent.tags.map((tag) => (
-                    <Button style={getStyles(theme)} key={tag}>
+                    <Button color="secondary" key={tag}>
                       {tag}
                     </Button>
                   ))}
