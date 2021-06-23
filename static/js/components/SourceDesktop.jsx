@@ -208,6 +208,21 @@ const SourceDesktop = ({ source }) => {
               </div>
             </div>
           </div>
+          {source.duplicates && (
+            <div className={classes.infoLine}>
+              <div className={classes.sourceInfo}>
+                <b>
+                  <font color="red">Possible duplicate of:</font>
+                </b>
+                &nbsp;
+                {source.duplicates.map((dupID) => (
+                  <Link to={`/source/${dupID}`} role="link" key={dupID}>
+                    <Button size="small">{dupID}</Button>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
           <div className={classes.infoLine}>
             <div className={classes.redshiftInfo}>
               <b>Redshift: &nbsp;</b>
@@ -615,6 +630,7 @@ SourceDesktop.propTypes = {
         origin: PropTypes.string,
       })
     ),
+    duplicates: PropTypes.arrayOf(PropTypes.string),
     alias: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
 };

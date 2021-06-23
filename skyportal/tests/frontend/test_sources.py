@@ -657,3 +657,45 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
             generated_plot.convert('RGB'), expected_plot.convert('RGB')
         )
         assert difference.getbbox() is None
+
+
+def test_duplicate_sources_render(
+    driver, public_source, public_group, upload_data_token, user, ztf_camera
+):
+    obj_id2 = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id2,
+            "ra": public_source.ra + 0.0001,
+            "dec": public_source.dec + 0.0001,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": obj_id2,
+            "mjd": 59801.3,
+            "instrument_id": ztf_camera.id,
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "mag": 12.4,
+            "magerr": 0.3,
+            "limiting_mag": 22,
+            "magsys": "ab",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath('//*[contains(text(), "Possible duplicate of:")]')
+    driver.click_xpath(f'//button//span[text()="{obj_id2}"]')
+    driver.wait_for_xpath(f'//div[text()="{obj_id2}"]')
