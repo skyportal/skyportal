@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
 import Paper from "@material-ui/core/Paper";
@@ -86,7 +87,13 @@ const TopGcnEvents = ({ classes }) => {
               <li key={gcnEvent.dateobs}>
                 <div className={styles.eventNameContainer}>
                   &nbsp; -&nbsp;
-                  <Chip size="small" label={gcnEvent.dateobs} color="primary" />
+                  <Link to={`/gcnevents/${gcnEvent.dateobs}`}>
+                    <Chip
+                      size="small"
+                      label={gcnEvent.dateobs}
+                      color="primary"
+                    />
+                  </Link>
                   {gcnEvent.tags.map((tag) => (
                     <Button style={getStyles(theme)} key={tag}>
                       {tag}
