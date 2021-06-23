@@ -206,10 +206,17 @@ class CommentHandler(BaseHandler):
             for user_mentioned in users_mentioned_in_comment:
                 self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': comment.obj.internal_key},
-        )
+        if spectrum_id is not None:
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_id': obj_id},
+            )
+        else:
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': comment.obj.internal_key},
+            )
+
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
@@ -309,9 +316,18 @@ class CommentHandler(BaseHandler):
             c.groups = groups
 
         self.verify_and_commit()
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key}
-        )
+
+        if associated_resource_type.lower() == "object":  # comment on object
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': c.obj.internal_key},
+            )
+        elif associated_resource_type.lower() == "spectrum":  # comment on a spectrum
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_id': c.obj.id},
+            )
+
         return self.success()
 
     @permissions(['Comment'])
@@ -360,9 +376,21 @@ class CommentHandler(BaseHandler):
             )
 
         obj_key = c.obj.internal_key
+        obj_id = c.obj.id
         DBSession().delete(c)
         self.verify_and_commit()
-        self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
+
+        if associated_resource_type.lower() == "object":
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_key},
+            )
+        elif associated_resource_type.lower() == "spectrum":
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_id': obj_id},
+            )
+
         return self.success()
 
 

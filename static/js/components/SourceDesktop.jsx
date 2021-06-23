@@ -1,6 +1,6 @@
-import React, { useState, Suspense } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
@@ -36,6 +36,8 @@ import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
+
+import * as spectraActions from "../ducks/spectra";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -141,6 +143,7 @@ export const useSourceStyles = makeStyles((theme) => ({
 }));
 
 const SourceDesktop = ({ source }) => {
+  const dispatch = useDispatch();
   const classes = useSourceStyles();
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
@@ -153,10 +156,14 @@ const SourceDesktop = ({ source }) => {
 
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
+
   const groups = (useSelector((state) => state.groups.all) || []).filter(
     (g) => !g.single_user_group
   );
 
+  useEffect(() => {
+    dispatch(spectraActions.fetchSourceSpectra(source.id));
+  }, [source.id, dispatch]);
   const z_round = source.redshift_error
     ? ceil(abs(log10(source.redshift_error)))
     : 4;
@@ -417,6 +424,7 @@ const SourceDesktop = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </div>
+
         {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>
@@ -477,7 +485,11 @@ const SourceDesktop = ({ source }) => {
           </Accordion>
         </div>
         <div className={classes.columnItem}>
-          <Accordion defaultExpanded className={classes.comments}>
+          <Accordion
+            defaultExpanded
+            className={classes.comments}
+            data-testid="comments-accordion"
+          >
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls="comments-content"

@@ -1,6 +1,6 @@
-import React, { useState, Suspense } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
@@ -45,6 +45,8 @@ import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
+
+import * as spectraActions from "../ducks/spectra";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -195,12 +197,16 @@ const SourceMobile = WidthProvider(
     const { instrumentList, instrumentFormParams } = useSelector(
       (state) => state.instruments
     );
+    const dispatch = useDispatch();
     const { observingRunList } = useSelector((state) => state.observingRuns);
     const { taxonomyList } = useSelector((state) => state.taxonomies);
     const groups = (useSelector((state) => state.groups.all) || []).filter(
       (g) => !g.single_user_group
     );
 
+    useEffect(() => {
+      dispatch(spectraActions.fetchSourceSpectra(source.id));
+    }, [source.id, dispatch]);
     const z_round = source.redshift_error
       ? ceil(abs(log10(source.redshift_error)))
       : 4;

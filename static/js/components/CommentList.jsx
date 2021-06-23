@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { useSelector, useDispatch } from "react-redux";
+
+import PropTypes from "prop-types";
+
 import { Button } from "@material-ui/core";
 import Tooltip from "@material-ui/core/Tooltip";
 import GroupIcon from "@material-ui/icons/Group";
@@ -149,7 +152,12 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const CommentList = () => {
+const CommentList = ({
+  associatedResourceType = "object",
+  objID = null,
+  spectrumID = null,
+  includeCommentsOnAllResourceTypes = true,
+}) => {
   const styles = useStyles();
   const [hoverID, setHoverID] = useState(null);
 
@@ -168,11 +176,53 @@ const CommentList = () => {
 
   const dispatch = useDispatch();
   const obj = useSelector((state) => state.source);
+  const spectra = useSelector((state) => state.spectra);
   const userProfile = useSelector((state) => state.profile);
   const permissions = useSelector((state) => state.profile.permissions);
   const compactComments = useSelector(
     (state) => state.profile.preferences?.compactComments
   );
+
+  if (!objID) {
+    objID = obj.id;
+  }
+
+  const addComment = (formData) => {
+    dispatch(
+      sourceActions.addComment({
+        obj_id: objID,
+        spectrum_id: spectrumID,
+        ...formData,
+      })
+    );
+  };
+
+  let comments = null;
+  let specComments = null;
+
+  if (associatedResourceType === "object") {
+    comments = obj.comments;
+    if (
+      includeCommentsOnAllResourceTypes &&
+      typeof spectra === "object" &&
+      spectra !== null &&
+      objID in spectra
+    ) {
+      specComments = spectra[objID].map((spec) => spec.comments).flat();
+    }
+    if (comments !== null && specComments !== null) {
+      comments = specComments.concat(comments);
+      comments.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    }
+  } else if (associatedResourceType === "spectrum") {
+    if (spectrumID === null) {
+      throw new Error("Must specify a spectrumID for comments on spectra");
+    }
+    const spectrum = spectra[objID].find((spec) => spec.id === spectrumID);
+    comments = spectrum?.comments;
+  } else {
+    throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
+  }
 
   // Color styling
   const userColorTheme = useSelector(
@@ -181,12 +231,25 @@ const CommentList = () => {
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
-  let { comments } = obj;
-  const addComment = (formData) => {
-    dispatch(sourceActions.addComment({ obj_id: obj.id, ...formData }));
-  };
-
   comments = comments || [];
+
+  const renderCommentText = (text, spectrum_id) => {
+    if (
+      spectrum_id &&
+      objID in spectra &&
+      associatedResourceType === "object"
+    ) {
+      const spectrum = spectra[objID].find((spec) => spec.id === spectrum_id);
+      const dayFraction =
+        (parseFloat(spectrum.observed_at.substring(11, 13)) / 24) * 10;
+      return `**Spectrum ${spectrum.observed_at.substring(
+        2,
+        10
+      )}.${dayFraction.toFixed(0)}** ${text}`;
+    }
+
+    return text;
+  };
 
   const emojiSupport = (text) =>
     text.value.replace(/:\w+:/gi, (name) =>
@@ -197,7 +260,15 @@ const CommentList = () => {
     <div className={styles.commentsContainer}>
       <div className={styles.commentsList}>
         {comments.map(
-          ({ id, author, created_at, text, attachment_name, groups }) => (
+          ({
+            id,
+            author,
+            created_at,
+            text,
+            attachment_name,
+            groups,
+            spectrum_id,
+          }) => (
             <span
               key={id}
               className={commentStyle}
@@ -221,7 +292,11 @@ const CommentList = () => {
                   </div>
                   <div className={styles.compactWrap} name={`commentDiv${id}`}>
                     <ReactMarkdown
-                      source={text}
+                      source={renderCommentText(
+                        text,
+                        spectrum_id,
+                        associatedResourceType
+                      )}
                       escapeHtml={false}
                       className={styles.commentMessage}
                       renderers={{ text: emojiSupport }}
@@ -249,7 +324,12 @@ const CommentList = () => {
                           color="primary"
                           name={`deleteCommentButton${id}`}
                           onClick={() => {
-                            dispatch(sourceActions.deleteComment(id));
+                            dispatch(
+                              sourceActions.deleteComment(
+                                id,
+                                associatedResourceType
+                              )
+                            );
                           }}
                           className="commentDelete"
                         >
@@ -306,7 +386,12 @@ const CommentList = () => {
                           type="button"
                           name={`deleteCommentButton${id}`}
                           onClick={() => {
-                            dispatch(sourceActions.deleteComment(id));
+                            dispatch(
+                              sourceActions.deleteComment(
+                                id,
+                                associatedResourceType
+                              )
+                            );
                           }}
                           className="commentDelete"
                         >
@@ -316,7 +401,11 @@ const CommentList = () => {
                     </div>
                     <div className={styles.wrap} name={`commentDiv${id}`}>
                       <ReactMarkdown
-                        source={text}
+                        source={renderCommentText(
+                          text,
+                          spectrum_id,
+                          associatedResourceType
+                        )}
                         escapeHtml={false}
                         className={styles.commentMessage}
                         renderers={{ text: emojiSupport }}
@@ -343,6 +432,20 @@ const CommentList = () => {
       )}
     </div>
   );
+};
+
+CommentList.propTypes = {
+  objID: PropTypes.string,
+  associatedResourceType: PropTypes.string,
+  spectrumID: PropTypes.number,
+  includeCommentsOnAllResourceTypes: PropTypes.bool,
+};
+
+CommentList.defaultProps = {
+  objID: null,
+  associatedResourceType: "object",
+  spectrumID: null,
+  includeCommentsOnAllResourceTypes: true,
 };
 
 export default CommentList;
