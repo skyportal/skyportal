@@ -1,12 +1,12 @@
 import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
 import Button from "@material-ui/core/Button";
+import Chip from "@material-ui/core/Chip";
 import { makeStyles, useTheme } from "@material-ui/core/styles";
 
 import * as profileActions from "../ducks/profile";
@@ -86,20 +86,12 @@ const TopGcnEvents = ({ classes }) => {
               <li key={gcnEvent.dateobs}>
                 <div className={styles.eventNameContainer}>
                   &nbsp; -&nbsp;
-                  <Link to={`/gcnevents/${gcnEvent.dateobs}`}>
-                    {gcnEvent.dateobs}
-                  </Link>
-                </div>
-                <div>
-                  <em>
-                    &nbsp; -&nbsp;
-                    {gcnEvent.tags.map((tag) => (
-                      <Button style={getStyles(theme)} key={tag}>
-                        {" "}
-                        {tag}{" "}
-                      </Button>
-                    ))}
-                  </em>
+                  <Chip size="small" label={gcnEvent.dateobs} color="primary" />
+                  {gcnEvent.tags.map((tag) => (
+                    <Button style={getStyles(theme)} key={tag}>
+                      {tag}
+                    </Button>
+                  ))}
                 </div>
               </li>
             ))}
