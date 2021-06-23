@@ -25,7 +25,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const NotificationPreferences = () => {
+const FavoriteSourcesNotificationPreferences = () => {
   const classes = useStyles();
   const profile = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();
@@ -42,7 +42,9 @@ const NotificationPreferences = () => {
 
   const prefToggled = (event) => {
     const prefs = {
-      [event.target.name]: event.target.checked,
+      favorite_sources_activity_notifications: {
+        [event.target.name]: event.target.checked,
+      },
     };
 
     dispatch(profileActions.updateUserPreferences(prefs));
@@ -52,7 +54,7 @@ const NotificationPreferences = () => {
     <div>
       <div className={classes.header}>
         <Typography variant="h6" display="inline">
-          SMS/Email Notification Preferences
+          Browser Notifications For Favorite Source Activity
         </Typography>
         <IconButton aria-label="help" size="small" onClick={handleClick}>
           <HelpOutlineIcon />
@@ -73,34 +75,53 @@ const NotificationPreferences = () => {
         }}
       >
         <Typography className={classes.typography}>
-          Enable these to receive notifications regarding sources triggered by
-          other users within your groups.
+          Enable these to receive browser notifications for the selected
+          activity types regarding sources you have starred/favorited.
         </Typography>
       </Popover>
       <FormGroup row>
         <FormControlLabel
           control={
             <Switch
-              checked={profile.allowEmailAlerts === true}
-              name="allowEmailAlerts"
+              checked={
+                profile.favorite_sources_activity_notifications?.comments ===
+                true
+              }
+              name="comments"
               onChange={prefToggled}
             />
           }
-          label="Email notifications"
+          label="New Comments"
         />
         <FormControlLabel
           control={
             <Switch
-              checked={profile.allowSMSAlerts === true}
-              name="allowSMSAlerts"
+              checked={
+                profile.favorite_sources_activity_notifications?.spectra ===
+                true
+              }
+              name="spectra"
               onChange={prefToggled}
             />
           }
-          label="SMS notifications"
+          label="New Spectra"
+        />
+        <FormControlLabel
+          control={
+            <Switch
+              checked={
+                profile.favorite_sources_activity_notifications
+                  ?.classifications === true
+              }
+              name="classifications"
+              onChange={prefToggled}
+            />
+          }
+          label="New Classifications"
         />
       </FormGroup>
     </div>
   );
 };
 
-export default NotificationPreferences;
+export default FavoriteSourcesNotificationPreferences;

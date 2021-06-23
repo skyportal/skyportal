@@ -79,7 +79,9 @@ const initialState = {
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === REFRESH_FAVORITE_SOURCES) {
-    dispatch(fetchFavoriteSources());
+    if (window.location.pathname === "/favorites") {
+      dispatch(fetchFavoriteSources());
+    }
   }
 });
 

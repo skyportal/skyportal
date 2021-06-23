@@ -1,0 +1,118 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<voe:VOEvent
+      ivorn="ivo://nasa.gsfc.gcn/Fermi#GBM_Gnd_Pos_2018-01-16T00:36:52.81_537755817_56-996"
+      role="observation" version="2.0"
+      xmlns:voe="http://www.ivoa.net/xml/VOEvent/v2.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.ivoa.net/xml/VOEvent/v2.0  http://www.ivoa.net/xml/VOEvent/VOEvent-v2.0.xsd" >
+  <Who>
+    <AuthorIVORN>ivo://nasa.gsfc.tan/gcn</AuthorIVORN>
+    <Author>
+      <shortName>Fermi (via VO-GCN)</shortName>
+      <contactName>Julie McEnery</contactName>
+      <contactPhone>+1-301-286-1632</contactPhone>
+      <contactEmail>Julie.E.McEnery@nasa.gov</contactEmail>
+    </Author>
+    <Date>2018-01-16T00:37:05</Date>
+    <Description>This VOEvent message was created with GCN VOE version: 1.25 23jul17</Description>
+  </Who>
+  <What>
+    <Param name="Packet_Type"           value="112" />
+    <Param name="Pkt_Ser_Num"           value="13" />
+    <Param name="TrigID"                value="537755817" ucd="meta.id" />
+    <Param name="Sequence_Num"          value="56" ucd="meta.id.part" />
+    <Param name="Burst_TJD"             value="18134" unit="days" ucd="time" />
+    <Param name="Burst_SOD"             value="2212.81" unit="sec" ucd="time" />
+    <Param name="Burst_Inten"           value="0" unit="cts" ucd="phot.count" />
+    <Param name="Data_Integ"            value="16.384" unit="sec" ucd="time.interval" />
+    <Param name="Burst_Signif"          value="8.60" unit="sigma" ucd="stat.snr" />
+    <Param name="Phi"                   value="319.00" unit="deg" ucd="pos.az.azi" />
+    <Param name="Theta"                 value="31.00" unit="deg" ucd="pos.az.zd" />
+    <Param name="Algorithm"             value="4153" unit="dn" />
+    <Param name="Lo_Energy"             value="44032" unit="keV"  />
+    <Param name="Hi_Energy"             value="279965" unit="keV"  />
+    <Param name="SC_Geo_X"              value="-100528"   />
+    <Param name="SC_Geo_Y"              value="42792"   />
+    <Param name="SC_Geo_Z"              value="16300"   />
+    <Param name="Trigger_ID"            value="0x1" />
+    <Param name="Misc_flags"            value="0x40000000" />
+    <Group name="Trigger_ID" >
+      <Param name="Def_NOT_a_GRB"         value="false" />
+      <Param name="Target_in_Blk_Catalog" value="false" />
+      <Param name="Spatial_Prox_Match"    value="false" />
+      <Param name="Long_short"            value="unknown" />
+      <Param name="Temporal_Prox_Match"   value="false" />
+      <Param name="Test_Submission"       value="false" />
+    </Group>
+    <Group name="Misc_Flags" >
+      <Param name="Values_Out_of_Range"   value="false" />
+      <Param name="Flt_Generated"         value="false" />
+      <Param name="Gnd_Generated"         value="true" />
+      <Param name="CRC_Error"             value="false" />
+    </Group>
+    <Param name="LightCurve_URL" value="http://heasarc.gsfc.nasa.gov/FTP/fermi/data/gbm/triggers/2018/bn180116026/quicklook/glg_lc_medres34_bn180116026.gif" ucd="meta.ref.url" >
+      <Description> The LC_URL file will not be created/available until ~15 min after the trigger.</Description>
+    </Param>
+    <Param name="LocationMap_URL" value="http://gcn.gsfc.nasa.gov/notices_f/gbm_gnd_loc_map_537755817.fits" ucd="meta.ref.url" >
+      <Description>The LocationMap_URL file will not be created/available until ~4 min after the notice.</Description>
+    </Param>
+    <Param name="Coords_Type"           value="1" unit="dn" />
+    <Param name="Coords_String"         value="source_object" />
+    <Group name="Obs_Support_Info" >
+      <Description>The Sun and Moon values are valid at the time the VOEvent XML message was created.</Description>
+      <Param name="Sun_RA"        value="297.81" unit="deg" ucd="pos.eq.ra" />
+      <Param name="Sun_Dec"       value="-20.98" unit="deg" ucd="pos.eq.dec" />
+      <Param name="Sun_Distance"  value="93.79" unit="deg" ucd="pos.angDistance" />
+      <Param name="Sun_Hr_Angle"  value="5.52" unit="hr" />
+      <Param name="Moon_RA"       value="285.15" unit="deg" ucd="pos.eq.ra" />
+      <Param name="Moon_Dec"      value="-19.98" unit="deg" ucd="pos.eq.dec" />
+      <Param name="MOON_Distance" value="83.10" unit="deg" ucd="pos.angDistance" />
+      <Param name="Moon_Illum"    value="1.04" unit="%" ucd="arith.ratio" />
+      <Param name="Galactic_Long" value="41.01" unit="deg" ucd="pos.galactic.lon" />
+      <Param name="Galactic_Lat"  value="70.61" unit="deg" ucd="pos.galactic.lat" />
+      <Param name="Ecliptic_Long" value="200.67" unit="deg" ucd="pos.ecliptic.lon" />
+      <Param name="Ecliptic_Lat"  value="39.24" unit="deg" ucd="pos.ecliptic.lat" />
+    </Group>
+    <Description>The Fermi-GBM location of a transient.</Description>
+  </What>
+  <WhereWhen>
+    <ObsDataLocation>
+      <ObservatoryLocation id="GEOLUN" />
+      <ObservationLocation>
+        <AstroCoordSystem id="UTC-FK5-GEO" />
+        <AstroCoords coord_system_id="UTC-FK5-GEO">
+          <Time unit="s">
+            <TimeInstant>
+              <ISOTime>2018-01-16T00:36:52.81</ISOTime>
+            </TimeInstant>
+          </Time>
+          <Position2D unit="deg">
+            <Name1>RA</Name1>
+            <Name2>Dec</Name2>
+            <Value2>
+              <C1>214.7400</C1>
+              <C2>28.1400</C2>
+            </Value2>
+            <Error2Radius>11.1900</Error2Radius>
+          </Position2D>
+        </AstroCoords>
+      </ObservationLocation>
+    </ObsDataLocation>
+  <Description>The RA,Dec coordinates are of the type: source_object.</Description>
+  </WhereWhen>
+  <How>
+    <Description>Fermi Satellite, GBM Instrument</Description>
+    <Reference uri="http://gcn.gsfc.nasa.gov/fermi.html" type="url" />
+  </How>
+  <Why importance="0.95">
+    <Inference probability="0.5">
+      <Concept>process.variation.burst;em.gamma</Concept>
+    </Inference>
+  </Why>
+  <Citations>
+    <EventIVORN cite="followup">ivo://nasa.gsfc.gcn/Fermi#GBM_Alert_2018-01-16T00:36:52.81_537755817_1-994</EventIVORN>
+    <Description>This is an updated position to the original trigger.</Description>
+  </Citations>
+  <Description>
+  </Description>
+</voe:VOEvent>

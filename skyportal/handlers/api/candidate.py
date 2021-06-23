@@ -861,11 +861,23 @@ class CandidateHandler(BaseHandler):
                         key=lambda x: x.created_at,
                         reverse=True,
                     )
-                candidate_list[-1]["annotations"] = sorted(
+                unordered_annotations = sorted(
                     Annotation.query_records_accessible_by(self.current_user)
                     .filter(Annotation.obj_id == obj.id)
                     .all(),
                     key=lambda x: x.origin,
+                )
+                selected_groups_annotations = []
+                other_annotations = []
+                for annotation in unordered_annotations:
+                    if set(group_ids).intersection(
+                        {group.id for group in annotation.groups}
+                    ):
+                        selected_groups_annotations.append(annotation)
+                    else:
+                        other_annotations.append(annotation)
+                candidate_list[-1]["annotations"] = (
+                    selected_groups_annotations + other_annotations
                 )
                 candidate_list[-1]["last_detected_at"] = obj.last_detected_at(
                     self.current_user
