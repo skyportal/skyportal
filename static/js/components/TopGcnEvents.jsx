@@ -8,7 +8,7 @@ import Typography from "@material-ui/core/Typography";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
-import { makeStyles } from "@material-ui/core/styles";
+import { makeStyles, withStyles } from "@material-ui/core/styles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -44,6 +44,35 @@ const useStyles = makeStyles((theme) => ({
     color: theme.palette.primary.main,
   },
 }));
+
+const StyledButton = withStyles({
+  root: {
+    background: "#b94a48",
+    borderRadius: 1,
+    border: 0,
+    color: "white",
+    height: 28,
+    padding: "0 20px",
+  },
+  BNS: {
+    background: "#468847",
+  },
+  NSBH: {
+    background: "#b94a48",
+  },
+  BBH: {
+    background: "#333333",
+  },
+  GRB: {
+    background: "#f89406",
+  },
+  AMON: {
+    background: "#3a87ad",
+  },
+  Terrestrial: {
+    background: "#999999",
+  },
+})(Button);
 
 const defaultPrefs = {
   maxNumEvents: "",
@@ -98,9 +127,9 @@ const TopGcnEvents = ({ classes }) => {
                   </Link>
                   {dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))}
                   {gcnEvent.tags.map((tag) => (
-                    <Button color="secondary" key={tag}>
+                    <StyledButton variant={tag} key={tag}>
                       {tag}
-                    </Button>
+                    </StyledButton>
                   ))}
                 </div>
               </li>
