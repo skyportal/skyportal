@@ -151,7 +151,10 @@ class GcnEventViewsHandler(BaseHandler):
         q = (
             GcnEvent.query_records_accessible_by(
                 self.current_user,
-                options=[joinedload(GcnEvent.localizations)],
+                options=[
+                    joinedload(GcnEvent.localizations),
+                    joinedload(GcnEvent.gcn_notices),
+                ],
             )
             .filter(GcnEvent.dateobs > cutoff_day)
             .limit(max_num_events)
