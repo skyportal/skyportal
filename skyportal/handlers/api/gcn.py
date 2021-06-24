@@ -154,6 +154,7 @@ class GcnEventViewsHandler(BaseHandler):
                 options=[joinedload(GcnEvent.localizations)],
             )
             .filter(GcnEvent.dateobs > cutoff_day)
+            .order_by(GcnEvent.dateobs.desc())
             .limit(max_num_events)
         )
 
