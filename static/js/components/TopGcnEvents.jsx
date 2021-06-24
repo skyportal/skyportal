@@ -8,7 +8,7 @@ import Typography from "@material-ui/core/Typography";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
-import { makeStyles, withStyles } from "@material-ui/core/styles";
+import { makeStyles } from "@material-ui/core/styles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -39,40 +39,38 @@ const useStyles = makeStyles((theme) => ({
   eventNameContainer: {
     display: "flex",
     flexDirection: "row",
+    alignItems: "center",
   },
   eventNameLink: {
     color: theme.palette.primary.main,
   },
-}));
-
-const StyledButton = withStyles({
-  root: {
-    background: "#b94a48",
-    borderRadius: 1,
-    border: 0,
-    color: "white",
-    height: 28,
-    padding: "0 20px",
+  eventTags: {
+    marginLeft: "1rem",
+    "& > div": {
+      margin: "0.25rem",
+      color: "white",
+      background: theme.palette.primary.main,
+    },
   },
   BNS: {
-    background: "#468847",
+    background: "#468847!important",
   },
   NSBH: {
-    background: "#b94a48",
+    background: "#b94a48!important",
   },
   BBH: {
-    background: "#333333",
+    background: "#333333!important",
   },
   GRB: {
-    background: "#f89406",
+    background: "#f89406!important",
   },
   AMON: {
-    background: "#3a87ad",
+    background: "#3a87ad!important",
   },
   Terrestrial: {
-    background: "#999999",
+    background: "#999999!important",
   },
-})(Button);
+}));
 
 const defaultPrefs = {
   maxNumEvents: "",
@@ -111,7 +109,7 @@ const TopGcnEvents = ({ classes }) => {
             />
           </div>
         </div>
-        <div className={styles.topEventsContainer}>
+        <div className={styles.eventListContainer}>
           <p>Displaying most-viewed events</p>
           <ul className={styles.eventList}>
             {gcnEvents.map((gcnEvent) => (
@@ -119,18 +117,21 @@ const TopGcnEvents = ({ classes }) => {
                 <div className={styles.eventNameContainer}>
                   &nbsp; -&nbsp;
                   <Link to={`/gcnevents/${gcnEvent.dateobs}`}>
-                    <Chip
-                      size="small"
-                      label={gcnEvent.dateobs}
-                      color="primary"
-                    />
+                    <Button color="primary">
+                      {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
+                    </Button>
                   </Link>
-                  {dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))}
-                  {gcnEvent.tags.map((tag) => (
-                    <StyledButton variant={tag} key={tag}>
-                      {tag}
-                    </StyledButton>
-                  ))}
+                  <div>({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})</div>
+                  <div className={styles.eventTags}>
+                    {gcnEvent.tags.map((tag) => (
+                      <Chip
+                        className={styles[tag]}
+                        size="small"
+                        label={tag}
+                        key={tag}
+                      />
+                    ))}
+                  </div>
                 </div>
               </li>
             ))}
