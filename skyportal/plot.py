@@ -1,5 +1,6 @@
 import itertools
 import math
+import json
 
 import numpy as np
 import pandas as pd
@@ -317,7 +318,7 @@ def annotate_spec(plot, spectra, lower, upper):
 
 
 def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
-    """ Helper function to add responsive legends to a photometry plot tab """
+    """Helper function to add responsive legends to a photometry plot tab"""
     if legend_orientation == "horizontal":
         width_remaining = width - 120
         current_legend_items = []
@@ -1267,7 +1268,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         # normalize spectra to a median flux of 1 for easy comparison
         normfac = np.nanmedian(np.abs(s.fluxes))
         normfac = normfac if normfac != 0.0 else 1e-20
-
+        altdata = json.dumps(s.altdata) if s.altdata is not None else ""
+        print(s.altdata)
         df = pd.DataFrame(
             {
                 'wavelength': s.wavelengths,
@@ -1285,6 +1287,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
                         else ""
                     )
                 ),
+                'origin': s.origin,
+                'altdata': altdata[:20] + "..." if len(altdata) > 20 else altdata,
             }
         )
         data.append(df)
@@ -1315,6 +1319,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
             ('instrument', '@instrument'),
             ('UTC date observed', '@date_observed'),
             ('PI', '@pi'),
+            ('origin', '@origin'),
+            ('altdata', '@altdata{safe}'),
         ]
     )
     smoothed_max = np.max(smoothed_data['flux'])
@@ -1372,7 +1378,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     if device == "browser":
         plot_height_of_legend = (
             legend_row_height * int(len(split) / legend_items_per_row)
-            + 40  # 40 is height of toolbar plus legend offset
+            + 90  # 90 is height of toolbar plus legend offset
         )
 
         if plot_height_of_legend > plot_height:
