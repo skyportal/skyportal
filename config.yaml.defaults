@@ -112,6 +112,10 @@ app:
       icon: LocalCafe
       url: /runs
 
+    - name: GCN Events
+      icon: SettingsInputAntenna
+      url: /gcn_events
+
     - name: About
       icon: Info
       url: /about
