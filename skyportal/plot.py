@@ -1269,7 +1269,6 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         normfac = np.nanmedian(np.abs(s.fluxes))
         normfac = normfac if normfac != 0.0 else 1e-20
         altdata = json.dumps(s.altdata) if s.altdata is not None else ""
-        print(s.altdata)
         df = pd.DataFrame(
             {
                 'wavelength': s.wavelengths,
