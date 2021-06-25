@@ -19,10 +19,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 const reducer = (state = { gcnEvents: [] }, action) => {
   switch (action.type) {
     case FETCH_RECENT_GCNEVENTS_OK: {
-      const gcnEvents = action.data;
-      return {
-        gcnEvents,
-      };
+      return action.data;
     }
     default:
       return state;
