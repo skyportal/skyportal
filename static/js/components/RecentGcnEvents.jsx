@@ -92,9 +92,6 @@ const RecentGcnEvents = ({ classes }) => {
     dispatch(gcnEventsActions.fetchGcnEvents());
   }, [dispatch]);
 
-  if (!gcnEvents) {
-    return <CircularProgress />;
-  }
 
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
