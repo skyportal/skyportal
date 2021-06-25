@@ -9,6 +9,7 @@ import DragHandleIcon from "@material-ui/icons/DragHandle";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
 import { makeStyles } from "@material-ui/core/styles";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -88,8 +89,12 @@ const RecentGcnEvents = ({ classes }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    dispatch(recentEventsActions.fetchRecentGcnEvents());
+    dispatch(gcnEventsActions.fetchGcnEvents());
   }, [dispatch]);
+
+  if (!gcnEvents) {
+    return <CircularProgress />;
+  }
 
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
@@ -112,7 +117,7 @@ const RecentGcnEvents = ({ classes }) => {
         <div className={styles.eventListContainer}>
           <p>Displaying most-viewed events</p>
           <ul className={styles.eventList}>
-            {gcnEvents.map((gcnEvent) => (
+            {gcnEvents?.map((gcnEvent) => (
               <li key={gcnEvent.dateobs}>
                 <div className={styles.eventNameContainer}>
                   &nbsp; -&nbsp;

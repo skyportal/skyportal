@@ -4,21 +4,20 @@ import * as API from "../API";
 import store from "../store";
 
 export const FETCH_GCNEVENTS = "skyportal/FETCH_GCNEVENTS";
-export const FETCH_RECENT_GCNEVENTS_OK = "skyportal/FETCH_RECENT_GCNEVENTS_OK";
+export const FETCH_GCNEVENTS_OK = "skyportal/FETCH_GCNEVENTS_OK";
 
-export const fetchGcnEvents = () =>
-  API.GET("/api/gcn_event", FETCH_RECENT_GCNEVENTS);
+export const fetchGcnEvents = () => API.GET("/api/gcn_event", FETCH_GCNEVENTS);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
-  if (actionType === FETCH_RECENT_GCNEVENTS) {
-    dispatch(fetchRecentGcnEvents());
+  if (actionType === FETCH_GCNEVENTS) {
+    dispatch(fetchGcnEvents());
   }
 });
 
-const reducer = (state = { gcnEvents: [] }, action) => {
+const reducer = (state = null, action) => {
   switch (action.type) {
-    case FETCH_RECENT_GCNEVENTS_OK: {
+    case FETCH_GCNEVENTS_OK: {
       return action.data;
     }
     default:
