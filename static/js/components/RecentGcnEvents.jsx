@@ -82,7 +82,7 @@ const RecentGcnEvents = ({ classes }) => {
 
   const { gcnEvents } = useSelector((state) => state.recentGcnEvents);
   const recentEventsPrefs =
-    useSelector((state) => state.profile.preferences.recentGcnEvents) ||
+    useSelector((state) => state.profile.preferences?.recentGcnEvents) ||
     defaultPrefs;
 
   const dispatch = useDispatch();
