@@ -58,6 +58,9 @@ const useStyles = makeStyles(() => ({
   submitButton: {
     marginTop: "1rem",
   },
+  expired_user: {
+    color: "red",
+  },
 }));
 
 const dataTableStyles = (theme) =>
@@ -389,8 +392,9 @@ const UserInvitations = () => {
 
   const renderExpirationDate = (dataIndex) => {
     const invitation = invitations[dataIndex];
+    const isExpired = dayjs.utc().isAfter(invitation.user_expiration_date);
     return (
-      <div>
+      <div className={isExpired ? classes.expired_user : ""}>
         {invitation.user_expiration_date
           ? dayjs.utc(invitation.user_expiration_date).format("YYYY/MM/DD")
           : ""}
@@ -416,8 +420,9 @@ const UserInvitations = () => {
         interactive
         title={
           <>
-            This is the expiration date assigned to the new user account. After
-            this date, the new user will be relegated to a view only role.
+            This is the expiration date assigned to the new user account. On
+            this date, the user account will be deactivated and will be unable
+            to access the application.
           </>
         }
       >
