@@ -3,7 +3,7 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_RECENT_GCNEVENTS = "skyportal/FETCH_RECENT_GCNEVENTS";
+export const FETCH_GCNEVENTS = "skyportal/FETCH_GCNEVENTS";
 export const FETCH_RECENT_GCNEVENTS_OK = "skyportal/FETCH_RECENT_GCNEVENTS_OK";
 
 export const fetchGcnEvents = () =>
