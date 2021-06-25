@@ -29,4 +29,4 @@ const reducer = (state = { gcnEvents: [] }, action) => {
   }
 };
 
-store.injectReducer("recentGcnEvents", reducer);
+store.injectReducer("gcnEvents", reducer);
