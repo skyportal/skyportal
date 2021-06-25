@@ -9,7 +9,6 @@ import DragHandleIcon from "@material-ui/icons/DragHandle";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
 import { makeStyles } from "@material-ui/core/styles";
-import CircularProgress from "@material-ui/core/CircularProgress";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -91,7 +90,6 @@ const RecentGcnEvents = ({ classes }) => {
   useEffect(() => {
     dispatch(gcnEventsActions.fetchGcnEvents());
   }, [dispatch]);
-
 
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
