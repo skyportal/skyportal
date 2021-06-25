@@ -15,7 +15,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import * as profileActions from "../ducks/profile";
-import * as topEventsActions from "../ducks/topGcnEvents";
+import * as recentEventsActions from "../ducks/recentGcnEvents";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
 dayjs.extend(relativeTime);
@@ -77,18 +77,18 @@ const defaultPrefs = {
   sinceDaysAgo: "",
 };
 
-const TopGcnEvents = ({ classes }) => {
+const RecentGcnEvents = ({ classes }) => {
   const styles = useStyles();
 
-  const { gcnEvents } = useSelector((state) => state.topGcnEvents);
-  const topEventsPrefs =
-    useSelector((state) => state.profile.preferences.topGcnEvents) ||
+  const { gcnEvents } = useSelector((state) => state.recentGcnEvents);
+  const recentEventsPrefs =
+    useSelector((state) => state.profile.preferences.recentGcnEvents) ||
     defaultPrefs;
 
   const dispatch = useDispatch();
 
   useEffect(() => {
-    dispatch(topEventsActions.fetchTopGcnEvents());
+    dispatch(recentEventsActions.fetchRecentGcnEvents());
   }, [dispatch]);
 
   return (
@@ -96,15 +96,15 @@ const TopGcnEvents = ({ classes }) => {
       <div className={classes.widgetPaperDiv}>
         <div className={styles.header}>
           <Typography variant="h6" display="inline">
-            Top GCN Events
+            Recent GCN Events
           </Typography>
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog
               // Only expose num sources
-              initialValues={{ maxNumSources: topEventsPrefs.maxNumSources }}
-              stateBranchName="topEvents"
-              title="Top Events Preferences"
+              initialValues={{ maxNumSources: recentEventsPrefs.maxNumSources }}
+              stateBranchName="recentEvents"
+              title="Recent Events Preferences"
               onSubmit={profileActions.updateUserPreferences}
             />
           </div>
@@ -116,7 +116,7 @@ const TopGcnEvents = ({ classes }) => {
               <li key={gcnEvent.dateobs}>
                 <div className={styles.eventNameContainer}>
                   &nbsp; -&nbsp;
-                  <Link to={`/gcnevents/${gcnEvent.dateobs}`}>
+                  <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
                     <Button color="primary">
                       {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
                     </Button>
@@ -142,7 +142,7 @@ const TopGcnEvents = ({ classes }) => {
   );
 };
 
-TopGcnEvents.propTypes = {
+RecentGcnEvents.propTypes = {
   classes: PropTypes.shape({
     widgetPaperDiv: PropTypes.string.isRequired,
     widgetIcon: PropTypes.string.isRequired,
@@ -150,4 +150,4 @@ TopGcnEvents.propTypes = {
   }).isRequired,
 };
 
-export default TopGcnEvents;
+export default RecentGcnEvents;

@@ -9,9 +9,7 @@ from .filter import FilterHandler
 from .followup_request import FollowupRequestHandler, AssignmentHandler
 from .facility_listener import FacilityMessageHandler
 from .gcn import (
-    GcnHandler,
     GcnEventHandler,
-    GcnEventViewsHandler,
     LocalizationHandler,
 )
 from .group import (

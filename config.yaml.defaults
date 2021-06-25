@@ -229,7 +229,7 @@ app:
         sm: [3, 3, 3, 3]
         xs: [0, 7, 4, 3]
 
-    TopGcnEvents:
+    RecentGcnEvents:
       resizeable: true
       minW: 2
       layouts:

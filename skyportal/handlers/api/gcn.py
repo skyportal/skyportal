@@ -21,10 +21,12 @@ from ...models import (
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
+default_prefs = {'maxNumGcnEvents': 10, 'sinceDaysAgo': 3650}
 
-class GcnHandler(BaseHandler):
+
+class GcnEventHandler(BaseHandler):
     @auth_or_token
-    def put(self):
+    def post(self):
         """
         ---
         description: Ingest GCN xml file
@@ -118,13 +120,8 @@ class GcnHandler(BaseHandler):
 
         return self.success()
 
-
-default_prefs = {'maxNumGcnEvents': 10, 'sinceDaysAgo': 3650}
-
-
-class GcnEventViewsHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    def get(self, dateobs=None):
         """
         ---
         description: Retrieve GCN events
@@ -134,12 +131,31 @@ class GcnEventViewsHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: GcnEventViewsHandlerGet
+                schema: GcnEventHandlerGet
           400:
             content:
               application/json:
                 schema: Error
         """
+        if dateobs is not None:
+            event = (
+                GcnEvent.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(GcnEvent.localizations),
+                        joinedload(GcnEvent.gcn_notices),
+                    ],
+                )
+                .filter(GcnEvent.dateobs == dateobs)
+                .first()
+            )
+            if event is None:
+                return self.error("GCN event not found", status=404)
+
+            data = {**event.to_dict(), "tags": event.tags}
+
+            return self.success(data=data)
+
         user_prefs = getattr(self.current_user, 'preferences', None) or {}
         top_events_prefs = user_prefs.get('topGcnEvents', {})
         top_events_prefs = {**default_prefs, **top_events_prefs}
@@ -163,50 +179,6 @@ class GcnEventViewsHandler(BaseHandler):
             events.append({**event.to_dict(), "tags": event.tags})
 
         return self.success(data=events)
-
-
-class GcnEventHandler(BaseHandler):
-    @auth_or_token
-    def get(self, dateobs):
-        """
-        ---
-        description: Retrieve a GCN event
-        tags:
-          - gcnevents
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: dateobs
-        responses:
-          200:
-            content:
-              application/json:
-                schema: GcnEventHandlerGet
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-
-        event = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(GcnEvent.localizations),
-                    joinedload(GcnEvent.gcn_notices),
-                ],
-            )
-            .filter(GcnEvent.dateobs == dateobs)
-            .first()
-        )
-        if event is None:
-            return self.error("GCN event not found", status=404)
-
-        data = {**event.to_dict(), "tags": event.tags}
-
-        return self.success(data=data)
 
     @auth_or_token
     def delete(self, dateobs):

@@ -3,22 +3,22 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_TOP_GCNEVENTS = "skyportal/FETCH_TOP_GCNEVENTS";
-export const FETCH_TOP_GCNEVENTS_OK = "skyportal/FETCH_TOP_GCNEVENTS_OK";
+export const FETCH_RECENT_GCNEVENTS = "skyportal/FETCH_RECENT_GCNEVENTS";
+export const FETCH_RECENT_GCNEVENTS_OK = "skyportal/FETCH_RECENT_GCNEVENTS_OK";
 
-export const fetchTopGcnEvents = () =>
-  API.GET("/api/gcn/event_views", FETCH_TOP_GCNEVENTS);
+export const fetchRecentGcnEvents = () =>
+  API.GET("/api/gcn_event", FETCH_RECENT_GCNEVENTS);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
-  if (actionType === FETCH_TOP_GCNEVENTS) {
-    dispatch(fetchTopGcnEvents());
+  if (actionType === FETCH_RECENT_GCNEVENTS) {
+    dispatch(fetchRecentGcnEvents());
   }
 });
 
 const reducer = (state = { gcnEvents: [] }, action) => {
   switch (action.type) {
-    case FETCH_TOP_GCNEVENTS_OK: {
+    case FETCH_RECENT_GCNEVENTS_OK: {
       const gcnEvents = action.data;
       return {
         gcnEvents,
@@ -29,4 +29,4 @@ const reducer = (state = { gcnEvents: [] }, action) => {
   }
 };
 
-store.injectReducer("topGcnEvents", reducer);
+store.injectReducer("recentGcnEvents", reducer);
