@@ -15,7 +15,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import * as profileActions from "../ducks/profile";
-import * as recentEventsActions from "../ducks/recentGcnEvents";
+import * as gcnEventsActions from "../ducks/gcnEvents";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
 dayjs.extend(relativeTime);
