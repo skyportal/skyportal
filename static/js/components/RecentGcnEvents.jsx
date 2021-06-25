@@ -80,7 +80,7 @@ const defaultPrefs = {
 const RecentGcnEvents = ({ classes }) => {
   const styles = useStyles();
 
-  const { gcnEvents } = useSelector((state) => state.recentGcnEvents);
+  const gcnEvents = useSelector((state) => state.gcnEvents);
   const recentEventsPrefs =
     useSelector((state) => state.profile.preferences?.recentGcnEvents) ||
     defaultPrefs;
