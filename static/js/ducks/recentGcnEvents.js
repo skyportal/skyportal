@@ -6,7 +6,7 @@ import store from "../store";
 export const FETCH_RECENT_GCNEVENTS = "skyportal/FETCH_RECENT_GCNEVENTS";
 export const FETCH_RECENT_GCNEVENTS_OK = "skyportal/FETCH_RECENT_GCNEVENTS_OK";
 
-export const fetchRecentGcnEvents = () =>
+export const fetchGcnEvents = () =>
   API.GET("/api/gcn_event", FETCH_RECENT_GCNEVENTS);
 
 // Websocket message handler
