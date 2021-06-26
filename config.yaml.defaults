@@ -81,7 +81,8 @@ app:
       component: Periodogram
     - path: "/db_stats"
       component: DBStats
-
+    - path: "/gcn_events/:dateobs"
+      component: GcnEventPage
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -231,13 +232,13 @@ app:
 
     RecentGcnEvents:
       resizeable: true
-      minW: 3
+      minW: 2
       layouts:
-        xlg: [5, 3, 5, 2]
-        lg: [4, 3, 5, 2]
-        md: [5, 6, 5, 2]
-        sm: [0, 7, 6, 2]
-        xs: [0, 13, 4, 2]
+        xlg: [5, 0, 5, 3]
+        lg: [4, 3, 3, 3]
+        md: [5, 3, 5, 3]
+        sm: [3, 3, 3, 3]
+        xs: [0, 7, 4, 3]
 
     GroupList:
       props:
