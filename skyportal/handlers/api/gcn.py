@@ -152,7 +152,11 @@ class GcnEventHandler(BaseHandler):
             if event is None:
                 return self.error("GCN event not found", status=404)
 
-            data = {**event.to_dict(), "tags": event.tags}
+            data = {
+                **event.to_dict(),
+                "tags": event.tags,
+                "lightcurve": event.lightcurve,
+            }
 
             return self.success(data=data)
 
@@ -258,7 +262,11 @@ class LocalizationHandler(BaseHandler):
         if localization is None:
             return self.error("Localization not found", status=404)
 
-        data = {**localization.to_dict(), "flat_2d": localization.flat_2d}
+        data = {
+            **localization.to_dict(),
+            "flat_2d": localization.flat_2d,
+            "contour": localization.contour,
+        }
         return self.success(data=data)
 
     @auth_or_token
