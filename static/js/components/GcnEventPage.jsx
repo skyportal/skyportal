@@ -73,7 +73,7 @@ const useD3 = (renderChartFn) => {
   useEffect(() => {
     renderChartFn(d3.select(ref.current));
     return () => {};
-  }, [ref]);
+  }, [renderChartFn, ref]);
   return ref;
 };
 
