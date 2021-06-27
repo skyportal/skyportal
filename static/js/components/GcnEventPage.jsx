@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
@@ -7,15 +7,9 @@ import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
 import { makeStyles } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-  Graticule,
-} from "react-simple-maps";
-import ReactTooltip from "react-tooltip";
 import IconButton from "@material-ui/core/IconButton";
 import GetAppIcon from "@material-ui/icons/GetApp";
+import { geoOrthographic, geoPath } from "d3-geo";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -83,11 +77,33 @@ const DownloadXMLButton = ({ gcn_notice }) => {
   );
 };
 
+const WorldMap = ({ localization, scale, cx, cy, rotation }) => {
+  const projection = geoOrthographic()
+    .scale(scale)
+    .translate([cx, cy])
+    .rotate([rotation, 0]);
+
+  return (
+    <>
+      <Button size="medium" color="primary" />
+      <svg width={scale * 3} height={scale * 3} viewBox="0 0 800 450">
+        <g>
+          <circle fill="#f2f2f2" cx={cx} cy={cy} r={scale} />
+        </g>
+        <g>
+          <path
+            d={geoPath().projection(projection)(localization.contour)}
+            stroke="aliceblue"
+          />
+        </g>
+      </svg>
+    </>
+  );
+};
+
 const Localization = ({ loc }) => {
   const localization = useSelector((state) => state.localization);
   const dispatch = useDispatch();
-
-  const [content, setTooltipContent] = useState("");
 
   useEffect(() => {
     dispatch(
@@ -100,53 +116,15 @@ const Localization = ({ loc }) => {
   }
 
   return (
-    <div>
-      <Chip
-        size="small"
-        label={localization.localization_name}
-        key={localization.localization_name}
+    <>
+      <WorldMap
+        localization={localization}
+        scale={200}
+        cx={400}
+        cy={150}
+        initRotation={0}
       />
-      <ComposableMap
-        data-tip=""
-        projectionConfig={{ scale: 147, rotate: [0.0, 0.0, 0.0] }}
-      >
-        <Graticule stroke="#F53" />
-        <Geographies geography={localization.contour}>
-          {({ geographies }) =>
-            geographies.map((geo) => (
-              <Geography
-                key={geo.rsmKey}
-                geography={geo}
-                fill="blue"
-                stroke="black"
-                onMouseEnter={() => {
-                  const { credible_level } = geo.properties;
-                  setTooltipContent(`Credible level: ${credible_level}%`);
-                }}
-                onMouseLeave={() => {
-                  setTooltipContent("");
-                }}
-                style={{
-                  default: {
-                    fill: "#D6D6DA",
-                    outline: "none",
-                  },
-                  hover: {
-                    fill: "#F53",
-                    outline: "none",
-                  },
-                  pressed: {
-                    fill: "#E42",
-                    outline: "none",
-                  },
-                }}
-              />
-            ))
-          }
-        </Geographies>
-      </ComposableMap>
-      <ReactTooltip>{content}</ReactTooltip>
-    </div>
+    </>
   );
 };
 
@@ -238,6 +216,16 @@ GcnEventPage.propTypes = {
   route: PropTypes.shape({
     dateobs: PropTypes.string,
   }).isRequired,
+};
+
+WorldMap.propTypes = {
+  localization: PropTypes.shape({
+    contour: PropTypes.string,
+  }).isRequired,
+  scale: PropTypes.number.isRequired,
+  cx: PropTypes.number.isRequired,
+  cy: PropTypes.number.isRequired,
+  rotation: PropTypes.number.isRequired,
 };
 
 export default GcnEventPage;
