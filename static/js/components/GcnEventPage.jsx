@@ -157,7 +157,7 @@ const GcnEventPage = ({ route }) => {
 
   useEffect(() => {
     dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
-  }, [dispatch]);
+  }, [route, dispatch]);
 
   if (!gcnEvent) {
     return <CircularProgress />;
