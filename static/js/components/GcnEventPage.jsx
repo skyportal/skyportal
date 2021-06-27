@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
@@ -70,16 +71,16 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const DownloadXMLButton = ({ gcn_notice }) => {
-    const blob = new Blob([gcn_notice.content], { type: "text/plain" });
+  const blob = new Blob([gcn_notice.content], { type: "text/plain" });
 
-    return (
-      <div>
+  return (
+    <div>
       <Chip size="small" label={gcn_notice.ivorn} key={gcn_notice.ivorn} />
       <IconButton href={URL.createObjectURL(blob)} download={gcn_notice.ivorn}>
         <GetAppIcon />
       </IconButton>
-      </div>
-    );
+    </div>
+  );
 };
 
 const Localization = ({ loc }) => {
@@ -90,12 +91,9 @@ const Localization = ({ loc }) => {
 
   useEffect(() => {
     dispatch(
-      localizationActions.fetchLocalization(
-        loc.dateobs,
-        loc.localization_name
-      )
+      localizationActions.fetchLocalization(loc.dateobs, loc.localization_name)
     );
-  }, [dispatch]);
+  }, [loc, dispatch]);
 
   if (!localization) {
     return <CircularProgress />;
@@ -103,7 +101,11 @@ const Localization = ({ loc }) => {
 
   return (
     <div>
-      <Chip size="small" label={localization.localization_name} key={localization.localization_name} />
+      <Chip
+        size="small"
+        label={localization.localization_name}
+        key={localization.localization_name}
+      />
       <ComposableMap
         data-tip=""
         projectionConfig={{ scale: 147, rotate: [0.0, 0.0, 0.0] }}
@@ -164,48 +166,78 @@ const GcnEventPage = ({ route }) => {
   return (
     <div className={styles.gcnEventContainer}>
       <ul className={styles.gcnEvent}>
-            <h1 style={{ display: "inline-block" }}>Event Information</h1>
-            <div>
-              &nbsp; -&nbsp;
-                  <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-                    <Button color="primary">
-                      {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
-                    </Button>
-                  </Link>
-            ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
-            </div>
-            { gcnEvent.lightcurve && <div> <h3 style={{ display: "inline-block" }}>Light Curve</h3> &nbsp; -&nbsp; <img src={gcnEvent.lightcurve} alt="loading..." /> </div>}
-            <h3 style={{ display: "inline-block" }}>Tags</h3>
-            <div>
-                &nbsp; -&nbsp;
-                  <div className={styles.eventTags}>
-                    {gcnEvent.tags?.map((tag) => (
-                      <Chip
-                        className={styles[tag]}
-                        size="small"
-                        label={tag}
-                        key={tag}
-                      />
-                    ))}
-                  </div>
-            </div>
-            <h3 style={{ display: "inline-block" }}>Skymaps</h3>
-            <div>
-                &nbsp; -&nbsp;
-                {gcnEvent.localizations?.map((localization) => (
-                  <Localization loc={localization} />
-                ))}
-            </div>
-            <h3 style={{ display: "inline-block" }}>GCN Notices</h3>
-            <div>
-                &nbsp; -&nbsp;
-                {gcnEvent.gcn_notices?.map((gcn_notice) => (
-                  <DownloadXMLButton gcn_notice={gcn_notice} />
-                ))}
-            </div>
+        <h1 style={{ display: "inline-block" }}>Event Information</h1>
+        <div>
+          &nbsp; -&nbsp;
+          <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
+            <Button color="primary">
+              {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
+            </Button>
+          </Link>
+          ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
+        </div>
+        {gcnEvent.lightcurve && (
+          <div>
+            {" "}
+            <h3 style={{ display: "inline-block" }}>Light Curve</h3> &nbsp;
+            -&nbsp; <img src={gcnEvent.lightcurve} alt="loading..." />{" "}
+          </div>
+        )}
+        <h3 style={{ display: "inline-block" }}>Tags</h3>
+        <div>
+          &nbsp; -&nbsp;
+          <div className={styles.eventTags}>
+            {gcnEvent.tags?.map((tag) => (
+              <Chip
+                className={styles[tag]}
+                size="small"
+                label={tag}
+                key={tag}
+              />
+            ))}
+          </div>
+        </div>
+        <h3 style={{ display: "inline-block" }}>Skymaps</h3>
+        <div>
+          &nbsp; -&nbsp;
+          {gcnEvent.localizations?.map((localization) => (
+            <li key={localization.localization_name}>
+              <Localization loc={localization} />
+            </li>
+          ))}
+        </div>
+        <h3 style={{ display: "inline-block" }}>GCN Notices</h3>
+        <div>
+          &nbsp; -&nbsp;
+          {gcnEvent.gcn_notices?.map((gcn_notice) => (
+            <li key={gcn_notice.ivorn}>
+              <DownloadXMLButton gcn_notice={gcn_notice} />
+            </li>
+          ))}
+        </div>
       </ul>
     </div>
- )
+  );
+};
+
+Localization.propTypes = {
+  loc: PropTypes.shape({
+    dateobs: PropTypes.string,
+    localization_name: PropTypes.string,
+  }).isRequired,
+};
+
+DownloadXMLButton.propTypes = {
+  gcn_notice: PropTypes.shape({
+    content: PropTypes.string,
+    ivorn: PropTypes.string,
+  }).isRequired,
+};
+
+GcnEventPage.propTypes = {
+  route: PropTypes.shape({
+    dateobs: PropTypes.string,
+  }).isRequired,
 };
 
 export default GcnEventPage;
