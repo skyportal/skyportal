@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
@@ -9,7 +9,10 @@ import { makeStyles } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import IconButton from "@material-ui/core/IconButton";
 import GetAppIcon from "@material-ui/icons/GetApp";
-import { geoOrthographic, geoPath } from "d3-geo";
+
+import * as d3 from "d3";
+import d3GeoZoom from "d3-geo-zoom";
+import GeoPropTypes from "geojson-prop-types";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -23,19 +26,6 @@ dayjs.extend(utc);
 
 const useStyles = makeStyles((theme) => ({
   header: {},
-  gcnEventContainer: {
-    height: "calc(100% - 5rem)",
-    overflowY: "auto",
-    marginTop: "0.625rem",
-    paddingTop: "0.625rem",
-  },
-  gcnEvent: {
-    display: "block",
-    alignItems: "center",
-    listStyleType: "none",
-    paddingLeft: 0,
-    marginTop: 0,
-  },
   eventTags: {
     marginLeft: "1rem",
     "& > div": {
@@ -77,28 +67,62 @@ const DownloadXMLButton = ({ gcn_notice }) => {
   );
 };
 
-const WorldMap = ({ localization, scale, cx, cy, rotation }) => {
-  const projection = geoOrthographic()
-    .scale(scale)
-    .translate([cx, cy])
-    .rotate([rotation, 0]);
+const useD3 = (renderChartFn) => {
+  const ref = useRef();
 
-  return (
-    <>
-      <Button size="medium" color="primary" />
-      <svg width={scale * 3} height={scale * 3} viewBox="0 0 800 450">
-        <g>
-          <circle fill="#f2f2f2" cx={cx} cy={cy} r={scale} />
-        </g>
-        <g>
-          <path
-            d={geoPath().projection(projection)(localization.contour)}
-            stroke="aliceblue"
-          />
-        </g>
-      </svg>
-    </>
-  );
+  useEffect(() => {
+    renderChartFn(d3.select(ref.current));
+    return () => {};
+  }, [ref]);
+  return ref;
+};
+
+const Globe = ({ data }) => {
+  const projRef = useRef(d3.geoOrthographic());
+
+  function renderMap(svg) {
+    const path = d3.geoPath().projection(projRef.current);
+
+    function render() {
+      svg.selectAll("path").attr("d", path);
+    }
+
+    d3GeoZoom().projection(projRef.current).onMove(render)(svg.node());
+
+    if (data) {
+      svg
+        .selectAll("path")
+        .data(data.features)
+        .enter()
+        .append("path")
+        .attr("class", (d) => d.properties.name)
+        .attr("d", path)
+        .style("fill", "none")
+        .style("stroke", "black")
+        .style("stroke-width", "0.5px");
+    }
+
+    svg
+      .selectAll("path")
+      .data([{ type: "Feature", geometry: d3.geoGraticule10() }])
+      .enter()
+      .append("path")
+      .attr("class", "graticule")
+      .attr("d", path)
+      .style("fill", "none")
+      .style("stroke", "lightgray")
+      .style("stroke-width", "0.5px");
+  }
+
+  const svgRef = useD3(renderMap);
+
+  useEffect(() => {
+    const height = svgRef.current.clientHeight;
+    const width = svgRef.current.clientWidth;
+    projRef.current.translate([width / 2, height / 2]);
+  }, [data, svgRef]);
+
+  return <svg id="globe" ref={svgRef} />;
 };
 
 const Localization = ({ loc }) => {
@@ -117,18 +141,18 @@ const Localization = ({ loc }) => {
 
   return (
     <>
-      <WorldMap
-        localization={localization}
-        scale={200}
-        cx={400}
-        cy={150}
-        initRotation={0}
+      <Chip
+        size="small"
+        label={localization.localization_name}
+        key={localization.localization_name}
       />
+      <Globe data={localization.contour} />
     </>
   );
 };
 
 const GcnEventPage = ({ route }) => {
+  const mapRef = useRef();
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const dispatch = useDispatch();
   const styles = useStyles();
@@ -142,58 +166,53 @@ const GcnEventPage = ({ route }) => {
   }
 
   return (
-    <div className={styles.gcnEventContainer}>
-      <ul className={styles.gcnEvent}>
-        <h1 style={{ display: "inline-block" }}>Event Information</h1>
+    <div>
+      <h1 style={{ display: "inline-block" }}>Event Information</h1>
+      <div>
+        &nbsp; -&nbsp;
+        <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
+          <Button color="primary">
+            {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
+          </Button>
+        </Link>
+        ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
+      </div>
+      {gcnEvent.lightcurve && (
         <div>
-          &nbsp; -&nbsp;
-          <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-            <Button color="primary">
-              {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
-            </Button>
-          </Link>
-          ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
+          {" "}
+          <h3 style={{ display: "inline-block" }}>Light Curve</h3> &nbsp;
+          -&nbsp; <img src={gcnEvent.lightcurve} alt="loading..." />{" "}
         </div>
-        {gcnEvent.lightcurve && (
-          <div>
-            {" "}
-            <h3 style={{ display: "inline-block" }}>Light Curve</h3> &nbsp;
-            -&nbsp; <img src={gcnEvent.lightcurve} alt="loading..." />{" "}
-          </div>
-        )}
-        <h3 style={{ display: "inline-block" }}>Tags</h3>
-        <div>
-          &nbsp; -&nbsp;
-          <div className={styles.eventTags}>
-            {gcnEvent.tags?.map((tag) => (
-              <Chip
-                className={styles[tag]}
-                size="small"
-                label={tag}
-                key={tag}
-              />
-            ))}
-          </div>
+      )}
+      <h3 style={{ display: "inline-block" }}>Tags</h3>
+      <div>
+        &nbsp; -&nbsp;
+        <div className={styles.eventTags}>
+          {gcnEvent.tags?.map((tag) => (
+            <Chip className={styles[tag]} size="small" label={tag} key={tag} />
+          ))}
         </div>
-        <h3 style={{ display: "inline-block" }}>Skymaps</h3>
-        <div>
-          &nbsp; -&nbsp;
-          {gcnEvent.localizations?.map((localization) => (
-            <li key={localization.localization_name}>
+      </div>
+      <h3>Skymaps</h3>
+      <div>
+        &nbsp; -&nbsp;
+        {gcnEvent.localizations?.map((localization) => (
+          <li key={localization.localization_name}>
+            <div id="map" ref={mapRef}>
               <Localization loc={localization} />
-            </li>
-          ))}
-        </div>
-        <h3 style={{ display: "inline-block" }}>GCN Notices</h3>
-        <div>
-          &nbsp; -&nbsp;
-          {gcnEvent.gcn_notices?.map((gcn_notice) => (
-            <li key={gcn_notice.ivorn}>
-              <DownloadXMLButton gcn_notice={gcn_notice} />
-            </li>
-          ))}
-        </div>
-      </ul>
+            </div>
+          </li>
+        ))}
+      </div>
+      <h3 style={{ display: "inline-block" }}>GCN Notices</h3>
+      <div>
+        &nbsp; -&nbsp;
+        {gcnEvent.gcn_notices?.map((gcn_notice) => (
+          <li key={gcn_notice.ivorn}>
+            <DownloadXMLButton gcn_notice={gcn_notice} />
+          </li>
+        ))}
+      </div>
     </div>
   );
 };
@@ -218,14 +237,11 @@ GcnEventPage.propTypes = {
   }).isRequired,
 };
 
-WorldMap.propTypes = {
-  localization: PropTypes.shape({
-    contour: PropTypes.string,
+Globe.propTypes = {
+  data: PropTypes.shape({
+    length: PropTypes.number,
+    features: GeoPropTypes.FeatureCollection,
   }).isRequired,
-  scale: PropTypes.number.isRequired,
-  cx: PropTypes.number.isRequired,
-  cy: PropTypes.number.isRequired,
-  rotation: PropTypes.number.isRequired,
 };
 
 export default GcnEventPage;
