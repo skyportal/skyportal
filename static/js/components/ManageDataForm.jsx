@@ -102,7 +102,8 @@ const createSpecRow = (
   groups,
   owner,
   reducers,
-  observers
+  observers,
+  origin
 ) => ({
   id,
   instrument,
@@ -111,6 +112,7 @@ const createSpecRow = (
   owner,
   reducers,
   observers,
+  origin,
 });
 
 const photHeadCells = [
@@ -250,7 +252,8 @@ const ManageDataForm = ({ route }) => {
           spec.groups.map((group) => group.name).join(", "),
           spec.owner,
           spec.reducers,
-          spec.observers
+          spec.observers,
+          spec.origin
         )
       )
     : [];
@@ -398,11 +401,6 @@ const ManageDataForm = ({ route }) => {
     );
   };
 
-  const renderOrigin = (value) => {
-    const spectrum = sourceSpectra.find((spec) => spec.id === value);
-    return spectrum.origin;
-  };
-
   const specHeadCells = [
     { name: "id", label: "ID" },
     { name: "instrument", label: "Instrument" },
@@ -433,11 +431,8 @@ const ManageDataForm = ({ route }) => {
       },
     },
     {
-      name: "id",
+      name: "origin",
       label: "Origin",
-      options: {
-        customBodyRender: renderOrigin,
-      },
     },
     {
       name: "altdata",
