@@ -1,6 +1,5 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
-import datetime
 import os
 import gcn
 import lxml
@@ -21,10 +20,12 @@ from ...models import (
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
+default_prefs = {'maxNumGcnEvents': 10, 'sinceDaysAgo': 3650}
 
-class GcnHandler(BaseHandler):
+
+class GcnEventHandler(BaseHandler):
     @auth_or_token
-    def put(self):
+    def post(self):
         """
         ---
         description: Ingest GCN xml file
@@ -118,66 +119,13 @@ class GcnHandler(BaseHandler):
 
         return self.success()
 
-
-default_prefs = {'maxNumGcnEvents': 10, 'sinceDaysAgo': 3650}
-
-
-class GcnEventViewsHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    def get(self, dateobs=None):
         """
         ---
         description: Retrieve GCN events
         tags:
           - gcnevents
-        responses:
-          200:
-            content:
-              application/json:
-                schema: GcnEventViewsHandlerGet
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-        user_prefs = getattr(self.current_user, 'preferences', None) or {}
-        top_events_prefs = user_prefs.get('topGcnEvents', {})
-        top_events_prefs = {**default_prefs, **top_events_prefs}
-
-        max_num_events = int(top_events_prefs['maxNumGcnEvents'])
-        since_days_ago = int(top_events_prefs['sinceDaysAgo'])
-
-        cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
-        q = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[joinedload(GcnEvent.localizations)],
-            )
-            .filter(GcnEvent.dateobs > cutoff_day)
-            .limit(max_num_events)
-        )
-
-        events = []
-        for event in q.all():
-            events.append({**event.to_dict(), "tags": event.tags})
-
-        return self.success(data=events)
-
-
-class GcnEventHandler(BaseHandler):
-    @auth_or_token
-    def get(self, dateobs):
-        """
-        ---
-        description: Retrieve a GCN event
-        tags:
-          - gcnevents
-        parameters:
-          - in: path
-            name: dateobs
-            required: true
-            schema:
-              type: dateobs
         responses:
           200:
             content:
@@ -188,24 +136,52 @@ class GcnEventHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        if dateobs is not None:
+            event = (
+                GcnEvent.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(GcnEvent.localizations),
+                        joinedload(GcnEvent.gcn_notices),
+                    ],
+                )
+                .filter(GcnEvent.dateobs == dateobs)
+                .first()
+            )
+            if event is None:
+                return self.error("GCN event not found", status=404)
 
-        event = (
+            data = {
+                **event.to_dict(),
+                "tags": event.tags,
+                "lightcurve": event.lightcurve,
+            }
+
+            return self.success(data=data)
+
+        user_prefs = getattr(self.current_user, 'preferences', None) or {}
+        recent_events_prefs = user_prefs.get('recentGcnEvents', {})
+        recent_events_prefs = {**default_prefs, **recent_events_prefs}
+
+        max_num_events = (
+            int(recent_events_prefs['maxNumEvents'])
+            if 'maxNumEvents' in recent_events_prefs
+            else 5
+        )
+        q = (
             GcnEvent.query_records_accessible_by(
                 self.current_user,
-                options=[
-                    joinedload(GcnEvent.localizations),
-                    joinedload(GcnEvent.gcn_notices),
-                ],
+                options=[joinedload(GcnEvent.localizations)],
             )
-            .filter(GcnEvent.dateobs == dateobs)
-            .first()
+            .order_by(GcnEvent.dateobs.desc())
+            .limit(max_num_events)
         )
-        if event is None:
-            return self.error("GCN event not found", status=404)
 
-        data = {**event.to_dict(), "tags": event.tags}
+        events = []
+        for event in q.all():
+            events.append({**event.to_dict(), "tags": event.tags})
 
-        return self.success(data=data)
+        return self.success(data=events)
 
     @auth_or_token
     def delete(self, dateobs):
@@ -285,7 +261,11 @@ class LocalizationHandler(BaseHandler):
         if localization is None:
             return self.error("Localization not found", status=404)
 
-        data = {**localization.to_dict(), "flat_2d": localization.flat_2d}
+        data = {
+            **localization.to_dict(),
+            "flat_2d": localization.flat_2d,
+            "contour": localization.contour,
+        }
         return self.success(data=data)
 
     @auth_or_token

@@ -37,7 +37,7 @@ admin_token = get_token()
 )
 def handle(payload):
     response_status, data = api(
-        'PUT', 'gcn/upload', data={'xml': payload}, token=admin_token
+        'POST', 'gcn_event', data={'xml': payload}, token=admin_token
     )
 
 
