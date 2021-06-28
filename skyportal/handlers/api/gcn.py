@@ -1,6 +1,5 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
-import datetime
 import os
 import gcn
 import lxml
@@ -161,19 +160,19 @@ class GcnEventHandler(BaseHandler):
             return self.success(data=data)
 
         user_prefs = getattr(self.current_user, 'preferences', None) or {}
-        top_events_prefs = user_prefs.get('topGcnEvents', {})
-        top_events_prefs = {**default_prefs, **top_events_prefs}
+        recent_events_prefs = user_prefs.get('recentGcnEvents', {})
+        recent_events_prefs = {**default_prefs, **recent_events_prefs}
 
-        max_num_events = int(top_events_prefs['maxNumGcnEvents'])
-        since_days_ago = int(top_events_prefs['sinceDaysAgo'])
-
-        cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
+        max_num_events = (
+            int(recent_events_prefs['maxNumEvents'])
+            if 'maxNumEvents' in recent_events_prefs
+            else 5
+        )
         q = (
             GcnEvent.query_records_accessible_by(
                 self.current_user,
                 options=[joinedload(GcnEvent.localizations)],
             )
-            .filter(GcnEvent.dateobs > cutoff_day)
             .order_by(GcnEvent.dateobs.desc())
             .limit(max_num_events)
         )

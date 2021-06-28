@@ -73,8 +73,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const defaultPrefs = {
-  maxNumEvents: "",
-  sinceDaysAgo: "",
+  maxNumEvents: "5",
 };
 
 const RecentGcnEvents = ({ classes }) => {
@@ -88,7 +87,7 @@ const RecentGcnEvents = ({ classes }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    dispatch(gcnEventsActions.fetchGcnEvents());
+    dispatch(gcnEventsActions.fetchRecentGcnEvents());
   }, [dispatch]);
 
   return (
@@ -101,9 +100,11 @@ const RecentGcnEvents = ({ classes }) => {
           <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
           <div className={classes.widgetIcon}>
             <WidgetPrefsDialog
-              // Only expose num sources
-              initialValues={{ maxNumSources: recentEventsPrefs.maxNumSources }}
-              stateBranchName="recentEvents"
+              // Only expose num events
+              initialValues={{
+                maxNumEvents: recentEventsPrefs.maxNumEvents,
+              }}
+              stateBranchName="recentGcnEvents"
               title="Recent Events Preferences"
               onSubmit={profileActions.updateUserPreferences}
             />
