@@ -16,8 +16,7 @@ import Typography from "@material-ui/core/Typography";
 
 const useStyles = makeStyles(() => ({
   saveButton: {
-    textAlign: "center",
-    margin: "1rem",
+    margin: "1rem 0",
   },
   inputSectionDiv: {
     marginBottom: "1rem",
@@ -34,9 +33,8 @@ const WidgetPrefsDialog = ({
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
 
-  const { handleSubmit, register, errors, reset, control } = useForm(
-    initialValues
-  );
+  const { handleSubmit, register, errors, reset, control } =
+    useForm(initialValues);
 
   useEffect(() => {
     reset(initialValues);
@@ -125,9 +123,9 @@ const WidgetPrefsDialog = ({
             <div className={classes.saveButton}>
               <Button
                 color="primary"
+                variant="contained"
                 type="submit"
                 startIcon={<SaveIcon />}
-                size="large"
               >
                 Save
               </Button>

@@ -73,6 +73,9 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
     observingRunSelectItem: {
       whiteSpace: "break-spaces",
     },
+    submitButton: {
+      margin: "0.5rem",
+    },
   }));
   const classes = useStyles();
 
@@ -177,6 +180,8 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             name="assignmentSubmitButton"
             data-testid="assignmentSubmitButton"
             variant="contained"
+            color="primary"
+            className={classes.submitButton}
           >
             Submit
           </Button>

@@ -190,6 +190,7 @@ const SourceNotification = ({ sourceId }) => {
             type="submit"
             name="sendNotificationButton"
             variant="contained"
+            color="primary"
             data-testid="sendNotificationButton"
           >
             Send Notification
