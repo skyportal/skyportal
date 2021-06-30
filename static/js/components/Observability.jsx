@@ -10,8 +10,12 @@ import { Link } from "react-router-dom";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { AirMassPlotWithEphemURL } from "./AirmassPlot";
+import ObservabilityPreferences from "./ObservabilityPreferences";
 
-const useStyles = makeStyles({ inner: { margin: "1rem" } });
+const useStyles = makeStyles({
+  inner: { margin: "1rem" },
+  preferences: { padding: "1rem", marginTop: "1rem" },
+});
 
 dayjs.extend(utc);
 
@@ -27,6 +31,9 @@ const ObservabilityPage = ({ route }) => {
       <Typography variant="h4">
         Observability of <Link to={`/source/${route.id}`}>{route.id}</Link>
       </Typography>
+      <Paper className={classes.preferences}>
+        <ObservabilityPreferences />
+      </Paper>
       <Grid container spacing={3}>
         {telescopeList
           .filter((telescope) => telescope.fixed_location)
