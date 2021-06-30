@@ -182,7 +182,8 @@ const InviteNewGroupUserForm = ({ group_id }) => {
         >
           <Typography className={classes.typography}>
             This is the expiration date assigned to the new user account. After
-            this date, the new user will be relegated to a view only role.
+            this date, the user account will be deactivated and will be unable
+            to access the application.
           </Typography>
         </Popover>
       </div>

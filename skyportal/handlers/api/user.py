@@ -384,7 +384,8 @@ class UserHandler(BaseHandler):
                     type: string
                     description: |
                       Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
-                      date, after which the user is transitioned into a viewonly role.
+                      date, after which the user's account will be deactivated and will be unable
+                      to access the application.
         responses:
           200:
             content:
