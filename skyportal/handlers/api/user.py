@@ -397,10 +397,8 @@ class UserHandler(BaseHandler):
             user = User.get_if_accessible_by(
                 user_id, self.current_user, mode="update", raise_if_none=True
             )
-            if data.get("expirationDate") is not None:
-                expiration_date = data.pop("expirationDate").strip()
-                expiration_date = arrow.get(expiration_date).datetime
-                user.expiration_date = expiration_date
+            if (expiration_date := data.get("expirationDate")) is not None:
+                user.expiration_date = arrow.get(expiration_date.strip()).datetime
 
             self.verify_and_commit()
             return self.success()
