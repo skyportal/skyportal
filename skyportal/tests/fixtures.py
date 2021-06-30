@@ -360,8 +360,8 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = Obj
 
     id = factory.LazyFunction(lambda: uuid.uuid4().hex)
-    ra = 0.0
-    dec = 0.0
+    ra = factory.LazyFunction(lambda: 90.0 * np.random.random())
+    dec = factory.LazyFunction(lambda: 90.0 * np.random.random())
     redshift = 0.0
     altdata = {"simbad": {"class": "RRLyr"}}
     origin = factory.LazyFunction(lambda: uuid.uuid4().hex)

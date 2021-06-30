@@ -122,13 +122,15 @@ def test_token_user_retrieving_source_without_nested(
 def test_duplicate_sources(public_group, upload_data_token, ztf_camera):
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
+    ra = 200.0 * np.random.random()
+    dec = 90.0 * np.random.random()
     status, data = api(
         "POST",
         "sources",
         data={
             "id": obj_id1,
-            "ra": 230.22,
-            "dec": -21.33,
+            "ra": ra,
+            "dec": dec,
             "redshift": 3,
             "group_ids": [public_group.id],
         },
@@ -140,8 +142,8 @@ def test_duplicate_sources(public_group, upload_data_token, ztf_camera):
         "sources",
         data={
             "id": obj_id2,
-            "ra": 230.2201,
-            "dec": -21.3305,
+            "ra": ra + 0.0001,
+            "dec": dec + 0.0005,
             "redshift": 3,
             "group_ids": [public_group.id],
         },
