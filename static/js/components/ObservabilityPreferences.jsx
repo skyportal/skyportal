@@ -67,12 +67,15 @@ const ObservabilityPreferences = () => {
 
   const handleChange = (event) => {
     const prefs = {
-      observabilityTelescopes: event.target.value,
+      observabilityTelescopes:
+        // -1 is used for the "Clear selections" option
+        event.target.value.includes(-1) ? [] : event.target.value,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
-  const telescopeIDToName = {};
+  telescopeList.sort((a, b) => (a.name < b.name ? -1 : 1));
+  const telescopeIDToName = { "-1": "Clear selections" };
   telescopeList.forEach((telescope) => {
     telescopeIDToName[telescope.id] = telescope.name;
   });
@@ -118,18 +121,24 @@ const ObservabilityPreferences = () => {
           input={<Input id="selectTelescopes" />}
           renderValue={(selected) => (
             <div className={classes.chips}>
-              {selected.map((value) => (
-                <Chip
-                  key={value}
-                  label={telescopeIDToName[value]}
-                  className={classes.chip}
-                />
-              ))}
+              {selected
+                .sort((a, b) =>
+                  telescopeIDToName[a] < telescopeIDToName[b] ? -1 : 1
+                )
+                .map((value) => (
+                  <Chip
+                    key={value}
+                    label={telescopeIDToName[value]}
+                    className={classes.chip}
+                  />
+                ))}
             </div>
           )}
         >
-          {telescopeList
-            .filter((telescope) => telescope.fixed_location)
+          {[{ id: -1, name: "Clear selections" }]
+            .concat(
+              telescopeList.filter((telescope) => telescope.fixed_location)
+            )
             .map((telescope) => (
               <MenuItem
                 key={telescope.id}
