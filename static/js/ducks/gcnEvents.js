@@ -7,7 +7,7 @@ export const FETCH_RECENT_GCNEVENTS = "skyportal/FETCH_RECENT_GCNEVENTS";
 export const FETCH_RECENT_GCNEVENTS_OK = "skyportal/FETCH_RECENT_GCNEVENTS_OK";
 
 export const fetchRecentGcnEvents = () =>
-  API.GET("/api/gcn_event", FETCH_RECENT_GCNEVENTS);
+  API.GET("/api/internal/recent_gcn_events", FETCH_RECENT_GCNEVENTS);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {

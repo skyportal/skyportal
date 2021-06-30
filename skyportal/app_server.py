@@ -83,6 +83,7 @@ from skyportal.handlers.api.internal import (
     StandardsHandler,
     NotificationHandler,
     BulkNotificationHandler,
+    RecentGcnEventsHandler,
 )
 
 from . import models, model_util, openapi
@@ -189,6 +190,7 @@ skyportal_handlers = [
     (r'/api/internal/notifications(/[0-9]+)?', NotificationHandler),
     (r'/api/internal/notifications/all', BulkNotificationHandler),
     (r'/api/internal/ps1_thumbnail', PS1ThumbnailHandler),
+    (r'/api/internal/recent_gcn_events', RecentGcnEventsHandler),
     (r'/api/.*', InvalidEndpointHandler),
     (r'/become_user(/.*)?', BecomeUserHandler),
     (r'/logout', LogoutHandler),
