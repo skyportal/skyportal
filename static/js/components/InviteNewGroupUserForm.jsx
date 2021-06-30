@@ -105,7 +105,6 @@ const InviteNewGroupUserForm = ({ group_id }) => {
   };
 
   const handleExpirationDateChange = (date) => {
-    console.log(date);
     setFormState({
       ...formState,
       userExpirationDate: date ? dayjs.utc(date) : date,
