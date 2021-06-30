@@ -398,7 +398,10 @@ class UserHandler(BaseHandler):
                 user_id, self.current_user, mode="update", raise_if_none=True
             )
             if (expiration_date := data.get("expirationDate")) is not None:
-                user.expiration_date = arrow.get(expiration_date.strip()).datetime
+                try:
+                    user.expiration_date = arrow.get(expiration_date.strip()).datetime
+                except arrow.parser.ParserError:
+                    return self.error("Unable to parse `expirationDate` parameter.")
 
             self.verify_and_commit()
             return self.success()
