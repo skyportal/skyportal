@@ -388,6 +388,18 @@ def test_show_starlist(driver, user, public_source):
 def test_centroid_plot(
     driver, user, public_source, public_group, ztf_camera, upload_data_token
 ):
+    # Generated plot expects source to be at (0.0, 0.0)
+    status, data = api(
+        "PATCH",
+        f"sources/{public_source.id}",
+        data={
+            "ra": 0.0,
+            "dec": 0.0,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
     # Put in some actual photometry data first
     status, data = api(
         'POST',
