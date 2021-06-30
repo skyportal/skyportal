@@ -18,9 +18,7 @@ from skyportal.handlers.api import (
     FilterHandler,
     FollowupRequestHandler,
     FacilityMessageHandler,
-    GcnHandler,
     GcnEventHandler,
-    GcnEventViewsHandler,
     LocalizationHandler,
     GroupHandler,
     GroupUserHandler,
@@ -85,6 +83,7 @@ from skyportal.handlers.api.internal import (
     StandardsHandler,
     NotificationHandler,
     BulkNotificationHandler,
+    RecentGcnEventsHandler,
 )
 
 from . import models, model_util, openapi
@@ -122,10 +121,8 @@ skyportal_handlers = [
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
-    (r'/api/gcn/upload', GcnHandler),
-    (r'/api/gcn/event_views(/.*)?', GcnEventViewsHandler),
-    (r'/api/gcn/event(/.*)?', GcnEventHandler),
-    (r'/api/gcn/localization(/.*)/name(/.*)?', LocalizationHandler),
+    (r'/api/gcn_event(/.*)?', GcnEventHandler),
+    (r'/api/localization(/.*)/name(/.*)?', LocalizationHandler),
     (r'/api/groups/public', PublicGroupHandler),
     (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
     (r'/api/groups(/[0-9]+)/users(/.*)?', GroupUserHandler),
@@ -193,6 +190,7 @@ skyportal_handlers = [
     (r'/api/internal/notifications(/[0-9]+)?', NotificationHandler),
     (r'/api/internal/notifications/all', BulkNotificationHandler),
     (r'/api/internal/ps1_thumbnail', PS1ThumbnailHandler),
+    (r'/api/internal/recent_gcn_events', RecentGcnEventsHandler),
     (r'/api/.*', InvalidEndpointHandler),
     (r'/become_user(/.*)?', BecomeUserHandler),
     (r'/logout', LogoutHandler),

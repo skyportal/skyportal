@@ -19,6 +19,7 @@ import RecentSources from "./RecentSources";
 import GroupList from "./GroupList";
 import NewsFeed from "./NewsFeed";
 import TopSources from "./TopSources";
+import RecentGcnEvents from "./RecentGcnEvents";
 import SourceCounts from "./SourceCounts";
 import WeatherWidget from "./WeatherWidget";
 

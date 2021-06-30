@@ -208,7 +208,7 @@ const CommentList = ({
       spectra !== null &&
       objID in spectra
     ) {
-      specComments = spectra[objID].map((spec) => spec.comments).flat();
+      specComments = spectra[objID]?.map((spec) => spec.comments)?.flat();
     }
     if (comments !== null && specComments !== null) {
       comments = specComments.concat(comments);
@@ -249,6 +249,10 @@ const CommentList = ({
     }
 
     return text;
+  };
+
+  const deleteComment = (commentID, resourceType) => {
+    dispatch(sourceActions.deleteComment(commentID, resourceType));
   };
 
   const emojiSupport = (text) =>
@@ -324,11 +328,9 @@ const CommentList = ({
                           color="primary"
                           name={`deleteCommentButton${id}`}
                           onClick={() => {
-                            dispatch(
-                              sourceActions.deleteComment(
-                                id,
-                                associatedResourceType
-                              )
+                            deleteComment(
+                              id,
+                              spectrum_id ? "spectrum" : "object"
                             );
                           }}
                           className="commentDelete"
@@ -386,11 +388,9 @@ const CommentList = ({
                           type="button"
                           name={`deleteCommentButton${id}`}
                           onClick={() => {
-                            dispatch(
-                              sourceActions.deleteComment(
-                                id,
-                                associatedResourceType
-                              )
+                            deleteComment(
+                              id,
+                              spectrum_id ? "spectrum" : "object"
                             );
                           }}
                           className="commentDelete"
