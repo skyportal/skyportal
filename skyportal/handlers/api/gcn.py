@@ -20,8 +20,6 @@ from ...models import (
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
-default_prefs = {'maxNumGcnEvents': 10, 'sinceDaysAgo': 3650}
-
 
 class GcnEventHandler(BaseHandler):
     @auth_or_token
@@ -159,22 +157,12 @@ class GcnEventHandler(BaseHandler):
 
             return self.success(data=data)
 
-        user_prefs = getattr(self.current_user, 'preferences', None) or {}
-        recent_events_prefs = user_prefs.get('recentGcnEvents', {})
-        recent_events_prefs = {**default_prefs, **recent_events_prefs}
-
-        max_num_events = (
-            int(recent_events_prefs['maxNumEvents'])
-            if 'maxNumEvents' in recent_events_prefs
-            else 5
-        )
-        q = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[joinedload(GcnEvent.localizations)],
-            )
-            .order_by(GcnEvent.dateobs.desc())
-            .limit(max_num_events)
+        q = GcnEvent.query_records_accessible_by(
+            self.current_user,
+            options=[
+                joinedload(GcnEvent.localizations),
+                joinedload(GcnEvent.gcn_notices),
+            ],
         )
 
         events = []
