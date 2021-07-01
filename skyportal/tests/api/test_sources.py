@@ -35,7 +35,6 @@ def test_token_user_retrieving_source(view_only_token, public_source):
         k in data["data"] for k in ["ra", "dec", "redshift", "dm", "created_at", "id"]
     )
     assert "photometry" not in data["data"]
-    assert data["data"]["duplicates"] is None
 
 
 def test_token_user_retrieving_source_with_phot(view_only_token, public_source):
