@@ -7,8 +7,7 @@ const FETCH_GCN_EVENTS = "skyportal/FETCH_GCN_EVENTS";
 const FETCH_GCN_EVENTS_OK = "skyportal/FETCH_GCN_EVENTS_OK";
 
 // eslint-disable-next-line import/prefer-default-export
-export const fetchGcnEvents = () =>
-  API.GET("/api/gcn/event_views", FETCH_GCN_EVENTS);
+export const fetchGcnEvents = () => API.GET("/api/gcn_event", FETCH_GCN_EVENTS);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
