@@ -169,9 +169,11 @@ const CandidatesPreferencesForm = ({
   const validateName = () => {
     formState = getValues({ nest: true });
     const otherProfiles = preferences.scanningProfiles
-      ?.filter((profile) => profile.id !== editingProfile?.id)
+      ?.filter((profile) => profile.name !== editingProfile?.name)
       .map((profile) => profile.name);
-    return !otherProfiles?.includes(formState.name);
+    return (
+      formState.name.length > 0 && !otherProfiles?.includes(formState.name)
+    );
   };
 
   const validateGroups = () => {
@@ -199,18 +201,14 @@ const CandidatesPreferencesForm = ({
       (ID, idx) => formData.groupIDs[idx]
     );
     const data = {
-      id: Math.random().toString(36).substr(2, 5),
       groupIDs: selectedGroupIDs,
       name: formData.name,
       savedStatus: formData.savedStatus,
     };
 
     if (addOrEdit === "Add") {
-      // Assign a random ID to the new profile
-      data.id = Math.random().toString(36).substr(2, 5);
       data.default = true;
     } else if (addOrEdit === "Edit") {
-      data.id = editingProfile?.id;
       data.default = editingProfile?.default;
     }
 
@@ -247,7 +245,7 @@ const CandidatesPreferencesForm = ({
     } else if (addOrEdit === "Edit") {
       // Update profile
       const profileIndex = currentProfiles.findIndex(
-        (profile) => profile.id === editingProfile?.id
+        (profile) => profile.name === editingProfile?.name
       );
       if (profileIndex !== -1) {
         currentProfiles[profileIndex] = data;
@@ -262,7 +260,7 @@ const CandidatesPreferencesForm = ({
     if (addOrEdit === "Edit") {
       // If we just edited the selected profile, let the
       // parent component know we updated some fields
-      if (selectedScanningProfile?.id === data.id) {
+      if (selectedScanningProfile?.name === data.name) {
         setSelectedScanningProfile(data);
       }
       closeDialog();
@@ -282,7 +280,7 @@ const CandidatesPreferencesForm = ({
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className={classes.formRow}>
           {errors.name && (
-            <FormValidationError message="Profile name must be unique" />
+            <FormValidationError message="Profile name must be unique and at least 1 character" />
           )}
           <Controller
             render={({ onChange, value }) => (
@@ -614,13 +612,13 @@ CandidatesPreferencesForm.propTypes = {
   addOrEdit: PropTypes.string.isRequired,
   // Args below required for editing
   editingProfile: PropTypes.shape({
-    id: PropTypes.string,
+    name: PropTypes.string,
     groupIDs: PropTypes.arrayOf(PropTypes.number),
     default: PropTypes.bool,
     selected: PropTypes.bool,
   }),
   closeDialog: PropTypes.func,
-  selectedScanningProfile: PropTypes.shape({ id: PropTypes.string }),
+  selectedScanningProfile: PropTypes.shape({ name: PropTypes.string }),
   setSelectedScanningProfile: PropTypes.func,
 };
 

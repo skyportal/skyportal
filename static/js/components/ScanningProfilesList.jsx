@@ -127,7 +127,7 @@ const ScanningProfilesList = ({
     return profile ? (
       <div>
         <Checkbox
-          checked={selectedScanningProfile?.id === profile.id}
+          checked={selectedScanningProfile?.name === profile.name}
           key={`loaded_${dataIndex}`}
           data-testid={`loaded_${dataIndex}`}
           onChange={(event) =>
@@ -418,7 +418,7 @@ const ScanningProfilesList = ({
 };
 
 ScanningProfilesList.propTypes = {
-  selectedScanningProfile: PropTypes.shape({ id: PropTypes.string }),
+  selectedScanningProfile: PropTypes.shape({ name: PropTypes.string }),
   setSelectedScanningProfile: PropTypes.func.isRequired,
   userAccessibleGroups: PropTypes.arrayOf(PropTypes.shape({})),
   availableAnnotationsInfo: PropTypes.shape({}),

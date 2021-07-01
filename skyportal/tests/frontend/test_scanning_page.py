@@ -676,6 +676,10 @@ def test_add_scanning_profile(
     driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
 
     # Fill out form
+    name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
+    name_input.clear()
+    name_input.send_keys("profile1")
+
     time_range_input = driver.wait_for_xpath('//div[@data-testid="timeRange"]//input')
     time_range_input.clear()
     time_range_input.send_keys("48")
@@ -728,6 +732,10 @@ def test_delete_scanning_profile(driver, user, public_group):
     driver.click_xpath('//button[@data-testid="manageScanningProfilesButton"]')
 
     # Fill out form
+    name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
+    name_input.clear()
+    name_input.send_keys("profile1")
+
     time_range_input = driver.wait_for_xpath('//div[@data-testid="timeRange"]//input')
     time_range_input.clear()
     time_range_input.send_keys("123")
@@ -756,6 +764,9 @@ def test_load_scanning_profile(
         '//div[@data-testid="profile-maximum-redshift"]//input'
     )
     redshift_maximum_input.send_keys("0.5")
+    name_input = driver.wait_for_xpath('//div[@data-testid="profile-name"]//input')
+    name_input.clear()
+    name_input.send_keys("profile1")
     driver.click_xpath(
         f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
     )
