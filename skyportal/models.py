@@ -6,7 +6,10 @@ from datetime import datetime, timezone, timedelta
 
 import arrow
 import astroplan
+import gcn
 import healpix_alchemy as ha
+import healpy as hp
+import lxml
 import numpy as np
 import requests
 import sqlalchemy as sa
@@ -16,7 +19,9 @@ from astropy import coordinates as ap_coord
 from astropy import time as ap_time
 from astropy import units as u
 from astropy.io import fits, ascii
+from astropy.table import Table
 from astropy.utils.exceptions import AstropyWarning
+from ligo.skymap.bayestar import rasterize
 from slugify import slugify
 from sqlalchemy import cast, event
 from sqlalchemy.dialects import postgresql as psql
@@ -26,6 +31,7 @@ from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
 
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import deferred
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy_utils.types import JSONType
@@ -35,6 +41,7 @@ from sqlalchemy import func
 from twilio.rest import Client as TwilioClient
 
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.app.json_util import to_json
 from baselayer.app.models import (  # noqa
     init_db,
@@ -3448,6 +3455,422 @@ class SourceNotification(Base):
     level = sa.Column(sa.String(), nullable=False)
 
 
+class GcnNotice(Base):
+    """Records of ingested GCN notices"""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnNotice.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcnnotices",
+        doc="The user that saved this GcnNotice",
+    )
+
+    ivorn = sa.Column(
+        sa.String, unique=True, index=True, doc='Unique identifier of VOEvent'
+    )
+
+    notice_type = sa.Column(
+        sa.Enum(gcn.NoticeType),
+        nullable=False,
+        doc='GCN Notice type',
+    )
+
+    stream = sa.Column(
+        sa.String, nullable=False, doc='Event stream or mission (i.e., "Fermi")'
+    )
+
+    date = sa.Column(sa.DateTime, nullable=False, doc='UTC message timestamp')
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        doc='UTC event timestamp',
+    )
+
+    content = deferred(
+        sa.Column(sa.LargeBinary, nullable=False, doc='Raw VOEvent content')
+    )
+
+    def _get_property(self, property_name, value=None):
+        root = lxml.etree.fromstring(self.content)
+        path = ".//Param[@name='{}']".format(property_name)
+        elem = root.find(path)
+        value = float(elem.attrib.get('value', '')) * 100
+        return value
+
+    @property
+    def has_ns(self):
+        return self._get_property(property_name="HasNS")
+
+    @property
+    def has_remnant(self):
+        return self._get_property(property_name="HasRemnant")
+
+    @property
+    def far(self):
+        return self._get_property(property_name="FAR")
+
+    @property
+    def bns(self):
+        return self._get_property(property_name="BNS")
+
+    @property
+    def nsbh(self):
+        return self._get_property(property_name="NSBH")
+
+    @property
+    def bbh(self):
+        return self._get_property(property_name="BBH")
+
+    @property
+    def mass_gap(self):
+        return self._get_property(property_name="MassGap")
+
+    @property
+    def noise(self):
+        return self._get_property(property_name="Terrestrial")
+
+
+User.gcnnotices = relationship(
+    'GcnNotice',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The GcnNotices saved by this user',
+)
+
+
+class Localization(Base):
+    """Localization information, including the localization ID, event ID, right
+    ascension, declination, error radius (if applicable), and the healpix
+    map."""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this Localization.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="localizations",
+        doc="The user that saved this Localization",
+    )
+
+    nside = 512
+    # HEALPix resolution used for flat (non-multiresolution) operations.
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc='UTC event timestamp',
+    )
+
+    localization_name = sa.Column(sa.String, doc='Localization name', index=True)
+
+    uniq = deferred(
+        sa.Column(
+            sa.ARRAY(sa.BigInteger),
+            nullable=False,
+            doc='Multiresolution HEALPix UNIQ pixel index array',
+        )
+    )
+
+    probdensity = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float),
+            nullable=False,
+            doc='Multiresolution HEALPix probability density array',
+        )
+    )
+
+    distmu = deferred(
+        sa.Column(sa.ARRAY(sa.Float), doc='Multiresolution HEALPix distance mu array')
+    )
+
+    distsigma = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float), doc='Multiresolution HEALPix distance sigma array'
+        )
+    )
+
+    distnorm = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float),
+            doc='Multiresolution HEALPix distance normalization array',
+        )
+    )
+
+    contour = deferred(sa.Column(JSONB, doc='GeoJSON contours'))
+
+    @hybrid_property
+    def is_3d(self):
+        return (
+            self.distmu is not None
+            and self.distsigma is not None
+            and self.distnorm is not None
+        )
+
+    @is_3d.expression
+    def is_3d(cls):
+        return sa.and_(
+            cls.distmu.isnot(None),
+            cls.distsigma.isnot(None),
+            cls.distnorm.isnot(None),
+        )
+
+    @property
+    def table_2d(self):
+        """Get multiresolution HEALPix dataset, probability density only."""
+        return Table(
+            [np.asarray(self.uniq, dtype=np.int64), self.probdensity],
+            names=['UNIQ', 'PROBDENSITY'],
+        )
+
+    @property
+    def table(self):
+        """Get multiresolution HEALPix dataset, probability density and
+        distance."""
+        if self.is_3d:
+            return Table(
+                [
+                    np.asarray(self.uniq, dtype=np.int64),
+                    self.probdensity,
+                    self.distmu,
+                    self.distsigma,
+                    self.distnorm,
+                ],
+                names=['UNIQ', 'PROBDENSITY', 'DISTMU', 'DISTSIGMA', 'DISTNORM'],
+            )
+        else:
+            return self.table_2d
+
+    @property
+    def flat_2d(self):
+        """Get flat resolution HEALPix dataset, probability density only."""
+        order = hp.nside2order(Localization.nside)
+        result = rasterize(self.table_2d, order)['PROB']
+        return hp.reorder(result, 'NESTED', 'RING')
+
+    @property
+    def flat(self):
+        """Get flat resolution HEALPix dataset, probability density and
+        distance."""
+        if self.is_3d:
+            order = hp.nside2order(Localization.nside)
+            t = rasterize(self.table, order)
+            result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
+            return hp.reorder(result, 'NESTED', 'RING')
+        else:
+            return (self.flat_2d,)
+
+
+User.localizations = relationship(
+    'Localization',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The localizations saved by this user',
+)
+
+
+class GcnTag(Base):
+    """Store qualitative tags for events."""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnTag.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcntags",
+        doc="The user that saved this GcnTag",
+    )
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    text = sa.Column(sa.Unicode, nullable=False)
+
+
+User.gcntags = relationship(
+    'GcnTag',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcntags saved by this user',
+)
+
+
+class GcnEvent(Base):
+    """Event information, including an event ID, mission, and time of the event."""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnEvent.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcnevents",
+        doc="The user that saved this GcnEvent",
+    )
+
+    dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
+
+    gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)
+
+    _tags = relationship(
+        "GcnTag",
+        order_by=(
+            sa.func.lower(GcnTag.text).notin_({'fermi', 'swift', 'amon', 'lvc'}),
+            sa.func.lower(GcnTag.text).notin_({'long', 'short'}),
+            sa.func.lower(GcnTag.text).notin_({'grb', 'gw', 'transient'}),
+        ),
+    )
+
+    localizations = relationship("Localization")
+
+    @hybrid_property
+    def tags(self):
+        """List of tags."""
+        return [tag.text for tag in self._tags]
+
+    @tags.expression
+    def tags(cls):
+        """List of tags."""
+        return (
+            DBSession()
+            .query(GcnTag.text)
+            .filter(GcnTag.dateobs == cls.dateobs)
+            .subquery()
+        )
+
+    @hybrid_property
+    def retracted(self):
+        """Check if event is retracted."""
+        return 'retracted' in self.tags
+
+    @retracted.expression
+    def retracted(cls):
+        """Check if event is retracted."""
+        return sa.literal('retracted').in_(cls.tags)
+
+    @property
+    def lightcurve(self):
+        """GRB lightcurve URL."""
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='LightCurve_URL']")
+        if elem is None:
+            return None
+        else:
+            try:
+                return elem.attrib.get('value', '').replace('http://', 'https://')
+            except Exception:
+                return None
+
+    @property
+    def gracesa(self):
+        """Event page URL."""
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='EventPage']")
+        if elem is None:
+            return None
+        else:
+            try:
+                return elem.attrib.get('value', '')
+            except Exception:
+                return None
+
+    @property
+    def ned_gwf(self):
+        """NED URL."""
+        return "https://ned.ipac.caltech.edu/gwf/events"
+
+    @property
+    def HasNS(self):
+        """Checking if GW event contains NS."""
+        notice = self.gcn_notices[0]
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='HasNS']")
+        if elem is None:
+            return None
+        else:
+            try:
+                return 'HasNS: ' + elem.attrib.get('value', '')
+            except Exception:
+                return None
+
+    @property
+    def HasRemnant(self):
+        """Checking if GW event has remnant matter."""
+        notice = self.gcn_notices[0]
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='HasRemnant']")
+        if elem is None:
+            return None
+        else:
+            try:
+                return 'HasRemnant: ' + elem.attrib.get('value', '')
+            except Exception:
+                return None
+
+    @property
+    def FAR(self):
+        """Returning event false alarm rate."""
+        notice = self.gcn_notices[0]
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='FAR']")
+        if elem is None:
+            return None
+        else:
+            try:
+                return 'FAR: ' + elem.attrib.get('value', '')
+            except Exception:
+                return None
+
+
+User.gcnevents = relationship(
+    'GcnEvent',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcnevents saved by this user',
+)
+
+
 class UserNotification(Base):
 
     read = update = delete = AccessibleIfUserMatches('user')
@@ -3758,6 +4181,44 @@ StreamUser.delete = restricted & CustomUserAccessControl(
     # group -- their single user group.
     .having(sa.func.bool_and(GroupStream.stream_id.is_(None)))
 )
+
+
+@event.listens_for(Classification, 'after_insert')
+@event.listens_for(Spectrum, 'after_insert')
+@event.listens_for(Comment, 'after_insert')
+def add_user_notifications(mapper, connection, target):
+    # Add front-end user notifications
+    @event.listens_for(DBSession(), "after_flush", once=True)
+    def receive_after_flush(session, context):
+        listing_subquery = (
+            Listing.query.filter(Listing.list_name == "favorites")
+            .filter(Listing.obj_id == target.obj_id)
+            .distinct(Listing.user_id)
+            .subquery()
+        )
+        users = (
+            User.query.join(listing_subquery, User.id == listing_subquery.c.user_id)
+            .filter(
+                User.preferences["favorite_sources_activity_notifications"][
+                    target.__tablename__
+                ]
+                .astext.cast(sa.Boolean)
+                .is_(True)
+            )
+            .all()
+        )
+        ws_flow = Flow()
+        for user in users:
+            # Only notify users who have read access to the new record in question
+            if target.__class__.get_if_accessible_by(target.id, user) is not None:
+                session.add(
+                    UserNotification(
+                        user=user,
+                        text=f"New {target.__class__.__name__.lower()} on your favorite source *{target.obj_id}*",
+                        url=f"/source/{target.obj_id}",
+                    )
+                )
+                ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")
 
 
 schema.setup_schema()

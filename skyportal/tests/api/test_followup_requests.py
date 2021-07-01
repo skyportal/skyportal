@@ -8,7 +8,7 @@ def test_token_user_post_robotic_followup_request(
         'allocation_id': public_group_sedm_allocation.id,
         'obj_id': public_source.id,
         'payload': {
-            'priority': "5",
+            'priority': 5,
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
@@ -38,7 +38,7 @@ def test_token_user_delete_owned_followup_request(
         'allocation_id': public_group_sedm_allocation.id,
         'obj_id': public_source.id,
         'payload': {
-            'priority': "5",
+            'priority': 5,
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
@@ -65,7 +65,7 @@ def test_token_user_modify_owned_followup_request(
         'allocation_id': public_group_sedm_allocation.id,
         'obj_id': public_source.id,
         'payload': {
-            'priority': "5",
+            'priority': 5,
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
@@ -83,7 +83,7 @@ def test_token_user_modify_owned_followup_request(
         'allocation_id': public_group_sedm_allocation.id,
         'obj_id': public_source.id,
         'payload': {
-            'priority': "4",
+            'priority': 4,
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
@@ -111,7 +111,7 @@ def test_regular_user_delete_super_admin_followup_request(
         'allocation_id': public_group_sedm_allocation.id,
         'obj_id': public_source.id,
         'payload': {
-            'priority': "5",
+            'priority': 5,
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',
@@ -141,7 +141,7 @@ def test_group1_user_cannot_see_group2_followup_request(
         'allocation_id': public_group2_sedm_allocation.id,
         'obj_id': public_source_group2.id,
         'payload': {
-            'priority': "5",
+            'priority': 5,
             'start_date': '3020-09-01',
             'end_date': '3022-09-01',
             'observation_type': 'IFU',

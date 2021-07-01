@@ -97,6 +97,7 @@ const AddUsersFromGroupForm = ({ groupID }) => {
             name="submitAddFromGroupsButton"
             data-testid="submitAddFromGroupsButton"
             size="small"
+            color="primary"
             disableElevation
           >
             Add users

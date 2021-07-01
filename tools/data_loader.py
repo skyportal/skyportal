@@ -175,6 +175,10 @@ if __name__ == "__main__":
                     obj.update(df.to_dict(orient='list'))
                 elif filename.endswith('.png'):
                     return base64.b64encode(open(filename, 'rb').read())
+                elif filename.endswith('xml'):
+                    with open(filename, 'rb') as fid:
+                        payload = fid.read()
+                    return payload
                 else:
                     raise NotImplementedError(
                         f'{filename}: Only CSV files currently supported for extending individual objects'

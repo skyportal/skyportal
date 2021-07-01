@@ -354,6 +354,12 @@ Inside the component definition we call the `useState` (for maintaining internal
 
 Below the hooks calls, we define two functions that serve as callbacks for the event listeners of the `input` and `button` elements. The associated [`event`](https://developer.mozilla.org/en-US/docs/web/api/event) instance is passed as an argument to each callback, which we've made use of in the `handleCommentTextChange` callback by setting the component's state to the newly entered input element's (the event's target) value, accessed via the `value` attribute of [`event.target`](https://developer.mozilla.org/en-US/docs/Web/API/Event/target).
 
+Note that we typically use the [React Hook Form](https://react-hook-form.com)
+package for tracking form state and handling validation and submission (slightly
+beyond the scope of this introduction). For forms that have dynamically-generated
+fields, we use
+[`react-jsonschema-form`](https://react-jsonschema-form.readthedocs.io/en/latest/).
+
 The comments in the list `state.testComments` (which is intialized to an empty list in its associated reducer, which we'll see shortly) are rendered, as well as a text input field and submit button for adding new comments. We've provided callback functions to the text input field's and button's `onChange` and `onClick` events, respectively. `handleCommentTextChange` updates the component's state with the newly input value on each keystroke. `handleSubmitNewComment` dispatches an action creator with the new comment text value, and if the request returns successfully, resets the input value to an empty string. This is an example of a [controlled component](https://reactjs.org/docs/forms.html#controlled-components), in which a component's value is passed in as an externally-controlled variable. The `data-testid` attributes are specified to facilitate testing (more on that later). Let's look at the action creators defined below.
 
 All of the redux-related logic associated with our new component will live in a separate file in the `static/js/ducks` directory. This is where we'll define our action types, action creators and reducer.

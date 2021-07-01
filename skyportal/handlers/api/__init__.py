@@ -8,6 +8,10 @@ from .db_stats import StatsHandler
 from .filter import FilterHandler
 from .followup_request import FollowupRequestHandler, AssignmentHandler
 from .facility_listener import FacilityMessageHandler
+from .gcn import (
+    GcnEventHandler,
+    LocalizationHandler,
+)
 from .group import (
     GroupHandler,
     GroupUserHandler,

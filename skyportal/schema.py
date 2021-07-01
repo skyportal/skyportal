@@ -780,6 +780,29 @@ class ObservingRunPost(_Schema):
     )
 
 
+class GcnHandlerPut(_Schema):
+    xml = fields.String(description='VOEvent XML content.')
+
+
+class GcnEventHandlerGet(_Schema):
+    tags = fields.List(fields.Field(), description='Event tags')
+    dateobs = fields.Field(description='UTC event timestamp')
+    localizations = fields.List(fields.Field(), description='Healpix localizations')
+    notices = fields.List(fields.Field(), description='VOEvent XML notices')
+    lightcurve = fields.String(description='URL for light curve')
+
+
+class LocalizationHandlerGet(_Schema):
+    localization_name = fields.String(description='Localization name')
+    dateobs = fields.String(description='UTC event timestamp')
+    flat_2d = fields.List(fields.Float, description='Flattened 2D healpix map')
+    contour = fields.Field(description='GeoJSON contours of healpix map')
+
+
+class GcnEventViewsHandlerGet(_Schema):
+    tags = fields.List(fields.Field(), description='Event list')
+
+
 class FollowupRequestPost(_Schema):
 
     obj_id = fields.String(

@@ -123,6 +123,7 @@ const NewGroupUserForm = ({ group_id }) => {
         onClick={handleClickSubmit}
         variant="contained"
         size="small"
+        color="primary"
         disableElevation
       >
         Add user to group

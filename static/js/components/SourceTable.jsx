@@ -28,7 +28,6 @@ import dayjs from "dayjs";
 import { isMobileOnly } from "react-device-detect";
 
 import { ra_to_hours, dec_to_dms, time_relative_to_local } from "../units";
-import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
@@ -43,6 +42,85 @@ const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
 const useStyles = makeStyles((theme) => ({
+  comment: {
+    fontSize: "90%",
+    display: "flex",
+    flexDirection: "row",
+    padding: "0.125rem",
+    margin: "0 0.125rem 0.125rem 0",
+    borderRadius: "1rem",
+    "&:hover": {
+      backgroundColor: "#e0e0e0",
+    },
+    "& .commentDelete": {
+      "&:hover": {
+        color: "#e63946",
+      },
+    },
+  },
+  commentDark: {
+    fontSize: "90%",
+    display: "flex",
+    flexDirection: "row",
+    padding: "0.125rem",
+    margin: "0 0.125rem 0.125rem 0",
+    borderRadius: "1rem",
+    "&:hover": {
+      backgroundColor: "#3a3a3a",
+    },
+    "& .commentDelete": {
+      color: "#b1dae9",
+      "&:hover": {
+        color: "#e63946",
+      },
+    },
+  },
+  commentUserAvatar: {
+    display: "block",
+    margin: "0.5em",
+  },
+  commentContent: {
+    display: "flex",
+    flexFlow: "column nowrap",
+    padding: "0.3125rem 0.625rem 0.3125rem 0.875rem",
+    borderRadius: "15px",
+    width: "100%",
+  },
+  commentHeader: {
+    display: "flex",
+    alignItems: "center",
+  },
+  commentUserName: {
+    fontWeight: "bold",
+    marginRight: "0.5em",
+    whiteSpace: "nowrap",
+    color: "#76aace",
+  },
+  commentTime: {
+    color: "gray",
+    fontSize: "80%",
+    marginRight: "1em",
+  },
+  commentUserGroup: {
+    display: "inline-block",
+    "& > svg": {
+      fontSize: "1rem",
+    },
+  },
+  commentMessage: {
+    maxWidth: "25em",
+    "& > p": {
+      margin: "0",
+    },
+  },
+  wrap: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    minHeight: "27px",
+    maxWidth: "25em",
+  },
   chip: {
     margin: theme.spacing(0.5),
   },
@@ -225,7 +303,7 @@ const SourceTable = ({
     (state) => state.profile.preferences.theme
   );
   const commentStyle =
-    userColorTheme === "dark" ? styles.commentDark : styles.comment;
+    userColorTheme === "dark" ? classes.commentDark : classes.comment;
 
   const handleTableChange = (action, tableState) => {
     switch (action) {
@@ -373,7 +451,7 @@ const SourceTable = ({
                     groups: comment_groups,
                   }) => (
                     <span key={id} className={commentStyle}>
-                      <div className={styles.commentUserAvatar}>
+                      <div className={classes.commentUserAvatar}>
                         <UserAvatar
                           size={24}
                           firstName={author_info.first_name}
@@ -382,17 +460,17 @@ const SourceTable = ({
                           gravatarUrl={author_info.gravatar_url}
                         />
                       </div>
-                      <div className={styles.commentContent}>
-                        <div className={styles.commentHeader}>
-                          <span className={styles.commentUser}>
-                            <span className={styles.commentUserName}>
+                      <div className={classes.commentContent}>
+                        <div className={classes.commentHeader}>
+                          <span>
+                            <span className={classes.commentUserName}>
                               {author.username}
                             </span>
                           </span>
-                          <span className={styles.commentTime}>
+                          <span className={classes.commentTime}>
                             {dayjs().to(dayjs.utc(`${created_at}Z`))}
                           </span>
-                          <div className={styles.commentUserGroup}>
+                          <div className={classes.commentUserGroup}>
                             <Tooltip
                               title={comment_groups
                                 .map((group) => group.name)
@@ -405,8 +483,8 @@ const SourceTable = ({
                             </Tooltip>
                           </div>
                         </div>
-                        <div className={styles.wrap} name={`commentDiv${id}`}>
-                          <div className={styles.commentMessage}>{text}</div>
+                        <div className={classes.wrap} name={`commentDiv${id}`}>
+                          <div className={classes.commentMessage}>{text}</div>
                         </div>
                         <span>
                           {attachment_name && (
@@ -666,6 +744,24 @@ const SourceTable = ({
     );
   };
 
+  const getSavedBy = (source) => {
+    // Get the user who saved the source to the specified group
+    if (groupID !== undefined) {
+      const group = source.groups.find((g) => g.id === groupID);
+      return group?.saved_by?.username;
+    }
+    // Otherwise, get whoever saved it last
+    const usernames = source.groups
+      .sort((g1, g2) => (g1.saved_at < g2.saved_at ? -1 : 1))
+      .map((g) => g.saved_by?.username);
+    return usernames[usernames.length - 1];
+  };
+
+  const renderSavedBy = (dataIndex) => {
+    const source = sources[dataIndex];
+    return getSavedBy(source);
+  };
+
   const handleFilterSubmit = async (formData) => {
     setQueryInProgress(true);
 
@@ -863,6 +959,18 @@ const SourceTable = ({
         sortThirdClickReset: true,
         display: displayedColumns.includes("Date Saved"),
         customBodyRenderLite: renderDateSaved,
+      },
+    },
+    {
+      name: "saved_by",
+      label: groupID ? "Saved To Group By" : "Last Saved By",
+      options: {
+        filter: false,
+        sort: false,
+        display: displayedColumns.includes(
+          groupID ? "Saved To Group By" : "Last Saved By"
+        ),
+        customBodyRenderLite: renderSavedBy,
       },
     },
     {
