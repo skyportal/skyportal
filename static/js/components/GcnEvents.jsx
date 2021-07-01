@@ -10,15 +10,24 @@ import {
   useTheme,
 } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
+import Chip from "@material-ui/core/Chip";
 
 import MUIDataTable from "mui-datatables";
 
 import * as gcnEventsActions from "../ducks/gcnEvents";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
   container: {
     width: "100%",
     overflow: "scroll",
+  },
+  eventTags: {
+    marginLeft: "0.5rem",
+    "& > div": {
+      margin: "0.25rem",
+      color: "white",
+      background: theme.palette.primary.main,
+    },
   },
 }));
 
@@ -63,7 +72,10 @@ const GcnEvents = () => {
     dispatch(gcnEventsActions.fetchGcnEvents());
   }, [dispatch]);
 
-  const renderTags = (value) => value.join(", ");
+  const renderTags = (tags) =>
+    tags.map((tag) => (
+      <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
+    ));
 
   const renderGcnNotices = (dataIndex) => (
     <ul>
