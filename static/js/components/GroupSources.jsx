@@ -35,9 +35,8 @@ const GroupSources = ({ route }) => {
   const groups = useSelector((state) => state.groups.userAccessible);
   const classes = useStyles();
   const [savedSourcesRowsPerPage, setSavedSourcesRowsPerPage] = useState(10);
-  const [pendingSourcesRowsPerPage, setPendingSourcesRowsPerPage] = useState(
-    10
-  );
+  const [pendingSourcesRowsPerPage, setPendingSourcesRowsPerPage] =
+    useState(10);
 
   // Load the group sources
   useEffect(() => {

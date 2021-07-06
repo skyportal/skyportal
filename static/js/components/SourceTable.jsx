@@ -33,6 +33,7 @@ import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
 import FavoritesButton from "./FavoritesButton";
+import MultipleClassificationsForm from "./MultipleClassificationsForm";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
 import { filterOutEmptyValues } from "../API";
@@ -501,6 +502,13 @@ const SourceTable = ({
                   )
                 )}
               </div>
+            </Grid>
+            <Grid item xs={12}>
+              <MultipleClassificationsForm
+                obj_id={source.id}
+                action="createNew"
+                taxonomyList={taxonomyList}
+              />
             </Grid>
             {favoritesRemoveButton ? (
               <div>
