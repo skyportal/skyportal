@@ -1967,6 +1967,13 @@ class CommentMixin:
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
 
+    bot = sa.Column(
+        sa.Boolean(),
+        nullable=False,
+        default=False,
+        doc="Boolean indicating whether comment was posted via a bot (token-based request).",
+    )
+
     @classmethod
     def backref_name(cls):
         if cls.__name__ == 'Comment':
