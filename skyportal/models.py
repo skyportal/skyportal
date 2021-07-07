@@ -1970,7 +1970,7 @@ class CommentMixin:
     bot = sa.Column(
         sa.Boolean(),
         nullable=False,
-        default=False,
+        server_default="false",
         doc="Boolean indicating whether comment was posted via a bot (token-based request).",
     )
 
