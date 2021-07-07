@@ -1,7 +1,7 @@
 """Add bot column to comments tables
 
 Revision ID: 1f4da189227e
-Revises: e9b7657f6be1
+Revises: 84bda9d816c6
 Create Date: 2021-07-06 10:54:06.164385
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '1f4da189227e'
-down_revision = 'e9b7657f6be1'
+down_revision = '84bda9d816c6'
 branch_labels = None
 depends_on = None
 
