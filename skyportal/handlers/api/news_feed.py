@@ -52,7 +52,7 @@ class NewsFeedHandler(BaseHandler):
         else:
             n_items = 10
 
-        def fetch_newest(model):
+        def fetch_newest(model, include_bot_comments=False):
             query = model.query_records_accessible_by(self.current_user)
             if model == Photometry:
                 query = query.filter(
@@ -61,6 +61,8 @@ class NewsFeedHandler(BaseHandler):
                         Photometry.assignment_id.isnot(None),
                     )
                 )
+            elif model == Comment and not include_bot_comments:
+                query = query.filter(Comment.bot.is_(False))
             query = (
                 query.order_by(desc(model.created_at or model.saved_at))
                 .distinct(model.obj_id, model.created_at)
@@ -97,7 +99,12 @@ class NewsFeedHandler(BaseHandler):
                     },
                 )
         if preferences.get("newsFeed", {}).get("categories", {}).get("comments", True):
-            comments = fetch_newest(Comment)
+            include_bot_comments = (
+                preferences.get("newsFeed", {})
+                .get("categories", {})
+                .get("includeCommentsFromBots", False)
+            )
+            comments = fetch_newest(Comment, include_bot_comments)
             # Add latest comments
             news_feed_items.extend(
                 [
