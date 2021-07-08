@@ -19,6 +19,7 @@ def test_add_and_retrieve_comment_group_id(comment_token, public_source, public_
 
     assert status == 200
     assert data['data']['text'] == 'Comment text'
+    assert data['data']['bot']
 
 
 def test_add_and_retrieve_comment_no_group_id(comment_token, public_source):

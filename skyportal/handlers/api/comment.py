@@ -11,6 +11,7 @@ from ...models import (
     Group,
     User,
     UserNotification,
+    Token,
 )
 
 
@@ -168,6 +169,7 @@ class CommentHandler(BaseHandler):
             attachment_bytes, attachment_name = None, None
 
         author = self.associated_user_object
+        is_bot_request = isinstance(self.current_user, Token)
         if spectrum_id is not None:
             comment = CommentOnSpectrum(
                 text=comment_text,
@@ -177,6 +179,7 @@ class CommentHandler(BaseHandler):
                 attachment_name=attachment_name,
                 author=author,
                 groups=groups,
+                bot=is_bot_request,
             )
         else:  # the default is to post a comment directly on the object
             if obj_id is None:
@@ -188,6 +191,7 @@ class CommentHandler(BaseHandler):
                 attachment_name=attachment_name,
                 author=author,
                 groups=groups,
+                bot=is_bot_request,
             )
         users_mentioned_in_comment = users_mentioned(comment_text)
         if users_mentioned_in_comment:
