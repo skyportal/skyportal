@@ -101,7 +101,7 @@ const MultipleClassificationsForm = ({
     classifications.forEach((classification) => {
       initialFormState[classification.taxonomy_id][
         classification.classification
-      ] = classification.probability;
+      ] = { depth: -1, probability: classification.probability };
     });
   });
   const [formState, setFormState] = useState(initialFormState);
@@ -126,25 +126,32 @@ const MultipleClassificationsForm = ({
     const children = node?.subclasses;
     let sum = 0;
     children?.forEach((subclass) => {
-      sum += newFormState[selectedTaxonomy.id][subclass.class] || 0;
+      sum +=
+        newFormState[selectedTaxonomy.id][subclass.class]?.probability || 0;
     });
 
     return sum;
   };
 
-  const updateChildren = (classification, newValue, newFormState) => {
+  const updateChildren = (classification, newValue, newFormState, depth) => {
     classification.subclasses?.forEach((subclass) => {
-      newFormState[selectedTaxonomy.id][subclass.class] = Math.min(
-        newValue,
-        newFormState[selectedTaxonomy.id][subclass.class] || 0
-      );
+      newFormState[selectedTaxonomy.id][subclass.class] = {
+        depth,
+        probability: Math.min(
+          newValue,
+          newFormState[selectedTaxonomy.id][subclass.class]?.probability || 0
+        ),
+      };
       updateChildren(subclass, newValue, newFormState);
     });
   };
 
   const handleChange = (newValue, classification, path) => {
     const newFormState = { ...formState };
-    newFormState[selectedTaxonomy.id][classification] = newValue;
+    newFormState[selectedTaxonomy.id][classification] = {
+      depth: path.length,
+      probability: newValue,
+    };
 
     // Update higher-level classification probabilities to be
     // the maximum between the current probability and the sum
@@ -154,16 +161,19 @@ const MultipleClassificationsForm = ({
         sumChildren(getNode(ancestor, path.slice(i + 1)), newFormState),
         1
       );
-      newFormState[selectedTaxonomy.id][ancestor] = Math.max(
-        probabilityOfSubclasses,
-        newFormState[selectedTaxonomy.id][ancestor] || 0
-      );
+      newFormState[selectedTaxonomy.id][ancestor] = {
+        depth: path.slice(i + 1).length,
+        probability: Math.max(
+          probabilityOfSubclasses,
+          newFormState[selectedTaxonomy.id][ancestor]?.probability || 0
+        ),
+      };
     });
 
     // Update subclasses' probabilities to be the minimum
     // between the current probability and the new value
     const node = getNode(classification, path);
-    updateChildren(node, newValue, newFormState);
+    updateChildren(node, newValue, newFormState, path.length);
     setFormState(newFormState);
   };
 
@@ -189,7 +199,10 @@ const MultipleClassificationsForm = ({
           </Typography>
           <Slider
             className={styles.slider}
-            value={formState[selectedTaxonomy.id][classification.class] || 0}
+            value={
+              formState[selectedTaxonomy.id][classification.class]
+                ?.probability || 0
+            }
             onChangeCommitted={(_, value) =>
               handleChange(value, classification.class, path)
             }
@@ -211,6 +224,16 @@ const MultipleClassificationsForm = ({
       return <StyledSlider key={`${classification.class}`} />;
     });
 
+  // Helper function to loop through array while waiting for
+  // each item to finish an async function
+  // Adapted from: https://codeburst.io/javascript-async-await-with-foreach-b6ba62bbf404
+  const asyncForEach = async (array, callback) => {
+    for (let index = 0; index < array.length; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await callback(array[index], index, array);
+    }
+  };
+
   const handleSubmit = async () => {
     setSubmissionRequestInProcess(true);
     const results = [];
@@ -218,21 +241,37 @@ const MultipleClassificationsForm = ({
     Object.entries(formState).forEach(
       // Submit non-zero classifications for each taxonomy
       ([taxonomy, classifications]) => {
-        Object.entries(classifications).forEach(
-          async ([classification, probability]) => {
-            if (probability > 0) {
-              const data = {
-                taxonomy_id: taxonomy,
-                obj_id: objId,
-                classification,
-                probability,
-                group_ids: [groupId],
-              };
-              const result = await dispatch(Actions.addClassification(data));
-              results.push(result);
-            }
-          }
-        );
+        const toPost = Object.entries(classifications)
+          // Only submit non-zero classifications that have been
+          // edited (depth > -1)
+          .filter(
+            ([, { depth, probability }]) => probability > 0 && depth > -1
+          );
+        // Post lower depths first (more specific classifications will be added
+        // later, to be the most recent when fetched)
+        toPost.sort((a, b) => a[1].depth - b[1].depth);
+        asyncForEach(toPost, async ([classification, { probability }]) => {
+          const data = {
+            taxonomy_id: taxonomy,
+            obj_id: objId,
+            classification,
+            probability,
+            group_ids: [groupId],
+          };
+          const result = await dispatch(Actions.addClassification(data));
+          results.push(result);
+        });
+
+        // Reset the depths for the posted classifications so that they
+        // are not reposted upon further edits
+        const newFormState = { ...formState };
+        toPost.forEach(([classification, { probability }]) => {
+          newFormState[selectedTaxonomy.id][classification] = {
+            depth: -1,
+            probability,
+          };
+        });
+        setFormState(newFormState);
       }
     );
 
