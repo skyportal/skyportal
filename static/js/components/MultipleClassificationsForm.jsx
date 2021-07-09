@@ -99,9 +99,16 @@ const MultipleClassificationsForm = ({
   // For each existing taxonomy/classification, update initial sliders
   sortedClassifications.forEach((classifications) => {
     classifications.forEach((classification) => {
-      initialFormState[classification.taxonomy_id][
-        classification.classification
-      ] = { depth: -1, probability: classification.probability };
+      // Take just the latest values for each field
+      if (
+        !initialFormState[classification.taxonomy_id][
+          classification.classification
+        ]
+      ) {
+        initialFormState[classification.taxonomy_id][
+          classification.classification
+        ] = { depth: -1, probability: classification.probability };
+      }
     });
   });
   const [formState, setFormState] = useState(initialFormState);
