@@ -17,6 +17,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
+from baselayer.app.utils.cache import Cache, array_to_bytes
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -32,7 +33,6 @@ from ...models import (
     Listing,
     Comment,
 )
-from ...utils.cache import Cache, array_to_bytes
 
 
 _, cfg = load_env()

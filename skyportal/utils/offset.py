@@ -30,8 +30,7 @@ from reproject import reproject_adaptive
 import pyvo as vo
 from pyvo.dal.exceptions import DALQueryError
 
-from .cache import Cache
-
+from baselayer.app.utils.cache import Cache
 from baselayer.log import make_log
 from baselayer.app.env import load_env
 
@@ -875,7 +874,6 @@ def fits_image(
     cache_dir="./cache/finder/",
     cache_max_items=1000,
 ):
-
     """Returns an opened FITS image centered on the source
        of the requested size.
 
@@ -964,7 +962,6 @@ def get_finding_chart(
     zscale_krej=2.5,
     **offset_star_kwargs,
 ):
-
     """Create a finder chart suitable for spectroscopic observations of
        the source
 
