@@ -11,7 +11,9 @@ import IconButton from "@material-ui/core/IconButton";
 import GetAppIcon from "@material-ui/icons/GetApp";
 
 import * as d3 from "d3";
+// eslint-disable-next-line
 import d3GeoZoom from "d3-geo-zoom";
+// eslint-disable-next-line
 import GeoPropTypes from "geojson-prop-types";
 
 import dayjs from "dayjs";
