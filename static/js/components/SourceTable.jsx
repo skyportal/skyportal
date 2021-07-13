@@ -513,16 +513,14 @@ const SourceTable = ({
                 )}
               </div>
             </Grid>
-            {groupID && (
-              <Grid item xs={12}>
-                <MultipleClassificationsForm
-                  objId={source.id}
-                  taxonomyList={taxonomyList}
-                  groupId={groupID}
-                  currentClassifications={getClassifications(source)}
-                />
-              </Grid>
-            )}
+            <Grid item xs={12}>
+              <MultipleClassificationsForm
+                objId={source.id}
+                taxonomyList={taxonomyList}
+                groupId={groupID}
+                currentClassifications={getClassifications(source)}
+              />
+            </Grid>
             {favoritesRemoveButton ? (
               <div>
                 {" "}

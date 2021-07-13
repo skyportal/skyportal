@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import MenuItem from "@material-ui/core/MenuItem";
 import Typography from "@material-ui/core/Typography";
@@ -12,11 +12,13 @@ import AccordionSummary from "@material-ui/core/AccordionSummary";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Button from "@material-ui/core/Button";
+import Paper from "@material-ui/core/Paper";
 import { makeStyles, withStyles } from "@material-ui/core/styles";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { getSortedClasses } from "./ShowClassification";
 import * as Actions from "../ducks/source";
+import * as ClassificationsActions from "../ducks/classifications";
 
 const useStyles = makeStyles(() => ({
   container: {
@@ -29,7 +31,10 @@ const useStyles = makeStyles(() => ({
     display: "flex",
     flexFlow: "row wrap",
     "& > div": {
-      margin: "1rem 2rem",
+      padding: "1rem 2rem",
+      margin: "0.5rem",
+      flexGrow: "1",
+      flexBasis: "15rem",
     },
   },
   submitButton: {
@@ -83,12 +88,16 @@ const MultipleClassificationsForm = ({
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
-
-  const [selectedTaxonomy, setSelectedTaxonomy] = useState();
+  const stateTaxonomy = useSelector((state) => state.classifications.taxonomy);
+  const [selectedTaxonomy, setSelectedTaxonomy] = useState(stateTaxonomy);
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);
 
   const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
+
+  useEffect(() => {
+    setSelectedTaxonomy(stateTaxonomy);
+  }, [stateTaxonomy]);
 
   const initialFormState = {};
   latestTaxonomyList.forEach((taxonomy) => {
@@ -186,50 +195,84 @@ const MultipleClassificationsForm = ({
 
   const renderSliders = (classifications, depth, path) =>
     classifications?.map((classification) => {
-      const sliderBaseWidth = "10rem";
       const StyledSlider = withStyles({
         sliderDiv: {
           textAlign: "end",
         },
         slider: {
-          width: `calc(${sliderBaseWidth} * (1 - .15 * ${depth}))`,
+          width: `calc(100% * (1 - .15 * ${depth}))`,
         },
         sliderLabel: {
-          width: `calc(${sliderBaseWidth} * (1 - .15 * ${depth}))`,
-          marginLeft: `calc(${sliderBaseWidth} * .15 * ${depth})`,
+          width: `calc(100% * (1 - .15 * ${depth}))`,
+          marginLeft: `calc(100% * .15 * ${depth})`,
           textAlign: "left",
         },
-      })(({ classes: styles }) => (
-        <div className={styles.sliderDiv}>
-          <Typography className={styles.sliderLabel} gutterBottom>
-            {classification.class}
-          </Typography>
-          <Slider
-            className={styles.slider}
-            value={
-              formState[selectedTaxonomy.id][classification.class]
-                ?.probability || 0
-            }
-            onChangeCommitted={(_, value) =>
-              handleChange(value, classification.class, path)
-            }
-            id={classification.class}
-            aria-labelledby={classification.class}
-            valueLabelDisplay="auto"
-            step={0.25}
-            marks
-            min={0}
-            max={1.0}
-          />
-          {renderSliders(
-            classification.subclasses,
-            depth + 1,
-            [classification.class].concat(path)
-          )}
-        </div>
-      ));
+      })(({ classes: styles }) =>
+        depth > 0 ? (
+          <div className={styles.sliderDiv}>
+            <Typography className={styles.sliderLabel} gutterBottom>
+              {classification.class}
+            </Typography>
+            <Slider
+              className={styles.slider}
+              value={
+                formState[selectedTaxonomy.id][classification.class]
+                  ?.probability || 0
+              }
+              onChangeCommitted={(_, value) =>
+                handleChange(value, classification.class, path)
+              }
+              id={classification.class}
+              aria-labelledby={classification.class}
+              valueLabelDisplay="auto"
+              step={0.25}
+              marks
+              min={0}
+              max={1.0}
+            />
+            {renderSliders(
+              classification.subclasses,
+              depth + 1,
+              [classification.class].concat(path)
+            )}
+          </div>
+        ) : (
+          <Paper variant="outlined" className={styles.sliderDiv}>
+            <Typography className={styles.sliderLabel} gutterBottom>
+              {classification.class}
+            </Typography>
+            <Slider
+              className={styles.slider}
+              value={
+                formState[selectedTaxonomy.id][classification.class]
+                  ?.probability || 0
+              }
+              onChangeCommitted={(_, value) =>
+                handleChange(value, classification.class, path)
+              }
+              id={classification.class}
+              aria-labelledby={classification.class}
+              valueLabelDisplay="auto"
+              step={0.25}
+              marks
+              min={0}
+              max={1.0}
+            />
+            {renderSliders(
+              classification.subclasses,
+              depth + 1,
+              [classification.class].concat(path)
+            )}
+          </Paper>
+        )
+      );
       return <StyledSlider key={`${classification.class}`} />;
     });
+
+  const handleSelectTaxonomy = (event) => {
+    setSelectedTaxonomy(event.target.value);
+    dispatch(ClassificationsActions.setTaxonomy(event.target.value));
+  };
 
   // Helper function to loop through array while waiting for
   // each item to finish an async function
@@ -263,8 +306,10 @@ const MultipleClassificationsForm = ({
             obj_id: objId,
             classification,
             probability,
-            group_ids: [groupId],
           };
+          if (groupId) {
+            data.group_ids = [groupId];
+          }
           const result = await dispatch(Actions.addClassification(data));
           results.push(result);
         });
@@ -297,9 +342,10 @@ const MultipleClassificationsForm = ({
         </InputLabel>
         <Select
           labelId={`taxonomy-select-label-${objId}`}
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
           id={`taxonomy-select-${objId}`}
           value={selectedTaxonomy || ""}
-          onChange={(event) => setSelectedTaxonomy(event.target.value)}
+          onChange={handleSelectTaxonomy}
         >
           {latestTaxonomyList.map((taxonomy) => (
             <MenuItem key={taxonomy.name} value={taxonomy}>
@@ -356,8 +402,12 @@ MultipleClassificationsForm.propTypes = {
       version: PropTypes.string,
     })
   ).isRequired,
-  groupId: PropTypes.number.isRequired,
+  groupId: PropTypes.number,
   currentClassifications: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
+};
+
+MultipleClassificationsForm.defaultProps = {
+  groupId: null,
 };
 
 export default MultipleClassificationsForm;
