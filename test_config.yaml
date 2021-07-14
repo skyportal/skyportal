@@ -17,7 +17,7 @@ misc:
   allow_nonadmins_delete_objs: True
   # Minimum interval during which 100 requests will be allowed per API token,
   # per app instance (tokens with "System admin" ACL are not limited)
-  rate_limit_100_requests_per_n_seconds: 5
+  rate_limit_100_requests_per_n_seconds: 20
 
 twilio:
   # Twilio Sendgrid API configs
