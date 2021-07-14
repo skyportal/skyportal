@@ -124,7 +124,8 @@ const MultipleClassificationsForm = ({
   const [formState, setFormState] = useState(initialFormState);
 
   const getNode = (classification, path) => {
-    // Get node from hierarchy
+    // Get node from hierarchy, given classification name
+    // and path to the classification
     let node;
     let hierarchy = selectedTaxonomy?.hierarchy.subclasses;
     const pathCopy = [...path];
@@ -165,12 +166,14 @@ const MultipleClassificationsForm = ({
         newFormState[selectedTaxonomy.id][subclass.class]?.probability || 0;
       // New probability is the new parent probability scaled by the
       // proportion of the total children probability this child has currently
-      const newProbability = parseFloat(
-        (
-          (newValue * currentProbability) /
-          totalProbabilityOfSubclasses
-        ).toFixed(3)
-      );
+      // Note: "|| 0" used to handle cases where totalProbabilityOfSubclasses === 0
+      const newProbability =
+        parseFloat(
+          (
+            (newValue * currentProbability) /
+            totalProbabilityOfSubclasses
+          ).toFixed(3)
+        ) || 0;
       newFormState[selectedTaxonomy.id][subclass.class] = {
         depth,
         probability: newProbability,
@@ -225,12 +228,14 @@ const MultipleClassificationsForm = ({
             newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
           // Scale the siblings' probabilities based on the proportion they had
           // previously of the parent's probability.
-          const newProbability = parseFloat(
-            (
-              remainingProbability *
-              (currentProbability / currentTotalOfSiblings)
-            ).toFixed(3)
-          );
+          // Note: "|| 0" used to handle cases where currentTotalOfSiblings === 0
+          const newProbability =
+            parseFloat(
+              (
+                remainingProbability *
+                (currentProbability / currentTotalOfSiblings)
+              ).toFixed(3)
+            ) || 0;
           newFormState[selectedTaxonomy.id][sibling.class] = {
             depth: subpath.length,
             probability: newProbability,
@@ -258,30 +263,27 @@ const MultipleClassificationsForm = ({
           newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
         // Scale the siblings' probabilities based on the proportion they had
         // previously of the parent's probability.
-        const newProbability = parseFloat(
-          (
-            remainingProbability *
-            (currentProbability / currentTotalOfSiblings)
-          ).toFixed(3)
-        );
+        // Note: "|| 0" used to handle cases where currentTotalOfSiblings === 0
+        const newProbability =
+          parseFloat(
+            (
+              remainingProbability *
+              (currentProbability / currentTotalOfSiblings)
+            ).toFixed(3)
+          ) || 0;
         newFormState[selectedTaxonomy.id][sibling.class] = {
-          depth: path.slice(1).length,
+          depth: path.length,
           // Scale the siblings' probabilities based on the proportion they had
           // previously of the parent's probability.
           probability: newProbability,
         };
-        updateChildren(
-          sibling,
-          newProbability,
-          newFormState,
-          path.slice(1).length
-        );
+        updateChildren(sibling, newProbability, newFormState, path.length + 1);
       });
     }
 
     // Update subclasses' probabilities
     const node = getNode(classification, path);
-    updateChildren(node, newValue, newFormState, path.length);
+    updateChildren(node, newValue, newFormState, path.length + 1);
     setFormState(newFormState);
   };
 
