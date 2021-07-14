@@ -27,6 +27,7 @@ const useStyles = makeStyles(() => ({
   },
   taxonomySelect: {
     minWidth: "10rem",
+    margin: "0.25rem 0",
   },
   sliderContainer: {
     display: "flex",
