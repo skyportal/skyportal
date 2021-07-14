@@ -46,3 +46,4 @@ ligo.skymap==0.5.3
 healpy==1.15.0
 pygcn==1.1.0
 xmlschema==1.6.1
+requests<2.26

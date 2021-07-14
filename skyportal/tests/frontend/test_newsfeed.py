@@ -38,7 +38,11 @@ def test_news_feed(
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
-    driver.wait_for_xpath(f'//span[text()="a few seconds ago"]')
+    driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+    # Default is to not show bot comments; enable for now
+    driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
+    driver.click_xpath('//*[@data-testid="categories.includeCommentsFromBots"]')
+    driver.click_xpath('//button[contains(., "Save")]')
     for i in range(2):
         # Source added item
         driver.wait_for_xpath(
@@ -82,6 +86,10 @@ def test_news_feed_prefs_widget(
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/')
+    # Default is to not show bot comments; enable for now
+    driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
+    driver.click_xpath('//*[@data-testid="categories.includeCommentsFromBots"]')
+    driver.click_xpath('//button[contains(., "Save")]')
     driver.wait_for_xpath('//span[text()="a few seconds ago"]')
     for i in range(2):
         # Source added item
@@ -118,6 +126,18 @@ def test_news_feed_prefs_widget(
 
     driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
     driver.click_xpath('//*[@data-testid="categories.comments"]')
+    driver.click_xpath('//button[contains(., "Save")]')
+    for i in range(2):
+        # Comment item
+        driver.wait_for_xpath_to_disappear(f'//p[contains(text(),"comment_text_{i}")]')
+    driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
+    driver.click_xpath('//*[@data-testid="categories.comments"]')
+    driver.click_xpath('//button[contains(., "Save")]')
+    for i in range(2):
+        # Comment item
+        driver.wait_for_xpath(f'//p[contains(text(),"comment_text_{i}")]')
+    driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
+    driver.click_xpath('//*[@data-testid="categories.includeCommentsFromBots"]')
     driver.click_xpath('//button[contains(., "Save")]')
     for i in range(2):
         # Comment item
