@@ -172,6 +172,7 @@ if __name__ == "__main__":
                 if filename.endswith('csv'):
                     df = pd.read_csv(filename)
                     obj.pop('file')
+                    df = df.where(pd.notnull(df), None)
                     obj.update(df.to_dict(orient='list'))
                 elif filename.endswith('.png'):
                     return base64.b64encode(open(filename, 'rb').read())
