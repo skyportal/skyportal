@@ -190,22 +190,16 @@ const MultipleClassificationsForm = ({
     };
 
     // Update higher-level classification probabilities to be
-    // the maximum between the current probability and the sum
-    // of the subclasses' probabilities.
+    // the sum of the subclasses' probabilities.
     path.forEach((ancestor, i) => {
       const subpath = path.slice(i + 1);
       const probabilityOfSubclasses = Math.min(
         sumChildren(getNode(ancestor, subpath), newFormState),
         1
       );
-      const ancestorCurrentProbability =
-        newFormState[selectedTaxonomy.id][ancestor]?.probability || 0;
       newFormState[selectedTaxonomy.id][ancestor] = {
         depth: subpath.length,
-        probability: Math.max(
-          probabilityOfSubclasses,
-          ancestorCurrentProbability
-        ),
+        probability: probabilityOfSubclasses,
       };
 
       // Update siblings of the ancestor to respect cap of parent
