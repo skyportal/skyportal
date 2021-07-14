@@ -15,6 +15,9 @@ misc:
   photometry_detection_threshold_nsigma: 3.0
   minutes_to_keep_candidate_query_cache: 0.033333 # 2 seconds
   allow_nonadmins_delete_objs: True
+  # Minimum interval during which 100 requests will be allowed per API token,
+  # per app instance (tokens with "System admin" ACL are not limited)
+  rate_limit_100_requests_per_n_seconds: 5
 
 twilio:
   # Twilio Sendgrid API configs
