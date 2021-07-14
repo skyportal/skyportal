@@ -13,6 +13,7 @@ import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Button from "@material-ui/core/Button";
 import Paper from "@material-ui/core/Paper";
+import Chip from "@material-ui/core/Chip";
 import { makeStyles, withStyles } from "@material-ui/core/styles";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -164,8 +165,12 @@ const MultipleClassificationsForm = ({
         newFormState[selectedTaxonomy.id][subclass.class]?.probability || 0;
       // New probability is the new parent probability scaled by the
       // proportion of the total children probability this child has currently
-      const newProbability =
-        (newValue * currentProbability) / totalProbabilityOfSubclasses;
+      const newProbability = parseFloat(
+        (
+          (newValue * currentProbability) /
+          totalProbabilityOfSubclasses
+        ).toFixed(3)
+      );
       newFormState[selectedTaxonomy.id][subclass.class] = {
         depth,
         probability: newProbability,
@@ -220,9 +225,12 @@ const MultipleClassificationsForm = ({
             newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
           // Scale the siblings' probabilities based on the proportion they had
           // previously of the parent's probability.
-          const newProbability =
-            remainingProbability *
-            (currentProbability / currentTotalOfSiblings);
+          const newProbability = parseFloat(
+            (
+              remainingProbability *
+              (currentProbability / currentTotalOfSiblings)
+            ).toFixed(3)
+          );
           newFormState[selectedTaxonomy.id][sibling.class] = {
             depth: subpath.length,
             probability: newProbability,
@@ -250,8 +258,12 @@ const MultipleClassificationsForm = ({
           newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
         // Scale the siblings' probabilities based on the proportion they had
         // previously of the parent's probability.
-        const newProbability =
-          remainingProbability * (currentProbability / currentTotalOfSiblings);
+        const newProbability = parseFloat(
+          (
+            remainingProbability *
+            (currentProbability / currentTotalOfSiblings)
+          ).toFixed(3)
+        );
         newFormState[selectedTaxonomy.id][sibling.class] = {
           depth: path.slice(1).length,
           // Scale the siblings' probabilities based on the proportion they had
@@ -364,48 +376,53 @@ const MultipleClassificationsForm = ({
     }
   };
 
+  const getClassificationsToPost = (classifications) => {
+    if (!classifications) {
+      return null;
+    }
+
+    const toPost = Object.entries(classifications)
+      // Only submit non-zero classifications that have been
+      // edited (depth > -1)
+      .filter(([, { depth, probability }]) => probability > 0 && depth > -1);
+    // Post lower depths first (more specific classifications will be added
+    // later, to be the most recent when fetched)
+    toPost.sort((a, b) => a[1].depth - b[1].depth);
+    return toPost;
+  };
+
   const handleSubmit = async () => {
     setSubmissionRequestInProcess(true);
     const results = [];
 
-    Object.entries(formState).forEach(
-      // Submit non-zero classifications for each taxonomy
-      ([taxonomy, classifications]) => {
-        const toPost = Object.entries(classifications)
-          // Only submit non-zero classifications that have been
-          // edited (depth > -1)
-          .filter(
-            ([, { depth, probability }]) => probability > 0 && depth > -1
-          );
-        // Post lower depths first (more specific classifications will be added
-        // later, to be the most recent when fetched)
-        toPost.sort((a, b) => a[1].depth - b[1].depth);
-        asyncForEach(toPost, async ([classification, { probability }]) => {
-          const data = {
-            taxonomy_id: taxonomy,
-            obj_id: objId,
-            classification,
-            probability,
-          };
-          if (groupId) {
-            data.group_ids = [groupId];
-          }
-          const result = await dispatch(Actions.addClassification(data));
-          results.push(result);
-        });
+    const classifications = formState[selectedTaxonomy?.id];
 
-        // Reset the depths for the posted classifications so that they
-        // are not reposted upon further edits
-        const newFormState = { ...formState };
-        toPost.forEach(([classification, { probability }]) => {
-          newFormState[selectedTaxonomy.id][classification] = {
-            depth: -1,
-            probability,
-          };
-        });
-        setFormState(newFormState);
+    // Submit non-zero classifications for the current taxonomy
+    const toPost = getClassificationsToPost(classifications);
+    asyncForEach(toPost, async ([classification, { probability }]) => {
+      const data = {
+        taxonomy_id: selectedTaxonomy.id,
+        obj_id: objId,
+        classification,
+        probability,
+      };
+      if (groupId) {
+        data.group_ids = [groupId];
       }
-    );
+      const result = await dispatch(Actions.addClassification(data));
+      results.push(result);
+    });
+
+    // Reset the depths for the posted classifications so that they
+    // are not reposted upon further edits
+    const newFormState = { ...formState };
+    toPost.forEach(([classification, { probability }]) => {
+      newFormState[selectedTaxonomy.id][classification] = {
+        depth: -1,
+        probability,
+      };
+    });
+    setFormState(newFormState);
 
     setSubmissionRequestInProcess(false);
     if (results.every((result) => result.status === "success")) {
@@ -415,7 +432,20 @@ const MultipleClassificationsForm = ({
 
   return (
     <div className={classes.container}>
-      <Typography variant="h6">Edit Classifications</Typography>
+      <Typography variant="h6">Post Classifications</Typography>
+      <div>
+        <Typography variant="subtitle2">
+          Classifications to be posted:
+        </Typography>
+        {getClassificationsToPost(formState[selectedTaxonomy?.id])?.map(
+          ([classification, { probability }]) => (
+            <Chip
+              key={`${selectedTaxonomy.id}-${classification}`}
+              label={`${classification} (${selectedTaxonomy.name}): ${probability}`}
+            />
+          )
+        )}
+      </div>
       <FormControl className={classes.taxonomySelect}>
         <InputLabel id={`taxonomy-select-label-${objId}`}>
           Select Taxonomy
