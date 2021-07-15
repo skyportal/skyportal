@@ -1,6 +1,7 @@
 import uuid
 import smtplib
 import python_http_client.exceptions
+import arrow
 from baselayer.app.access import permissions, AccessError
 from baselayer.app.env import load_env
 from ..base import BaseHandler
@@ -72,6 +73,12 @@ class InvitationHandler(BaseHandler):
                     description: |
                       List of booleans indicating whether user should be able to save
                       sources to respective specified group(s). Defaults to all true.
+                  userExpirationDate:
+                    type: string
+                    description: |
+                      Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
+                      date, after which the user's account will be deactivated and will be unable
+                      to access the application.
                 required:
                   - userEmail
                   - groupIDs
@@ -166,6 +173,13 @@ class InvitationHandler(BaseHandler):
                 "Invalid value provided for `canSave` parameter: "
                 "all elements must be booleans"
             )
+        user_expiration_date = data.get("userExpirationDate")
+        if user_expiration_date is not None:
+            try:
+                user_expiration_date = arrow.get(user_expiration_date).datetime
+            except arrow.parser.ParserError:
+                return self.error("Unable to parse `userExpirationDate` parameter.")
+
         if len(admin_for_groups) != len(groups):
             return self.error("groupAdmin and groupIDs must be the same length")
 
@@ -179,6 +193,7 @@ class InvitationHandler(BaseHandler):
             user_email=user_email,
             role=role,
             invited_by=self.associated_user_object,
+            user_expiration_date=user_expiration_date,
         )
         DBSession().add(invitation)
         try:
@@ -339,6 +354,12 @@ class InvitationHandler(BaseHandler):
                       type: integer
                   role:
                     type: string
+                  userExpirationDate:
+                    type: string
+                    description: |
+                      Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
+                      date, after which the user's account will be deactivated and will be unable
+                      to access the application.
         responses:
           200:
             content:
@@ -359,9 +380,15 @@ class InvitationHandler(BaseHandler):
         group_ids = data.get("groupIDs")
         stream_ids = data.get("streamIDs")
         role_id = data.get("role")
-        if group_ids is None and stream_ids is None and role_id is None:
+        user_expiration_date = data.get("userExpirationDate")
+        if (
+            group_ids is None
+            and stream_ids is None
+            and role_id is None
+            and user_expiration_date is None
+        ):
             return self.error(
-                "At least one of `groupIDs`, `streamIDs` or `role` is required."
+                "At least one of `groupIDs`, `streamIDs`, `role`, or `userExpirationDate` is required."
             )
         if group_ids is not None:
             group_ids = [int(gid) for gid in group_ids]
@@ -394,6 +421,12 @@ class InvitationHandler(BaseHandler):
                 .all()
             )
 
+        if user_expiration_date is not None:
+            try:
+                user_expiration_date = arrow.get(user_expiration_date).datetime
+            except arrow.parser.ParserError:
+                return self.error("Unable to parse `userExpirationDate` parameter.")
+
         # Ensure specified groups are covered by specified streams
         if not all([stream in streams for group in groups for stream in group.streams]):
             return self.error(
@@ -407,6 +440,8 @@ class InvitationHandler(BaseHandler):
             invitation.streams = streams
         if role_id is not None:
             invitation.role_id = role_id
+        if user_expiration_date is not None:
+            invitation.user_expiration_date = user_expiration_date
 
         self.verify_and_commit()
         return self.success()

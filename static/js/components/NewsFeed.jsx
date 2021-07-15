@@ -29,6 +29,7 @@ const defaultPrefs = {
     photometry: true,
     sources: true,
     spectra: true,
+    includeCommentsFromBots: false,
   },
 };
 

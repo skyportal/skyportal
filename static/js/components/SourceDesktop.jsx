@@ -219,7 +219,7 @@ const SourceDesktop = ({ source }) => {
             <div className={classes.infoLine}>
               <div className={classes.sourceInfo}>
                 <b>
-                  <font color="red">Possible duplicate of:</font>
+                  <font color="#457b9d">Possible duplicate of:</font>
                 </b>
                 &nbsp;
                 {source.duplicates.map((dupID) => (

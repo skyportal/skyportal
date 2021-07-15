@@ -20,6 +20,9 @@ import IconButton from "@material-ui/core/IconButton";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogTitle from "@material-ui/core/DialogTitle";
+import { DatePicker } from "@material-ui/pickers";
+import Tooltip from "@material-ui/core/Tooltip";
+import HelpIcon from "@material-ui/icons/Help";
 import {
   makeStyles,
   createMuiTheme,
@@ -29,11 +32,16 @@ import {
 import Form from "@rjsf/material-ui";
 import PapaParse from "papaparse";
 
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
 import { showNotification } from "baselayer/components/Notifications";
 
 import FormValidationError from "./FormValidationError";
 import * as invitationsActions from "../ducks/invitations";
 import * as streamsActions from "../ducks/streams";
+
+dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
   icon: {
@@ -47,8 +55,11 @@ const useStyles = makeStyles(() => ({
   spinnerDiv: {
     paddingTop: "2rem",
   },
-  submitFilterButton: {
+  submitButton: {
     marginTop: "1rem",
+  },
+  expired_user: {
+    color: "red",
   },
 }));
 
@@ -92,6 +103,10 @@ const UserInvitations = () => {
   const [addInvitationStreamsDialogOpen, setAddInvitationStreamsDialogOpen] =
     useState(false);
   const [updateRoleDialogOpen, setUpdateRoleDialogOpen] = useState(false);
+  const [
+    editUserExpirationDateDialogOpen,
+    setEditUserExpirationDateDialogOpen,
+  ] = useState(false);
   const [clickedInvitation, setClickedInvitation] = useState(null);
   const [dataFetched, setDataFetched] = useState(false);
 
@@ -244,6 +259,7 @@ const UserInvitations = () => {
         dynamicTyping: true,
         quotes: false,
       }).data[0],
+      row[4]?.trim(),
     ]);
     const promises = rows.map((row) =>
       dispatch(
@@ -252,6 +268,7 @@ const UserInvitations = () => {
           streamIDs: row[1],
           groupIDs: row[2],
           groupAdmin: row[3],
+          userExpirationDate: row[4],
         })
       )
     );
@@ -260,6 +277,21 @@ const UserInvitations = () => {
       dispatch(showNotification("User(s) successfully invited."));
       dispatch(invitationsActions.fetchInvitations(fetchParams));
       setCsvData("");
+    }
+  };
+
+  const handleEditUserExpirationDate = async (formData) => {
+    const result = await dispatch(
+      invitationsActions.updateInvitation(clickedInvitation.id, {
+        userExpirationDate: formData.date.format("YYYY/MM/DD"),
+      })
+    );
+    if (result.status === "success") {
+      dispatch(showNotification("User expiration date successfully updated."));
+      reset({ date: null });
+      setEditUserExpirationDateDialogOpen(false);
+      dispatch(invitationsActions.fetchInvitations(fetchParams));
+      setClickedInvitation(null);
     }
   };
 
@@ -357,6 +389,47 @@ const UserInvitations = () => {
       </div>
     );
   };
+
+  const renderExpirationDate = (dataIndex) => {
+    const invitation = invitations[dataIndex];
+    const isExpired = dayjs.utc().isAfter(invitation.user_expiration_date);
+    return (
+      <div className={isExpired ? classes.expired_user : ""}>
+        {invitation.user_expiration_date
+          ? dayjs.utc(invitation.user_expiration_date).format("YYYY/MM/DD")
+          : ""}
+        <IconButton
+          aria-label="edit-expiration"
+          data-testid={`editUserExpirationDate${invitation.id}`}
+          onClick={() => {
+            setClickedInvitation(invitation);
+            setEditUserExpirationDateDialogOpen(true);
+          }}
+          size="small"
+        >
+          <EditIcon color="disabled" />
+        </IconButton>
+      </div>
+    );
+  };
+
+  const renderExpirationDateHeader = () => (
+    <>
+      Expiration Date
+      <Tooltip
+        interactive
+        title={
+          <>
+            This is the expiration date assigned to the new user account. On
+            this date, the user account will be deactivated and will be unable
+            to access the application.
+          </>
+        }
+      >
+        <HelpIcon color="disabled" size="small" className={classes.icon} />
+      </Tooltip>
+    </>
+  );
 
   const handleFilterSubmit = async (formData) => {
     setQueryInProgress(true);
@@ -503,6 +576,16 @@ const UserInvitations = () => {
       },
     },
     {
+      name: "user_expiration_date",
+      label: "User Expiration Date",
+      options: {
+        sort: false,
+        filter: false,
+        customBodyRenderLite: renderExpirationDate,
+        customHeadLabelRender: renderExpirationDateHeader,
+      },
+    },
+    {
       name: "actions",
       label: "Actions",
       options: {
@@ -555,8 +638,8 @@ const UserInvitations = () => {
         <Box p={5}>
           <code>
             User Email,Stream IDs,Group IDs,true/false indicating admin status
-            for respective groups (list values space-separated, no spaces after
-            commas)
+            for respective groups, User expiration date (list values
+            space-separated, no spaces after commas)
           </code>
           <br />
           <TextareaAutosize
@@ -742,6 +825,48 @@ const UserInvitations = () => {
                 type="submit"
                 name="submitEditRoleButton"
                 data-testid="submitEditRoleButton"
+              >
+                Submit
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={editUserExpirationDateDialogOpen}
+        onClose={() => {
+          setEditUserExpirationDateDialogOpen(false);
+        }}
+        style={{ position: "fixed" }}
+      >
+        <DialogTitle>Edit user expiration date:</DialogTitle>
+        <DialogContent>
+          <form onSubmit={handleSubmit(handleEditUserExpirationDate)}>
+            <Controller
+              render={({ onChange, value }) => (
+                <DatePicker
+                  value={value}
+                  onChange={(date) =>
+                    date ? onChange(dayjs.utc(date)) : onChange(date)
+                  }
+                  label="Expiration date (UTC)"
+                  format="YYYY/MM/DD"
+                  disablePast
+                  data-testid="expirationDatePicker"
+                />
+              )}
+              name="date"
+              control={control}
+              defaultValue={null}
+            />
+            <br />
+            <div className={classes.submitButton}>
+              <Button
+                variant="contained"
+                color="primary"
+                type="submit"
+                name="submitExpirationDateButton"
+                data-testid="submitExpirationDateButton"
               >
                 Submit
               </Button>

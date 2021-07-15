@@ -1,0 +1,92 @@
+group_ids:
+  - =program_A
+  - =program_B
+hierarchy:
+  class: Variable Taxonomy
+  subclasses:
+    - class: phenomenological
+      subclasses:
+        - class: non-variable
+        - class: variable
+        - class: periodic
+          subclasses:
+            - class: sinusoidal
+            - class: sawtooth
+        - class: multi periodic
+        - class: long timescale
+        - class: irregular
+        - class: eclipsing
+          subclasses:
+            - class: EA
+            - class: EB
+            - class: EW
+        - class: flaring
+        - class: dipping
+        - class: bogus
+          subclasses:
+            - class: galaxy
+            - class: blend
+            - class: bright star
+            - class: ccd artifact
+        - class: wrong period
+          subclasses:
+            - class: half period
+            - class: double period
+        - class: nice
+          subclasses:
+            - class: niice
+    - class: intrinsic
+      subclasses:
+        - class: pulsator
+          subclasses:
+            - class: Delta Scu
+            - class: Gamma Dor
+            - class: Cepheid
+              subclasses:
+                - class: F
+                - class: O
+            - class: Cepheid type-II
+              subclasses:
+                - class: BL Her
+                - class: W Virginis
+                - class: RV Tau
+            - class: RR Lyrae
+              subclasses:
+                - class: RR Lyrae ab
+                - class: RR Lyrae c
+                - class: RR Lyrae d
+                - class: RR Lyrae Blazhko
+            - class: WD pulsator
+              subclasses:
+                - class: DAV (ZZ Ceti)
+                - class: DBV
+                - class: ELMV
+            - class: sdB
+              subclasses:
+                - class: sdBV p-mode
+                - class: sdBV g-mode
+                - class: BLAP
+                - class: high-g BLAP
+            - class: LPV
+              subclasses:
+                - class: Mira
+                - class: SRV
+        - class: binary star
+          subclasses:
+            - class: W Uma
+            - class: detached eclipsing MS-MS
+            - class: Beta Lyr
+            - class: RS CVn
+            - class: compact binary
+              subclasses:
+                - class: eclipsing dWD
+                - class: eclipsing WD+dM (NN Ser)
+                - class: eclipsing sdB+dM (HW Vir)
+                - class: Redback pulsar
+        - class: AGN
+          subclasses:
+            - class: Blazar
+        - class: YSO
+        - class: CV
+name: Variables Taxonomy
+version: demo

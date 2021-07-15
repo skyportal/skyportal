@@ -1967,6 +1967,13 @@ class CommentMixin:
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
 
+    bot = sa.Column(
+        sa.Boolean(),
+        nullable=False,
+        server_default="false",
+        doc="Boolean indicating whether comment was posted via a bot (token-based request).",
+    )
+
     @classmethod
     def backref_name(cls):
         if cls.__name__ == 'Comment':
@@ -3397,6 +3404,7 @@ class Invitation(Base):
         uselist=False,
     )
     used = sa.Column(sa.Boolean, nullable=False, default=False)
+    user_expiration_date = sa.Column(sa.DateTime, nullable=True)
 
 
 GroupInvitation = join_model('group_invitations', Group, Invitation)

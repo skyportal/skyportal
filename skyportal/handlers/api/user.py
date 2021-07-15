@@ -1,7 +1,7 @@
 import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
-
+import arrow
 
 from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
@@ -32,6 +32,7 @@ def add_user_and_setup_groups(
     roles=[],
     group_ids_and_admin=[],
     oauth_uid=None,
+    expiration_date=None,
 ):
     # Add user
     user = User(
@@ -42,6 +43,7 @@ def add_user_and_setup_groups(
         contact_phone=contact_phone,
         contact_email=contact_email,
         oauth_uid=oauth_uid,
+        expiration_date=expiration_date,
     )
     DBSession().add(user)
     DBSession().flush()
@@ -358,6 +360,53 @@ class UserHandler(BaseHandler):
         )
         self.verify_and_commit()
         return self.success(data={"id": user_id})
+
+    @permissions(["Manage users"])
+    def patch(self, user_id):
+        """
+        ---
+        description: Update a User record
+        tags:
+          - users
+        parameters:
+          - in: path
+            name: user_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expirationDate:
+                    type: string
+                    description: |
+                      Arrow-parseable date string (e.g. 2020-01-01). Set a user's expiration
+                      date, after which the user's account will be deactivated and will be unable
+                      to access the application.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        data = self.get_json()
+        if user_id is not None:
+            user = User.get_if_accessible_by(
+                user_id, self.current_user, mode="update", raise_if_none=True
+            )
+            if (expiration_date := data.get("expirationDate")) is not None:
+                try:
+                    user.expiration_date = arrow.get(expiration_date.strip()).datetime
+                except arrow.parser.ParserError:
+                    return self.error("Unable to parse `expirationDate` parameter.")
+
+            self.verify_and_commit()
+            return self.success()
+        else:
+            return self.error("User ID must be provided")
 
     @permissions(["Manage users"])
     def delete(self, user_id=None):

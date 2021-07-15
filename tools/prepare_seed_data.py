@@ -11,7 +11,7 @@ if __name__ == "__main__":
                 'provenance': 'https://github.com/profjsb/timedomain-taxonomy',
                 'group_ids': ['=public_group_id'],
                 'hierarchy': tdtax.taxonomy,
-                'version': tdtax.__version__,
+                'version': str(tdtax.__version__),
             }
         ]
         yaml.dump(tax_obj, f)
@@ -23,7 +23,11 @@ if __name__ == "__main__":
                 'provenance': 'https://github.com/profjsb/timedomain-taxonomy',
                 'group_ids': ['=program_A', '=program_B'],
                 'hierarchy': tdtax.taxonomy,
-                'version': tdtax.__version__,
+                'version': str(tdtax.__version__),
             }
         ]
+        variables_taxonomy = yaml.load(
+            open("data/variable_taxonomy.yaml", 'r'), Loader=yaml.Loader
+        )
+        tax_obj.append(variables_taxonomy)
         yaml.dump(tax_obj, f)

@@ -13,6 +13,7 @@ import SaveIcon from "@material-ui/icons/Save";
 import TextField from "@material-ui/core/TextField";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Typography from "@material-ui/core/Typography";
+import Tooltip from "@material-ui/core/Tooltip";
 
 const useStyles = makeStyles(() => ({
   saveButton: {
@@ -77,28 +78,53 @@ const WidgetPrefsDialog = ({
                 return (
                   <div key={key} className={classes.inputSectionDiv}>
                     <Typography variant="subtitle2">Select {key}:</Typography>
-                    {Object.keys(initialValues[key]).map((subKey) => (
-                      <FormControlLabel
-                        key={subKey}
-                        control={
-                          <Controller
-                            render={({ onChange, value }) => (
-                              <Checkbox
-                                onChange={(event) =>
-                                  onChange(event.target.checked)
-                                }
-                                checked={value}
-                                data-testid={`${key}.${subKey}`}
+                    {Object.keys(initialValues[key]).map((subKey) =>
+                      subKey === "includeCommentsFromBots" ? (
+                        <Tooltip title="Bot comments are those posted programmatically using API tokens">
+                          <FormControlLabel
+                            key={subKey}
+                            control={
+                              <Controller
+                                render={({ onChange, value }) => (
+                                  <Checkbox
+                                    onChange={(event) =>
+                                      onChange(event.target.checked)
+                                    }
+                                    checked={value}
+                                    data-testid={`${key}.${subKey}`}
+                                  />
+                                )}
+                                name={`${key}.${subKey}`}
+                                control={control}
+                                defaultValue={false}
                               />
-                            )}
-                            name={`${key}.${subKey}`}
-                            control={control}
-                            defaultValue={false}
+                            }
+                            label={subKey}
                           />
-                        }
-                        label={subKey}
-                      />
-                    ))}
+                        </Tooltip>
+                      ) : (
+                        <FormControlLabel
+                          key={subKey}
+                          control={
+                            <Controller
+                              render={({ onChange, value }) => (
+                                <Checkbox
+                                  onChange={(event) =>
+                                    onChange(event.target.checked)
+                                  }
+                                  checked={value}
+                                  data-testid={`${key}.${subKey}`}
+                                />
+                              )}
+                              name={`${key}.${subKey}`}
+                              control={control}
+                              defaultValue={false}
+                            />
+                          }
+                          label={subKey}
+                        />
+                      )
+                    )}
                   </div>
                 );
               }
