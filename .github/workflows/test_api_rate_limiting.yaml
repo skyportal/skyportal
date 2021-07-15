@@ -138,7 +138,7 @@ jobs:
           pip install --upgrade selenium
           python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 
-      - name: Run test suite
+      - name: Run test
         run: |
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/rate_limiting'
 
