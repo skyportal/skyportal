@@ -53,7 +53,7 @@ brew install geckodriver
 brew install graphviz
 ```
 
-## Installation: Debian-based Linux and WLS
+## Installation: Debian-based Linux and WSL
 
 1. Install dependencies
 
