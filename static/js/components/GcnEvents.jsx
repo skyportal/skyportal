@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-
+import { Link } from "react-router-dom";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import Chip from "@material-ui/core/Chip";
+import Button from "@material-ui/core/Button";
 
 import MUIDataTable from "mui-datatables";
 
@@ -105,8 +106,20 @@ const GcnEvents = () => {
     </ul>
   );
 
+  const renderDateObs = (dataIndex) => (
+    <Link to={`/gcn_events/${gcnEvents[dataIndex]?.dateobs}`}>
+      <Button color="primary">{gcnEvents[dataIndex]?.dateobs}</Button>
+    </Link>
+  );
+
   const columns = [
-    { name: "dateobs", label: "Date Observed" },
+    {
+      name: "dateobs",
+      label: "Date Observed",
+      options: {
+        customBodyRenderLite: renderDateObs,
+      },
+    },
     {
       name: "tags",
       label: "Tags",
