@@ -33,6 +33,7 @@ import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
 import FavoritesButton from "./FavoritesButton";
+import MultipleClassificationsForm from "./MultipleClassificationsForm";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
 import { filterOutEmptyValues } from "../API";
@@ -374,6 +375,16 @@ const SourceTable = ({
     }
   };
 
+  // helper function to get the classifications
+  const getClassifications = (source) => {
+    if (groupID !== undefined) {
+      return source.classifications.filter((cls) =>
+        cls.groups.find((g) => g.id === groupID)
+      );
+    }
+    return source.classifications;
+  };
+
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     const colSpan = rowData.length + 1;
@@ -502,6 +513,14 @@ const SourceTable = ({
                 )}
               </div>
             </Grid>
+            <Grid item xs={12}>
+              <MultipleClassificationsForm
+                objId={source.id}
+                taxonomyList={taxonomyList}
+                groupId={groupID}
+                currentClassifications={getClassifications(source)}
+              />
+            </Grid>
             {favoritesRemoveButton ? (
               <div>
                 {" "}
@@ -583,16 +602,6 @@ const SourceTable = ({
   const renderDecSex = (dataIndex) => {
     const source = sources[dataIndex];
     return <div key={`${source.id}_dec_sex`}>{dec_to_dms(source.dec)}</div>;
-  };
-
-  // helper function to get the classifications
-  const getClassifications = (source) => {
-    if (groupID !== undefined) {
-      return source.classifications.filter((cls) =>
-        cls.groups.find((g) => g.id === groupID)
-      );
-    }
-    return source.classifications;
   };
 
   const renderClassification = (dataIndex) => {
