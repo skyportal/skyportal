@@ -115,7 +115,7 @@ If you have trouble getting the demo data try doing
 
 and then, from a different window, do `make load_demo_data`.
 
-If you are using WLS, be sure everything (the git repository, all packages, and the browser connecting to http://localhost:5000) are on the Linux machine and not the windows side, as connection oddities can otherwise cause several errors.
+If you are using WSL, be sure everything (the git repository and all dependencies) are on the Linux machine and not the Windows side, as connection oddities can otherwise cause several errors.
 
 ## Additional Configuration
 
