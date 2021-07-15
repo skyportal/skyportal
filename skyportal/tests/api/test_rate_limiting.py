@@ -9,7 +9,7 @@ def test_api_rate_limiting(view_only_token):
         status, _ = api('GET', 'sysinfo', token=view_only_token)
         if status == 200:
             n_successful_requests += 1
-    assert 25 <= n_successful_requests <= 26
+    assert 15 <= n_successful_requests <= 16
     status, data = api('GET', 'sysinfo', token=view_only_token)
     assert status != 200
 
