@@ -17,3 +17,10 @@ def test_api_rate_limiting(view_only_token):
 
     status, _ = api('GET', 'sysinfo', token=view_only_token)
     assert status == 200
+
+
+def test_rate_limited_requests_ok(view_only_token):
+    for i in range(30):
+        status, _ = api('GET', 'sysinfo', token=view_only_token)
+        assert status == 200
+        time.sleep(0.2)
