@@ -86,7 +86,7 @@ sudo service postgresql restart
 - Extract the binary to somewhere on your path
 - Ensure it runs with `geckodriver --version`
 
-In WLS, you can download geckodriver through the command line:
+In later versions of Ubuntu (16.04+), you can install Geckodriver through apt:
 ```
 sudo apt install firefox-geckodriver
 ```
