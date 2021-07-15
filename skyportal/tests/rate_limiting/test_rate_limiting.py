@@ -15,7 +15,7 @@ s.close()
 
 def test_api_rate_limiting(view_only_token):
     # In case this test gets run after those defined below
-    time.sleep(5)
+    time.sleep(1)
     n_successful_requests = 0
     status = 200
     while status == 200 and n_successful_requests < 100:
@@ -33,7 +33,7 @@ def test_api_rate_limiting(view_only_token):
     )
     assert r.status_code == 429
 
-    time.sleep(5)
+    time.sleep(1)
 
     r = requests.get(
         f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
