@@ -25,7 +25,7 @@ source skyportal_env/bin/activate
 
 (You can also use `conda` or `pipenv` to create your environment.)
 
-If you are using Windows Subsystem for Linux (WLS) be sure you clone the repository onto the virtual machine
+If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.
 
 ## Installation: MacOS
 
