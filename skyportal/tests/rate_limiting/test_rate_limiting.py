@@ -16,16 +16,13 @@ s.close()
 def test_api_rate_limiting(view_only_token):
     # In case this test gets run after those defined below
     time.sleep(1)
-    n_successful_requests = 0
-    status = 200
-    while status == 200 and n_successful_requests < 100:
+    for n_successful_requests in range(100):
         r = requests.get(
             f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
             headers={'Authorization': f'token {view_only_token}'},
         )
-        status = r.status_code
-        if status == 200:
-            n_successful_requests += 1
+        if r.status_code != 200:
+            break
     assert 14 <= n_successful_requests <= 16
     r = requests.get(
         f'http://{localhost_external_ip}:{cfg["ports.app"]}/api/sysinfo',
