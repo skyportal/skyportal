@@ -7,142 +7,140 @@ import dayjs from "dayjs";
 import VegaPlot from "./VegaPlot";
 import * as ephemerisActions from "../ducks/ephemeris";
 
-const airmassSpec = (url, ephemeris) => {
-  return {
-    $schema: "https://vega.github.io/schema/vega-lite/v4.json",
-    background: "transparent",
-    data: {
-      url,
-      format: {
-        type: "json",
-        property: "data", // where on the JSON does the data live
-        parse: { time: "number" },
+const airmassSpec = (url, ephemeris) => ({
+  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
+  background: "transparent",
+  data: {
+    url,
+    format: {
+      type: "json",
+      property: "data", // where on the JSON does the data live
+      parse: { time: "number" },
+    },
+  },
+  encoding: {
+    y: {
+      type: "quantitative",
+      scale: {
+        reverse: true,
+        domain: [1, 4],
+      },
+      axis: {
+        grid: true,
       },
     },
-    encoding: {
-      y: {
-        type: "quantitative",
-        scale: {
-          reverse: true,
-          domain: [1, 4],
-        },
-        axis: {
-          grid: true,
-        },
+    x: {
+      scale: {
+        type: "utc",
+        domain: [ephemeris.sunset_unix_ms, ephemeris.sunrise_unix_ms],
       },
-      x: {
-        scale: {
-          type: "utc",
-          domain: [ephemeris.sunset_unix_ms, ephemeris.sunrise_unix_ms],
-        },
-        type: "temporal",
-        title: "time (UT)",
-        axis: {
-          grid: true,
-        },
+      type: "temporal",
+      title: "time (UT)",
+      axis: {
+        grid: true,
       },
     },
-    transform: [
-      {
-        calculate: "utcFormat(datum.time, '%Y-%m-%dT%H:%M:%S.%L')",
-        as: "formattedDate",
-      },
-    ],
-    layer: [
-      {
-        mark: "rect",
-        encoding: {
-          x: {
-            datum: ephemeris.sunset_unix_ms,
-          },
-          x2: {
-            datum: ephemeris.twilight_evening_nautical_unix_ms,
-          },
-          color: { value: "#000ccf" },
-          opacity: { value: 0.5 },
-          tooltip: { datum: "Civil Twilight" },
+  },
+  transform: [
+    {
+      calculate: "utcFormat(datum.time, '%Y-%m-%dT%H:%M:%S.%L')",
+      as: "formattedDate",
+    },
+  ],
+  layer: [
+    {
+      mark: "rect",
+      encoding: {
+        x: {
+          datum: ephemeris.sunset_unix_ms,
         },
-      },
-      {
-        mark: "rect",
-        encoding: {
-          x: {
-            datum: ephemeris.twilight_evening_nautical_unix_ms,
-          },
-          x2: {
-            datum: ephemeris.twilight_evening_astronomical_unix_ms,
-          },
-          color: { value: "#00014d" },
-          opacity: { value: 0.2 },
-          tooltip: { datum: "Nautical Twilight" },
+        x2: {
+          datum: ephemeris.twilight_evening_nautical_unix_ms,
         },
+        color: { value: "#000ccf" },
+        opacity: { value: 0.5 },
+        tooltip: { datum: "Civil Twilight" },
       },
-      {
-        mark: "rect",
-        encoding: {
-          x: {
-            datum: ephemeris.twilight_evening_astronomical_unix_ms,
-          },
-          x2: {
-            datum: ephemeris.twilight_morning_astronomical_unix_ms,
-          },
-          color: { value: "#000000" },
-          opacity: { value: 0.0 },
-          tooltip: { datum: "Night" },
+    },
+    {
+      mark: "rect",
+      encoding: {
+        x: {
+          datum: ephemeris.twilight_evening_nautical_unix_ms,
         },
-      },
-      {
-        mark: "rect",
-        encoding: {
-          x: {
-            datum: ephemeris.twilight_morning_astronomical_unix_ms,
-          },
-          x2: {
-            datum: ephemeris.twilight_morning_nautical_unix_ms,
-          },
-          color: { value: "#00014d" },
-          opacity: { value: 0.2 },
-          tooltip: { datum: "Nautical Twilight" },
+        x2: {
+          datum: ephemeris.twilight_evening_astronomical_unix_ms,
         },
+        color: { value: "#00014d" },
+        opacity: { value: 0.2 },
+        tooltip: { datum: "Nautical Twilight" },
       },
-      {
-        mark: "rect",
-        encoding: {
-          x: {
-            datum: ephemeris.twilight_morning_nautical_unix_ms,
-          },
-          x2: {
-            datum: ephemeris.sunrise_unix_ms,
-          },
-          color: { value: "#000ccf" },
-          opacity: { value: 0.5 },
-          tooltip: { datum: "Civil Twilight" },
+    },
+    {
+      mark: "rect",
+      encoding: {
+        x: {
+          datum: ephemeris.twilight_evening_astronomical_unix_ms,
         },
-      },
-      {
-        mark: { type: "line", clip: true, point: true },
-        encoding: {
-          x: { field: "time" },
-          y: { field: "airmass" },
-          tooltip: [
-            { field: "formattedDate", title: "time (UT)" },
-            { field: "airmass", type: "quantitative" },
-          ],
+        x2: {
+          datum: ephemeris.twilight_morning_astronomical_unix_ms,
         },
+        color: { value: "#000000" },
+        opacity: { value: 0.0 },
+        tooltip: { datum: "Night" },
       },
-      {
-        mark: { type: "rule", strokeWidth: 2, clip: true },
-        encoding: {
-          x: {
-            datum: dayjs().unix() * 1000,
-          },
-          color: { value: "#35ff1f" },
-          tooltip: { datum: "Now" },
+    },
+    {
+      mark: "rect",
+      encoding: {
+        x: {
+          datum: ephemeris.twilight_morning_astronomical_unix_ms,
         },
+        x2: {
+          datum: ephemeris.twilight_morning_nautical_unix_ms,
+        },
+        color: { value: "#00014d" },
+        opacity: { value: 0.2 },
+        tooltip: { datum: "Nautical Twilight" },
       },
-    ],
-  };
-};
+    },
+    {
+      mark: "rect",
+      encoding: {
+        x: {
+          datum: ephemeris.twilight_morning_nautical_unix_ms,
+        },
+        x2: {
+          datum: ephemeris.sunrise_unix_ms,
+        },
+        color: { value: "#000ccf" },
+        opacity: { value: 0.5 },
+        tooltip: { datum: "Civil Twilight" },
+      },
+    },
+    {
+      mark: { type: "line", clip: true, point: true },
+      encoding: {
+        x: { field: "time" },
+        y: { field: "airmass" },
+        tooltip: [
+          { field: "formattedDate", title: "time (UT)" },
+          { field: "airmass", type: "quantitative" },
+        ],
+      },
+    },
+    {
+      mark: { type: "rule", strokeWidth: 2, clip: true },
+      encoding: {
+        x: {
+          datum: dayjs().unix() * 1000,
+        },
+        color: { value: "#35ff1f" },
+        tooltip: { datum: "Now" },
+      },
+    },
+  ],
+});
 
 const AirmassPlot = React.memo((props) => {
   const { dataUrl, ephemeris } = props;

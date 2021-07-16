@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { AirMassPlotWithEphemURL } from "./AirmassPlot";
+import HoursBelowAirmassPlot from "./HoursBelowAirmassPlot";
 import ObservabilityPreferences from "./ObservabilityPreferences";
 
 const useStyles = makeStyles({
@@ -48,10 +49,13 @@ const ObservabilityPage = ({ route }) => {
               <Paper>
                 <div className={classes.inner}>
                   <Typography variant="h6">{telescope.name}</Typography>
-                  <Suspense fallback={<div>Loading plot...</div>}>
+                  <Suspense fallback={<div>Loading plots...</div>}>
                     <AirMassPlotWithEphemURL
                       dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
                       ephemerisUrl={`/api/internal/ephemeris/${telescope.id}`}
+                    />
+                    <HoursBelowAirmassPlot
+                      dataUrl={`/api/internal/plot/airmass/hours_below/${route.id}/${telescope.id}`}
                     />
                   </Suspense>
                 </div>

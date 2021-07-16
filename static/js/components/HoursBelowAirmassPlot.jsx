@@ -1,0 +1,80 @@
+import React from "react";
+import embed from "vega-embed";
+
+import VegaPlot from "./VegaPlot";
+
+const airmassSpec = (url) => ({
+  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
+  background: "transparent",
+  data: {
+    url,
+    format: {
+      type: "json",
+      property: "data", // where on the JSON does the data live
+      parse: { date: "date" },
+    },
+  },
+  title: "Hours Below Airmass 2.9",
+  encoding: {
+    y: {
+      type: "quantitative",
+      title: "hours",
+      scale: {
+        domain: [0, 12],
+      },
+      axis: {
+        grid: true,
+      },
+    },
+    x: {
+      title: "date",
+      type: "temporal",
+      axis: {
+        grid: true,
+        format: "%b",
+        formatType: "time",
+        tickCount: "month",
+      },
+    },
+  },
+  layer: [
+    {
+      mark: { type: "line", clip: true, point: true },
+      encoding: {
+        x: { field: "date" },
+        y: { field: "hours_below" },
+        tooltip: [
+          { field: "date", title: "Date", type: "temporal" },
+          {
+            field: "hours_below",
+            type: "quantitative",
+            title: "Hours Below Airmass 2.9",
+          },
+        ],
+      },
+    },
+  ],
+});
+
+const HoursBelowAirmassPlot = React.memo((props) => {
+  const { dataUrl } = props;
+  return (
+    <div
+      ref={(node) => {
+        if (node) {
+          embed(node, airmassSpec(dataUrl), {
+            actions: false,
+          });
+        }
+      }}
+    />
+  );
+});
+
+HoursBelowAirmassPlot.propTypes = {
+  ...VegaPlot.propTypes,
+};
+
+HoursBelowAirmassPlot.displayName = "HoursBelowAirmassPlot";
+
+export default HoursBelowAirmassPlot;
