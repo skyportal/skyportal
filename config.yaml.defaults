@@ -272,6 +272,10 @@ server:
   port: 5000  # This is the public-facing port
   ssl: False  # Must be either True or False
   processes: 2
+  # Rate limit: number of requests per second (see https://www.nginx.com/blog/rate-limiting-nginx/)
+  rate_limit: 5
+  # Rate limit burst size (https://www.nginx.com/blog/rate-limiting-nginx/#bursts)
+  burst: 10
   # In addition to localhost, specify any IP addresses that are to be
   # exempt from API rate limiting
   whitelisted_ips:
