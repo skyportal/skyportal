@@ -15,7 +15,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import * as profileActions from "../ducks/profile";
-import * as gcnEventsActions from "../ducks/gcnEvents";
+import * as recentGcnEventsActions from "../ducks/recentGcnEvents";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 
 dayjs.extend(relativeTime);
@@ -79,7 +79,7 @@ const defaultPrefs = {
 const RecentGcnEvents = ({ classes }) => {
   const styles = useStyles();
 
-  const gcnEvents = useSelector((state) => state.gcnEvents);
+  const gcnEvents = useSelector((state) => state.recentGcnEvents);
   const recentEventsPrefs =
     useSelector((state) => state.profile.preferences?.recentGcnEvents) ||
     defaultPrefs;
@@ -87,7 +87,7 @@ const RecentGcnEvents = ({ classes }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    dispatch(gcnEventsActions.fetchRecentGcnEvents());
+    dispatch(recentGcnEventsActions.fetchRecentGcnEvents());
   }, [dispatch]);
 
   return (

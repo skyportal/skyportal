@@ -83,6 +83,8 @@ app:
       component: Periodogram
     - path: "/db_stats"
       component: DBStats
+    - path: "/gcn_events"
+      component: GcnEvents
 
 
   sidebar:
@@ -111,6 +113,10 @@ app:
     - name: Observing Runs
       icon: LocalCafe
       url: /runs
+
+    - name: GCN Events
+      icon: SettingsInputAntenna
+      url: /gcn_events
 
     - name: About
       icon: Info

@@ -3,22 +3,22 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-export const FETCH_RECENT_GCNEVENTS = "skyportal/FETCH_RECENT_GCNEVENTS";
-export const FETCH_RECENT_GCNEVENTS_OK = "skyportal/FETCH_RECENT_GCNEVENTS_OK";
+const FETCH_GCN_EVENTS = "skyportal/FETCH_GCN_EVENTS";
+const FETCH_GCN_EVENTS_OK = "skyportal/FETCH_GCN_EVENTS_OK";
 
-export const fetchRecentGcnEvents = () =>
-  API.GET("/api/internal/recent_gcn_events", FETCH_RECENT_GCNEVENTS);
+// eslint-disable-next-line import/prefer-default-export
+export const fetchGcnEvents = () => API.GET("/api/gcn_event", FETCH_GCN_EVENTS);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
-  if (actionType === FETCH_RECENT_GCNEVENTS) {
-    dispatch(fetchRecentGcnEvents());
+  if (actionType === FETCH_GCN_EVENTS) {
+    dispatch(fetchGcnEvents());
   }
 });
 
 const reducer = (state = null, action) => {
   switch (action.type) {
-    case FETCH_RECENT_GCNEVENTS_OK: {
+    case FETCH_GCN_EVENTS_OK: {
       return action.data;
     }
     default:
