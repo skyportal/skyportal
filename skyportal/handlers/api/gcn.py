@@ -5,6 +5,8 @@ import gcn
 import lxml
 import xmlschema
 from urllib.parse import urlparse
+import healpix_alchemy as ha
+import numpy as np
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
@@ -17,6 +19,7 @@ from ...models import (
     GcnNotice,
     GcnTag,
     Localization,
+    LocalizationTile,
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
@@ -112,6 +115,25 @@ class GcnEventHandler(BaseHandler):
             localization = Localization(**skymap)
             localization = get_contour(localization)
             DBSession().add(localization)
+            self.verify_and_commit()
+
+        tiles, probs = [], []
+        for uniq, probdensity in zip(skymap["uniq"], skymap["probdensity"]):
+            tile = LocalizationTile(
+                localization_id=localization.id, uniq=int(uniq), probdensity=probdensity
+            )
+            area = (tile.nested_hi - tile.nested_lo + 1) * ha.healpix.PIXEL_AREA
+            prob = probdensity * area
+            tiles.append(tile)
+            probs.append(prob)
+
+        idx = np.argsort(probs)[::-1].astype(int)
+        tiles, probs = [tiles[ii] for ii in idx], [probs[ii] for ii in idx]
+        cumprobs = np.cumsum(probs)
+
+        for tile, cumprob in zip(tiles, cumprobs):
+            tile.cumprob = cumprob
+            DBSession().add(tile)
 
         self.verify_and_commit()
 

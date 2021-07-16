@@ -6,6 +6,8 @@ import uuid
 
 import arrow
 import numpy as np
+import healpix_alchemy as ha
+import astropy.units as u
 
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import case, func, FromClause
@@ -958,6 +960,9 @@ class CandidateHandler(BaseHandler):
 
         if dec is None and not obj_already_exists:
             return self.error("Dec must not be null for a new Obj")
+
+        if not obj_already_exists:
+            data["nested"] = ha.healpix.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
         passing_alert_id = data.pop("passing_alert_id", None)
         passed_at = data.pop("passed_at", None)

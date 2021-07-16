@@ -7,6 +7,7 @@ import tornado
 from tornado.ioloop import IOLoop
 import io
 import math
+import astropy.units as u
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
@@ -38,6 +39,8 @@ from ...models import (
     Classification,
     Taxonomy,
     Listing,
+    Localization,
+    LocalizationTile,
     Spectrum,
     SourceView,
 )
@@ -555,6 +558,10 @@ class SourceHandler(BaseHandler):
         max_latest_magnitude = self.get_query_argument("maxLatestMagnitude", None)
         has_spectrum = self.get_query_argument("hasSpectrum", False)
 
+        localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        localization_name = self.get_query_argument("localizationName", None)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 1.0)
+
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
             """
@@ -1017,6 +1024,28 @@ class SourceHandler(BaseHandler):
                     Obj.id == classification_subquery.c.obj_id,
                     isouter=True,
                 )
+        if localization_dateobs is not None and localization_name is not None:
+            localization = (
+                Localization.query_records_accessible_by(self.current_user)
+                .filter(Localization.dateobs == localization_dateobs)
+                .filter(Localization.localization_name == localization_name)
+                .first()
+            )
+            if localization is None:
+                return self.error("Localization not found", status=404)
+            tiles_subquery = (
+                LocalizationTile.query_records_accessible_by(self.current_user)
+                .filter(LocalizationTile.localization_id == localization.id)
+                .filter(LocalizationTile.cumprob <= localization_cumprob)
+                .subquery()
+            )
+
+            obj_query = obj_query.join(
+                tiles_subquery,
+                Obj.nested.between(
+                    tiles_subquery.c.nested_lo, tiles_subquery.c.nested_hi
+                ),
+            )
 
         source_query = apply_active_or_requested_filtering(
             source_query, include_requested, requested_only
@@ -1155,6 +1184,7 @@ class SourceHandler(BaseHandler):
                     ) = result
                 else:
                     obj = result
+                    obj.nested
                 obj_list.append(obj.to_dict())
 
                 if include_comments:
@@ -1353,6 +1383,9 @@ class SourceHandler(BaseHandler):
 
         if dec is None and not obj_already_exists:
             return self.error("Dec must not be null for a new Obj")
+
+        if not obj_already_exists:
+            data["nested"] = ha.healpix.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]

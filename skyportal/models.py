@@ -3685,6 +3685,34 @@ class Localization(Base):
         else:
             return (self.flat_2d,)
 
+    tiles = relationship("LocalizationTile")
+
+
+class LocalizationTile(ha.Tile, Base):
+
+    localization_id = sa.Column(
+        sa.ForeignKey('localizations.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='localization ID',
+    )
+
+    localization = relationship(
+        "Localization",
+        foreign_keys=localization_id,
+        doc="The Localization that this tile belongs to",
+    )
+
+    probdensity = sa.Column(
+        sa.Float,
+        nullable=False,
+        doc="Probability density for the tile",
+    )
+
+    cumprob = sa.Column(
+        sa.Float,
+        doc='Cumulative probability for the tile',
+    )
+
 
 User.localizations = relationship(
     'Localization',
