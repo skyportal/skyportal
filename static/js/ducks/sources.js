@@ -18,6 +18,9 @@ const FETCH_FAVORITE_SOURCES_OK = "skyportal/FETCH_FAVORITE_SOURCES_OK";
 
 const REFRESH_FAVORITE_SOURCES = "skyportal/REFRESH_FAVORITE_SOURCES";
 
+const FETCH_GCNEVENT_SOURCES = "skyportal/FETCH_GCNEVENT_SOURCES";
+const FETCH_GCNEVENT_SOURCES_OK = "skyportal/FETCH_GCNEVENT_SOURCES_OK";
+
 const addFilterParamDefaults = (filterParams) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
@@ -69,6 +72,19 @@ export function fetchFavoriteSources(filterParams = {}) {
   return API.GET("/api/sources", FETCH_FAVORITE_SOURCES, filterParams);
 }
 
+export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
+  addFilterParamDefaults(filterParams);
+  filterParams.includePhotometryExists = true;
+  filterParams.includeSpectrumExists = true;
+  filterParams.listName = "favorites";
+  filterParams.includeColorMagnitude = true;
+  filterParams.includeThumbnails = true;
+  filterParams.includeDetectionStats = true;
+  filterParams.localization_dateobs = dateobs;
+  filterParams.includeGeojson = true;
+  return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);
+}
+
 const initialState = {
   sources: null,
   pageNumber: 1,
@@ -77,11 +93,15 @@ const initialState = {
 };
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType, payload, dispatch, getState) => {
   if (actionType === REFRESH_FAVORITE_SOURCES) {
     if (window.location.pathname === "/favorites") {
       dispatch(fetchFavoriteSources());
     }
+  }
+  const { gcnEvent } = getState();
+  if (actionType === FETCH_GCNEVENT_SOURCES) {
+    dispatch(fetchGcnEventSources(gcnEvent.dateobs, {}));
   }
 });
 
@@ -131,6 +151,12 @@ const reducer = (
       return {
         ...state,
         favorites: action.data,
+      };
+    }
+    case FETCH_GCNEVENT_SOURCES_OK: {
+      return {
+        ...state,
+        gcnEventSources: action.data,
       };
     }
     default:

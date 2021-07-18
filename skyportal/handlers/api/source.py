@@ -9,6 +9,7 @@ import io
 import math
 import astropy.units as u
 from dateutil.parser import isoparse
+from geojson import Point, Feature, FeatureCollection
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
 import arrow
@@ -561,6 +562,14 @@ class SourceHandler(BaseHandler):
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 1.0)
+        includeGeojson = self.get_query_argument("includeGeojson", False)
+
+        print(
+            includeGeojson,
+            localization_dateobs,
+            localization_name,
+            localization_cumprob,
+        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -1024,13 +1033,20 @@ class SourceHandler(BaseHandler):
                     Obj.id == classification_subquery.c.obj_id,
                     isouter=True,
                 )
-        if localization_dateobs is not None and localization_name is not None:
-            localization = (
-                Localization.query_records_accessible_by(self.current_user)
-                .filter(Localization.dateobs == localization_dateobs)
-                .filter(Localization.localization_name == localization_name)
-                .first()
-            )
+        if localization_dateobs is not None:
+            if localization_name is not None:
+                localization = (
+                    Localization.query_records_accessible_by(self.current_user)
+                    .filter(Localization.dateobs == localization_dateobs)
+                    .filter(Localization.localization_name == localization_name)
+                    .first()
+                )
+            else:
+                localization = (
+                    Localization.query_records_accessible_by(self.current_user)
+                    .filter(Localization.dateobs == localization_dateobs)
+                    .first()
+                )
             if localization is None:
                 return self.error("Localization not found", status=404)
             tiles_subquery = (
@@ -1184,7 +1200,6 @@ class SourceHandler(BaseHandler):
                     ) = result
                 else:
                     obj = result
-                    obj.nested
                 obj_list.append(obj.to_dict())
 
                 if include_comments:
@@ -1328,6 +1343,39 @@ class SourceHandler(BaseHandler):
             query_results["sources"] = obj_list
 
         query_results = recursive_to_dict(query_results)
+        if includeGeojson:
+            features = []
+
+            # currently necessary for the sources to render
+            features.append(
+                Feature(
+                    geometry=Point([float(-180), float(-180)]),
+                    properties={"name": "tmp"},
+                )
+            )
+            features.append(
+                Feature(
+                    geometry=Point([float(-180), float(-180)]),
+                    properties={"name": "tmp"},
+                )
+            )
+            features.append(
+                Feature(
+                    geometry=Point([float(-180), float(-180)]),
+                    properties={"name": "tmp"},
+                )
+            )
+
+            for source in query_results["sources"]:
+                point = Point((source["ra"], source["dec"]))
+                feat = Feature(
+                    geometry=point, properties={"name": ",".join(source["alias"])}
+                )
+                features.append(feat)
+
+            feature_collection = FeatureCollection(features)
+            query_results["geojson"] = feature_collection
+
         self.verify_and_commit()
         return self.success(data=query_results)
 

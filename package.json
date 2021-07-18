@@ -24,6 +24,7 @@
     "d3": "6.7.0",
     "d3-geo": "2.0.2",
     "d3-geo-zoom": "1.4.3",
+    "d3-v6-tip": "1.0.9",
     "data-uri-to-buffer": "3.0.1",
     "dayjs": "1.10.4",
     "dygraphs": "2.1.0",
