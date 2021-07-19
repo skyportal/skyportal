@@ -151,8 +151,9 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
 
         json = []
         # Sample every 7 days for the year
-        for day in range(52):
-            day = year_start + datetime.timedelta(days=day * 7)
+        deltat = 7
+        for day in range(365 // deltat):
+            day = year_start + datetime.timedelta(days=day * deltat)
             day = ap_time.Time(day.isoformat(), format='isot')
 
             # Get sunrise/sunset times for that day
