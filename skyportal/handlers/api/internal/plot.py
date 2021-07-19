@@ -60,8 +60,8 @@ class PlotSpectroscopyHandler(BaseHandler):
 
 
 class AirmassHandler(BaseHandler):
-    def calculate_airmass(self, obj, telescope, sunset, sunrise):
-        time = np.linspace(sunset.unix, sunrise.unix, 50)
+    def calculate_airmass(self, obj, telescope, sunset, sunrise, sample_size=50):
+        time = np.linspace(sunset.unix, sunrise.unix, sample_size)
         time = ap_time.Time(time, format='unix')
 
         airmass = obj.airmass(telescope, time)
@@ -147,14 +147,12 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
         )
 
         year = datetime.date.today().year
-        year_start = datetime.datetime(
-            year, 1, 1, 0, 0, 0, tzinfo=telescope.observer.timezone
-        )
+        year_start = datetime.datetime(year, 1, 1, 0, 0, 0)
 
         json = []
-        # Sample every 3 days for the year
-        for day in range(122):
-            day = year_start + datetime.timedelta(days=day * 3)
+        # Sample every 7 days for the year
+        for day in range(52):
+            day = year_start + datetime.timedelta(days=day * 7)
             day = ap_time.Time(day.isoformat(), format='isot')
 
             # Get sunrise/sunset times for that day
@@ -162,12 +160,13 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
             sunset = telescope.next_sunset(time=day)
 
             # Compute airmasses for that day
-            df = self.calculate_airmass(obj, telescope, sunrise, sunset)
+            sample_size = 30
+            df = self.calculate_airmass(obj, telescope, sunrise, sunset, sample_size)
 
             # Compute hours below airmass
             num_times_below = df.loc[df["airmass"] < threshold].shape[0]
             total_hours = (sunrise - sunset).to_value('hr')
-            hours_below = num_times_below / 50 * total_hours
+            hours_below = num_times_below / sample_size * total_hours
             json.append({"date": day.isot, "hours_below": hours_below})
 
         self.verify_and_commit()
