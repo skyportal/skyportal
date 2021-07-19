@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { AirMassPlotWithEphemURL } from "./AirmassPlot";
+// eslint-disable-next-line
 import HoursBelowAirmassPlot from "./HoursBelowAirmassPlot";
 import ObservabilityPreferences from "./ObservabilityPreferences";
 
