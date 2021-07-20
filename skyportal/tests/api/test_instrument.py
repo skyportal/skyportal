@@ -1,3 +1,6 @@
+import os
+import pandas as pd
+
 import uuid
 from skyportal.tests import api
 
@@ -21,6 +24,8 @@ def test_token_user_post_get_instrument(super_admin_token):
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
+    datafile = f'{os.path.dirname(__file__)}/../../../data/input/DECam_Fields.csv'
+
     instrument_name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -31,6 +36,9 @@ def test_token_user_post_get_instrument(super_admin_token):
             'band': 'NIR',
             'filters': ['f110w'],
             'telescope_id': telescope_id,
+            'field_data': pd.read_csv(datafile).to_dict(orient='list'),
+            'field_of_view_shape': "circle",
+            'field_of_view_size': 1.1,
         },
         token=super_admin_token,
     )

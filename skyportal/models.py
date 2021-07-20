@@ -1758,6 +1758,55 @@ class Instrument(Base):
     def listener_class(self):
         return getattr(facility_apis, self.listener_classname)
 
+    fields = relationship("InstrumentField")
+    tiles = relationship("InstrumentFieldTile")
+
+
+class InstrumentField(ha.Region, Base):
+
+    tile_class = lambda: InstrumentFieldTile  # pylint: disable=E731 # noqa
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='Instrument ID',
+    )
+
+    instrument = relationship(
+        "Instrument",
+        foreign_keys=instrument_id,
+        doc="The Instrument that this field belongs to",
+    )
+
+    tiles = relationship("InstrumentFieldTile")
+
+
+class InstrumentFieldTile(ha.Tile, Base):
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='Instrument ID',
+    )
+
+    instrument = relationship(
+        "Instrument",
+        foreign_keys=instrument_id,
+        doc="The Instrument that this tile belongs to",
+    )
+
+    instrument_field_id = sa.Column(
+        sa.ForeignKey('instrumentfields.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='Instrument Field ID',
+    )
+
+    field = relationship(
+        "InstrumentField",
+        foreign_keys=instrument_field_id,
+        doc="The Field that this tile belongs to",
+    )
+
 
 class Allocation(Base):
     """An allocation of observing time on a robotic instrument."""

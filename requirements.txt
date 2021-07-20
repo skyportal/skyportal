@@ -1,7 +1,7 @@
 numpy==1.21.0
 scipy==1.7.1
 pandas==1.2.5
-dask>=2020.12,<=2021.5.0
+dask==2021.07
 joblib==1.0.1
 seaborn==0.11.1
 bokeh==2.2.3
@@ -47,3 +47,4 @@ healpy==1.15.0
 pygcn==1.1.1
 xmlschema==1.6.4
 requests<2.26
+gwemopt==0.0.72

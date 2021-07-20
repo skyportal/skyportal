@@ -162,8 +162,25 @@ telescope:
     skycam_link: null
     robotic: true
     =id: LCOGT2m
+  - diameter: 4.0
+    elevation: 2207.0
+    lat: -30.169661
+    lon: -70.806525
+    name: CTIO Victor M. Blanco 4-meter Telescope
+    nickname: CTIO-4m
+    skycam_link: null
+    =id: CTIO-4m
 
 instrument:
+  - band: optical
+    name: DECam
+    telescope_id: =CTIO-4m
+    type: imager
+    filters: ['sdssu', 'desg', 'desr', 'desi', 'desz', 'desy']
+    field_data:
+      file: ../data/input/DECam_Fields.csv
+    field_of_view_shape: "circle"
+    field_of_view_size: 1.1
   - name: ZTF
     type: imager
     band: V
@@ -171,6 +188,9 @@ instrument:
     filters: ["ztfg", "ztfr", "ztfi"]
     =id: ZTF
     api_classname: ZTFAPI
+    field_data:
+      file: ../data/input/ZTF_Fields.csv
+    field_of_view_shape: "ZTF"
   - name: ALFOSC
     type: imaging spectrograph
     band: V
