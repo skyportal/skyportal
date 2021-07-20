@@ -16,6 +16,7 @@ import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
 import TextField from "@material-ui/core/TextField";
 import Tooltip from "@material-ui/core/Tooltip";
+import { Typography } from "@material-ui/core";
 import { makeStyles, useTheme } from "@material-ui/core/styles";
 
 import dayjs from "dayjs";
@@ -153,8 +154,22 @@ const FilterCandidateList = ({
   );
 
   useEffect(() => {
-    // Once the default profile is fully fetched, set it to the selected
-    setSelectedScanningProfile(defaultScanningProfile);
+    // Once the default profile is fully fetched, set it to the selected.
+    //
+    // This effect can also trigger on an edit action dispatched by
+    // CandidatesPreferencesForm.jsx, where the default profile may not
+    // necessarily change, but is replaced by a copy of itself (since the
+    // entirety of the preferences.scanningProfiles array in the Redux store
+    // is replaced by the profileActions.updateUserPreferences() call)
+    // To make sure we don't override the currently loaded profile in this
+    // scenario (as it may be different from the default), we assign
+    // the selectedScanningProfile if it exists already or the default
+    // otherwise (indicating the first render of the page)
+    setSelectedScanningProfile(
+      selectedScanningProfile || defaultScanningProfile
+    );
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultScanningProfile]);
 
   const defaultStartDate = new Date();
@@ -562,11 +577,13 @@ const FilterCandidateList = ({
                     }
                   >
                     {availableAnnotationsInfo ? (
-                      Object.keys(availableAnnotationsInfo).map((option) => (
-                        <MenuItem key={option} value={option}>
-                          {option}
-                        </MenuItem>
-                      ))
+                      [""]
+                        .concat(Object.keys(availableAnnotationsInfo))
+                        .map((option) => (
+                          <MenuItem key={option} value={option}>
+                            {option === "" ? "None" : option}
+                          </MenuItem>
+                        ))
                     ) : (
                       <div />
                     )}
@@ -615,10 +632,10 @@ const FilterCandidateList = ({
                     defaultValue={selectedScanningProfile?.sortingOrder || ""}
                   >
                     <MenuItem key="desc" value="desc">
-                      descending
+                      Descending
                     </MenuItem>
                     <MenuItem key="asc" value="asc">
-                      ascending
+                      Ascending
                     </MenuItem>
                   </Controller>
                 </>
@@ -672,6 +689,17 @@ const FilterCandidateList = ({
                 />
               ))}
             </Responsive>
+          </div>
+          <div className={classes.formRow}>
+            <Typography variant="subtitle2">
+              Selected scanning profile:&nbsp;
+              {selectedScanningProfile
+                ? selectedScanningProfile.name || "No name"
+                : "None"}
+            </Typography>
+            <Typography variant="subtitle2">
+              Click <q>Manage Scanning Profiles</q> to select a new profile.
+            </Typography>
           </div>
           <div className={classes.buttonsRow}>
             <CandidatesPreferences
