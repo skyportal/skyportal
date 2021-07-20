@@ -311,6 +311,10 @@ misc:
   # consider a photometry point as a detection
   photometry_detection_threshold_nsigma: 3.0
 
+  # The airmass value below which to track hours for when plotting
+  # on an object's observability page
+  hours_below_airmass_threshold: 2.9
+
   allow_nonadmins_delete_objs: False
 
 weather:
