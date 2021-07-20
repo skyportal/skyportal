@@ -181,7 +181,7 @@ if __name__ == "__main__":
                     return payload
                 else:
                     raise NotImplementedError(
-                        f'{filename}: Only CSV files currently supported for extending individual objects'
+                        f'{filename}: Only CSV, PNG, and XML files currently supported for extending individual objects'
                     )
 
             for k, v in obj.items():

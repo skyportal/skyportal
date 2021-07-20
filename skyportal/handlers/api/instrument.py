@@ -1,8 +1,9 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Instrument, Telescope
+from ...models import DBSession, Instrument, InstrumentField, Telescope
 from ...enum_types import ALLOWED_BANDPASSES
+from ...utils.instrument import get_mocs
 
 
 class InstrumentHandler(BaseHandler):
@@ -17,6 +18,15 @@ class InstrumentHandler(BaseHandler):
             telescope_id, self.current_user, raise_if_none=True, mode="read"
         )
 
+        if "field_data" in data:
+            field_data = data.pop("field_data")
+            field_of_view_shape = data.pop("field_of_view_shape")
+            field_of_view_size = data.pop("field_of_view_size", None)
+
+            mocs = get_mocs(field_data, field_of_view_shape, field_of_view_size)
+        else:
+            mocs = None
+
         schema = Instrument.__schema__()
         try:
             instrument = schema.load(data)
@@ -27,6 +37,16 @@ class InstrumentHandler(BaseHandler):
         instrument.telescope = telescope
         DBSession().add(instrument)
         self.verify_and_commit()
+
+        if mocs is not None:
+            fields = [
+                InstrumentField.from_moc(moc, field_id=field_id)
+                for field_id, moc in zip(field_data['ID'], mocs)
+            ]
+            for field in fields:
+                field.instrument_id = instrument.id
+                DBSession().add(field)
+            self.verify_and_commit()
 
         return self.success(data={"id": instrument.id})
 
