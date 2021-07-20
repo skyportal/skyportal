@@ -1778,6 +1778,13 @@ class InstrumentField(ha.Region, Base):
         doc="The Instrument that this field belongs to",
     )
 
+    field_id = sa.Column(
+        sa.Integer,
+        index=True,
+        doc='The Field ID for the tile.',
+        nullable=False,
+    )
+
     tiles = relationship("InstrumentFieldTile")
 
 

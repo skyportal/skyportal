@@ -1,5 +1,7 @@
 from marshmallow.exceptions import ValidationError
+from sqlalchemy.orm.exc import NoResultFound
 from baselayer.app.access import permissions, auth_or_token
+
 from ..base import BaseHandler
 from ...models import DBSession, Instrument, InstrumentField, Telescope
 from ...enum_types import ALLOWED_BANDPASSES
@@ -35,12 +37,25 @@ class InstrumentHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
             )
         instrument.telescope = telescope
-        DBSession().add(instrument)
-        self.verify_and_commit()
+
+        try:
+            instrument = (
+                Instrument.query_records_accessible_by(
+                    self.current_user,
+                )
+                .filter(
+                    Instrument.name == instrument.name,
+                    Instrument.telescope == instrument.telescope,
+                )
+                .one()
+            )
+        except NoResultFound:
+            DBSession().add(instrument)
+            self.verify_and_commit()
 
         if mocs is not None:
             fields = [
-                InstrumentField.from_moc(moc, field_id=field_id)
+                InstrumentField.from_moc(moc, field_id=int(field_id))
                 for field_id, moc in zip(field_data['ID'], mocs)
             ]
             for field in fields:
