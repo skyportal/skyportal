@@ -1,6 +1,8 @@
+import functools
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm.exc import NoResultFound
 from baselayer.app.access import permissions, auth_or_token
+from tornado.ioloop import IOLoop
 
 from ..base import BaseHandler
 from ...models import DBSession, Instrument, InstrumentField, Telescope
@@ -10,7 +12,7 @@ from ...utils.instrument import get_mocs
 
 class InstrumentHandler(BaseHandler):
     @permissions(['System admin'])
-    def post(self):
+    async def post(self):
         # See bottom of this file for redoc docstring -- moved it there so that
         # it could be made an f-string.
 
@@ -25,9 +27,9 @@ class InstrumentHandler(BaseHandler):
             field_of_view_shape = data.pop("field_of_view_shape")
             field_of_view_size = data.pop("field_of_view_size", None)
 
-            mocs = get_mocs(field_data, field_of_view_shape, field_of_view_size)
+            add_fields = True
         else:
-            mocs = None
+            add_fields = False
 
         schema = Instrument.__schema__()
         try:
@@ -53,15 +55,16 @@ class InstrumentHandler(BaseHandler):
             DBSession().add(instrument)
             self.verify_and_commit()
 
-        if mocs is not None:
-            fields = [
-                InstrumentField.from_moc(moc, field_id=int(field_id))
-                for field_id, moc in zip(field_data['ID'], mocs)
-            ]
-            for field in fields:
-                field.instrument_id = instrument.id
-                DBSession().add(field)
-            self.verify_and_commit()
+        if add_fields:
+            fields_func = functools.partial(
+                add_instrument_tiles,
+                instrument.id,
+                self,
+                field_data,
+                field_of_view_shape,
+                field_of_view_size,
+            )
+            IOLoop.current().run_in_executor(None, fields_func)
 
         return self.success(data={"id": instrument.id})
 
@@ -243,3 +246,23 @@ InstrumentHandler.post.__doc__ = f"""
               application/json:
                 schema: Error
         """
+
+
+def add_instrument_tiles(
+    instrument_id, request_handler, field_data, field_of_view_shape, field_of_view_size
+):
+    try:
+        tile_args = {'instrument_id': int(instrument_id)}
+        mocs = get_mocs(field_data, field_of_view_shape, field_of_view_size)
+        fields = [
+            InstrumentField.from_moc(moc, field_id=int(field_id), tile_args=tile_args)
+            for field_id, moc in zip(field_data['ID'], mocs)
+        ]
+        for field in fields:
+            field.instrument_id = int(instrument_id)
+            DBSession().add(field)
+        request_handler.verify_and_commit()
+    except Exception as e:
+        return request_handler.error(f"Unable to generate MOC tiles: {e}")
+    finally:
+        DBSession.remove()
