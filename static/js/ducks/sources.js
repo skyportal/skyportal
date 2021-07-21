@@ -76,11 +76,11 @@ export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.includePhotometryExists = true;
   filterParams.includeSpectrumExists = true;
-  filterParams.listName = "favorites";
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
   filterParams.includeDetectionStats = true;
-  filterParams.localization_dateobs = dateobs;
+  filterParams.localizationDateobs = dateobs;
+  filterParams.localizationCumprob = 0.95;
   filterParams.includeGeojson = true;
   return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);
 }

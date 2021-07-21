@@ -561,15 +561,8 @@ class SourceHandler(BaseHandler):
 
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 1.0)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 1.01)
         includeGeojson = self.get_query_argument("includeGeojson", False)
-
-        print(
-            includeGeojson,
-            localization_dateobs,
-            localization_name,
-            localization_cumprob,
-        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -1368,9 +1361,15 @@ class SourceHandler(BaseHandler):
 
             for source in query_results["sources"]:
                 point = Point((source["ra"], source["dec"]))
-                feat = Feature(
-                    geometry=point, properties={"name": ",".join(source["alias"])}
-                )
+                if source["alias"] is not None:
+                    feat = Feature(
+                        geometry=point, properties={"name": ",".join(source["alias"])}
+                    )
+                else:
+                    feat = Feature(
+                        geometry=point,
+                        properties={"name": f'{source["ra"]},{source["dec"]}'},
+                    )
                 features.append(feat)
 
             feature_collection = FeatureCollection(features)
