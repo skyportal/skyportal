@@ -1,6 +1,12 @@
 import messageHandler from "baselayer/MessageHandler";
-import * as API from "../API";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
 import store from "../store";
+import * as API from "../API";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 const FETCH_SOURCES = "skyportal/FETCH_SOURCES";
 const FETCH_SOURCES_OK = "skyportal/FETCH_SOURCES_OK";
@@ -81,6 +87,14 @@ export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
   filterParams.includeDetectionStats = true;
   filterParams.localizationDateobs = dateobs;
   filterParams.localizationCumprob = 0.95;
+
+  if (dateobs) {
+    filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+    filterParams.endDate = dayjs(dateobs)
+      .add(7, "day")
+      .format("YYYY-MM-DD HH:mm:ss");
+  }
+
   filterParams.includeGeojson = true;
   return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);
 }
