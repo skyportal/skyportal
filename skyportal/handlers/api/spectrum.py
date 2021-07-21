@@ -18,6 +18,8 @@ from ...models import (
     Instrument,
     Obj,
     Spectrum,
+    SpectrumReducer,
+    SpectrumObserver,
     User,
     ClassicalAssignment,
 )
@@ -98,26 +100,36 @@ class SpectrumHandler(BaseHandler):
         owner_id = self.associated_user_object.id
 
         reducers = []
+        external_reducer = data.pop("reduced_by_external", None)
         for reducer_id in data.pop('reduced_by', []):
             reducer = User.get_if_accessible_by(reducer_id, self.current_user)
             if reducer is None:
                 return self.error(f'Invalid reducer ID: {reducer_id}.')
-            reducers.append(reducer)
+            reducer_association = SpectrumReducer(external_reducer=external_reducer)
+            reducer_association.user = reducer
+            reducers.append(reducer_association)
 
         observers = []
+        external_observer = data.pop("observed_by_external", None)
         for observer_id in data.pop('observed_by', []):
             observer = User.get_if_accessible_by(observer_id, self.current_user)
             if observer is None:
                 return self.error(f'Invalid observer ID: {observer_id}.')
-            observers.append(observer)
+            observer_association = SpectrumObserver(external_observer=external_observer)
+            observer_association.user = observer
+            observers.append(observer_association)
 
         spec = Spectrum(**data)
-        spec.observers = observers
-        spec.reducers = reducers
         spec.instrument = instrument
         spec.groups = groups
         spec.owner_id = owner_id
         DBSession().add(spec)
+        for reducer in reducers:
+            reducer.spectrum = spec
+            DBSession().add(reducer)
+        for observer in observers:
+            observer.spectrum = spec
+            DBSession().add(observer)
         self.verify_and_commit()
 
         self.push_all(
@@ -390,18 +402,24 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             groups.append(single_user_group)
 
         reducers = []
-        for reducer_id in json.get('reduced_by', []):
+        external_reducer = json.pop("reduced_by_external", None)
+        for reducer_id in json.pop('reduced_by', []):
             reducer = User.get_if_accessible_by(reducer_id, self.current_user)
             if reducer is None:
-                raise ValidationError(f'Invalid reducer ID: {reducer_id}.')
-            reducers.append(reducer)
+                return self.error(f'Invalid reducer ID: {reducer_id}.')
+            reducer_association = SpectrumReducer(external_reducer=external_reducer)
+            reducer_association.user = reducer
+            reducers.append(reducer_association)
 
         observers = []
-        for observer_id in json.get('observed_by', []):
+        external_observer = json.pop("observed_by_external", None)
+        for observer_id in json.pop('observed_by', []):
             observer = User.get_if_accessible_by(observer_id, self.current_user)
             if observer is None:
-                raise ValidationError(f'Invalid observer ID: {observer_id}.')
-            observers.append(observer)
+                return self.error(f'Invalid observer ID: {observer_id}.')
+            observer_association = SpectrumObserver(external_observer=external_observer)
+            observer_association.user = observer
+            observers.append(observer_association)
 
         # will never KeyError as missing value is imputed
         followup_request_id = json.pop('followup_request_id', None)
@@ -427,10 +445,15 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         spec.original_file_filename = Path(filename).name
         spec.groups = groups
-        spec.reducers = reducers
-        spec.observers = observers
 
         DBSession().add(spec)
+        for reducer in reducers:
+            reducer.spectrum = spec
+            DBSession().add(reducer)
+        for observer in observers:
+            observer.spectrum = spec
+            DBSession().add(observer)
+
         self.verify_and_commit()
 
         self.push_all(

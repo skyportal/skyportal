@@ -2777,6 +2777,20 @@ SpectrumObserver.create = (
 
 # should be accessible only by spectrumowner ^^
 
+SpectrumReducer.external_reducer = sa.Column(
+    sa.String,
+    nullable=True,
+    doc="The actual reducer, provided as free text, for the spectrum, separate "
+    "from the point-of-contact Fritz user designated as reducer",
+)
+SpectrumObserver.external_observer = sa.Column(
+    sa.String,
+    nullable=True,
+    doc="The actual observer, provided as free text, for the spectrum, separate "
+    "from the point-of-contact Fritz user designated as observer",
+)
+
+
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
 GroupSpectrum.update = GroupSpectrum.delete = (

@@ -1049,13 +1049,22 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
     )
     reduced_by = fields.List(
         fields.Integer,
-        description="IDs of the Users who reduced this Spectrum.",
+        description="IDs of the Users who reduced this Spectrum, or to use as points of contact given an external reducer.",
         missing=[],
     )
+
+    reduced_by_external = fields.String(
+        description="Free text provided as an external reducer",
+    )
+
     observed_by = fields.List(
         fields.Integer,
-        description="IDs of the Users who observed this Spectrum.",
+        description="IDs of the Users who observed this Spectrum, or to use as points of contact given an external observer.",
         missing=[],
+    )
+
+    observed_by_external = fields.String(
+        description="Free text provided as an external observer",
     )
 
     followup_request_id = fields.Integer(
@@ -1101,14 +1110,22 @@ class SpectrumPost(_Schema):
 
     reduced_by = fields.List(
         fields.Integer,
-        description="IDs of the Users who reduced this Spectrum.",
+        description="IDs of the Users who reduced this Spectrum, or to use as points of contact given an external reducer.",
         missing=[],
+    )
+
+    reduced_by_external = fields.String(
+        description="Free text provided as an external reducer",
     )
 
     observed_by = fields.List(
         fields.Integer,
-        description="IDs of the Users who observed this Spectrum.",
+        description="IDs of the Users who observed this Spectrum, or to use as points of contact given an external observer.",
         missing=[],
+    )
+
+    observed_by_external = fields.String(
+        description="Free text provided as an external observer",
     )
 
     origin = fields.String(required=False, description="Origin of the spectrum.")
