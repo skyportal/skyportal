@@ -12,6 +12,10 @@ from mocpy import MOC
 
 import gwemopt.ztf_tiling
 
+from baselayer.app.env import load_env
+
+_, cfg = load_env()
+
 
 def get_ztf_quadrants():
     """Calculate ZTF quadrant footprints as offsets from the telescope
@@ -78,7 +82,10 @@ def get_mocs(field_data, field_of_view_shape, field_of_view_size=None):
         MOC representation with length N.
     """
 
-    client = Client('127.0.0.1:50233')
+    IP = '127.0.0.1'
+    PORT_SCHEDULER = cfg['ports.dask']
+
+    client = Client('{}:{}'.format(IP, PORT_SCHEDULER))
 
     if field_of_view_shape == "ZTF":
         quadrant_coords = get_ztf_quadrants()
