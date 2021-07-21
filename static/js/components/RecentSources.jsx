@@ -137,7 +137,31 @@ const RecentSourcesList = ({ sources, styles }) => {
             }
           }
 
-          const imgClasses = source.is_grayscale
+          // Use first thumbnail available
+          const fetchThumbnail = async (index) => {
+            const response = await fetch(source.thumbnails[index]?.public_url, {
+              mode: "no-cors",
+            });
+            return response.status;
+          };
+          let idx = 0;
+          let statusCode = 0;
+          while (idx < source.thumbnails.length - 1) {
+            if (
+              source.thumbnails[idx]?.public_url &&
+              source.thumbnails[idx].public_url.startsWith("/static")
+            ) {
+              break;
+            }
+            statusCode = fetchThumbnail(idx);
+            if (statusCode === 200) {
+              break;
+            }
+            idx += 1;
+          }
+          const thumbnail = source.thumbnails[idx];
+
+          const imgClasses = thumbnail.is_grayscale
             ? `${styles.stamp} ${styles.inverted}`
             : `${styles.stamp}`;
           return (
@@ -153,7 +177,7 @@ const RecentSourcesList = ({ sources, styles }) => {
                   >
                     <img
                       className={imgClasses}
-                      src={source.public_url}
+                      src={thumbnail.public_url}
                       alt={source.obj_id}
                       loading="lazy"
                     />
@@ -201,8 +225,13 @@ RecentSourcesList.propTypes = {
       ra: PropTypes.number,
       dec: PropTypes.number,
       created_at: PropTypes.string.isRequired,
-      public_url: PropTypes.string,
-      is_grayscale: PropTypes.bool,
+      thumbnails: PropTypes.arrayOf(
+        PropTypes.shape({
+          public_url: PropTypes.string,
+          is_grayscale: PropTypes.bool,
+          type: PropTypes.string,
+        })
+      ),
       resaved: PropTypes.bool,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({

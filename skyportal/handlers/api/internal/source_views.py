@@ -5,7 +5,6 @@ import tornado.web
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from ....models import DBSession, Obj, SourceView
-from .recent_sources import first_thumbnail_info
 
 
 default_prefs = {'maxNumSources': 10, 'sinceDaysAgo': 7}
@@ -49,15 +48,20 @@ class SourceViewsHandler(BaseHandler):
                 self.current_user,
                 options=[joinedload(Obj.thumbnails)],
             )
-            info = first_thumbnail_info(s.thumbnails)
             sources.append(
                 {
                     'obj_id': s.id,
                     'views': view,
                     'ra': s.ra,
                     'dec': s.dec,
-                    'public_url': info[0],
-                    'is_grayscale': info[1],
+                    'thumbnails': [
+                        {
+                            "type": t.type,
+                            "is_grayscale": t.is_grayscale,
+                            "public_url": t.public_url,
+                        }
+                        for t in sorted(s.thumbnails, key=lambda t: tIndex(t.type))
+                    ],
                     'classifications': s.classifications,
                 }
             )
@@ -74,3 +78,8 @@ class SourceViewsHandler(BaseHandler):
         DBSession.add(sv)
         self.verify_and_commit()
         return self.success()
+
+
+def tIndex(t):
+    thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8', 'ps1']
+    return thumbnail_order.index(t) if t in thumbnail_order else len(thumbnail_order)
