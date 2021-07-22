@@ -1,4 +1,4 @@
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link, useHistory } from "react-router-dom";
@@ -22,17 +22,18 @@ import GroupIcon from "@material-ui/icons/Group";
 import CheckIcon from "@material-ui/icons/Check";
 import ClearIcon from "@material-ui/icons/Clear";
 import InfoIcon from "@material-ui/icons/Info";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import dayjs from "dayjs";
 import { isMobileOnly } from "react-device-detect";
 
 import { ra_to_hours, dec_to_dms, time_relative_to_local } from "../units";
-import styles from "./CommentList.css";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
 import FavoritesButton from "./FavoritesButton";
+import MultipleClassificationsForm from "./MultipleClassificationsForm";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
 import { filterOutEmptyValues } from "../API";
@@ -42,6 +43,85 @@ const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
 const useStyles = makeStyles((theme) => ({
+  comment: {
+    fontSize: "90%",
+    display: "flex",
+    flexDirection: "row",
+    padding: "0.125rem",
+    margin: "0 0.125rem 0.125rem 0",
+    borderRadius: "1rem",
+    "&:hover": {
+      backgroundColor: "#e0e0e0",
+    },
+    "& .commentDelete": {
+      "&:hover": {
+        color: "#e63946",
+      },
+    },
+  },
+  commentDark: {
+    fontSize: "90%",
+    display: "flex",
+    flexDirection: "row",
+    padding: "0.125rem",
+    margin: "0 0.125rem 0.125rem 0",
+    borderRadius: "1rem",
+    "&:hover": {
+      backgroundColor: "#3a3a3a",
+    },
+    "& .commentDelete": {
+      color: "#b1dae9",
+      "&:hover": {
+        color: "#e63946",
+      },
+    },
+  },
+  commentUserAvatar: {
+    display: "block",
+    margin: "0.5em",
+  },
+  commentContent: {
+    display: "flex",
+    flexFlow: "column nowrap",
+    padding: "0.3125rem 0.625rem 0.3125rem 0.875rem",
+    borderRadius: "15px",
+    width: "100%",
+  },
+  commentHeader: {
+    display: "flex",
+    alignItems: "center",
+  },
+  commentUserName: {
+    fontWeight: "bold",
+    marginRight: "0.5em",
+    whiteSpace: "nowrap",
+    color: "#76aace",
+  },
+  commentTime: {
+    color: "gray",
+    fontSize: "80%",
+    marginRight: "1em",
+  },
+  commentUserGroup: {
+    display: "inline-block",
+    "& > svg": {
+      fontSize: "1rem",
+    },
+  },
+  commentMessage: {
+    maxWidth: "25em",
+    "& > p": {
+      margin: "0",
+    },
+  },
+  wrap: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    minHeight: "27px",
+    maxWidth: "25em",
+  },
   chip: {
     margin: theme.spacing(0.5),
   },
@@ -211,18 +291,26 @@ const SourceTable = ({
   const [tableFilterList, setTableFilterList] = useState([]);
   const [filterFormData, setFilterFormData] = useState(null);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+  const [queryInProgress, setQueryInProgress] = useState(false);
+
+  useEffect(() => {
+    if (sources) {
+      setQueryInProgress(false);
+    }
+  }, [sources]);
 
   // Color styling
   const userColorTheme = useSelector(
     (state) => state.profile.preferences.theme
   );
   const commentStyle =
-    userColorTheme === "dark" ? styles.commentDark : styles.comment;
+    userColorTheme === "dark" ? classes.commentDark : classes.comment;
 
   const handleTableChange = (action, tableState) => {
     switch (action) {
       case "changePage":
       case "changeRowsPerPage":
+        setQueryInProgress(true);
         setRowsPerPage(tableState.rowsPerPage);
         paginateCallback(
           tableState.page + 1,
@@ -285,6 +373,16 @@ const SourceTable = ({
         })
       );
     }
+  };
+
+  // helper function to get the classifications
+  const getClassifications = (source) => {
+    if (groupID !== undefined) {
+      return source.classifications.filter((cls) =>
+        cls.groups.find((g) => g.id === groupID)
+      );
+    }
+    return source.classifications;
   };
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
@@ -364,7 +462,7 @@ const SourceTable = ({
                     groups: comment_groups,
                   }) => (
                     <span key={id} className={commentStyle}>
-                      <div className={styles.commentUserAvatar}>
+                      <div className={classes.commentUserAvatar}>
                         <UserAvatar
                           size={24}
                           firstName={author_info.first_name}
@@ -373,17 +471,17 @@ const SourceTable = ({
                           gravatarUrl={author_info.gravatar_url}
                         />
                       </div>
-                      <div className={styles.commentContent}>
-                        <div className={styles.commentHeader}>
-                          <span className={styles.commentUser}>
-                            <span className={styles.commentUserName}>
+                      <div className={classes.commentContent}>
+                        <div className={classes.commentHeader}>
+                          <span>
+                            <span className={classes.commentUserName}>
                               {author.username}
                             </span>
                           </span>
-                          <span className={styles.commentTime}>
+                          <span className={classes.commentTime}>
                             {dayjs().to(dayjs.utc(`${created_at}Z`))}
                           </span>
-                          <div className={styles.commentUserGroup}>
+                          <div className={classes.commentUserGroup}>
                             <Tooltip
                               title={comment_groups
                                 .map((group) => group.name)
@@ -396,8 +494,8 @@ const SourceTable = ({
                             </Tooltip>
                           </div>
                         </div>
-                        <div className={styles.wrap} name={`commentDiv${id}`}>
-                          <div className={styles.commentMessage}>{text}</div>
+                        <div className={classes.wrap} name={`commentDiv${id}`}>
+                          <div className={classes.commentMessage}>{text}</div>
                         </div>
                         <span>
                           {attachment_name && (
@@ -414,6 +512,14 @@ const SourceTable = ({
                   )
                 )}
               </div>
+            </Grid>
+            <Grid item xs={12}>
+              <MultipleClassificationsForm
+                objId={source.id}
+                taxonomyList={taxonomyList}
+                groupId={groupID}
+                currentClassifications={getClassifications(source)}
+              />
             </Grid>
             {favoritesRemoveButton ? (
               <div>
@@ -451,9 +557,26 @@ const SourceTable = ({
   const renderAlias = (dataIndex) => {
     const { id: objid, alias } = sources[dataIndex];
 
+    if (alias) {
+      const alias_str = Array.isArray(alias)
+        ? alias.map((name) => <div key={name}> {name} </div>)
+        : alias;
+
+      return (
+        <Link to={`/source/${objid}`} key={`${objid}_alias`}>
+          {alias_str}
+        </Link>
+      );
+    }
+    return null;
+  };
+
+  const renderOrigin = (dataIndex) => {
+    const { id: objid, origin } = sources[dataIndex];
+
     return (
-      <Link to={`/source/${objid}`} key={`${objid}_alias`}>
-        {alias}
+      <Link to={`/source/${objid}`} key={`${objid}_origin`}>
+        {origin}
       </Link>
     );
   };
@@ -479,16 +602,6 @@ const SourceTable = ({
   const renderDecSex = (dataIndex) => {
     const source = sources[dataIndex];
     return <div key={`${source.id}_dec_sex`}>{dec_to_dms(source.dec)}</div>;
-  };
-
-  // helper function to get the classifications
-  const getClassifications = (source) => {
-    if (groupID !== undefined) {
-      return source.classifications.filter((cls) =>
-        cls.groups.find((g) => g.id === groupID)
-      );
-    }
-    return source.classifications;
   };
 
   const renderClassification = (dataIndex) => {
@@ -640,7 +753,27 @@ const SourceTable = ({
     );
   };
 
+  const getSavedBy = (source) => {
+    // Get the user who saved the source to the specified group
+    if (groupID !== undefined) {
+      const group = source.groups.find((g) => g.id === groupID);
+      return group?.saved_by?.username;
+    }
+    // Otherwise, get whoever saved it last
+    const usernames = source.groups
+      .sort((g1, g2) => (g1.saved_at < g2.saved_at ? -1 : 1))
+      .map((g) => g.saved_by?.username);
+    return usernames[usernames.length - 1];
+  };
+
+  const renderSavedBy = (dataIndex) => {
+    const source = sources[dataIndex];
+    return getSavedBy(source);
+  };
+
   const handleFilterSubmit = async (formData) => {
+    setQueryInProgress(true);
+
     // Remove empty position
     if (
       formData.position.ra === "" &&
@@ -674,6 +807,8 @@ const SourceTable = ({
   };
 
   const handleTableFilterChipChange = (column, filterList, type) => {
+    setQueryInProgress(true);
+
     if (type === "chip") {
       const sourceFilterList = filterList[0];
       // Convert chip filter list to filter form data
@@ -729,12 +864,24 @@ const SourceTable = ({
       },
     },
     {
-      name: "Alias",
+      name: "alias",
+      label: "Alias",
       options: {
-        filter: false,
+        filter: true,
         sort: false,
         display: displayedColumns.includes("Alias"),
         customBodyRenderLite: renderAlias,
+      },
+    },
+    {
+      name: "origin",
+      label: "Origin",
+      options: {
+        filter: true,
+        sort: true,
+        sortThirdClickReset: true,
+        display: displayedColumns.includes("Origin"),
+        customBodyRenderLite: renderOrigin,
       },
     },
     {
@@ -824,6 +971,18 @@ const SourceTable = ({
       },
     },
     {
+      name: "saved_by",
+      label: groupID ? "Saved To Group By" : "Last Saved By",
+      options: {
+        filter: false,
+        sort: false,
+        display: displayedColumns.includes(
+          groupID ? "Saved To Group By" : "Last Saved By"
+        ),
+        customBodyRenderLite: renderSavedBy,
+      },
+    },
+    {
       name: "Finder",
       options: {
         filter: false,
@@ -907,20 +1066,26 @@ const SourceTable = ({
         <Grid
           container
           direction="column"
-          alignItems="center"
+          alignItems="flex-start"
           justify="flex-start"
           spacing={3}
         >
-          <Grid item className={classes.tableGrid}>
-            <MuiThemeProvider theme={getMuiTheme(theme)}>
-              <MUIDataTable
-                title={title}
-                columns={columns}
-                data={sources}
-                options={options}
-              />
-            </MuiThemeProvider>
-          </Grid>
+          {queryInProgress ? (
+            <Grid item>
+              <CircularProgress />
+            </Grid>
+          ) : (
+            <Grid item className={classes.tableGrid}>
+              <MuiThemeProvider theme={getMuiTheme(theme)}>
+                <MUIDataTable
+                  title={title}
+                  columns={columns}
+                  data={sources}
+                  options={options}
+                />
+              </MuiThemeProvider>
+            </Grid>
+          )}
         </Grid>
       </div>
     </div>
@@ -933,7 +1098,8 @@ SourceTable.propTypes = {
       id: PropTypes.string,
       ra: PropTypes.number,
       dec: PropTypes.number,
-      alias: PropTypes.string,
+      origin: PropTypes.string,
+      alias: PropTypes.arrayOf(PropTypes.string),
       redshift: PropTypes.number,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({

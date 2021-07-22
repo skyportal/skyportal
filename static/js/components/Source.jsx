@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { useTheme } from "@material-ui/core/styles";
 import Paper from "@material-ui/core/Paper";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import * as Action from "../ducks/source";
 import SourceDesktop from "./SourceDesktop";
@@ -50,7 +51,7 @@ const Source = ({ route }) => {
   if (!isCached) {
     return (
       <div>
-        <span>Loading...</span>
+        <CircularProgress color="secondary" />
       </div>
     );
   }

@@ -25,6 +25,8 @@ source skyportal_env/bin/activate
 
 (You can also use `conda` or `pipenv` to create your environment.)
 
+If you are using Windows Subsystem for Linux (WSL) be sure you clone the repository onto a location on the virtual machine, not the mounted Windows drive. Additionally, we recommend that you use WSL 2, and not WSL 1, in order to avoid complications in interfacing with the Linux image's `localhost` network.
+
 ## Installation: MacOS
 
 These instructions assume that you have [Homebrew](http://brew.sh/) installed.
@@ -51,7 +53,7 @@ brew install geckodriver
 brew install graphviz
 ```
 
-## Installation: Debian-based Linux
+## Installation: Debian-based Linux and WSL
 
 1. Install dependencies
 
@@ -84,6 +86,11 @@ sudo service postgresql restart
 - Extract the binary to somewhere on your path
 - Ensure it runs with `geckodriver --version`
 
+In later versions of Ubuntu (16.04+), you can install Geckodriver through apt:
+```
+sudo apt install firefox-geckodriver
+```
+
 4. To build the docs, you'll need graphviz:
 ```
 sudo apt install graphviz-dev graphviz
@@ -107,6 +114,8 @@ If you have trouble getting the demo data try doing
 ```make db_clear && make db_init && make run```
 
 and then, from a different window, do `make load_demo_data`.
+
+If you are using WSL, be sure everything (the git repository and all dependencies) are on the Linux machine and not the Windows side, as connection oddities can otherwise cause several errors.
 
 ## Additional Configuration
 

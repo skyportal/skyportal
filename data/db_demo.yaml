@@ -170,6 +170,7 @@ instrument:
     telescope_id: =P48
     filters: ["ztfg", "ztfr", "ztfi"]
     =id: ZTF
+    api_classname: ZTFAPI
   - name: ALFOSC
     type: imaging spectrograph
     band: V
@@ -299,6 +300,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =MUSCAT
+  - pi: Michael Coughlin
+    proposal_id: ZTF-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =ZTF
 
 candidates:
   - id: 14gqr_unsaved_copy
@@ -308,8 +316,10 @@ candidates:
     ra: 353.36647
     dec: 33.646149
     redshift: 0.063
+    redshift_error: 0.002
     varstar: false
     passed_at: "2020-10-30 21:17:06.475748"
+    origin: "ASAS-SN"
   - id: 14gqr
     filter_ids:
       - =example_filter
@@ -317,41 +327,44 @@ candidates:
     ra: 353.36647
     dec: 33.646149
     redshift: 0.063
+    redshift_error: 0.002
     varstar: false
     passed_at: "2020-10-30 21:18:06.475748"
+    origin: "ASAS-SN"
   - id: 16fil_unsaved_copy
     filter_ids:
       - =example_filter
     ra: 322.718872
     dec: 27.574113
-    redshift: 0.0
+    redshift: 0.001
     varstar: false
     passed_at: "2020-10-30 21:19:06.475748"
+    alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
   - id: 16fil
     filter_ids:
       - =example_filter
     ra: 322.718872
     dec: 27.574113
-    redshift: 0.0
+    redshift: 0.001
     varstar: false
     passed_at: "2020-10-30 21:13:06.475748"
+    alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
   - id: ZTFe028h94k
     filter_ids:
       - =example_filter
     ra: 229.9620403
     dec: 34.8442757
-    redshift: 0.0
     varstar: true
     altdata:
       simbad:
         class: RRLyr
     passed_at: "2020-10-30 11:13:06.475748"
+    alias: ['SN2020abc']
   - id: ZTFrlh6cyjh
     filter_ids:
       - =example_filter
     ra: 342.4596
     dec: 51.2634
-    redshift: 0.0
     varstar: true
     altdata:
       simbad:
@@ -369,12 +382,14 @@ sources:
       - =public_group_id
       - =program_A
       - =program_B
+    origin: "ASAS-SN"
   - id: 16fil
     ra: 322.718872
     dec: 27.574113
     group_ids:
       - =public_group_id
       - =program_A
+    alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
   - id: ZTFe028h94k
     ra: 229.9620403
     dec: 34.8442757
@@ -382,6 +397,7 @@ sources:
       - =public_group_id
       - =program_A
       - =program_B
+    alias: ['SN2020abc']
   - id: ZTFrlh6cyjh
     ra: 342.4596
     dec: 51.2634
@@ -689,3 +705,9 @@ thumbnail:
     ttype: new
     data:
       file: ./ZTFrlh6cyjh_new.png
+
+gcn_event:
+  - xml:
+      file: ../skyportal/tests/data/GW190425_initial.xml
+  - xml:
+      file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml

@@ -34,21 +34,57 @@ if response.status_code in (200, 400):
 curl -s -H 'Authorization: token ea70a5f0-b321-43c6-96a1-b2de225e0339' http://localhost:5000/api/sysinfo
 ```
 
-#### Using query parameters
+### Request parameters
+
+There are two ways to pass information along with a request: path and body parameters.
+
+#### Path parameters
+
+Path parameters (also called query or URL parameters) are embedded in
+the URL called. For example, you can specify `numPerPage` or
+`pageNumber` path parameters when calling `/api/candidates` as
+follows:
+
+```shell
+curl -s -H 'Authorization: token ea70a5f0-b321-43c6-96a1-b2de225e0339' \
+     http://localhost:5000/api/candidates?numPerPage=100&pageNumber=1
+```
+
+When using Python's `requests` library, a dictionary of path
+parameters can be passed in via the `params` keyword argument:
 
 ```python
-import requests
-
 token = 'ea70a5f0-b321-43c6-96a1-b2de225e0339'
 
 response = requests.get(
-    'http://localhost:5000/api/candidates?numPerPage=100&pageNumber=1',
-    headers={'Authorization': f'token {token}'}
+    "http://localhost:5000/api/sources",
+    params={"includeComments": True, "includeThumbnails": False},
+    headers={'Authorization': f'token {token}'},
 )
+```
 
-print(f'HTTP code: {response.status_code}, {response.reason}')
-if response.status_code in (200, 400):
-    print(f'JSON response: {response.json()}')
+#### Body parameters
+
+Request body parameters (or simply: the body of the request)
+contains data uploaded to a specific endpoint. These are the
+parameters listed under `REQUEST BODY SCHEMA: application/json` in the
+API docs.
+
+When using Python's `requests` library, body parameters are specified
+using the `json` keyword argument:
+
+```python
+token = "abc"
+response = requests.post(
+    "http://localhost:5000/api/sources",
+    json={
+        "id": "14gqr",
+        "ra": 353.36647,
+        "dec": 33.646149,
+        "group_ids": [52, 97],
+    },
+    headers={"Authorization": f"token {token}"},
+)
 ```
 
 ### Response
@@ -57,8 +93,10 @@ In the above examples, the SkyPortal server is located at
 `http://localhost:5000`. In case of success, the HTTP response is 200:
 
 ```
+
 HTTP code: 200, OK
 JSON response: {'status': 'success', 'data': {}, 'version': '0.9.dev0+git20200819.84c453a'}
+
 ```
 
 On failure, it is 400; the JSON response has `status="error"` with the reason

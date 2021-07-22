@@ -28,6 +28,11 @@ app:
   lco_host: observe.lco.global
   lco_port: 443
 
+  ztf:
+    protocol: http
+    host: skipper.caltech.edu
+    port: 4000
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
@@ -38,6 +43,8 @@ app:
       component: Source
     - path: "/favorites"
       component: FavoritesPage
+    - path: "/gcn_events/:dateobs"
+      component: GcnEventPage
     - path: "/groups"
       component: Groups
     - path: "/group/:id"
@@ -76,6 +83,8 @@ app:
       component: Periodogram
     - path: "/db_stats"
       component: DBStats
+    - path: "/gcn_events"
+      component: GcnEvents
 
 
   sidebar:
@@ -104,6 +113,10 @@ app:
     - name: Observing Runs
       icon: LocalCafe
       url: /runs
+
+    - name: GCN Events
+      icon: SettingsInputAntenna
+      url: /gcn_events
 
     - name: About
       icon: Info
@@ -176,10 +189,10 @@ app:
       resizeable: true
       minW: 2
       layouts:
-        xlg: [0, 10, 4, 1]
-        lg: [0, 10, 4, 1]
-        md: [0, 10, 4, 1]
-        sm: [0, 10, 4, 1]
+        xlg: [0, 3, 5, 2]
+        lg: [0, 3, 4, 1]
+        md: [0, 6, 5, 2]
+        sm: [0, 6, 6, 1]
         xs: [0, 12, 4, 1]
 
     SourceCounts:
@@ -224,6 +237,16 @@ app:
         sm: [3, 3, 3, 3]
         xs: [0, 7, 4, 3]
 
+    RecentGcnEvents:
+      resizeable: true
+      minW: 3
+      layouts:
+        xlg: [5, 3, 5, 2]
+        lg: [4, 3, 5, 2]
+        md: [5, 6, 5, 2]
+        sm: [0, 7, 6, 2]
+        xs: [0, 13, 4, 2]
+
     GroupList:
       props:
         title: My Groups
@@ -255,6 +278,14 @@ server:
   port: 5000  # This is the public-facing port
   ssl: False  # Must be either True or False
   processes: 2
+  # Rate limit: number of requests per second (see https://www.nginx.com/blog/rate-limiting-nginx/)
+  rate_limit: 5
+  # Rate limit burst size (https://www.nginx.com/blog/rate-limiting-nginx/#bursts)
+  burst: 10
+  # In addition to localhost, specify any IP addresses that are to be
+  # exempt from API rate limiting
+  whitelisted_ips:
+    -
 
   auth:
     debug_login: True
@@ -266,6 +297,7 @@ services:
 
 misc:
   days_to_keep_unsaved_candidates: 7
+  minutes_to_keep_candidate_query_cache: 60
   public_group_name: "Sitewide Group"
   # Use a named cosmology from `astropy.cosmology.parameters.available` cosmologies
   # or supply the arguments for an `astropy.cosmology.FLRW` cosmological instance.
@@ -278,6 +310,12 @@ misc:
   # The minimum signal-to-noise ratio/ n-sigma for lim mag cacluations to
   # consider a photometry point as a detection
   photometry_detection_threshold_nsigma: 3.0
+
+  # The airmass value below which to track hours for when plotting
+  # on an object's observability page
+  hours_below_airmass_threshold: 2.9
+
+  allow_nonadmins_delete_objs: False
 
 weather:
   # time in seconds to wait before fetching weather for a given telescope

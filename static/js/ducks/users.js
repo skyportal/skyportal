@@ -9,6 +9,8 @@ const FETCH_USER_OK = "skyportal/FETCH_USER_OK";
 const FETCH_USERS = "skyportal/FETCH_USERS";
 const FETCH_USERS_OK = "skyportal/FETCH_USERS_OK";
 
+const PATCH_USER = "skyportal/PATCH_USER";
+
 export function fetchUser(id) {
   return API.GET(`/api/user/${id}`, FETCH_USER);
 }
@@ -18,6 +20,10 @@ export function fetchUsers(filterParams = {}) {
     filterParams.pageNumber = 1;
   }
   return API.GET("/api/user", FETCH_USERS, filterParams);
+}
+
+export function patchUser(id, data) {
+  return API.PATCH(`/api/user/${id}`, PATCH_USER, data);
 }
 
 // Websocket message handler

@@ -916,6 +916,15 @@ def view_only_token_group2(user_group2):
 
 
 @pytest.fixture()
+def upload_data_token_group2(user_group2):
+    token_id = create_token(
+        ACLs=["Upload data"], user_id=user_group2.id, name=str(uuid.uuid4())
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
 def view_only_token_two_groups(user_two_groups):
     token_id = create_token(ACLs=[], user_id=user_two_groups.id, name=str(uuid.uuid4()))
     yield token_id
@@ -967,7 +976,7 @@ def upload_data_token_two_groups(user_two_groups):
 @pytest.fixture()
 def manage_groups_token(super_admin_user):
     token_id = create_token(
-        ACLs=["Manage groups"],
+        ACLs=["Manage groups", "Upload data"],
         user_id=super_admin_user.id,
         name=str(uuid.uuid4()),
     )
@@ -978,7 +987,7 @@ def manage_groups_token(super_admin_user):
 @pytest.fixture()
 def group_admin_token(group_admin_user):
     token_id = create_token(
-        ACLs=[], user_id=group_admin_user.id, name=str(uuid.uuid4())
+        ACLs=["Upload data"], user_id=group_admin_user.id, name=str(uuid.uuid4())
     )
     yield token_id
     delete_token(token_id)
@@ -987,7 +996,7 @@ def group_admin_token(group_admin_user):
 @pytest.fixture()
 def manage_users_token(super_admin_user):
     token_id = create_token(
-        ACLs=["Manage users"],
+        ACLs=["Manage users", "Upload data"],
         user_id=super_admin_user.id,
         name=str(uuid.uuid4()),
     )
@@ -998,7 +1007,7 @@ def manage_users_token(super_admin_user):
 @pytest.fixture()
 def manage_users_token_group2(super_admin_user_group2):
     token_id = create_token(
-        ACLs=["Manage users"],
+        ACLs=["Manage users", "Upload data"],
         user_id=super_admin_user_group2.id,
         name=str(uuid.uuid4()),
     )

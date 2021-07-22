@@ -58,12 +58,6 @@ def test_add_sources_two_groups(
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
 
-    # Close filter form
-    driver.click_xpath(
-        "//button[contains(@class, 'MUIDataTableToolbar-filterCloseIcon')]",
-        wait_clickable=False,
-    )
-
     # find the date it was saved
     saved_at_element = driver.wait_for_xpath(
         f"//*[text()[contains(., '{t1.strftime('%Y-%m-%dT%H:%M')}')]]"
@@ -278,6 +272,93 @@ def test_filter_by_classification(
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
 
 
+def test_filter_by_alias_and_origin(
+    driver,
+    user,
+    public_group,
+    upload_data_token,
+    taxonomy_token,
+    classification_token,
+):
+    # Post an object with an alias and an origin
+    source_id = str(uuid.uuid4())
+    alias = str(uuid.uuid4())
+    origin = str(uuid.uuid4())
+
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": source_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "group_ids": [public_group.id],
+            "alias": [alias],
+            "origin": origin,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/sources")
+
+    # Filter for alias
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    alias_field = driver.wait_for_xpath(
+        "//*[@data-testid='alias-text']//input",
+    )
+
+    alias_field.send_keys(alias)
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        scroll_parent=True,
+    )
+
+    # Should see the posted source
+    driver.wait_for_xpath(f'//a[@data-testid="{source_id}"]')
+
+    # Now search for a different alias
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    alias_field = driver.wait_for_xpath("//*[@data-testid='alias-text']//input")
+    alias_field.send_keys(str(uuid.uuid4()))
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+    )
+
+    # Should no longer see the source
+    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
+
+    # Filter for origin
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    alias_field = driver.wait_for_xpath(
+        "//*[@data-testid='origin-text']//input",
+    )
+    alias_field.send_keys(origin)
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+    )
+
+    # Should see the posted source
+    driver.wait_for_xpath(f'//a[@data-testid="{source_id}"]')
+
+    # Now search for a different alias
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    origin_field = driver.wait_for_xpath(
+        "//*[@data-testid='origin-text']//input",
+    )
+    origin_field.send_keys(str(uuid.uuid4()))
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+    )
+
+    # Should no longer see the source
+    driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
+
+
 def test_hr_diagram(
     driver,
     user,
@@ -332,12 +413,6 @@ def test_hr_diagram(
 
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{source_id}')]")
-
-    # Close filter form
-    driver.click_xpath(
-        "//button[contains(@class, 'MUIDataTableToolbar-filterCloseIcon')]",
-        wait_clickable=False,
-    )
 
     # little triangle you push to expand the table
     driver.click_xpath("//*[@id='expandable-button']")

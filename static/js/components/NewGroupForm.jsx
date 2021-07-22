@@ -148,7 +148,7 @@ const NewGroupForm = () => {
           </FormControl>
         </Box>
         <Box>
-          <Button type="submit" variant="contained" size="small">
+          <Button type="submit" variant="contained" color="primary">
             Create Group
           </Button>
         </Box>

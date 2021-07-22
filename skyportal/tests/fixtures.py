@@ -9,6 +9,7 @@ from tempfile import mkdtemp
 import factory
 import numpy as np
 from sqlalchemy import inspect
+from sqlalchemy.orm.exc import ObjectDeletedError
 
 from baselayer.app.config import load_config
 from baselayer.app.env import load_env
@@ -62,8 +63,17 @@ def is_already_deleted(instance, table):
     if instance in DBSession() and inspect(instance).detached:
         return True
 
-    if instance not in DBSession():
-        return DBSession().query(table).filter(table.id == instance.id).first() is None
+    if instance not in DBSession() or (
+        instance in DBSession() and inspect(instance).expired
+    ):
+        try:
+            return (
+                DBSession().query(table).filter(table.id == instance.id).first() is None
+            )
+        except ObjectDeletedError:
+            # If instance was deleted by the test, it would have taken place in
+            # another transaction and thus undiscovered until the exception here
+            return True
 
     # If the instance is in the session and has not been detached (deleted + committed)
     # then it still requires some teardown actions.
@@ -354,6 +364,8 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
     dec = 0.0
     redshift = 0.0
     altdata = {"simbad": {"class": "RRLyr"}}
+    origin = factory.LazyFunction(lambda: uuid.uuid4().hex)
+    alias = factory.LazyFunction(lambda: uuid.uuid4().hex)
 
     @factory.post_generation
     def groups(obj, create, passed_groups, *args, **kwargs):

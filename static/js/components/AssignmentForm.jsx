@@ -73,6 +73,9 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
     observingRunSelectItem: {
       whiteSpace: "break-spaces",
     },
+    submitButton: {
+      margin: "0.5rem",
+    },
   }));
   const classes = useStyles();
 
@@ -115,6 +118,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             <InputLabel id="assignmentSelectLabel">Choose Run</InputLabel>
             <Controller
               as={Select}
+              inputProps={{ MenuProps: { disableScrollLock: true } }}
               labelId="assignmentSelectLabel"
               name="run_id"
               data-testid="assignmentSelect"
@@ -146,6 +150,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             <InputLabel id="prioritySelectLabel">Priority</InputLabel>
             <Controller
               as={Select}
+              inputProps={{ MenuProps: { disableScrollLock: true } }}
               labelId="prioritySelectLabel"
               defaultValue="1"
               name="priority"
@@ -175,6 +180,8 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
             name="assignmentSubmitButton"
             data-testid="assignmentSubmitButton"
             variant="contained"
+            color="primary"
+            className={classes.submitButton}
           >
             Submit
           </Button>

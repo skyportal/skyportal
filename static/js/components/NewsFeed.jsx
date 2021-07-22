@@ -29,6 +29,7 @@ const defaultPrefs = {
     photometry: true,
     sources: true,
     spectra: true,
+    includeCommentsFromBots: false,
   },
 };
 
@@ -54,8 +55,7 @@ const NewsFeedItem = ({ item }) => {
           gravatarUrl={item.author_info.gravatar_url}
         />
       );
-      /* eslint-disable react/display-name */
-      entryTitle = item.author_info.username;
+      entryTitle = null;
       break;
     case "source":
       /* eslint-disable react/display-name */
@@ -87,16 +87,22 @@ const NewsFeedItem = ({ item }) => {
       className={styles.entry}
       elevation={1}
     >
-      <Tooltip
-        title={entryTitle}
-        arrow
-        placement="top-start"
-        classes={{ tooltip: styles.entryTitle }}
-      >
+      {entryTitle !== null ? (
+        <Tooltip
+          title={entryTitle}
+          arrow
+          placement="top-start"
+          classes={{ tooltip: styles.entryTitle }}
+        >
+          <div className={styles.entryAvatar}>
+            <EntryAvatar />
+          </div>
+        </Tooltip>
+      ) : (
         <div className={styles.entryAvatar}>
           <EntryAvatar />
         </div>
-      </Tooltip>
+      )}
       <div className={styles.entryContent}>
         <ReactMarkdown
           source={item.message}

@@ -320,7 +320,7 @@ class FollowupRequestHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(data=followup_requests)
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -404,7 +404,7 @@ class FollowupRequestHandler(BaseHandler):
 
         return self.success(data={"id": followup_request.id})
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def put(self, request_id):
         """
         ---
@@ -488,7 +488,7 @@ class FollowupRequestHandler(BaseHandler):
         )
         return self.success()
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, request_id):
         """
         ---

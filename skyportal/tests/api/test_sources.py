@@ -118,6 +118,91 @@ def test_token_user_retrieving_source_without_nested(
     )
 
 
+def test_duplicate_sources(public_group, upload_data_token, ztf_camera):
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    ra = 200.0 * np.random.random()
+    dec = 90.0 * np.random.random()
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id1,
+            "ra": ra,
+            "dec": dec,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id2,
+            "ra": ra + 0.0001,
+            "dec": dec + 0.0005,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": obj_id1,
+            "mjd": 59801.4,
+            "instrument_id": ztf_camera.id,
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "mag": 12.4,
+            "magerr": 0.3,
+            "limiting_mag": 22,
+            "magsys": "ab",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": obj_id2,
+            "mjd": 59801.3,
+            "instrument_id": ztf_camera.id,
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "mag": 12.4,
+            "magerr": 0.3,
+            "limiting_mag": 22,
+            "magsys": "ab",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        f"sources/{obj_id1}",
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert data["data"]["duplicates"] == [obj_id2]
+
+    status, data = api(
+        "GET",
+        f"sources/{obj_id2}",
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert data["data"]["duplicates"] == [obj_id1]
+
+
 def test_token_user_update_source(upload_data_token, public_source):
     status, data = api(
         "PATCH",
@@ -239,6 +324,8 @@ def test_cannot_update_source_without_permission(view_only_token, public_source)
 
 def test_token_user_post_new_source(upload_data_token, view_only_token, public_group):
     obj_id = str(uuid.uuid4())
+    alias = str(uuid.uuid4())
+    origin = str(uuid.uuid4())
     t0 = datetime.now(timezone.utc)
     status, data = api(
         "POST",
@@ -251,6 +338,8 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
             "transient": False,
             "ra_dis": 2.3,
             "group_ids": [public_group.id],
+            "alias": [alias],
+            "origin": origin,
         },
         token=upload_data_token,
     )
@@ -264,6 +353,9 @@ def test_token_user_post_new_source(upload_data_token, view_only_token, public_g
 
     saved_at = parser.parse(data["data"]["groups"][0]["saved_at"] + " UTC")
     assert abs(saved_at - t0) < timedelta(seconds=60)
+
+    assert alias == data["data"]["alias"][0]
+    assert origin == data["data"]["origin"]
 
 
 def test_cannot_post_source_with_null_radec(
@@ -421,10 +513,7 @@ def test_source_notifications_unauthorized(
         token=source_notification_user_token,
     )
     assert status == 400
-    # Test server should have no valid Twilio API credentials
-    assert data["message"].startswith(
-        "Twilio Communication SMS API authorization error"
-    )
+    assert "Unauthorized" in data["message"]
 
 
 def test_token_user_source_summary(
@@ -636,7 +725,12 @@ def test_object_last_detected(
     assert status == 200
     assert data['status'] == 'success'
 
-    status, data = api("GET", f"sources/{public_source.id}", token=view_only_token)
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}",
+        params={"includeDetectionStats": "true"},
+        token=view_only_token,
+    )
     assert status == 200
     assert data["status"] == "success"
     assert (
@@ -681,6 +775,7 @@ def test_source_photometry_summary_info(
     status, data = api(
         "GET",
         f"sources/{public_source_no_data.id}",
+        params={"includeDetectionStats": "true"},
         token=view_only_token,
     )
     assert status == 200

@@ -1,6 +1,6 @@
 from sqlalchemy import or_
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import auth_or_token, AccessError
+from baselayer.app.access import auth_or_token, permissions, AccessError
 from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
@@ -155,6 +155,7 @@ class GroupHandler(BaseHandler):
                         "contact_phone": gu.user.contact_phone,
                         "oauth_uid": gu.user.oauth_uid,
                         "admin": gu.admin,
+                        "can_save": gu.can_save,
                     }
                     for gu in group.group_users
                 ]
@@ -214,7 +215,7 @@ class GroupHandler(BaseHandler):
 
         return self.success(data=info)
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self):
         """
         ---
@@ -282,7 +283,7 @@ class GroupHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(data={"id": g.id})
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def put(self, group_id):
         """
         ---
@@ -328,7 +329,7 @@ class GroupHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(action='skyportal/FETCH_GROUPS')
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, group_id):
         """
         ---
@@ -360,7 +361,7 @@ class GroupHandler(BaseHandler):
 
 
 class GroupUserHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self, group_id, *ignored_args):
         """
         ---
@@ -384,6 +385,9 @@ class GroupUserHandler(BaseHandler):
                     type: integer
                   admin:
                     type: boolean
+                  canSave:
+                    type: boolean
+                    description: Boolean indicating whether user can save sources to group. Defaults to true.
                 required:
                   - userID
                   - admin
@@ -412,7 +416,7 @@ class GroupUserHandler(BaseHandler):
 
         data = self.get_json()
 
-        user_id = data.pop("userID", None)
+        user_id = data.get("userID", None)
         if user_id is None:
             return self.error("userID parameter must be specified")
         try:
@@ -420,7 +424,16 @@ class GroupUserHandler(BaseHandler):
         except (ValueError, TypeError):
             return self.error("Invalid userID parameter: unable to parse to integer")
 
-        admin = data.pop("admin", False)
+        admin = data.get("admin", False)
+        if not isinstance(admin, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `admin`"
+            )
+        can_save = data.get("canSave", True)
+        if not isinstance(can_save, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `canSave`"
+            )
         group_id = int(group_id)
         group = Group.get_if_accessible_by(
             group_id, self.current_user, raise_if_none=True, mode='read'
@@ -440,7 +453,11 @@ class GroupUserHandler(BaseHandler):
                 f"User {user_id} is already a member of group {group_id}."
             )
 
-        DBSession().add(GroupUser(group_id=group_id, user_id=user_id, admin=admin))
+        DBSession().add(
+            GroupUser(
+                group_id=group_id, user_id=user_id, admin=admin, can_save=can_save
+            )
+        )
         DBSession().add(
             UserNotification(
                 user=user,
@@ -456,11 +473,11 @@ class GroupUserHandler(BaseHandler):
             data={'group_id': group_id, 'user_id': user_id, 'admin': admin}
         )
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def patch(self, group_id, *ignored_args):
         """
         ---
-        description: Update a group user's admin status
+        description: Update a group user's admin or save access status
         tags:
           - groups
           - users
@@ -480,9 +497,16 @@ class GroupUserHandler(BaseHandler):
                     type: integer
                   admin:
                     type: boolean
+                    description: |
+                      Boolean indicating whether user is group admin. Either this
+                      or `canSave` must be provided in request body.
+                  canSave:
+                    type: boolean
+                    description: |
+                      Boolean indicating whether user can save sources to group. Either
+                      this or `admin` must be provided in request body.
                 required:
                   - userID
-                  - admin
         responses:
           200:
             content:
@@ -511,10 +535,22 @@ class GroupUserHandler(BaseHandler):
         if groupuser is None:
             return self.error(f"User {user_id} is not a member of group {group_id}.")
 
-        if data.get("admin") is None:
-            return self.error("Missing required parameter: `admin`")
-        admin = data.get("admin") in [True, "true", "True", "t", "T"]
+        if data.get("admin") is None and data.get("canSave") is None:
+            return self.error(
+                "Missing required parameter: at least one of `admin` or `canSave`"
+            )
+        admin = data.get("admin", groupuser.admin)
+        if not isinstance(admin, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `admin`"
+            )
+        can_save = data.get("canSave", groupuser.can_save)
+        if not isinstance(can_save, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `canSave`"
+            )
         groupuser.admin = admin
+        groupuser.can_save = can_save
         self.verify_and_commit()
         return self.success()
 
@@ -568,7 +604,7 @@ class GroupUserHandler(BaseHandler):
 
 
 class GroupUsersFromOtherGroupsHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self, group_id, *ignored_args):
         """
         ---
@@ -656,7 +692,7 @@ class GroupUsersFromOtherGroupsHandler(BaseHandler):
 
 
 class GroupStreamHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     def post(self, group_id, *ignored_args):
         """
         ---
@@ -716,7 +752,7 @@ class GroupStreamHandler(BaseHandler):
         self.push_all(action='skyportal/REFRESH_GROUP', payload={'group_id': group_id})
         return self.success(data={'group_id': group_id, 'stream_id': stream_id})
 
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, group_id, stream_id):
         """
         ---

@@ -17,7 +17,7 @@ cfg = load_config()
 
 
 def enter_comment_text(driver, comment_text):
-    comment_xpath = "//input[@name='text']"
+    comment_xpath = "//div[@data-testid='comments-accordion']//input[@name='text']"
     comment_box = driver.wait_for_xpath(comment_xpath)
     driver.click_xpath(comment_xpath)
     comment_box.send_keys(comment_text)
@@ -25,7 +25,9 @@ def enter_comment_text(driver, comment_text):
 
 def add_comment(driver, comment_text):
     enter_comment_text(driver, comment_text)
-    driver.click_xpath('//*[@name="submitCommentButton"]')
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
 
 
 def add_comment_and_wait_for_display(driver, comment_text):
@@ -164,29 +166,46 @@ def test_comment_groups_validation(
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     comment_text = str(uuid.uuid4())
     enter_comment_text(driver, comment_text)
-    driver.click_xpath("//*[text()='Customize Group Access']")
+    driver.click_xpath(
+        "//div[@data-testid='comments-accordion']//*[text()='Customize Group Access']"
+    )
 
     # sitewide_group
-    group_checkbox_xpath = (
-        f"//*[@data-testid='commentGroupCheckBox{sitewide_group_id}']"
-    )
+    group_checkbox_xpath = f"//div[@data-testid='comments-accordion']//*[@data-testid='commentGroupCheckBox{sitewide_group_id}']"
     driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
 
     # public_group that user belongs to
-    group_checkbox_xpath = f"//*[@data-testid='commentGroupCheckBox{public_group.id}']"
+    group_checkbox_xpath = f"//div[@data-testid='comments-accordion']//*[@data-testid='commentGroupCheckBox{public_group.id}']"
     driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
-    driver.click_xpath('//*[@name="submitCommentButton"]')
-    driver.wait_for_xpath('//div[contains(.,"Select at least one group")]')
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
+    driver.wait_for_xpath(
+        '//div[@data-testid="comments-accordion"]//div[contains(.,"Select at least one group")]'
+    )
     driver.click_xpath(group_checkbox_xpath, wait_clickable=False)
-    driver.click_xpath('//*[@name="submitCommentButton"]')
-    driver.wait_for_xpath_to_disappear('//div[contains(.,"Select at least one group")]')
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
+    driver.wait_for_xpath_to_disappear(
+        '//div[@data-testid="comments-accordion"]//div[contains(.,"Select at least one group")]'
+    )
     try:
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]', timeout=20)
-        driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+        driver.wait_for_xpath(
+            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]',
+            timeout=20,
+        )
+        driver.wait_for_xpath(
+            '//div[@data-testid="comments-accordion"]//span[text()="a few seconds ago"]'
+        )
     except TimeoutException:
         driver.refresh()
-        driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
-        driver.wait_for_xpath('//span[text()="a few seconds ago"]')
+        driver.wait_for_xpath(
+            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
+        )
+        driver.wait_for_xpath(
+            '//div[@data-testid="comments-accordion"]//span[text()="a few seconds ago"]'
+        )
 
 
 @pytest.mark.flaky(reruns=2)
@@ -196,29 +215,41 @@ def test_upload_download_comment_attachment(driver, user, public_source):
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
     comment_text = str(uuid.uuid4())
     enter_comment_text(driver, comment_text)
-    attachment_file = driver.find_element_by_css_selector('input[type=file]')
+    # attachment_file = driver.find_element_by_css_selector('input[type=file]')
+    attachment_file = driver.wait_for_xpath(
+        "//div[@data-testid='comments-accordion']//input[@name='attachment']"
+    )
     attachment_file.send_keys(
         pjoin(os.path.dirname(os.path.dirname(__file__)), 'data', 'spec.csv')
     )
-    driver.click_xpath('//*[@name="submitCommentButton"]')
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
     try:
         comment_text_p = driver.wait_for_xpath(
-            f'//p[text()="{comment_text}"]', timeout=20
+            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]',
+            timeout=20,
         )
     except TimeoutException:
         driver.refresh()
-        comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
+        comment_text_p = driver.wait_for_xpath(
+            f'//div[@data-testid="comments-accordion"]//p[text()="{comment_text}"]'
+        )
     comment_div = comment_text_p.find_element_by_xpath("../..")
     driver.execute_script("arguments[0].scrollIntoView();", comment_div)
     ActionChains(driver).move_to_element(comment_div).perform()
 
     # Scroll up to top of comments list
-    comments = driver.wait_for_xpath("//p[text()='Comments']")
+    comments = driver.wait_for_xpath(
+        "//div[@data-testid='comments-accordion']//p[text()='Comments']"
+    )
     driver.scroll_to_element(comments)
 
-    attachment_div = driver.wait_for_xpath("//div[contains(text(), 'Attachment:')]")
+    attachment_div = driver.wait_for_xpath(
+        "//div[@data-testid='comments-accordion']//div[contains(text(), 'Attachment:')]"
+    )
     attachment_button = driver.wait_for_xpath(
-        '//button[@data-testid="attachmentButton_spec"]'
+        '//div[@data-testid="comments-accordion"]//button[@data-testid="attachmentButton_spec"]'
     )
     # Try to open the preview dialog twice before failing to make it more robust
     try:
@@ -506,16 +537,44 @@ def test_update_redshift_and_history(driver, user, public_source):
         "//div[@data-testid='updateRedshiftTextfield']//input"
     )
     input_field.send_keys("0.9999")
+    input_field = driver.wait_for_xpath(
+        "//div[@data-testid='updateRedshiftErrorTextfield']//input"
+    )
+    input_field.send_keys("0.0001")
     driver.click_xpath("//button[@data-testid='updateRedshiftSubmitButton']")
     driver.wait_for_xpath("//*[text()='Source redshift successfully updated.']")
     driver.wait_for_xpath("//body").click()  # Close dialog
     driver.wait_for_xpath("//*[contains(., '0.9999')]")
+    driver.wait_for_xpath("//*[contains(., '0.0001')]")
 
     driver.click_xpath(
         "//*[@data-testid='redshiftHistoryIconButton']", wait_clickable=False
     )
     driver.wait_for_xpath("//th[text()='Set By']")
     driver.wait_for_xpath("//td[text()='0.9999']")
+    driver.wait_for_xpath("//td[text()='0.0001']")
+    driver.wait_for_xpath(f"//td[text()='{user.username}']")
+
+
+def test_update_redshift_and_history_without_error(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    driver.click_xpath("//*[@data-testid='updateRedshiftIconButton']")
+    input_field = driver.wait_for_xpath(
+        "//div[@data-testid='updateRedshiftTextfield']//input"
+    )
+    input_field.send_keys("0.9998")
+    driver.click_xpath("//button[@data-testid='updateRedshiftSubmitButton']")
+    driver.wait_for_xpath("//*[text()='Source redshift successfully updated.']")
+    driver.wait_for_xpath("//body").click()  # Close dialog
+    driver.wait_for_xpath("//*[contains(., '0.9998')]")
+
+    driver.click_xpath(
+        "//*[@data-testid='redshiftHistoryIconButton']", wait_clickable=False
+    )
+    driver.wait_for_xpath("//th[text()='Set By']")
+    driver.wait_for_xpath("//td[text()='0.9998']")
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
 
 
@@ -629,3 +688,45 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
             generated_plot.convert('RGB'), expected_plot.convert('RGB')
         )
         assert difference.getbbox() is None
+
+
+def test_duplicate_sources_render(
+    driver, public_source, public_group, upload_data_token, user, ztf_camera
+):
+    obj_id2 = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id2,
+            "ra": public_source.ra + 0.0001,
+            "dec": public_source.dec + 0.0001,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": obj_id2,
+            "mjd": 59801.3,
+            "instrument_id": ztf_camera.id,
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+            "mag": 12.4,
+            "magerr": 0.3,
+            "limiting_mag": 22,
+            "magsys": "ab",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath('//*[contains(text(), "Possible duplicate of:")]')
+    driver.click_xpath(f'//button//span[text()="{obj_id2}"]')
+    driver.wait_for_xpath(f'//div[text()="{obj_id2}"]')

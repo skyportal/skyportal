@@ -211,7 +211,7 @@ phot_markers = [
     "triangle",
     "square",
     "diamond",
-    "star",
+    "inverted_triangle",
     "plus",
     "cross",
     "triangle_pin",
@@ -220,7 +220,13 @@ phot_markers = [
 
 
 def get_effective_wavelength(bandpass_name):
-    bandpass = sncosmo.get_bandpass(bandpass_name)
+    try:
+        bandpass = sncosmo.get_bandpass(bandpass_name)
+    except ValueError as e:
+        raise ValueError(
+            f"Could not get bandpass for {bandpass_name} due to sncosmo error: {e}"
+        )
+
     return float(bandpass.wave_eff)
 
 
@@ -317,7 +323,7 @@ def annotate_spec(plot, spectra, lower, upper):
 
 
 def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
-    """ Helper function to add responsive legends to a photometry plot tab """
+    """Helper function to add responsive legends to a photometry plot tab"""
     if legend_orientation == "horizontal":
         width_remaining = width - 120
         current_legend_items = []

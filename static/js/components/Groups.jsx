@@ -2,7 +2,6 @@ import React from "react";
 import { useSelector } from "react-redux";
 
 import { makeStyles } from "@material-ui/core/styles";
-import Paper from "@material-ui/core/Paper";
 
 import GroupManagement from "./GroupManagement";
 import GroupList from "./GroupList";
@@ -25,7 +24,7 @@ const useStyles = makeStyles(() => ({
 
 const Groups = () => {
   const classes = useStyles();
-  const { roles } = useSelector((state) => state.profile);
+  const { permissions } = useSelector((state) => state.profile);
   const { user: userGroups, all: allGroups } = useSelector(
     (state) => state.groups
   );
@@ -40,9 +39,7 @@ const Groups = () => {
 
   return (
     <div>
-      <Paper elevation={1}>
-        <GroupList title="My Groups" groups={userGroups} classes={classes} />
-      </Paper>
+      <GroupList title="My Groups" groups={userGroups} classes={classes} />
       {!!nonMemberGroups.length && (
         <>
           <br />
@@ -50,7 +47,7 @@ const Groups = () => {
         </>
       )}
       <NewGroupForm />
-      {roles.includes("Super admin") && <GroupManagement />}
+      {permissions.includes("System admin") && <GroupManagement />}
     </div>
   );
 };

@@ -10,13 +10,8 @@ const UPDATE_INVITATION = "skyportal/UPDATE_INVITATION";
 
 const DELETE_INVITATION = "skyportal/DELETE_INVITATION";
 
-export const inviteUser = ({ userEmail, streamIDs, groupIDs, groupAdmin }) =>
-  API.POST("/api/invitations", INVITE_USER, {
-    userEmail,
-    streamIDs,
-    groupIDs,
-    groupAdmin,
-  });
+export const inviteUser = (data) =>
+  API.POST("/api/invitations", INVITE_USER, data);
 
 export const fetchInvitations = (filterParams = {}) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {

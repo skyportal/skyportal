@@ -6,7 +6,10 @@ from datetime import datetime, timezone, timedelta
 
 import arrow
 import astroplan
+import gcn
 import healpix_alchemy as ha
+import healpy as hp
+import lxml
 import numpy as np
 import requests
 import sqlalchemy as sa
@@ -16,7 +19,9 @@ from astropy import coordinates as ap_coord
 from astropy import time as ap_time
 from astropy import units as u
 from astropy.io import fits, ascii
+from astropy.table import Table
 from astropy.utils.exceptions import AstropyWarning
+from ligo.skymap.bayestar import rasterize
 from slugify import slugify
 from sqlalchemy import cast, event
 from sqlalchemy.dialects import postgresql as psql
@@ -26,6 +31,7 @@ from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
 
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import deferred
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy_utils.types import JSONType
@@ -35,6 +41,7 @@ from sqlalchemy import func
 from twilio.rest import Client as TwilioClient
 
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from baselayer.app.json_util import to_json
 from baselayer.app.models import (  # noqa
     init_db,
@@ -113,12 +120,115 @@ def user_to_dict(self):
 
 User.to_dict = user_to_dict
 
-
-accessible_by_groups_members = AccessibleIfUserMatches('groups.users')
-accessible_by_group_members = AccessibleIfUserMatches('group.users')
 accessible_by_members = AccessibleIfUserMatches('users')
 accessible_by_stream_members = AccessibleIfUserMatches('stream.users')
 accessible_by_streams_members = AccessibleIfUserMatches('streams.users')
+
+
+class AccessibleIfGroupUserMatches(AccessibleIfUserMatches):
+    def __init__(self, relationship_chain):
+        """A class that grants access to users related to a specific GroupUser record
+        through a chain of relationships pointing to a "groups.users" or "group.users"
+        as the last two relationships.
+
+        Parameters
+        ----------
+        relationship_chain: str
+            The chain of relationships to check the User or Token against in
+            `query_accessible_rows`. Should be specified as
+
+            >>>> f'{relationship1_name}.{relationship2_name}...{relationshipN_name}'
+
+            The first relationship should be defined on the target class, and
+            each subsequent relationship should be defined on the class pointed
+            to by the previous relationship. The final relationships should be a
+            "groups.users" or "group.users" series.
+        Examples
+        --------
+
+        Grant access if the querying user is a member of one of the target
+        class's groups:
+
+            >>>> AccessibleIfGroupUserMatches('groups.users')
+        """
+        self.relationship_chain = relationship_chain
+
+    @property
+    def relationship_key(self):
+        return self._relationship_key
+
+    @relationship_key.setter
+    def relationship_chain(self, value):
+        if not isinstance(value, str):
+            raise ValueError(
+                f'Invalid value for relationship key: {value}, expected str, got {value.__class__.__name__}'
+            )
+        relationship_names = value.split('.')
+        if len(relationship_names) < 2:
+            raise ValueError('Need at least 2 relationships to join on.')
+        if relationship_names[-1] != 'users' and relationship_names[-2] not in [
+            'group',
+            'groups',
+        ]:
+            raise ValueError(
+                'Relationship chain must end with "group.users" or "groups.users".'
+            )
+        self._relationship_key = value
+
+    def query_accessible_rows(self, cls, user_or_token, columns=None):
+        """Construct a Query object that, when executed, returns the rows of a
+        specified table that are accessible to a specified user or token.
+
+        Parameters
+        ----------
+        cls: `baselayer.app.models.DeclarativeMeta`
+            The mapped class of the target table.
+        user_or_token: `baselayer.app.models.User` or `baselayer.app.models.Token`
+            The User or Token to check.
+        columns: list of sqlalchemy.Column, optional, default None
+            The columns to retrieve from the target table. If None, queries
+            the mapped class directly and returns mapped instances.
+
+        Returns
+        -------
+        query: sqlalchemy.Query
+            Query for the accessible rows.
+        """
+
+        # system admins automatically get full access
+        if user_or_token.is_admin:
+            return public.query_accessible_rows(cls, user_or_token, columns=columns)
+
+        # return only selected columns if requested
+        if columns is not None:
+            query = DBSession().query(*columns).select_from(cls)
+        else:
+            query = DBSession().query(cls)
+
+        # traverse the relationship chain via sequential JOINs
+        for relationship_name in self.relationship_names:
+            self.check_cls_for_attributes(cls, [relationship_name])
+            relationship = sa.inspect(cls).mapper.relationships[relationship_name]
+            # not a private attribute, just has an underscore to avoid name
+            # collision with python keyword
+            cls = relationship.entity.class_
+
+            if str(relationship) == "Group.users":
+                # For the last relationship between Group and User, just join
+                # in the join table and not the join table and the full User table
+                # since we only need the GroupUser.user_id field to match on
+                query = query.join(GroupUser)
+            else:
+                query = query.join(relationship.class_attribute)
+
+        # filter for records with at least one matching user
+        user_id = self.user_id_from_user_or_token(user_or_token)
+        query = query.filter(GroupUser.user_id == user_id)
+        return query
+
+
+accessible_by_groups_members = AccessibleIfGroupUserMatches('groups.users')
+accessible_by_group_members = AccessibleIfGroupUserMatches('group.users')
 
 
 class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
@@ -355,6 +465,13 @@ GroupUser.admin = sa.Column(
     doc="Boolean flag indicating whether the User is an admin of the group.",
 )
 
+GroupUser.can_save = sa.Column(
+    sa.Boolean,
+    nullable=False,
+    server_default="true",
+    doc="Boolean flag indicating whether the user should be able to save sources to the group",
+)
+
 User.group_admission_requests = relationship(
     "GroupAdmissionRequest",
     back_populates="user",
@@ -527,11 +644,110 @@ def token_groups(self):
 Token.groups = token_groups
 
 
+def delete_obj_if_all_data_owned(cls, user_or_token):
+    allow_nonadmins = cfg["misc.allow_nonadmins_delete_objs"] or False
+
+    deletable_photometry = Photometry.query_records_accessible_by(
+        user_or_token, mode="delete"
+    ).subquery()
+    nondeletable_photometry = (
+        DBSession()
+        .query(Photometry.obj_id)
+        .join(
+            deletable_photometry,
+            deletable_photometry.c.id == Photometry.id,
+            isouter=True,
+        )
+        .filter(deletable_photometry.c.id.is_(None))
+        .distinct(Photometry.obj_id)
+        .subquery()
+    )
+
+    deletable_spectra = Spectrum.query_records_accessible_by(
+        user_or_token, mode="delete"
+    ).subquery()
+    nondeletable_spectra = (
+        DBSession()
+        .query(Spectrum.obj_id)
+        .join(
+            deletable_spectra,
+            deletable_spectra.c.id == Spectrum.id,
+            isouter=True,
+        )
+        .filter(deletable_spectra.c.id.is_(None))
+        .distinct(Spectrum.obj_id)
+        .subquery()
+    )
+
+    deletable_candidates = Candidate.query_records_accessible_by(
+        user_or_token, mode="delete"
+    ).subquery()
+    nondeletable_candidates = (
+        DBSession()
+        .query(Candidate.obj_id)
+        .join(
+            deletable_candidates,
+            deletable_candidates.c.id == Candidate.id,
+            isouter=True,
+        )
+        .filter(deletable_candidates.c.id.is_(None))
+        .distinct(Candidate.obj_id)
+        .subquery()
+    )
+
+    deletable_sources = Source.query_records_accessible_by(
+        user_or_token, mode="delete"
+    ).subquery()
+    nondeletable_sources = (
+        DBSession()
+        .query(Source.obj_id)
+        .join(
+            deletable_sources,
+            deletable_sources.c.id == Source.id,
+            isouter=True,
+        )
+        .filter(deletable_sources.c.id.is_(None))
+        .distinct(Source.obj_id)
+        .subquery()
+    )
+
+    return (
+        DBSession()
+        .query(cls)
+        .join(
+            nondeletable_photometry,
+            nondeletable_photometry.c.obj_id == cls.id,
+            isouter=True,
+        )
+        .filter(nondeletable_photometry.c.obj_id.is_(None))
+        .join(
+            nondeletable_spectra,
+            nondeletable_spectra.c.obj_id == cls.id,
+            isouter=True,
+        )
+        .filter(nondeletable_spectra.c.obj_id.is_(None))
+        .join(
+            nondeletable_candidates,
+            nondeletable_candidates.c.obj_id == cls.id,
+            isouter=True,
+        )
+        .filter(nondeletable_candidates.c.obj_id.is_(None))
+        .join(
+            nondeletable_sources,
+            nondeletable_sources.c.obj_id == cls.id,
+            isouter=True,
+        )
+        .filter(nondeletable_sources.c.obj_id.is_(None))
+        .filter(sa.literal(allow_nonadmins))
+    )
+
+
 class Obj(Base, ha.Point):
     """A record of an astronomical Object and its metadata, such as position,
     positional uncertainties, name, and redshift."""
 
     update = public
+    delete = restricted | CustomUserAccessControl(delete_obj_if_all_data_owned)
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
     # TODO should this column type be decimal? fixed-precison numeric
@@ -553,7 +769,8 @@ class Obj(Base, ha.Point):
     offset = sa.Column(
         sa.Float, default=0.0, doc="Offset from nearest static object [arcsec]."
     )
-    redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
+    redshift = sa.Column(sa.Float, nullable=True, index=True, doc="Redshift.")
+    redshift_error = sa.Column(sa.Float, nullable=True, doc="Redshift error.")
     redshift_history = sa.Column(
         JSONB,
         nullable=True,
@@ -596,6 +813,9 @@ class Obj(Base, ha.Point):
     score = sa.Column(sa.Float, nullable=True, doc="Machine learning score.")
 
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")
+    alias = sa.Column(
+        sa.ARRAY(sa.String), nullable=True, doc="Alternative names for this object."
+    )
 
     internal_key = sa.Column(
         sa.String,
@@ -607,7 +827,7 @@ class Obj(Base, ha.Point):
     candidates = relationship(
         'Candidate',
         back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
         passive_deletes=True,
         order_by="Candidate.passed_at",
         doc="Candidates associated with the object.",
@@ -625,7 +845,7 @@ class Obj(Base, ha.Point):
     comments_on_spectra = relationship(
         'CommentOnSpectrum',
         back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
         passive_deletes=True,
         order_by="CommentOnSpectrum.created_at",
         doc="Comments posted about spectra belonging to the object.",
@@ -652,7 +872,7 @@ class Obj(Base, ha.Point):
     photometry = relationship(
         'Photometry',
         back_populates='obj',
-        cascade='save-update, merge, refresh-expire, expunge',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
         single_parent=True,
         passive_deletes=True,
         order_by="Photometry.mjd",
@@ -685,12 +905,14 @@ class Obj(Base, ha.Point):
     followup_requests = relationship(
         'FollowupRequest',
         back_populates='obj',
+        cascade='delete',
         passive_deletes=True,
         doc="Robotic follow-up requests of the object.",
     )
     assignments = relationship(
         'ClassicalAssignment',
         back_populates='obj',
+        cascade='delete',
         passive_deletes=True,
         doc="Assignments of the object to classical observing runs.",
     )
@@ -698,6 +920,7 @@ class Obj(Base, ha.Point):
     obj_notifications = relationship(
         "SourceNotification",
         back_populates="source",
+        cascade='delete',
         passive_deletes=True,
         doc="Notifications regarding the object sent out by users",
     )
@@ -730,14 +953,17 @@ class Obj(Base, ha.Point):
     @hybrid_method
     def last_detected_mag(self, user):
         """Magnitude at which the object was last detected above a given S/N (3.0 by default)."""
-        detections = [
-            (phot.iso, phot.mag)
-            for phot in Photometry.query_records_accessible_by(user)
+        return (
+            Photometry.query_records_accessible_by(
+                user, columns=[Photometry.mag], mode="read"
+            )
             .filter(Photometry.obj_id == self.id)
-            .all()
-            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
-        ]
-        return max(detections, key=(lambda x: x[0]))[1] if detections else None
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .order_by(Photometry.mjd.desc())
+            .limit(1)
+            .scalar()
+        )
 
     @last_detected_mag.expression
     def last_detected_mag(cls, user):
@@ -784,14 +1010,15 @@ class Obj(Base, ha.Point):
     @hybrid_method
     def peak_detected_mag(self, user):
         """Peak magnitude at which the object was detected above a given S/N (3.0 by default)."""
-        detections = [
-            phot.mag
-            for phot in Photometry.query_records_accessible_by(user)
+        return (
+            Photometry.query_records_accessible_by(
+                user, columns=[sa.func.max(Photometry.mag)], mode="read"
+            )
             .filter(Photometry.obj_id == self.id)
-            .all()
-            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
-        ]
-        return max(detections) if detections else None
+            .filter(Photometry.snr.isnot(None))
+            .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+            .scalar()
+        )
 
     @peak_detected_mag.expression
     def peak_detected_mag(cls, user):
@@ -1117,9 +1344,19 @@ User.listings = relationship(
 
 
 Source = join_model("sources", Group, Obj)
-Source.create = (
-    Source.read
-) = Source.update = Source.delete = accessible_by_group_members
+
+
+def source_create_access_logic(cls, user_or_token):
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = DBSession().query(cls)
+    if not user_or_token.is_system_admin:
+        query = query.join(Group).join(GroupUser)
+        query = query.filter(GroupUser.user_id == user_id, GroupUser.can_save.is_(True))
+    return query
+
+
+Source.create = CustomUserAccessControl(source_create_access_logic)
+Source.read = Source.update = Source.delete = accessible_by_group_members
 
 Source.__doc__ = (
     "An Obj that has been saved to a Group. Once an Obj is saved as a Source, "
@@ -1181,12 +1418,14 @@ Source.unsaved_at = sa.Column(
 Obj.sources = relationship(
     Source,
     back_populates='obj',
+    cascade='delete',
     passive_deletes=True,
     doc="Instances in which a group saved this Obj.",
 )
 Obj.candidates = relationship(
     Candidate,
     back_populates='obj',
+    cascade='delete',
     passive_deletes=True,
     doc="Instances in which this Obj passed a group's filter.",
 )
@@ -1727,6 +1966,13 @@ class CommentMixin:
     )
 
     origin = sa.Column(sa.String, nullable=True, doc='Comment origin.')
+
+    bot = sa.Column(
+        sa.Boolean(),
+        nullable=False,
+        server_default="false",
+        doc="Boolean indicating whether comment was posted via a bot (token-based request).",
+    )
 
     @classmethod
     def backref_name(cls):
@@ -3125,6 +3371,16 @@ class Invitation(Base):
     read = update = delete = AccessibleIfUserMatches('invited_by')
 
     token = sa.Column(sa.String(), nullable=False, unique=True)
+    role_id = sa.Column(
+        sa.ForeignKey('roles.id'),
+        nullable=False,
+    )
+    role = relationship(
+        "Role",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        uselist=False,
+    )
     groups = relationship(
         "Group",
         secondary="group_invitations",
@@ -3138,6 +3394,7 @@ class Invitation(Base):
         passive_deletes=True,
     )
     admin_for_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
+    can_save_to_groups = sa.Column(psql.ARRAY(sa.Boolean), nullable=False)
     user_email = sa.Column(EmailType(), nullable=True)
     invited_by = relationship(
         "User",
@@ -3147,6 +3404,7 @@ class Invitation(Base):
         uselist=False,
     )
     used = sa.Column(sa.Boolean, nullable=False, default=False)
+    user_expiration_date = sa.Column(sa.DateTime, nullable=True)
 
 
 GroupInvitation = join_model('group_invitations', Group, Invitation)
@@ -3203,6 +3461,422 @@ class SourceNotification(Base):
 
     additional_notes = sa.Column(sa.String(), nullable=True)
     level = sa.Column(sa.String(), nullable=False)
+
+
+class GcnNotice(Base):
+    """Records of ingested GCN notices"""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnNotice.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcnnotices",
+        doc="The user that saved this GcnNotice",
+    )
+
+    ivorn = sa.Column(
+        sa.String, unique=True, index=True, doc='Unique identifier of VOEvent'
+    )
+
+    notice_type = sa.Column(
+        sa.Enum(gcn.NoticeType),
+        nullable=False,
+        doc='GCN Notice type',
+    )
+
+    stream = sa.Column(
+        sa.String, nullable=False, doc='Event stream or mission (i.e., "Fermi")'
+    )
+
+    date = sa.Column(sa.DateTime, nullable=False, doc='UTC message timestamp')
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        doc='UTC event timestamp',
+    )
+
+    content = deferred(
+        sa.Column(sa.LargeBinary, nullable=False, doc='Raw VOEvent content')
+    )
+
+    def _get_property(self, property_name, value=None):
+        root = lxml.etree.fromstring(self.content)
+        path = ".//Param[@name='{}']".format(property_name)
+        elem = root.find(path)
+        value = float(elem.attrib.get('value', '')) * 100
+        return value
+
+    @property
+    def has_ns(self):
+        return self._get_property(property_name="HasNS")
+
+    @property
+    def has_remnant(self):
+        return self._get_property(property_name="HasRemnant")
+
+    @property
+    def far(self):
+        return self._get_property(property_name="FAR")
+
+    @property
+    def bns(self):
+        return self._get_property(property_name="BNS")
+
+    @property
+    def nsbh(self):
+        return self._get_property(property_name="NSBH")
+
+    @property
+    def bbh(self):
+        return self._get_property(property_name="BBH")
+
+    @property
+    def mass_gap(self):
+        return self._get_property(property_name="MassGap")
+
+    @property
+    def noise(self):
+        return self._get_property(property_name="Terrestrial")
+
+
+User.gcnnotices = relationship(
+    'GcnNotice',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The GcnNotices saved by this user',
+)
+
+
+class Localization(Base):
+    """Localization information, including the localization ID, event ID, right
+    ascension, declination, error radius (if applicable), and the healpix
+    map."""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this Localization.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="localizations",
+        doc="The user that saved this Localization",
+    )
+
+    nside = 512
+    # HEALPix resolution used for flat (non-multiresolution) operations.
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc='UTC event timestamp',
+    )
+
+    localization_name = sa.Column(sa.String, doc='Localization name', index=True)
+
+    uniq = deferred(
+        sa.Column(
+            sa.ARRAY(sa.BigInteger),
+            nullable=False,
+            doc='Multiresolution HEALPix UNIQ pixel index array',
+        )
+    )
+
+    probdensity = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float),
+            nullable=False,
+            doc='Multiresolution HEALPix probability density array',
+        )
+    )
+
+    distmu = deferred(
+        sa.Column(sa.ARRAY(sa.Float), doc='Multiresolution HEALPix distance mu array')
+    )
+
+    distsigma = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float), doc='Multiresolution HEALPix distance sigma array'
+        )
+    )
+
+    distnorm = deferred(
+        sa.Column(
+            sa.ARRAY(sa.Float),
+            doc='Multiresolution HEALPix distance normalization array',
+        )
+    )
+
+    contour = deferred(sa.Column(JSONB, doc='GeoJSON contours'))
+
+    @hybrid_property
+    def is_3d(self):
+        return (
+            self.distmu is not None
+            and self.distsigma is not None
+            and self.distnorm is not None
+        )
+
+    @is_3d.expression
+    def is_3d(cls):
+        return sa.and_(
+            cls.distmu.isnot(None),
+            cls.distsigma.isnot(None),
+            cls.distnorm.isnot(None),
+        )
+
+    @property
+    def table_2d(self):
+        """Get multiresolution HEALPix dataset, probability density only."""
+        return Table(
+            [np.asarray(self.uniq, dtype=np.int64), self.probdensity],
+            names=['UNIQ', 'PROBDENSITY'],
+        )
+
+    @property
+    def table(self):
+        """Get multiresolution HEALPix dataset, probability density and
+        distance."""
+        if self.is_3d:
+            return Table(
+                [
+                    np.asarray(self.uniq, dtype=np.int64),
+                    self.probdensity,
+                    self.distmu,
+                    self.distsigma,
+                    self.distnorm,
+                ],
+                names=['UNIQ', 'PROBDENSITY', 'DISTMU', 'DISTSIGMA', 'DISTNORM'],
+            )
+        else:
+            return self.table_2d
+
+    @property
+    def flat_2d(self):
+        """Get flat resolution HEALPix dataset, probability density only."""
+        order = hp.nside2order(Localization.nside)
+        result = rasterize(self.table_2d, order)['PROB']
+        return hp.reorder(result, 'NESTED', 'RING')
+
+    @property
+    def flat(self):
+        """Get flat resolution HEALPix dataset, probability density and
+        distance."""
+        if self.is_3d:
+            order = hp.nside2order(Localization.nside)
+            t = rasterize(self.table, order)
+            result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
+            return hp.reorder(result, 'NESTED', 'RING')
+        else:
+            return (self.flat_2d,)
+
+
+User.localizations = relationship(
+    'Localization',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The localizations saved by this user',
+)
+
+
+class GcnTag(Base):
+    """Store qualitative tags for events."""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnTag.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcntags",
+        doc="The user that saved this GcnTag",
+    )
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    text = sa.Column(sa.Unicode, nullable=False)
+
+
+User.gcntags = relationship(
+    'GcnTag',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcntags saved by this user',
+)
+
+
+class GcnEvent(Base):
+    """Event information, including an event ID, mission, and time of the event."""
+
+    update = delete = AccessibleIfUserMatches('sent_by')
+
+    sent_by_id = sa.Column(
+        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the User who created this GcnEvent.",
+    )
+
+    sent_by = relationship(
+        "User",
+        foreign_keys=sent_by_id,
+        back_populates="gcnevents",
+        doc="The user that saved this GcnEvent",
+    )
+
+    dateobs = sa.Column(sa.DateTime, doc='Event time', unique=True, nullable=False)
+
+    gcn_notices = relationship("GcnNotice", order_by=GcnNotice.date)
+
+    _tags = relationship(
+        "GcnTag",
+        order_by=(
+            sa.func.lower(GcnTag.text).notin_({'fermi', 'swift', 'amon', 'lvc'}),
+            sa.func.lower(GcnTag.text).notin_({'long', 'short'}),
+            sa.func.lower(GcnTag.text).notin_({'grb', 'gw', 'transient'}),
+        ),
+    )
+
+    localizations = relationship("Localization")
+
+    @hybrid_property
+    def tags(self):
+        """List of tags."""
+        return [tag.text for tag in self._tags]
+
+    @tags.expression
+    def tags(cls):
+        """List of tags."""
+        return (
+            DBSession()
+            .query(GcnTag.text)
+            .filter(GcnTag.dateobs == cls.dateobs)
+            .subquery()
+        )
+
+    @hybrid_property
+    def retracted(self):
+        """Check if event is retracted."""
+        return 'retracted' in self.tags
+
+    @retracted.expression
+    def retracted(cls):
+        """Check if event is retracted."""
+        return sa.literal('retracted').in_(cls.tags)
+
+    @property
+    def lightcurve(self):
+        """GRB lightcurve URL."""
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='LightCurve_URL']")
+        if elem is None:
+            return None
+        else:
+            try:
+                return elem.attrib.get('value', '').replace('http://', 'https://')
+            except Exception:
+                return None
+
+    @property
+    def gracesa(self):
+        """Event page URL."""
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='EventPage']")
+        if elem is None:
+            return None
+        else:
+            try:
+                return elem.attrib.get('value', '')
+            except Exception:
+                return None
+
+    @property
+    def ned_gwf(self):
+        """NED URL."""
+        return "https://ned.ipac.caltech.edu/gwf/events"
+
+    @property
+    def HasNS(self):
+        """Checking if GW event contains NS."""
+        notice = self.gcn_notices[0]
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='HasNS']")
+        if elem is None:
+            return None
+        else:
+            try:
+                return 'HasNS: ' + elem.attrib.get('value', '')
+            except Exception:
+                return None
+
+    @property
+    def HasRemnant(self):
+        """Checking if GW event has remnant matter."""
+        notice = self.gcn_notices[0]
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='HasRemnant']")
+        if elem is None:
+            return None
+        else:
+            try:
+                return 'HasRemnant: ' + elem.attrib.get('value', '')
+            except Exception:
+                return None
+
+    @property
+    def FAR(self):
+        """Returning event false alarm rate."""
+        notice = self.gcn_notices[0]
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='FAR']")
+        if elem is None:
+            return None
+        else:
+            try:
+                return 'FAR: ' + elem.attrib.get('value', '')
+            except Exception:
+                return None
+
+
+User.gcnevents = relationship(
+    'GcnEvent',
+    back_populates='sent_by',
+    passive_deletes=True,
+    doc='The gcnevents saved by this user',
+)
 
 
 class UserNotification(Base):
@@ -3516,6 +4190,44 @@ StreamUser.delete = CustomUserAccessControl(
     # group -- their single user group.
     .having(sa.func.bool_and(GroupStream.stream_id.is_(None)))
 )
+
+
+@event.listens_for(Classification, 'after_insert')
+@event.listens_for(Spectrum, 'after_insert')
+@event.listens_for(Comment, 'after_insert')
+def add_user_notifications(mapper, connection, target):
+    # Add front-end user notifications
+    @event.listens_for(DBSession(), "after_flush", once=True)
+    def receive_after_flush(session, context):
+        listing_subquery = (
+            Listing.query.filter(Listing.list_name == "favorites")
+            .filter(Listing.obj_id == target.obj_id)
+            .distinct(Listing.user_id)
+            .subquery()
+        )
+        users = (
+            User.query.join(listing_subquery, User.id == listing_subquery.c.user_id)
+            .filter(
+                User.preferences["favorite_sources_activity_notifications"][
+                    target.__tablename__
+                ]
+                .astext.cast(sa.Boolean)
+                .is_(True)
+            )
+            .all()
+        )
+        ws_flow = Flow()
+        for user in users:
+            # Only notify users who have read access to the new record in question
+            if target.__class__.get_if_accessible_by(target.id, user) is not None:
+                session.add(
+                    UserNotification(
+                        user=user,
+                        text=f"New {target.__class__.__name__.lower()} on your favorite source *{target.obj_id}*",
+                        url=f"/source/{target.obj_id}",
+                    )
+                )
+                ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")
 
 
 schema.setup_schema()

@@ -1,9 +1,10 @@
-import React, { useState, Suspense } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
+import Grid from "@material-ui/core/Grid";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
 import Tooltip from "@material-ui/core/Tooltip";
@@ -12,6 +13,7 @@ import AccordionSummary from "@material-ui/core/AccordionSummary";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
+import { log10, abs, ceil } from "mathjs";
 
 import CommentList from "./CommentList";
 import ClassificationList from "./ClassificationList";
@@ -34,6 +36,8 @@ import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
+
+import * as spectraActions from "../ducks/spectra";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -61,27 +65,8 @@ export const useSourceStyles = makeStyles((theme) => ({
       margin: "0.5rem",
     },
   },
-  source: {
-    padding: "1rem",
-    display: "flex",
-    flexDirection: "row",
-  },
-  leftColumn: {
-    display: "flex",
-    flexFlow: "column nowrap",
-    verticalAlign: "top",
-    paddingRight: "2rem",
-    flex: "0 2 900px",
-    minWidth: 0,
-  },
   columnItem: {
-    margin: "0.5rem 0",
-  },
-  rightColumn: {
-    display: "flex",
-    flex: "0 1 20em",
-    verticalAlign: "top",
-    flexFlow: "column nowrap",
+    marginBottom: theme.spacing(2),
   },
   name: {
     fontSize: "200%",
@@ -94,7 +79,9 @@ export const useSourceStyles = makeStyles((theme) => ({
     width: "350px",
     overflow: "auto",
   },
-  comments: {},
+  comments: {
+    width: "100%",
+  },
   classifications: {
     display: "flex",
     flexDirection: "column",
@@ -148,9 +135,15 @@ export const useSourceStyles = makeStyles((theme) => ({
   findingChart: {
     alignItems: "center",
   },
+  source: {
+    padding: theme.spacing(2),
+    display: "flex",
+    flexDirection: "row",
+  },
 }));
 
 const SourceDesktop = ({ source }) => {
+  const dispatch = useDispatch();
   const classes = useSourceStyles();
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
@@ -163,143 +156,172 @@ const SourceDesktop = ({ source }) => {
 
   const { observingRunList } = useSelector((state) => state.observingRuns);
   const { taxonomyList } = useSelector((state) => state.taxonomies);
+
   const groups = (useSelector((state) => state.groups.all) || []).filter(
     (g) => !g.single_user_group
   );
 
+  useEffect(() => {
+    dispatch(spectraActions.fetchSourceSpectra(source.id));
+  }, [source.id, dispatch]);
+  const z_round = source.redshift_error
+    ? ceil(abs(log10(source.redshift_error)))
+    : 4;
+
   return (
-    <div className={classes.source}>
-      <div className={classes.leftColumn}>
-        <div className={classes.leftColumnItem}>
-          <div className={classes.alignLeft}>
-            <SharePage />
+    <Grid container spacing={2} className={classes.source}>
+      <Grid item xs={7}>
+        <div className={classes.alignLeft}>
+          <SharePage />
+        </div>
+        <div className={classes.name}>{source.id}</div>
+        <div className={classes.alignRight}>
+          <FavoritesButton sourceID={source.id} />
+        </div>
+        <br />
+        {source.alias ? (
+          <div className={classes.infoLine}>
+            <b>Aliases: &nbsp;</b>
+            <div key="aliases"> {source.alias.join(", ")} </div>
           </div>
-          <div className={classes.name}>{source.id}</div>
-          <div className={classes.alignRight}>
-            <FavoritesButton sourceID={source.id} />
+        ) : null}
+        <div className={classes.sourceInfo}>
+          <div className={classes.infoLine}>
+            <ShowClassification
+              classifications={source.classifications}
+              taxonomyList={taxonomyList}
+            />
           </div>
-          <br />
-          <div className={classes.sourceInfo}>
+          <div className={classes.infoLine}>
+            <div className={classes.sourceInfo}>
+              <div>
+                <b>Position (J2000):&nbsp; &nbsp;</b>
+              </div>
+              <div>
+                <span className={classes.position}>
+                  {ra_to_hours(source.ra, ":")} &nbsp;
+                  {dec_to_dms(source.dec, ":")} &nbsp;
+                </span>
+              </div>
+            </div>
+            <div className={classes.sourceInfo}>
+              <div>
+                (&alpha;,&delta;= {source.ra}, &nbsp;
+                {source.dec}; &nbsp;
+              </div>
+              <div>
+                <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
+                {source.gal_lat.toFixed(6)})
+              </div>
+            </div>
+          </div>
+          {source.duplicates && (
             <div className={classes.infoLine}>
-              <ShowClassification
-                classifications={source.classifications}
-                taxonomyList={taxonomyList}
+              <div className={classes.sourceInfo}>
+                <b>
+                  <font color="#457b9d">Possible duplicate of:</font>
+                </b>
+                &nbsp;
+                {source.duplicates.map((dupID) => (
+                  <Link to={`/source/${dupID}`} role="link" key={dupID}>
+                    <Button size="small">{dupID}</Button>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className={classes.infoLine}>
+            <div className={classes.redshiftInfo}>
+              <b>Redshift: &nbsp;</b>
+              {source.redshift && source.redshift.toFixed(z_round)}
+              {source.redshift_error && <b>&nbsp; &plusmn; &nbsp;</b>}
+              {source.redshift_error && source.redshift_error.toFixed(z_round)}
+              <UpdateSourceRedshift source={source} />
+              <SourceRedshiftHistory
+                redshiftHistory={source.redshift_history}
               />
             </div>
-            <div className={classes.infoLine}>
-              <div className={classes.sourceInfo}>
+            <div className={classes.dmdlInfo}>
+              {source.dm && (
                 <div>
-                  <b>Position (J2000):&nbsp; &nbsp;</b>
+                  <b>DM: &nbsp;</b>
+                  {source.dm.toFixed(3)}
+                  &nbsp; mag
                 </div>
+              )}
+              {source.luminosity_distance && (
                 <div>
-                  <span className={classes.position}>
-                    {ra_to_hours(source.ra, ":")} &nbsp;
-                    {dec_to_dms(source.dec, ":")} &nbsp;
-                  </span>
+                  <b>
+                    <i>D</i>
+                    <sub>L</sub>: &nbsp;
+                  </b>
+                  {source.luminosity_distance.toFixed(2)}
+                  &nbsp; Mpc
                 </div>
-              </div>
-              <div className={classes.sourceInfo}>
-                <div>
-                  (&alpha;,&delta;= {source.ra}, &nbsp;
-                  {source.dec}; &nbsp;
-                </div>
-                <div>
-                  <i>l</i>,<i>b</i>={source.gal_lon.toFixed(6)}, &nbsp;
-                  {source.gal_lat.toFixed(6)})
-                </div>
-              </div>
+              )}
             </div>
-            <div className={classes.infoLine}>
-              <div className={classes.redshiftInfo}>
-                <b>Redshift: &nbsp;</b>
-                {source.redshift && source.redshift.toFixed(4)}
-                <UpdateSourceRedshift source={source} />
-                <SourceRedshiftHistory
-                  redshiftHistory={source.redshift_history}
-                />
-              </div>
-              <div className={classes.dmdlInfo}>
-                {source.dm && (
-                  <div>
-                    <b>DM: &nbsp;</b>
-                    {source.dm.toFixed(3)}
-                    &nbsp; mag
-                  </div>
-                )}
-                {source.luminosity_distance && (
-                  <div>
-                    <b>
-                      <i>D</i>
-                      <sub>L</sub>: &nbsp;
-                    </b>
-                    {source.luminosity_distance.toFixed(2)}
-                    &nbsp; Mpc
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className={`${classes.infoLine} ${classes.findingChart}`}>
-              <b>Finding Chart:&nbsp;</b>
+          </div>
+          <div className={`${classes.infoLine} ${classes.findingChart}`}>
+            <b>Finding Chart:&nbsp;</b>
+            <Button
+              href={`/api/sources/${source.id}/finder`}
+              download="finder-chart-pdf"
+              size="small"
+            >
+              PDF
+            </Button>
+            &nbsp;|&nbsp;
+            <Link to={`/source/${source.id}/finder`} role="link">
+              <Button size="small">Interactive</Button>
+            </Link>
+          </div>
+          <div className={classes.infoLine}>
+            <div className={classes.infoButton}>
               <Button
-                href={`/api/sources/${source.id}/finder`}
-                download="finder-chart-pdf"
                 size="small"
+                variant="contained"
+                onClick={() => setShowStarList(!showStarList)}
               >
-                PDF
+                {showStarList ? "Hide Starlist" : "Show Starlist"}
               </Button>
-              &nbsp;|&nbsp;
-              <Link to={`/source/${source.id}/finder`} role="link">
-                <Button size="small">Interactive</Button>
+            </div>
+            <div className={classes.infoButton}>
+              <Link to={`/observability/${source.id}`} role="link">
+                <Button size="small" variant="contained">
+                  Observability
+                </Button>
               </Link>
             </div>
-            <div className={classes.infoLine}>
-              <div className={classes.infoButton}>
-                <Button
-                  size="small"
-                  variant="contained"
-                  onClick={() => setShowStarList(!showStarList)}
-                >
-                  {showStarList ? "Hide Starlist" : "Show Starlist"}
-                </Button>
-              </div>
-              <div className={classes.infoButton}>
-                <Link to={`/observability/${source.id}`} role="link">
-                  <Button size="small" variant="contained">
-                    Observability
-                  </Button>
-                </Link>
-              </div>
-            </div>
           </div>
-          <br />
-          {showStarList && <StarList sourceId={source.id} />}
-          {source.groups.map((group) => (
-            <Tooltip
-              title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
-              key={group.id}
-            >
-              <Chip
-                label={
-                  group.nickname
-                    ? group.nickname.substring(0, 15)
-                    : group.name.substring(0, 15)
-                }
-                size="small"
-                className={classes.chip}
-                data-testid={`groupChip_${group.id}`}
-              />
-            </Tooltip>
-          ))}
-          <EditSourceGroups
-            source={{
-              id: source.id,
-              currentGroupIds: source.groups.map((g) => g.id),
-            }}
-            groups={groups}
-            icon
-          />
-          <SourceSaveHistory groups={source.groups} />
         </div>
+        <br />
+        {showStarList && <StarList sourceId={source.id} />}
+        {source.groups.map((group) => (
+          <Tooltip
+            title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
+            key={group.id}
+          >
+            <Chip
+              label={
+                group.nickname
+                  ? group.nickname.substring(0, 15)
+                  : group.name.substring(0, 15)
+              }
+              size="small"
+              className={classes.chip}
+              data-testid={`groupChip_${group.id}`}
+            />
+          </Tooltip>
+        ))}
+        <EditSourceGroups
+          source={{
+            id: source.id,
+            currentGroupIds: source.groups.map((g) => g.id),
+          }}
+          groups={groups}
+          icon
+        />
+        <SourceSaveHistory groups={source.groups} />
         <div className={classes.columnItem}>
           <ThumbnailList
             ra={source.ra}
@@ -402,6 +424,7 @@ const SourceDesktop = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </div>
+
         {/* TODO 1) check for dead links; 2) simplify link formatting if possible */}
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>
@@ -443,8 +466,8 @@ const SourceDesktop = ({ source }) => {
             setShowPhotometry(false);
           }}
         />
-      </div>
-      <div className={classes.rightColumn}>
+      </Grid>
+      <Grid item xs={5}>
         <div className={classes.columnItem}>
           <Accordion defaultExpanded>
             <AccordionSummary
@@ -462,7 +485,11 @@ const SourceDesktop = ({ source }) => {
           </Accordion>
         </div>
         <div className={classes.columnItem}>
-          <Accordion defaultExpanded className={classes.comments}>
+          <Accordion
+            defaultExpanded
+            className={classes.comments}
+            data-testid="comments-accordion"
+          >
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls="comments-content"
@@ -567,8 +594,8 @@ const SourceDesktop = ({ source }) => {
             </AccordionDetails>
           </Accordion>
         </div>
-      </div>
-    </div>
+      </Grid>
+    </Grid>
   );
 };
 
@@ -580,6 +607,7 @@ SourceDesktop.propTypes = {
     loadError: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     redshift: PropTypes.number,
+    redshift_error: PropTypes.number,
     groups: PropTypes.arrayOf(PropTypes.shape({})),
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,
@@ -614,6 +642,8 @@ SourceDesktop.propTypes = {
         origin: PropTypes.string,
       })
     ),
+    duplicates: PropTypes.arrayOf(PropTypes.string),
+    alias: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
 };
 

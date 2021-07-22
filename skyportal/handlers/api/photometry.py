@@ -1,5 +1,8 @@
 import uuid
 import math
+import datetime
+import json
+from io import StringIO
 
 from astropy.time import Time
 from astropy.table import Table
@@ -40,8 +43,35 @@ from ...schema import (
 )
 from ...enum_types import ALLOWED_MAGSYSTEMS
 
-
 _, cfg = load_env()
+
+
+def save_data_using_copy(rows, table, columns):
+    # Prepare data
+    output = StringIO()
+    df = pd.DataFrame.from_records(rows)
+    df.to_csv(
+        output,
+        index=False,
+        sep='\t',
+        header=False,
+        encoding='utf8',
+        quotechar="'",
+    )
+    output.seek(0)
+
+    # Insert data
+    connection = DBSession().connection().connection
+    cursor = connection.cursor()
+    cursor.copy_from(
+        output,
+        table,
+        sep='\t',
+        null='',
+        columns=columns,
+    )
+    cursor.close()
+    output.close()
 
 
 def nan_to_none(value):
@@ -205,8 +235,8 @@ class PhotometryHandler(BaseHandler):
         # -dataframe-to-integers-in-pandas-0-17-0/34844867
         df = df.apply(pd.to_numeric, errors='ignore')
 
-        # set origin to '' where it is None.
-        df.loc[df['origin'].isna(), 'origin'] = ''
+        # set origin to 'None' where it is None.
+        df.loc[df['origin'].isna(), 'origin'] = 'None'
 
         if kind == 'mag':
             # ensure that neither or both mag and magerr are null
@@ -437,15 +467,15 @@ class PhotometryHandler(BaseHandler):
             ),
             *[
                 (
-                    idx,
-                    row["obj_id"],
-                    row["instrument_id"],
-                    row["origin"],
-                    float(row["mjd"]),
-                    float(row["standardized_fluxerr"]),
-                    float(row["standardized_flux"]),
+                    row.Index,
+                    row.obj_id,
+                    row.instrument_id,
+                    row.origin,
+                    float(row.mjd),
+                    float(row.standardized_fluxerr),
+                    float(row.standardized_flux),
                 )
-                for idx, row in df.iterrows()
+                for row in df.itertuples()
             ],
             alias_name="values_table",
         )
@@ -505,6 +535,8 @@ class PhotometryHandler(BaseHandler):
         upload_id = str(uuid.uuid4())
 
         params = []
+        group_photometry_params = []
+        stream_photometry_params = []
         for packet in rows:
             if (
                 packet["filter"]
@@ -525,14 +557,18 @@ class PhotometryHandler(BaseHandler):
             if original_user_data == {}:
                 original_user_data = None
 
+            utcnow = datetime.datetime.utcnow().isoformat()
             phot = dict(
                 id=packet['id'],
-                original_user_data=original_user_data,
+                original_user_data=json.dumps(original_user_data),
                 upload_id=upload_id,
-                flux=flux,
+                # The psycopg copy_to function cannot automatically
+                # use defaults like SQLAlchemy inserts, so just provide
+                # the NaN value manually here.
+                flux="NaN" if np.isnan(flux) else flux,
                 fluxerr=fluxerr,
                 obj_id=packet['obj_id'],
-                altdata=packet['altdata'],
+                altdata=json.dumps(packet['altdata']),
                 instrument_id=packet['instrument_id'],
                 ra_unc=packet['ra_unc'],
                 dec_unc=packet['dec_unc'],
@@ -542,28 +578,75 @@ class PhotometryHandler(BaseHandler):
                 dec=packet['dec'],
                 origin=packet["origin"],
                 owner_id=self.associated_user_object.id,
+                created_at=utcnow,
+                modified=utcnow,
             )
 
             params.append(phot)
 
-        #  actually do the insert
-        query = Photometry.__table__.insert()
-        DBSession().execute(query, params)
-
-        groupquery = GroupPhotometry.__table__.insert()
-        params = []
-        for id in ids:
             for group_id in group_ids:
-                params.append({'photometr_id': id, 'group_id': group_id})
-        DBSession().execute(groupquery, params)
+                group_photometry_params.append(
+                    {
+                        'photometr_id': packet['id'],
+                        'group_id': group_id,
+                        'created_at': utcnow,
+                        'modified': utcnow,
+                    }
+                )
 
-        if stream_ids:
-            stream_query = StreamPhotometry.__table__.insert()
-            params = []
-            for id in ids:
-                for stream_id in stream_ids:
-                    params.append({'photometr_id': id, 'stream_id': stream_id})
-            DBSession().execute(stream_query, params)
+            for stream_id in stream_ids:
+                stream_photometry_params.append(
+                    {
+                        'photometr_id': packet['id'],
+                        'stream_id': stream_id,
+                        'created_at': utcnow,
+                        'modified': utcnow,
+                    }
+                )
+
+        if len(params) > 0:
+            save_data_using_copy(
+                params,
+                "photometry",
+                (
+                    'id',
+                    'original_user_data',
+                    'upload_id',
+                    'flux',
+                    'fluxerr',
+                    'obj_id',
+                    'altdata',
+                    'instrument_id',
+                    'ra_unc',
+                    'dec_unc',
+                    'mjd',
+                    'filter',
+                    'ra',
+                    'dec',
+                    'origin',
+                    'owner_id',
+                    'created_at',
+                    'modified',
+                ),
+            )
+
+        if len(group_photometry_params) > 0:
+            # Bulk COPY in the group_photometry records
+            save_data_using_copy(
+                group_photometry_params,
+                "group_photometry",
+                ('photometr_id', 'group_id', 'created_at', 'modified'),
+            )
+
+        if len(stream_photometry_params) > 0:
+            # Bulk COPY in the stream_photometry records
+            save_data_using_copy(
+                stream_photometry_params,
+                "stream_photometry",
+                ('photometr_id', 'stream_id', 'created_at', 'modified'),
+            )
+
+        self.verify_and_commit()
         return ids, upload_id
 
     def get_group_ids(self):
@@ -671,7 +754,7 @@ class PhotometryHandler(BaseHandler):
 
         try:
             df, instrument_cache = self.standardize_photometry_data()
-        except ValidationError as e:
+        except (ValidationError, RuntimeError) as e:
             return self.error(e.args[0])
 
         # This lock ensures that the Photometry table data are not modified in any way
@@ -690,7 +773,6 @@ class PhotometryHandler(BaseHandler):
         except ValidationError as e:
             return self.error(e.args[0])
 
-        self.verify_and_commit()
         return self.success(data={'ids': ids, 'upload_id': upload_id})
 
     @permissions(['Upload data'])
@@ -775,11 +857,13 @@ class PhotometryHandler(BaseHandler):
             .query(values_table.c.pdidx, Photometry)
             .join(Photometry, condition)
             .options(joinedload(Photometry.groups))
+            .options(joinedload(Photometry.streams))
         )
 
         for df_index, duplicate in duplicated_photometry:
             id_map[df_index] = duplicate.id
             duplicate_group_ids = set([g.id for g in duplicate.groups])
+            duplicate_stream_ids = set([s.id for s in duplicate.streams])
 
             # posting to new groups?
             if len(set(group_ids) - duplicate_group_ids) > 0:
@@ -796,24 +880,12 @@ class PhotometryHandler(BaseHandler):
 
             # posting to new streams?
             if stream_ids:
-                streams = Stream.get_if_accessible_by(
-                    stream_ids, self.current_user, raise_if_none=True
-                )
                 # Add new stream_photometry rows if not already present
-                for stream in streams:
-                    if (
-                        StreamPhotometry.query_records_accessible_by(self.current_user)
-                        .filter(
-                            StreamPhotometry.stream_id == stream.id,
-                            StreamPhotometry.photometr_id == duplicate.id,
-                        )
-                        .first()
-                        is None
-                    ):
+                stream_ids_update = set(stream_ids) - duplicate_stream_ids
+                if len(stream_ids_update) > 0:
+                    for id in stream_ids_update:
                         DBSession().add(
-                            StreamPhotometry(
-                                photometr_id=duplicate.id, stream_id=stream.id
-                            )
+                            StreamPhotometry(photometr_id=duplicate.id, stream_id=id)
                         )
 
         # now safely drop the duplicates:
@@ -1007,7 +1079,7 @@ class ObjPhotometryHandler(BaseHandler):
 
 
 class BulkDeletePhotometryHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     def delete(self, upload_id):
         """
         ---

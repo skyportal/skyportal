@@ -60,6 +60,7 @@ const SourceNotification = ({ sourceId }) => {
   const theme = useTheme();
   const ITEM_HEIGHT = 48;
   const MenuProps = {
+    disableScrollLock: true,
     PaperProps: {
       style: {
         maxHeight: ITEM_HEIGHT * 4.5,
@@ -69,14 +70,8 @@ const SourceNotification = ({ sourceId }) => {
   };
 
   const [selectedGroups, setSelectedGroups] = useState([]);
-  const {
-    handleSubmit,
-    getValues,
-    reset,
-    register,
-    control,
-    errors,
-  } = useForm();
+  const { handleSubmit, getValues, reset, register, control, errors } =
+    useForm();
   const dispatch = useDispatch();
 
   const validateGroups = () => {
@@ -195,6 +190,7 @@ const SourceNotification = ({ sourceId }) => {
             type="submit"
             name="sendNotificationButton"
             variant="contained"
+            color="primary"
             data-testid="sendNotificationButton"
           >
             Send Notification

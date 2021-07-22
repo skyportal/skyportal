@@ -256,7 +256,6 @@ const CustomSortToolbar = ({
   const classes = useStyles();
 
   const dispatch = useDispatch();
-
   const handleSort = async () => {
     const newSortOrder =
       sortOrder === null || sortOrder === "desc" ? "asc" : "desc";
@@ -271,7 +270,6 @@ const CustomSortToolbar = ({
       sortByAnnotationKey: selectedAnnotationSortOptions.key,
       sortByAnnotationOrder: newSortOrder,
     };
-
     if (filterFormData !== null) {
       data = {
         ...data,
@@ -359,10 +357,20 @@ const CandidateList = () => {
     candidates,
     pageNumber,
     totalMatches,
+    queryID,
     selectedAnnotationSortOptions,
   } = useSelector((state) => state.candidates);
+
   const [sortOrder, setSortOrder] = useState(
     selectedAnnotationSortOptions ? selectedAnnotationSortOptions.order : null
+  );
+
+  const { scanningProfiles } = useSelector(
+    (state) => state.profile.preferences
+  );
+
+  const defaultScanningProfile = scanningProfiles?.find(
+    (profile) => profile.default
   );
 
   const userAccessibleGroups = useSelector(
@@ -386,6 +394,19 @@ const CandidateList = () => {
     // Grab the available annotation fields for filtering
     dispatch(candidatesActions.fetchAnnotationsInfo());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (defaultScanningProfile?.sortingOrder) {
+      dispatch(
+        candidatesActions.setCandidatesAnnotationSortOptions({
+          origin: defaultScanningProfile.sortingOrigin,
+          key: defaultScanningProfile.sortingKey,
+          order: defaultScanningProfile.sortingOrder,
+        })
+      );
+      setSortOrder(defaultScanningProfile.sortingOrder);
+    }
+  }, [dispatch, defaultScanningProfile]);
 
   const [annotationsHeaderAnchor, setAnnotationsHeaderAnchor] = useState(null);
   const annotationsHelpOpen = Boolean(annotationsHeaderAnchor);
@@ -512,10 +533,8 @@ const CandidateList = () => {
     handleFilterSubmit(newFilterListQueryStrings.join());
   };
 
-  const [
-    ps1GenerationInProgressList,
-    setPS1GenerationInProgressList,
-  ] = useState([]);
+  const [ps1GenerationInProgressList, setPS1GenerationInProgressList] =
+    useState([]);
   const generatePS1Thumbnail = (objID) => {
     setPS1GenerationInProgressList([...ps1GenerationInProgressList, objID]);
     dispatch(candidatesActions.generatePS1Thumbnail(objID));
@@ -789,7 +808,9 @@ const CandidateList = () => {
             different origins. <br />
             <b>Sorting: </b> Clicking on an annotation field will display it, if
             available, in the Info column. You can then click on the sort tool
-            button at the top of the table to sort on that annotation field.
+            button at the top of the table to sort on that annotation field. You
+            can also set the initial sorting parameters when submitting a new
+            candidates search via the form at the top of the page.
             <br />
             <b>Filtering: </b> Filtering on annotations is available through the
             filtering tool at the top right of the table. <br />
@@ -812,6 +833,7 @@ const CandidateList = () => {
     let data = {
       pageNumber: page + 1,
       numPerPage,
+      queryID,
       groupIDs: filterGroups.map((g) => g.id).join(),
     };
     if (selectedAnnotationSortOptions !== null) {

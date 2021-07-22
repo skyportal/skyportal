@@ -371,10 +371,23 @@ def test_add_user_to_group(public_group, user_group2, super_admin_token):
     status, data = api(
         "POST",
         f"groups/{public_group.id}/users",
-        data={"userID": user_group2.id, "admin": False},
+        data={"userID": user_group2.id, "admin": False, "canSave": False},
         token=super_admin_token,
     )
     assert status == 200
+
+    status, data = api(
+        "GET",
+        f"groups/{public_group.id}?includeGroupUsers=true",
+        token=super_admin_token,
+    )
+    group_user = None
+    for gu in data["data"]["users"]:
+        if gu["id"] == user_group2.id:
+            group_user = gu
+    assert group_user is not None
+    assert not group_user["can_save"]
+    assert not group_user["admin"]
 
 
 def test_cannot_add_user_to_group_wout_stream_access(
@@ -435,6 +448,41 @@ def test_update_group_user_admin_status(public_group, group_admin_token, user):
     )
     assert status == 200
 
+    status, data = api(
+        "GET",
+        f"groups/{public_group.id}?includeGroupUsers=true",
+        token=group_admin_token,
+    )
+    group_user = None
+    for gu in data["data"]["users"]:
+        if gu["id"] == user.id:
+            group_user = gu
+    assert group_user is not None
+    assert group_user["admin"]
+    assert group_user["can_save"]
+
+
+def test_update_group_user_save_access_status(public_group, group_admin_token, user):
+    status, data = api(
+        "PATCH",
+        f"groups/{public_group.id}/users",
+        data={"userID": user.id, "canSave": False},
+        token=group_admin_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        f"groups/{public_group.id}?includeGroupUsers=true",
+        token=group_admin_token,
+    )
+    group_user = None
+    for gu in data["data"]["users"]:
+        if gu["id"] == user.id:
+            group_user = gu
+    assert group_user is not None
+    assert not group_user["can_save"]
+
 
 def test_non_group_admin_cannot_update_group_user_admin_status(
     public_group, manage_users_token, user
@@ -494,7 +542,7 @@ def test_cannot_add_self_to_group(public_group2, view_only_token, user):
         token=view_only_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Unauthorized" in data["message"]
 
 
 def test_super_admin_add_user_to_group(public_group2, super_admin_token, user):
@@ -511,7 +559,7 @@ def test_group_admin_add_user_to_group(public_group, group_admin_token, user_gro
     status, data = api(
         "POST",
         f"groups/{public_group.id}/users",
-        data={"userID": user_group2.id, "admin": False},
+        data={"userID": user_group2.id, "admin": False, "canSave": True},
         token=group_admin_token,
     )
     assert status == 200

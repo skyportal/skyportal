@@ -33,6 +33,7 @@ export function fetchSources(filterParams = {}) {
   filterParams.includeSpectrumExists = true;
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
+  filterParams.includeDetectionStats = true;
   return API.GET("/api/sources", FETCH_SOURCES, filterParams);
 }
 
@@ -42,6 +43,7 @@ export function fetchSavedGroupSources(filterParams = {}) {
   filterParams.includeSpectrumExists = true;
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
+  filterParams.includeDetectionStats = true;
   return API.GET("/api/sources", FETCH_SAVED_GROUP_SOURCES, filterParams);
 }
 
@@ -52,6 +54,7 @@ export function fetchPendingGroupSources(filterParams = {}) {
   filterParams.includeSpectrumExists = true;
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
+  filterParams.includeDetectionStats = true;
   return API.GET("/api/sources", FETCH_PENDING_GROUP_SOURCES, filterParams);
 }
 
@@ -62,6 +65,7 @@ export function fetchFavoriteSources(filterParams = {}) {
   filterParams.listName = "favorites";
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
+  filterParams.includeDetectionStats = true;
   return API.GET("/api/sources", FETCH_FAVORITE_SOURCES, filterParams);
 }
 
@@ -75,7 +79,9 @@ const initialState = {
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === REFRESH_FAVORITE_SOURCES) {
-    dispatch(fetchFavoriteSources());
+    if (window.location.pathname === "/favorites") {
+      dispatch(fetchFavoriteSources());
+    }
   }
 });
 

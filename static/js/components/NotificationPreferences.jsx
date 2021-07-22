@@ -52,7 +52,7 @@ const NotificationPreferences = () => {
     <div>
       <div className={classes.header}>
         <Typography variant="h6" display="inline">
-          Notification Preferences
+          SMS/Email Notification Preferences
         </Typography>
         <IconButton aria-label="help" size="small" onClick={handleClick}>
           <HelpOutlineIcon />

@@ -1,6 +1,6 @@
-import React, { useState, Suspense } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
@@ -22,6 +22,7 @@ import {
   withOrientationChange,
 } from "react-device-detect";
 import { WidthProvider } from "react-grid-layout";
+import { log10, abs, ceil } from "mathjs";
 
 import CommentListMobile from "./CommentListMobile";
 import ClassificationList from "./ClassificationList";
@@ -44,6 +45,8 @@ import ObjPageAnnotations from "./ObjPageAnnotations";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
+
+import * as spectraActions from "../ducks/spectra";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -116,6 +119,7 @@ export const useSourceStyles = makeStyles((theme) => ({
   comments: {
     marginLeft: "1rem",
     padding: "1rem",
+    width: "100%",
   },
   classifications: {
     display: "flex",
@@ -193,11 +197,19 @@ const SourceMobile = WidthProvider(
     const { instrumentList, instrumentFormParams } = useSelector(
       (state) => state.instruments
     );
+    const dispatch = useDispatch();
     const { observingRunList } = useSelector((state) => state.observingRuns);
     const { taxonomyList } = useSelector((state) => state.taxonomies);
     const groups = (useSelector((state) => state.groups.all) || []).filter(
       (g) => !g.single_user_group
     );
+
+    useEffect(() => {
+      dispatch(spectraActions.fetchSourceSpectra(source.id));
+    }, [source.id, dispatch]);
+    const z_round = source.redshift_error
+      ? ceil(abs(log10(source.redshift_error)))
+      : 4;
 
     let device = "browser";
     if (isMobileOnly) {
@@ -220,6 +232,11 @@ const SourceMobile = WidthProvider(
                 <div className={classes.name}>{source.id}</div>
                 <div className={classes.alignRight}>
                   <FavoritesButton sourceID={source.id} />
+                </div>
+                <div className={classes.alignRight}>
+                  {source.alias ? (
+                    <div key="aliases"> ({source.alias.join(", ")}) </div>
+                  ) : null}
                 </div>
               </div>
               <div>
@@ -256,7 +273,10 @@ const SourceMobile = WidthProvider(
                   <div className={classes.infoLine}>
                     <div className={classes.redshiftInfo}>
                       <b>Redshift: &nbsp;</b>
-                      {source.redshift && source.redshift.toFixed(4)}
+                      {source.redshift && source.redshift.toFixed(z_round)}
+                      {source.redshift_error && <b>&nbsp; &plusmn; &nbsp;</b>}
+                      {source.redshift_error &&
+                        source.redshift_error.toFixed(z_round)}
                       <UpdateSourceRedshift source={source} />
                       <SourceRedshiftHistory
                         redshiftHistory={source.redshift_history}
@@ -282,6 +302,18 @@ const SourceMobile = WidthProvider(
                       )}
                     </div>
                   </div>
+                  {source.duplicates && (
+                    <div className={classes.infoLine}>
+                      <div className={classes.sourceInfo}>
+                        Possible duplicate of:&nbsp;
+                        {source.duplicates.map((dupID) => (
+                          <Link to={`/source/${dupID}`} role="link" key={dupID}>
+                            <Button size="small">{dupID}</Button>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div
                     className={`${classes.infoLine} ${classes.findingChart}`}
                   >
@@ -623,6 +655,7 @@ SourceMobile.propTypes = {
     loadError: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
     thumbnails: PropTypes.arrayOf(PropTypes.shape({})),
     redshift: PropTypes.number,
+    redshift_error: PropTypes.number,
     groups: PropTypes.arrayOf(PropTypes.shape({})),
     gal_lon: PropTypes.number,
     gal_lat: PropTypes.number,
@@ -650,6 +683,7 @@ SourceMobile.propTypes = {
     followup_requests: PropTypes.arrayOf(PropTypes.any),
     assignments: PropTypes.arrayOf(PropTypes.any),
     redshift_history: PropTypes.arrayOf(PropTypes.any),
+    duplicates: PropTypes.arrayOf(PropTypes.string),
     color_magnitude: PropTypes.arrayOf(
       PropTypes.shape({
         abs_mag: PropTypes.number,
@@ -657,6 +691,7 @@ SourceMobile.propTypes = {
         origin: PropTypes.string,
       })
     ),
+    alias: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
 };
 

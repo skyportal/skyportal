@@ -100,11 +100,13 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
     <Card className={classes.root} variant="outlined">
       <CardContent className={classes.cardTitle}>
         <Typography className={classes.title} color="textSecondary">
-          <a href={link}>{name.toUpperCase()}</a>
+          <a href={link} target="_blank" rel="noreferrer">
+            {name.toUpperCase()}
+          </a>
         </Typography>
       </CardContent>
       <div className={classes.mediaDiv}>
-        <a href={link}>
+        <a href={link} target="_blank" rel="noreferrer">
           <img
             src={url}
             alt={alt}
@@ -114,7 +116,11 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
             onError={(e) => {
               if (url !== "#") {
                 e.target.onerror = null;
-                e.target.src = "/static/images/outside_survey.png";
+                if (name === "dr8") {
+                  e.target.src = "/static/images/outside_survey.png";
+                } else {
+                  e.target.src = "/static/images/currently_unavailable.png";
+                }
               }
             }}
           />

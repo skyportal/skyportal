@@ -100,4 +100,4 @@ def test_user_cannot_grant_self_stream_access(view_only_token, user, public_stre
         token=view_only_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Unauthorized" in data["message"]

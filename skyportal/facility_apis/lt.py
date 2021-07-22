@@ -528,9 +528,10 @@ class IOOAPI(LTAPI):
             },
             "binning": {"type": "string", "enum": ["1x1", "2x2"], "default": "1x1"},
             "priority": {
-                "type": "string",
-                "enum": ["1", "2", "3", "4", "5"],
-                "default": "1",
+                "type": "number",
+                "default": 1.0,
+                "minimum": 1,
+                "maximum": 5,
                 "title": "Priority",
             },
         },

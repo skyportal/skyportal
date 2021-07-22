@@ -11,6 +11,7 @@ from ...models import (
     Group,
     User,
     UserNotification,
+    Token,
 )
 
 
@@ -168,6 +169,7 @@ class CommentHandler(BaseHandler):
             attachment_bytes, attachment_name = None, None
 
         author = self.associated_user_object
+        is_bot_request = isinstance(self.current_user, Token)
         if spectrum_id is not None:
             comment = CommentOnSpectrum(
                 text=comment_text,
@@ -177,6 +179,7 @@ class CommentHandler(BaseHandler):
                 attachment_name=attachment_name,
                 author=author,
                 groups=groups,
+                bot=is_bot_request,
             )
         else:  # the default is to post a comment directly on the object
             if obj_id is None:
@@ -188,6 +191,7 @@ class CommentHandler(BaseHandler):
                 attachment_name=attachment_name,
                 author=author,
                 groups=groups,
+                bot=is_bot_request,
             )
         users_mentioned_in_comment = users_mentioned(comment_text)
         if users_mentioned_in_comment:
@@ -206,10 +210,17 @@ class CommentHandler(BaseHandler):
             for user_mentioned in users_mentioned_in_comment:
                 self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': comment.obj.internal_key},
-        )
+        if spectrum_id is not None:
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_id': obj_id},
+            )
+        else:
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': comment.obj.internal_key},
+            )
+
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
@@ -309,9 +320,18 @@ class CommentHandler(BaseHandler):
             c.groups = groups
 
         self.verify_and_commit()
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_key': c.obj.internal_key}
-        )
+
+        if associated_resource_type.lower() == "object":  # comment on object
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': c.obj.internal_key},
+            )
+        elif associated_resource_type.lower() == "spectrum":  # comment on a spectrum
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_id': c.obj.id},
+            )
+
         return self.success()
 
     @permissions(['Comment'])
@@ -360,9 +380,21 @@ class CommentHandler(BaseHandler):
             )
 
         obj_key = c.obj.internal_key
+        obj_id = c.obj.id
         DBSession().delete(c)
         self.verify_and_commit()
-        self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
+
+        if associated_resource_type.lower() == "object":
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_key},
+            )
+        elif associated_resource_type.lower() == "spectrum":
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_id': obj_id},
+            )
+
         return self.success()
 
 
