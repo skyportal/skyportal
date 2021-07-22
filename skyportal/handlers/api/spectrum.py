@@ -109,6 +109,11 @@ class SpectrumHandler(BaseHandler):
             reducer_association.user = reducer
             reducers.append(reducer_association)
 
+        if len(reducers) == 0 and external_reducer is not None:
+            self.error(
+                "At least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
+            )
+
         observers = []
         external_observer = data.pop("external_observer", None)
         for observer_id in data.pop('observed_by', []):
@@ -118,6 +123,11 @@ class SpectrumHandler(BaseHandler):
             observer_association = SpectrumObserver(external_observer=external_observer)
             observer_association.user = observer
             observers.append(observer_association)
+
+        if len(observers) == 0 and external_observer is not None:
+            self.error(
+                "At least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
+            )
 
         spec = Spectrum(**data)
         spec.instrument = instrument
@@ -429,6 +439,10 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             reducer_association = SpectrumReducer(external_reducer=external_reducer)
             reducer_association.user = reducer
             reducers.append(reducer_association)
+        if len(reducers) == 0 and external_reducer is not None:
+            self.error(
+                "At least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
+            )
 
         observers = []
         external_observer = json.pop("external_observer", None)
@@ -439,6 +453,10 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             observer_association = SpectrumObserver(external_observer=external_observer)
             observer_association.user = observer
             observers.append(observer_association)
+        if len(observers) == 0 and external_observer is not None:
+            self.error(
+                "At least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
+            )
 
         # will never KeyError as missing value is imputed
         followup_request_id = json.pop('followup_request_id', None)
