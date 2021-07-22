@@ -524,7 +524,7 @@ const UploadSpectrumForm = ({ route }) => {
       // If providing external observers as free text, the text
       // will be in the 'observed_by' field and the associated
       // users will be in 'observer_point_of_contact'
-      observed_by_external:
+      external_observer:
         persistentFormData?.observer_mode === "External"
           ? persistentFormData.observed_by
           : null,
@@ -538,7 +538,7 @@ const UploadSpectrumForm = ({ route }) => {
       // If providing external reducers as free text, the text
       // will be in the 'reduced_by' field and the associated
       // users will be in 'reducer_point_of_contact'
-      reduced_by_external:
+      external_reducer:
         persistentFormData?.reducer_mode === "External"
           ? persistentFormData.reduced_by
           : null,

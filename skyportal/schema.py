@@ -1053,7 +1053,7 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         missing=[],
     )
 
-    reduced_by_external = fields.String(
+    external_reducer = fields.String(
         description="Free text provided as an external reducer",
     )
 
@@ -1063,7 +1063,7 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         missing=[],
     )
 
-    observed_by_external = fields.String(
+    external_observer = fields.String(
         description="Free text provided as an external observer",
     )
 
@@ -1114,7 +1114,7 @@ class SpectrumPost(_Schema):
         missing=[],
     )
 
-    reduced_by_external = fields.String(
+    external_reducer = fields.String(
         description="Free text provided as an external reducer",
     )
 
@@ -1124,7 +1124,7 @@ class SpectrumPost(_Schema):
         missing=[],
     )
 
-    observed_by_external = fields.String(
+    external_observer = fields.String(
         description="Free text provided as an external observer",
     )
 

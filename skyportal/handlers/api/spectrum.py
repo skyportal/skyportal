@@ -100,7 +100,7 @@ class SpectrumHandler(BaseHandler):
         owner_id = self.associated_user_object.id
 
         reducers = []
-        external_reducer = data.pop("reduced_by_external", None)
+        external_reducer = data.pop("external_reducer", None)
         for reducer_id in data.pop('reduced_by', []):
             reducer = User.get_if_accessible_by(reducer_id, self.current_user)
             if reducer is None:
@@ -110,7 +110,7 @@ class SpectrumHandler(BaseHandler):
             reducers.append(reducer_association)
 
         observers = []
-        external_observer = data.pop("observed_by_external", None)
+        external_observer = data.pop("external_observer", None)
         for observer_id in data.pop('observed_by', []):
             observer = User.get_if_accessible_by(observer_id, self.current_user)
             if observer is None:
@@ -197,7 +197,7 @@ class SpectrumHandler(BaseHandler):
             .first()
         )
         if external_reducer is not None:
-            spec_dict["external_reducer"] = external_reducer
+            spec_dict["external_reducer"] = external_reducer[0]
 
         external_observer = (
             DBSession()
@@ -206,7 +206,7 @@ class SpectrumHandler(BaseHandler):
             .first()
         )
         if external_observer is not None:
-            spec_dict["external_observer"] = external_observer
+            spec_dict["external_observer"] = external_observer[0]
 
         self.verify_and_commit()
         return self.success(data=spec_dict)
@@ -421,7 +421,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             groups.append(single_user_group)
 
         reducers = []
-        external_reducer = json.pop("reduced_by_external", None)
+        external_reducer = json.pop("external_reducer", None)
         for reducer_id in json.pop('reduced_by', []):
             reducer = User.get_if_accessible_by(reducer_id, self.current_user)
             if reducer is None:
@@ -431,7 +431,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             reducers.append(reducer_association)
 
         observers = []
-        external_observer = json.pop("observed_by_external", None)
+        external_observer = json.pop("external_observer", None)
         for observer_id in json.pop('observed_by', []):
             observer = User.get_if_accessible_by(observer_id, self.current_user)
             if observer is None:
