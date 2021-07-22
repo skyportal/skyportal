@@ -2533,12 +2533,12 @@ class Spectrum(Base):
     reducers = relationship(
         "User",
         secondary="spectrum_reducers",
-        doc="Users that reduced this spectrum.",
+        doc="Users that reduced this spectrum, or users to serve as points of contact given an external reducer.",
     )
     observers = relationship(
         "User",
         secondary="spectrum_observers",
-        doc="Users that observed this spectrum.",
+        doc="Users that observed this spectrum, or users to serve as points of contact given an external observer.",
     )
 
     followup_request_id = sa.Column(

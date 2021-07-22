@@ -189,6 +189,25 @@ class SpectrumHandler(BaseHandler):
         spec_dict["observers"] = spectrum.observers
         spec_dict["owner"] = spectrum.owner
         spec_dict["comments"] = comments
+
+        external_reducer = (
+            DBSession()
+            .query(SpectrumReducer.external_reducer)
+            .filter(SpectrumReducer.spectr_id == spectrum_id)
+            .first()
+        )
+        if external_reducer is not None:
+            spec_dict["external_reducer"] = external_reducer
+
+        external_observer = (
+            DBSession()
+            .query(SpectrumObserver.external_observer)
+            .filter(SpectrumObserver.spectr_id == spectrum_id)
+            .first()
+        )
+        if external_observer is not None:
+            spec_dict["external_observer"] = external_observer
+
         self.verify_and_commit()
         return self.success(data=spec_dict)
 
@@ -589,6 +608,22 @@ class ObjSpectraHandler(BaseHandler):
             spec_dict["groups"] = spec.groups
             spec_dict["reducers"] = spec.reducers
             spec_dict["observers"] = spec.observers
+            external_reducer = (
+                DBSession()
+                .query(SpectrumReducer.external_reducer)
+                .filter(SpectrumReducer.spectr_id == spec.id)
+                .first()
+            )
+            if external_reducer is not None:
+                spec_dict["external_reducer"] = external_reducer[0]
+            external_observer = (
+                DBSession()
+                .query(SpectrumObserver.external_observer)
+                .filter(SpectrumObserver.spectr_id == spec.id)
+                .first()
+            )
+            if external_observer is not None:
+                spec_dict["external_observer"] = external_observer[0]
             spec_dict["owner"] = spec.owner
 
             return_values.append(spec_dict)
