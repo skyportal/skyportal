@@ -279,7 +279,6 @@ const ManageDataForm = ({ route }) => {
   const renderReducers = (dataIndex) => {
     const externalReducer = specRows[dataIndex]?.external_reducer;
     const users = specRows[dataIndex]?.reducers;
-    console.log(specRows[dataIndex]);
     if (externalReducer) {
       return <div>{externalReducer}</div>;
     }
