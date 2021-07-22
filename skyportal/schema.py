@@ -1055,6 +1055,8 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
 
     external_reducer = fields.String(
         description="Free text provided as an external reducer",
+        required=False,
+        missing=None,
     )
 
     observed_by = fields.List(
@@ -1065,6 +1067,8 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
 
     external_observer = fields.String(
         description="Free text provided as an external observer",
+        required=False,
+        missing=None,
     )
 
     followup_request_id = fields.Integer(
@@ -1116,6 +1120,8 @@ class SpectrumPost(_Schema):
 
     external_reducer = fields.String(
         description="Free text provided as an external reducer",
+        required=False,
+        missing=None,
     )
 
     observed_by = fields.List(
@@ -1126,6 +1132,8 @@ class SpectrumPost(_Schema):
 
     external_observer = fields.String(
         description="Free text provided as an external observer",
+        required=False,
+        missing=None,
     )
 
     origin = fields.String(required=False, description="Origin of the spectrum.")
