@@ -37,6 +37,7 @@ from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy_utils.types import JSONType
 from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
 from sqlalchemy import func
+import enum
 
 from twilio.rest import Client as TwilioClient
 
@@ -1760,6 +1761,7 @@ class Instrument(Base):
 
     fields = relationship("InstrumentField")
     tiles = relationship("InstrumentFieldTile")
+    plans = relationship("ObservingPlan")
 
 
 class InstrumentField(ha.Region, Base):
@@ -1812,6 +1814,174 @@ class InstrumentFieldTile(ha.Tile, Base):
         "InstrumentField",
         foreign_keys=instrument_field_id,
         doc="The Field that this tile belongs to",
+    )
+
+
+class ObservingPlan(Base):
+    """Tiling information, including the event time, localization ID, tile IDs,
+    and plan name"""
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='Instrument ID',
+    )
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc='UTC event timestamp',
+    )
+
+    plan_name = sa.Column(sa.String, primary_key=True, unique=True, doc='Plan name')
+
+    validity_window_start = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(),
+        doc='Start of validity window',
+    )
+
+    validity_window_end = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        default=lambda: datetime.now() + timedelta(1),
+        doc='End of validity window',
+    )
+
+    plan_args = sa.Column(sa.JSON, nullable=False, doc='Plan arguments')
+
+    class Status(enum.IntEnum):
+        WORKING = 0
+        READY = 1
+        SUBMITTED = 2
+
+    status = sa.Column(
+        sa.Enum(Status), default=Status.WORKING, nullable=False, doc='Plan status'
+    )
+
+    planned_observations = relationship("PlannedObservation")
+
+    @property
+    def start_observation(self):
+        """Time of the first planned observation."""
+        if self.planned_observations:
+            return self.planned_observations[0].obstime
+        else:
+            return None
+
+    @hybrid_property
+    def num_observations(self):
+        """Number of planned observation."""
+        return len(self.planned_observations)
+
+    @num_observations.expression
+    def num_observations(cls):
+        """Number of planned observation."""
+        return cls.planned_observations.count()
+
+    @property
+    def num_observations_per_filter(self):
+        """Number of planned observation per filter."""
+        filters = list(Telescope.query.get(self.telescope).filters)
+        nepochs = np.zeros(
+            len(filters),
+        )
+        bands = {1: 'g', 2: 'r', 3: 'i', 4: 'z', 5: 'J'}
+        for planned_observation in self.planned_observations:
+            filt = bands[planned_observation.filter_id]
+            idx = filters.index(filt)
+            nepochs[idx] = nepochs[idx] + 1
+        nobs_per_filter = []
+        for ii, filt in enumerate(filters):
+            nobs_per_filter.append("%s: %d" % (filt, nepochs[ii]))
+        return " ".join(nobs_per_filter)
+
+    @property
+    def total_time(self):
+        """Total observation time (seconds)."""
+        return sum(_.exposure_time for _ in self.planned_observations)
+
+    @property
+    def tot_time_with_overheads(self):
+        overhead = sum(_.overhead_per_exposure for _ in self.planned_observations)
+        return overhead + self.total_time
+
+    @property
+    def ipix(self):
+        return {
+            i
+            for planned_observation in self.planned_observations
+            if planned_observation.field.ipix is not None
+            for i in planned_observation.field.ipix
+        }
+
+    @property
+    def area(self):
+        nside = Localization.nside
+        return hp.nside2pixarea(nside, degrees=True) * len(self.ipix)
+
+    def get_probability(self, localization):
+        ipix = np.asarray(list(self.ipix))
+        if len(ipix) > 0:
+            return localization.flat_2d[ipix].sum()
+        else:
+            return 0.0
+
+
+class PlannedObservation(Base):
+    """Tile information, including the event time, localization ID, field IDs,
+    tiling name, and tile probabilities."""
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='Instrument ID',
+    )
+
+    dateobs = sa.Column(
+        sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc='UTC event timestamp',
+    )
+
+    field_id = sa.Column(
+        sa.ForeignKey("instrumentfields.id", ondelete="CASCADE"),
+        primary_key=True,
+        doc='Field ID',
+    )
+
+    plan_name = sa.Column(
+        sa.ForeignKey("observingplans.plan_name", ondelete="CASCADE"),
+        primary_key=True,
+        doc='Plan name',
+    )
+
+    field = relationship("InstrumentField")
+
+    exposure_time = sa.Column(
+        sa.Integer, nullable=False, doc='Exposure time in seconds'
+    )
+
+    # FIXME: remove
+    weight = sa.Column(
+        sa.Float, nullable=False, doc='Weight associated with each observation'
+    )
+
+    filter_id = sa.Column(
+        sa.Integer, nullable=False, doc='Filter ID (g=1, r=2, i=3, z=4, J=5)'
+    )
+
+    obstime = sa.Column(sa.DateTime, nullable=False, doc='UTC observation timestamp')
+
+    overhead_per_exposure = sa.Column(
+        sa.Integer, nullable=False, doc='Overhead time per exposure in seconds'
+    )
+
+    planned_observation_id = sa.Column(
+        sa.Integer, nullable=False, doc='Observation number'
     )
 
 
@@ -3819,6 +3989,7 @@ class GcnEvent(Base):
     )
 
     localizations = relationship("Localization")
+    plans = relationship("ObservingPlan")
 
     @hybrid_property
     def tags(self):

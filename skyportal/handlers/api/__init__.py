@@ -33,6 +33,7 @@ from .photometry import (
     BulkDeletePhotometryHandler,
     PhotometryRangeHandler,
 )
+from .plan import PlanHandler
 from .color_mag import ObjColorMagHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
