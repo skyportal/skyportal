@@ -114,6 +114,7 @@ const NonMemberGroupList = ({ groups }) => {
     pagination: true,
     rowHover: false,
     print: false,
+    elevation: 1,
   };
   return (
     <MUIDataTable
