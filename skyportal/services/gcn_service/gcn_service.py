@@ -35,7 +35,7 @@ admin_token = get_token()
     gcn.NoticeType.ICECUBE_ASTROTRACK_GOLD,
     gcn.NoticeType.ICECUBE_ASTROTRACK_BRONZE,
 )
-def handle(payload):
+def handle(payload, root):
     response_status, data = api(
         'POST', 'gcn_event', data={'xml': payload}, token=admin_token
     )
