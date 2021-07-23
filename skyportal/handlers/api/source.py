@@ -623,7 +623,10 @@ class SourceHandler(BaseHandler):
         if obj_id is not None:
             if include_thumbnails:
                 s = Obj.get_if_accessible_by(
-                    obj_id, self.current_user, options=[joinedload(Obj.thumbnails)]
+                    obj_id,
+                    self.current_user,
+                    options=[joinedload(Obj.thumbnails)],
+                    raise_if_none=True,
                 )
             else:
                 s = Obj.get_if_accessible_by(
