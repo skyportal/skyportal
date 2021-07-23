@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import MUIDataTable from "mui-datatables";
-import { makeStyles } from "@material-ui/core/styles";
+import { makeStyles, useTheme } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
 import { useForm, Controller } from "react-hook-form";
 import Autocomplete from "@material-ui/lab/Autocomplete";
@@ -18,6 +18,7 @@ import DialogContent from "@material-ui/core/DialogContent";
 import TableRow from "@material-ui/core/TableRow";
 import TableCell from "@material-ui/core/TableCell";
 import Papa from "papaparse";
+import ReactJson from "react-json-view";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -102,6 +103,7 @@ const createSpecRow = (
   owner,
   reducers,
   observers,
+  origin,
   external_reducer,
   external_observer
 ) => ({
@@ -112,6 +114,7 @@ const createSpecRow = (
   owner,
   reducers,
   observers,
+  origin,
   external_reducer,
   external_observer,
 });
@@ -176,6 +179,8 @@ SpectrumRow.propTypes = {
 
 const ManageDataForm = ({ route }) => {
   const classes = useStyles();
+  const theme = useTheme();
+  const darkTheme = theme.palette.type === "dark";
 
   const dispatch = useDispatch();
   const [selectedPhotRows, setSelectedPhotRows] = useState([]);
@@ -252,6 +257,7 @@ const ManageDataForm = ({ route }) => {
           spec.owner,
           spec.reducers,
           spec.observers,
+          spec.origin,
           spec.external_reducer,
           spec.external_observer
         )
@@ -389,6 +395,46 @@ const ManageDataForm = ({ route }) => {
     );
   };
 
+  const AltdataButton = (dataIndex) => {
+    const specid = specRows[dataIndex].id;
+    const spectrum = sourceSpectra.find((spec) => spec.id === specid);
+    const [open, setOpen] = useState(false);
+    return spectrum.altdata ? (
+      <>
+        <Dialog
+          open={open}
+          aria-labelledby="simple-modal-title"
+          aria-describedby="simple-modal-description"
+          onClose={() => {
+            setOpen(false);
+          }}
+        >
+          <DialogContent>
+            <div>
+              <ReactJson
+                src={spectrum.altdata}
+                name={false}
+                theme={darkTheme ? "monokai" : "rjv-default"}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Button
+          onClick={() => {
+            setOpen(true);
+          }}
+          data-testid={`altdata-spectrum-button-${specid}`}
+          variant="contained"
+          size="small"
+        >
+          Show altdata
+        </Button>
+      </>
+    ) : (
+      <div />
+    );
+  };
+
   const specHeadCells = [
     { name: "id", label: "ID" },
     { name: "instrument", label: "Instrument" },
@@ -435,6 +481,15 @@ const ManageDataForm = ({ route }) => {
         filter: false,
         display: false,
       },
+    },
+    {
+      name: "origin",
+      label: "Origin",
+    },
+    {
+      name: "altdata",
+      label: "Altdata",
+      options: { customBodyRenderLite: AltdataButton, filter: false },
     },
     {
       name: "delete",

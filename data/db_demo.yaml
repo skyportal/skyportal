@@ -216,14 +216,14 @@ instrument:
     name: Sinistro
     telescope_id: =LCOGT1m
     type: imager
-    filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz", "desy"]
     api_classname: SINISTROAPI
     =id: SINISTRO
   - band: optical
     name: SPECTRAL
     telescope_id: =LCOGT2m
     type: imager
-    filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz", "desy"]
     api_classname: SPECTRALAPI
     =id: SPECTRAL
   - band: optical
@@ -236,7 +236,7 @@ instrument:
     name: MUSCAT
     telescope_id: =LCOGT2m
     type: imager
-    filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz']
+    filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: MUSCATAPI
     =id: MUSCAT
 
@@ -339,7 +339,7 @@ candidates:
     redshift: 0.001
     varstar: false
     passed_at: "2020-10-30 21:19:06.475748"
-    alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
+    alias: ["ZTF21whatnow", "ASAS-SN21zzz"]
   - id: 16fil
     filter_ids:
       - =example_filter
@@ -348,7 +348,7 @@ candidates:
     redshift: 0.001
     varstar: false
     passed_at: "2020-10-30 21:13:06.475748"
-    alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
+    alias: ["ZTF21whatnow", "ASAS-SN21zzz"]
   - id: ZTFe028h94k
     filter_ids:
       - =example_filter
@@ -359,7 +359,7 @@ candidates:
       simbad:
         class: RRLyr
     passed_at: "2020-10-30 11:13:06.475748"
-    alias: ['SN2020abc']
+    alias: ["SN2020abc"]
   - id: ZTFrlh6cyjh
     filter_ids:
       - =example_filter
@@ -389,7 +389,7 @@ sources:
     group_ids:
       - =public_group_id
       - =program_A
-    alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
+    alias: ["ZTF21whatnow", "ASAS-SN21zzz"]
   - id: ZTFe028h94k
     ra: 229.9620403
     dec: 34.8442757
@@ -397,7 +397,7 @@ sources:
       - =public_group_id
       - =program_A
       - =program_B
-    alias: ['SN2020abc']
+    alias: ["SN2020abc"]
   - id: ZTFrlh6cyjh
     ra: 342.4596
     dec: 51.2634
@@ -608,6 +608,7 @@ spectrum:
     file: spec1.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-28T00:00:00"
+    origin: "demo_data"
     assignment_id: 1
     group_ids:
       - =program_A
@@ -616,6 +617,7 @@ spectrum:
     file: spec1.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T05:23:14"
+    origin: "demo_data"
     assignment_id: 1
     group_ids:
       - =program_A
@@ -624,6 +626,7 @@ spectrum:
     file: spec2.csv
     instrument_id: =ALFOSC
     observed_at: "2019-08-28T00:00:00"
+    origin: "demo_data"
     assignment_id: 2
     group_ids:
       - =program_A
@@ -632,7 +635,11 @@ spectrum:
     file: spec2.csv
     instrument_id: =ALFOSC
     observed_at: "2019-08-24T06:18:53"
+    origin: "demo_data"
     assignment_id: 2
+    altdata:
+      some_value: 1
+      some_other_value: 2
     group_ids:
       - =program_A
       - =program_B
@@ -640,6 +647,7 @@ spectrum:
     file: spec1.csv
     instrument_id: =ALFOSC
     observed_at: "2019-08-19T05:23:14"
+    origin: "demo_data"
     assignment_id: 1
     group_ids:
       - =program_A
