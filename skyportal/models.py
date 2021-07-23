@@ -4170,11 +4170,12 @@ StreamUser.__doc__ = "Join table mapping Streams to Users."
 StreamUser.create = restricted
 
 # only system admins can modify user stream permissions
-StreamUser.delete = restricted & CustomUserAccessControl(
+StreamUser.delete = CustomUserAccessControl(
     # Can only delete a stream from a user if none of the user's groups
     # require that stream for membership
     lambda cls, user_or_token: DBSession()
     .query(cls)
+    .filter(sa.literal(user_or_token.is_admin))
     .join(User, cls.user)
     .outerjoin(Group, User.groups)
     .outerjoin(
