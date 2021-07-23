@@ -2780,14 +2780,16 @@ SpectrumObserver.create = (
 SpectrumReducer.external_reducer = sa.Column(
     sa.String,
     nullable=True,
-    doc="The actual reducer, provided as free text, for the spectrum, separate "
-    "from the point-of-contact Fritz user designated as reducer",
+    doc="The actual reducer for the spectrum, provided as free text if the "
+    "reducer is not a user in the database. Separate from the point-of-contact "
+    "user designated as reducer",
 )
 SpectrumObserver.external_observer = sa.Column(
     sa.String,
     nullable=True,
-    doc="The actual observer, provided as free text, for the spectrum, separate "
-    "from the point-of-contact Fritz user designated as observer",
+    doc="The actual observer for the spectrum, provided as free text if the "
+    "observer is not a user in the database. Separate from the point-of-contact "
+    "user designated as observer",
 )
 
 
