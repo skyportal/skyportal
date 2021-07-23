@@ -17,7 +17,7 @@ class GalaxyHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: GalaxyPost
+              schema: GalaxyHandlerPost
         responses:
           200:
             content:
