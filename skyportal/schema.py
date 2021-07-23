@@ -780,6 +780,11 @@ class ObservingRunPost(_Schema):
     )
 
 
+class GalaxyHandlerPost(_Schema):
+    catalog_name = fields.String(description='Galaxy catalog name.')
+    catalog_data = fields.List(fields.Field(), description='Galaxy catalog data')
+
+
 class GcnHandlerPut(_Schema):
     xml = fields.String(description='VOEvent XML content.')
 

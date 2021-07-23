@@ -11,6 +11,7 @@ import requests
 import pandas as pd
 import yaml
 from yaml import Loader
+from astropy.table import Table
 
 from baselayer.app.env import load_env, parser
 
@@ -179,6 +180,9 @@ if __name__ == "__main__":
                 elif filename.endswith('xml'):
                     with open(filename, 'rb') as fid:
                         payload = fid.read()
+                    return payload
+                elif filename.endswith('h5') or filename.endswith('hdf5'):
+                    payload = Table.read(filename).to_pandas().to_dict(orient='list')
                     return payload
                 else:
                     raise NotImplementedError(
