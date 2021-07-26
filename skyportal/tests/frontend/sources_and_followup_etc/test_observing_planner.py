@@ -1,7 +1,7 @@
 import uuid
 import pytest
-from ...models import DBSession, ObservingRun
-from .. import api
+from skyportal.models import DBSession, ObservingRun
+from skyportal.tests import api
 import time
 
 from selenium.webdriver.common.action_chains import ActionChains
