@@ -136,24 +136,12 @@ jobs:
           pip install --upgrade selenium
           python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 
-      - name: Test loading demo data
-        run: |
-          make run &
-          sleep 10 && make load_demo_data
-          kill %1
-
       - name: Checkout branch being tested
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
           submodules: true
           clean: false
-
-      - name: Formatting and linting checks
-        if: github.ref != 'refs/heads/master'
-        run: |
-          pip install pre-commit
-          pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
       - name: Run test suite
         run: |
