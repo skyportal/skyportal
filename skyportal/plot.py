@@ -1328,6 +1328,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
             ('altdata', '@altdata{safe}'),
         ]
     )
+    hover.renderers = []
     smoothed_max = np.max(smoothed_data['flux'])
     smoothed_min = np.min(smoothed_data['flux'])
     ymax = smoothed_max * 1.05
@@ -1409,10 +1410,11 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
             x='wavelength',
             y='flux',
             color=color_map[key],
+            line_alpha=1.0,
             source=ColumnDataSource(df),
         )
         renderers.append(model_dict['s' + str(i)])
-        legend_items.append(LegendItem(label=label, renderers=renderers))
+        hover.renderers.append(model_dict['s' + str(i)])
         model_dict['l' + str(i)] = plot.line(
             x='wavelength',
             y='flux',
@@ -1420,6 +1422,29 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
             source=ColumnDataSource(df),
             line_alpha=0.0,
         )
+
+        model_dict[f'bin{i}'] = plot.step(
+            x='wavelength',
+            y='flux',
+            color=color_map[key],
+            source=ColumnDataSource(
+                data=dict(
+                    wavelength=[],
+                    flux=[],
+                    id=[],
+                    telescope=[],
+                    instrument=[],
+                    date_observed=[],
+                    pi=[],
+                    origin=[],
+                    altdata=[],
+                )
+            ),
+        )
+        renderers.append(model_dict[f'bin{i}'])
+        hover.renderers.append(model_dict[f'bin{i}'])
+        legend_items.append(LegendItem(label=label, renderers=renderers))
+
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
@@ -1439,6 +1464,26 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     )
 
     add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
+
+    bin_slider = Slider(
+        start=0.0,
+        end=15.0,
+        value=0.0,
+        step=1.0,
+        title='Binning factor',
+        max_width=350,
+        margin=(4, 10, 0, 10),
+    )
+    callback = CustomJS(
+        args={'bin_slider': bin_slider, 'n_labels': len(split), **model_dict},
+        code=open(
+            os.path.join(
+                os.path.dirname(__file__), '../static/js/plotjs', 'stackSpectra.js'
+            )
+        ).read(),
+    )
+
+    bin_slider.js_on_change('value', callback)
 
     # 20 is for padding
     slider_width = width if "mobile" in device else int(width / 2) - 20
@@ -1608,6 +1653,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     row2 = row(elements_groups)
     row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
     layout = column(
+        bin_slider,
         plot,
         row2,
         row3,
