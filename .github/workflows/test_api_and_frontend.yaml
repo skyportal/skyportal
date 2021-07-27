@@ -28,6 +28,7 @@ jobs:
           --health-retries 5
 
     strategy:
+      fail-fast: false
       matrix:
         test_subset: ["api_and_utils", "frontend_pt1", "frontend_pt2"]
 
