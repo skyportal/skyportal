@@ -15,11 +15,11 @@ for (let i = 0; i < n_labels; i++) {
   binsource.data.telescope = [];
   binsource.data.instrument = [];
   binsource.data.date_observed = [];
+  binsource.data.id = [];
   binsource.data.pi = [];
   binsource.data.origin = [];
   binsource.data.altdata = [];
 
-  console.log(spectra);
   spectra.glyph.line_alpha = 0;
 
   if (binsize > 0) {
