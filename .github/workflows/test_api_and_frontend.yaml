@@ -30,7 +30,7 @@ jobs:
 
     strategy:
       matrix:
-        test_subset: ["api_and_utils", "frontend_pt1", "frontend_pt2"]
+        test_subset: [api_and_utils, frontend_pt1, frontend_pt2]
 
     steps:
       - uses: actions/setup-python@v1
