@@ -1,4 +1,4 @@
-name: Test Skyportal API and Front-end
+name: API/frontend
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Test SkyPortal
+    name: Tests
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
