@@ -220,7 +220,11 @@ def test_upload_download_comment_attachment(driver, user, public_source):
         "//div[@data-testid='comments-accordion']//input[@name='attachment']"
     )
     attachment_file.send_keys(
-        pjoin(os.path.dirname(os.path.dirname(__file__)), 'data', 'spec.csv')
+        pjoin(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            'data',
+            'spec.csv',
+        )
     )
     driver.click_xpath(
         '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
