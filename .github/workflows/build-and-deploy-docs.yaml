@@ -24,6 +24,7 @@ jobs:
         # needed because the postgres container does not provide a
         # healthcheck
         options: >-
+          --mount type=tmpfs,destination=/var/lib/postgresql/data
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
