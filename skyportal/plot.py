@@ -1470,7 +1470,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         end=15.0,
         value=0.0,
         step=1.0,
-        title='Binning factor',
+        title='Binsize (10s of Å)',
         max_width=350,
         margin=(4, 10, 0, 10),
     )

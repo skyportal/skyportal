@@ -20,7 +20,7 @@ for (let i = 0; i < n_labels; i++) {
   binsource.data.origin = [];
   binsource.data.altdata = [];
 
-  spectra.glyph.line_alpha = 0;
+  spectra.glyph.line_alpha = fluxalph;
 
   if (binsize > 0) {
     // now do the binning
