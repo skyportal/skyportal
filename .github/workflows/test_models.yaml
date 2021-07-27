@@ -1,4 +1,4 @@
-name: Test Model Logic
+name: Model Logic
 
 on:
   push:
