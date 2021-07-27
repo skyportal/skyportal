@@ -263,7 +263,7 @@ const GcnEventPage = ({ route }) => {
   const styles = useStyles();
 
   const gcnEvent = useSelector((state) => state.gcnEvent);
-  const sourcesState = useSelector((state) => state.sources.gcnEventSources);
+  const gcnEventSources = useSelector((state) => state.sources.gcnEventSources);
 
   useEffect(() => {
     dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
@@ -277,9 +277,11 @@ const GcnEventPage = ({ route }) => {
     return <CircularProgress />;
   }
 
-  if (!sourcesState) {
+  if (!gcnEventSources) {
     return <CircularProgress />;
   }
+
+  console.log("data", gcnEventSources);
 
   return (
     <div>
@@ -315,7 +317,10 @@ const GcnEventPage = ({ route }) => {
         {gcnEvent.localizations?.map((localization) => (
           <li key={localization.localization_name}>
             <div id="map" ref={mapRef}>
-              <Localization loc={localization} sources={sourcesState.geojson} />
+              <Localization
+                loc={localization}
+                sources={gcnEventSources.geojson}
+              />
             </div>
           </li>
         ))}
@@ -330,7 +335,7 @@ const GcnEventPage = ({ route }) => {
         ))}
       </div>
       <div>
-        <GcnEventSourcesPage route={route} sources={sourcesState} />
+        <GcnEventSourcesPage route={route} sources={gcnEventSources} />
       </div>
     </div>
   );

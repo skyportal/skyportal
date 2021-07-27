@@ -3559,7 +3559,9 @@ User.gcnnotices = relationship(
 class Localization(Base):
     """Localization information, including the localization ID, event ID, right
     ascension, declination, error radius (if applicable), and the healpix
-    map."""
+    map. The healpix map is a multi-order healpix skymap, and this
+    representation of the skymap has many tiles (in the
+    LocalizationTile table)"""
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
@@ -3689,6 +3691,9 @@ class Localization(Base):
 
 
 class LocalizationTile(ha.Tile, Base):
+    """This is a single tile within a skymap (as in the Localization table.
+    Each tile has an associated probability density and
+    cumulative probability."""
 
     localization_id = sa.Column(
         sa.ForeignKey('localizations.id', ondelete="CASCADE"),

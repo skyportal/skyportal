@@ -1,9 +1,11 @@
 import uuid
 import pytest
+import healpix_alchemy as ha
 import numpy.testing as npt
 import numpy as np
 import arrow
 from tdtax import taxonomy, __version__
+import astropy.units as u
 
 from skyportal.tests import api
 from skyportal.models import cosmo
@@ -1499,3 +1501,25 @@ def test_sources_hidden_photometry_not_leaked(
     assert data["data"]["id"] == obj_id
     assert len(public_source.photometry) - 1 == len(data["data"]["photometry"])
     assert photometry_id not in map(lambda x: x["id"], data["data"]["photometry"])
+
+
+def test_source_healpix(upload_data_token, view_only_token, public_group):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 229.9620403,
+            "dec": 34.8442757,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    nested = ha.healpix.HPX.lonlat_to_healpix(229.9620403 * u.deg, 34.8442757 * u.deg)
+    assert data["data"]["nested"] == nested

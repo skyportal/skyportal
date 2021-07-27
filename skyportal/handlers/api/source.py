@@ -564,6 +564,15 @@ class SourceHandler(BaseHandler):
         localization_cumprob = self.get_query_argument("localizationCumprob", 1.01)
         includeGeojson = self.get_query_argument("includeGeojson", False)
 
+        print(
+            localization_dateobs,
+            localization_name,
+            localization_cumprob,
+            includeGeojson,
+            start_date,
+            end_date,
+        )
+
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
             """
@@ -1337,6 +1346,9 @@ class SourceHandler(BaseHandler):
 
         query_results = recursive_to_dict(query_results)
         if includeGeojson:
+            # features are JSON representations that the d3 stuff understands.
+            # We use these to render the contours of the sky localization and
+            # locations of the transients.
             features = []
 
             # currently necessary for the sources to render
@@ -1362,14 +1374,11 @@ class SourceHandler(BaseHandler):
             for source in query_results["sources"]:
                 point = Point((source["ra"], source["dec"]))
                 if source["alias"] is not None:
-                    feat = Feature(
-                        geometry=point, properties={"name": ",".join(source["alias"])}
-                    )
+                    source_name = ",".join(source["alias"])
                 else:
-                    feat = Feature(
-                        geometry=point,
-                        properties={"name": f'{source["ra"]},{source["dec"]}'},
-                    )
+                    source_name = f'{source["ra"]},{source["dec"]}'
+
+                feat = Feature(geometry=point, properties={"name": source_name})
                 features.append(feat)
 
             feature_collection = FeatureCollection(features)
