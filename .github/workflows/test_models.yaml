@@ -13,7 +13,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres
+        image: postgres:13-alpine
         env:
           POSTGRES_USER: skyportal
           POSTGRES_PASSWORD: anything
