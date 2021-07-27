@@ -1,4 +1,4 @@
-name: Test Skyportal Model Logic
+name: Test Skyportal Model Logic - pt 2
 
 on:
   push:
@@ -137,15 +137,9 @@ jobs:
           pip install --upgrade selenium
           python -c "import selenium; print(f'Selenium {selenium.__version__}')"
 
-      - name: Test loading demo data
-        run: |
-          make run &
-          sleep 10 && make load_demo_data
-          kill %1
-
       - name: Run test suite
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/models'
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/models/test_permissions_part2.py'
 
       - name: Upload logs
         uses: actions/upload-artifact@v2
