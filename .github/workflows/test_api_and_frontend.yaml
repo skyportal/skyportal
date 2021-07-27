@@ -1,4 +1,4 @@
-name: API/frontend
+name: Test API & frontend
 
 on:
   push:
@@ -8,7 +8,6 @@ on:
 
 jobs:
   test:
-    name: Tests
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
