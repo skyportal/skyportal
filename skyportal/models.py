@@ -1763,6 +1763,8 @@ class Instrument(Base):
 
 
 class InstrumentField(ha.Region, Base):
+    """A multi-order healpix representation of a telescope's field shape,
+    as represented by many InstrumentFieldTiles."""
 
     tile_class = lambda: InstrumentFieldTile  # pylint: disable=E731 # noqa
 
@@ -1789,6 +1791,7 @@ class InstrumentField(ha.Region, Base):
 
 
 class InstrumentFieldTile(ha.Tile, Base):
+    """An individual healpix tile for an InstrumentField."""
 
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete="CASCADE"),
