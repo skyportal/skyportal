@@ -7,6 +7,7 @@ import PropTypes from "prop-types";
 import { Paper, Avatar, Tooltip } from "@material-ui/core";
 import Typography from "@material-ui/core/Typography";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
+import { makeStyles } from "@material-ui/core/styles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -16,7 +17,6 @@ import emoji from "emoji-dictionary";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import UserAvatar from "./UserAvatar";
 import * as profileActions from "../ducks/profile";
-import styles from "./NewsFeed.css";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -33,7 +33,65 @@ const defaultPrefs = {
   },
 };
 
+const useStyles = makeStyles((theme) => ({
+  newsFeed: {
+    display: "flex",
+    flexDirection: "column",
+    overflowY: "scroll",
+    paddingTop: "0.3125rem",
+    paddingLeft: "0.3125rem",
+    marginTop: "0.625rem",
+    backgroundColor: theme.palette.background.default,
+  },
+  entry: {
+    display: "flex",
+    flexDirection: "row",
+    padding: "0.3125rem 0.625rem 0.625rem 0.3125rem",
+    marginBottom: "0.625rem",
+    marginRight: "0.3125rem",
+    alignItems: "center",
+  },
+  entryMessage: {
+    maxWidth: "350px",
+    marginBottom: "0.2em",
+    "& > p": {
+      margin: 0,
+    },
+  },
+  entryContent: {
+    paddingTop: "0.3em",
+    paddingBottom: "0.1em",
+    display: "flex",
+    flexDirection: "column",
+  },
+  entryAvatar: {
+    marginRight: "0.6em",
+  },
+  entryIdent: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "baseline",
+    color: "#aaa",
+    fontSize: "80%",
+  },
+  entryTime: {
+    marginLeft: "0.5em",
+  },
+  entrySourceId: {
+    marginRight: "0.5em",
+    fontSize: "105%",
+    "& > a": {
+      color: "#9b9a9a !important",
+    },
+  },
+  entryTitle: {
+    fontSize: "0.875em !important",
+    padding: "0.3125rem 0.625rem !important",
+  },
+}));
+
 const NewsFeedItem = ({ item }) => {
+  const styles = useStyles();
   const emojiSupport = (text) =>
     text.value.replace(/:\w+:/gi, (name) => emoji.getUnicode(name));
 
@@ -127,19 +185,13 @@ const NewsFeedItem = ({ item }) => {
 };
 
 const NewsFeed = ({ classes }) => {
+  const styles = useStyles();
   const { items } = useSelector((state) => state.newsFeed);
   const newsFeedPrefs =
     useSelector((state) => state.profile.preferences.newsFeed) || defaultPrefs;
   if (!Object.keys(newsFeedPrefs).includes("categories")) {
     newsFeedPrefs.categories = defaultPrefs.categories;
   }
-
-  // Color styling
-  const userColorTheme = useSelector(
-    (state) => state.profile.preferences.theme
-  );
-  const newsFeedStyle =
-    userColorTheme === "dark" ? styles.newsFeedDark : styles.newsFeed;
 
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
@@ -158,7 +210,7 @@ const NewsFeed = ({ classes }) => {
             />
           </div>
         </div>
-        <div className={newsFeedStyle} style={{ height: "85%" }}>
+        <div className={styles.newsFeed} style={{ height: "85%" }}>
           {items.map((item) => (
             <NewsFeedItem
               key={`${item.author}-${item.source_id}-${item.time}`}

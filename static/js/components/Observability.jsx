@@ -10,10 +10,12 @@ import { Link } from "react-router-dom";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { AirMassPlotWithEphemURL } from "./AirmassPlot";
+// eslint-disable-next-line
+import HoursBelowAirmassPlot from "./HoursBelowAirmassPlot";
 import ObservabilityPreferences from "./ObservabilityPreferences";
 
 const useStyles = makeStyles({
-  inner: { margin: "1rem" },
+  inner: { margin: "1rem", padding: "1rem" },
   preferences: { padding: "1rem", marginTop: "1rem" },
 });
 
@@ -52,6 +54,11 @@ const ObservabilityPage = ({ route }) => {
                     <AirMassPlotWithEphemURL
                       dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
                       ephemerisUrl={`/api/internal/ephemeris/${telescope.id}`}
+                    />
+                  </Suspense>
+                  <Suspense fallback={<div>Loading plot...</div>}>
+                    <HoursBelowAirmassPlot
+                      dataUrl={`/api/internal/plot/airmass/hours_below/${route.id}/${telescope.id}`}
                     />
                   </Suspense>
                 </div>

@@ -31,7 +31,7 @@ const GroupManagement = () => {
   );
 
   return (
-    <Paper variant="outlined" className={classes.container}>
+    <Paper className={classes.container}>
       <Typography variant="h5">Group Management</Typography>
       <GroupList title="All Groups" groups={allGroups} classes={classes} />
     </Paper>
