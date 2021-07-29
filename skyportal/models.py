@@ -1929,10 +1929,7 @@ class ObservingPlan(Base):
 
     def get_probability(self, localization):
         ipix = np.asarray(list(self.ipix))
-        if len(ipix) > 0:
-            return localization.flat_2d[ipix].sum()
-        else:
-            return 0.0
+        return localization.flat_2d[ipix].sum()
 
 
 class PlannedObservation(Base):

@@ -116,29 +116,31 @@ class PlanHandler(BaseHandler):
     def get(self):
         """
         ---
-          description: Retrieve observing plans
-          tags:
-            - observingplans
-          parameters:
-            - in: catalog_query
-              name: dateobs
-              schema:
-                type: string
-              description: Filter by event name (exact match)
-          responses:
-            200:
-              content:
-                application/json:
-                  schema: ArrayOfObservingPlan
-            400:
-              content:
-                application/json:
-                  schema: Error
+        description: Retrieve observing plans
+        tags:
+          - observingplans
+        parameters:
+          - in: catalog_query
+            name: dateobs
+            schema:
+              type: string
+            description: Filter by event name (exact match)
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfObservingPlan
+          400:
+            content:
+              application/json:
+                schema: Error
         """
 
         data = self.get_json()
 
         dateobs = data.get('dateobs')
+        if dateobs is None:
+            self.error(message="Missing required dateobs")
 
         plans = (
             ObservingPlan.query_records_accessible_by(
@@ -187,97 +189,58 @@ def params_struct(
     observer.horizon = str(-12.0)
     observer.elevation = instrument.telescope.elevation
 
-    params = {}
-    params["config"] = {}
-    params["config"][instrument.name] = {}
-    params["config"][instrument.name]["tesselation"] = instrument.fields
-    params["config"][instrument.name]["longitude"] = instrument.telescope.lon
-    params["config"][instrument.name]["latitude"] = instrument.telescope.lat
-    params["config"][instrument.name]["elevation"] = instrument.telescope.elevation
-    params["config"][instrument.name]["horizon"] = -12.0
-    params["config"][instrument.name]["telescope"] = instrument.name
-    params["config"][instrument.name]["observer"] = observer
-    params["config"][instrument.name]["exposuretime"] = 30.0
-    params["config"][instrument.name]["magnitude"] = 20.4
-    params["config"][instrument.name]["FOV"] = 6.86
-    params["config"][instrument.name]["overhead_per_exposure"] = 0.0
+    event_time = time.Time(dateobs, format='datetime', scale='utc')
 
-    params["skymap"] = ""
-    params["gpstime"] = -1
-    params["outputDir"] = "output/%s" % dateobs.strftime("%Y%m%dT%H%M%S")
-    params["tilingDir"] = ""
-    params["event"] = ""
-    params["telescopes"] = [instrument.name]
+    params = {
+        'airmass': airmass,
+        'config': {
+            instrument.name: {
+                'tesselation': instrument.fields,
+                'longitude': instrument.telescope.lon,
+                'latitutude': instrument.telescope.lat,
+                'elevation': instrument.telescope.elevation,
+                'horizon': -12.0,
+                'telescope': instrument.name,
+                'exposuretime': 30.0,
+                'magnitude': 20.4,
+                'FOV': 6.86,
+                'overhead_per_exposure': 0.0,
+            },
+        },
+        'dateobs': dateobs,
+        'doAlternativeFilters': filterScheduleType == "block",
+        'doBalanceExposure': doBalanceExposure,
+        'doDatabase': True,
+        'doMaxTiles': True,
+        'doMinimalTiling': True,
+        'doRASlice': doRASlice,
+        'doReferences': doReferences,
+        'doSingleExposure': True,
+        'doUsePrimary': doUsePrimary,
+        'exposuretimes': exposuretimes,
+        'filters': filt,
+        'gpstime': event_time.gps,
+        'max_nb_tiles': np.array([max_nb_tiles] * len(filt)),
+        'mindiff': mindiff,
+        'nside': 512,
+        'powerlaw_cl': probability,
+        'raslice': raslice,
+        'scheduleType': schedule_type,
+        'telescopes': [instrument.name],
+    }
+
     if schedule_strategy == "catalog":
-        params["tilesType"] = "galaxy"
-        params["catalogDir"] = "tmp"  # fix me
-        params["galaxy_catalog"] = "CLU"
-        params["galaxy_grade"] = "S"
-        params["writeCatalog"] = False
-        params["catalog_n"] = 1.0
-        params["powerlaw_dist_exp"] = 1.0
-        params["doChipGaps"] = False
+        params = {
+            **params,
+            'tilesType': 'galaxy',
+            'galaxy_catalog': 'CLU',
+            'galaxy_grade': 'S',
+            'writeCatalog': False,
+            'catalog_n': 1.0,
+            'powerlaw_dist_exp': 1.0,
+        }
     elif schedule_strategy == "tiling":
-        params["tilesType"] = "moc"
-        params["doChipGaps"] = False
-    params["scheduleType"] = schedule_type
-    params["timeallocationType"] = "powerlaw"
-    params["nside"] = 512
-    params["powerlaw_cl"] = probability
-    params["powerlaw_n"] = 1.0
-    params["powerlaw_dist_exp"] = 0.0
-
-    params["doPlots"] = False
-    params["doMovie"] = False
-    params["doObservability"] = True
-    params["do3D"] = False
-
-    params["doFootprint"] = False
-    params["footprint_ra"] = 30.0
-    params["footprint_dec"] = 60.0
-    params["footprint_radius"] = 10.0
-
-    params["airmass"] = airmass
-
-    params["doCommitDatabase"] = True
-    params["doRequestScheduler"] = False
-    params["dateobs"] = dateobs
-    params["doEvent"] = False
-    params["doSkymap"] = False
-    params["doFootprint"] = False
-    params["doDatabase"] = True
-    params["doReferences"] = doReferences
-    params["doUsePrimary"] = doUsePrimary
-    params["doBalanceExposure"] = doBalanceExposure
-    params["doSplit"] = False
-    params["doParallel"] = False
-    params["doUseCatalog"] = False
-
-    params["doMinimalTiling"] = True
-    params["doIterativeTiling"] = False
-    params["galaxies_FoV_sep"] = 1.0
-    params["doMaxTiles"] = doMaxTiles
-    params["max_nb_tiles"] = np.array([max_nb_tiles] * len(filt))
-
-    if params["doEvent"]:
-        params["skymap"], eventinfo = gwemopt.gracedb.get_event(params)
-        params["gpstime"] = eventinfo["gpstime"]
-        event_time = time.Time(params["gpstime"], format='gps', scale='utc')
-        params["dateobs"] = event_time.iso
-    elif params["doSkymap"]:
-        event_time = time.Time(params["gpstime"], format='gps', scale='utc')
-        params["dateobs"] = event_time.iso
-    elif params["doFootprint"]:
-        params["skymap"] = gwemopt.footprint.get_skymap(params)
-        event_time = time.Time(params["gpstime"], format='gps', scale='utc')
-        params["dateobs"] = event_time.iso
-    elif params["doDatabase"]:
-        event_time = time.Time(params["dateobs"], format='datetime', scale='utc')
-        params["gpstime"] = event_time.gps
-    else:
-        raise ValueError(
-            'Need to enable --doEvent, --doFootprint, ' '--doSkymap, or --doDatabase'
-        )
+        params = {**params, 'tilesType': 'moc'}
 
     if tobs is None:
         now_time = time.Time.now()
@@ -286,18 +249,6 @@ def params_struct(
         params["Tobs"] = np.array([timediff_days, timediff_days + 1])
     else:
         params["Tobs"] = tobs
-
-    params["doSingleExposure"] = True
-    if filterScheduleType == "block":
-        params["doAlternatingFilters"] = True
-    else:
-        params["doAlternatingFilters"] = False
-    params["filters"] = filt
-    params["exposuretimes"] = exposuretimes
-    params["mindiff"] = mindiff
-
-    params["doRASlice"] = doRASlice
-    params["raslice"] = raslice
 
     params = gwemopt.segments.get_telescope_segments(params)
     params = gwemopt.utils.params_checker(params)
@@ -309,7 +260,6 @@ def gen_structs(params):
     """Use gwemopt to create observing plan for specified instrument
     and time window."""
 
-    print('Loading skymap')
     # Function to read maps
     map_struct = gwemopt.utils.read_skymap(
         params, is3D=params["do3D"], map_struct=params['map_struct']
