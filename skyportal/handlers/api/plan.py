@@ -281,7 +281,6 @@ def gen_structs(params):
     map_struct = gwemopt.utils.read_skymap(
         params, is3D=params["do3D"], map_struct=params['map_struct']
     )
-    print('Generating MOC struct')
     moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
         params, map_struct=map_struct
     )
