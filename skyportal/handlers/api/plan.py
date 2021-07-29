@@ -5,7 +5,17 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from astropy import time
 import ephem
-import gwemopt
+import gwemopt.utils
+import gwemopt.skyportal
+import gwemopt.gracedb
+import gwemopt.rankedTilesGenerator
+import gwemopt.waw
+import gwemopt.lightcurve
+import gwemopt.coverage
+import gwemopt.efficiency
+import gwemopt.tiles
+import gwemopt.segments
+import gwemopt.catalog
 import numpy as np
 
 from baselayer.app.access import auth_or_token
@@ -33,7 +43,7 @@ plan_args_default = {
     'schedule_type': 'greedy',
     'filterScheduleType': 'block',
     'airmass': 2.5,
-    'schedule_strategy': 'tiling',
+    'scheduleStrategy': 'tiling',
     'mindiff': 30.0 * 60.0,
     'doMaxTiles': False,
     'max_nb_tiles': 1000,
@@ -82,7 +92,7 @@ class PlanHandler(BaseHandler):
             .first()
         )
         if telescope is None:
-            self.error(message=f"Missing telescope {telescope_name}")
+            return self.error(message=f"Missing telescope {telescope_name}")
 
         instrument = (
             Instrument.query_records_accessible_by(
@@ -95,7 +105,7 @@ class PlanHandler(BaseHandler):
             .first()
         )
         if instrument is None:
-            self.error(message=f"Missing instrument {instrument_name}")
+            return self.error(message=f"Missing instrument {instrument_name}")
 
         localization = (
             Localization.query_records_accessible_by(self.current_user)
@@ -106,7 +116,7 @@ class PlanHandler(BaseHandler):
             .first()
         )
         if localization is None:
-            self.error(message=f"Missing localization {localization_name}")
+            return self.error(message=f"Missing localization {localization_name}")
 
         plan_args = copy.deepcopy(plan_args_default)
 
@@ -161,25 +171,7 @@ class PlanHandler(BaseHandler):
 def params_struct(
     dateobs,
     instrument,
-    tobs=None,
-    filt=['r'],
-    exposuretimes=[60.0],
-    mindiff=30.0 * 60.0,
-    probability=0.9,
-    airmass=2.5,
-    schedule_type='greedy',
-    doReferences=True,
-    doUsePrimary=False,
-    doBalanceExposure=False,
-    filterScheduleType='block',
-    schedule_strategy='tiling',
-    doCompletedObservations=False,
-    cobs=None,
-    doPlannedObservations=False,
-    doMaxTiles=False,
-    max_nb_tiles=1000,
-    doRASlice=False,
-    raslice=[0, 24],
+    plan_args,
 ):
     """Set gwemopt parameter dictionary for observing plan."""
 
@@ -192,12 +184,12 @@ def params_struct(
     event_time = time.Time(dateobs, format='datetime', scale='utc')
 
     params = {
-        'airmass': airmass,
+        **plan_args,
         'config': {
             instrument.name: {
                 'tesselation': instrument.fields,
                 'longitude': instrument.telescope.lon,
-                'latitutude': instrument.telescope.lat,
+                'latitude': instrument.telescope.lat,
                 'elevation': instrument.telescope.elevation,
                 'horizon': -12.0,
                 'telescope': instrument.name,
@@ -205,31 +197,24 @@ def params_struct(
                 'magnitude': 20.4,
                 'FOV': 6.86,
                 'overhead_per_exposure': 0.0,
+                'filt_change_time': 0.0,
             },
         },
-        'dateobs': dateobs,
-        'doAlternativeFilters': filterScheduleType == "block",
-        'doBalanceExposure': doBalanceExposure,
+        'doAlternativeFilters': plan_args["filterScheduleType"] == "block",
         'doDatabase': True,
-        'doMaxTiles': True,
         'doMinimalTiling': True,
-        'doRASlice': doRASlice,
-        'doReferences': doReferences,
         'doSingleExposure': True,
-        'doUsePrimary': doUsePrimary,
-        'exposuretimes': exposuretimes,
-        'filters': filt,
+        'filters': plan_args["filt"],
         'gpstime': event_time.gps,
-        'max_nb_tiles': np.array([max_nb_tiles] * len(filt)),
-        'mindiff': mindiff,
         'nside': 512,
-        'powerlaw_cl': probability,
-        'raslice': raslice,
-        'scheduleType': schedule_type,
+        'powerlaw_cl': plan_args["probability"],
         'telescopes': [instrument.name],
     }
+    params['max_nb_tiles'] = np.array(
+        [plan_args['max_nb_tiles']] * len(plan_args['filt'])
+    )
 
-    if schedule_strategy == "catalog":
+    if plan_args['scheduleStrategy'] == "catalog":
         params = {
             **params,
             'tilesType': 'galaxy',
@@ -239,19 +224,11 @@ def params_struct(
             'catalog_n': 1.0,
             'powerlaw_dist_exp': 1.0,
         }
-    elif schedule_strategy == "tiling":
+    elif plan_args['scheduleStrategy'] == "tiling":
         params = {**params, 'tilesType': 'moc'}
 
-    if tobs is None:
-        now_time = time.Time.now()
-        timediff = now_time.gps - event_time.gps
-        timediff_days = timediff / 86400.0
-        params["Tobs"] = np.array([timediff_days, timediff_days + 1])
-    else:
-        params["Tobs"] = tobs
-
-    params = gwemopt.segments.get_telescope_segments(params)
     params = gwemopt.utils.params_checker(params)
+    params = gwemopt.segments.get_telescope_segments(params)
 
     return params
 
@@ -304,17 +281,16 @@ def create_plan(
 
     plan_args = dict(plan_args)
     plan_args.setdefault(
-        'tobs',
+        'Tobs',
         [
             time.Time(validity_window_start).mjd - time.Time(dateobs).mjd,
             time.Time(validity_window_end).mjd - time.Time(dateobs).mjd,
         ],
     )
 
-    exposuretimes = plan_args['exposuretimes']
     if plan_args['doDither'] and instrument.nickname == 'DECam':
         # Add dithering
-        exposuretimes = [2 * x for x in exposuretimes]
+        plan_args['exposuretimes'] = [2 * x for x in plan_args['exposuretimes']]
 
     plan_args.setdefault('probability', 0.9)
 
@@ -326,9 +302,11 @@ def create_plan(
             plan_args['doDither'],
             plan_args['doReferences'],
             plan_args['filterScheduleType'],
-            exposuretimes[0],
+            plan_args['exposuretimes'][0],
             100 * plan_args['probability'],
         )
+
+    print(instrument)
 
     try:
         plan = ObservingPlan.query.filter_by(plan_name=plan_name).one()
@@ -344,33 +322,7 @@ def create_plan(
         DBSession().add(plan)
         request_handler.verify_and_commit()
 
-    planned = plan_args['doPlannedObservations']
-    completed = plan_args['doCompletedObservations']
-    maxtiles = plan_args['doMaxTiles']
-
-    params = params_struct(
-        localization.dateobs,
-        tobs=np.asarray(plan_args['tobs']),
-        filt=plan_args['filt'],
-        exposuretimes=exposuretimes,
-        probability=plan_args['probability'],
-        instrument=instrument,
-        schedule_type=plan_args['schedule_type'],
-        doReferences=plan_args['doReferences'],
-        doUsePrimary=plan_args['doUsePrimary'],
-        filterScheduleType=plan_args['filterScheduleType'],
-        schedule_strategy=plan_args['schedule_strategy'],
-        mindiff=plan_args['mindiff'],
-        doCompletedObservations=completed,
-        cobs=plan_args['cobs'],
-        doPlannedObservations=planned,
-        doMaxTiles=maxtiles,
-        max_nb_tiles=plan_args['max_nb_tiles'],
-        doRASlice=plan_args['doRASlice'],
-        raslice=plan_args['raslice'],
-        doBalanceExposure=plan_args['doBalanceExposure'],
-        airmass=plan_args['airmass'],
-    )
+    params = params_struct(localization.dateobs, instrument, plan_args)
 
     params['map_struct'] = dict(
         zip(['prob', 'distmu', 'distsigma', 'distnorm'], localization.flat)
