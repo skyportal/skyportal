@@ -1,6 +1,6 @@
 import functools
 from marshmallow.exceptions import ValidationError
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm import joinedload
 from baselayer.app.access import permissions, auth_or_token
 from tornado.ioloop import IOLoop
 
@@ -39,6 +39,7 @@ class InstrumentHandler(BaseHandler):
         self.verify_and_commit()
 
         if field_data is not None:
+            print(instrument.id)
             fields_func = functools.partial(
                 add_instrument_tiles,
                 instrument.id,
@@ -96,12 +97,20 @@ class InstrumentHandler(BaseHandler):
         """
         if instrument_id is not None:
             instrument = Instrument.get_if_accessible_by(
-                int(instrument_id), self.current_user, raise_if_none=True, mode="read"
+                int(instrument_id),
+                self.current_user,
+                raise_if_none=True,
+                mode="read",
+                options=[joinedload(Instrument.fields), joinedload(Instrument.tiles)],
             )
             return self.success(data=instrument)
 
         inst_name = self.get_query_argument("name", None)
-        query = Instrument.query_records_accessible_by(self.current_user, mode="read")
+        query = Instrument.query_records_accessible_by(
+            self.current_user,
+            mode="read",
+            options=[joinedload(Instrument.fields), joinedload(Instrument.tiles)],
+        )
         if inst_name is not None:
             query = query.filter(Instrument.name == inst_name)
         instruments = query.all()
