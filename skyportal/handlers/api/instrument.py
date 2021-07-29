@@ -35,19 +35,8 @@ class InstrumentHandler(BaseHandler):
             )
         instrument.telescope = telescope
 
-        instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-            )
-            .filter(
-                Instrument.name == instrument.name,
-                Instrument.telescope == instrument.telescope,
-            )
-            .first()
-        )
-        if instrument is not None:
-            DBSession().add(instrument)
-            self.verify_and_commit()
+        DBSession().add(instrument)
+        self.verify_and_commit()
 
         if field_data is not None:
             fields_func = functools.partial(
