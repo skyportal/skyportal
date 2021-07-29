@@ -54,7 +54,7 @@ class InstrumentHandler(BaseHandler):
             DBSession().add(instrument)
             self.verify_and_commit()
 
-        if add_fields:
+        if field_data is not None:
             fields_func = functools.partial(
                 add_instrument_tiles,
                 instrument.id,
