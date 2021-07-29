@@ -22,14 +22,9 @@ class InstrumentHandler(BaseHandler):
             telescope_id, self.current_user, raise_if_none=True, mode="read"
         )
 
-        if "field_data" in data:
-            field_data = data.pop("field_data")
-            field_of_view_shape = data.pop("field_of_view_shape")
-            field_of_view_size = data.pop("field_of_view_size", None)
-
-            add_fields = True
-        else:
-            add_fields = False
+        field_data = data.pop("field_data", None)
+        field_of_view_shape = data.pop("field_of_view_shape", None)
+        field_of_view_size = data.pop("field_of_view_size", None)
 
         schema = Instrument.__schema__()
         try:
