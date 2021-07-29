@@ -1783,7 +1783,7 @@ class InstrumentField(ha.Region, Base):
     field_id = sa.Column(
         sa.Integer,
         index=True,
-        doc='The Field ID for the tile.',
+        doc='The Field ID for the tile (can be repeated between instruments).',
         nullable=False,
     )
 
