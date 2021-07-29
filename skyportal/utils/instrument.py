@@ -1,4 +1,4 @@
-# Inspired by: https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/models.py and
+# Inspired by: https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/models.py and https://github.com/growth-astro/healpix-intersection-example/blob/master/example/data.py
 
 import healpy as hp
 import numpy as np

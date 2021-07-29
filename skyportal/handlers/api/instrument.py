@@ -39,7 +39,17 @@ class InstrumentHandler(BaseHandler):
         self.verify_and_commit()
 
         if field_data is not None:
-            print(instrument.id)
+            if field_of_view_shape is None:
+                return self.error('field_of_view_shape is required with field_data')
+            elif field_of_view_shape in ['square', 'circle']:
+                if field_of_view_size is None:
+                    return self.error(
+                        f'field_of_view_size is required for field_of_view_shape={field_of_view_shape}'
+                    )
+            elif field_of_view_shape == "ZTF":
+                pass
+            else:
+                return self.error('field_of_view_shape must be square, circle, or ZTF')
             fields_func = functools.partial(
                 add_instrument_tiles,
                 instrument.id,
