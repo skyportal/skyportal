@@ -12,7 +12,7 @@ from ...utils.instrument import get_mocs
 
 class InstrumentHandler(BaseHandler):
     @permissions(['System admin'])
-    async def post(self):
+    def post(self):
         # See bottom of this file for redoc docstring -- moved it there so that
         # it could be made an f-string.
 
