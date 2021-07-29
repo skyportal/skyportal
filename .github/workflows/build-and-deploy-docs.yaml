@@ -34,12 +34,14 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: |
-            ~/.cache/pip
-            ~/.cache/sphinx
-            ~/.ccache
-            ~/.local
             ~/.npm
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
 
       - uses: actions/setup-python@v1
         with:

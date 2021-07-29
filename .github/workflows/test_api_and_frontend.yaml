@@ -40,11 +40,14 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: |
-            ~/.cache
-            ~/.local
             ~/.npm
-            cache
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/pip
+          key: ${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
 
       - name: Checkout master
         uses: actions/checkout@v2
