@@ -1,23 +1,11 @@
 import datetime
-import os
 import copy
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from astropy import time
 import ephem
-import gwemopt.utils
-import gwemopt.skyportal
-import gwemopt.gracedb
-import gwemopt.rankedTilesGenerator
-import gwemopt.waw
-import gwemopt.lightcurve
-import gwemopt.coverage
-import gwemopt.efficiency
-import gwemopt.plotting
-import gwemopt.tiles
-import gwemopt.segments
-import gwemopt.catalog
+import gwemopt
 import numpy as np
 
 from baselayer.app.access import auth_or_token
@@ -57,6 +45,25 @@ plan_args_default = {
 class PlanHandler(BaseHandler):
     @auth_or_token
     def post(self):
+        """
+        ---
+        description: Create an observation plan
+        tags:
+          - observingplans
+        requestBody:
+          content:
+            application/json:
+              schema: PlanHandlerPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
 
         data = self.get_json()
 
@@ -72,8 +79,10 @@ class PlanHandler(BaseHandler):
             .filter(
                 Telescope.name == telescope_name,
             )
-            .one()
+            .first()
         )
+        if telescope is None:
+            self.error(message=f"Missing telescope {telescope_name}")
 
         instrument = (
             Instrument.query_records_accessible_by(
@@ -83,8 +92,10 @@ class PlanHandler(BaseHandler):
                 Instrument.telescope == telescope,
                 Instrument.name == instrument_name,
             )
-            .one()
+            .first()
         )
+        if instrument is None:
+            self.error(message=f"Missing instrument {instrument_name}")
 
         localization = (
             Localization.query_records_accessible_by(self.current_user)
@@ -94,6 +105,8 @@ class PlanHandler(BaseHandler):
             )
             .first()
         )
+        if localization is None:
+            self.error(message=f"Missing localization {localization_name}")
 
         plan_args = copy.deepcopy(plan_args_default)
 
@@ -101,6 +114,27 @@ class PlanHandler(BaseHandler):
 
     @auth_or_token
     def get(self):
+        """
+        ---
+          description: Retrieve observing plans
+          tags:
+            - observingplans
+          parameters:
+            - in: catalog_query
+              name: dateobs
+              schema:
+                type: string
+              description: Filter by event name (exact match)
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfObservingPlan
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
 
         data = self.get_json()
 
@@ -145,6 +179,7 @@ def params_struct(
     doRASlice=False,
     raslice=[0, 24],
 ):
+    """Set gwemopt parameter dictionary for observing plan."""
 
     observer = ephem.Observer()
     observer.lat = str(instrument.telescope.lat)
@@ -267,14 +302,12 @@ def params_struct(
     params = gwemopt.segments.get_telescope_segments(params)
     params = gwemopt.utils.params_checker(params)
 
-    if params["doPlots"]:
-        if not os.path.isdir(params["outputDir"]):
-            os.makedirs(params["outputDir"])
-
     return params
 
 
 def gen_structs(params):
+    """Use gwemopt to create observing plan for specified instrument
+    and time window."""
 
     print('Loading skymap')
     # Function to read maps
@@ -298,11 +331,6 @@ def gen_structs(params):
             params, map_struct, tile_structs
         )
 
-    if params["doPlots"]:
-        gwemopt.plotting.skymap(params, map_struct)
-        gwemopt.plotting.tiles(params, map_struct, tile_structs)
-        gwemopt.plotting.coverage(params, map_struct, coverage_struct)
-
     return map_struct, tile_structs, coverage_struct
 
 
@@ -315,6 +343,7 @@ def create_plan(
     plan_name=None,
     **plan_args,
 ):
+    """Create and commit gwemopt plan to the database."""
 
     dateobs = localization.dateobs
 

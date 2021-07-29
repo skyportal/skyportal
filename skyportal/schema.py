@@ -878,6 +878,19 @@ class PhotometryRangeQuery(_Schema):
     )
 
 
+class PlanHandlerPost(_Schema):
+    telescope_name = fields.String(description='Telescope name.')
+    instrument_name = fields.String(description='Name of instrument on telescope')
+    dateobs = fields.String(description='UTC time of event.')
+    localization_name = fields.String(
+        description='Localization name associated with the event.'
+    )
+
+
+class PlanHandlerGet(_Schema):
+    dateobs = fields.String(description='UTC time of event.')
+
+
 class SpectrumAsciiFileParseJSON(_Schema):
 
     wave_column = fields.Integer(

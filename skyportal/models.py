@@ -1867,7 +1867,12 @@ class ObservingPlan(Base):
     def start_observation(self):
         """Time of the first planned observation."""
         if self.planned_observations:
-            return self.planned_observations[0].obstime
+            return min(
+                [
+                    planned_observation.obstime
+                    for planned_observation in self.planned_observations
+                ]
+            )
         else:
             return None
 
