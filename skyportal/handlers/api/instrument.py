@@ -40,18 +40,17 @@ class InstrumentHandler(BaseHandler):
             )
         instrument.telescope = telescope
 
-        try:
-            instrument = (
-                Instrument.query_records_accessible_by(
-                    self.current_user,
-                )
-                .filter(
-                    Instrument.name == instrument.name,
-                    Instrument.telescope == instrument.telescope,
-                )
-                .one()
+        instrument = (
+            Instrument.query_records_accessible_by(
+                self.current_user,
             )
-        except NoResultFound:
+            .filter(
+                Instrument.name == instrument.name,
+                Instrument.telescope == instrument.telescope,
+            )
+            .first()
+        )
+        if instrument is not None:
             DBSession().add(instrument)
             self.verify_and_commit()
 
