@@ -1,5 +1,7 @@
 import datetime
 import copy
+from tornado.ioloop import IOLoop
+import functools
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
@@ -23,8 +25,9 @@ from ..base import BaseHandler
 from ...models import (
     DBSession,
     Instrument,
+    InstrumentField,
     Localization,
-    ObservingPlan,
+    EventObservingPlan,
     PlannedObservation,
     Telescope,
 )
@@ -49,6 +52,7 @@ plan_args_default = {
     'max_nb_tiles': 1000,
     'doRASlice': True,
     'raslice': [0.0, 24.0],
+    'probability': 0.9,
 }
 
 
@@ -68,7 +72,17 @@ class PlanHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: Success
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: New plan ID
           400:
             content:
               application/json:
@@ -97,6 +111,9 @@ class PlanHandler(BaseHandler):
         instrument = (
             Instrument.query_records_accessible_by(
                 self.current_user,
+                options=[
+                    joinedload(Instrument.fields, InstrumentField.tiles),
+                ],
             )
             .filter(
                 Instrument.telescope == telescope,
@@ -108,7 +125,9 @@ class PlanHandler(BaseHandler):
             return self.error(message=f"Missing instrument {instrument_name}")
 
         localization = (
-            Localization.query_records_accessible_by(self.current_user)
+            Localization.query_records_accessible_by(
+                self.current_user,
+            )
             .filter(
                 Localization.dateobs == dateobs,
                 Localization.localization_name == localization_name,
@@ -117,10 +136,19 @@ class PlanHandler(BaseHandler):
         )
         if localization is None:
             return self.error(message=f"Missing localization {localization_name}")
+        # force localization.flat to be loaded for async process
+        localization.flat
 
-        plan_args = copy.deepcopy(plan_args_default)
+        plan_args = copy.copy(plan_args_default)
 
-        create_plan(self, instrument, localization, **plan_args)
+        plan = setup_plan(self, instrument, localization, plan_args)
+
+        plan_func = functools.partial(
+            create_plan, self, instrument, localization, plan, plan_args
+        )
+        IOLoop.current().run_in_executor(None, plan_func)
+
+        return self.success(data={"id": plan.id})
 
     @auth_or_token
     def get(self):
@@ -139,7 +167,7 @@ class PlanHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: ArrayOfObservingPlan
+                schema: ArrayOfEventObservingPlan
           400:
             content:
               application/json:
@@ -153,14 +181,14 @@ class PlanHandler(BaseHandler):
             self.error(message="Missing required dateobs")
 
         plans = (
-            ObservingPlan.query_records_accessible_by(
+            EventObservingPlan.query_records_accessible_by(
                 self.current_user,
                 options=[
-                    joinedload(ObservingPlan.planned_observations),
+                    joinedload(EventObservingPlan.planned_observations),
                 ],
             )
             .filter(
-                ObservingPlan.dateobs == dateobs,
+                EventObservingPlan.dateobs == dateobs,
             )
             .all()
         )
@@ -261,16 +289,15 @@ def gen_structs(params):
     return map_struct, tile_structs, coverage_struct
 
 
-def create_plan(
+def setup_plan(
     request_handler,
     instrument,
     localization,
+    plan_args,
     validity_window_start=None,
     validity_window_end=None,
-    plan_name=None,
-    **plan_args,
 ):
-    """Create and commit gwemopt plan to the database."""
+    """Setup gwemopt plan in the database (as PENDING)."""
 
     dateobs = localization.dateobs
 
@@ -292,10 +319,8 @@ def create_plan(
         # Add dithering
         plan_args['exposuretimes'] = [2 * x for x in plan_args['exposuretimes']]
 
-    plan_args.setdefault('probability', 0.9)
-
-    if plan_name is None:
-        plan_name = "%s_%s_%s_%d_%d_%s_%d_%d" % (
+    if 'plan_name' not in plan_args:
+        plan_args['plan_name'] = "%s_%s_%s_%d_%d_%s_%d_%d" % (
             localization.localization_name,
             "".join(plan_args['filt']),
             plan_args['schedule_type'],
@@ -306,14 +331,14 @@ def create_plan(
             100 * plan_args['probability'],
         )
 
-    print(instrument)
-
     try:
-        plan = ObservingPlan.query.filter_by(plan_name=plan_name).one()
+        plan = EventObservingPlan.query.filter_by(
+            plan_name=plan_args['plan_name']
+        ).one()
     except NoResultFound:
-        plan = ObservingPlan(
+        plan = EventObservingPlan(
             dateobs=localization.dateobs,
-            plan_name=plan_name,
+            plan_name=plan_args['plan_name'],
             instrument_id=instrument.id,
             validity_window_start=validity_window_start,
             validity_window_end=validity_window_end,
@@ -321,6 +346,20 @@ def create_plan(
         )
         DBSession().add(plan)
         request_handler.verify_and_commit()
+
+    return plan
+
+
+def create_plan(
+    request_handler,
+    instrument,
+    localization,
+    plan,
+    plan_args,
+):
+    """Create and commit gwemopt plan to the database."""
+
+    dateobs = localization.dateobs
 
     params = params_struct(localization.dateobs, instrument, plan_args)
 
@@ -330,7 +369,7 @@ def create_plan(
 
     if plan_args['usePrevious']:
         previous_telescope, previous_name = plan_args['previous_plan'].split("-")
-        plan_previous = ObservingPlan.query.filter_by(
+        plan_previous = EventObservingPlan.query.filter_by(
             dateobs=dateobs, telescope=previous_telescope, plan_name=previous_name
         ).one()
         ipix_previous = list(
@@ -370,7 +409,7 @@ def create_plan(
             filter_id=filter_id,
             instrument_id=instrument.id,
             planned_observation_id=ii,
-            plan_name=plan_name,
+            plan_name=plan.plan_name,
             overhead_per_exposure=overhead_per_exposure,
         )
 

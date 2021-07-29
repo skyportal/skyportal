@@ -1761,7 +1761,7 @@ class Instrument(Base):
 
     fields = relationship("InstrumentField")
     tiles = relationship("InstrumentFieldTile")
-    plans = relationship("ObservingPlan")
+    plans = relationship("EventObservingPlan")
 
 
 class InstrumentField(ha.Region, Base):
@@ -1817,7 +1817,7 @@ class InstrumentFieldTile(ha.Tile, Base):
     )
 
 
-class ObservingPlan(Base):
+class EventObservingPlan(Base):
     """Tiling information, including the event time, localization ID, tile IDs,
     and plan name"""
 
@@ -1956,7 +1956,7 @@ class PlannedObservation(Base):
     )
 
     plan_name = sa.Column(
-        sa.ForeignKey("observingplans.plan_name", ondelete="CASCADE"),
+        sa.ForeignKey("eventobservingplans.plan_name", ondelete="CASCADE"),
         primary_key=True,
         doc='Plan name',
     )
@@ -3991,7 +3991,7 @@ class GcnEvent(Base):
     )
 
     localizations = relationship("Localization")
-    plans = relationship("ObservingPlan")
+    plans = relationship("EventObservingPlan")
 
     @hybrid_property
     def tags(self):
