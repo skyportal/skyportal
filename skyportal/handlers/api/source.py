@@ -564,14 +564,6 @@ class SourceHandler(BaseHandler):
         localization_cumprob = self.get_query_argument("localizationCumprob", 1.01)
         includeGeojson = self.get_query_argument("includeGeojson", False)
 
-        print(
-            localization_dateobs,
-            localization_name,
-            localization_cumprob,
-            includeGeojson,
-            start_date,
-            end_date,
-        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
