@@ -764,6 +764,12 @@ class AssignmentSchema(_Schema):
     comment = fields.String(description='An optional comment describing the request.')
 
 
+class ObservationPost(_Schema):
+    telescope_name = fields.String(description='Telescope name.')
+    instrument_name = fields.String(description='Instrument name.')
+    observation_data = fields.List(fields.Field(), description='Observation data')
+
+
 class ObservingRunPost(_Schema):
     instrument_id = fields.Integer(
         required=True, description='The ID of the instrument to be ' 'used in this run.'
