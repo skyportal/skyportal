@@ -117,6 +117,8 @@ class GcnEventHandler(BaseHandler):
             DBSession().add(localization)
             self.verify_and_commit()
 
+        # Loop over the skymap MOC indices and probabilities
+        # and compute the integrated probability in the entire tile
         tiles, probs = [], []
         for uniq, probdensity in zip(skymap["uniq"], skymap["probdensity"]):
             tile = LocalizationTile(
@@ -127,6 +129,8 @@ class GcnEventHandler(BaseHandler):
             tiles.append(tile)
             probs.append(prob)
 
+        # Compute cumulative probabilities for the MOC (for ease of
+        # computing the percentiles for sources contained)
         idx = np.argsort(probs)[::-1].astype(int)
         tiles, probs = [tiles[ii] for ii in idx], [probs[ii] for ii in idx]
         cumprobs = np.cumsum(probs)

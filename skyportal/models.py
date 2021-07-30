@@ -3561,7 +3561,9 @@ class Localization(Base):
     ascension, declination, error radius (if applicable), and the healpix
     map. The healpix map is a multi-order healpix skymap, and this
     representation of the skymap has many tiles (in the
-    LocalizationTile table)"""
+    LocalizationTile table). Healpix decomposes the sky into a set of equal
+    area tiles each with a unique index, convenient for decomposing
+    the sphere into subdivisions."""
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
