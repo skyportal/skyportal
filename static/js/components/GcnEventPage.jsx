@@ -281,7 +281,6 @@ const GcnEventPage = ({ route }) => {
     return <CircularProgress />;
   }
 
-  console.log("data", gcnEventSources);
 
   return (
     <div>
