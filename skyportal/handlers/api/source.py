@@ -1378,8 +1378,7 @@ class SourceHandler(BaseHandler):
                 else:
                     source_name = f'{source["ra"]},{source["dec"]}'
 
-                feat = Feature(geometry=point, properties={"name": source_name})
-                features.append(feat)
+                features.append(Feature(geometry=point, properties={"name": source_name}))
 
             feature_collection = FeatureCollection(features)
             query_results["geojson"] = feature_collection
