@@ -3691,7 +3691,7 @@ class Localization(Base):
 
 
 class LocalizationTile(ha.Tile, Base):
-    """This is a single tile within a skymap (as in the Localization table.
+    """This is a single tile within a skymap (as in the Localization table).
     Each tile has an associated probability density and
     cumulative probability."""
 
