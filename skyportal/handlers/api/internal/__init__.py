@@ -3,6 +3,7 @@ from .plot import (
     PlotSpectroscopyHandler,
     PlotAssignmentAirmassHandler,
     PlotObjTelAirmassHandler,
+    PlotHoursBelowAirmassHandler,
 )
 from .token import TokenHandler
 from .dbinfo import DBInfoHandler

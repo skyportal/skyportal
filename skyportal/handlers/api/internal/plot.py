@@ -1,4 +1,5 @@
 from baselayer.app.access import auth_or_token
+from baselayer.app.env import load_env
 from ...base import BaseHandler
 from .... import plot
 from ....models import ClassicalAssignment, Obj, Telescope
@@ -6,6 +7,7 @@ from ....models import ClassicalAssignment, Obj, Telescope
 import numpy as np
 from astropy import time as ap_time
 import pandas as pd
+import datetime
 
 
 device_types = [
@@ -15,6 +17,8 @@ device_types = [
     "tablet_landscape",
     "tablet_portrait",
 ]
+
+_, cfg = load_env()
 
 
 class PlotPhotometryHandler(BaseHandler):
@@ -56,15 +60,14 @@ class PlotSpectroscopyHandler(BaseHandler):
 
 
 class AirmassHandler(BaseHandler):
-    def calculate_airmass(self, obj, telescope, sunset, sunrise):
-        time = np.linspace(sunset.unix, sunrise.unix, 50)
+    def calculate_airmass(self, obj, telescope, sunset, sunrise, sample_size=50):
+        time = np.linspace(sunset.unix, sunrise.unix, sample_size)
         time = ap_time.Time(time, format='unix')
 
         airmass = obj.airmass(telescope, time)
         time = time.unix * 1000
         df = pd.DataFrame({'time': time, 'airmass': airmass})
-        json = df.to_dict(orient='records')
-        return json
+        return df
 
 
 class PlotAssignmentAirmassHandler(AirmassHandler):
@@ -83,7 +86,9 @@ class PlotAssignmentAirmassHandler(AirmassHandler):
         if sunset > sunrise:
             sunset = telescope.observer.sun_set_time(time, which='previous')
 
-        json = self.calculate_airmass(obj, telescope, sunrise, sunset)
+        json = self.calculate_airmass(obj, telescope, sunrise, sunset).to_dict(
+            orient='records'
+        )
         self.verify_and_commit()
         return self.success(data=json)
 
@@ -117,6 +122,53 @@ class PlotObjTelAirmassHandler(AirmassHandler):
         if sunset > sunrise:
             sunset = telescope.observer.sun_set_time(time, which='previous')
 
-        json = self.calculate_airmass(obj, telescope, sunrise, sunset)
+        json = self.calculate_airmass(obj, telescope, sunrise, sunset).to_dict(
+            orient='records'
+        )
+        self.verify_and_commit()
+        return self.success(data=json)
+
+
+class PlotHoursBelowAirmassHandler(AirmassHandler):
+    @auth_or_token
+    def get(self, obj_id, telescope_id):
+        threshold = cfg["misc.hours_below_airmass_threshold"]
+        if threshold is None:
+            threshold = 2.9
+
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
+        try:
+            telescope_id = int(telescope_id)
+        except TypeError:
+            return self.error(f'Invalid telescope id: {telescope_id}, must be integer.')
+
+        telescope = Telescope.get_if_accessible_by(
+            telescope_id, self.current_user, raise_if_none=True
+        )
+
+        year = datetime.date.today().year
+        year_start = datetime.datetime(year, 1, 1, 0, 0, 0)
+
+        json = []
+        # Sample every 7 days for the year
+        deltat = 7
+        for day in range(365 // deltat):
+            day = year_start + datetime.timedelta(days=day * deltat)
+            day = ap_time.Time(day.isoformat(), format='isot')
+
+            # Get sunrise/sunset times for that day
+            sunrise = telescope.next_sunrise(time=day)
+            sunset = telescope.next_sunset(time=day)
+
+            # Compute airmasses for that day
+            sample_size = 30
+            df = self.calculate_airmass(obj, telescope, sunrise, sunset, sample_size)
+
+            # Compute hours below airmass
+            num_times_below = df.loc[df["airmass"] < threshold].shape[0]
+            total_hours = (sunrise - sunset).to_value('hr')
+            hours_below = num_times_below / sample_size * total_hours
+            json.append({"date": day.isot, "hours_below": hours_below})
+
         self.verify_and_commit()
         return self.success(data=json)

@@ -78,6 +78,7 @@ from skyportal.handlers.api.internal import (
     RecentSourcesHandler,
     PlotAssignmentAirmassHandler,
     PlotObjTelAirmassHandler,
+    PlotHoursBelowAirmassHandler,
     AnnotationsInfoHandler,
     EphemerisHandler,
     StandardsHandler,
@@ -182,6 +183,10 @@ skyportal_handlers = [
     (
         r'/api/internal/plot/airmass/objtel/(.*)/([0-9]+)',
         PlotObjTelAirmassHandler,
+    ),
+    (
+        r'/api/internal/plot/airmass/hours_below/(.*)/([0-9]+)',
+        PlotHoursBelowAirmassHandler,
     ),
     (r'/api/internal/ephemeris/([0-9]+)', EphemerisHandler),
     (r'/api/internal/log', LogHandler),

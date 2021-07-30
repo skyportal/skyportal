@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 
@@ -8,6 +8,8 @@ import Paper from "@material-ui/core/Paper";
 import Chip from "@material-ui/core/Chip";
 import CheckIcon from "@material-ui/icons/Check";
 import ClearIcon from "@material-ui/icons/Clear";
+import Dialog from "@material-ui/core/Dialog";
+import DialogContent from "@material-ui/core/DialogContent";
 import {
   makeStyles,
   createMuiTheme,
@@ -17,6 +19,8 @@ import {
 
 import MUIDataTable from "mui-datatables";
 import * as profileActions from "../ducks/profile";
+
+import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
 
 const savedStatusSelectOptions = [
   { value: "all", label: "regardless of saved status" },
@@ -50,6 +54,14 @@ const useStyles = makeStyles((theme) => ({
   },
   chip: {
     margin: theme.spacing(0.5),
+  },
+  actionButtons: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-evenly",
+    "& > button": {
+      margin: "0.25rem 0",
+    },
   },
 }));
 
@@ -87,15 +99,18 @@ const getMuiTheme = (theme) =>
 const ScanningProfilesList = ({
   selectedScanningProfile,
   setSelectedScanningProfile,
+  userAccessibleGroups,
+  availableAnnotationsInfo,
+  classifications,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
   const profiles = useSelector(
     (state) => state.profile.preferences.scanningProfiles
   );
-  const userAccessibleGroups = useSelector(
-    (state) => state.groups.userAccessible
-  );
+
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [profileToEdit, setProfileToEdit] = useState();
 
   const dispatch = useDispatch();
 
@@ -112,7 +127,7 @@ const ScanningProfilesList = ({
     return profile ? (
       <div>
         <Checkbox
-          checked={selectedScanningProfile?.id === profile.id}
+          checked={selectedScanningProfile?.name === profile.name}
           key={`loaded_${dataIndex}`}
           data-testid={`loaded_${dataIndex}`}
           onChange={(event) =>
@@ -132,6 +147,11 @@ const ScanningProfilesList = ({
       scanningProfiles: profiles,
     };
     dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
+  const editProfile = (profile) => {
+    setProfileToEdit(profile);
+    setEditDialogOpen(true);
   };
 
   const handleDefaultChange = (checked, dataIndex) => {
@@ -256,14 +276,21 @@ const ScanningProfilesList = ({
     );
   };
 
-  const renderDelete = (dataIndex) => (
-    <div>
+  const renderActions = (dataIndex) => (
+    <div className={classes.actionButtons}>
       <Button
         variant="contained"
         size="small"
         onClick={() => deleteProfile(dataIndex)}
       >
         Delete
+      </Button>
+      <Button
+        variant="contained"
+        size="small"
+        onClick={() => editProfile(profiles[dataIndex])}
+      >
+        Edit
       </Button>
     </div>
   );
@@ -282,6 +309,10 @@ const ScanningProfilesList = ({
       options: {
         customBodyRenderLite: renderDefault,
       },
+    },
+    {
+      name: "name",
+      label: "Name",
     },
     {
       name: "timeRange",
@@ -333,10 +364,10 @@ const ScanningProfilesList = ({
       },
     },
     {
-      name: "delete",
-      label: "Delete",
+      name: "edit",
+      label: "Edit",
       options: {
-        customBodyRenderLite: renderDelete,
+        customBodyRenderLite: renderActions,
       },
     },
   ];
@@ -363,15 +394,40 @@ const ScanningProfilesList = ({
           />
         </MuiThemeProvider>
       </Paper>
+      <Dialog
+        open={editDialogOpen}
+        onClose={() => {
+          setEditDialogOpen(false);
+        }}
+      >
+        <DialogContent className={classes.dialogContent}>
+          <CandidatesPreferencesForm
+            userAccessibleGroups={userAccessibleGroups}
+            availableAnnotationsInfo={availableAnnotationsInfo}
+            classifications={classifications}
+            addOrEdit="Edit"
+            editingProfile={profileToEdit}
+            closeDialog={() => setEditDialogOpen(false)}
+            selectedScanningProfile={selectedScanningProfile}
+            setSelectedScanningProfile={setSelectedScanningProfile}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 ScanningProfilesList.propTypes = {
-  selectedScanningProfile: PropTypes.shape({ id: PropTypes.string }),
+  selectedScanningProfile: PropTypes.shape({ name: PropTypes.string }),
   setSelectedScanningProfile: PropTypes.func.isRequired,
+  userAccessibleGroups: PropTypes.arrayOf(PropTypes.shape({})),
+  availableAnnotationsInfo: PropTypes.shape({}),
+  classifications: PropTypes.arrayOf(PropTypes.string),
 };
 ScanningProfilesList.defaultProps = {
+  userAccessibleGroups: [],
+  availableAnnotationsInfo: {},
+  classifications: [],
   selectedScanningProfile: null,
 };
 export default ScanningProfilesList;

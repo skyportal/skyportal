@@ -10,11 +10,11 @@ import Input from "@material-ui/core/Input";
 import FormControl from "@material-ui/core/FormControl";
 import InputLabel from "@material-ui/core/InputLabel";
 import TextField from "@material-ui/core/TextField";
+import Paper from "@material-ui/core/Paper";
 import { makeStyles, useTheme } from "@material-ui/core/styles";
 
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
-import styles from "./NewGroupForm.css";
 
 const getStyles = (userID, userIDs = [], theme) => ({
   fontWeight:
@@ -78,6 +78,13 @@ const NewGroupForm = () => {
     chip: {
       margin: 2,
     },
+    newGroupForm: {
+      position: "relative",
+    },
+    container: {
+      padding: "1rem",
+      margin: "1rem 0",
+    },
   }));
   const classes = useStyles();
   const theme = useTheme();
@@ -92,9 +99,9 @@ const NewGroupForm = () => {
   };
 
   return (
-    <Box p={2}>
+    <Paper className={classes.container}>
       <h3>Create New Group</h3>
-      <form className={styles.newGroupForm} onSubmit={handleSubmit}>
+      <form className={classes.newGroupForm} onSubmit={handleSubmit}>
         <Box>
           <TextField
             label="Group Name"
@@ -153,7 +160,7 @@ const NewGroupForm = () => {
           </Button>
         </Box>
       </form>
-    </Box>
+    </Paper>
   );
 };
 

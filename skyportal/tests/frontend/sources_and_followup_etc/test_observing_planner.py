@@ -1,7 +1,7 @@
 import uuid
 import pytest
-from ...models import DBSession, ObservingRun
-from .. import api
+from skyportal.models import DBSession, ObservingRun
+from skyportal.tests import api
 import time
 
 from selenium.webdriver.common.action_chains import ActionChains
@@ -24,7 +24,10 @@ def post_assignment(obj, run, priority, comment, token):
 
 @pytest.mark.flaky(reruns=2)
 def test_source_is_added_to_observing_run_via_frontend(
-    driver, super_admin_user, public_source, red_transients_run,
+    driver,
+    super_admin_user,
+    public_source,
+    red_transients_run,
 ):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/source/{public_source.id}")
@@ -145,7 +148,7 @@ def test_observing_run_skycam_component(
 @pytest.mark.flaky(reruns=2)
 def test_observing_run_page(driver, view_only_user, red_transients_run):
     driver.get(f'/become_user/{view_only_user.id}')
-    driver.get(f'/runs')
+    driver.get('/runs')
     runs = ObservingRun.query.all()
 
     for run in runs:
@@ -165,7 +168,7 @@ def test_add_run_to_observing_run_page(
     driver, user, lris, public_group, red_transients_run
 ):
     driver.get(f'/become_user/{user.id}')
-    driver.get(f'/runs')
+    driver.get('/runs')
 
     driver.wait_for_xpath('//form')
     observingrun_title = (
