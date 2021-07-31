@@ -146,6 +146,21 @@ class ObservationHandler(BaseHandler):
               schema:
                 type: string
               description: Filter by end date
+            - in: dateobs
+              name: name
+              schema:
+                type: string
+              description: Filter by GcnEvent event
+            - in: localization_name
+              name: name
+              schema:
+                type: string
+              description: Filter by GcnEvent localization
+            - in: localization_cumprob
+              name: name
+              schema:
+                type: string
+              description: Filter by GcnEvent localization cumulative probability
           responses:
             200:
               content:
@@ -165,6 +180,7 @@ class ObservationHandler(BaseHandler):
         end_date = data.get('end_date')
         dateobs = data.get('dateobs')
         localization_name = data.get('localization_name')
+        localization_cumprob = data.get("localization_cumprob", 1.01)
 
         telescope = (
             Telescope.query_records_accessible_by(
@@ -213,6 +229,7 @@ class ObservationHandler(BaseHandler):
 
         observations = query.all()
 
+        # optional: slice by GcnEvent localization
         if dateobs is not None:
             if localization_name is not None:
                 localization = (
@@ -240,6 +257,7 @@ class ObservationHandler(BaseHandler):
                     return self.error("GCN event not found", status=404)
                 localization = event.localizations[-1]
 
+            # compute probability in the fields based on the localization
             a, b = LocalizationTile, InstrumentFieldTile
             a_lo = a.nested_lo.label('a_lo')
             a_hi = a.nested_hi.label('a_hi')
@@ -262,12 +280,6 @@ class ObservationHandler(BaseHandler):
                 query1.join(b, b_lo.between(a_lo, a_hi)),
             ).cte()
 
-            query3 = DBSession().query(ExecutedObservation.field_id)
-            query3 = query3.filter(ExecutedObservation.instrument_id == instrument.id)
-            query3 = query3.filter(ExecutedObservation.obstime >= start_date)
-            query3 = query3.filter(ExecutedObservation.obstime <= end_date)
-            subquery = query3.subquery()
-
             lo = func.greatest(query2.c.a_lo, query2.c.b_lo)
             hi = func.least(query2.c.a_hi, query2.c.b_hi)
             area = (hi - lo + 1) * ha.healpix.PIXEL_AREA
@@ -278,15 +290,31 @@ class ObservationHandler(BaseHandler):
                 .query(query2.c.instrument_field_id, prob)
                 .filter(query2.c.localization_id == localization.id)
                 .filter(query2.c.instrument_id == instrument.id)
-                .filter(query2.c.instrument_field_id.in_(subquery))
                 .group_by(query2.c.localization_id, query2.c.instrument_field_id)
             )
 
             tiles = query.all()
             field_ids = np.array([tile[0] for tile in tiles])
             probs = np.array([tile[1] for tile in tiles])
+            idx = np.argsort(probs)[::-1]
+            field_ids, probs = field_ids[idx], probs[idx]
+            cumprobs = np.cumsum(probs)
+
+            if instrument.name == "ZTF":
+                # ZTF has two overlapping grids
+                field_ids_keep = field_ids[
+                    np.where(cumprobs <= 2 * localization_cumprob)[0]
+                ]
+            else:
+                field_ids_keep = field_ids[
+                    np.where(cumprobs <= localization_cumprob)[0]
+                ]
+
             observations_all = []
             for observation in observations:
+                # is the field in the cumulative percentage requested?
+                if observation.field_id not in field_ids_keep:
+                    continue
                 idx = np.where(field_ids == observation.field_id)[0][0]
                 observations_all.append(
                     {**observation.to_dict(), 'probability': probs[idx]}

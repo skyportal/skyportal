@@ -8,6 +8,15 @@ from skyportal.tests import api
 
 def test_observation(super_admin_token, view_only_token):
 
+    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
     name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -67,9 +76,27 @@ def test_observation(super_admin_token, view_only_token):
         'instrument_name': instrument_name,
         'start_date': "2019-04-25 08:18:05",
         'end_date': "2019-04-28 08:18:05",
+        'dateobs': "2019-04-25T08:18:05",
+        'localization_name': "bayestar.fits.gz",
     }
 
     status, data = api('GET', 'observation', data=data, token=super_admin_token)
     assert status == 200
     data = data["data"]
     assert len(data) == 10
+
+    data = {
+        'telescope_name': name,
+        'instrument_name': instrument_name,
+        'start_date': "2019-04-25 08:18:05",
+        'end_date': "2019-04-28 08:18:05",
+        'dateobs': "2019-04-25T08:18:05",
+        'localization_name': "bayestar.fits.gz",
+        'localization_cumprob': 1e-4,
+    }
+
+    status, data = api('GET', 'observation', data=data, token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+    # field in sample observation not within cumulative probability
+    assert len(data) == 0
