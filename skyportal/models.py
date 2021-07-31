@@ -2871,7 +2871,7 @@ GroupCommentOnSpectrum.delete = GroupCommentOnSpectrum.update = (
 )
 
 
-class AnnotationOnSpectrum(Base, CommentMixin):
+class AnnotationOnSpectrum(Base, AnnotationMixin):
 
     __tablename__ = 'annotations_on_spectra'
 
@@ -2892,7 +2892,7 @@ class AnnotationOnSpectrum(Base, CommentMixin):
     )
     spectrum = relationship(
         'Spectrum',
-        back_populates='annotation',
+        back_populates='annotations',
         doc="The Spectrum referred to by this annotation.",
     )
 

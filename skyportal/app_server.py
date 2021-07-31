@@ -118,6 +118,7 @@ skyportal_handlers = [
     # load PDF files.
     (r'/api/comment(/[0-9]+)/attachment.pdf', CommentAttachmentHandler),
     (r'/api/comment(/[0-9]+)?(/.+)?', CommentHandler),
+    (r'/api/annotation', AnnotationHandler),
     (r'/api/annotation(/[0-9]+)?(/.+)?', AnnotationHandler),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
