@@ -1,14 +1,16 @@
 import React from "react";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
+import { useTheme } from "@material-ui/core/styles";
 
 const rootURL = `${window.location.protocol}//${window.location.host}`;
 
-const spec = (data, width = 200, height = 200) => ({
+const spec = (data, textColor, width = 200, height = 200) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   width,
   height,
   padding: 0.025 * Math.min(width, height),
+  background: "transparent",
   layer: [
     // draw the Gaia data for main sequence etc.
     {
@@ -27,6 +29,9 @@ const spec = (data, width = 200, height = 200) => ({
           axis: {
             title: "Bp-Rp",
             grid: false,
+            labelColor: textColor,
+            tickColor: textColor,
+            titleColor: textColor,
           },
         },
         y: {
@@ -39,6 +44,9 @@ const spec = (data, width = 200, height = 200) => ({
           axis: {
             title: "Abs. Mag. G",
             grid: false,
+            labelColor: textColor,
+            tickColor: textColor,
+            titleColor: textColor,
           },
         },
         color: {
@@ -78,6 +86,9 @@ const spec = (data, width = 200, height = 200) => ({
           axis: {
             title: "Bp-Rp",
             grid: false,
+            labelColor: textColor,
+            tickColor: textColor,
+            titleColor: textColor,
           },
         },
         y: {
@@ -90,11 +101,19 @@ const spec = (data, width = 200, height = 200) => ({
           axis: {
             title: "mag G",
             grid: false,
+            labelColor: textColor,
+            tickColor: textColor,
+            titleColor: textColor,
           },
         },
         color: {
           field: "origin",
           type: "nominal",
+          legend: {
+            orient: "bottom",
+            labelColor: textColor,
+            titleColor: textColor,
+          },
         },
         opacity: {
           condition: { selection: "filterPoints", value: 1 },
@@ -127,6 +146,9 @@ const spec = (data, width = 200, height = 200) => ({
           axis: {
             title: "Bp-Rp",
             grid: false,
+            labelColor: textColor,
+            tickColor: textColor,
+            titleColor: textColor,
           },
         },
         y: {
@@ -139,6 +161,9 @@ const spec = (data, width = 200, height = 200) => ({
           axis: {
             title: "mag G",
             grid: false,
+            labelColor: textColor,
+            tickColor: textColor,
+            titleColor: textColor,
           },
         },
         color: {
@@ -165,12 +190,13 @@ const spec = (data, width = 200, height = 200) => ({
 
 const VegaHR = React.memo((props) => {
   const { data, width, height } = props;
+  const theme = useTheme();
 
   return (
     <div
       ref={(node) => {
         if (node) {
-          embed(node, spec(data, width, height), {
+          embed(node, spec(data, theme.palette.text.primary, width, height), {
             actions: false,
           });
         }
