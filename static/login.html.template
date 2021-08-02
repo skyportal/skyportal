@@ -2,6 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="robots" content="noindex">
     <title>{{ app.title }}</title>
     <link rel="stylesheet" type="text/css" href="/static/login.css" />
   </head>
