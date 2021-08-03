@@ -1,5 +1,5 @@
 numpy==1.21.0
-scipy==1.6.3
+scipy==1.7.1
 pandas==1.2.5
 dask>=2020.12,<=2021.5.0
 joblib==1.0.1
@@ -14,7 +14,7 @@ avro-python3==1.10.2
 fastavro==1.2.4
 tqdm>=4.27,<4.62
 matplotlib==3.4.2
-astroquery==0.4.2
+astroquery==0.4.3
 apispec==4.0.0
 marshmallow==3.12.1
 marshmallow-sqlalchemy==0.24.3
