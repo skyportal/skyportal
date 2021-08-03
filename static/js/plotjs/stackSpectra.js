@@ -1,14 +1,14 @@
-/* eslint-disable */
+/* eslint no-undef: "off" , no-eval: "off" */
 const binsize = bin_slider.value;
 const fluxalph = binsize === 0 ? 1.0 : 0.1;
 
-for (let i = 0; i < n_labels; i++) {
+for (let i = 0; i < n_labels; i += 1) {
   const spectra = eval(`s${i}`);
   const fluxsource = spectra.data_source;
   const binsource = eval(`bin${i}`).data_source;
 
-  const minWavelength = Math.min.apply(Math, fluxsource.data.wavelength) - 100;
-  const maxWavelength = Math.max.apply(Math, fluxsource.data.wavelength) + 100;
+  const minWavelength = Math.min(...fluxsource.data.wavelength) - 100;
+  const maxWavelength = Math.max(...fluxsource.data.wavelength) + 100;
 
   binsource.data.wavelength = [];
   binsource.data.flux = [];
@@ -24,7 +24,6 @@ for (let i = 0; i < n_labels; i++) {
 
   if (binsize > 0) {
     // now do the binning
-    const k = 0;
     let curWavelength = minWavelength;
     const wavelengthBins = [curWavelength];
 
@@ -34,11 +33,11 @@ for (let i = 0; i < n_labels; i++) {
     }
 
     const nbins = wavelengthBins.length - 1;
-    for (let l = 0; l < nbins; l++) {
+    for (let l = 0; l < nbins; l += 1) {
       // calculate the flux of the bin
       const flux = [];
       const wavelength = [];
-      for (let m = 0; m < fluxsource.get_length(); m++) {
+      for (let m = 0; m < fluxsource.get_length(); m += 1) {
         if (
           fluxsource.data.wavelength[m] < wavelengthBins[l + 1] &&
           fluxsource.data.wavelength[m] >= wavelengthBins[l]
