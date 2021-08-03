@@ -893,10 +893,9 @@ class SpectrumAsciiFileParseJSON(_Schema):
     fluxerr_column = fields.Integer(
         missing=None,
         description="The 0-based index of the ASCII column corresponding to the flux "
-        "error values of the spectrum (default 2). If there are only 2 "
-        "columns in the input file this value will be ignored. If there are "
-        "more than 2 columns in the input file, but none of them correspond to "
-        "flux error values, set this parameter to `None`.",
+        "error values of the spectrum (default None). If a column for errors "
+        "is provided, set to the corresponding 0-based column number, "
+        "otherwise, it will be ignored.",
     )
 
     ascii = fields.String(
@@ -953,10 +952,10 @@ Example of format 2:
 # DATE    = '2020-09-15T09:47:10' / UT end of last exposure
 ```
 
-The data must be at least 2 column ascii (wavelength, flux). If three columns \
-are given, they are interpreted as (wavelength, flux, fluxerr). If more than 3 \
-columns are given, by default the first three are interpreted as (wavelength, \
-flux, fluxerr). The column indices of each of these arguments can be controlled \
+The data must be at least 2 column ascii (wavelength, flux). If flux errors are \
+provided in an additional column, the column must be specified in the call. \
+If more than 2 columns are given, by default the first two are interpreted as \
+(wavelength, flux). The column indices of each of these arguments can be controlled \
 by passing the integer column index to the POST JSON.
 
 Examples of valid data sections:
