@@ -1,22 +1,22 @@
-/* eslint-disable */
+/* eslint no-undef: "off" */
 const binsize = slider.value;
 const fluxalph = binsize === 0 ? 1.0 : 0.1;
 
-for (let i = 0; i < n_labels; i++) {
-  const fluxsource = eval(`obs${i}`).data_source;
-  const binsource = eval(`bin${i}`).data_source;
+for (let i = 0; i < n_labels; i += 1) {
+  const fluxsource = model_dict[`obs${i}`].data_source;
+  const binsource = model_dict[`bin${i}`].data_source;
 
-  const fluxerrsource = eval(`obserr${i}`).data_source;
-  const binerrsource = eval(`binerr${i}`).data_source;
+  const fluxerrsource = model_dict[`obserr${i}`].data_source;
+  const binerrsource = model_dict[`binerr${i}`].data_source;
 
-  const unobssource = eval(`unobs${i}`).data_source;
-  const unobsbinsource = eval(`unobsbin${i}`).data_source;
+  const unobssource = model_dict[`unobs${i}`].data_source;
+  const unobsbinsource = model_dict[`unobsbin${i}`].data_source;
 
-  const boldsource = eval(`bold${i}`);
-  const allsource = eval(`all${i}`);
+  const boldsource = model_dict[`bold${i}`];
+  const allsource = model_dict[`all${i}`];
 
-  const minmjd = Math.min.apply(Math, fluxsource.data.mjd) - 15;
-  const maxmjd = Math.max.apply(Math, fluxsource.data.mjd) + 15;
+  const minmjd = Math.min(...fluxsource.data.mjd) - 15;
+  const maxmjd = Math.max(...fluxsource.data.mjd) + 15;
 
   boldsource.data.flux = [];
   boldsource.data.fluxerr = [];
@@ -56,7 +56,7 @@ for (let i = 0; i < n_labels; i++) {
   unobsbinsource.data.instrument = [];
 
   if (binsize === 0) {
-    for (var j = 0; j < allsource.get_length(); j++) {
+    for (let j = 0; j < allsource.get_length(); j += 1) {
       boldsource.data.flux.push(allsource.data.flux[j]);
       boldsource.data.fluxerr.push(allsource.data.fluxerr[j]);
       boldsource.data.mjd.push(allsource.data.mjd[j]);
@@ -70,33 +70,30 @@ for (let i = 0; i < n_labels; i++) {
     }
   }
 
-  for (var j = 0; j < fluxsource.get_length(); j++) {
+  for (let j = 0; j < fluxsource.get_length(); j += 1) {
     fluxsource.data.alpha[j] = fluxalph;
     fluxerrsource.data.alpha[j] = fluxalph;
   }
 
-  for (var j = 0; j < unobssource.get_length(); j++) {
-    if (isFinite(unobssource.data.flux[j])) {
+  for (let j = 0; j < unobssource.get_length(); j += 1) {
+    if (Number.isFinite(unobssource.data.flux[j])) {
       unobssource.data.alpha[j] = fluxalph;
-    } else {
-      if (binsize > 0) {
-        boldsource.data.flux.push(unobssource.data.flux[j]);
-        boldsource.data.fluxerr.push(unobssource.data.fluxerr[j]);
-        boldsource.data.mjd.push(unobssource.data.mjd[j]);
-        boldsource.data.filter.push(unobssource.data.filter[j]);
-        boldsource.data.mag.push(unobssource.data.mag[j]);
-        boldsource.data.magerr.push(unobssource.data.magerr[j]);
-        boldsource.data.lim_mag.push(unobssource.data.lim_mag[j]);
-        boldsource.data.zp.push(unobssource.data.zp[j]);
-        boldsource.data.magsys.push(unobssource.data.magsys[j]);
-        boldsource.data.stacked.push(false);
-      }
+    } else if (binsize > 0) {
+      boldsource.data.flux.push(unobssource.data.flux[j]);
+      boldsource.data.fluxerr.push(unobssource.data.fluxerr[j]);
+      boldsource.data.mjd.push(unobssource.data.mjd[j]);
+      boldsource.data.filter.push(unobssource.data.filter[j]);
+      boldsource.data.mag.push(unobssource.data.mag[j]);
+      boldsource.data.magerr.push(unobssource.data.magerr[j]);
+      boldsource.data.lim_mag.push(unobssource.data.lim_mag[j]);
+      boldsource.data.zp.push(unobssource.data.zp[j]);
+      boldsource.data.magsys.push(unobssource.data.magsys[j]);
+      boldsource.data.stacked.push(false);
     }
   }
 
   if (binsize > 0) {
     // now do the binning
-    const k = 0;
     let curmjd = minmjd;
     const mjdbins = [curmjd];
 
@@ -106,7 +103,7 @@ for (let i = 0; i < n_labels; i++) {
     }
 
     const nbins = mjdbins.length - 1;
-    for (let l = 0; l < nbins; l++) {
+    for (let l = 0; l < nbins; l += 1) {
       // calculate the flux, fluxerror, and mjd of the bin
       const flux = [];
       const weight = [];
@@ -114,11 +111,11 @@ for (let i = 0; i < n_labels; i++) {
       const limmag = [];
       let ivarsum = 0;
 
-      for (let m = 0; m < allsource.get_length(); m++) {
+      for (let m = 0; m < allsource.get_length(); m += 1) {
         if (
           allsource.data.mjd[m] < mjdbins[l + 1] &&
           allsource.data.mjd[m] >= mjdbins[l] &&
-          isFinite(allsource.data.flux[m])
+          Number.isFinite(allsource.data.flux[m])
         ) {
           const fluxvar = allsource.data.fluxerr[m] * allsource.data.fluxerr[m];
           const ivar = 1 / fluxvar;
@@ -134,60 +131,61 @@ for (let i = 0; i < n_labels; i++) {
       let myflux = 0;
       let mymjd = 0;
 
-      if (weight.length === 0) {
-        continue;
+      if (weight.length !== 0) {
+        for (let n = 0; n < weight.length; n += 1) {
+          myflux += (weight[n] * flux[n]) / ivarsum;
+          mymjd += (weight[n] * mjd[n]) / ivarsum;
+        }
+
+        const myfluxerr = Math.sqrt(1 / ivarsum);
+        const obs = myflux / myfluxerr > detect_thresh;
+
+        let mysource;
+        let mymag;
+        let mymagerr;
+        let mymaglim;
+        if (obs) {
+          mymag = -2.5 * Math.log10(myflux) + default_zp;
+          mymagerr = Math.abs((-2.5 * myfluxerr) / myflux / Math.log(10));
+          mysource = binsource;
+
+          binerrsource.data.xs.push([mymjd, mymjd]);
+          binerrsource.data.ys.push([mymag - mymagerr, mymag + mymagerr]);
+          binerrsource.data.color.push(allsource.data.color[0]);
+        } else {
+          mymag = null;
+          mymagerr = null;
+          mysource = unobsbinsource;
+        }
+
+        if (weight.length > 1) {
+          mymaglim = -2.5 * Math.log10(detect_thresh * myfluxerr) + default_zp;
+        } else {
+          [mymaglim] = limmag;
+        }
+
+        mysource.data.mjd.push(mymjd);
+        mysource.data.flux.push(myflux);
+        mysource.data.fluxerr.push(myfluxerr);
+        mysource.data.filter.push(allsource.data.filter[0]);
+        mysource.data.color.push(allsource.data.color[0]);
+        mysource.data.mag.push(mymag);
+        mysource.data.magerr.push(mymagerr);
+        mysource.data.lim_mag.push(mymaglim);
+        mysource.data.stacked.push(true);
+        mysource.data.instrument.push(allsource.data.instrument[0]);
+
+        boldsource.data.flux.push(myflux);
+        boldsource.data.fluxerr.push(myfluxerr);
+        boldsource.data.mjd.push(mymjd);
+        boldsource.data.filter.push(allsource.data.filter[0]);
+        boldsource.data.mag.push(mymag);
+        boldsource.data.magerr.push(mymagerr);
+        boldsource.data.lim_mag.push(mymaglim);
+        boldsource.data.zp.push(default_zp);
+        boldsource.data.magsys.push("ab");
+        boldsource.data.stacked.push(true);
       }
-
-      for (let n = 0; n < weight.length; n++) {
-        myflux += (weight[n] * flux[n]) / ivarsum;
-        mymjd += (weight[n] * mjd[n]) / ivarsum;
-      }
-
-      const myfluxerr = Math.sqrt(1 / ivarsum);
-      const obs = myflux / myfluxerr > detect_thresh;
-
-      if (obs) {
-        var mymag = -2.5 * Math.log10(myflux) + default_zp;
-        var mymagerr = Math.abs((-2.5 * myfluxerr) / myflux / Math.log(10));
-        var mysource = binsource;
-
-        binerrsource.data.xs.push([mymjd, mymjd]);
-        binerrsource.data.ys.push([mymag - mymagerr, mymag + mymagerr]);
-        binerrsource.data.color.push(allsource.data.color[0]);
-      } else {
-        var mymag = null;
-        var mymagerr = null;
-        var mysource = unobsbinsource;
-      }
-
-      if (weight.length > 1) {
-        var mymaglim =
-          -2.5 * Math.log10(detect_thresh * myfluxerr) + default_zp;
-      } else {
-        var mymaglim = limmag[0];
-      }
-
-      mysource.data.mjd.push(mymjd);
-      mysource.data.flux.push(myflux);
-      mysource.data.fluxerr.push(myfluxerr);
-      mysource.data.filter.push(allsource.data.filter[0]);
-      mysource.data.color.push(allsource.data.color[0]);
-      mysource.data.mag.push(mymag);
-      mysource.data.magerr.push(mymagerr);
-      mysource.data.lim_mag.push(mymaglim);
-      mysource.data.stacked.push(true);
-      mysource.data.instrument.push(allsource.data.instrument[0]);
-
-      boldsource.data.flux.push(myflux);
-      boldsource.data.fluxerr.push(myfluxerr);
-      boldsource.data.mjd.push(mymjd);
-      boldsource.data.filter.push(allsource.data.filter[0]);
-      boldsource.data.mag.push(mymag);
-      boldsource.data.magerr.push(mymagerr);
-      boldsource.data.lim_mag.push(mymaglim);
-      boldsource.data.zp.push(default_zp);
-      boldsource.data.magsys.push("ab");
-      boldsource.data.stacked.push(true);
     }
 
     // Remove Brokeh-generated 'index' column from converting Pandas DataFrame

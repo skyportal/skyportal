@@ -660,7 +660,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     )
 
     callback = CustomJS(
-        args={'slider': slider, 'n_labels': len(split), **model_dict},
+        args={'slider': slider, 'n_labels': len(split), 'model_dict': model_dict},
         code=open(
             os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'stackf.js')
         )
@@ -977,7 +977,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     button = Button(label="Export Bold Light Curve to CSV")
     button.js_on_click(
         CustomJS(
-            args={'slider': slider, 'n_labels': len(split), **model_dict},
+            args={'slider': slider, 'n_labels': len(split), 'model_dict': model_dict},
             code=open(
                 os.path.join(
                     os.path.dirname(__file__), '../static/js/plotjs', "download.js"
@@ -995,7 +995,11 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     )
 
     callback = CustomJS(
-        args={'slider': slider, 'n_labels': len(split), **model_dict},
+        args={
+            'slider': slider,
+            'n_labels': len(split),
+            'model_dict': model_dict,
+        },
         code=open(
             os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'stackm.js')
         )
@@ -1144,7 +1148,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                     'numphases': phase_selection,
                     'n_labels': len(split),
                     'p': period_plot,
-                    **period_model_dict,
+                    'model_dict': period_model_dict,
                 },
                 code=open(
                     os.path.join(
@@ -1190,7 +1194,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                     'numphases': phase_selection,
                     'n_labels': len(split),
                     'p': period_plot,
-                    **period_model_dict,
+                    'model_dict': period_model_dict,
                 },
                 code=open(
                     os.path.join(
@@ -1475,7 +1479,11 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         margin=(4, 10, 0, 10),
     )
     callback = CustomJS(
-        args={'bin_slider': bin_slider, 'n_labels': len(split), **model_dict},
+        args={
+            'bin_slider': bin_slider,
+            'n_labels': len(split),
+            'model_dict': model_dict,
+        },
         code=open(
             os.path.join(
                 os.path.dirname(__file__), '../static/js/plotjs', 'stackSpectra.js'
@@ -1584,14 +1592,14 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
                 'elements': elements,
                 'z': z_textinput,
                 'v_exp': v_exp_textinput,
-                **model_dict,
+                'model_dict': model_dict,
             },
             code=f"""
             let c = 299792.458; // speed of light in km / s
             const i_max = {column_idx} +  {columns} * elements.labels.length;
             let local_i = 0;
             for (let i = {column_idx}; i < i_max; i = i + {columns}) {{
-                let el = eval("el" + i);
+                let el = model_dict["el" + i];
                 el.visible = (elements.active.includes(local_i))
                 el.data_source.data.x = el.data_source.data.wavelength.map(
                     x_i => (x_i * (1 + parseFloat(z.value)) /
@@ -1611,8 +1619,6 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
             args={
                 'z': z_textinput,
                 'slider': z_slider,
-                'v_exp': v_exp_textinput,
-                **model_dict,
             },
             code="""
             // Update slider value to match text input
@@ -1625,10 +1631,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         'value',
         CustomJS(
             args={
-                'z': z_textinput,
                 'slider': v_exp_slider,
                 'v_exp': v_exp_textinput,
-                **model_dict,
             },
             code="""
             // Update slider value to match text input

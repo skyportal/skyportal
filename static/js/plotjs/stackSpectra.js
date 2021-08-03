@@ -1,11 +1,11 @@
-/* eslint no-undef: "off" , no-eval: "off" */
+/* eslint no-undef: "off" */
 const binsize = bin_slider.value;
 const fluxalph = binsize === 0 ? 1.0 : 0.1;
 
 for (let i = 0; i < n_labels; i += 1) {
-  const spectra = eval(`s${i}`);
+  const spectra = model_dict[`s${i}`];
   const fluxsource = spectra.data_source;
-  const binsource = eval(`bin${i}`).data_source;
+  const binsource = model_dict[`bin${i}`].data_source;
 
   const minWavelength = Math.min(...fluxsource.data.wavelength) - 100;
   const maxWavelength = Math.max(...fluxsource.data.wavelength) + 100;
