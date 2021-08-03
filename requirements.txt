@@ -1,5 +1,5 @@
 numpy==1.21.0
-scipy==1.6.3
+scipy==1.7.1
 pandas==1.2.5
 dask>=2020.12,<=2021.5.0
 joblib==1.0.1
