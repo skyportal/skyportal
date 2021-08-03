@@ -1049,13 +1049,26 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
     )
     reduced_by = fields.List(
         fields.Integer,
-        description="IDs of the Users who reduced this Spectrum.",
+        description="IDs of the Users who reduced this Spectrum, or to use as points of contact given an external reducer.",
         missing=[],
     )
+
+    external_reducer = fields.String(
+        description="Free text provided as an external reducer",
+        required=False,
+        missing=None,
+    )
+
     observed_by = fields.List(
         fields.Integer,
-        description="IDs of the Users who observed this Spectrum.",
+        description="IDs of the Users who observed this Spectrum, or to use as points of contact given an external observer.",
         missing=[],
+    )
+
+    external_observer = fields.String(
+        description="Free text provided as an external observer",
+        required=False,
+        missing=None,
     )
 
     followup_request_id = fields.Integer(
@@ -1101,14 +1114,26 @@ class SpectrumPost(_Schema):
 
     reduced_by = fields.List(
         fields.Integer,
-        description="IDs of the Users who reduced this Spectrum.",
+        description="IDs of the Users who reduced this Spectrum, or to use as points of contact given an external reducer.",
         missing=[],
+    )
+
+    external_reducer = fields.String(
+        description="Free text provided as an external reducer",
+        required=False,
+        missing=None,
     )
 
     observed_by = fields.List(
         fields.Integer,
-        description="IDs of the Users who observed this Spectrum.",
+        description="IDs of the Users who observed this Spectrum, or to use as points of contact given an external observer.",
         missing=[],
+    )
+
+    external_observer = fields.String(
+        description="Free text provided as an external observer",
+        required=False,
+        missing=None,
     )
 
     origin = fields.String(required=False, description="Origin of the spectrum.")

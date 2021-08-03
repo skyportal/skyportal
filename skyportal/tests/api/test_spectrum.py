@@ -117,7 +117,7 @@ def test_token_user_get_range_spectrum(
     # test with no instrument ids
     status, data = api(
         'GET',
-        f'spectrum/range?min_date=2020-01-01T00:00:00&max_date=2020-02-01',
+        'spectrum/range?min_date=2020-01-01T00:00:00&max_date=2020-02-01',
         token=upload_data_token,
     )
     assert status == 200
@@ -709,3 +709,36 @@ def test_parse_integer_spectrum_ascii(upload_data_token):
 
     for wave in data['data']['wavelengths']:
         assert isinstance(wave, float)
+
+
+def test_spectrum_external_reducer_and_observer(
+    upload_data_token, public_source, public_group, lris, user
+):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+            'reduced_by': [user.id],
+            'external_reducer': "Test external reducer",
+            'observed_by': [user.id],
+            'external_observer': "Test external observer",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    spectrum_id = data['data']['id']
+    status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['reducers'][0]['id'] == user.id
+    assert data['data']['observers'][0]['id'] == user.id
+    assert data['data']['external_reducer'] == "Test external reducer"
+    assert data['data']['external_observer'] == "Test external observer"
