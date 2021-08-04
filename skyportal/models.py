@@ -2417,7 +2417,9 @@ class Photometry(ha.Point, Base):
         """Signal-to-noise ratio of this Photometry point."""
         return (
             self.flux / self.fluxerr
-            if not np.isnan(self.flux) and not np.isnan(self.fluxerr)
+            if not np.isnan(self.flux)
+            and not np.isnan(self.fluxerr)
+            and self.fluxerr != 0
             else None
         )
 
@@ -2427,7 +2429,9 @@ class Photometry(ha.Point, Base):
         return sa.case(
             [
                 (
-                    sa.and_(self.flux != 'NaN', self.fluxerr != 0),  # noqa
+                    sa.and_(
+                        self.flux != 'NaN', self.fluxerr != 'NaN', self.fluxerr != 0
+                    ),  # noqa
                     self.flux / self.fluxerr,
                 )
             ],
