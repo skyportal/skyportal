@@ -6,12 +6,9 @@ class BecomeUserHandler(BaseHandler):
     def get(self, new_user_id=None):
         if not (
             self.cfg['server.auth.debug_login']
-            or len(
-                {'System admin', 'Become user'}.intersection(
-                    set(self.current_user.permissions)
-                )
+            or {'System admin', 'Become user'}.intersection(
+                set(self.current_user.permissions)
             )
-            > 0
         ):
             return self.error("Insufficient permissions")
 
