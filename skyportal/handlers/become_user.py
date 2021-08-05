@@ -1,5 +1,4 @@
 from .base import BaseHandler
-from baselayer.app.models import ACL
 from ..models import User
 
 
@@ -7,7 +6,12 @@ class BecomeUserHandler(BaseHandler):
     def get(self, new_user_id=None):
         if (
             self.cfg['server.auth.debug_login']
-            or ACL.query.get('Become user') in self.current_user.permissions
+            or len(
+                {'System admin', 'Become user'}.intersection(
+                    set(self.current_user.permissions)
+                )
+            )
+            > 0
         ):
             user = User.query.get(new_user_id)
             sa = user.social_auth.first()
