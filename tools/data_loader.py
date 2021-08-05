@@ -63,7 +63,7 @@ if __name__ == "__main__":
         from skyportal.models import init_db
 
         RETRIES = 6
-        timeout = 2
+        timeout = 3
         for i in range(RETRIES):
             try:
                 print(f"Connecting to database {cfg['database']['database']}")
