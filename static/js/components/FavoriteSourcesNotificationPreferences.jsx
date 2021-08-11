@@ -54,7 +54,7 @@ const FavoriteSourcesNotificationPreferences = () => {
     <div>
       <div className={classes.header}>
         <Typography variant="h6" display="inline">
-          Browser Notifications For Favorite Source Activity
+          Notifications For Favorite Source Activity
         </Typography>
         <IconButton aria-label="help" size="small" onClick={handleClick}>
           <HelpOutlineIcon />
@@ -75,11 +75,12 @@ const FavoriteSourcesNotificationPreferences = () => {
         }}
       >
         <Typography className={classes.typography}>
-          Enable these to receive browser notifications for the selected
-          activity types regarding sources you have starred/favorited.
+          Enable these to receive notifications for the selected activity types
+          regarding sources you have starred/favorited.
         </Typography>
       </Popover>
       <FormGroup row>
+        <Typography className={classes.typography}>Browser:</Typography>
         <FormControlLabel
           control={
             <Switch
@@ -120,6 +121,50 @@ const FavoriteSourcesNotificationPreferences = () => {
           label="New Classifications"
         />
       </FormGroup>
+      {profile.slack_integration?.active && (
+        <FormGroup row>
+          <Typography className={classes.typography}>Slack:</Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={
+                  profile.favorite_sources_activity_notifications
+                    ?.slack_comments === true
+                }
+                name="slack_comments"
+                onChange={prefToggled}
+              />
+            }
+            label="New Comments"
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={
+                  profile.favorite_sources_activity_notifications
+                    ?.slack_spectra === true
+                }
+                name="slack_spectra"
+                onChange={prefToggled}
+              />
+            }
+            label="New Spectra"
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={
+                  profile.favorite_sources_activity_notifications
+                    ?.slack_classifications === true
+                }
+                name="slack_classifications"
+                onChange={prefToggled}
+              />
+            }
+            label="New Classifications"
+          />
+        </FormGroup>
+      )}
     </div>
   );
 };
