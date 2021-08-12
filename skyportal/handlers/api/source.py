@@ -1339,6 +1339,13 @@ class SourceHandler(BaseHandler):
                               type: string
                               description: New source ID
         """
+
+        # Note that this POST method allows updating an object,
+        # something usually reserved for PATCH/PUT. This is because
+        # the user doing the POST may not have had access to the
+        # object before (and therefore would have been unaware of its
+        # existence).
+
         data = self.get_json()
         obj_already_exists = (
             Obj.get_if_accessible_by(data["id"], self.current_user) is not None
