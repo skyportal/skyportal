@@ -1466,7 +1466,7 @@ class SourceHandler(BaseHandler):
             payload={"obj_key": obj.internal_key},
         )
 
-        return self.success(action='skyportal/FETCH_SOURCES')
+        return self.success()
 
     @permissions(['Manage sources'])
     def delete(self, obj_id, group_id):
@@ -1504,7 +1504,7 @@ class SourceHandler(BaseHandler):
         s.unsaved_by = self.current_user
         self.verify_and_commit()
 
-        return self.success(action='skyportal/FETCH_SOURCES')
+        return self.success()
 
 
 class SourceOffsetsHandler(BaseHandler):
