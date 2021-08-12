@@ -112,7 +112,7 @@ export const shortenFilename = (filename) => {
   return `${filename.slice(0, 12)}...`;
 };
 
-const CommentAttachmentPreview = ({ filename, commentId }) => {
+const CommentAttachmentPreview = ({ filename, commentId, commentType }) => {
   const classes = useStyles();
   const theme = useTheme();
   const darkTheme = theme.palette.type === "dark";
@@ -154,7 +154,7 @@ const CommentAttachmentPreview = ({ filename, commentId }) => {
   }
 
   // The FilePreviewer expects a url ending with .pdf for PDF files
-  const baseUrl = `/api/comment/${commentId}/attachment`;
+  const baseUrl = `/api/comment/${commentId}/attachment/${commentType}`;
   const url = fileType === "pdf" ? `${baseUrl}.pdf` : baseUrl;
 
   return (
@@ -235,6 +235,7 @@ const CommentAttachmentPreview = ({ filename, commentId }) => {
 CommentAttachmentPreview.propTypes = {
   filename: PropTypes.string.isRequired,
   commentId: PropTypes.number.isRequired,
+  commentType: PropTypes.string.isRequired,
 };
 
 export default CommentAttachmentPreview;
