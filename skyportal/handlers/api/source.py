@@ -52,7 +52,11 @@ from ...utils.offset import (
     get_finding_chart,
     _calculate_best_position_for_offset_stars,
 )
-from .candidate import grab_query_results, update_redshift_history_if_relevant
+from .candidate import (
+    grab_query_results,
+    update_redshift_history_if_relevant,
+    add_linked_thumbnails_and_push_ws_msg,
+)
 from .photometry import serialize
 from .color_mag import get_color_mag
 
@@ -79,14 +83,14 @@ def add_ps1_thumbnail_and_push_ws_msg(obj_id, user):
         obj = Obj.get_if_accessible_by(obj_id, user)
         obj.add_ps1_thumbnail()
         flow = Flow()
-        flow.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+        flow.push(
+            '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
         flow.push_all(
-            action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
     except Exception as e:
-        log(f"Unable to generate PS1 thumbnail URL: {e}")
+        log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
     finally:
         DBSession.remove()
 
@@ -692,10 +696,11 @@ class SourceHandler(BaseHandler):
 
             if include_thumbnails:
                 if "ps1" not in [thumb.type for thumb in s.thumbnails]:
-                    IOLoop.current().add_callback(
+                    IOLoop.current().run_in_executor(
+                        None,
                         lambda: add_ps1_thumbnail_and_push_ws_msg(
                             obj_id, self.current_user
-                        )
+                        ),
                     )
             if include_comments:
                 comments = (
@@ -1425,16 +1430,23 @@ class SourceHandler(BaseHandler):
                         obj=obj, group=group, saved_by_id=self.associated_user_object.id
                     )
                 )
-        self.verify_and_commit()
-        if not obj_already_exists:
-            obj.add_linked_thumbnails()
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-        )
 
-        self.push_all(
-            action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-        )
+        if not obj_already_exists:
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_linked_thumbnails_and_push_ws_msg(
+                    obj.id, self.current_user
+                ),
+            )
+        else:
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+            )
+            self.push_all(
+                action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            )
+
+        self.verify_and_commit()
         return self.success(data={"id": obj.id})
 
     @permissions(['Upload data'])
