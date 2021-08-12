@@ -407,3 +407,6 @@ image_grayscale_params:
   thumb_size: 40
   MSE_cutoff: 22
   adjust_color_bias: True
+
+microservice_ports:
+  slack: 64100
