@@ -15,9 +15,13 @@ from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 import functools
 import healpix_alchemy as ha
+
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.flow import Flow
+from baselayer.log import make_log
+
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -55,6 +59,7 @@ from .color_mag import get_color_mag
 SOURCES_PER_PAGE = 100
 
 _, cfg = load_env()
+log = make_log('api/source')
 
 
 def apply_active_or_requested_filtering(query, include_requested, requested_only):
@@ -69,18 +74,19 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
     return query
 
 
-def add_ps1_thumbnail_and_push_ws_msg(obj_id, request_handler):
+def add_ps1_thumbnail_and_push_ws_msg(obj_id, user):
     try:
-        obj = Obj.get_if_accessible_by(obj_id, request_handler.current_user)
+        obj = Obj.get_if_accessible_by(obj_id, user)
         obj.add_ps1_thumbnail()
-        request_handler.push_all(
+        flow = Flow()
+        flow.push_all(
             action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
-        request_handler.push_all(
+        flow.push_all(
             action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
         )
     except Exception as e:
-        return request_handler.error(f"Unable to generate PS1 thumbnail URL: {e}")
+        log(f"Unable to generate PS1 thumbnail URL: {e}")
     finally:
         DBSession.remove()
 
@@ -687,7 +693,9 @@ class SourceHandler(BaseHandler):
             if include_thumbnails:
                 if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                     IOLoop.current().add_callback(
-                        lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self)
+                        lambda: add_ps1_thumbnail_and_push_ws_msg(
+                            obj_id, self.current_user
+                        )
                     )
             if include_comments:
                 comments = (
@@ -2096,8 +2104,8 @@ class PS1ThumbnailHandler(BaseHandler):
         data = self.get_json()
         obj_id = data.get("objID")
         if obj_id is None:
-            return self.error("Missing required paramter objID")
+            return self.error("Missing required parameter objID")
         IOLoop.current().add_callback(
-            lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self)
+            lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self.current_user)
         )
         return self.success()
