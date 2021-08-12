@@ -3958,6 +3958,47 @@ User.source_notifications = relationship(
 )
 
 
+@event.listens_for(UserNotification, 'after_insert')
+def send_slack_notification(mapper, connection, target):
+
+    send_to_slack = False
+    if target.user.preferences is not None:
+        if target.user.preferences.get('slack_integration'):
+            if target.user.preferences['slack_integration'].get("active", False):
+                integration_url = target.user.preferences['slack_integration'].get(
+                    "url", ""
+                )
+                if integration_url.startswith("https://"):
+                    send_to_slack = True
+
+    if not send_to_slack:
+        return
+
+    app_url = get_app_base_url()
+    app_base_url = ":".join(app_url.split(":")[:-1])  # keep only the URL, not the port
+    slack_microservice_url = f'{app_base_url}:{cfg["microservice_ports.slack"]}'
+
+    is_mention = target.text.find("mentioned you") != -1
+
+    if (
+        is_mention
+        and not target.user.preferences['slack_integration'].get("mentions", False)
+    ) or (
+        not is_mention
+        and not target.user.preferences['slack_integration'].get(
+            "favorite_sources", False
+        )
+    ):
+        return
+
+    data = json.dumps(
+        {"url": integration_url, "text": f'{target.text} ({app_url}{target.url})'}
+    )
+    _ = requests.post(
+        slack_microservice_url, data=data, headers={'Content-Type': 'application/json'}
+    )
+
+
 @event.listens_for(SourceNotification, 'after_insert')
 def send_source_notification(mapper, connection, target):
     app_base_url = get_app_base_url()

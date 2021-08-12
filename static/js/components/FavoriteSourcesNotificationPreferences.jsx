@@ -50,6 +50,16 @@ const FavoriteSourcesNotificationPreferences = () => {
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
+  const prefToggledSlack = (event) => {
+    const prefs = {
+      slack_integration: {
+        [event.target.name]: event.target.checked,
+      },
+    };
+
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
   return (
     <div>
       <div className={classes.header}>
@@ -123,45 +133,15 @@ const FavoriteSourcesNotificationPreferences = () => {
       </FormGroup>
       {profile.slack_integration?.active && (
         <FormGroup row>
-          <Typography className={classes.typography}>Slack:</Typography>
           <FormControlLabel
             control={
               <Switch
-                checked={
-                  profile.favorite_sources_activity_notifications
-                    ?.slack_comments === true
-                }
-                name="slack_comments"
-                onChange={prefToggled}
+                checked={profile.slack_integration?.favorite_sources === true}
+                name="favorite_sources"
+                onChange={prefToggledSlack}
               />
             }
-            label="New Comments"
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={
-                  profile.favorite_sources_activity_notifications
-                    ?.slack_spectra === true
-                }
-                name="slack_spectra"
-                onChange={prefToggled}
-              />
-            }
-            label="New Spectra"
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={
-                  profile.favorite_sources_activity_notifications
-                    ?.slack_classifications === true
-                }
-                name="slack_classifications"
-                onChange={prefToggled}
-              />
-            }
-            label="New Classifications"
+            label="Also Push to Slack"
           />
         </FormGroup>
       )}

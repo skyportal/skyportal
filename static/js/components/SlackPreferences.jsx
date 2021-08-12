@@ -117,22 +117,38 @@ const SlackPreferences = () => {
         />
       </FormGroup>
       {profile.slack_integration?.active && (
-        <div>
-          <TextField
-            name="url"
-            label="Integration URL"
-            fullWidth
-            placeholder="Unique URL connecting to your Slack channel"
-            defaultValue={profile.slack_integration?.url}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            margin="normal"
-            helperText={
-              slackurlerror ? "Must be a Slack URL" : "Valid Slack URL"
-            }
-            error={slackurlerror}
-          />
-        </div>
+        <>
+          <div>
+            <TextField
+              name="url"
+              label="Integration URL"
+              fullWidth
+              placeholder="Unique URL connecting to your Slack channel"
+              defaultValue={profile.slack_integration?.url}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              margin="normal"
+              helperText={
+                slackurlerror ? "Must be a Slack URL" : "Valid Slack URL"
+              }
+              error={slackurlerror}
+            />
+          </div>
+          <div>
+            <FormGroup row>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={profile.slack_integration?.mentions === true}
+                    name="mentions"
+                    onChange={prefToggled}
+                  />
+                }
+                label="@ mentions"
+              />
+            </FormGroup>
+          </div>
+        </>
       )}
     </div>
   );
