@@ -1665,28 +1665,28 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     # To form columns from the rows, zip the rows together.
     element_dicts = zip(*rows)
 
-    elements_groups = []  # The Bokeh checkbox groups
+    all_column_checkboxes = []
 
     for column_idx, element_dict in enumerate(element_dicts):
         element_dict = [e for e in element_dict if e is not None]
         labels = [name for name, _ in element_dict]
         colors = [color for name, (wavelengths, color) in element_dict]
-        elements = CheckboxWithLegendGroup(
+        column_checkboxes = CheckboxWithLegendGroup(
             labels=labels, active=[], colors=colors, width=width // (columns + 1)
         )
-        elements_groups.append(elements)
+        all_column_checkboxes.append(column_checkboxes)
 
         callback_toggle_lines = CustomJS(
-            args={'elements': elements, **model_dict},
+            args={'column_checkboxes': column_checkboxes, **model_dict},
             code=f"""
             for (let i = 0; i < {len(labels)}; i = i + 1) {{
                 let el_idx = i * {columns} + {column_idx};
                 let el = eval("element_" + el_idx);
-                el.visible = (elements.active.includes(i))
+                el.visible = (column_checkboxes.active.includes(i))
             }}
         """,
         )
-        elements.js_on_click(callback_toggle_lines)
+        column_checkboxes.js_on_click(callback_toggle_lines)
 
     # Move spectral lines when redshift or velocity changes
     speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
@@ -1739,7 +1739,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     else:
         height = plot_height + 220
 
-    row2 = row(elements_groups)
+    row2 = row(all_column_checkboxes)
     row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
     layout = column(
         plot,
