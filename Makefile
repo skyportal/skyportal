@@ -19,7 +19,7 @@ help: baselayer/Makefile
 	@echo
 
 baselayer/Makefile:
-	git submodule update --init --remote
+	git submodule update --init
 
 docker-images: ## Make and upload docker images
 docker-images: docker-local
