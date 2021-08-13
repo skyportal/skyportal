@@ -234,7 +234,9 @@ def add_contour(localization_id, request_handler):
         DBSession().add(localization)
         DBSession().commit()
     except Exception as e:
-        return log(f"Unable to generate contour: {e}")
+        return log(
+            f"Unable to generate contour for localization {localization_id}: {e}"
+        )
     finally:
         DBSession.remove()
 
