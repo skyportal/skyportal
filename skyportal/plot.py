@@ -1650,7 +1650,18 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         columns = 5
     else:
         columns = 7
-    element_dicts = zip(*itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns))
+
+    # Create columns from a list.
+    #
+    # `list(zip_longest(a, b, c, ...))` returns a tuple where the i-th
+    # element comes from the i-th iterable argument.
+    #
+    # The trick here is to pass in the same iterable `column` times.
+    # This gives us rows.
+    rows = itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns)
+
+    # To form columns from the rows, zip the rows together.
+    element_dicts = zip(*rows)
 
     elements_groups = []  # The Bokeh checkbox groups
     callbacks = []  # The checkbox callbacks for each element
