@@ -1,10 +1,12 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import os
+import functools
 import gcn
 import lxml
 import xmlschema
 from urllib.parse import urlparse
+from tornado.ioloop import IOLoop
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
@@ -110,8 +112,14 @@ class GcnEventHandler(BaseHandler):
             )
         except NoResultFound:
             localization = Localization(**skymap)
-            localization = get_contour(localization)
             DBSession().add(localization)
+
+            contour_func = functools.partial(
+                add_contour,
+                localization,
+                self,
+            )
+            IOLoop.current().run_in_executor(None, contour_func)
 
         self.verify_and_commit()
 
@@ -207,6 +215,17 @@ class GcnEventHandler(BaseHandler):
         self.verify_and_commit()
 
         return self.success()
+
+
+def add_contour(localization, request_handler):
+    try:
+        localization = get_contour(localization)
+        DBSession().merge(localization)
+        request_handler.verify_and_commit()
+    except Exception as e:
+        return request_handler.error(f"Unable to generate contour: {e}")
+    finally:
+        DBSession.remove()
 
 
 class LocalizationHandler(BaseHandler):
