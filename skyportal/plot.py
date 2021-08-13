@@ -1492,12 +1492,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     )
     plot.add_tools(hover)
 
-    # collection of all spec lines which move with redshift and vexp
     model_dict = {}
-
-    # collection of lines (sky, tellurics) that remain static
-    sz_dict = {}
-
     legend_items = []
     for i, (key, df) in enumerate(split):
         renderers = []
@@ -1597,13 +1592,16 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         margin=(0, 10, 0, 10),
     )
 
+    # Track elements that need to be shifted with change in z / v
+    shifting_elements = []
+
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
 
         el_data = pd.DataFrame({'wavelength': wavelengths})
 
         if name == 'Sky Lines':  # No redshift correction of skylines
             el_data['x'] = el_data['wavelength']
-            sz_dict[f'el{i}'] = plot.segment(
+            segment = plot.segment(
                 x0='x',
                 x1='x',
                 y0=0,
@@ -1611,14 +1609,15 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
                 color=color,
                 source=ColumnDataSource(el_data),
             )
-            sz_dict[f'el{i}'].visible = False
+            segment.visible = False
+            model_dict[f'element_{i}'] = segment
 
         elif name in ('Tellurics-1', 'Tellurics-2'):
             el_data['x'] = el_data['wavelength']
             midtel1 = (el_data['x'][0] + el_data['x'][1]) / 2
             widtel1 = el_data['x'][1] - el_data['x'][0]
 
-            sz_dict[f'el{i}'] = plot.vbar(
+            vbar = plot.vbar(
                 x=midtel1,
                 width=widtel1,
                 # TODO change limits
@@ -1626,13 +1625,14 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
                 color=color,
                 alpha=0.3,
             )
-            sz_dict[f'el{i}'].visible = False
+            vbar.visible = False
+            model_dict[f'element_{i}'] = vbar
 
         else:
             obj_redshift = 0 if obj.redshift is None else obj.redshift
             el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
 
-            model_dict[f'el{i}'] = plot.segment(
+            segment = plot.segment(
                 x0='x',
                 x1='x',
                 # TODO change limits
@@ -1641,7 +1641,9 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
                 color=color,
                 source=ColumnDataSource(el_data),
             )
-            model_dict[f'el{i}'].visible = False
+            segment.visible = False
+            model_dict[f'element_{i}'] = segment
+            shifting_elements.append(segment)
 
     # Split spectral line legend into columns
     if device == "mobile_portrait":
@@ -1664,56 +1666,53 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     element_dicts = zip(*rows)
 
     elements_groups = []  # The Bokeh checkbox groups
-    callbacks = []  # The checkbox callbacks for each element
 
     for column_idx, element_dict in enumerate(element_dicts):
         element_dict = [e for e in element_dict if e is not None]
-        labels = [key for key, value in element_dict]
-        colors = [c for key, (w, c) in element_dict]
+        labels = [name for name, _ in element_dict]
+        colors = [color for name, (wavelengths, color) in element_dict]
         elements = CheckboxWithLegendGroup(
             labels=labels, active=[], colors=colors, width=width // (columns + 1)
         )
         elements_groups.append(elements)
 
-        # callback definition for the lines whenever changing the redshift or velocity
-        callback_zvs = CustomJS(
-            args={
-                'elements': elements,
-                'z': z_textinput,
-                'v_exp': v_exp_textinput,
-                **model_dict,  # only on the spec lines, not tellurics or sky lines
-            },
+        callback_toggle_lines = CustomJS(
+            args={'elements': elements, **model_dict},
             code=f"""
-            const c = 299792.458; // speed of light in km / s
-            const i_max = {column_idx} +  {columns} * elements.labels.length;
-            let local_i = 0;
-            for (let i = {column_idx}; i < i_max; i = i + {columns}) {{
-                let el = eval("el" + i);
-                el.visible = (elements.active.includes(local_i))
-                el.data_source.data.x = el.data_source.data.wavelength.map(
-                    x_i => (x_i * (1 + parseFloat(z.value)) /
-                                    (1 + parseFloat(v_exp.value) / c))
-                );
-                el.data_source.change.emit();
-                local_i++;
+            for (let i = 0; i < {len(labels)}; i = i + 1) {{
+                let el_idx = i * {columns} + {column_idx};
+                let el = eval("element_" + el_idx);
+                el.visible = (elements.active.includes(i))
             }}
         """,
         )
+        elements.js_on_click(callback_toggle_lines)
 
-        elements.js_on_click(callback_zvs)  # elements definition
-        callbacks.append(
-            callback_zvs
-        )  # callbacks is for moving lines with the change of z or vexp
+    # Move spectral lines when redshift or velocity changes
+    speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
+    callback_zvs = CustomJS(
+        args={'z': z_textinput, 'v_exp': v_exp_textinput, **speclines},
+        code=f"""
+        const c = 299792.458; // speed of light in km / s
+        for (let i = 0; i < {len(speclines)}; i = i + 1) {{
+            let el = eval("specline_" + i);
+            el.data_source.data.x = el.data_source.data.wavelength.map(
+                x_i => (x_i * (1 + parseFloat(z.value)) /
+                                (1 + parseFloat(v_exp.value) / c))
+            );
+            el.data_source.change.emit();
+        }}
+    """,
+    )
+
+    # Hook up callback that shifts spectral lines when z or v changes
+    z_textinput.js_on_change('value', callback_zvs)
+    v_exp_textinput.js_on_change('value', callback_zvs)
 
     z_textinput.js_on_change(
         'value',
         CustomJS(
-            args={
-                'z': z_textinput,
-                'slider': z_slider,
-                'v_exp': v_exp_textinput,
-                **model_dict,
-            },
+            args={'z': z_textinput, 'slider': z_slider},
             code="""
             // Update slider value to match text input
             slider.value = parseFloat(z.value).toFixed(3);
@@ -1724,23 +1723,13 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     v_exp_textinput.js_on_change(
         'value',
         CustomJS(
-            args={
-                'z': z_textinput,
-                'slider': v_exp_slider,
-                'v_exp': v_exp_textinput,
-                **model_dict,
-            },
+            args={'slider': v_exp_slider, 'v_exp': v_exp_textinput},
             code="""
             // Update slider value to match text input
             slider.value = parseFloat(v_exp.value).toFixed(3);
         """,
         ),
     )
-
-    # Update the element spectral lines as well
-    for callback in callbacks:
-        z_textinput.js_on_change('value', callback)
-        v_exp_textinput.js_on_change('value', callback)
 
     # Add some height for the checkboxes and sliders
     if device == "mobile_portrait":
