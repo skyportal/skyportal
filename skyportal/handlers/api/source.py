@@ -86,9 +86,7 @@ def add_ps1_thumbnail_and_push_ws_msg(obj_id, user):
         flow.push(
             '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
-        flow.push_all(
-            '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-        )
+        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
     except Exception as e:
         log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
     finally:
