@@ -170,21 +170,16 @@ def test_calculate_best_position_with_photometry(
         phot_list, fallback=(ra, dec), how="snr2", max_offset=0.5, sigma_clip=4.0
     )
     # make sure we get back a slightly different position than the true center
-    with pytest.raises(AssertionError):
-        npt.assert_almost_equal(ra_calc_snr, ra, decimal=10)
-    with pytest.raises(AssertionError):
-        npt.assert_almost_equal(dec_calc_snr, dec, decimal=10)
+    assert not npt.assert_almost_equal(ra_calc_snr, ra, decimal=10)
+    assert not npt.assert_almost_equal(dec_calc_snr, dec, decimal=10)
 
     ra_calc_err, dec_calc_err = _calculate_best_position_for_offset_stars(
         phot_list, fallback=(ra, dec), how="invvar", max_offset=0.5, sigma_clip=4.0
     )
     # make sure we get back a slightly different position for two different
     # methods
-    with pytest.raises(AssertionError):
-        npt.assert_almost_equal(ra_calc_snr, ra_calc_err, decimal=10)
-
-    with pytest.raises(AssertionError):
-        npt.assert_almost_equal(dec_calc_snr, dec_calc_err, decimal=10)
+    assert not npt.assert_almost_equal(ra_calc_snr, ra_calc_err, decimal=10)
+    assert not npt.assert_almost_equal(dec_calc_snr, dec_calc_err, decimal=10)
 
 
 ztfref_url = irsa['url_search']

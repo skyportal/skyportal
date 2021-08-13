@@ -450,8 +450,9 @@ def test_starlist(upload_data_token, public_source):
     assert data["status"] == "success"
     assert isinstance(data["data"]["starlist_info"][2]["dec"], float)
     gaiadr2_star_position = data["data"]["starlist_info"][2]["dec"]
-    with pytest.raises(AssertionError):
-        npt.assert_almost_equal(gaiadr2_star_position, ztf_star_position, decimal=10)
+    assert not npt.assert_almost_equal(
+        gaiadr2_star_position, ztf_star_position, decimal=10
+    )
 
 
 @pytest.mark.xfail(strict=False)
