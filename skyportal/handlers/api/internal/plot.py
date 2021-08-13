@@ -6,6 +6,7 @@ from ....models import ClassicalAssignment, Obj, Telescope
 
 import numpy as np
 from astropy import time as ap_time
+import astropy.units as u
 import pandas as pd
 import datetime
 
@@ -159,9 +160,12 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
             # Get sunrise/sunset times for that day
             sunrise = telescope.next_sunrise(time=day)
             sunset = telescope.next_sunset(time=day)
+            # check if is in middle of night
+            if (sunrise - sunset).to_value('hr') < 0:
+                sunrise = sunrise + ap_time.TimeDelta(1 * u.day)
 
             # Compute airmasses for that day
-            sample_size = 30
+            sample_size = 60
             df = self.calculate_airmass(obj, telescope, sunrise, sunset, sample_size)
 
             # Compute hours below airmass
