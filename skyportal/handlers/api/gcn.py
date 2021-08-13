@@ -12,6 +12,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
+from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -21,6 +22,8 @@ from ...models import (
     Localization,
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
+
+log = make_log('api/gcn_event')
 
 
 class GcnEventHandler(BaseHandler):
@@ -231,7 +234,7 @@ def add_contour(localization_id, request_handler):
         DBSession().add(localization)
         DBSession().commit()
     except Exception as e:
-        return request_handler.error(f"Unable to generate contour: {e}")
+        return log(f"Unable to generate contour: {e}")
     finally:
         DBSession.remove()
 
