@@ -118,7 +118,6 @@ class GcnEventHandler(BaseHandler):
             contour_func = functools.partial(
                 add_contour,
                 localization.id,
-                self.current_user,
                 self,
             )
             IOLoop.current().run_in_executor(None, contour_func)
@@ -219,19 +218,18 @@ class GcnEventHandler(BaseHandler):
         return self.success()
 
 
-def add_contour(localization_id, current_user, request_handler):
+def add_contour(localization_id, request_handler):
     try:
         localization = (
-            Localization.query_records_accessible_by(current_user)
+            Localization.query_records_accessible_by(request_handler.current_user)
             .filter(
                 Localization.id == localization_id,
             )
             .first()
         )
-        print(localization)
         localization = get_contour(localization)
         DBSession().add(localization)
-        request_handler.verify_and_commit()
+        DBSession().commit()
     except Exception as e:
         return request_handler.error(f"Unable to generate contour: {e}")
     finally:
