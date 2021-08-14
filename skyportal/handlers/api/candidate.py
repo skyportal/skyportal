@@ -1002,14 +1002,6 @@ class CandidateHandler(BaseHandler):
 
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
         DBSession().add(obj)
-        if not obj_already_exists:
-            obj_id = obj.id
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj_id, self.current_user
-                ),
-            )
 
         candidates = [
             Candidate(
@@ -1022,8 +1014,16 @@ class CandidateHandler(BaseHandler):
             for filter in filters
         ]
         DBSession().add_all(candidates)
-
         self.verify_and_commit()
+
+        if not obj_already_exists:
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_linked_thumbnails_and_push_ws_msg(
+                    obj.id, self.current_user
+                ),
+            )
+
         return self.success(data={"ids": [c.id for c in candidates]})
 
     @permissions(["Upload data"])

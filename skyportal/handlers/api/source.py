@@ -1428,6 +1428,7 @@ class SourceHandler(BaseHandler):
                         obj=obj, group=group, saved_by_id=self.associated_user_object.id
                     )
                 )
+        self.verify_and_commit()
 
         if not obj_already_exists:
             IOLoop.current().run_in_executor(
@@ -1444,7 +1445,6 @@ class SourceHandler(BaseHandler):
                 action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
             )
 
-        self.verify_and_commit()
         return self.success(data={"id": obj.id})
 
     @permissions(['Upload data'])
