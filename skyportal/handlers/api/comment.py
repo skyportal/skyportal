@@ -28,7 +28,7 @@ def users_mentioned(text):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, comment_id, associated_resource_type=None):
+    def get(self, associated_resource_type, comment_id):
         """
         ---
         description: Retrieve a comment
@@ -224,7 +224,7 @@ class CommentHandler(BaseHandler):
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
-    def put(self, comment_id, associated_resource_type=None):
+    def put(self, associated_resource_type, comment_id):
         """
         ---
         description: Update a comment
@@ -335,7 +335,7 @@ class CommentHandler(BaseHandler):
         return self.success()
 
     @permissions(['Comment'])
-    def delete(self, comment_id, associated_resource_type=None):
+    def delete(self, associated_resource_type, comment_id):
         """
         ---
         description: Delete a comment
@@ -400,7 +400,7 @@ class CommentHandler(BaseHandler):
 
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
-    def get(self, comment_id, associated_resource_type=None):
+    def get(self, associated_resource_type, comment_id):
         """
         ---
         description: Download comment attachment

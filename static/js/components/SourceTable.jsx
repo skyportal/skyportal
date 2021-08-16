@@ -501,7 +501,7 @@ const SourceTable = ({
                           {attachment_name && (
                             <div>
                               Attachment:&nbsp;
-                              <a href={`/api/comment/${id}/attachment`}>
+                              <a href={`/api/comment/object/${id}/attachment`}>
                                 {attachment_name}
                               </a>
                             </div>

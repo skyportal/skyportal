@@ -88,7 +88,9 @@ def test_add_and_retrieve_annotation_group_id(
     assert status == 200
     annotation_id = data['data']['annotation_id']
 
-    status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
+    status, data = api(
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token
+    )
 
     assert status == 200
     assert data['data']['data'] == {'offset_from_host_galaxy': 1.5}
@@ -109,7 +111,9 @@ def test_add_and_retrieve_annotation_no_group_id(annotation_token, public_source
     assert status == 200
     annotation_id = data['data']['annotation_id']
 
-    status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
+    status, data = api(
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token
+    )
 
     assert status == 200
     assert data['data']['data'] == {'offset_from_host_galaxy': 1.5}
@@ -140,14 +144,16 @@ def test_add_and_retrieve_annotation_group_access(
 
     # This token belongs to public_group2
     status, data = api(
-        'GET', f'annotation/{annotation_id}', token=annotation_token_two_groups
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token_two_groups
     )
     assert status == 200
     assert data['data']['data'] == {'offset_from_host_galaxy': 1.5}
     assert data['data']['origin'] == 'kowalski'
 
     # This token does not belong to public_group2
-    status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
+    status, data = api(
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token
+    )
     assert status == 400
     assert "Insufficient permissions" in data["message"]
 
@@ -168,13 +174,15 @@ def test_add_and_retrieve_annotation_group_access(
     annotation_id = data['data']['annotation_id']
 
     status, data = api(
-        'GET', f'annotation/{annotation_id}', token=annotation_token_two_groups
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token_two_groups
     )
     assert status == 200
     assert data['data']['data'] == {'offset_from_host_galaxy': 1.5}
     assert data['data']['origin'] == 'GAIA'
 
-    status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
+    status, data = api(
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token
+    )
     assert status == 200
     assert data['data']['data'] == {'offset_from_host_galaxy': 1.5}
 
@@ -202,21 +210,23 @@ def test_update_annotation_group_list(
 
     # This token belongs to public_group2
     status, data = api(
-        'GET', f'annotation/{annotation_id}', token=annotation_token_two_groups
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token_two_groups
     )
     assert status == 200
     assert data['data']['origin'] == 'kowalski'
     assert data['data']['data'] == {'offset_from_host_galaxy': 1.5}
 
     # This token does not belong to public_group2
-    status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
+    status, data = api(
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token
+    )
     assert status == 400
     assert "Insufficient permissions" in data["message"]
 
     # Both tokens should be able to view annotation after updating group list
     status, data = api(
         'PUT',
-        f'annotation/{annotation_id}',
+        f'annotation/object/{annotation_id}',
         data={
             'data': {'offset_from_host_galaxy': 1.7},
             'group_ids': [public_group.id, public_group2.id],
@@ -226,12 +236,14 @@ def test_update_annotation_group_list(
     assert status == 200
 
     status, data = api(
-        'GET', f'annotation/{annotation_id}', token=annotation_token_two_groups
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token_two_groups
     )
     assert status == 200
     assert data['data']['data'] == {'offset_from_host_galaxy': 1.7}
 
-    status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
+    status, data = api(
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token
+    )
     assert status == 200
     assert data['data']['data'] == {'offset_from_host_galaxy': 1.7}
 
@@ -267,15 +279,21 @@ def test_delete_annotation(annotation_token, public_source):
     assert status == 200
     annotation_id = data['data']['annotation_id']
 
-    status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
+    status, data = api(
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token
+    )
     assert status == 200
     assert data['data']['data'] == {'offset_from_host_galaxy': 1.5}
     assert data['data']['origin'] == origin
 
-    status, data = api('DELETE', f'annotation/{annotation_id}', token=annotation_token)
+    status, data = api(
+        'DELETE', f'annotation/object/{annotation_id}', token=annotation_token
+    )
     assert status == 200
 
-    status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
+    status, data = api(
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token
+    )
     assert status == 400
 
 
@@ -295,7 +313,9 @@ def test_obj_annotations(annotation_token, public_source, public_group):
     assert status == 200
     annotation_id = data['data']['annotation_id']
 
-    status, data = api('GET', f'annotation/{annotation_id}', token=annotation_token)
+    status, data = api(
+        'GET', f'annotation/object/{annotation_id}', token=annotation_token
+    )
     assert status == 200
 
     status, data = api(

@@ -77,23 +77,23 @@ export function addComment(formData) {
     return (dispatch) => {
       fileReaderPromise(formData.attachment).then((fileData) => {
         formData.attachment = fileData;
-        dispatch(API.POST(`/api/comment`, ADD_COMMENT, formData));
+        dispatch(API.POST(`/api/comment/object`, ADD_COMMENT, formData));
       });
     };
   }
-  return API.POST(`/api/comment`, ADD_COMMENT, formData);
+  return API.POST(`/api/comment/object`, ADD_COMMENT, formData);
 }
 
 export function deleteComment(comment_id, associatedResourceType = "object") {
   return API.DELETE(
-    `/api/comment/${comment_id}/${associatedResourceType}`,
+    `/api/comment/object/${comment_id}/${associatedResourceType}`,
     DELETE_COMMENT
   );
 }
 
 export function getCommentAttachment(comment_id) {
   return API.GET(
-    `/api/comment/${comment_id}/attachment?download=False`,
+    `/api/comment/object/${comment_id}/attachment?download=False`,
     GET_COMMENT_ATTACHMENT
   );
 }

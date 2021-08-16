@@ -8,7 +8,7 @@ from ...models import DBSession, Annotation, Group
 
 class AnnotationHandler(BaseHandler):
     @auth_or_token
-    def get(self, annotation_id):
+    def get(self, associated_resource_type, annotation_id):
         """
         ---
         description: Retrieve an annotation
@@ -30,9 +30,21 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        annotation = Annotation.get_if_accessible_by(
-            annotation_id, self.current_user, raise_if_none=True
-        )
+
+        if associated_resource_type is None:
+            associated_resource_type = 'object'
+
+        if (
+            associated_resource_type.lower() == "object"
+        ):  # annotation on object (default)
+            annotation = Annotation.get_if_accessible_by(
+                annotation_id, self.current_user, raise_if_none=True
+            )
+        # add more options using elif
+        else:
+            return self.error(
+                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
+            )
         return self.success(data=annotation)
 
     @permissions(['Annotate'])
@@ -139,7 +151,7 @@ class AnnotationHandler(BaseHandler):
         return self.success(data={'annotation_id': annotation.id})
 
     @permissions(['Annotate'])
-    def put(self, annotation_id):
+    def put(self, associated_resource_type, annotation_id):
         """
         ---
         description: Update an annotation
@@ -176,10 +188,18 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        a = Annotation.get_if_accessible_by(
-            annotation_id, self.current_user, mode="update", raise_if_none=True
-        )
+        if associated_resource_type is None:
+            associated_resource_type = 'object'
 
+        if associated_resource_type.lower() == "object":  # comment on object
+            a = Annotation.get_if_accessible_by(
+                annotation_id, self.current_user, mode="update", raise_if_none=True
+            )
+        # add more options using elif
+        else:
+            return self.error(
+                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
+            )
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
         data['id'] = annotation_id
@@ -203,7 +223,7 @@ class AnnotationHandler(BaseHandler):
         return self.success()
 
     @permissions(['Annotate'])
-    def delete(self, annotation_id):
+    def delete(self, associated_resource_type, annotation_id):
         """
         ---
         description: Delete an annotation
@@ -221,9 +241,20 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        a = Annotation.get_if_accessible_by(
-            annotation_id, self.current_user, mode="delete", raise_if_none=True
-        )
+
+        if associated_resource_type is None:
+            associated_resource_type = 'object'
+
+        if associated_resource_type.lower() == "object":  # comment on object
+            a = Annotation.get_if_accessible_by(
+                annotation_id, self.current_user, mode="delete", raise_if_none=True
+            )
+        # add more options using elif
+        else:
+            return self.error(
+                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
+            )
+
         obj_key = a.obj.internal_key
         DBSession().delete(a)
         self.verify_and_commit()
