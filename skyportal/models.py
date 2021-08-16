@@ -2896,6 +2896,8 @@ class AnnotationOnSpectrum(Base, AnnotationMixin):
         doc="The Spectrum referred to by this annotation.",
     )
 
+    __table_args__ = (UniqueConstraint('spectrum_id', 'origin'),)
+
 
 User.annotations_on_spectra = relationship(
     "AnnotationOnSpectrum",
