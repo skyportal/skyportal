@@ -268,6 +268,12 @@ const UploadSpectrumForm = ({ route }) => {
         },
         uniqueItems: true,
       },
+      reducer_mode: {
+        type: "string",
+        default: "User",
+        title: "Reducer type",
+        enum: ["User", "External"],
+      },
       reduced_by: {
         type: "array",
         title: "Reducers",
@@ -279,6 +285,12 @@ const UploadSpectrumForm = ({ route }) => {
           })),
         },
         uniqueItems: true,
+      },
+      observer_mode: {
+        type: "string",
+        default: "User",
+        title: "Observer type",
+        enum: ["User", "External"],
       },
       observed_by: {
         type: "array",
@@ -337,6 +349,108 @@ const UploadSpectrumForm = ({ route }) => {
       "instrument_id",
     ],
     dependencies: {
+      reducer_mode: {
+        oneOf: [
+          {
+            properties: {
+              reducer_mode: {
+                enum: ["User"],
+              },
+              reduced_by: {
+                type: "array",
+                title: "Reducers",
+                items: {
+                  type: "integer",
+                  anyOf: users.map((user) => ({
+                    enum: [user.id],
+                    title: user.username,
+                  })),
+                },
+                uniqueItems: true,
+              },
+            },
+          },
+          {
+            properties: {
+              reducer_mode: {
+                enum: ["External"],
+              },
+              reduced_by: {
+                type: "string",
+                title: "Reducers",
+              },
+              reducer_point_of_contact: {
+                type: "array",
+                title: "Point of contact user for reducers",
+                items: {
+                  type: "integer",
+                  anyOf: users.map((user) => ({
+                    enum: [user.id],
+                    title: user.username,
+                  })),
+                },
+                uniqueItems: true,
+              },
+            },
+            required: [
+              "reducer_mode",
+              "reduced_by",
+              "reducer_point_of_contact",
+            ],
+          },
+        ],
+      },
+      observer_mode: {
+        oneOf: [
+          {
+            properties: {
+              observer_mode: {
+                enum: ["User"],
+              },
+              observed_by: {
+                type: "array",
+                title: "Observers",
+                items: {
+                  type: "integer",
+                  anyOf: users.map((user) => ({
+                    enum: [user.id],
+                    title: user.username,
+                  })),
+                },
+                uniqueItems: true,
+              },
+            },
+          },
+          {
+            properties: {
+              observer_mode: {
+                enum: ["External"],
+              },
+              observed_by: {
+                type: "string",
+                title: "Observers",
+              },
+              observer_point_of_contact: {
+                type: "array",
+                title: "Point of contact user for observers",
+                items: {
+                  type: "integer",
+                  anyOf: users.map((user) => ({
+                    enum: [user.id],
+                    title: user.username,
+                  })),
+                },
+                uniqueItems: true,
+              },
+            },
+            required: [
+              "observer_mode",
+              "observed_by",
+              "observer_point_of_contact",
+            ],
+          },
+        ],
+      },
       has_fluxerr: {
         oneOf: [
           {
@@ -400,8 +514,34 @@ const UploadSpectrumForm = ({ route }) => {
         .utc()
         .format(),
       filename,
-      observed_by: persistentFormData.observed_by,
-      reduced_by: persistentFormData.reduced_by,
+      // The observed_by list of users is either the actual users
+      // who are observers, or users to be listed as points of
+      // contact
+      observed_by:
+        persistentFormData?.observer_mode === "User"
+          ? persistentFormData.observed_by
+          : persistentFormData.observer_point_of_contact,
+      // If providing external observers as free text, the text
+      // will be in the 'observed_by' field and the associated
+      // users will be in 'observer_point_of_contact'
+      external_observer:
+        persistentFormData?.observer_mode === "External"
+          ? persistentFormData.observed_by
+          : null,
+      // The reduced_by list of users is either the actual users
+      // who are reducers, or users to be listed as points of
+      // contact
+      reduced_by:
+        persistentFormData?.reducer_mode === "User"
+          ? persistentFormData.reduced_by
+          : persistentFormData.reducer_point_of_contact,
+      // If providing external reducers as free text, the text
+      // will be in the 'reduced_by' field and the associated
+      // users will be in 'reducer_point_of_contact'
+      external_reducer:
+        persistentFormData?.reducer_mode === "External"
+          ? persistentFormData.reduced_by
+          : null,
       group_ids: persistentFormData.group_ids,
     };
     const result = await dispatch(spectraActions.uploadASCIISpectrum(payload));

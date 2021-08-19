@@ -111,13 +111,19 @@ skyportal_handlers = [
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
-    (r'/api/comment', CommentHandler),
-    (r'/api/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
+    (
+        r'/api/comment(/[0-9]+)/attachment(/(?:object|spectrum))?',
+        CommentAttachmentHandler,
+    ),
     # Allow the '.pdf' suffix for the attachment route, as the
     # react-file-previewer package expects URLs ending with '.pdf' to
     # load PDF files.
-    (r'/api/comment(/[0-9]+)/attachment.pdf', CommentAttachmentHandler),
-    (r'/api/comment(/[0-9]+)?(/.+)?', CommentHandler),
+    (
+        r'/api/comment(/[0-9]+)/attachment.pdf(/(?:object|spectrum))?',
+        CommentAttachmentHandler,
+    ),
+    (r'/api/comment(/[0-9]+)(/(?:object|spectrum))?', CommentHandler),
+    (r'/api/comment', CommentHandler),
     (r'/api/annotation(/[0-9]+)?', AnnotationHandler),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),

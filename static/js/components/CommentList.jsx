@@ -416,6 +416,7 @@ const CommentList = ({
                         <CommentAttachmentPreview
                           filename={attachment_name}
                           commentId={id}
+                          commentType={spectrum_id ? "spectrum" : "object"}
                         />
                       )}
                     </span>

@@ -2417,7 +2417,9 @@ class Photometry(ha.Point, Base):
         """Signal-to-noise ratio of this Photometry point."""
         return (
             self.flux / self.fluxerr
-            if not np.isnan(self.flux) and not np.isnan(self.fluxerr)
+            if not np.isnan(self.flux)
+            and not np.isnan(self.fluxerr)
+            and self.fluxerr != 0
             else None
         )
 
@@ -2427,7 +2429,9 @@ class Photometry(ha.Point, Base):
         return sa.case(
             [
                 (
-                    sa.and_(self.flux != 'NaN', self.fluxerr != 0),  # noqa
+                    sa.and_(
+                        self.flux != 'NaN', self.fluxerr != 'NaN', self.fluxerr != 0
+                    ),  # noqa
                     self.flux / self.fluxerr,
                 )
             ],
@@ -2533,12 +2537,12 @@ class Spectrum(Base):
     reducers = relationship(
         "User",
         secondary="spectrum_reducers",
-        doc="Users that reduced this spectrum.",
+        doc="Users that reduced this spectrum, or users to serve as points of contact given an external reducer.",
     )
     observers = relationship(
         "User",
         secondary="spectrum_observers",
-        doc="Users that observed this spectrum.",
+        doc="Users that observed this spectrum, or users to serve as points of contact given an external observer.",
     )
 
     followup_request_id = sa.Column(
@@ -2776,6 +2780,22 @@ SpectrumObserver.create = (
 ) = SpectrumObserver.update = AccessibleIfUserMatches('spectrum.owner')
 
 # should be accessible only by spectrumowner ^^
+
+SpectrumReducer.external_reducer = sa.Column(
+    sa.String,
+    nullable=True,
+    doc="The actual reducer for the spectrum, provided as free text if the "
+    "reducer is not a user in the database. Separate from the point-of-contact "
+    "user designated as reducer",
+)
+SpectrumObserver.external_observer = sa.Column(
+    sa.String,
+    nullable=True,
+    doc="The actual observer for the spectrum, provided as free text if the "
+    "observer is not a user in the database. Separate from the point-of-contact "
+    "user designated as observer",
+)
+
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
