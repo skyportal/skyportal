@@ -1,4 +1,4 @@
-red by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
+# inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import os
 import functools
@@ -119,10 +119,17 @@ class GcnEventHandler(BaseHandler):
         except NoResultFound:
             localization = Localization(**skymap)
             DBSession().add(localization)
-            
+
             localization = Localization(**skymap)
             DBSession().add(localization)
             DBSession().commit()
+
+            tiles_func = functools.partial(
+                add_tiles,
+                localization.id,
+                self,
+            )
+            IOLoop.current().run_in_executor(None, tiles_func)
 
             contour_func = functools.partial(
                 add_contour,
@@ -130,13 +137,6 @@ class GcnEventHandler(BaseHandler):
                 self,
             )
             IOLoop.current().run_in_executor(None, contour_func)
-
-            tiles_func = functools.partial(
-                add_tiles,
-                skymap,
-                localization.id,
-            )
-            IOLoop.current().run_in_executor(None, tiles_func)
 
         return self.success()
 
@@ -251,32 +251,46 @@ def add_contour(localization_id, request_handler):
     finally:
         DBSession.remove()
 
-        
-def add_tiles(skymap, localization_id):
-    # Loop over the skymap MOC indices and probabilities
-    # and compute the integrated probability in the entire tile
-    tiles, probs = [], []
-    for uniq, probdensity in zip(skymap["uniq"], skymap["probdensity"]):
-        tile = LocalizationTile(
-            localization_id=localization_id, uniq=int(uniq), probdensity=probdensity
+
+def add_tiles(localization_id, request_handler):
+    try:
+        localization = (
+            Localization.query_records_accessible_by(request_handler.current_user)
+            .filter(
+                Localization.id == localization_id,
+            )
+            .first()
         )
-        area = (tile.nested_hi - tile.nested_lo + 1) * ha.healpix.PIXEL_AREA
-        prob = probdensity * area
-        tiles.append(tile)
-        probs.append(prob)
 
-    # Compute cumulative probabilities for the MOC (for ease of
-    # computing the percentiles for sources contained)
-    idx = np.argsort(probs)[::-1].astype(int)
-    tiles, probs = [tiles[ii] for ii in idx], [probs[ii] for ii in idx]
-    cumprobs = np.cumsum(probs)
+        # Loop over the skymap MOC indices and probabilities
+        # and compute the integrated probability in the entire tile
+        tiles, probs = [], []
+        for uniq, probdensity in zip(localization.uniq, localization.probdensity):
+            tile = LocalizationTile(
+                localization_id=localization.id, uniq=int(uniq), probdensity=probdensity
+            )
+            area = (tile.nested_hi - tile.nested_lo + 1) * ha.healpix.PIXEL_AREA
+            prob = probdensity * area
+            tiles.append(tile)
+            probs.append(prob)
 
-    for tile, cumprob in zip(tiles, cumprobs):
-        tile.cumprob = cumprob
-        DBSession().add(tile)
-    DBSession().commit()
+        # Compute cumulative probabilities for the MOC (for ease of
+        # computing the percentiles for sources contained)
+        idx = np.argsort(probs)[::-1].astype(int)
+        tiles, probs = [tiles[ii] for ii in idx], [probs[ii] for ii in idx]
+        cumprobs = np.cumsum(probs)
 
-    
+        for tile, cumprob in zip(tiles, cumprobs):
+            tile.cumprob = cumprob
+        DBSession().add_all(tiles)
+        DBSession().commit()
+        print('success')
+    except Exception as e:
+        return log(f"Unable to generate tiles for localization {localization_id}: {e}")
+    finally:
+        DBSession.remove()
+
+
 class LocalizationHandler(BaseHandler):
     @auth_or_token
     def get(self, dateobs, localization_name):
