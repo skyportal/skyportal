@@ -572,7 +572,6 @@ class SourceHandler(BaseHandler):
         localization_cumprob = self.get_query_argument("localizationCumprob", 1.01)
         includeGeojson = self.get_query_argument("includeGeojson", False)
 
-
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
             """
@@ -872,6 +871,7 @@ class SourceHandler(BaseHandler):
                 )
             other = ha.Point(ra=ra, dec=dec)
             obj_query = obj_query.filter(Obj.within(other, radius))
+        start_date, end_date = None, None
         if start_date:
             start_date = arrow.get(start_date.strip()).datetime
             obj_query = obj_query.filter(
@@ -1352,27 +1352,15 @@ class SourceHandler(BaseHandler):
             # features are JSON representations that the d3 stuff understands.
             # We use these to render the contours of the sky localization and
             # locations of the transients.
-            features = []
 
-            # currently necessary for the sources to render
-            features.append(
+            # FIXME: currently necessary for the sources to render
+            features = [
                 Feature(
                     geometry=Point([float(-180), float(-180)]),
                     properties={"name": "tmp"},
                 )
-            )
-            features.append(
-                Feature(
-                    geometry=Point([float(-180), float(-180)]),
-                    properties={"name": "tmp"},
-                )
-            )
-            features.append(
-                Feature(
-                    geometry=Point([float(-180), float(-180)]),
-                    properties={"name": "tmp"},
-                )
-            )
+                for ii in range(3)
+            ]
 
             for source in query_results["sources"]:
                 point = Point((source["ra"], source["dec"]))
@@ -1381,7 +1369,9 @@ class SourceHandler(BaseHandler):
                 else:
                     source_name = f'{source["ra"]},{source["dec"]}'
 
-                features.append(Feature(geometry=point, properties={"name": source_name}))
+                features.append(
+                    Feature(geometry=point, properties={"name": source_name})
+                )
 
             feature_collection = FeatureCollection(features)
             query_results["geojson"] = feature_collection

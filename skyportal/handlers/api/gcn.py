@@ -119,9 +119,6 @@ class GcnEventHandler(BaseHandler):
         except NoResultFound:
             localization = Localization(**skymap)
             DBSession().add(localization)
-
-            localization = Localization(**skymap)
-            DBSession().add(localization)
             DBSession().commit()
 
             tiles_func = functools.partial(
@@ -284,7 +281,6 @@ def add_tiles(localization_id, request_handler):
             tile.cumprob = cumprob
         DBSession().add_all(tiles)
         DBSession().commit()
-        print('success')
     except Exception as e:
         return log(f"Unable to generate tiles for localization {localization_id}: {e}")
     finally:
