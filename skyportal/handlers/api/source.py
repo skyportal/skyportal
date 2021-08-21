@@ -9,7 +9,7 @@ import io
 import math
 import astropy.units as u
 from dateutil.parser import isoparse
-from geojson import Point, Feature, FeatureCollection
+from geojson import Point, Feature
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
 import arrow
@@ -1373,8 +1373,7 @@ class SourceHandler(BaseHandler):
                     Feature(geometry=point, properties={"name": source_name})
                 )
 
-            feature_collection = FeatureCollection(features)
-            query_results["geojson"] = feature_collection
+            query_results["geojson"] = features
 
         self.verify_and_commit()
         return self.success(data=query_results)

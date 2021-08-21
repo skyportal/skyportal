@@ -169,7 +169,7 @@ const Globe = ({ data, sources }) => {
       .style("text-align", "center")
       .style("padding", "5px")
       .style("border-radius", "6px")
-      .html((event, d) => d.properties.name);
+      .html((event, d) => d.properties?.name);
     svg.call(tip);
 
     function render() {
@@ -181,7 +181,7 @@ const Globe = ({ data, sources }) => {
     if (sources) {
       svg
         .selectAll("path")
-        .data(sources.features)
+        .data(sources)
         .enter()
         .append("path")
         .attr("class", (d) => d.properties.name)
@@ -198,7 +198,7 @@ const Globe = ({ data, sources }) => {
     if (data) {
       svg
         .selectAll("path")
-        .data(data.features)
+        .data(data)
         .enter()
         .append("path")
         .attr("class", (d) => d.properties.name)
@@ -252,7 +252,7 @@ const Localization = ({ loc, sources }) => {
         label={localization.localization_name}
         key={localization.localization_name}
       />
-      <Globe data={localization.contour} sources={sources} />
+      <Globe data={localization.contour.features} sources={sources} />
     </>
   );
 };
@@ -280,7 +280,6 @@ const GcnEventPage = ({ route }) => {
   if (!gcnEventSources) {
     return <CircularProgress />;
   }
-
 
   return (
     <div>
@@ -345,10 +344,12 @@ Localization.propTypes = {
     dateobs: PropTypes.string,
     localization_name: PropTypes.string,
   }).isRequired,
-  sources: PropTypes.shape({
-    length: PropTypes.number,
-    features: GeoPropTypes.FeatureCollection,
-  }).isRequired,
+  sources: PropTypes.arrayOf(
+    PropTypes.shape({
+      length: PropTypes.number,
+      features: GeoPropTypes.Feature,
+    })
+  ).isRequired,
 };
 
 DownloadXMLButton.propTypes = {
@@ -365,14 +366,18 @@ GcnEventPage.propTypes = {
 };
 
 Globe.propTypes = {
-  data: PropTypes.shape({
-    length: PropTypes.number,
-    features: GeoPropTypes.FeatureCollection,
-  }).isRequired,
-  sources: PropTypes.shape({
-    length: PropTypes.number,
-    features: GeoPropTypes.FeatureCollection,
-  }).isRequired,
+  data: PropTypes.arrayOf(
+    PropTypes.shape({
+      length: PropTypes.number,
+      features: GeoPropTypes.Feature,
+    })
+  ).isRequired,
+  sources: PropTypes.arrayOf(
+    PropTypes.shape({
+      length: PropTypes.number,
+      features: GeoPropTypes.Feature,
+    })
+  ).isRequired,
 };
 
 GcnEventSourcesPage.propTypes = {
