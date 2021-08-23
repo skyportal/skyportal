@@ -1,8 +1,8 @@
-"""Add object cross match
+"""crossmatch
 
-Revision ID: 9ff36e96307d
-Revises: 4ef77725b330
-Create Date: 2021-07-28 11:29:15.221134
+Revision ID: 2d056c3bfae0
+Revises: 171e9ea18885
+Create Date: 2021-08-23 11:35:34.019134
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9ff36e96307d'
-down_revision = '4ef77725b330'
+revision = '2d056c3bfae0'
+down_revision = '171e9ea18885'
 branch_labels = None
 depends_on = None
 
