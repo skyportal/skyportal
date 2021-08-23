@@ -16,6 +16,7 @@ import * as d3 from "d3";
 import d3GeoZoom from "d3-geo-zoom";
 // eslint-disable-next-line
 import GeoPropTypes from "geojson-prop-types";
+// eslint-disable-next-line
 import { tip as d3tip } from "d3-v6-tip";
 
 import dayjs from "dayjs";
