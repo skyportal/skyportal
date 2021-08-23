@@ -23,12 +23,16 @@ def upgrade():
     op.add_column('objs', sa.Column('z', sa.Float(), nullable=True))
     op.add_column('objs', sa.Column('nested', sa.BigInteger(), nullable=True))
     op.create_index(op.f('ix_objs_nested'), 'objs', ['nested'], unique=False)
+    op.create_index('ix_objs_point_xyz', 'objs', ['x', 'y', 'z'], unique=False)
     op.add_column('photometry', sa.Column('x', sa.Float(), nullable=True))
     op.add_column('photometry', sa.Column('y', sa.Float(), nullable=True))
     op.add_column('photometry', sa.Column('z', sa.Float(), nullable=True))
     op.add_column('photometry', sa.Column('nested', sa.BigInteger(), nullable=True))
     op.create_index(
         op.f('ix_photometry_nested'), 'photometry', ['nested'], unique=False
+    )
+    op.create_index(
+        'ix_photometry_point_xyz', 'photometry', ['x', 'y', 'z'], unique=False
     )
 
     op.create_table(
@@ -69,10 +73,12 @@ def downgrade():
     op.drop_column('photometry', 'y')
     op.drop_column('photometry', 'x')
     op.drop_index(op.f('ix_objs_nested'), table_name='objs')
+    op.drop_index('ix_photometry_point_xyz', table_name='photometry')
     op.drop_column('objs', 'nested')
     op.drop_column('objs', 'z')
     op.drop_column('objs', 'y')
     op.drop_column('objs', 'x')
+    op.drop_index('ix_objs_point_xyz', table_name='objs')
 
     op.drop_index(
         op.f('ix_localizationtiles_nested_lo'), table_name='localizationtiles'
