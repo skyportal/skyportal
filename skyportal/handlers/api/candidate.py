@@ -7,6 +7,8 @@ import uuid
 import arrow
 import numpy as np
 
+from tornado.ioloop import IOLoop
+
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import case, func, FromClause
 from sqlalchemy.ext.compiler import compiles
@@ -17,6 +19,9 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.log import make_log
+
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -41,6 +46,22 @@ cache = Cache(
     cache_dir=cache_dir,
     max_age=cfg["misc"]["minutes_to_keep_candidate_query_cache"] * 60,
 )
+log = make_log('api/candidate')
+
+
+def add_linked_thumbnails_and_push_ws_msg(obj_id, user):
+    try:
+        obj = Obj.get_if_accessible_by(obj_id, user)
+        obj.add_linked_thumbnails()
+        flow = Flow()
+        flow.push(
+            '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+        )
+        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
+    except Exception as e:
+        log(f"Unable to add linked thumbnails to {obj_id}: {e}")
+    finally:
+        DBSession.remove()
 
 
 def update_redshift_history_if_relevant(request_data, obj, user):
@@ -980,8 +1001,8 @@ class CandidateHandler(BaseHandler):
             return self.error("At least one valid filter ID must be provided.")
 
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
-
         DBSession().add(obj)
+
         candidates = [
             Candidate(
                 obj=obj,
@@ -994,8 +1015,14 @@ class CandidateHandler(BaseHandler):
         ]
         DBSession().add_all(candidates)
         self.verify_and_commit()
+
         if not obj_already_exists:
-            obj.add_linked_thumbnails()
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_linked_thumbnails_and_push_ws_msg(
+                    obj.id, self.current_user
+                ),
+            )
 
         return self.success(data={"ids": [c.id for c in candidates]})
 
