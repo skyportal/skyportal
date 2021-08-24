@@ -48,4 +48,4 @@ pygcn==1.1.1
 xmlschema==1.6.4
 requests<2.26
 gwemopt==0.0.72
-distributed==2021.5.0
+distributed==2021.7.0
