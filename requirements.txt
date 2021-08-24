@@ -22,7 +22,7 @@ marshmallow-enum==1.5.1
 Pillow==8.3.1
 sncosmo==2.5.0
 tdtax==0.1.3
-healpix-alchemy @ git+https://github.com/skyportal/healpix-alchemy.git@master#egg=healpix_alchemy
+healpix-alchemy @ git+https://github.com/skyportal/healpix-alchemy.git@4fbf86ace26ec286bc5a5ade63a646f54e49b420#egg=healpix_alchemy
 jsonschema==3.2.0
 jsonpath_ng==1.5.2
 pytest-rerunfailures==10.1
