@@ -92,7 +92,7 @@ class GalaxyHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfGalaxy
+                  schema: ArrayOfGalaxys
             400:
               content:
                 application/json:
