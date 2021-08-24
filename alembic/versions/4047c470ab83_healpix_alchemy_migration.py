@@ -7,7 +7,6 @@ Create Date: 2021-08-24 13:35:39.484659
 """
 from alembic import op
 import sqlalchemy as sa
-import sqlalchemy_utils
 
 
 # revision identifiers, used by Alembic.
@@ -29,7 +28,9 @@ def upgrade():
     op.add_column('photometry', sa.Column('y', sa.Float(), nullable=True))
     op.add_column('photometry', sa.Column('z', sa.Float(), nullable=True))
     op.add_column('photometry', sa.Column('nested', sa.BigInteger(), nullable=True))
-    op.create_index(op.f('ix_photometry_nested'), 'photometry', ['nested'], unique=False)
+    op.create_index(
+        op.f('ix_photometry_nested'), 'photometry', ['nested'], unique=False
+    )
     op.create_index('ix_photometry_point', 'photometry', ['x', 'y', 'z'], unique=False)
     # ### end Alembic commands ###
 
