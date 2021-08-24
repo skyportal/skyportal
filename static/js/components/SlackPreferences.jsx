@@ -25,6 +25,13 @@ const useStyles = makeStyles((theme) => ({
   typography: {
     padding: theme.spacing(2),
   },
+  textField: {
+    marginLeft: theme.spacing(1),
+    marginRight: theme.spacing(1),
+    "& p": {
+      color: "red",
+    },
+  },
 }));
 
 const SlackPreferences = () => {
@@ -41,7 +48,7 @@ const SlackPreferences = () => {
   };
 
   const handleBlur = () => {
-    if (slackurl.startsWith("https://hooks.slack.com/")) {
+    if (slackurl?.startsWith("https://hooks.slack.com/")) {
       setSlackurlerror(false);
       const prefs = {
         slack_integration: {
@@ -111,6 +118,7 @@ const SlackPreferences = () => {
               checked={profile.slack_integration?.active === true}
               name="active"
               onChange={prefToggled}
+              data-testid="slack_toggle"
             />
           }
           label={profile.slack_integration?.active ? "Active" : "Inactive"}
@@ -122,15 +130,15 @@ const SlackPreferences = () => {
             <TextField
               name="url"
               label="Integration URL"
+              className={classes.textField}
               fullWidth
               placeholder="Unique URL connecting to your Slack channel"
               defaultValue={profile.slack_integration?.url}
               onChange={handleChange}
               onBlur={handleBlur}
               margin="normal"
-              helperText={
-                slackurlerror ? "Must be a Slack URL" : "Valid Slack URL"
-              }
+              data-testid="slack_url"
+              helperText={slackurlerror ? "Must be a Slack URL" : ""}
               error={slackurlerror}
             />
           </div>
@@ -142,6 +150,7 @@ const SlackPreferences = () => {
                     checked={profile.slack_integration?.mentions === true}
                     name="mentions"
                     onChange={prefToggled}
+                    data-testid="slack_mentions"
                   />
                 }
                 label="@ mentions"

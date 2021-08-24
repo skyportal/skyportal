@@ -139,6 +139,7 @@ const FavoriteSourcesNotificationPreferences = () => {
                 checked={profile.slack_integration?.favorite_sources === true}
                 name="favorite_sources"
                 onChange={prefToggledSlack}
+                data-testid="slack_also_push"
               />
             }
             label="Also Push to Slack"
