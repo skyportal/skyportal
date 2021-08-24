@@ -472,6 +472,9 @@ class CommentAttachmentHandler(BaseHandler):
 
         self.verify_and_commit()
 
+        if not comment.attachment_bytes:
+            return self.error('Comment has no attachment')
+
         if download:
             self.set_header(
                 "Content-Disposition",

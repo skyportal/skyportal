@@ -22,7 +22,6 @@ import { makeStyles } from "@material-ui/core/styles";
 
 import MUIDataTable from "mui-datatables";
 import ThumbnailList from "./ThumbnailList";
-import styles from "./RunSummary.css";
 import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "./StarList";
 import * as SourceAction from "../ducks/source";
@@ -37,6 +36,13 @@ const AirmassPlot = React.lazy(() => import("./AirmassPlot"));
 const useStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
+  },
+  displayInlineBlock: {
+    display: "inline-block",
+  },
+  center: {
+    margin: "auto",
+    padding: "0.625rem",
   },
 }));
 
@@ -147,6 +153,7 @@ SimpleMenu.propTypes = {
 
 const RunSummary = ({ route }) => {
   const dispatch = useDispatch();
+  const styles = useStyles();
   const observingRun = useSelector((state) => state.observingRun);
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -412,53 +419,51 @@ const RunSummary = ({ route }) => {
   ]);
 
   return (
-    <div className={styles.source}>
-      <div className={styles.center}>
-        <Typography variant="h4" gutterBottom color="textSecondary">
-          Plan for:{" "}
-          <b>
-            {observingRunTitle(
-              observingRun,
-              instrumentList,
-              telescopeList,
-              groups
-            )}
-          </b>
-        </Typography>
-        <MUIDataTable
-          title="Targets"
-          columns={columns}
-          data={data}
-          options={options}
-        />
-        <Grid container className={styles.center}>
-          <Grid
-            item
-            xs={12}
-            sm={12}
-            md={12}
-            lg={8}
-            xl={8}
-            className={styles.displayInlineBlock}
-          >
-            <Typography gutterBottom align="center">
-              Starlist and Offsets
-            </Typography>
-            <ObservingRunStarList observingRunId={observingRun.id} />
-          </Grid>
-          <Grid
-            item
-            xs={12}
-            sm={12}
-            md={12}
-            lg={4}
-            xl={4}
-            className={styles.displayInlineBlock}
-          >
-            <SkyCam telescope={observingRun.instrument.telescope} />
-          </Grid>
+    <div className={styles.center}>
+      <Typography variant="h4" gutterBottom color="textSecondary">
+        Plan for:{" "}
+        <b>
+          {observingRunTitle(
+            observingRun,
+            instrumentList,
+            telescopeList,
+            groups
+          )}
+        </b>
+      </Typography>
+      <MUIDataTable
+        title="Targets"
+        columns={columns}
+        data={data}
+        options={options}
+      />
+      <Grid container className={styles.center}>
+        <Grid
+          item
+          xs={12}
+          sm={12}
+          md={12}
+          lg={8}
+          xl={8}
+          className={styles.displayInlineBlock}
+        >
+          <Typography gutterBottom align="center">
+            Starlist and Offsets
+          </Typography>
+          <ObservingRunStarList observingRunId={observingRun.id} />
         </Grid>
-      </div>
+        <Grid
+          item
+          xs={12}
+          sm={12}
+          md={12}
+          lg={4}
+          xl={4}
+          className={styles.displayInlineBlock}
+        >
+          <SkyCam telescope={observingRun.instrument.telescope} />
+        </Grid>
+      </Grid>
     </div>
   );
 };

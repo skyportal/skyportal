@@ -4,6 +4,7 @@ import { Button } from "@material-ui/core";
 import Tooltip from "@material-ui/core/Tooltip";
 import GroupIcon from "@material-ui/icons/Group";
 import ListItem from "@material-ui/core/ListItem";
+import { makeStyles } from "@material-ui/core/styles";
 import { FixedSizeList } from "react-window";
 
 import dayjs from "dayjs";
@@ -11,12 +12,63 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
 
 import * as sourceActions from "../ducks/source";
-import styles from "./ClassificationList.css";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
+const useStyles = makeStyles((theme) => ({
+  classification: {
+    fontSize: "90%",
+    display: "flex",
+    flexDirection: "column",
+    minHeight: "4rem",
+    paddingBottom: "0.5rem",
+    paddingLeft: "0.5rem",
+    alignItems: "start",
+    justifyContent: "space-between",
+    overflowAnchor: "none",
+    "&:hover": {
+      backgroundColor: theme.palette.action.hover,
+    },
+  },
+  classificationHeader: {
+    flexGrow: "4",
+    flexDirection: "row",
+    paddingTop: "0.5rem",
+    paddingBottom: "0.5rem",
+    alignItems: "start",
+  },
+  classificationTime: {
+    flexGrow: "4",
+    color: "gray",
+    fontSize: "80%",
+  },
+  classificationMessage: {
+    maxWidth: "20em",
+  },
+  classificationUserDomain: {
+    color: "lightgray",
+    fontSize: "80%",
+    paddingRight: "0.5em",
+  },
+  wrap: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "start",
+    minHeight: "1.6875rem",
+    maxWidth: "20em",
+  },
+  classificationDelete: {
+    height: "2.1875rem",
+    paddingTop: "0.5em",
+    paddingBottom: "0.5em",
+    alignItems: "center",
+  },
+}));
+
 const ClassificationList = () => {
+  const styles = useStyles();
   const [hoverID, setHoverID] = useState(null);
 
   const handleMouseHover = (id, userProfile, author) => {
@@ -76,9 +128,7 @@ const ClassificationList = () => {
         >
           <div className={styles.classificationHeader}>
             <span className={styles.classificationUser}>
-              <span className={styles.classificationUserName}>
-                {author_name}
-              </span>
+              <span>{author_name}</span>
             </span>
             &nbsp;
             <span className={styles.classificationTime}>

@@ -63,7 +63,7 @@ if __name__ == "__main__":
         from skyportal.models import init_db
 
         RETRIES = 6
-        timeout = 1
+        timeout = 3
         for i in range(RETRIES):
             try:
                 print(f"Connecting to database {cfg['database']['database']}")
@@ -101,6 +101,7 @@ if __name__ == "__main__":
     print('Testing connection...', end='')
 
     RETRIES = 10
+    timeout = 3
     for i in range(RETRIES):
         try:
             admin_token = get_token()
@@ -131,7 +132,7 @@ if __name__ == "__main__":
                 if i == RETRIES - 1:
                     print('FAIL')
                 else:
-                    time.sleep(2)
+                    time.sleep(timeout)
                     print('Reloading auth tokens and trying again...', end='')
                 continue
         except requests.exceptions.ConnectionError:
@@ -142,7 +143,7 @@ if __name__ == "__main__":
                 print('       it is running at the given host/port')
                 sys.exit(-1)
             else:
-                time.sleep(2)
+                time.sleep(timeout)
                 print('Retrying connection...')
 
     if status not in (200, 400):

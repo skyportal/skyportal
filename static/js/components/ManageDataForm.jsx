@@ -103,7 +103,9 @@ const createSpecRow = (
   owner,
   reducers,
   observers,
-  origin
+  origin,
+  external_reducer,
+  external_observer
 ) => ({
   id,
   instrument,
@@ -113,6 +115,8 @@ const createSpecRow = (
   reducers,
   observers,
   origin,
+  external_reducer,
+  external_observer,
 });
 
 const photHeadCells = [
@@ -253,7 +257,9 @@ const ManageDataForm = ({ route }) => {
           spec.owner,
           spec.reducers,
           spec.observers,
-          spec.origin
+          spec.origin,
+          spec.external_reducer,
+          spec.external_observer
         )
       )
     : [];
@@ -269,17 +275,45 @@ const ManageDataForm = ({ route }) => {
     return RenderSingleUser;
   };
 
-  const makeRenderMultipleUsers = (key) => {
-    const RenderMultipleUsers = (dataIndex) => {
-      const users = specRows[dataIndex][key];
-      if (users) {
-        return users.map((user) => (
-          <UserContactLink user={user} key={user.id} />
-        ));
-      }
-      return <div />;
-    };
-    return RenderMultipleUsers;
+  const renderMultipleUsers = (users) => {
+    if (users) {
+      return users.map((user) => <UserContactLink user={user} key={user.id} />);
+    }
+    return <div />;
+  };
+
+  const renderReducers = (dataIndex) => {
+    const externalReducer = specRows[dataIndex]?.external_reducer;
+    const users = specRows[dataIndex]?.reducers;
+    if (externalReducer) {
+      return <div>{externalReducer}</div>;
+    }
+    return renderMultipleUsers(users);
+  };
+
+  const renderReducerContacts = (dataIndex) => {
+    // Contacts are either the reducers themselves who are
+    // SkyPortal users, or users to contact instead of
+    // free-text external reducers
+    const users = specRows[dataIndex]?.reducers;
+    return renderMultipleUsers(users);
+  };
+
+  const renderObservers = (dataIndex) => {
+    const externalObserver = specRows[dataIndex]?.external_observer;
+    const users = specRows[dataIndex]?.observers;
+    if (externalObserver) {
+      return <div>{externalObserver}</div>;
+    }
+    return renderMultipleUsers(users);
+  };
+
+  const renderObserverContacts = (dataIndex) => {
+    // Contacts are either the observers themselves who are
+    // SkyPortal users, or users to contact instead of
+    // free-text external observers
+    const users = specRows[dataIndex]?.observers;
+    return renderMultipleUsers(users);
   };
 
   const DeleteSpectrumButton = (dataIndex) => {
@@ -418,7 +452,7 @@ const ManageDataForm = ({ route }) => {
       name: "reducers",
       label: "Reduced by",
       options: {
-        customBodyRenderLite: makeRenderMultipleUsers("reducers"),
+        customBodyRenderLite: renderReducers,
         filter: false,
       },
     },
@@ -426,8 +460,26 @@ const ManageDataForm = ({ route }) => {
       name: "observers",
       label: "Observed by",
       options: {
-        customBodyRenderLite: makeRenderMultipleUsers("observers"),
+        customBodyRenderLite: renderObservers,
         filter: false,
+      },
+    },
+    {
+      name: "reducer_contact",
+      label: "Reducer contacts",
+      options: {
+        customBodyRenderLite: renderReducerContacts,
+        filter: false,
+        display: false,
+      },
+    },
+    {
+      name: "observer_contact",
+      label: "Observer contacts",
+      options: {
+        customBodyRenderLite: renderObserverContacts,
+        filter: false,
+        display: false,
       },
     },
     {

@@ -276,16 +276,36 @@ server:
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   host: localhost
   port: 5000  # This is the public-facing port
-  ssl: False  # Must be either True or False
-  processes: 2
+
+  # Whether the base URL is http or https
+  ssl: False
+
+  # According to the Tornado docs at
+  # https://www.tornadoweb.org/en/stable/guide/running.html#processes-and-ports:
+  #
+  # Due to the Python GIL (Global Interpreter Lock), it is necessary
+  # to run multiple Python processes to take full advantage of
+  # multi-CPU machines. Typically it is best to run one process per
+  # CPU.
+  processes: 4
+
+  # How many of the above processes should be dedicated to
+  # frontend only (i.e., no token authorized API requests)
+  dedicated_frontend_processes: 2
+
   # Rate limit: number of requests per second (see https://www.nginx.com/blog/rate-limiting-nginx/)
   rate_limit: 5
   # Rate limit burst size (https://www.nginx.com/blog/rate-limiting-nginx/#bursts)
   burst: 10
-  # In addition to localhost, specify any IP addresses that are to be
+
+  # In addition to the local network, specify any IP addresses that are to be
   # exempt from API rate limiting
-  whitelisted_ips:
-    -
+  whitelisted_ips: []
+
+  # Specify IPs or address ranges (e.g., 130.211.0.0/22) that are associated
+  # with upstream load balancing.
+  # These trusted addresses are used to uncover the originating IP.
+  loadbalancer_ips: []
 
   auth:
     debug_login: True
