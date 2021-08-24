@@ -22,7 +22,7 @@ marshmallow-enum==1.5.1
 Pillow==8.3.2
 sncosmo==2.5.0
 tdtax==0.1.3
-healpix-alchemy==0.1.2
+healpix-alchemy==0.2.1
 jsonschema==3.2.0
 jsonpath_ng==1.5.2
 pytest-rerunfailures==10.1
