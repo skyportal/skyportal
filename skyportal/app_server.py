@@ -111,21 +111,6 @@ skyportal_handlers = [
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
-    (r'/api/comment', CommentHandler),
-    (r'/api/comment(/(?:object|spectrum))?(/[0-9]+)?', CommentHandler),
-    (
-        r'/api/comment/(?:object|spectrum)(/[0-9]+)/attachment',
-        CommentAttachmentHandler,
-    ),
-    # Allow the '.pdf' suffix for the attachment route, as the
-    # react-file-previewer package expects URLs ending with '.pdf' to
-    # load PDF files.
-    (
-        r'/api/comment/(?:object|spectrum)(/[0-9]+)/attachment.pdf',
-        CommentAttachmentHandler,
-    ),
-    (r'/api/annotation', AnnotationHandler),
-    (r'/api/annotation(/(?:object|spectrum))?(/[0-9]+)?', AnnotationHandler),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
@@ -156,14 +141,29 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/offsets', SourceOffsetsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/finder', SourceFinderHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
-    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations', ObjAnnotationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/comment/[0-9]+', CommentHandler),
+    (
+        r'/api/sources(/[0-9A-Za-z-_\.\+]+)/comment/[0-9]+/attachment',
+        CommentAttachmentHandler,
+    ),
+    # Allow the '.pdf' suffix for the attachment route, as the
+    # react-file-previewer package expects URLs ending with '.pdf' to
+    # load PDF files.
+    (
+        r'/api/sources(/[0-9A-Za-z-_\.\+]+)/comment/[0-9]+/attachment.pdf',
+        CommentAttachmentHandler,
+    ),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotation/[0-9]+', AnnotationHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations', ObjAnnotationHandler),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),
     (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
     (r'/api/spectrum/parse/ascii', SpectrumASCIIFileParser),
+    (r'/api/spectrum(/[0-9]+)?/comments', CommentHandler),
+    (r'/api/spectrum(/[0-9]+)?/annotations', AnnotationHandler),
     (r'/api/spectrum/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
     (r'/api/spectrum/range(/.*)?', SpectrumRangeHandler),
     (r'/api/streams(/[0-9]+)/users(/.*)?', StreamUserHandler),
