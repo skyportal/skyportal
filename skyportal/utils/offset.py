@@ -742,6 +742,7 @@ def get_nearby_offset_stars(
                     )
 
                     dra, ddec = cprime.spherical_offsets_to(center)
+                    pa = cprime.position_angle(center).degree
                     # use the RA, DEC from ZTF here
                     source["ra"] = ztfcatalog[idx].ra.value
                     source["dec"] = ztfcatalog[idx].dec.value
@@ -752,6 +753,7 @@ def get_nearby_offset_stars(
                             source,
                             dra.to(u.arcsec),
                             ddec.to(u.arcsec),
+                            pa,
                         )
                     )
             else:
@@ -760,8 +762,16 @@ def get_nearby_offset_stars(
                 # TODO: put this in geocentric coords to account for parallax
                 cprime = c.apply_space_motion(new_obstime=source_obstime)
                 dra, ddec = cprime.spherical_offsets_to(center)
+                pa = cprime.position_angle(center).degree
                 good_list.append(
-                    (source["dist"], c, source, dra.to(u.arcsec), ddec.to(u.arcsec))
+                    (
+                        source["dist"],
+                        c,
+                        source,
+                        dra.to(u.arcsec),
+                        ddec.to(u.arcsec),
+                        pa,
+                    )
                 )
 
     good_list.sort()
@@ -823,7 +833,7 @@ def get_nearby_offset_stars(
             }
         )
 
-    for i, (dist, c, source, dra, ddec) in enumerate(good_list[:how_many]):
+    for i, (dist, c, source, dra, ddec, pa) in enumerate(good_list[:how_many]):
         dras = f"{dra.value:<0.03f}\" E" if dra > 0 else f"{abs(dra.value):<0.03f}\" W"
         ddecs = (
             f"{ddec.value:<0.03f}\" N" if ddec > 0 else f"{abs(ddec.value):<0.03f}\" S"
@@ -841,7 +851,7 @@ def get_nearby_offset_stars(
             + f"{c.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
             + f" 2000.0 {offsets}"
             + f" {commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
-            + f"; {dras}, {ddecs} "
+            + f"; {dras}, {ddecs} PA={pa:<0.02f} deg"
             + f" ID={source['source_id']}"
         )
 
@@ -854,6 +864,7 @@ def get_nearby_offset_stars(
                 "dras": dras,
                 "ddecs": ddecs,
                 "mag": float(source["phot_rp_mean_mag"]),
+                "pa": pa,
             }
         )
 
@@ -1273,8 +1284,12 @@ def get_finding_chart(
         )
         source_text = f"  {star['ra']:.5f} {star['dec']:.5f}\n"
         source_text += f"  {c1.to_string('hmsdms')}\n"
-        if (star.get("dras") is not None) and (star.get("ddecs") is not None):
-            source_text += f'  {star.get("dras")} {star.get("ddecs")} to {source_name}'
+        if (
+            (star.get("dras") is not None)
+            and (star.get("ddecs") is not None)
+            and (star.get("pa") is not None)
+        ):
+            source_text += f'  {star.get("dras")} {star.get("ddecs")} to {source_name} (PA={star.get("pa"):<0.02f}°)'
         ax_text.text(
             start_text[0],
             start_text[1] - i / ncolors - 0.06,
