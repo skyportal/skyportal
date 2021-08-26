@@ -3963,7 +3963,7 @@ def send_slack_notification(mapper, connection, target):
 
     send_to_slack = False
     if target.user.preferences is not None:
-        if target.user.preferences.get('slack_integration'):
+        if target.user.preferences.get('slack_integration', dict()):
             if target.user.preferences['slack_integration'].get("active", False):
                 integration_url = target.user.preferences['slack_integration'].get(
                     "url", ""
@@ -3994,7 +3994,7 @@ def send_slack_notification(mapper, connection, target):
     data = json.dumps(
         {"url": integration_url, "text": f'{target.text} ({app_url}{target.url})'}
     )
-    _ = requests.post(
+    requests.post(
         slack_microservice_url, data=data, headers={'Content-Type': 'application/json'}
     )
 
