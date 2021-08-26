@@ -28,18 +28,13 @@ def users_mentioned(text):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, comment_id):
+    def get(self, associated_resource_type, comment_id=None):
         """
         ---
         description: Retrieve a comment
         tags:
           - comments
         parameters:
-          - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
           - in: path
             name: associated_resource_type
             required: false
@@ -48,6 +43,12 @@ class CommentHandler(BaseHandler):
             description: |
                What underlying data the comment is on:
                an "object" (default), or a "spectrum".
+          - in: path
+            name: comment_id
+            required: true
+            schema:
+              type: integer
+
         responses:
           200:
             content:
@@ -59,14 +60,20 @@ class CommentHandler(BaseHandler):
                 schema: Error
         """
 
-        if associated_resource_type is None:
-            associated_resource_type = 'object'
+        if comment_id is None:
+            return self.error("Must provide a valid comment ID. ")
 
-        if associated_resource_type.lower() == "object":  # comment on object (default)
+        # the default is to comment on an object
+        if associated_resource_type.lower() in (
+            "object",
+            "objects",
+            "source",
+            "sources",
+        ):
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() in ("spectrum", "spectra"):
             comment = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
@@ -75,16 +82,26 @@ class CommentHandler(BaseHandler):
             return self.error(
                 f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
             )
-
+        if isinstance(comment, CommentOnSpectrum):
+            print('is instance! ')
         return self.success(data=comment)
 
     @permissions(['Comment'])
-    def post(self):
+    def post(self, associated_resource_type):
         """
         ---
         description: Post a comment
         tags:
           - comments
+        parameters:
+          - in: path
+            name: associated_resource_type
+            required: false
+            schema:
+              type: string
+            description: |
+               What underlying data the comment is on:
+               an "object" (default), or a "spectrum".
         requestBody:
           content:
             application/json:
@@ -97,8 +114,8 @@ class CommentHandler(BaseHandler):
                     type: integer
                     description: |
                       ID of spectrum that this comment should be
-                      attached to. Leave empty to post a comment
-                      on the object instead.
+                      attached to. Only relevant when
+                      associated_resource_type == "spectrum".
                   text:
                     type: string
                   group_ids:
@@ -170,18 +187,12 @@ class CommentHandler(BaseHandler):
 
         author = self.associated_user_object
         is_bot_request = isinstance(self.current_user, Token)
-        if spectrum_id is not None:
-            comment = CommentOnSpectrum(
-                text=comment_text,
-                spectrum_id=spectrum_id,
-                obj_id=obj_id,
-                attachment_bytes=attachment_bytes,
-                attachment_name=attachment_name,
-                author=author,
-                groups=groups,
-                bot=is_bot_request,
-            )
-        else:  # the default is to post a comment directly on the object
+        if associated_resource_type.lower() in (
+            "object",
+            "objects",
+            "source",
+            "sources",
+        ):
             if obj_id is None:
                 return self.error("Missing required field `obj_id`")
             comment = Comment(
@@ -193,6 +204,20 @@ class CommentHandler(BaseHandler):
                 groups=groups,
                 bot=is_bot_request,
             )
+        elif associated_resource_type.lower() in ("spectrum", "spectra"):
+            if spectrum_id is None:
+                return self.error("Missing required field `spectrum_id`")
+            comment = CommentOnSpectrum(
+                text=comment_text,
+                spectrum_id=spectrum_id,
+                obj_id=obj_id,
+                attachment_bytes=attachment_bytes,
+                attachment_name=attachment_name,
+                author=author,
+                groups=groups,
+                bot=is_bot_request,
+            )
+
         users_mentioned_in_comment = users_mentioned(comment_text)
         if users_mentioned_in_comment:
             for user_mentioned in users_mentioned_in_comment:
@@ -210,15 +235,16 @@ class CommentHandler(BaseHandler):
             for user_mentioned in users_mentioned_in_comment:
                 self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
-        if spectrum_id is not None:
-            self.push_all(
-                action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_id': obj_id},
-            )
-        else:
+        if obj_id is not None:
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': comment.obj.internal_key},
+            )
+
+        if spectrum_id is not None and obj_id is not None:
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_id': obj_id},
             )
 
         return self.success(data={'comment_id': comment.id})
@@ -232,11 +258,6 @@ class CommentHandler(BaseHandler):
           - comments
         parameters:
           - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
-          - in: path
             name: associated_resource_type
             required: false
             schema:
@@ -244,6 +265,11 @@ class CommentHandler(BaseHandler):
             description: |
                What underlying data the comment is on:
                an "object" (default), or a "spectrum".
+          - in: path
+            name: comment_id
+            required: true
+            schema:
+              type: integer
         requestBody:
           content:
             application/json:
@@ -269,16 +295,20 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        if comment_id is None:
+            return self.error("Must provide a valid comment ID. ")
 
-        if associated_resource_type is None:
-            associated_resource_type = 'object'
-
-        if associated_resource_type.lower() == "object":  # comment on object
+        if associated_resource_type.lower() in (
+            "object",
+            "objects",
+            "source",
+            "sources",
+        ):
             schema = Comment.__schema__()
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="update", raise_if_none=True
             )
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() in ("spectrum", "spectra"):
             schema = CommentOnSpectrum.__schema__()
             c = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, mode="update", raise_if_none=True
@@ -321,12 +351,12 @@ class CommentHandler(BaseHandler):
 
         self.verify_and_commit()
 
-        if associated_resource_type.lower() == "object":  # comment on object
+        if c.obj.id is not None:  # comment on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': c.obj.internal_key},
             )
-        elif associated_resource_type.lower() == "spectrum":  # comment on a spectrum
+        if isinstance(c, CommentOnSpectrum):  # also update the spectrum
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_id': c.obj.id},
@@ -343,11 +373,6 @@ class CommentHandler(BaseHandler):
           - comments
         parameters:
           - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
-          - in: path
             name: associated_resource_type
             required: false
             schema:
@@ -355,6 +380,12 @@ class CommentHandler(BaseHandler):
             description: |
                What underlying data the comment is on:
                an "object" (default), or a "spectrum".
+          - in: path
+            name: comment_id
+            required: true
+            schema:
+              type: integer
+
         responses:
           200:
             content:
@@ -362,14 +393,19 @@ class CommentHandler(BaseHandler):
                 schema: Success
         """
 
-        if associated_resource_type is None:
-            associated_resource_type = 'object'
+        if comment_id is None:
+            return self.error("Must provide a valid comment ID. ")
 
-        if associated_resource_type.lower() == "object":  # comment on object
+        if associated_resource_type.lower() in (
+            "object",
+            "objects",
+            "source",
+            "sources",
+        ):
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() in ("spectrum", "spectra"):
             c = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
@@ -381,15 +417,17 @@ class CommentHandler(BaseHandler):
 
         obj_key = c.obj.internal_key
         obj_id = c.obj.id
+        # some other logic should come here if comment is not
+        # associated with an object
         DBSession().delete(c)
         self.verify_and_commit()
 
-        if associated_resource_type.lower() == "object":
+        if c.obj.id is not None:  # comment on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': obj_key},
             )
-        elif associated_resource_type.lower() == "spectrum":
+        if isinstance(c, CommentOnSpectrum):  # also update the spectrum
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_id': obj_id},
@@ -408,11 +446,6 @@ class CommentAttachmentHandler(BaseHandler):
           - comments
         parameters:
           - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
-          - in: path
             name: associated_resource_type
             required: false
             schema:
@@ -420,6 +453,11 @@ class CommentAttachmentHandler(BaseHandler):
             description: |
                What underlying data the comment is on:
                an "object" (default), or a "spectrum".
+          - in: path
+            name: comment_id
+            required: true
+            schema:
+              type: integer
           - in: query
             name: download
             nullable: True
@@ -451,16 +489,22 @@ class CommentAttachmentHandler(BaseHandler):
                               description: The attachment file contents decoded as a string
 
         """
+
+        if comment_id is None:
+            return self.error("Must provide a valid comment ID. ")
+
         download = strtobool(self.get_query_argument('download', "True").lower())
 
-        if associated_resource_type is None:
-            associated_resource_type = 'object'
-
-        if associated_resource_type.lower() == "object":  # comment on object
+        if associated_resource_type.lower() in (
+            "object",
+            "objects",
+            "source",
+            "sources",
+        ):
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() in ("spectrum", "spectra"):
             comment = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )

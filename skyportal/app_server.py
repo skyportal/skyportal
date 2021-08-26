@@ -143,27 +143,32 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
-    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/comment/[0-9]+', CommentHandler),
+    (r'/api/(sources)/[0-9A-Za-z-_\.\+]+/comment(/[0-9]+)?', CommentHandler),
     (
-        r'/api/sources(/[0-9A-Za-z-_\.\+]+)/comment/[0-9]+/attachment',
+        r'/api/(sources)/[0-9A-Za-z-_\.\+]+/comment(/[0-9]+)/attachment',
         CommentAttachmentHandler,
     ),
     # Allow the '.pdf' suffix for the attachment route, as the
     # react-file-previewer package expects URLs ending with '.pdf' to
     # load PDF files.
     (
-        r'/api/sources(/[0-9A-Za-z-_\.\+]+)/comment/[0-9]+/attachment.pdf',
+        r'/api/(sources)/[0-9A-Za-z-_\.\+]+/comment(/[0-9]+)/attachment.pdf',
         CommentAttachmentHandler,
     ),
-    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotation/[0-9]+', AnnotationHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotation(/[0-9]+)?', AnnotationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations', ObjAnnotationHandler),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),
     (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
     (r'/api/spectrum/parse/ascii', SpectrumASCIIFileParser),
-    (r'/api/spectrum(/[0-9]+)?/comments', CommentHandler),
-    (r'/api/spectrum(/[0-9]+)?/annotations', AnnotationHandler),
+    (r'/api/(spectrum)/[0-9]+/comment(/[0-9]+)?', CommentHandler),
+    (
+        r'/api/(spectrum)/[0-9]+/comment(/[0-9]+)/attachment.pdf',
+        CommentAttachmentHandler,
+    ),
+    (r'/api/(spectrum)/[0-9]+/comment(/[0-9]+)/attachment', CommentAttachmentHandler),
+    (r'/api/(spectrum)/[0-9]+/annotation(/[0-9]+)?', AnnotationHandler),
     (r'/api/spectrum/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
     (r'/api/spectrum/range(/.*)?', SpectrumRangeHandler),
     (r'/api/streams(/[0-9]+)/users(/.*)?', StreamUserHandler),
