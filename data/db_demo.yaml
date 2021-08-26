@@ -405,6 +405,14 @@ sources:
       - =public_group_id
       - =program_A
       - =program_B
+  - id: ZTFJ201825+380316
+    ra: 304.607916280
+    dec: 38.05469
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+    alias: [""]
 
 comment:
   - obj_id: 14gqr_unsaved_copy
