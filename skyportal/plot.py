@@ -68,8 +68,10 @@ SPEC_LINES = {
         '#00a64d',
     ),
     '[O II]': ([3726, 3729], '#b9d2c5'),
-    'O III': ([4959, 5007], '#00bf59'),
-    '[OIII]': ([4363, 4959, 5007], '#aeefcc'),
+    # The following lines are so-called forbidden O III lines
+    # (see https://www.britannica.com/science/forbidden-lines)
+    # 'O III': ([4959, 5007], '#00bf59'),
+    '[O III]': ([4363, 4959, 5007], '#aeefcc'),
     'O V': ([3145, 4124, 4930, 5598, 6500], '#03d063'),
     'O VI': ([3811, 3834], '#01e46b'),
     'Na I': ([5890, 5896, 8183, 8195], '#aba000'),
@@ -178,12 +180,101 @@ SPEC_LINES = {
     # NaI 5890,5896; MgII 2798; SII 6717,6731; CaII H&K 3969,3934
     # ZnII 2025; CrII 2056,2062,2066; FeII 2249,2260,2343,2374,2382,2586,2599;
     # MnII 2576,2594; MgI 2852
+    'Tellurics-1': ([6867, 6884], '#e5806b'),
+    'Tellurics-2': ([7594, 7621], '#e5806b'),
+    'Sky Lines': (
+        [
+            4168,
+            4917,
+            4993,
+            5199,
+            5577,
+            5890,
+            6236,
+            6300,
+            6363,
+            6831,
+            6863,
+            6923,
+            6949,
+            7242,
+            7276,
+            7316,
+            7329,
+            7341,
+            7359,
+            7369,
+            7402,
+            7437,
+            7470,
+            7475,
+            7480,
+            7524,
+            7570,
+            7713,
+            7725,
+            7749,
+            7758,
+            7776,
+            7781,
+            7793,
+            7809,
+            7821,
+            7840,
+            7853,
+            7869,
+            7879,
+            7889,
+            7914,
+            7931,
+            7947,
+            7965,
+            7978,
+            7993,
+            8015,
+            8026,
+            8063,
+            8281,
+            8286,
+            8299,
+            8311,
+            8346,
+            8365,
+            8384,
+            8399,
+            8418,
+            8432,
+            8455,
+            8468,
+            8496,
+            8507,
+            8542,
+            8552,
+            8632,
+            8660,
+            8665,
+            8768,
+            8781,
+            8795,
+            8831,
+            8854,
+            8871,
+            8889,
+            8907,
+            8923,
+            8947,
+            8961,
+            8991,
+            9004,
+            9040,
+            9051,
+            9093,
+            9103,
+            9158,
+        ],
+        '#6dcff6',
+    ),
 }
-
-# Tellurics
-# 'Tellurics': (np.append(list(np.linspace(6867,6884)), list(np.linspace(7594,7621))), '#99FFFF')
-
-# TODO:  - generate the telluric lines
 
 
 class CheckboxWithLegendGroup(CheckboxGroup):
@@ -561,6 +652,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     plot.add_tools(imhover)
 
     model_dict = {}
+
     legend_items = []
     for i, (label, sdf) in enumerate(split):
         renderers = []
@@ -1399,6 +1491,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         active_drag=active_drag,
     )
     plot.add_tools(hover)
+
     model_dict = {}
     legend_items = []
     for i, (key, df) in enumerate(split):
@@ -1499,20 +1592,58 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         margin=(0, 10, 0, 10),
     )
 
-    for i, (wavelengths, color) in enumerate(SPEC_LINES.values()):
+    # Track elements that need to be shifted with change in z / v
+    shifting_elements = []
+
+    for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
+
         el_data = pd.DataFrame({'wavelength': wavelengths})
-        obj_redshift = 0 if obj.redshift is None else obj.redshift
-        el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
-        model_dict[f'el{i}'] = plot.segment(
-            x0='x',
-            x1='x',
-            # TODO change limits
-            y0=0,
-            y1=1e4,
-            color=color,
-            source=ColumnDataSource(el_data),
-        )
-        model_dict[f'el{i}'].visible = False
+
+        if name == 'Sky Lines':  # No redshift correction of skylines
+            el_data['x'] = el_data['wavelength']
+            segment = plot.segment(
+                x0='x',
+                x1='x',
+                y0=0,
+                y1=1e4,
+                color=color,
+                source=ColumnDataSource(el_data),
+            )
+            segment.visible = False
+            model_dict[f'element_{i}'] = segment
+
+        elif name in ('Tellurics-1', 'Tellurics-2'):
+            el_data['x'] = el_data['wavelength']
+            midtel1 = (el_data['x'][0] + el_data['x'][1]) / 2
+            widtel1 = el_data['x'][1] - el_data['x'][0]
+
+            vbar = plot.vbar(
+                x=midtel1,
+                width=widtel1,
+                # TODO change limits
+                top=1e4,
+                color=color,
+                alpha=0.3,
+            )
+            vbar.visible = False
+            model_dict[f'element_{i}'] = vbar
+
+        else:
+            obj_redshift = 0 if obj.redshift is None else obj.redshift
+            el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
+
+            segment = plot.segment(
+                x0='x',
+                x1='x',
+                # TODO change limits
+                y0=0,
+                y1=1e4,
+                color=color,
+                source=ColumnDataSource(el_data),
+            )
+            segment.visible = False
+            model_dict[f'element_{i}'] = segment
+            shifting_elements.append(segment)
 
     # Split spectral line legend into columns
     if device == "mobile_portrait":
@@ -1521,54 +1652,67 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         columns = 5
     else:
         columns = 7
-    element_dicts = zip(*itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns))
 
-    elements_groups = []  # The Bokeh checkbox groups
-    callbacks = []  # The checkbox callbacks for each element
+    # Create columns from a list.
+    #
+    # `list(zip_longest(a, b, c, ...))` returns a tuple where the i-th
+    # element comes from the i-th iterable argument.
+    #
+    # The trick here is to pass in the same iterable `column` times.
+    # This gives us rows.
+    rows = itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns)
+
+    # To form columns from the rows, zip the rows together.
+    element_dicts = zip(*rows)
+
+    all_column_checkboxes = []
+
     for column_idx, element_dict in enumerate(element_dicts):
         element_dict = [e for e in element_dict if e is not None]
-        labels = [key for key, value in element_dict]
-        colors = [c for key, (w, c) in element_dict]
-        elements = CheckboxWithLegendGroup(
+        labels = [name for name, _ in element_dict]
+        colors = [color for name, (wavelengths, color) in element_dict]
+        column_checkboxes = CheckboxWithLegendGroup(
             labels=labels, active=[], colors=colors, width=width // (columns + 1)
         )
-        elements_groups.append(elements)
+        all_column_checkboxes.append(column_checkboxes)
 
-        callback = CustomJS(
-            args={
-                'elements': elements,
-                'z': z_textinput,
-                'v_exp': v_exp_textinput,
-                **model_dict,
-            },
+        callback_toggle_lines = CustomJS(
+            args={'column_checkboxes': column_checkboxes, **model_dict},
             code=f"""
-            let c = 299792.458; // speed of light in km / s
-            const i_max = {column_idx} +  {columns} * elements.labels.length;
-            let local_i = 0;
-            for (let i = {column_idx}; i < i_max; i = i + {columns}) {{
-                let el = eval("el" + i);
-                el.visible = (elements.active.includes(local_i))
-                el.data_source.data.x = el.data_source.data.wavelength.map(
-                    x_i => (x_i * (1 + parseFloat(z.value)) /
-                                    (1 + parseFloat(v_exp.value) / c))
-                );
-                el.data_source.change.emit();
-                local_i++;
+            for (let i = 0; i < {len(labels)}; i = i + 1) {{
+                let el_idx = i * {columns} + {column_idx};
+                let el = eval("element_" + el_idx);
+                el.visible = (column_checkboxes.active.includes(i))
             }}
         """,
         )
-        elements.js_on_click(callback)
-        callbacks.append(callback)
+        column_checkboxes.js_on_click(callback_toggle_lines)
+
+    # Move spectral lines when redshift or velocity changes
+    speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
+    callback_zvs = CustomJS(
+        args={'z': z_textinput, 'v_exp': v_exp_textinput, **speclines},
+        code=f"""
+        const c = 299792.458; // speed of light in km / s
+        for (let i = 0; i < {len(speclines)}; i = i + 1) {{
+            let el = eval("specline_" + i);
+            el.data_source.data.x = el.data_source.data.wavelength.map(
+                x_i => (x_i * (1 + parseFloat(z.value)) /
+                                (1 + parseFloat(v_exp.value) / c))
+            );
+            el.data_source.change.emit();
+        }}
+    """,
+    )
+
+    # Hook up callback that shifts spectral lines when z or v changes
+    z_textinput.js_on_change('value', callback_zvs)
+    v_exp_textinput.js_on_change('value', callback_zvs)
 
     z_textinput.js_on_change(
         'value',
         CustomJS(
-            args={
-                'z': z_textinput,
-                'slider': z_slider,
-                'v_exp': v_exp_textinput,
-                **model_dict,
-            },
+            args={'z': z_textinput, 'slider': z_slider},
             code="""
             // Update slider value to match text input
             slider.value = parseFloat(z.value).toFixed(3);
@@ -1579,23 +1723,13 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     v_exp_textinput.js_on_change(
         'value',
         CustomJS(
-            args={
-                'z': z_textinput,
-                'slider': v_exp_slider,
-                'v_exp': v_exp_textinput,
-                **model_dict,
-            },
+            args={'slider': v_exp_slider, 'v_exp': v_exp_textinput},
             code="""
             // Update slider value to match text input
             slider.value = parseFloat(v_exp.value).toFixed(3);
         """,
         ),
     )
-
-    # Update the element spectral lines as well
-    for callback in callbacks:
-        z_textinput.js_on_change('value', callback)
-        v_exp_textinput.js_on_change('value', callback)
 
     # Add some height for the checkboxes and sliders
     if device == "mobile_portrait":
@@ -1605,7 +1739,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     else:
         height = plot_height + 220
 
-    row2 = row(elements_groups)
+    row2 = row(all_column_checkboxes)
     row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
     layout = column(
         plot,
