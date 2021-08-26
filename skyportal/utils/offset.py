@@ -1175,7 +1175,7 @@ def get_finding_chart(
         ncolors -= 1
     colors = sns.color_palette("colorblind", ncolors)
 
-    start_text = [-0.35, 0.99]
+    start_text = [-0.45, 0.99]
     origin = "GaiaDR2" if not used_ztfref else "ZTFref"
     starlist_str = (
         f"# Note: {origin} used for offset star positions\n"
@@ -1270,10 +1270,10 @@ def get_finding_chart(
         # mark up the right side of the page with position and offset info
         name_title = star["name"]
         if star.get("mag") is not None:
-            name_title += f", mag={star.get('mag'):.2f}"
+            name_title += f" {star.get('mag'):.2f} mag"
         ax_text.text(
             start_text[0],
-            start_text[1] - i / ncolors,
+            start_text[1] - (i * 1.1) / ncolors,
             name_title,
             ha='left',
             va='top',
@@ -1283,16 +1283,16 @@ def get_finding_chart(
             color=colors[i],
         )
         source_text = f"  {star['ra']:.5f} {star['dec']:.5f}\n"
-        source_text += f"  {c1.to_string('hmsdms')}\n"
+        source_text += f"  {c1.to_string('hmsdms', precision=2)}\n"
         if (
             (star.get("dras") is not None)
             and (star.get("ddecs") is not None)
             and (star.get("pa") is not None)
         ):
-            source_text += f'  {star.get("dras")} {star.get("ddecs")} to {source_name} (PA={star.get("pa"):<0.02f}°)'
+            source_text += f'  {star.get("dras")} {star.get("ddecs")} (PA={star.get("pa"):<0.02f}°)'
         ax_text.text(
             start_text[0],
-            start_text[1] - i / ncolors - 0.06,
+            start_text[1] - (i * 1.1) / ncolors - 0.06,
             source_text,
             ha='left',
             va='top',
