@@ -25,11 +25,11 @@ class MainHandler(tornado.web.RequestHandler):
         self.write({'status': 'active'})
 
     async def post(self):
-        print("body", self.request.body)
         try:
             data = tornado.escape.json_decode(self.request.body)
         except json.decoder.JSONDecodeError:
-            traceback.print_exc()
+            err = traceback.format_exc()
+            log(err)
             return self.error(400, "Invalid JSON")
 
         url = data.pop("url", "")
