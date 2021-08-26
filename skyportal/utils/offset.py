@@ -578,7 +578,7 @@ def get_nearby_offset_stars(
     radius_degrees=2 / 60.0,
     mag_limit=18.0,
     mag_min=10.0,
-    min_sep_arcsec=5,
+    min_sep_arcsec=2,
     starlist_type='Keck',
     obstime=None,
     use_source_pos_in_starlist=True,
@@ -657,8 +657,10 @@ def get_nearby_offset_stars(
     )
     # get three times as many stars as requested for now
     # and go fainter as well
-    fainter_diff = 2.0  # mag
-    search_multipler = 10
+    fainter_diff = 1.5  # mag
+    search_multipler = 20
+    min_distance = 5.0 / 3600.0  # min distance from source for offset star
+    source_in_catalog_dist = 0.5 / 3600.0  # min distance from source for offset star
     query_string = f"""
                   SELECT TOP {how_many*search_multipler} DISTANCE(
                     POINT('ICRS', ra, dec),
@@ -673,12 +675,32 @@ def get_nearby_offset_stars(
                   AND phot_rp_mean_mag < {mag_limit + fainter_diff}
                   AND phot_rp_mean_mag > {mag_min}
                   AND parallax < 250
+                  ORDER BY dist ASC
                 """
 
     g = GaiaQuery()
     r = g.query(query_string)
+
     # get brighter stars at top:
     r.sort("phot_rp_mean_mag")
+
+    potential_source_in_gaia_query = r[r["dist"] < source_in_catalog_dist]
+    if len(potential_source_in_gaia_query) > 0:
+        # try to find offset stars brighter than the catalog brightness of the
+        # source.
+        source_catalog_mag = potential_source_in_gaia_query["phot_rp_mean_mag"]
+        offset_brightness_limit = source_catalog_mag
+        for _ in range(3):
+            temp_r = r[r["phot_rp_mean_mag"] <= offset_brightness_limit]
+            if len(temp_r) > how_many + 2:
+                r = temp_r
+                break
+            offset_brightness_limit += 0.5
+
+    # filter out stars near the source (and the source itself)
+    # since we do not want waste an offset star on very nearby sources
+    r = r[r["dist"] > min_distance]
+
     queries_issued += 1
 
     catalog = SkyCoord.guess_from_table(r)
