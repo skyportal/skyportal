@@ -17,14 +17,6 @@ jobs:
         with:
           python-version: "3.8"
 
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cache
-            ~/.local
-            ~/.npm
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
-
       - name: Checkout
         uses: actions/checkout@v2
         with:
