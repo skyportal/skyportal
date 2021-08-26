@@ -37,6 +37,13 @@ jobs:
         with:
           python-version: "3.8"
 
+      - name: Checkout master
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: master
+          submodules: true
+
       - uses: actions/cache@v2
         with:
           path: |
@@ -48,13 +55,6 @@ jobs:
           path: |
             ~/.cache/pip
           key: ${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
-
-      - name: Checkout master
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          ref: master
-          submodules: true
 
       - name: Write SkyPortal configs
         run: |
