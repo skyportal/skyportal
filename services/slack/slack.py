@@ -25,7 +25,6 @@ class MainHandler(tornado.web.RequestHandler):
         self.write({'status': 'active'})
 
     async def post(self):
-        print("body", self.request.body)
         try:
             data = tornado.escape.json_decode(self.request.body)
         except json.decoder.JSONDecodeError:
