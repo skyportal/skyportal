@@ -28,7 +28,7 @@ def users_mentioned(text):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, comment_id=None):
+    def get(self, associated_resource_type, resource_id, comment_id=None):
         """
         ---
         description: Retrieve a comment
@@ -43,6 +43,17 @@ class CommentHandler(BaseHandler):
             description: |
                What underlying data the comment is on:
                an "object" (default), or a "spectrum".
+          - in: path
+            name: resource_id
+            required: true
+            schema:
+              type: string
+            description: |
+               The ID of the underlying data.
+               This would be a string for an object ID
+               or an integer for other data types like spectrum.
+               The comment ID must correspond to a comment on the
+               underlying object given by this field.
           - in: path
             name: comment_id
             required: true
@@ -60,6 +71,10 @@ class CommentHandler(BaseHandler):
                 schema: Error
         """
 
+        # print('type: '+associated_resource_type)
+        # print('obj id: '+resource_id)
+        # print('comment_id: '+comment_id)
+
         if comment_id is None:
             return self.error("Must provide a valid comment ID. ")
 
@@ -73,21 +88,27 @@ class CommentHandler(BaseHandler):
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
+            comment_resource_id_str = str(comment.obj_id)
         elif associated_resource_type.lower() in ("spectrum", "spectra"):
             comment = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
+            comment_resource_id_str = str(comment.spectrum_id)
         # add more options using elif
         else:
             return self.error(
                 f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
             )
-        if isinstance(comment, CommentOnSpectrum):
-            print('is instance! ')
+
+        if comment_resource_id_str != resource_id:
+            return self.error(
+                f'Comment resource ID does not match resource ID given in path ({resource_id})'
+            )
+
         return self.success(data=comment)
 
     @permissions(['Comment'])
-    def post(self, associated_resource_type):
+    def post(self, associated_resource_type, resource_id, *_):
         """
         ---
         description: Post a comment
@@ -102,6 +123,19 @@ class CommentHandler(BaseHandler):
             description: |
                What underlying data the comment is on:
                an "object" (default), or a "spectrum".
+          - in: path
+            name: resource_id
+            required: true
+            schema:
+              type: string
+            description: |
+               The ID of the underlying data.
+               This would be a string for an object ID
+               or an integer for other data types like spectrum.
+               The object pointed to by this input must be a valid
+               object or other data type (like spectrum) that
+               can be commented on by te user/token.
+               It must match the data given in the request body.
         requestBody:
           content:
             application/json:
@@ -204,6 +238,7 @@ class CommentHandler(BaseHandler):
                 groups=groups,
                 bot=is_bot_request,
             )
+            comment_resource_id_str = str(comment.obj_id)
         elif associated_resource_type.lower() in ("spectrum", "spectra"):
             if spectrum_id is None:
                 return self.error("Missing required field `spectrum_id`")
@@ -217,6 +252,7 @@ class CommentHandler(BaseHandler):
                 groups=groups,
                 bot=is_bot_request,
             )
+            comment_resource_id_str = str(comment.spectrum_id)
 
         users_mentioned_in_comment = users_mentioned(comment_text)
         if users_mentioned_in_comment:
@@ -228,6 +264,11 @@ class CommentHandler(BaseHandler):
                         url=f"/source/{obj_id}",
                     )
                 )
+
+        if comment_resource_id_str != resource_id:
+            return self.error(
+                f'Comment resource ID does not match resource ID given in path ({resource_id})'
+            )
 
         DBSession().add(comment)
         self.verify_and_commit()
@@ -250,7 +291,7 @@ class CommentHandler(BaseHandler):
         return self.success(data={'comment_id': comment.id})
 
     @permissions(['Comment'])
-    def put(self, associated_resource_type, comment_id):
+    def put(self, associated_resource_type, resource_id, comment_id):
         """
         ---
         description: Update a comment
@@ -265,6 +306,17 @@ class CommentHandler(BaseHandler):
             description: |
                What underlying data the comment is on:
                an "object" (default), or a "spectrum".
+          - in: path
+            name: resource_id
+            required: true
+            schema:
+              type: string
+            description: |
+               The ID of the underlying data.
+               This would be a string for an object ID
+               or an integer for other data types like spectrum.
+               The comment ID must correspond to a comment on the
+               underlying object given by this field.
           - in: path
             name: comment_id
             required: true
@@ -308,11 +360,15 @@ class CommentHandler(BaseHandler):
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="update", raise_if_none=True
             )
+            comment_resource_id_str = str(c.obj_id)
+
         elif associated_resource_type.lower() in ("spectrum", "spectra"):
             schema = CommentOnSpectrum.__schema__()
             c = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, mode="update", raise_if_none=True
             )
+            comment_resource_id_str = str(c.spectrum_id)
+
         # add more options using elif
         else:
             return self.error(
@@ -349,6 +405,11 @@ class CommentHandler(BaseHandler):
             )
             c.groups = groups
 
+        if comment_resource_id_str != resource_id:
+            return self.error(
+                f'Comment resource ID does not match resource ID given in path ({resource_id})'
+            )
+
         self.verify_and_commit()
 
         if c.obj.id is not None:  # comment on object, or object related resources
@@ -365,7 +426,7 @@ class CommentHandler(BaseHandler):
         return self.success()
 
     @permissions(['Comment'])
-    def delete(self, associated_resource_type, comment_id):
+    def delete(self, associated_resource_type, resource_id, comment_id):
         """
         ---
         description: Delete a comment
@@ -380,6 +441,17 @@ class CommentHandler(BaseHandler):
             description: |
                What underlying data the comment is on:
                an "object" (default), or a "spectrum".
+          - in: path
+            name: resource_id
+            required: true
+            schema:
+              type: string
+            description: |
+               The ID of the underlying data.
+               This would be a string for an object ID
+               or an integer for other data types like spectrum.
+               The comment ID must correspond to a comment on the
+               underlying object given by this field.
           - in: path
             name: comment_id
             required: true
@@ -405,10 +477,12 @@ class CommentHandler(BaseHandler):
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
+            comment_resource_id_str = str(c.obj_id)
         elif associated_resource_type.lower() in ("spectrum", "spectra"):
             c = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
+            comment_resource_id_str = str(c.spectrum_id)
         # add more options using elif
         else:
             return self.error(
@@ -419,6 +493,12 @@ class CommentHandler(BaseHandler):
         obj_id = c.obj.id
         # some other logic should come here if comment is not
         # associated with an object
+
+        if comment_resource_id_str != resource_id:
+            return self.error(
+                f'Comment resource ID does not match resource ID given in path ({resource_id})'
+            )
+
         DBSession().delete(c)
         self.verify_and_commit()
 
@@ -438,7 +518,7 @@ class CommentHandler(BaseHandler):
 
 class CommentAttachmentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, comment_id):
+    def get(self, associated_resource_type, resource_id, comment_id):
         """
         ---
         description: Download comment attachment
@@ -453,6 +533,17 @@ class CommentAttachmentHandler(BaseHandler):
             description: |
                What underlying data the comment is on:
                an "object" (default), or a "spectrum".
+          - in: path
+            name: resource_id
+            required: true
+            schema:
+              type: string
+            description: |
+               The ID of the underlying data.
+               This would be a string for an object ID
+               or an integer for other data types like spectrum.
+               The comment ID must correspond to a comment on the
+               underlying object given by this field.
           - in: path
             name: comment_id
             required: true
@@ -504,14 +595,22 @@ class CommentAttachmentHandler(BaseHandler):
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
+            comment_resource_id_str = str(comment.obj_id)
+
         elif associated_resource_type.lower() in ("spectrum", "spectra"):
             comment = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
+            comment_resource_id_str = str(comment.spectrum_id)
         # add more options using elif
         else:
             return self.error(
                 f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
+            )
+
+        if comment_resource_id_str != resource_id:
+            return self.error(
+                f'Comment resource ID does not match resource ID given in path ({resource_id})'
             )
 
         self.verify_and_commit()
