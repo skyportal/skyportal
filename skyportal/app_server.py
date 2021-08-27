@@ -159,7 +159,7 @@ skyportal_handlers = [
         r'/api/(sources|spectrum)(/[0-9A-Za-z-_\.\+]+)/annotation(/[0-9]+)?',
         AnnotationHandler,
     ),
-    (r'/api/(sources|spectrum)(/[0-9A-Za-z-_\.\+]+)/annotations', ObjAnnotationHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations', ObjAnnotationHandler),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),

@@ -28,7 +28,7 @@ def users_mentioned(text):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, comment_id=None):
+    def get(self, associated_resource_type, resource_id, comment_id):
         """
         ---
         description: Retrieve a comment
@@ -37,7 +37,7 @@ class CommentHandler(BaseHandler):
         parameters:
           - in: path
             name: associated_resource_type
-            required: false
+            required: true
             schema:
               type: string
             description: |
@@ -71,11 +71,9 @@ class CommentHandler(BaseHandler):
                 schema: Error
         """
 
-        # print('type: '+associated_resource_type)
-        # print('obj id: '+resource_id)
-        # print('comment_id: '+comment_id)
-
-        if comment_id is None:
+        try:
+            comment_id = int(comment_id)
+        except (TypeError, ValueError):
             return self.error("Must provide a valid comment ID. ")
 
         # the default is to comment on an object
@@ -117,7 +115,7 @@ class CommentHandler(BaseHandler):
         parameters:
           - in: path
             name: associated_resource_type
-            required: false
+            required: true
             schema:
               type: string
             description: |
@@ -134,7 +132,7 @@ class CommentHandler(BaseHandler):
                or an integer for other data types like spectrum.
                The object pointed to by this input must be a valid
                object or other data type (like spectrum) that
-               can be commented on by te user/token.
+               can be commented on by the user/token.
                It must match the data given in the request body.
         requestBody:
           content:
@@ -253,6 +251,8 @@ class CommentHandler(BaseHandler):
                 bot=is_bot_request,
             )
             comment_resource_id_str = str(comment.spectrum_id)
+        else:
+            return self.error(f'Unknown resource type "{associated_resource_type}".')
 
         users_mentioned_in_comment = users_mentioned(comment_text)
         if users_mentioned_in_comment:
@@ -300,7 +300,7 @@ class CommentHandler(BaseHandler):
         parameters:
           - in: path
             name: associated_resource_type
-            required: false
+            required: true
             schema:
               type: string
             description: |
@@ -347,7 +347,10 @@ class CommentHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        if comment_id is None:
+
+        try:
+            comment_id = int(comment_id)
+        except (TypeError, ValueError):
             return self.error("Must provide a valid comment ID. ")
 
         if associated_resource_type.lower() in (
@@ -435,7 +438,7 @@ class CommentHandler(BaseHandler):
         parameters:
           - in: path
             name: associated_resource_type
-            required: false
+            required: true
             schema:
               type: string
             description: |
@@ -465,7 +468,9 @@ class CommentHandler(BaseHandler):
                 schema: Success
         """
 
-        if comment_id is None:
+        try:
+            comment_id = int(comment_id)
+        except (TypeError, ValueError):
             return self.error("Must provide a valid comment ID. ")
 
         if associated_resource_type.lower() in (
@@ -483,6 +488,7 @@ class CommentHandler(BaseHandler):
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
             comment_resource_id_str = str(c.spectrum_id)
+
         # add more options using elif
         else:
             return self.error(
@@ -527,7 +533,7 @@ class CommentAttachmentHandler(BaseHandler):
         parameters:
           - in: path
             name: associated_resource_type
-            required: false
+            required: true
             schema:
               type: string
             description: |
@@ -581,7 +587,9 @@ class CommentAttachmentHandler(BaseHandler):
 
         """
 
-        if comment_id is None:
+        try:
+            comment_id = int(comment_id)
+        except (TypeError, ValueError):
             return self.error("Must provide a valid comment ID. ")
 
         download = strtobool(self.get_query_argument('download', "True").lower())

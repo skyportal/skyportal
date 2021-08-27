@@ -8,13 +8,32 @@ from ...models import DBSession, Annotation, Group
 
 class AnnotationHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, annotation_id):
+    def get(self, associated_resource_type, resource_id, annotation_id):
         """
         ---
         description: Retrieve an annotation
         tags:
           - annotations
         parameters:
+          - in: path
+            name: associated_resource_type
+            required: true
+            schema:
+              type: string
+            description: |
+               What underlying data the annotation is on:
+               an "object" (default), or a "spectrum".
+          - in: path
+            name: resource_id
+            required: true
+            schema:
+              type: string
+            description: |
+               The ID of the underlying data.
+               This would be a string for an object ID
+               or an integer for other data types like spectrum.
+               The annotation ID must correspond to an annotation on the
+               underlying object given by this field.
           - in: path
             name: annotation_id
             required: true
@@ -31,29 +50,63 @@ class AnnotationHandler(BaseHandler):
                 schema: Error
         """
 
-        if associated_resource_type is None:
-            associated_resource_type = 'object'
-
-        if (
-            associated_resource_type.lower() == "object"
-        ):  # annotation on object (default)
+        try:
+            annotation_id = int(annotation_id)
+        except (TypeError, ValueError):
+            return self.error("Must provide a valid annotation ID. ")
+        # the default is to annotate an object
+        if associated_resource_type.lower() in (
+            "object",
+            "objects",
+            "source",
+            "sources",
+        ):
             annotation = Annotation.get_if_accessible_by(
                 annotation_id, self.current_user, raise_if_none=True
             )
+            annotation_resource_id_str = str(annotation.obj_id)
         # add more options using elif
         else:
             return self.error(
                 f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
             )
+
+        if annotation_resource_id_str != resource_id:
+            return self.error(
+                f'Annotation resource ID does not match resource ID given in path ({resource_id})'
+            )
+
         return self.success(data=annotation)
 
     @permissions(['Annotate'])
-    def post(self):
+    def post(self, associated_resource_type, resource_id, *_):
         """
         ---
         description: Post an annotation
         tags:
           - annotations
+        parameters:
+          - in: path
+            name: associated_resource_type
+            required: true
+            schema:
+              type: string
+            description: |
+               What underlying data the annotation is on:
+               an "object" (default), or a "spectrum".
+          - in: path
+            name: resource_id
+            required: true
+            schema:
+              type: string
+            description: |
+               The ID of the underlying data.
+               This would be a string for an object ID
+               or an integer for other data types like spectrum.
+               The object pointed to by this input must be a valid
+               object or other data type (like spectrum) that
+               can be annotated on by the user/token.
+               It must match the data given in the request body.
         requestBody:
           content:
             application/json:
@@ -120,7 +173,7 @@ class AnnotationHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
-        obj_id = data.get("obj_id")
+        obj_id = data.get("obj_id", None)
         origin = data.get("origin")
 
         if not re.search(r'^\w+', origin):
@@ -134,30 +187,68 @@ class AnnotationHandler(BaseHandler):
             )
 
         author = self.associated_user_object
-        annotation = Annotation(
-            data=annotation_data,
-            obj_id=obj_id,
-            origin=origin,
-            author=author,
-            groups=groups,
-        )
+        if associated_resource_type.lower() in (
+            "object",
+            "objects",
+            "source",
+            "sources",
+        ):
+            if obj_id is None:
+                return self.error("Missing required field `obj_id`")
+            annotation = Annotation(
+                data=annotation_data,
+                obj_id=obj_id,
+                origin=origin,
+                author=author,
+                groups=groups,
+            )
+            annotation_resource_id_str = str(annotation.obj_id)
+        else:
+            return self.error(f'Unknown resource type "{associated_resource_type}".')
+
+        if annotation_resource_id_str != resource_id:
+            return self.error(
+                f'Annotation resource ID does not match resource ID given in path ({resource_id})'
+            )
 
         DBSession().add(annotation)
         self.verify_and_commit()
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': annotation.obj.internal_key},
-        )
+
+        if obj_id is not None:
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': annotation.obj.internal_key},
+            )
+
         return self.success(data={'annotation_id': annotation.id})
 
     @permissions(['Annotate'])
-    def put(self, associated_resource_type, annotation_id):
+    def put(self, associated_resource_type, resource_id, annotation_id):
         """
         ---
         description: Update an annotation
         tags:
           - annotations
         parameters:
+          - in: path
+            name: associated_resource_type
+            required: true
+            schema:
+              type: string
+            description: |
+               What underlying data the annotation is on:
+               an "object" (default), or a "spectrum".
+          - in: path
+            name: resource_id
+            required: true
+            schema:
+              type: string
+            description: |
+               The ID of the underlying data.
+               This would be a string for an object ID
+               or an integer for other data types like spectrum.
+               The annotation ID must correspond to an annotation on the
+               underlying object given by this field.
           - in: path
             name: annotation_id
             required: true
@@ -188,13 +279,24 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        if associated_resource_type is None:
-            associated_resource_type = 'object'
 
-        if associated_resource_type.lower() == "object":  # comment on object
+        try:
+            annotation_id = int(annotation_id)
+        except (TypeError, ValueError):
+            return self.error("Must provide a valid annotation ID. ")
+
+        if associated_resource_type.lower() in (
+            "object",
+            "objects",
+            "source",
+            "sources",
+        ):
+            schema = Annotation.__schema__()
             a = Annotation.get_if_accessible_by(
                 annotation_id, self.current_user, mode="update", raise_if_none=True
             )
+            annotation_resource_id_str = str(a.obj_id)
+
         # add more options using elif
         else:
             return self.error(
@@ -204,7 +306,6 @@ class AnnotationHandler(BaseHandler):
         group_ids = data.pop("group_ids", None)
         data['id'] = annotation_id
 
-        schema = Annotation.__schema__()
         try:
             schema.load(data, partial=True)
         except ValidationError as e:
@@ -216,20 +317,48 @@ class AnnotationHandler(BaseHandler):
             )
             a.groups = groups
 
+        if annotation_resource_id_str != resource_id:
+            return self.error(
+                f'Annotation resource ID does not match resource ID given in path ({resource_id})'
+            )
+
         self.verify_and_commit()
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE', payload={'obj_key': a.obj.internal_key}
-        )
+
+        if a.obj.id is not None:  # comment on object, or object related resources
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': a.obj.internal_key},
+            )
+
         return self.success()
 
     @permissions(['Annotate'])
-    def delete(self, associated_resource_type, annotation_id):
+    def delete(self, associated_resource_type, resource_id, annotation_id):
         """
         ---
         description: Delete an annotation
         tags:
           - annotations
         parameters:
+          - in: path
+            name: associated_resource_type
+            required: true
+            schema:
+              type: string
+            description: |
+               What underlying data the annotation is on:
+               an "object" (default), or a "spectrum".
+          - in: path
+            name: resource_id
+            required: true
+            schema:
+              type: string
+            description: |
+               The ID of the underlying data.
+               This would be a string for an object ID
+               or an integer for other data types like spectrum.
+               The annotation ID must correspond to an annotation on the
+               underlying object given by this field.
           - in: path
             name: annotation_id
             required: true
@@ -242,13 +371,23 @@ class AnnotationHandler(BaseHandler):
                 schema: Success
         """
 
-        if associated_resource_type is None:
-            associated_resource_type = 'object'
+        try:
+            annotation_id = int(annotation_id)
+        except (TypeError, ValueError):
+            return self.error("Must provide a valid annotation ID. ")
 
-        if associated_resource_type.lower() == "object":  # comment on object
+        if associated_resource_type.lower() in (
+            "object",
+            "objects",
+            "source",
+            "sources",
+        ):
+
             a = Annotation.get_if_accessible_by(
                 annotation_id, self.current_user, mode="delete", raise_if_none=True
             )
+            annotation_resource_id_str = str(a.obj_id)
+
         # add more options using elif
         else:
             return self.error(
@@ -256,9 +395,22 @@ class AnnotationHandler(BaseHandler):
             )
 
         obj_key = a.obj.internal_key
+        # some other logic should come here if annotation is not
+        # associated with an object
+
+        if annotation_resource_id_str != resource_id:
+            return self.error(
+                f'Annotation resource ID does not match resource ID given in path ({resource_id})'
+            )
+
         DBSession().delete(a)
         self.verify_and_commit()
-        self.push_all(action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key})
+
+        if a.obj.id is not None:  # annotation on object, or object related resources
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key}
+            )
+
         return self.success()
 
 
