@@ -25,6 +25,13 @@ class MainHandler(tornado.web.RequestHandler):
         self.write({'status': 'active'})
 
     async def post(self):
+        """
+        Handles the error checking and posting to the Slack webhook.
+        The Slack Webhook API is described here:
+            https://api.slack.com/messaging/webhooks#posting_with_webhooks
+        Most important is that we check that we are indeed posting
+        to a URL which is consistent with being a Slack URL.
+        """
         try:
             data = tornado.escape.json_decode(self.request.body)
         except json.decoder.JSONDecodeError:
