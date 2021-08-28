@@ -36,9 +36,9 @@ const useStyles = makeStyles((theme) => ({
 
 const SlackPreferences = () => {
   const classes = useStyles();
+  const slack_preamble = useSelector((state) => state.sysInfo.slack_preamble);
   const profile = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();
-
   const [anchorEl, setAnchorEl] = useState(null);
   const [slackurl, setSlackurl] = useState(profile.slack_integration?.url);
   const [slackurlerror, setSlackurlerror] = useState(false);
@@ -48,7 +48,7 @@ const SlackPreferences = () => {
   };
 
   const handleBlur = () => {
-    if (slackurl?.startsWith("https://hooks.slack.com/")) {
+    if (slackurl?.startsWith(slack_preamble)) {
       setSlackurlerror(false);
       const prefs = {
         slack_integration: {

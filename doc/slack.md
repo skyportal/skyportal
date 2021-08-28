@@ -31,7 +31,7 @@ For each user in Slack who wishes to connect to their SkyPortal notifications, t
 
 ![Slack Integration Webhook Generate](images/slack_integration_8.png)
 
-In the popup dialog choose the Slack channel for that user and copy the new Webhook URL:
+In the popup dialog choose the Slack direct messages channel for that user and copy the new Webhook URL:
 
 ![Slack Integration Webhook Copy](images/slack_integration_9.png)
 

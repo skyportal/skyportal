@@ -408,5 +408,6 @@ image_grayscale_params:
   MSE_cutoff: 22
   adjust_color_bias: True
 
-microservice_ports:
-  slack: 64100
+slack:
+  microservice_port: 64100
+  expected_url_preamble: "https://hooks.slack.com/"

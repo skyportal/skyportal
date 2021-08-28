@@ -15,7 +15,7 @@ log = make_log('slack')
 
 class MainHandler(tornado.web.RequestHandler):
     def set_default_headers(self):
-        self.set_header("Content-Type", 'application/json')
+        self.set_header('Content-Type', 'application/json')
 
     def error(self, code, message):
         self.set_status(code)
@@ -33,18 +33,21 @@ class MainHandler(tornado.web.RequestHandler):
             return self.error(400, "Invalid JSON")
 
         url = data.pop("url", "")
-        if not url.startswith("https://hooks.slack.com/"):
+        if not url.startswith(cfg.get('slack.expected_url_preamble', 'https://')):
             # refuse to post to a URL which is not the Slack hook
             return self.error(400, "Must supply a proper Slack endpoint to POST")
 
         http_client = AsyncHTTPClient()
-        http_client.fetch(
-            url,
-            raise_error=False,
-            method='POST',
-            body=json.dumps(data),
-            headers={'Content-type': 'application/json'},
-        )
+        try:
+            await http_client.fetch(
+                url,
+                raise_error=False,
+                method='POST',
+                body=json.dumps(data),
+                headers={'Content-type': 'application/json'},
+            )
+        except Exception as e:
+            log(f"Error posting to Slack: {e}")
 
 
 def make_app():
@@ -58,7 +61,7 @@ def make_app():
 if __name__ == "__main__":
     slack_poster = make_app()
 
-    port = cfg['microservice_ports.slack']
+    port = cfg.get('slack.microservice_port', 64100)
     slack_poster.listen(port)
     log(f'Listening on port {port}')
     tornado.ioloop.IOLoop.current().start()
