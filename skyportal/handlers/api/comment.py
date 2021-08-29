@@ -87,11 +87,14 @@ class CommentHandler(BaseHandler):
                 comment_id, self.current_user, raise_if_none=True
             )
             comment_resource_id_str = str(comment.obj_id)
+
+            # comment.api_path = f'api/sources/{resource_id}/comment/{comment_id}'
         elif associated_resource_type.lower() in ("spectrum", "spectra"):
             comment = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
             comment_resource_id_str = str(comment.spectrum_id)
+            # comment.api_path = f'api/spectrum/{resource_id}/comment/{comment_id}'
         # add more options using elif
         else:
             return self.error(
@@ -102,7 +105,6 @@ class CommentHandler(BaseHandler):
             return self.error(
                 f'Comment resource ID does not match resource ID given in path ({resource_id})'
             )
-
         return self.success(data=comment)
 
     @permissions(['Comment'])

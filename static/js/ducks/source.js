@@ -77,25 +77,29 @@ export function addComment(formData) {
     return (dispatch) => {
       fileReaderPromise(formData.attachment).then((fileData) => {
         formData.attachment = fileData;
-        dispatch(API.POST(`/api/comment/object`, ADD_COMMENT, formData));
+        dispatch(
+          API.POST(
+            `/api/sources/${formData.obj_id}/comment`,
+            ADD_COMMENT,
+            formData
+          )
+        );
       });
     };
   }
-  return API.POST(`/api/comment/object`, ADD_COMMENT, formData);
-}
-
-export function deleteComment(comment_id, associatedResourceType = "object") {
-  return API.DELETE(
-    `/api/comment/object/${comment_id}/${associatedResourceType}`,
-    DELETE_COMMENT
+  return API.POST(
+    `/api/sources/${formData.obj_id}/comment`,
+    ADD_COMMENT,
+    formData
   );
 }
 
-export function getCommentAttachment(comment_id) {
-  return API.GET(
-    `/api/comment/object/${comment_id}/attachment?download=False`,
-    GET_COMMENT_ATTACHMENT
-  );
+export function deleteComment(pathToComment) {
+  return API.DELETE(pathToComment, DELETE_COMMENT);
+}
+
+export function getCommentAttachment(pathToComment) {
+  return API.GET(pathToComment, GET_COMMENT_ATTACHMENT);
 }
 
 export function fetchSource(id) {
