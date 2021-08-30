@@ -77,15 +77,33 @@ export function addComment(formData) {
     return (dispatch) => {
       fileReaderPromise(formData.attachment).then((fileData) => {
         formData.attachment = fileData;
-        dispatch(
-          API.POST(
-            `/api/sources/${formData.obj_id}/comment`,
-            ADD_COMMENT,
-            formData
-          )
-        );
+
+        if (formData.spectrum_id) {
+          dispatch(
+            API.POST(
+              `/api/spectrum/${formData.spectrum_id}/comment`,
+              ADD_COMMENT,
+              formData
+            )
+          );
+        } else {
+          dispatch(
+            API.POST(
+              `/api/sources/${formData.obj_id}/comment`,
+              ADD_COMMENT,
+              formData
+            )
+          );
+        }
       });
     };
+  }
+  if (formData.spectrum_id) {
+    return API.POST(
+      `/api/spectrum/${formData.spectrum_id}/comment`,
+      ADD_COMMENT,
+      formData
+    );
   }
   return API.POST(
     `/api/sources/${formData.obj_id}/comment`,

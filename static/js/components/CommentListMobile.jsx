@@ -24,8 +24,18 @@ import emoji from "emoji-dictionary";
 
 import * as sourceActions from "../ducks/source";
 import CommentList from "./CommentList";
-import CommmentAttachmentPreview from "./CommentAttachmentPreview";
+import CommentAttachmentPreview from "./CommentAttachmentPreview";
 import UserAvatar from "./UserAvatar";
+
+export const commentPath = (comment) => {
+  if (comment.spectrum_id !== undefined) {
+    return `/api/spectrum/${comment.spectrum_id}/comment/${comment.id}`;
+  }
+  // add additional types of comments here
+
+  // the default is to return the object/source comment
+  return `/api/sources/${comment.obj_id}/comment/${comment.id}`;
+};
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -191,7 +201,13 @@ const DialogTitle = withStyles(dialogTitleStyles)(
   )
 );
 
-const CommentListMobile = ({ isCandidate }) => {
+const CommentListMobile = ({
+  isCandidate = false,
+  associatedResourceType = "object",
+  objID = null,
+  spectrumID = null,
+  includeCommentsOnAllResourceTypes = true,
+}) => {
   const styles = useStyles();
 
   const [hoverID, setHoverID] = useState(null);
@@ -222,10 +238,66 @@ const CommentListMobile = ({ isCandidate }) => {
   const source = useSelector((state) => state.source);
   const candidate = useSelector((state) => state.candidate);
   const obj = isCandidate ? candidate : source;
+  const spectra = useSelector((state) => state.spectra);
   const userProfile = useSelector((state) => state.profile);
   const compactComments = useSelector(
     (state) => state.profile.preferences.compactComments
   );
+
+  if (!objID) {
+    objID = obj.id;
+  }
+
+  let comments = null;
+  let specComments = null;
+
+  if (associatedResourceType === "object") {
+    comments = obj.comments;
+    if (
+      includeCommentsOnAllResourceTypes &&
+      typeof spectra === "object" &&
+      spectra !== null &&
+      objID in spectra
+    ) {
+      specComments = spectra[objID]?.map((spec) => spec.comments)?.flat();
+    }
+    if (comments !== null && specComments !== null) {
+      comments = specComments.concat(comments);
+      comments.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    }
+  } else if (associatedResourceType === "spectrum") {
+    if (spectrumID === null) {
+      throw new Error("Must specify a spectrumID for comments on spectra");
+    }
+    const spectrum = spectra[objID].find((spec) => spec.id === spectrumID);
+    comments = spectrum?.comments;
+  } else {
+    throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
+  }
+
+  comments = comments || [];
+
+  comments.forEach((c) => {
+    c.api_path = commentPath(c);
+  });
+
+  const renderCommentText = (text, spectrum_id) => {
+    if (
+      spectrum_id &&
+      objID in spectra &&
+      associatedResourceType === "object"
+    ) {
+      const spectrum = spectra[objID].find((spec) => spec.id === spectrum_id);
+      const dayFraction =
+        (parseFloat(spectrum.observed_at.substring(11, 13)) / 24) * 10;
+      return `**Spectrum ${spectrum.observed_at.substring(
+        2,
+        10
+      )}.${dayFraction.toFixed(0)}** ${text}`;
+    }
+
+    return text;
+  };
 
   // Color styling
   const userColorTheme = useSelector(
@@ -233,10 +305,6 @@ const CommentListMobile = ({ isCandidate }) => {
   );
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
-
-  let { comments } = obj;
-
-  comments = comments || [];
 
   const emojiSupport = (text) =>
     text.value.replace(/:\w+:/gi, (name) => emoji.getUnicode(name));
@@ -246,144 +314,175 @@ const CommentListMobile = ({ isCandidate }) => {
       <div className={styles.commentsList}>
         {comments
           .slice(0, 3)
-          .map(({ id, author, created_at, text, attachment_name, groups }) => (
-            <span
-              key={id}
-              className={commentStyle}
-              onMouseOver={() =>
-                handleMouseHover(id, userProfile, author.username)
-              }
-              onMouseOut={() => handleMouseLeave()}
-              onFocus={() => handleMouseHover(id, userProfile, author.username)}
-              onBlur={() => handleMouseLeave()}
-            >
-              {compactComments ? (
-                <div className={styles.compactContainer}>
-                  <div className={styles.commentUserAvatar}>
-                    <UserAvatar
-                      size={24}
-                      firstName={author.first_name}
-                      lastName={author.last_name}
-                      username={author.username}
-                      gravatarUrl={author.gravatar_url}
-                    />
-                  </div>
-                  <div className={styles.compactWrap} name={`commentDiv${id}`}>
-                    <ReactMarkdown
-                      source={text}
-                      escapeHtml={false}
-                      className={styles.commentMessage}
-                      renderers={{ text: emojiSupport }}
-                    />
-                    <div className={styles.compactButtons}>
-                      <Tooltip
-                        title={dayjs().to(dayjs.utc(`${created_at}Z`))}
-                        placement="left"
-                      >
-                        <InfoOutlinedIcon fontSize="small" />
-                      </Tooltip>
-                      <div className={styles.spacer}>
-                        <Button
-                          style={
-                            hoverID === id
-                              ? {
-                                  display: "block",
-                                  minWidth: "0",
-                                  lineHeight: "0",
-                                  padding: "0",
-                                }
-                              : { display: "none" }
-                          }
-                          size="small"
-                          color="primary"
-                          name={`deleteCommentButton${id}`}
-                          onClick={() => {
-                            dispatch(sourceActions.deleteComment(id));
-                          }}
-                          className="commentDelete"
-                        >
-                          <CloseIcon fontSize="small" />
-                        </Button>
-                      </div>
+          .map(
+            ({
+              id,
+              author,
+              created_at,
+              text,
+              attachment_name,
+              groups,
+              spectrum_id,
+              api_path,
+            }) => (
+              <span
+                key={id}
+                className={commentStyle}
+                onMouseOver={() =>
+                  handleMouseHover(id, userProfile, author.username)
+                }
+                onMouseOut={() => handleMouseLeave()}
+                onFocus={() =>
+                  handleMouseHover(id, userProfile, author.username)
+                }
+                onBlur={() => handleMouseLeave()}
+              >
+                {compactComments ? (
+                  <div className={styles.compactContainer}>
+                    <div className={styles.commentUserAvatar}>
+                      <UserAvatar
+                        size={24}
+                        firstName={author.first_name}
+                        lastName={author.last_name}
+                        username={author.username}
+                        gravatarUrl={author.gravatar_url}
+                      />
                     </div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className={styles.commentUserAvatar}>
-                    <UserAvatar
-                      size={24}
-                      firstName={author.first_name}
-                      lastName={author.last_name}
-                      username={author.username}
-                      gravatarUrl={author.gravatar_url}
-                    />
-                  </div>
-                  <div className={styles.commentContent}>
-                    <div className={styles.commentHeader}>
-                      <div className={styles.commentHeaderContent}>
-                        <span className={styles.commentUser}>
-                          <span className={styles.commentUserName}>
-                            {author.username}
-                          </span>
-                        </span>
-                        <span className={styles.commentTime}>
-                          {dayjs().to(dayjs.utc(`${created_at}Z`))}
-                        </span>
-                        <div className={styles.commentUserGroup}>
-                          <Tooltip
-                            title={groups.map((group) => group.name).join(", ")}
-                          >
-                            <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
-                          </Tooltip>
-                        </div>
-                      </div>
-                      <div className={styles.defaultCommentDelete}>
-                        <Button
-                          style={
-                            hoverID === id
-                              ? {
-                                  display: "block",
-                                  minWidth: "0",
-                                  lineHeight: "0",
-                                  padding: "0",
-                                }
-                              : { display: "none" }
-                          }
-                          size="small"
-                          color="primary"
-                          type="button"
-                          name={`deleteCommentButton${id}`}
-                          onClick={() => {
-                            dispatch(sourceActions.deleteComment(id));
-                          }}
-                          className="commentDelete"
-                        >
-                          <CloseIcon fontSize="small" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className={styles.wrap} name={`commentDiv${id}`}>
+                    <div
+                      className={styles.compactWrap}
+                      name={`commentDiv${id}`}
+                    >
                       <ReactMarkdown
-                        source={text}
+                        source={renderCommentText(
+                          text,
+                          spectrum_id,
+                          associatedResourceType
+                        )}
                         escapeHtml={false}
                         className={styles.commentMessage}
                         renderers={{ text: emojiSupport }}
                       />
+                      <div className={styles.compactButtons}>
+                        <Tooltip
+                          title={dayjs().to(dayjs.utc(`${created_at}Z`))}
+                          placement="left"
+                        >
+                          <InfoOutlinedIcon fontSize="small" />
+                        </Tooltip>
+                        <div className={styles.spacer}>
+                          <Button
+                            style={
+                              hoverID === id
+                                ? {
+                                    display: "block",
+                                    minWidth: "0",
+                                    lineHeight: "0",
+                                    padding: "0",
+                                  }
+                                : { display: "none" }
+                            }
+                            size="small"
+                            color="primary"
+                            name={`deleteCommentButton${id}`}
+                            onClick={() => {
+                              dispatch(sourceActions.deleteComment(api_path));
+                            }}
+                            className="commentDelete"
+                          >
+                            <CloseIcon fontSize="small" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                    <span>
-                      {attachment_name && (
-                        <CommmentAttachmentPreview
-                          filename={attachment_name}
-                          commentId={id}
-                        />
-                      )}
-                    </span>
                   </div>
-                </>
-              )}
-            </span>
-          ))}
+                ) : (
+                  <>
+                    <div className={styles.commentUserAvatar}>
+                      <UserAvatar
+                        size={24}
+                        firstName={author.first_name}
+                        lastName={author.last_name}
+                        username={author.username}
+                        gravatarUrl={author.gravatar_url}
+                      />
+                    </div>
+                    <div className={styles.commentContent}>
+                      <div className={styles.commentHeader}>
+                        <div className={styles.commentHeaderContent}>
+                          <span className={styles.commentUser}>
+                            <span className={styles.commentUserName}>
+                              {author.username}
+                            </span>
+                          </span>
+                          <span className={styles.commentTime}>
+                            {dayjs().to(dayjs.utc(`${created_at}Z`))}
+                          </span>
+                          <div className={styles.commentUserGroup}>
+                            <Tooltip
+                              title={groups
+                                .map((group) => group.name)
+                                .join(", ")}
+                            >
+                              <GroupIcon
+                                fontSize="small"
+                                viewBox="0 -2 24 24"
+                              />
+                            </Tooltip>
+                          </div>
+                        </div>
+                        <div className={styles.defaultCommentDelete}>
+                          <Button
+                            style={
+                              hoverID === id
+                                ? {
+                                    display: "block",
+                                    minWidth: "0",
+                                    lineHeight: "0",
+                                    padding: "0",
+                                  }
+                                : { display: "none" }
+                            }
+                            size="small"
+                            color="primary"
+                            type="button"
+                            name={`deleteCommentButton${id}`}
+                            onClick={() => {
+                              dispatch(sourceActions.deleteComment(api_path));
+                            }}
+                            className="commentDelete"
+                          >
+                            <CloseIcon fontSize="small" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className={styles.wrap} name={`commentDiv${id}`}>
+                        <ReactMarkdown
+                          source={renderCommentText(
+                            text,
+                            spectrum_id,
+                            associatedResourceType
+                          )}
+                          escapeHtml={false}
+                          className={styles.commentMessage}
+                          renderers={{ text: emojiSupport }}
+                        />
+                      </div>
+                      <span>
+                        {attachment_name && (
+                          <CommentAttachmentPreview
+                            filename={attachment_name}
+                            objectID={spectrum_id || objID}
+                            commentId={id}
+                            commentType={spectrum_id ? "spectrum" : "sources"}
+                          />
+                        )}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </span>
+            )
+          )}
       </div>
       <div className={styles.dialogButton}>
         <Button
@@ -412,10 +511,18 @@ const CommentListMobile = ({ isCandidate }) => {
 
 CommentListMobile.propTypes = {
   isCandidate: PropTypes.bool,
+  objID: PropTypes.string,
+  associatedResourceType: PropTypes.string,
+  spectrumID: PropTypes.number,
+  includeCommentsOnAllResourceTypes: PropTypes.bool,
 };
 
 CommentListMobile.defaultProps = {
   isCandidate: false,
+  objID: null,
+  associatedResourceType: "object",
+  spectrumID: null,
+  includeCommentsOnAllResourceTypes: true,
 };
 
 export default CommentListMobile;

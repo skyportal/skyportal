@@ -161,7 +161,11 @@ const SpectrumRow = ({ rowData, route }) => {
             <CommentList
               associatedResourceType="spectrum"
               objID={route.id}
-              spectrumID={rowData[0]}
+              spectrumID={
+                typeof rowData[0] === "number"
+                  ? rowData[0]
+                  : parseInt(rowData[0], 10)
+              }
             />
           </Grid>
         </Grid>

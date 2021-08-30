@@ -389,7 +389,7 @@ def test_hr_diagram(
 
     status, data = api(
         'POST',
-        'annotation',
+        f'sources/{source_id}/annotation',
         data={
             'obj_id': source_id,
             'origin': 'cross_match1',

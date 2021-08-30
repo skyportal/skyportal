@@ -28,7 +28,7 @@ def test_news_feed(driver, user, public_group, upload_data_token, comment_token)
 
         status, data = api(
             'POST',
-            'comment',
+            f'sources/{obj_id_base}_{i}/comment',
             data={'obj_id': f'{obj_id_base}_{i}', 'text': f'comment_text_{i}'},
             token=comment_token,
         )
@@ -76,7 +76,7 @@ def test_news_feed_prefs_widget(
 
         status, data = api(
             'POST',
-            'comment',
+            f'sources/{obj_id_base}_{i}/comment',
             data={'obj_id': f'{obj_id_base}_{i}', 'text': f'comment_text_{i}'},
             token=comment_token,
         )

@@ -163,6 +163,7 @@ export const commentPath = (comment) => {
 };
 
 const CommentList = ({
+  isCandidate = false,
   associatedResourceType = "object",
   objID = null,
   spectrumID = null,
@@ -185,7 +186,9 @@ const CommentList = ({
   };
 
   const dispatch = useDispatch();
-  const obj = useSelector((state) => state.source);
+  const source = useSelector((state) => state.source);
+  const candidate = useSelector((state) => state.candidate);
+  const obj = isCandidate ? candidate : source;
   const spectra = useSelector((state) => state.spectra);
   const userProfile = useSelector((state) => state.profile);
   const permissions = useSelector((state) => state.profile.permissions);
@@ -234,18 +237,11 @@ const CommentList = ({
     throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
   }
 
+  comments = comments || [];
+
   comments.forEach((c) => {
     c.api_path = commentPath(c);
   });
-
-  // Color styling
-  const userColorTheme = useSelector(
-    (state) => state.profile.preferences.theme
-  );
-  const commentStyle =
-    userColorTheme === "dark" ? styles.commentDark : styles.comment;
-
-  comments = comments || [];
 
   const renderCommentText = (text, spectrum_id) => {
     if (
@@ -273,6 +269,13 @@ const CommentList = ({
     text.value.replace(/:\w+:/gi, (name) =>
       emoji.getUnicode(name) ? emoji.getUnicode(name) : name
     );
+
+  // Color styling
+  const userColorTheme = useSelector(
+    (state) => state.profile.preferences.theme
+  );
+  const commentStyle =
+    userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
   return (
     <div className={styles.commentsContainer}>
@@ -446,6 +449,7 @@ const CommentList = ({
 };
 
 CommentList.propTypes = {
+  isCandidate: PropTypes.bool,
   objID: PropTypes.string,
   associatedResourceType: PropTypes.string,
   spectrumID: PropTypes.number,
@@ -453,6 +457,7 @@ CommentList.propTypes = {
 };
 
 CommentList.defaultProps = {
+  isCandidate: false,
   objID: null,
   associatedResourceType: "object",
   spectrumID: null,
