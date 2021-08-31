@@ -179,6 +179,7 @@ const FindingChart = () => {
                             <MenuItem value="desi">DESI DR8</MenuItem>
                             <MenuItem value="ztfref">ZTF Ref Image</MenuItem>
                             <MenuItem value="dss">DSS2</MenuItem>
+                            <MenuItem value="ps1">PS1</MenuItem>
                           </Controller>
                         </FormControl>
                       </Grid>
