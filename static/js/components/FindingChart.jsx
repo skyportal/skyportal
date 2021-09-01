@@ -3,7 +3,6 @@ import { Link, useParams } from "react-router-dom";
 import { makeStyles } from "@material-ui/core/styles";
 
 import Select from "@material-ui/core/Select";
-import Switch from "@material-ui/core/Switch";
 import MenuItem from "@material-ui/core/MenuItem";
 import InputLabel from "@material-ui/core/InputLabel";
 import CircularProgress from "@material-ui/core/CircularProgress";
@@ -61,8 +60,8 @@ const FindingChart = () => {
   const { id } = useParams();
 
   const [params, setParams] = useState({
-    imagesource: "desi",
-    useztfref: true,
+    imagesource: "ps1",
+    positionsource: "gaia",
     findersize: 4.0,
     numoffset: 3,
   });
@@ -77,7 +76,7 @@ const FindingChart = () => {
   url.search = new URLSearchParams({
     type: "png",
     image_source: `${params.imagesource}`,
-    use_ztfref: `${params.useztfref}`,
+    use_ztfref: `${params.positionsource === "ztfref"}`,
     imsize: `${params.findersize}`,
     num_offset_stars: `${params.numoffset}`,
   });
@@ -184,45 +183,26 @@ const FindingChart = () => {
                         </FormControl>
                       </Grid>
                       <Grid item xs={12}>
-                        <InputLabel
-                          id="PositionLabel"
-                          className={classes.labels}
-                        >
-                          Offset Position Origin
-                        </InputLabel>
-                        <Grid
-                          container
-                          direction="row"
-                          justify="flex-start"
-                          alignItems="center"
-                          spacing={1}
-                        >
-                          <Grid item>
-                            <InputLabel
-                              id="PositionLabell"
-                              className={classes.labels}
-                            >
-                              Gaia DR2
-                            </InputLabel>
-                          </Grid>
-                          <Grid item>
-                            <Controller
-                              as={<Switch size="small" color="default" />}
-                              name="useztfref"
-                              labelid="OffsetTypeSelect"
-                              defaultValue={params.useztfref}
-                              control={control}
-                            />
-                          </Grid>
-                          <Grid item>
-                            <InputLabel
-                              id="PositionLabelr"
-                              className={classes.labels}
-                            >
-                              ZTF Ref
-                            </InputLabel>
-                          </Grid>
-                        </Grid>
+                        <FormControl>
+                          <InputLabel
+                            className={classes.items}
+                            id="PositionLabel"
+                          >
+                            Offset Position Origin
+                          </InputLabel>
+                          <p />
+                          <Controller
+                            as={Select}
+                            labelid="PositionLabel"
+                            name="positionsource"
+                            control={control}
+                            defaultValue={params.positionsource}
+                            className={classes.items}
+                          >
+                            <MenuItem value="ztfref">ZTF Ref</MenuItem>
+                            <MenuItem value="gaia">Gaia DR2</MenuItem>
+                          </Controller>
+                        </FormControl>
                       </Grid>
                       <Grid item xs={12}>
                         <FormControl>

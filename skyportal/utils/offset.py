@@ -763,7 +763,7 @@ def get_nearby_offset_stars(
     queries_issued += 1
 
     catalog = SkyCoord.guess_from_table(r)
-
+    print("1", use_ztfref)
     if use_ztfref:
         ztfcatalog = get_ztfcatalog(source_ra, source_dec)
         if ztfcatalog is None:
@@ -787,6 +787,7 @@ def get_nearby_offset_stars(
                 )
                 use_ztfref = False
 
+    print("2", use_ztfref)
     # star needs to be this far away
     # from another star
     min_sep = min_sep_arcsec * u.arcsec
