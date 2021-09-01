@@ -3977,10 +3977,8 @@ def send_slack_notification(mapper, connection, target):
     if not integration_url.startswith(cfg.get("slack.expected_url_preamble", "https")):
         return
 
-    app_url = get_app_base_url()
-    app_base_url = ":".join(app_url.split(":")[:-1])  # keep only the URL, not the port
     slack_microservice_url = (
-        f'{app_base_url}:{cfg.get("slack.microservice_port", 64100)}'
+        f'http://127.0.0.1:{cfg.get("slack.microservice_port", 64100)}'
     )
 
     is_mention = target.text.find("mentioned you") != -1
@@ -3996,6 +3994,7 @@ def send_slack_notification(mapper, connection, target):
     ):
         return
 
+    app_url = get_app_base_url()
     data = json.dumps(
         {"url": integration_url, "text": f'{target.text} ({app_url}{target.url})'}
     )
