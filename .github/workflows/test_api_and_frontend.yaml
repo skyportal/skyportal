@@ -101,7 +101,7 @@ jobs:
           nginx -v
           firefox --version
 
-      - name: Install SkyPortal dependencies
+      - name: Install SkyPortal dependencies for master
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           make dependencies
@@ -149,6 +149,11 @@ jobs:
           fetch-depth: 0
           submodules: true
           clean: false
+
+      - name: Refresh SkyPortal dependencies for tested version
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          make dependencies
 
       - name: Formatting and linting checks
         if: ${{ github.ref != 'refs/heads/master' && matrix.test_subset == 'api_and_utils' }}
