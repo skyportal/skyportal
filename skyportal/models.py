@@ -3961,6 +3961,9 @@ User.source_notifications = relationship(
 @event.listens_for(UserNotification, 'after_insert')
 def send_slack_notification(mapper, connection, target):
 
+    if not target.user:
+        return
+
     if not target.user.preferences:
         return
 
