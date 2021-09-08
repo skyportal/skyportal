@@ -1351,8 +1351,12 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         .all()
     )
 
-    if spec_id is not None:
-        spectra = [spec for spec in spectra if spec.id == int(spec_id)]
+    if spec_id is not None and len(spec_id) > 0:
+        spec_id = spec_id.split(',')
+        filtered_spectra = []
+        for id in spec_id:
+            filtered_spectra.extend([spec for spec in spectra if spec.id == int(id)])
+        spectra = filtered_spectra
     if len(spectra) == 0:
         return None, None, None
 

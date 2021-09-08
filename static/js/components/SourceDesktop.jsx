@@ -161,9 +161,13 @@ const SourceDesktop = ({ source }) => {
     (g) => !g.single_user_group
   );
 
+  const spectra = useSelector((state) => state.spectra)[source.id];
+  const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
+
   useEffect(() => {
     dispatch(spectraActions.fetchSourceSpectra(source.id));
   }, [source.id, dispatch]);
+
   const z_round = source.redshift_error
     ? ceil(abs(log10(source.redshift_error)))
     : 4;
@@ -407,7 +411,7 @@ const SourceDesktop = ({ source }) => {
               <div className={classes.photometryContainer}>
                 <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
                   <Plot
-                    url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600`}
+                    url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&spectrumID=${specIDs}`}
                   />
                 </Suspense>
                 <div>
