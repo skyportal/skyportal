@@ -55,12 +55,7 @@ class AnnotationHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid annotation ID. ")
         # the default is to annotate an object
-        if associated_resource_type.lower() in (
-            "object",
-            "objects",
-            "source",
-            "sources",
-        ):
+        if associated_resource_type.lower() == "sources":
             annotation = Annotation.get_if_accessible_by(
                 annotation_id, self.current_user, raise_if_none=True
             )
@@ -79,7 +74,7 @@ class AnnotationHandler(BaseHandler):
         return self.success(data=annotation)
 
     @permissions(['Annotate'])
-    def post(self, associated_resource_type, resource_id, *_):
+    def post(self, associated_resource_type, resource_id):
         """
         ---
         description: Post an annotation
@@ -113,8 +108,6 @@ class AnnotationHandler(BaseHandler):
               schema:
                 type: object
                 properties:
-                  obj_id:
-                    type: string
                   origin:
                      type: string
                      description: |
@@ -187,14 +180,8 @@ class AnnotationHandler(BaseHandler):
             )
 
         author = self.associated_user_object
-        if associated_resource_type.lower() in (
-            "object",
-            "objects",
-            "source",
-            "sources",
-        ):
-            if obj_id is None:
-                return self.error("Missing required field `obj_id`")
+        if associated_resource_type.lower() == "sources":
+            obj_id = resource_id
             annotation = Annotation(
                 data=annotation_data,
                 obj_id=obj_id,
@@ -285,12 +272,7 @@ class AnnotationHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid annotation ID. ")
 
-        if associated_resource_type.lower() in (
-            "object",
-            "objects",
-            "source",
-            "sources",
-        ):
+        if associated_resource_type.lower() == "sources":
             schema = Annotation.__schema__()
             a = Annotation.get_if_accessible_by(
                 annotation_id, self.current_user, mode="update", raise_if_none=True
@@ -376,12 +358,7 @@ class AnnotationHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid annotation ID. ")
 
-        if associated_resource_type.lower() in (
-            "object",
-            "objects",
-            "source",
-            "sources",
-        ):
+        if associated_resource_type.lower() == "sources":
 
             a = Annotation.get_if_accessible_by(
                 annotation_id, self.current_user, mode="delete", raise_if_none=True

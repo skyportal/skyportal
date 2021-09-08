@@ -143,6 +143,7 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
+    (r'/api/(sources|spectrum)/([0-9A-Za-z-_\.\+]+)/comment', CommentHandler),
     (r'/api/(sources|spectrum)/([0-9A-Za-z-_\.\+]+)/comment(/[0-9]+)?', CommentHandler),
     (
         r'/api/(sources|spectrum)(/[0-9A-Za-z-_\.\+]+)/comment(/[0-9]+)/attachment',
@@ -154,6 +155,10 @@ skyportal_handlers = [
     (
         r'/api/(sources|spectrum)/([0-9A-Za-z-_\.\+]+)/comment(/[0-9]+)/attachment.pdf',
         CommentAttachmentHandler,
+    ),
+    (
+        r'/api/(sources|spectrum)(/[0-9A-Za-z-_\.\+]+)/annotation',
+        AnnotationHandler,
     ),
     (
         r'/api/(sources|spectrum)(/[0-9A-Za-z-_\.\+]+)/annotation(/[0-9]+)?',

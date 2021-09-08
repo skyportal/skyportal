@@ -49,7 +49,8 @@ class CommentHandler(BaseHandler):
             schema:
               type: string
             description: |
-               The ID of the underlying data.
+               The ID of the object, source or spectrum
+               that the comment is posted to.
                This would be a string for an object ID
                or an integer for other data types like spectrum.
                The comment ID must correspond to a comment on the
@@ -77,12 +78,7 @@ class CommentHandler(BaseHandler):
             return self.error("Must provide a valid comment ID. ")
 
         # the default is to comment on an object
-        if associated_resource_type.lower() in (
-            "object",
-            "objects",
-            "source",
-            "sources",
-        ):
+        if associated_resource_type.lower() == "sources":
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
@@ -108,7 +104,7 @@ class CommentHandler(BaseHandler):
         return self.success(data=comment)
 
     @permissions(['Comment'])
-    def post(self, associated_resource_type, resource_id, *_):
+    def post(self, associated_resource_type, resource_id):
         """
         ---
         description: Post a comment
@@ -129,7 +125,8 @@ class CommentHandler(BaseHandler):
             schema:
               type: string
             description: |
-               The ID of the underlying data.
+               The ID of the object, source or spectrum
+               that the comment is posted to.
                This would be a string for an object ID
                or an integer for other data types like spectrum.
                The object pointed to by this input must be a valid
@@ -142,14 +139,6 @@ class CommentHandler(BaseHandler):
               schema:
                 type: object
                 properties:
-                  obj_id:
-                    type: string
-                  spectrum_id:
-                    type: integer
-                    description: |
-                      ID of spectrum that this comment should be
-                      attached to. Only relevant when
-                      associated_resource_type == "spectrum".
                   text:
                     type: string
                   group_ids:
@@ -190,11 +179,8 @@ class CommentHandler(BaseHandler):
                               description: New comment ID
         """
         data = self.get_json()
-        obj_id = data.get("obj_id", None)
 
         comment_text = data.get("text")
-
-        spectrum_id = data.get("spectrum_id", None)
 
         group_ids = data.pop('group_ids', None)
         if not group_ids:
@@ -221,14 +207,8 @@ class CommentHandler(BaseHandler):
 
         author = self.associated_user_object
         is_bot_request = isinstance(self.current_user, Token)
-        if associated_resource_type.lower() in (
-            "object",
-            "objects",
-            "source",
-            "sources",
-        ):
-            if obj_id is None:
-                return self.error("Missing required field `obj_id`")
+        if associated_resource_type.lower() == "sources":
+            obj_id = resource_id
             comment = Comment(
                 text=comment_text,
                 obj_id=obj_id,
@@ -240,12 +220,10 @@ class CommentHandler(BaseHandler):
             )
             comment_resource_id_str = str(comment.obj_id)
         elif associated_resource_type.lower() in ("spectrum", "spectra"):
-            if spectrum_id is None:
-                return self.error("Missing required field `spectrum_id`")
+            spectrum_id = resource_id
             comment = CommentOnSpectrum(
                 text=comment_text,
                 spectrum_id=spectrum_id,
-                obj_id=obj_id,
                 attachment_bytes=attachment_bytes,
                 attachment_name=attachment_name,
                 author=author,
@@ -314,7 +292,8 @@ class CommentHandler(BaseHandler):
             schema:
               type: string
             description: |
-               The ID of the underlying data.
+               The ID of the object, source or spectrum
+               that the comment is posted to.
                This would be a string for an object ID
                or an integer for other data types like spectrum.
                The comment ID must correspond to a comment on the
@@ -355,12 +334,7 @@ class CommentHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid comment ID. ")
 
-        if associated_resource_type.lower() in (
-            "object",
-            "objects",
-            "source",
-            "sources",
-        ):
+        if associated_resource_type.lower() == "sources":
             schema = Comment.__schema__()
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="update", raise_if_none=True
@@ -452,7 +426,8 @@ class CommentHandler(BaseHandler):
             schema:
               type: string
             description: |
-               The ID of the underlying data.
+               The ID of the object, source or spectrum
+               that the comment is posted to.
                This would be a string for an object ID
                or an integer for other data types like spectrum.
                The comment ID must correspond to a comment on the
@@ -475,12 +450,7 @@ class CommentHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid comment ID. ")
 
-        if associated_resource_type.lower() in (
-            "object",
-            "objects",
-            "source",
-            "sources",
-        ):
+        if associated_resource_type.lower() == "sources":
             c = Comment.get_if_accessible_by(
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
@@ -547,7 +517,8 @@ class CommentAttachmentHandler(BaseHandler):
             schema:
               type: string
             description: |
-               The ID of the underlying data.
+               The ID of the object, source or spectrum
+               that the comment is posted to.
                This would be a string for an object ID
                or an integer for other data types like spectrum.
                The comment ID must correspond to a comment on the
@@ -596,12 +567,7 @@ class CommentAttachmentHandler(BaseHandler):
 
         download = strtobool(self.get_query_argument('download', "True").lower())
 
-        if associated_resource_type.lower() in (
-            "object",
-            "objects",
-            "source",
-            "sources",
-        ):
+        if associated_resource_type.lower() == "sources":
             comment = Comment.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
