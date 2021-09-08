@@ -411,7 +411,7 @@ const SourceDesktop = ({ source }) => {
               <div className={classes.photometryContainer}>
                 <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
                   <Plot
-                    url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&spectrumID=${specIDs}`}
+                    url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&cacheID=${specIDs}`}
                   />
                 </Suspense>
                 <div>

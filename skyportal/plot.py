@@ -1354,8 +1354,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     if spec_id is not None and len(spec_id) > 0:
         spec_id = spec_id.split(',')
         filtered_spectra = []
-        for id in spec_id:
-            filtered_spectra.extend([spec for spec in spectra if spec.id == int(id)])
+        for sid in spec_id:
+            filtered_spectra.extend([spec for spec in spectra if spec.id == int(sid)])
         spectra = filtered_spectra
     if len(spectra) == 0:
         return None, None, None

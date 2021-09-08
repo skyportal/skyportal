@@ -490,7 +490,7 @@ const SourceMobile = WidthProvider(
                 <div className={classes.photometryContainer}>
                   <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
                     <Plot
-                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&spectrumID=${specIDs}`}
+                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
                     />
                   </Suspense>
                   <div className={classes.plotButtons}>
