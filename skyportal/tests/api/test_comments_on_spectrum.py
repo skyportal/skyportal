@@ -97,7 +97,7 @@ def test_add_and_retrieve_comment_group_access(
         'GET', f'spectrum/{spectrum_id}/comment/{comment_id}', token=comment_token
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Could not find any accessible comments." in data["message"]
 
     # Both tokens should be able to view this comment, but not the underlying spectrum
     status, data = api(
@@ -164,7 +164,7 @@ def test_add_and_retrieve_comment_group_access(
         'GET', f'spectrum/{spectrum_id}/comment/{comment_id}', token=comment_token
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Could not find any accessible comments." in data["message"]
 
     # Both tokens should be able to view comment after updating group list
     status, data = api(
@@ -276,4 +276,4 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
         'GET', f'spectrum/{spectrum_id}/comment/{comment_id}', token=comment_token
     )
     assert status == 400
-    assert "Invalid CommentOnSpectrum" in data["message"]
+    assert "Could not find any accessible comments." in data["message"]

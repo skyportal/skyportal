@@ -163,7 +163,7 @@ def test_add_and_retrieve_annotation_group_access(
         token=annotation_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Could not find any accessible annotations." in data["message"]
 
     # Both tokens should be able to view this annotation
     status, data = api(
@@ -237,7 +237,7 @@ def test_update_annotation_group_list(
         token=annotation_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Could not find any accessible annotations." in data["message"]
 
     # Both tokens should be able to view annotation after updating group list
     status, data = api(

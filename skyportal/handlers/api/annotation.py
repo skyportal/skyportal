@@ -1,6 +1,7 @@
 import re
 from typing import Mapping
 from marshmallow.exceptions import ValidationError
+from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Annotation, Group
@@ -53,12 +54,15 @@ class AnnotationHandler(BaseHandler):
         try:
             annotation_id = int(annotation_id)
         except (TypeError, ValueError):
-            return self.error("Must provide a valid annotation ID. ")
+            return self.error("Must provide a valid (scalar integer) annotation ID. ")
 
         if associated_resource_type.lower() == "sources":
-            annotation = Annotation.get_if_accessible_by(
-                annotation_id, self.current_user, raise_if_none=True
-            )
+            try:
+                annotation = Annotation.get_if_accessible_by(
+                    annotation_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible annotations.')
             annotation_resource_id_str = str(annotation.obj_id)
         # add more options using elif
         else:
@@ -155,10 +159,12 @@ class AnnotationHandler(BaseHandler):
         if not group_ids:
             groups = self.current_user.accessible_groups
         else:
-            groups = Group.get_if_accessible_by(
-                group_ids, self.current_user, raise_if_none=True
-            )
-
+            try:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible groups.')
         schema = Annotation.__schema__(exclude=["author_id"])
         try:
             schema.load(data)
@@ -268,13 +274,16 @@ class AnnotationHandler(BaseHandler):
         try:
             annotation_id = int(annotation_id)
         except (TypeError, ValueError):
-            return self.error("Must provide a valid annotation ID. ")
+            return self.error("Must provide a valid (scalar integer) annotation ID. ")
 
         if associated_resource_type.lower() == "sources":
             schema = Annotation.__schema__()
-            a = Annotation.get_if_accessible_by(
-                annotation_id, self.current_user, mode="update", raise_if_none=True
-            )
+            try:
+                a = Annotation.get_if_accessible_by(
+                    annotation_id, self.current_user, mode="update", raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible annotations.')
             annotation_resource_id_str = str(a.obj_id)
 
         # add more options using elif
@@ -292,9 +301,12 @@ class AnnotationHandler(BaseHandler):
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
         if group_ids is not None:
-            groups = Group.get_if_accessible_by(
-                group_ids, self.current_user, raise_if_none=True
-            )
+            try:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible groups.')
             a.groups = groups
 
         if annotation_resource_id_str != resource_id:
@@ -304,7 +316,7 @@ class AnnotationHandler(BaseHandler):
 
         self.verify_and_commit()
 
-        if a.obj.id is not None:  # comment on object, or object related resources
+        if a.obj.id:  # comment on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': a.obj.internal_key},
@@ -327,7 +339,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               "sources", or a "spectrum".
+               "sources", or a "spectrum" (this option is not yet supported).
           - in: path
             name: resource_id
             required: true
@@ -357,10 +369,12 @@ class AnnotationHandler(BaseHandler):
             return self.error("Must provide a valid annotation ID. ")
 
         if associated_resource_type.lower() == "sources":
-
-            a = Annotation.get_if_accessible_by(
-                annotation_id, self.current_user, mode="delete", raise_if_none=True
-            )
+            try:
+                a = Annotation.get_if_accessible_by(
+                    annotation_id, self.current_user, mode="delete", raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible annotations.')
             annotation_resource_id_str = str(a.obj_id)
 
         # add more options using elif
@@ -381,7 +395,7 @@ class AnnotationHandler(BaseHandler):
         DBSession().delete(a)
         self.verify_and_commit()
 
-        if a.obj.id is not None:  # annotation on object, or object related resources
+        if a.obj.id:  # annotation on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key}
             )

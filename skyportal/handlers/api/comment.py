@@ -2,12 +2,14 @@ import string
 import base64
 from distutils.util import strtobool
 from marshmallow.exceptions import ValidationError
+from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession,
     Comment,
     CommentOnSpectrum,
+    Spectrum,
     Group,
     User,
     UserNotification,
@@ -75,19 +77,25 @@ class CommentHandler(BaseHandler):
         try:
             comment_id = int(comment_id)
         except (TypeError, ValueError):
-            return self.error("Must provide a valid comment ID. ")
+            return self.error("Must provide a valid (scalar integer) comment ID. ")
 
         # the default is to comment on an object
         if associated_resource_type.lower() == "sources":
-            comment = Comment.get_if_accessible_by(
-                comment_id, self.current_user, raise_if_none=True
-            )
+            try:
+                comment = Comment.get_if_accessible_by(
+                    comment_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.')
             comment_resource_id_str = str(comment.obj_id)
 
         elif associated_resource_type.lower() == "spectrum":
-            comment = CommentOnSpectrum.get_if_accessible_by(
-                comment_id, self.current_user, raise_if_none=True
-            )
+            try:
+                comment = CommentOnSpectrum.get_if_accessible_by(
+                    comment_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.')
             comment_resource_id_str = str(comment.spectrum_id)
 
         # add more options using elif
@@ -183,9 +191,12 @@ class CommentHandler(BaseHandler):
         if not group_ids:
             groups = self.current_user.accessible_groups
         else:
-            groups = Group.get_if_accessible_by(
-                group_ids, self.current_user, raise_if_none=True
-            )
+            try:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible groups.')
 
         if 'attachment' in data:
             if (
@@ -219,6 +230,9 @@ class CommentHandler(BaseHandler):
             comment_resource_id_str = str(comment.obj_id)
         elif associated_resource_type.lower() == "spectrum":
             spectrum_id = resource_id
+            spectrum = Spectrum.get_if_accessible_by(
+                spectrum_id, self.current_user, raise_if_none=True
+            )
             comment = CommentOnSpectrum(
                 text=comment_text,
                 spectrum_id=spectrum_id,
@@ -227,6 +241,7 @@ class CommentHandler(BaseHandler):
                 author=author,
                 groups=groups,
                 bot=is_bot_request,
+                obj_id=spectrum.obj_id,
             )
             comment_resource_id_str = str(comment.spectrum_id)
         else:
@@ -260,7 +275,7 @@ class CommentHandler(BaseHandler):
                 payload={'obj_key': comment.obj.internal_key},
             )
 
-        if comment.obj.id is not None:  # comment on object, or object related resources
+        if comment.obj.id:  # comment on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_id': comment.obj.id},
@@ -330,20 +345,26 @@ class CommentHandler(BaseHandler):
         try:
             comment_id = int(comment_id)
         except (TypeError, ValueError):
-            return self.error("Must provide a valid comment ID. ")
+            return self.error("Must provide a valid (scalar integer) comment ID. ")
 
         if associated_resource_type.lower() == "sources":
             schema = Comment.__schema__()
-            c = Comment.get_if_accessible_by(
-                comment_id, self.current_user, mode="update", raise_if_none=True
-            )
+            try:
+                c = Comment.get_if_accessible_by(
+                    comment_id, self.current_user, mode="update", raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.')
             comment_resource_id_str = str(c.obj_id)
 
         elif associated_resource_type.lower() in ("spectrum", "spectra"):
             schema = CommentOnSpectrum.__schema__()
-            c = CommentOnSpectrum.get_if_accessible_by(
-                comment_id, self.current_user, mode="update", raise_if_none=True
-            )
+            try:
+                c = CommentOnSpectrum.get_if_accessible_by(
+                    comment_id, self.current_user, mode="update", raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.')
             comment_resource_id_str = str(c.spectrum_id)
 
         # add more options using elif
@@ -377,9 +398,12 @@ class CommentHandler(BaseHandler):
             )
 
         if group_ids is not None:
-            groups = Group.get_if_accessible_by(
-                group_ids, self.current_user, raise_if_none=True
-            )
+            try:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible groups.')
             c.groups = groups
 
         if comment_resource_id_str != resource_id:
@@ -389,7 +413,7 @@ class CommentHandler(BaseHandler):
 
         self.verify_and_commit()
 
-        if c.obj.id is not None:  # comment on object, or object related resources
+        if c.obj.id:  # comment on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': c.obj.internal_key},
@@ -446,17 +470,23 @@ class CommentHandler(BaseHandler):
         try:
             comment_id = int(comment_id)
         except (TypeError, ValueError):
-            return self.error("Must provide a valid comment ID. ")
+            return self.error("Must provide a valid (scalar integer) comment ID. ")
 
         if associated_resource_type.lower() == "sources":
-            c = Comment.get_if_accessible_by(
-                comment_id, self.current_user, mode="delete", raise_if_none=True
-            )
+            try:
+                c = Comment.get_if_accessible_by(
+                    comment_id, self.current_user, mode="delete", raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.')
             comment_resource_id_str = str(c.obj_id)
         elif associated_resource_type.lower() == "spectrum":
-            c = CommentOnSpectrum.get_if_accessible_by(
-                comment_id, self.current_user, mode="delete", raise_if_none=True
-            )
+            try:
+                c = CommentOnSpectrum.get_if_accessible_by(
+                    comment_id, self.current_user, mode="delete", raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.')
             comment_resource_id_str = str(c.spectrum_id)
 
         # add more options using elif
@@ -478,7 +508,7 @@ class CommentHandler(BaseHandler):
         DBSession().delete(c)
         self.verify_and_commit()
 
-        if c.obj.id is not None:  # comment on object, or object related resources
+        if c.obj.id:  # comment on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': obj_key},
@@ -561,20 +591,26 @@ class CommentAttachmentHandler(BaseHandler):
         try:
             comment_id = int(comment_id)
         except (TypeError, ValueError):
-            return self.error("Must provide a valid comment ID. ")
+            return self.error("Must provide a valid (scalar integer) comment ID. ")
 
         download = strtobool(self.get_query_argument('download', "True").lower())
 
         if associated_resource_type.lower() == "sources":
-            comment = Comment.get_if_accessible_by(
-                comment_id, self.current_user, raise_if_none=True
-            )
+            try:
+                comment = Comment.get_if_accessible_by(
+                    comment_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.')
             comment_resource_id_str = str(comment.obj_id)
 
         elif associated_resource_type.lower() == "spectrum":
-            comment = CommentOnSpectrum.get_if_accessible_by(
-                comment_id, self.current_user, raise_if_none=True
-            )
+            try:
+                comment = CommentOnSpectrum.get_if_accessible_by(
+                    comment_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.')
             comment_resource_id_str = str(comment.spectrum_id)
         # add more options using elif
         else:

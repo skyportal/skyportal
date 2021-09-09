@@ -78,7 +78,7 @@ def test_add_and_retrieve_comment_group_access(
         token=comment_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Could not find any accessible comments." in data["message"]
 
     # Both tokens should be able to view this comment
     status, data = api(
@@ -147,7 +147,7 @@ def test_update_comment_group_list(
         token=comment_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Could not find any accessible comments." in data["message"]
 
     # Both tokens should be able to view comment after updating group list
     status, data = api(
