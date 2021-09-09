@@ -42,16 +42,16 @@ class CommentHandler(BaseHandler):
               type: string
             description: |
                What underlying data the comment is on:
-               an "object" (default), or a "spectrum".
+               "sources", or a "spectrum".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
             description: |
-               The ID of the object, source or spectrum
+               The ID of the source or spectrum
                that the comment is posted to.
-               This would be a string for an object ID
+               This would be a string for a source ID
                or an integer for other data types like spectrum.
                The comment ID must correspond to a comment on the
                underlying object given by this field.
@@ -84,13 +84,12 @@ class CommentHandler(BaseHandler):
             )
             comment_resource_id_str = str(comment.obj_id)
 
-            # comment.api_path = f'api/sources/{resource_id}/comment/{comment_id}'
-        elif associated_resource_type.lower() in ("spectrum", "spectra"):
+        elif associated_resource_type.lower() == "spectrum":
             comment = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )
             comment_resource_id_str = str(comment.spectrum_id)
-            # comment.api_path = f'api/spectrum/{resource_id}/comment/{comment_id}'
+
         # add more options using elif
         else:
             return self.error(
@@ -118,21 +117,20 @@ class CommentHandler(BaseHandler):
               type: string
             description: |
                What underlying data the comment is on:
-               an "object" (default), or a "spectrum".
+               "source", or a "spectrum".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
             description: |
-               The ID of the object, source or spectrum
+               The ID of the source or spectrum
                that the comment is posted to.
-               This would be a string for an object ID
+               This would be a string for a source ID
                or an integer for other data types like spectrum.
                The object pointed to by this input must be a valid
-               object or other data type (like spectrum) that
+               source or other data type (like spectrum) that
                can be commented on by the user/token.
-               It must match the data given in the request body.
         requestBody:
           content:
             application/json:
@@ -160,7 +158,6 @@ class CommentHandler(BaseHandler):
                         type: string
 
                 required:
-                  - obj_id
                   - text
         responses:
           200:
@@ -207,6 +204,7 @@ class CommentHandler(BaseHandler):
 
         author = self.associated_user_object
         is_bot_request = isinstance(self.current_user, Token)
+
         if associated_resource_type.lower() == "sources":
             obj_id = resource_id
             comment = Comment(
@@ -219,7 +217,7 @@ class CommentHandler(BaseHandler):
                 bot=is_bot_request,
             )
             comment_resource_id_str = str(comment.obj_id)
-        elif associated_resource_type.lower() in ("spectrum", "spectra"):
+        elif associated_resource_type.lower() == "spectrum":
             spectrum_id = resource_id
             comment = CommentOnSpectrum(
                 text=comment_text,
@@ -256,16 +254,16 @@ class CommentHandler(BaseHandler):
             for user_mentioned in users_mentioned_in_comment:
                 self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
-        if obj_id is not None:
+        if isinstance(comment, Comment):
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': comment.obj.internal_key},
             )
 
-        if spectrum_id is not None and obj_id is not None:
+        if comment.obj.id is not None:  # comment on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_id': obj_id},
+                payload={'obj_id': comment.obj.id},
             )
 
         return self.success(data={'comment_id': comment.id})
@@ -419,16 +417,16 @@ class CommentHandler(BaseHandler):
               type: string
             description: |
                What underlying data the comment is on:
-               an "object" (default), or a "spectrum".
+               "sources", or a "spectrum".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
             description: |
-               The ID of the object, source or spectrum
+               The ID of the source or spectrum
                that the comment is posted to.
-               This would be a string for an object ID
+               This would be a string for a source ID
                or an integer for other data types like spectrum.
                The comment ID must correspond to a comment on the
                underlying object given by this field.
@@ -455,7 +453,7 @@ class CommentHandler(BaseHandler):
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
             comment_resource_id_str = str(c.obj_id)
-        elif associated_resource_type.lower() in ("spectrum", "spectra"):
+        elif associated_resource_type.lower() == "spectrum":
             c = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, mode="delete", raise_if_none=True
             )
@@ -510,16 +508,16 @@ class CommentAttachmentHandler(BaseHandler):
               type: string
             description: |
                What underlying data the comment is on:
-               an "object" (default), or a "spectrum".
+               "sources", or a "spectrum".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
             description: |
-               The ID of the object, source or spectrum
+               The ID of the source or spectrum
                that the comment is posted to.
-               This would be a string for an object ID
+               This would be a string for a source ID
                or an integer for other data types like spectrum.
                The comment ID must correspond to a comment on the
                underlying object given by this field.
@@ -573,7 +571,7 @@ class CommentAttachmentHandler(BaseHandler):
             )
             comment_resource_id_str = str(comment.obj_id)
 
-        elif associated_resource_type.lower() in ("spectrum", "spectra"):
+        elif associated_resource_type.lower() == "spectrum":
             comment = CommentOnSpectrum.get_if_accessible_by(
                 comment_id, self.current_user, raise_if_none=True
             )

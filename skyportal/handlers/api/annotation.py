@@ -22,7 +22,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               an "object" (default), or a "spectrum".
+               "sources", or a "spectrum".
           - in: path
             name: resource_id
             required: true
@@ -30,7 +30,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                The ID of the underlying data.
-               This would be a string for an object ID
+               This would be a string for a source ID
                or an integer for other data types like spectrum.
                The annotation ID must correspond to an annotation on the
                underlying object given by this field.
@@ -54,7 +54,7 @@ class AnnotationHandler(BaseHandler):
             annotation_id = int(annotation_id)
         except (TypeError, ValueError):
             return self.error("Must provide a valid annotation ID. ")
-        # the default is to annotate an object
+
         if associated_resource_type.lower() == "sources":
             annotation = Annotation.get_if_accessible_by(
                 annotation_id, self.current_user, raise_if_none=True
@@ -88,7 +88,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               an "object" (default), or a "spectrum".
+               "sources", or a "spectrum".
           - in: path
             name: resource_id
             required: true
@@ -101,7 +101,6 @@ class AnnotationHandler(BaseHandler):
                The object pointed to by this input must be a valid
                object or other data type (like spectrum) that
                can be annotated on by the user/token.
-               It must match the data given in the request body.
         requestBody:
           content:
             application/json:
@@ -166,7 +165,6 @@ class AnnotationHandler(BaseHandler):
         except ValidationError as e:
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
-        obj_id = data.get("obj_id", None)
         origin = data.get("origin")
 
         if not re.search(r'^\w+', origin):
@@ -224,7 +222,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               an "object" (default), or a "spectrum".
+               "sources", or a "spectrum".
           - in: path
             name: resource_id
             required: true
@@ -232,7 +230,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                The ID of the underlying data.
-               This would be a string for an object ID
+               This would be a string for a source ID
                or an integer for other data types like spectrum.
                The annotation ID must correspond to an annotation on the
                underlying object given by this field.
@@ -329,7 +327,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               an "object" (default), or a "spectrum".
+               "sources", or a "spectrum".
           - in: path
             name: resource_id
             required: true
@@ -337,7 +335,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                The ID of the underlying data.
-               This would be a string for an object ID
+               This would be a string for a source ID
                or an integer for other data types like spectrum.
                The annotation ID must correspond to an annotation on the
                underlying object given by this field.
