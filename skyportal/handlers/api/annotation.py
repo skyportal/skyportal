@@ -23,7 +23,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               "sources", or a "spectrum".
+               currently only "sources" is supported.
           - in: path
             name: resource_id
             required: true
@@ -92,7 +92,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               "sources", or a "spectrum".
+               currently only "sources" is supported.
           - in: path
             name: resource_id
             required: true
@@ -228,7 +228,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               "sources", or a "spectrum".
+               currently only "sources" is supported.
           - in: path
             name: resource_id
             required: true
@@ -339,7 +339,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               "sources", or a "spectrum" (this option is not yet supported).
+               currently only "sources" is supported.
           - in: path
             name: resource_id
             required: true
