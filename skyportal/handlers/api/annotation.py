@@ -33,8 +33,9 @@ class AnnotationHandler(BaseHandler):
                The ID of the underlying data.
                This would be a string for a source ID
                or an integer for other data types like spectrum.
-               The annotation ID must correspond to an annotation on the
-               underlying object given by this field.
+               The resource pointed to by the resource_id must
+               be the correct object that is annotated by this
+               annotation.
           - in: path
             name: annotation_id
             required: true
@@ -100,11 +101,9 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                The ID of the underlying data.
-               This would be a string for an object ID
-               or an integer for other data types like spectrum.
+               This would be a string for an object ID.
                The object pointed to by this input must be a valid
-               object or other data type (like spectrum) that
-               can be annotated on by the user/token.
+               object that can be annotated on by the user/token.
         requestBody:
           content:
             application/json:
@@ -205,11 +204,10 @@ class AnnotationHandler(BaseHandler):
         DBSession().add(annotation)
         self.verify_and_commit()
 
-        if obj_id is not None:
-            self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': annotation.obj.internal_key},
-            )
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': annotation.obj.internal_key},
+        )
 
         return self.success(data={'annotation_id': annotation.id})
 
@@ -238,8 +236,9 @@ class AnnotationHandler(BaseHandler):
                The ID of the underlying data.
                This would be a string for a source ID
                or an integer for other data types like spectrum.
-               The annotation ID must correspond to an annotation on the
-               underlying object given by this field.
+               The resource pointed to by the resource_id must
+               be the correct object that is annotated by this
+               annotation.
           - in: path
             name: annotation_id
             required: true
@@ -349,8 +348,9 @@ class AnnotationHandler(BaseHandler):
                The ID of the underlying data.
                This would be a string for a source ID
                or an integer for other data types like spectrum.
-               The annotation ID must correspond to an annotation on the
-               underlying object given by this field.
+               The resource pointed to by the resource_id must
+               be the correct object that is annotated by this
+               annotation.
           - in: path
             name: annotation_id
             required: true

@@ -55,8 +55,9 @@ class CommentHandler(BaseHandler):
                that the comment is posted to.
                This would be a string for a source ID
                or an integer for other data types like spectrum.
-               The comment ID must correspond to a comment on the
-               underlying object given by this field.
+               The resource pointed to by the resource_id must
+               be the correct object that is commented on by this
+               specific comment.
           - in: path
             name: comment_id
             required: true
@@ -309,8 +310,9 @@ class CommentHandler(BaseHandler):
                that the comment is posted to.
                This would be a string for an object ID
                or an integer for other data types like spectrum.
-               The comment ID must correspond to a comment on the
-               underlying object given by this field.
+               The resource pointed to by the resource_id must
+               be the correct object that is commented on by this
+               specific comment.
           - in: path
             name: comment_id
             required: true
@@ -452,8 +454,9 @@ class CommentHandler(BaseHandler):
                that the comment is posted to.
                This would be a string for a source ID
                or an integer for other data types like spectrum.
-               The comment ID must correspond to a comment on the
-               underlying object given by this field.
+               The resource pointed to by the resource_id must
+               be the correct object that is commented on by this
+               specific comment.
           - in: path
             name: comment_id
             required: true
@@ -549,8 +552,9 @@ class CommentAttachmentHandler(BaseHandler):
                that the comment is posted to.
                This would be a string for a source ID
                or an integer for other data types like spectrum.
-               The comment ID must correspond to a comment on the
-               underlying object given by this field.
+               The resource pointed to by the resource_id must
+               be the correct object that is commented on by this
+               specific comment.
           - in: path
             name: comment_id
             required: true
