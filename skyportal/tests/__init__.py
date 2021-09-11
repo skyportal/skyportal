@@ -1,11 +1,27 @@
 import os
 import urllib.parse
 import requests
+from requests.compat import json as requests_json
 
 from baselayer.app.env import load_env
 
 
 IS_CI_BUILD = "TRAVIS" in os.environ or "GITHUB_ACTIONS" in os.environ
+
+
+# Patch the JSON module used by requests (likely simplejson) to ignore
+# the allow_nan keyword argument (we always want it to be set to True)
+
+
+def remove_allow_nan_kwarg(f):
+    def wrapped(*args, **kwargs):
+        kwargs.pop('allow_nan', None)
+        return f(*args, **kwargs)
+
+    return wrapped
+
+
+requests_json.dumps = remove_allow_nan_kwarg(requests_json.dumps)
 
 
 def api(
