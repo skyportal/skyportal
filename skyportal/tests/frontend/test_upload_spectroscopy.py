@@ -8,16 +8,18 @@ def test_upload_spectroscopy(
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get(f"/upload_spectrum/{public_source.id}")
 
+    filename = "ZTF20abucjsa_20200909_LT_v1.ascii"
+
     attachment_file = driver.wait_for_xpath('//input[@type="file"]')
     attachment_file.send_keys(
         os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
             'data',
-            'ZTF20abucjsa_20200909_LT_v1.ascii',
+            filename,
         ),
     )
 
-    driver.wait_for_xpath('//*[contains(., "application/octet-stream")]')
+    driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
 
     mjd_element = driver.wait_for_xpath('//*[@id="root_mjd"]')
     driver.scroll_to_element_and_click(mjd_element)
