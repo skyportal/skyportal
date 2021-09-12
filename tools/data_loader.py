@@ -15,6 +15,10 @@ from yaml import Loader
 from baselayer.app.env import load_env, parser
 
 from skyportal.tests import api
+from skyportal.tests.patch_requests import patch_requests
+
+
+patch_requests()
 
 
 if __name__ == "__main__":
