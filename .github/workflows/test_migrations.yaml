@@ -13,6 +13,15 @@ jobs:
     name: Test SkyPortal migrations
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      # We only check migrations from this point onward, since we know
+      # this specific commit to have migration integrity.
+      #
+      # This commit can be updated from time to time, if necessary
+      # (e.g., to get access to a newer data loader or dependencies).
+      # Pick any commit known to have passed the migration tests on
+      # CI, or which has deployed successfully.
+      MIGRATION_REFERENCE: 7e06052da3428b97b9205023f8031e178a3bb02c
 
     services:
       postgres:
@@ -93,11 +102,11 @@ jobs:
           echo ${current_head}
           echo "CURRENT_HEAD=${current_head}" >> $GITHUB_ENV
 
-      - name: Checkout commit before the very first migration
+      - name: Checkout migration reference commit
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          ref: c48fa7f040aa83a494a365f80a8dffeaa0af9a1f
+          ref: ${{ env.MIGRATION_REFERENCE }}
           submodules: true
 
       - name: Write SkyPortal configs
