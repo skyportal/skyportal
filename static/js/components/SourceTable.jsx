@@ -27,7 +27,7 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 import dayjs from "dayjs";
 import { isMobileOnly } from "react-device-detect";
 
-import { ra_to_hours, dec_to_dms, time_relative_to_local } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
@@ -722,27 +722,27 @@ const SourceTable = ({
     );
   };
 
-  const renderPeakMagnitude = (dataIndex) => {
-    const source = sources[dataIndex];
-    return source.peak_detected_mag ? (
-      <Tooltip title={time_relative_to_local(source.peak_detected_at)}>
-        <div>{`${source.peak_detected_mag.toFixed(4)}`}</div>
-      </Tooltip>
-    ) : (
-      <div>No photometry</div>
-    );
-  };
+  // const renderPeakMagnitude = (dataIndex) => {
+  //   const source = sources[dataIndex];
+  //   return source.peak_detected_mag ? (
+  //     <Tooltip title={time_relative_to_local(source.peak_detected_at)}>
+  //       <div>{`${source.peak_detected_mag.toFixed(4)}`}</div>
+  //     </Tooltip>
+  //   ) : (
+  //     <div>No photometry</div>
+  //   );
+  // };
 
-  const renderLatestMagnitude = (dataIndex) => {
-    const source = sources[dataIndex];
-    return source.last_detected_mag ? (
-      <Tooltip title={time_relative_to_local(source.last_detected_at)}>
-        <div>{`${source.last_detected_mag.toFixed(4)}`}</div>
-      </Tooltip>
-    ) : (
-      <div>No photometry</div>
-    );
-  };
+  // const renderLatestMagnitude = (dataIndex) => {
+  //   const source = sources[dataIndex];
+  //   return source.last_detected_mag ? (
+  //     <Tooltip title={time_relative_to_local(source.last_detected_at)}>
+  //       <div>{`${source.last_detected_mag.toFixed(4)}`}</div>
+  //     </Tooltip>
+  //   ) : (
+  //     <div>No photometry</div>
+  //   );
+  // };
 
   const renderTNSName = (dataIndex) => {
     const source = sources[dataIndex];
@@ -1000,24 +1000,26 @@ const SourceTable = ({
         display: displayedColumns.includes("Spectrum?"),
       },
     },
-    {
-      name: "Peak Magnitude",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderPeakMagnitude,
-        display: displayedColumns.includes("Peak Magnitude"),
-      },
-    },
-    {
-      name: "Latest Magnitude",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderLatestMagnitude,
-        display: displayedColumns.includes("Latest Magnitude"),
-      },
-    },
+    // Temporarily disable these two detection stats columns until we improve back-end performance
+    // {
+    //   name: "Peak Magnitude",
+    //   options: {
+    //     filter: false,
+    //     sort: false,
+    //     customBodyRenderLite: renderPeakMagnitude,
+    //     display: displayedColumns.includes("Peak Magnitude"),
+    //   },
+    // },
+    // {
+    //   name: "Latest Magnitude",
+    //   options: {
+    //     filter: false,
+    //     sort: false,
+    //     customBodyRenderLite: renderLatestMagnitude,
+    //     display: displayedColumns.includes("Latest Magnitude"),
+    //   },
+    // },
+
     {
       name: "TNS Name",
       options: {
