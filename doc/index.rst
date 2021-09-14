@@ -90,6 +90,7 @@ User Guide
    migrations
    query_analysis
    permissions
+   slack
    advanced_usage
 
 Contributing

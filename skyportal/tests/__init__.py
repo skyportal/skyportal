@@ -2,10 +2,13 @@ import os
 import urllib.parse
 import requests
 
+from .patch_requests import patch_requests
 from baselayer.app.env import load_env
 
 
 IS_CI_BUILD = "TRAVIS" in os.environ or "GITHUB_ACTIONS" in os.environ
+
+patch_requests()
 
 
 def api(
