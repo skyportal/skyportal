@@ -405,11 +405,15 @@ def _calculate_best_position_for_offset_stars(
         # when there is no position information for a photometry
         # point)
         med_ra, med_dec = np.nanmedian(df["ra"]), np.nanmedian(df["dec"])
-    except TypeError:
+    except (TypeError, AttributeError):
         log(
             "Warning: could not find the median of the positions"
             " from the photometry data associated with this source "
         )
+        return fallback
+    except Exception as e:
+        log(e)
+        log("Uncaught error in ra, dec determination")
         return fallback
 
     # check to make sure that the median isn't too far away from the
