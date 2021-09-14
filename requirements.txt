@@ -4,7 +4,7 @@ pandas==1.2.5
 dask>=2020.12,<2021.10.0
 joblib==1.0.1
 seaborn==0.11.1
-bokeh==2.2.3
+bokeh==2.4.0rc2
 pytest-randomly==3.8.0
 factory-boy==3.2.0
 astropy==4.2.1
