@@ -50,11 +50,21 @@ const FavoriteSourcesNotificationPreferences = () => {
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
+  const prefToggledSlack = (event) => {
+    const prefs = {
+      slack_integration: {
+        [event.target.name]: event.target.checked,
+      },
+    };
+
+    dispatch(profileActions.updateUserPreferences(prefs));
+  };
+
   return (
     <div>
       <div className={classes.header}>
         <Typography variant="h6" display="inline">
-          Browser Notifications For Favorite Source Activity
+          Notifications For Favorite Source Activity
         </Typography>
         <IconButton aria-label="help" size="small" onClick={handleClick}>
           <HelpOutlineIcon />
@@ -75,11 +85,12 @@ const FavoriteSourcesNotificationPreferences = () => {
         }}
       >
         <Typography className={classes.typography}>
-          Enable these to receive browser notifications for the selected
-          activity types regarding sources you have starred/favorited.
+          Enable these to receive notifications for the selected activity types
+          regarding sources you have starred/favorited.
         </Typography>
       </Popover>
       <FormGroup row>
+        <Typography className={classes.typography}>Browser:</Typography>
         <FormControlLabel
           control={
             <Switch
@@ -120,6 +131,21 @@ const FavoriteSourcesNotificationPreferences = () => {
           label="New Classifications"
         />
       </FormGroup>
+      {profile.slack_integration?.active && (
+        <FormGroup row>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={profile.slack_integration?.favorite_sources === true}
+                name="favorite_sources"
+                onChange={prefToggledSlack}
+                data-testid="slack_also_push"
+              />
+            }
+            label="Also Push to Slack"
+          />
+        </FormGroup>
+      )}
     </div>
   );
 };
