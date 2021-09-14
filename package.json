@@ -19,7 +19,7 @@
     "check-dependencies": "1.1.0",
     "clsx": "1.1.1",
     "convert-css-length": "2.0.1",
-    "core-js": "3.16.0",
+    "core-js": "3.17.3",
     "css-loader": "5.2.6",
     "d3": "6.7.0",
     "d3-geo": "2.0.2",
