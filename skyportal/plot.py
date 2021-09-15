@@ -1351,9 +1351,13 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         .all()
     )
 
+    # Accept a string with a single spectrum ID
+    # or a comma separated list of IDs.
+    # If no IDs are given, choose all Object's spectra.
     if spec_id is not None and len(spec_id) > 0:
         spec_id = spec_id.split(',')
         filtered_spectra = []
+        # choose any of the object's spectra that match one of the IDs given
         for sid in spec_id:
             filtered_spectra.extend([spec for spec in spectra if spec.id == int(sid)])
         spectra = filtered_spectra
