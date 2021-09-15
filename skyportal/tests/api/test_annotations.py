@@ -162,8 +162,7 @@ def test_add_and_retrieve_annotation_group_access(
         f'sources/{public_source_two_groups.id}/annotation/{annotation_id}',
         token=annotation_token,
     )
-    assert status == 400
-    assert "Could not find any accessible annotations." in data["message"]
+    assert status == 403
 
     # Both tokens should be able to view this annotation
     status, data = api(
@@ -236,8 +235,7 @@ def test_update_annotation_group_list(
         f'sources/{public_source_two_groups.id}/annotation/{annotation_id}',
         token=annotation_token,
     )
-    assert status == 400
-    assert "Could not find any accessible annotations." in data["message"]
+    assert status == 403
 
     # Both tokens should be able to view annotation after updating group list
     status, data = api(
@@ -332,7 +330,7 @@ def test_delete_annotation(annotation_token, public_source):
         f'sources/{public_source.id}/annotation/{annotation_id}',
         token=annotation_token,
     )
-    assert status == 400
+    assert status == 403
 
 
 def test_obj_annotations(annotation_token, public_source, public_group):

@@ -21,6 +21,7 @@ class AnnotationHandler(BaseHandler):
             required: true
             schema:
               type: string
+              enum: [sources]
             description: |
                What underlying data the annotation is on:
                currently only "sources" is supported.
@@ -33,9 +34,6 @@ class AnnotationHandler(BaseHandler):
                The ID of the underlying data.
                This would be a string for a source ID
                or an integer for other data types like spectrum.
-               The resource pointed to by the resource_id must
-               be the correct object that is annotated by this
-               annotation.
           - in: path
             name: annotation_id
             required: true
@@ -63,12 +61,14 @@ class AnnotationHandler(BaseHandler):
                     annotation_id, self.current_user, raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible annotations.')
+                return self.error(
+                    'Could not find any accessible annotations.', status=403
+                )
             annotation_resource_id_str = str(annotation.obj_id)
         # add more options using elif
         else:
             return self.error(
-                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
+                f'Unsupported associated resource type "{associated_resource_type}".'
             )
 
         if annotation_resource_id_str != resource_id:
@@ -102,8 +102,6 @@ class AnnotationHandler(BaseHandler):
             description: |
                The ID of the underlying data.
                This would be a string for an object ID.
-               The object pointed to by this input must be a valid
-               object that can be annotated on by the user/token.
         requestBody:
           content:
             application/json:
@@ -163,7 +161,7 @@ class AnnotationHandler(BaseHandler):
                     group_ids, self.current_user, raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible groups.')
+                return self.error('Could not find any accessible groups.', status=403)
         schema = Annotation.__schema__(exclude=["author_id"])
         try:
             schema.load(data)
@@ -192,14 +190,8 @@ class AnnotationHandler(BaseHandler):
                 author=author,
                 groups=groups,
             )
-            annotation_resource_id_str = str(annotation.obj_id)
         else:
             return self.error(f'Unknown resource type "{associated_resource_type}".')
-
-        if annotation_resource_id_str != resource_id:
-            return self.error(
-                f'Annotation resource ID does not match resource ID given in path ({resource_id})'
-            )
 
         DBSession().add(annotation)
         self.verify_and_commit()
@@ -236,9 +228,6 @@ class AnnotationHandler(BaseHandler):
                The ID of the underlying data.
                This would be a string for a source ID
                or an integer for other data types like spectrum.
-               The resource pointed to by the resource_id must
-               be the correct object that is annotated by this
-               annotation.
           - in: path
             name: annotation_id
             required: true
@@ -282,13 +271,15 @@ class AnnotationHandler(BaseHandler):
                     annotation_id, self.current_user, mode="update", raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible annotations.')
+                return self.error(
+                    'Could not find any accessible annotations.', status=403
+                )
             annotation_resource_id_str = str(a.obj_id)
 
         # add more options using elif
         else:
             return self.error(
-                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
+                f'Unsupported associated_resource_type "{associated_resource_type}".'
             )
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
@@ -305,7 +296,7 @@ class AnnotationHandler(BaseHandler):
                     group_ids, self.current_user, raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible groups.')
+                return self.error('Could not find any accessible groups.', status=403)
             a.groups = groups
 
         if annotation_resource_id_str != resource_id:
@@ -347,10 +338,7 @@ class AnnotationHandler(BaseHandler):
             description: |
                The ID of the underlying data.
                This would be a string for a source ID
-               or an integer for other data types like spectrum.
-               The resource pointed to by the resource_id must
-               be the correct object that is annotated by this
-               annotation.
+               or an integer for a spectrum.
           - in: path
             name: annotation_id
             required: true
@@ -374,13 +362,15 @@ class AnnotationHandler(BaseHandler):
                     annotation_id, self.current_user, mode="delete", raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible annotations.')
+                return self.error(
+                    'Could not find any accessible annotations.', status=403
+                )
             annotation_resource_id_str = str(a.obj_id)
 
         # add more options using elif
         else:
             return self.error(
-                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
+                f'Unsupported associated_resource_type "{associated_resource_type}".'
             )
 
         obj_key = a.obj.internal_key

@@ -44,20 +44,18 @@ class CommentHandler(BaseHandler):
               type: string
             description: |
                What underlying data the comment is on:
-               "sources", or a "spectrum".
+               "sources" or "spectrum".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
+              enum: [sources, spectrum]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
                This would be a string for a source ID
-               or an integer for other data types like spectrum.
-               The resource pointed to by the resource_id must
-               be the correct object that is commented on by this
-               specific comment.
+               or an integer for a spectrum.
           - in: path
             name: comment_id
             required: true
@@ -87,7 +85,7 @@ class CommentHandler(BaseHandler):
                     comment_id, self.current_user, raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible comments.')
+                return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(comment.obj_id)
 
         elif associated_resource_type.lower() == "spectrum":
@@ -96,13 +94,13 @@ class CommentHandler(BaseHandler):
                     comment_id, self.current_user, raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible comments.')
+                return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(comment.spectrum_id)
 
         # add more options using elif
         else:
             return self.error(
-                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
+                f'Unsupported associated_resource_type "{associated_resource_type}".'
             )
 
         if comment_resource_id_str != resource_id:
@@ -126,20 +124,18 @@ class CommentHandler(BaseHandler):
               type: string
             description: |
                What underlying data the comment is on:
-               "source", or a "spectrum".
+               "source" or "spectrum".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
+              enum: [sources, spectrum]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
                This would be a string for a source ID
-               or an integer for other data types like spectrum.
-               The object pointed to by this input must be a valid
-               source or other data type (like spectrum) that
-               can be commented on by the user/token.
+               or an integer for a spectrum.
         requestBody:
           content:
             application/json:
@@ -197,7 +193,7 @@ class CommentHandler(BaseHandler):
                     group_ids, self.current_user, raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible groups.')
+                return self.error('Could not find any accessible groups.', status=403)
 
         if 'attachment' in data:
             if (
@@ -228,12 +224,16 @@ class CommentHandler(BaseHandler):
                 groups=groups,
                 bot=is_bot_request,
             )
-            comment_resource_id_str = str(comment.obj_id)
         elif associated_resource_type.lower() == "spectrum":
             spectrum_id = resource_id
-            spectrum = Spectrum.get_if_accessible_by(
-                spectrum_id, self.current_user, raise_if_none=True
-            )
+            try:
+                spectrum = Spectrum.get_if_accessible_by(
+                    spectrum_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error(
+                    f'Could not access spectrum {spectrum_id}.', status=403
+                )
             comment = CommentOnSpectrum(
                 text=comment_text,
                 spectrum_id=spectrum_id,
@@ -244,7 +244,6 @@ class CommentHandler(BaseHandler):
                 bot=is_bot_request,
                 obj_id=spectrum.obj_id,
             )
-            comment_resource_id_str = str(comment.spectrum_id)
         else:
             return self.error(f'Unknown resource type "{associated_resource_type}".')
 
@@ -258,11 +257,6 @@ class CommentHandler(BaseHandler):
                         url=f"/source/{obj_id}",
                     )
                 )
-
-        if comment_resource_id_str != resource_id:
-            return self.error(
-                f'Comment resource ID does not match resource ID given in path ({resource_id})'
-            )
 
         DBSession().add(comment)
         self.verify_and_commit()
@@ -299,20 +293,18 @@ class CommentHandler(BaseHandler):
               type: string
             description: |
                What underlying data the comment is on:
-               an "object" (default), or a "spectrum".
+               "sources" or "spectrum".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
+              enum: [sources, spectrum]
             description: |
-               The ID of the object, source or spectrum
+               The ID of the source or spectrum
                that the comment is posted to.
                This would be a string for an object ID
-               or an integer for other data types like spectrum.
-               The resource pointed to by the resource_id must
-               be the correct object that is commented on by this
-               specific comment.
+               or an integer for a spectrum.
           - in: path
             name: comment_id
             required: true
@@ -356,23 +348,23 @@ class CommentHandler(BaseHandler):
                     comment_id, self.current_user, mode="update", raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible comments.')
+                return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(c.obj_id)
 
-        elif associated_resource_type.lower() in ("spectrum", "spectra"):
+        elif associated_resource_type.lower() == "spectrum":
             schema = CommentOnSpectrum.__schema__()
             try:
                 c = CommentOnSpectrum.get_if_accessible_by(
                     comment_id, self.current_user, mode="update", raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible comments.')
+                return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(c.spectrum_id)
 
         # add more options using elif
         else:
             return self.error(
-                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
+                f'Unsupported associated_resource_type "{associated_resource_type}".'
             )
 
         data = self.get_json()
@@ -405,7 +397,7 @@ class CommentHandler(BaseHandler):
                     group_ids, self.current_user, raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible groups.')
+                return self.error('Could not find any accessible groups.', status=403)
             c.groups = groups
 
         if comment_resource_id_str != resource_id:
@@ -443,20 +435,18 @@ class CommentHandler(BaseHandler):
               type: string
             description: |
                What underlying data the comment is on:
-               "sources", or a "spectrum".
+               "sources" or "spectrum".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
+              enum: [sources, spectrum]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
                This would be a string for a source ID
-               or an integer for other data types like spectrum.
-               The resource pointed to by the resource_id must
-               be the correct object that is commented on by this
-               specific comment.
+               or an integer for a spectrum.
           - in: path
             name: comment_id
             required: true
@@ -481,7 +471,7 @@ class CommentHandler(BaseHandler):
                     comment_id, self.current_user, mode="delete", raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible comments.')
+                return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(c.obj_id)
         elif associated_resource_type.lower() == "spectrum":
             try:
@@ -489,19 +479,17 @@ class CommentHandler(BaseHandler):
                     comment_id, self.current_user, mode="delete", raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible comments.')
+                return self.error('Could not find any accessible comments.', statu=403)
             comment_resource_id_str = str(c.spectrum_id)
 
         # add more options using elif
         else:
             return self.error(
-                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
+                f'Unsupported associated_resource_type "{associated_resource_type}".'
             )
 
         obj_key = c.obj.internal_key
         obj_id = c.obj.id
-        # some other logic should come here if comment is not
-        # associated with an object
 
         if comment_resource_id_str != resource_id:
             return self.error(
@@ -541,20 +529,18 @@ class CommentAttachmentHandler(BaseHandler):
               type: string
             description: |
                What underlying data the comment is on:
-               "sources", or a "spectrum".
+               "sources" or "spectrum".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
+              enum: [sources, spectrum]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
                This would be a string for a source ID
-               or an integer for other data types like spectrum.
-               The resource pointed to by the resource_id must
-               be the correct object that is commented on by this
-               specific comment.
+               or an integer for a spectrum.
           - in: path
             name: comment_id
             required: true
@@ -605,7 +591,7 @@ class CommentAttachmentHandler(BaseHandler):
                     comment_id, self.current_user, raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible comments.')
+                return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(comment.obj_id)
 
         elif associated_resource_type.lower() == "spectrum":
@@ -614,12 +600,12 @@ class CommentAttachmentHandler(BaseHandler):
                     comment_id, self.current_user, raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible comments.')
+                return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(comment.spectrum_id)
         # add more options using elif
         else:
             return self.error(
-                f'Unsupported input "{associated_resource_type}" given as "associated_resource_type" argument.'
+                f'Unsupported associated_resource_type "{associated_resource_type}".'
             )
 
         if comment_resource_id_str != resource_id:

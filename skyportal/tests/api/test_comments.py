@@ -77,8 +77,7 @@ def test_add_and_retrieve_comment_group_access(
         f'sources/{public_source_two_groups.id}/comment/{comment_id}',
         token=comment_token,
     )
-    assert status == 400
-    assert "Could not find any accessible comments." in data["message"]
+    assert status == 403
 
     # Both tokens should be able to view this comment
     status, data = api(
@@ -146,8 +145,7 @@ def test_update_comment_group_list(
         f'sources/{public_source_two_groups.id}/comment/{comment_id}',
         token=comment_token,
     )
-    assert status == 400
-    assert "Could not find any accessible comments." in data["message"]
+    assert status == 403
 
     # Both tokens should be able to view comment after updating group list
     status, data = api(
@@ -227,7 +225,7 @@ def test_delete_comment(comment_token, public_source):
     status, data = api(
         'GET', f'sources/{public_source.id}/comment/{comment_id}', token=comment_token
     )
-    assert status == 400
+    assert status == 403
 
 
 def test_problematic_put_comment_attachment_1275(

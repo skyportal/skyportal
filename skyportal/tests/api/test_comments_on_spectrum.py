@@ -96,8 +96,7 @@ def test_add_and_retrieve_comment_group_access(
     status, data = api(
         'GET', f'spectrum/{spectrum_id}/comment/{comment_id}', token=comment_token
     )
-    assert status == 400
-    assert "Could not find any accessible comments." in data["message"]
+    assert status == 403
 
     # Both tokens should be able to view this comment, but not the underlying spectrum
     status, data = api(
@@ -125,7 +124,7 @@ def test_add_and_retrieve_comment_group_access(
     status, data = api(
         'GET', f'spectrum/{spectrum_id}/comment/{comment_id}', token=comment_token
     )
-    assert status == 400  # the underlying spectrum is not accessible to group1
+    assert status == 403  # the underlying spectrum is not accessible to group1
 
     # post a new spectrum with a comment, open to both groups
     status, data = api(
@@ -163,8 +162,7 @@ def test_add_and_retrieve_comment_group_access(
     status, data = api(
         'GET', f'spectrum/{spectrum_id}/comment/{comment_id}', token=comment_token
     )
-    assert status == 400
-    assert "Could not find any accessible comments." in data["message"]
+    assert status == 403
 
     # Both tokens should be able to view comment after updating group list
     status, data = api(
@@ -275,5 +273,4 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
     status, data = api(
         'GET', f'spectrum/{spectrum_id}/comment/{comment_id}', token=comment_token
     )
-    assert status == 400
-    assert "Could not find any accessible comments." in data["message"]
+    assert status == 403
