@@ -209,7 +209,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Time Last Detected (UTC)
           </Typography>
           <TextField
-            disabled
             size="small"
             label="Last Detected After"
             name="startDate"
@@ -217,7 +216,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             placeholder="2012-08-30T00:00:00"
           />
           <TextField
-            disabled
             size="small"
             label="Last Detected Before"
             name="endDate"
@@ -321,7 +319,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Peak Magnitude
           </Typography>
           <TextField
-            disabled
             size="small"
             label="Min"
             name="minPeakMagnitude"
@@ -332,7 +329,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
           />
           <TextField
-            disabled
             size="small"
             label="Max"
             name="maxPeakMagnitude"
@@ -374,7 +370,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Latest Magnitude
           </Typography>
           <TextField
-            disabled
             size="small"
             label="Min"
             name="minLatestMagnitude"
@@ -385,7 +380,6 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
           />
           <TextField
-            disabled
             size="small"
             label="Max"
             name="maxLatestMagnitude"
