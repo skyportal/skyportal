@@ -77,6 +77,9 @@ class SysInfoHandler(BaseHandler):
 
         return self.success(
             data={
+                "slack_preamble": cfg.get(
+                    "slack.expected_url_preamble", "https://hooks.slack.com/"
+                ),
                 "invitationsEnabled": cfg["invitations.enabled"],
                 "cosmology": str(cosmo),
                 "cosmoref": cosmo.__doc__,
