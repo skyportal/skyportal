@@ -119,7 +119,7 @@ skyportal_handlers = [
     # react-file-previewer package expects URLs ending with '.pdf' to
     # load PDF files.
     (
-        r'/api/comment(/[0-9]+)/attachment.pdf(/(?:object|spectrum))?',
+        r'/api/comment(/[0-9]+)/attachment(/(?:object|spectrum))?.pdf',
         CommentAttachmentHandler,
     ),
     (r'/api/comment(/[0-9]+)(/(?:object|spectrum))?', CommentHandler),
