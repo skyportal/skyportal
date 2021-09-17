@@ -747,7 +747,7 @@ def test_spectrum_external_reducer_and_observer(
 def test_spectrum_plot_only_some_spectra(
     upload_data_token, public_source, public_group, lris, sedm
 ):
-    # upload spectra 1
+    # upload spectrum 1
     status, data = api(
         'POST',
         'spectrum',
@@ -763,8 +763,9 @@ def test_spectrum_plot_only_some_spectra(
     )
     assert status == 200
     assert data['status'] == 'success'
+    spec_id1 = data['data']['id']
 
-    # upload spectra 2
+    # upload spectrum 2
     status, data = api(
         'POST',
         'spectrum',
@@ -781,7 +782,7 @@ def test_spectrum_plot_only_some_spectra(
 
     assert status == 200
     assert data['status'] == 'success'
-    spec_id = data['data']['id']
+    spec_id2 = data['data']['id']
 
     status, data = api(
         'GET', f'internal/plot/spectroscopy/{public_source.id}', token=upload_data_token
@@ -796,13 +797,13 @@ def test_spectrum_plot_only_some_spectra(
         if 'data' in r['attributes'] and 'instrument' in r['attributes']['data']:
             instruments.add(r['attributes']['data']['instrument'][0])
 
-    assert len(instruments) > 1
+    assert len(instruments) > 2
 
     # now ask for the same plot but with only one spectrum
     status, data = api(
         'GET',
         f'internal/plot/spectroscopy/{public_source.id}',
-        params={'spectrumID': f'{spec_id}'},
+        params={'spectrumID': f'{spec_id1},{spec_id2}'},
         token=upload_data_token,
     )
 
@@ -815,4 +816,6 @@ def test_spectrum_plot_only_some_spectra(
         if 'data' in r['attributes'] and 'instrument' in r['attributes']['data']:
             instruments.add(r['attributes']['data']['instrument'][0])
 
-    assert len(instruments) == 1
+    assert len(instruments) == 2
+    assert 'LRIS' in str(instruments)
+    assert 'SEDM' in str(instruments)
