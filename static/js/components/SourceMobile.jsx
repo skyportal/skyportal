@@ -205,6 +205,9 @@ const SourceMobile = WidthProvider(
       (g) => !g.single_user_group
     );
 
+    const spectra = useSelector((state) => state.spectra)[source.id];
+    const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
+
     useEffect(() => {
       dispatch(spectraActions.fetchSourceSpectra(source.id));
     }, [source.id, dispatch]);
@@ -487,7 +490,7 @@ const SourceMobile = WidthProvider(
                 <div className={classes.photometryContainer}>
                   <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
                     <Plot
-                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}`}
+                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
                     />
                   </Suspense>
                   <div className={classes.plotButtons}>
