@@ -1,3 +1,4 @@
+import os
 import json
 import re
 import uuid
@@ -3152,6 +3153,12 @@ def classify_thumbnail_grayscale(mapper, connection, target):
             )
         except requests.exceptions.RequestException:
             pass
+
+
+@event.listens_for(Thumbnail, 'remove')
+def delete_thumbnail_from_disk(mapper, connection, target):
+    if target.file_uri is not None:
+        os.remove(target.file_uri)
 
 
 class ObservingRun(Base):
