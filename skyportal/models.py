@@ -64,6 +64,7 @@ from baselayer.app.models import (  # noqa
     AccessibleIfRelatedRowsAreAccessible,
     CronJobRun,
 )
+from baselayer.log import make_log
 from skyportal import facility_apis
 from . import schema
 from .email_utils import send_email
@@ -90,6 +91,8 @@ cosmo = establish_cosmology(cfg)
 
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
+
+log = make_log('db_models')
 
 
 def get_app_base_url():
@@ -3160,8 +3163,8 @@ def delete_thumbnail_from_disk(mapper, connection, target):
     if target.file_uri is not None:
         try:
             os.remove(target.file_uri)
-        except (FileNotFoundError, OSError):
-            pass
+        except (FileNotFoundError, OSError) as e:
+            log(f"Error deleting thumbnail file {target.file_uri}: {e}")
 
 
 class ObservingRun(Base):
