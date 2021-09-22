@@ -220,12 +220,12 @@ const getMuiTheme = (theme) =>
 
 const getMostRecentClassification = (classifications) => {
   // Display the most recent non-zero probability class
-  const filteredClasses = classifications.filter((i) => i.probability > 0);
-  const sortedClasses = filteredClasses.sort((a, b) =>
+  const filteredClasses = classifications?.filter((i) => i.probability > 0);
+  const sortedClasses = filteredClasses?.sort((a, b) =>
     a.modified < b.modified ? 1 : -1
   );
   const recentClassification =
-    sortedClasses.length > 0 ? `${sortedClasses[0].classification}` : null;
+    sortedClasses?.length > 0 ? `${sortedClasses[0].classification}` : null;
 
   return recentClassification;
 };
@@ -543,7 +543,7 @@ const CandidateList = () => {
   const handleViewColumnsChange = (changedColumn, action) => {
     let selectedColumns = [];
     if (action === "remove") {
-      selectedColumns = viewColumns.filter((col) => col !== changedColumn);
+      selectedColumns = viewColumns?.filter((col) => col !== changedColumn);
     } else {
       selectedColumns = [...viewColumns, changedColumn];
     }
@@ -656,7 +656,7 @@ const CandidateList = () => {
         {Boolean(
           !candidateObj.is_source ||
             (candidateObj.is_source &&
-              filterGroups.filter(
+              filterGroups?.filter(
                 (g) =>
                   !candidateObj.saved_groups.map((x) => x.id).includes(g.id)
               ).length)
@@ -668,7 +668,7 @@ const CandidateList = () => {
               userGroups={
                 // Filter out groups the candidate is already saved to
                 candidateObj.is_source
-                  ? userAccessibleGroups.filter(
+                  ? userAccessibleGroups?.filter(
                       (g) =>
                         !candidateObj.saved_groups
                           .map((x) => x.id)
@@ -679,7 +679,7 @@ const CandidateList = () => {
               filterGroups={
                 // Filter out groups the candidate is already saved to
                 candidateObj.is_source
-                  ? filterGroups.filter(
+                  ? filterGroups?.filter(
                       (g) =>
                         !candidateObj.saved_groups
                           .map((x) => x.id)

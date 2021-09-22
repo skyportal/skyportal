@@ -38,14 +38,14 @@ const ObservabilityPage = ({ route }) => {
       </Paper>
       <Grid container spacing={3}>
         {telescopeList
-          .filter((telescope) => telescope.fixed_location)
+          ?.filter((telescope) => telescope.fixed_location)
           // If telescope preferences exist, filter only for those
-          .filter((telescope) =>
+          ?.filter((telescope) =>
             preferences && preferences.length > 0
               ? preferences.indexOf(telescope.id) !== -1
               : true
           )
-          .map((telescope) => (
+          ?.map((telescope) => (
             <Grid item key={telescope.id}>
               <Paper>
                 <div className={classes.inner}>

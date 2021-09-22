@@ -95,7 +95,7 @@ const MultipleClassificationsForm = ({
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);
 
-  const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
+  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
 
   useEffect(() => {
     setSelectedTaxonomy(stateTaxonomy);
@@ -210,7 +210,7 @@ const MultipleClassificationsForm = ({
           newFormState[selectedTaxonomy.id][parent.class]?.probability -
           newFormState[selectedTaxonomy.id][ancestor].probability;
 
-        const siblings = parent.subclasses.filter(
+        const siblings = parent.subclasses?.filter(
           (sibling) => sibling.class !== ancestor
         );
         let currentTotalOfSiblings = 0;
@@ -245,7 +245,7 @@ const MultipleClassificationsForm = ({
       const remainingProbability =
         newFormState[selectedTaxonomy.id][parent.class]?.probability - newValue;
 
-      const siblings = parent.subclasses.filter(
+      const siblings = parent.subclasses?.filter(
         (sibling) => sibling.class !== classification
       );
       let currentTotalOfSiblings = 0;

@@ -77,7 +77,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     },
   };
 
-  const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
+  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
 
   const handleSubmit = async ({ formData }) => {
     setSubmissionRequestInProcess(true);

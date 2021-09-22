@@ -52,7 +52,7 @@ function ShowClassification({ classifications, taxonomyList, shortened }) {
       <div>
         {title}
         {sortedClasses.map((c) => {
-          let name = taxonomyList.filter((i) => i.id === c[0].taxonomy_id);
+          let name = taxonomyList.filter((i) => i.id === c[0]?.taxonomy_id);
           if (name.length > 0) {
             name = name[0].name;
           }

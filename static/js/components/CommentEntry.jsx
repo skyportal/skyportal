@@ -56,8 +56,8 @@ const CommentEntry = ({ addComment }) => {
   };
 
   const onSubmit = (data) => {
-    const groupIDs = groups.map((g) => g.id);
-    const selectedGroupIDs = groupIDs.filter((ID, idx) => data.group_ids[idx]);
+    const groupIDs = groups?.map((g) => g.id);
+    const selectedGroupIDs = groupIDs?.filter((ID, idx) => data.group_ids[idx]);
     data.group_ids = selectedGroupIDs;
     addComment(data);
     reset();
@@ -71,7 +71,7 @@ const CommentEntry = ({ addComment }) => {
 
   const validateGroups = () => {
     const formState = getValues({ nest: true });
-    return formState.group_ids.filter((value) => Boolean(value)).length >= 1;
+    return formState.group_ids?.filter((value) => Boolean(value)).length >= 1;
   };
 
   return (
