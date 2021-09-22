@@ -140,8 +140,8 @@ const CandidatesPreferencesForm = ({
       // Translated selected group IDs to group IDs form indices
       const groupIds = Array(userAccessibleGroups.length).fill(false);
       userAccessibleGroups
-        .map((g) => g.id)
-        .forEach((groupId, idx) => {
+        ?.map((g) => g.id)
+        ?.forEach((groupId, idx) => {
           groupIds[idx] = currentOptions.groupIDs.includes(groupId);
         });
       currentOptions.groupIDs = groupIds;
@@ -170,7 +170,7 @@ const CandidatesPreferencesForm = ({
     formState = getValues({ nest: true });
     const otherProfiles = preferences.scanningProfiles
       ?.filter((profile) => profile.name !== editingProfile?.name)
-      .map((profile) => profile.name);
+      ?.map((profile) => profile.name);
     return (
       formState.name.length > 0 && !otherProfiles?.includes(formState.name)
     );
@@ -196,7 +196,7 @@ const CandidatesPreferencesForm = ({
   };
 
   const onSubmit = async (formData) => {
-    const groupIDs = userAccessibleGroups.map((g) => g.id);
+    const groupIDs = userAccessibleGroups?.map((g) => g.id);
     const selectedGroupIDs = groupIDs?.filter(
       (ID, idx) => formData.groupIDs[idx]
     );
@@ -338,7 +338,7 @@ const CandidatesPreferencesForm = ({
             input={<Input data-testid="profileSavedStatusSelect" />}
             defaultValue="all"
           >
-            {savedStatusSelectOptions.map((option) => (
+            {savedStatusSelectOptions?.map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 {option.label}
               </MenuItem>
@@ -362,7 +362,7 @@ const CandidatesPreferencesForm = ({
                 input={<Input data-testid="profile-classifications-select" />}
                 renderValue={(selected) => (
                   <div className={classes.chips}>
-                    {selected.map((classification) => (
+                    {selected?.map((classification) => (
                       <Chip
                         key={classification}
                         label={classification}
@@ -373,7 +373,7 @@ const CandidatesPreferencesForm = ({
                 )}
                 MenuProps={MenuProps}
               >
-                {classifications.map((classification) => (
+                {classifications?.map((classification) => (
                   <MenuItem
                     key={classification}
                     value={classification}
@@ -453,7 +453,7 @@ const CandidatesPreferencesForm = ({
             input={<Input data-testid="profileRejectedStatusSelect" />}
             defaultValue="hide"
           >
-            {rejectedStatusSelectOptions.map((option) => (
+            {rejectedStatusSelectOptions?.map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 {option.label}
               </MenuItem>
@@ -564,7 +564,7 @@ const CandidatesPreferencesForm = ({
             {errors.groupIDs && (
               <FormValidationError message="Select at least one group." />
             )}
-            {userAccessibleGroups.map((group, idx) => (
+            {userAccessibleGroups?.map((group, idx) => (
               <FormControlLabel
                 key={group.id}
                 control={

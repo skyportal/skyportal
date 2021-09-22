@@ -94,7 +94,7 @@ const reducer = (state = initialState, action) => {
       };
     }
     case FETCH_CANDIDATE_AND_MERGE_OK: {
-      const candidates = state.candidates.map((candidate) =>
+      const candidates = state.candidates?.map((candidate) =>
         candidate.id !== action.data.id ? candidate : action.data
       );
       return { ...state, candidates };

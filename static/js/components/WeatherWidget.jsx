@@ -222,7 +222,7 @@ const WeatherWidget = ({ classes }) => {
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
               >
-                {telescopeList.map((telescope) => (
+                {telescopeList?.map((telescope) => (
                   <MenuItem
                     data-testid={telescope.name}
                     id={telescope.name}

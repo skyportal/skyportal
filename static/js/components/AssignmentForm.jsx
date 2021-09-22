@@ -130,7 +130,7 @@ const AssignmentForm = ({ obj_id, observingRunList }) => {
                   : null
               }
             >
-              {upcomingObservingRuns.map((observingRun) => (
+              {upcomingObservingRuns?.map((observingRun) => (
                 <MenuItem
                   value={observingRun.id}
                   key={observingRun.id.toString()}

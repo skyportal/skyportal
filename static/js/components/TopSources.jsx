@@ -98,7 +98,7 @@ const TopSourcesList = ({ sources, styles }) => {
   return (
     <div className={topSourceSpecificStyles.sourceListContainer}>
       <ul className={styles.sourceList}>
-        {sources.map((source) => {
+        {sources?.map((source) => {
           let topsourceName = `${source.obj_id}`;
           if (source.classifications.length > 0) {
             // Display the most recent non-zero probability class

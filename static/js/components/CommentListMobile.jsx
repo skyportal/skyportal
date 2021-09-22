@@ -245,8 +245,8 @@ const CommentListMobile = ({ isCandidate }) => {
     <div className={styles.container}>
       <div className={styles.commentsList}>
         {comments
-          .slice(0, 3)
-          .map(({ id, author, created_at, text, attachment_name, groups }) => (
+          ?.slice(0, 3)
+          ?.map(({ id, author, created_at, text, attachment_name, groups }) => (
             <span
               key={id}
               className={commentStyle}
@@ -332,7 +332,9 @@ const CommentListMobile = ({ isCandidate }) => {
                         </span>
                         <div className={styles.commentUserGroup}>
                           <Tooltip
-                            title={groups.map((group) => group.name).join(", ")}
+                            title={groups
+                              ?.map((group) => group.name)
+                              ?.join(", ")}
                           >
                             <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
                           </Tooltip>

@@ -454,7 +454,7 @@ const MultipleClassificationsForm = ({
           value={selectedTaxonomy || ""}
           onChange={handleSelectTaxonomy}
         >
-          {latestTaxonomyList.map((taxonomy) => (
+          {latestTaxonomyList?.map((taxonomy) => (
             <MenuItem key={taxonomy.name} value={taxonomy}>
               {taxonomy.name}
             </MenuItem>

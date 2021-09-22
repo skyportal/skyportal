@@ -211,7 +211,7 @@ const NewsFeed = ({ classes }) => {
           </div>
         </div>
         <div className={styles.newsFeed} style={{ height: "85%" }}>
-          {items.map((item) => (
+          {items?.map((item) => (
             <NewsFeedItem
               key={`${item.author}-${item.source_id}-${item.time}`}
               item={item}

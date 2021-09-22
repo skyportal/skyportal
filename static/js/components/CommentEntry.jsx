@@ -112,7 +112,7 @@ const CommentEntry = ({ addComment }) => {
           display={groupSelectVisible ? "flex" : "none"}
           className={styles.customizeGroupsContainer}
         >
-          {groups.map((userGroup, idx) => (
+          {groups?.map((userGroup, idx) => (
             <FormControlLabel
               key={userGroup.id}
               control={

@@ -58,7 +58,7 @@ const getCirclePoints = (delRaGroup, delDecGroup) => {
   const medianRA = d3.median(delRaGroup);
   const medianDec = d3.median(delDecGroup);
 
-  const points = thetas.map((theta) => {
+  const points = thetas?.map((theta) => {
     const xx = medianRA + C * Math.cos(theta);
     const yy = medianDec + C * Math.sin(theta);
     return { xx, yy, theta };

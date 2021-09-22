@@ -73,7 +73,7 @@ const NewTokenForm = ({ availableAcls }) => {
               <Box component="span" mr={1} fontWeight="bold">
                 ACLs:
               </Box>
-              {availableAcls.map((acl, idx) => (
+              {availableAcls?.map((acl, idx) => (
                 <FormControlLabel
                   key={acl}
                   control={

@@ -135,7 +135,7 @@ const FollowupRequestForm = ({
         name="followupRequestAllocationSelect"
         className={classes.allocationSelect}
       >
-        {allocationList.map((allocation) => (
+        {allocationList?.map((allocation) => (
           <MenuItem
             value={allocation.id}
             key={allocation.id}

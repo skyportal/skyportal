@@ -199,7 +199,7 @@ const FilterCandidateList = ({
   const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
   let classifications = [];
   latestTaxonomyList.forEach((taxonomy) => {
-    const currentClasses = allowedClasses(taxonomy.hierarchy).map(
+    const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
       (option) => option.class
     );
     classifications = classifications.concat(currentClasses);
@@ -424,7 +424,7 @@ const FilterCandidateList = ({
               input={<Input data-testid="savedStatusSelect" />}
               defaultValue={selectedScanningProfile?.savedStatus || "all"}
             >
-              {savedStatusSelectOptions.map((option) => (
+              {savedStatusSelectOptions?.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   {option.label}
                 </MenuItem>
@@ -449,7 +449,7 @@ const FilterCandidateList = ({
                   input={<Input id="classifications-select" />}
                   renderValue={(selected) => (
                     <div className={classes.chips}>
-                      {selected.map((classification) => (
+                      {selected?.map((classification) => (
                         <Chip
                           key={classification}
                           label={classification}
@@ -460,7 +460,7 @@ const FilterCandidateList = ({
                   )}
                   MenuProps={MenuProps}
                 >
-                  {classifications.map((classification) => (
+                  {classifications?.map((classification) => (
                     <MenuItem
                       key={classification}
                       value={classification}
@@ -540,7 +540,7 @@ const FilterCandidateList = ({
               input={<Input data-testid="rejectedStatusSelect" />}
               defaultValue={selectedScanningProfile?.rejectedStatus || "hide"}
             >
-              {rejectedStatusSelectOptions.map((option) => (
+              {rejectedStatusSelectOptions?.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   {option.label}
                 </MenuItem>
