@@ -74,7 +74,7 @@ const GcnEvents = () => {
   }, [dispatch]);
 
   const renderTags = (tags) =>
-    tags.map((tag) => (
+    tags?.map((tag) => (
       <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
     ));
 

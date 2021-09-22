@@ -37,7 +37,7 @@ const AddUsersFromGroupForm = ({ groupID }) => {
   };
 
   const onSubmit = async (formData) => {
-    const fromGroupIDs = formData.groups.map((g) => g.id);
+    const fromGroupIDs = formData.groups?.map((g) => g.id);
     const result = await dispatch(
       groupsActions.addAllUsersFromGroups({ toGroupID: groupID, fromGroupIDs })
     );

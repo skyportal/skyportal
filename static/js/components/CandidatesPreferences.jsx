@@ -66,7 +66,7 @@ const CandidatesPreferences = ({
   const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
   let classifications = [];
   latestTaxonomyList.forEach((taxonomy) => {
-    const currentClasses = allowedClasses(taxonomy.hierarchy).map(
+    const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
       (option) => option.class
     );
     classifications = classifications.concat(currentClasses);

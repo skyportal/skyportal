@@ -173,8 +173,8 @@ const UserManagement = () => {
   };
 
   const handleAddUserToGroups = async (formData) => {
-    const groupIDs = formData.groups.map((g) => g.id);
-    const promises = groupIDs.map((gid) =>
+    const groupIDs = formData.groups?.map((g) => g.id);
+    const promises = groupIDs?.map((gid) =>
       dispatch(
         groupsActions.addGroupUser({
           userID: clickedUser.id,
@@ -196,8 +196,8 @@ const UserManagement = () => {
   };
 
   const handleAddUserToStreams = async (formData) => {
-    const streamIDs = formData.streams.map((g) => g.id);
-    const promises = streamIDs.map((sid) =>
+    const streamIDs = formData.streams?.map((g) => g.id);
+    const promises = streamIDs?.map((sid) =>
       dispatch(
         streamsActions.addStreamUser({
           user_id: clickedUser.id,
@@ -237,7 +237,7 @@ const UserManagement = () => {
     const result = await dispatch(
       rolesActions.addUserRoles({
         userID: clickedUser.id,
-        roleIds: formData.roles.map((role) => role.id),
+        roleIds: formData.roles?.map((role) => role.id),
       })
     );
     if (result.status === "success") {
@@ -333,7 +333,7 @@ const UserManagement = () => {
         >
           <AddCircleIcon color="disabled" />
         </IconButton>
-        {user.roles.map((role) => (
+        {user?.roles?.map((role) => (
           <Chip
             label={role}
             onDelete={() => {
@@ -356,7 +356,7 @@ const UserManagement = () => {
           <>
             <b>Each role is associated with the following ACLs:</b>
             <ul>
-              {roles.map((role) => (
+              {roles?.map((role) => (
                 <li key={role.id}>
                   {role.id}: {role.acls.join(", ")}
                 </li>
@@ -385,7 +385,7 @@ const UserManagement = () => {
         >
           <AddCircleIcon color="disabled" />
         </IconButton>
-        {user.acls.map((acl) => (
+        {user?.acls?.map((acl) => (
           <Chip
             label={acl}
             onDelete={() => {
@@ -594,7 +594,7 @@ const UserManagement = () => {
         role: {
           title: "Role",
           type: "string",
-          enum: roles.map((role) => role.id),
+          enum: roles?.map((role) => role.id),
         },
         acl: {
           title: "Additional ACL",
@@ -604,12 +604,12 @@ const UserManagement = () => {
         group: {
           title: "Group",
           type: "string",
-          enum: allGroups.map((group) => group.name),
+          enum: allGroups?.map((group) => group.name),
         },
         stream: {
           title: "Stream",
           type: "string",
-          enum: streams.map((stream) => stream.name),
+          enum: streams?.map((stream) => stream.name),
         },
       },
     };

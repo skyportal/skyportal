@@ -263,7 +263,7 @@ const CommentList = ({
   return (
     <div className={styles.commentsContainer}>
       <div className={styles.commentsList}>
-        {comments.map(
+        {comments?.map(
           ({
             id,
             author,
@@ -365,7 +365,9 @@ const CommentList = ({
                         </span>
                         <span className={styles.commentUserGroup}>
                           <Tooltip
-                            title={groups.map((group) => group.name).join(", ")}
+                            title={groups
+                              ?.map((group) => group.name)
+                              ?.join(", ")}
                           >
                             <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
                           </Tooltip>

@@ -265,7 +265,7 @@ const CustomSortToolbar = ({
     let data = {
       pageNumber: 1,
       numPerPage: rowsPerPage,
-      groupIDs: filterGroups.map((g) => g.id).join(),
+      groupIDs: filterGroups?.map((g) => g.id).join(),
       sortByAnnotationOrigin: selectedAnnotationSortOptions.origin,
       sortByAnnotationKey: selectedAnnotationSortOptions.key,
       sortByAnnotationOrder: newSortOrder,
@@ -481,7 +481,7 @@ const CandidateList = () => {
     let data = {
       pageNumber: 1,
       numPerPage: rowsPerPage,
-      groupIDs: filterGroups.map((g) => g.id).join(),
+      groupIDs: filterGroups?.map((g) => g.id).join(),
     };
     if (filterListQueryString !== null) {
       data = {
@@ -552,7 +552,9 @@ const CandidateList = () => {
 
   const renderThumbnails = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
-    const hasPS1 = candidateObj.thumbnails.map((t) => t.type).includes("ps1");
+    const hasPS1 = candidateObj?.thumbnails
+      ?.map((t) => t.type)
+      ?.includes("ps1");
     const displayTypes = hasPS1
       ? ["new", "ref", "sub", "sdss", "dr8", "ps1"]
       : ["new", "ref", "sub", "sdss", "dr8"];
@@ -619,7 +621,7 @@ const CandidateList = () => {
               <EditSourceGroups
                 source={{
                   id: candidateObj.id,
-                  currentGroupIds: candidateObj.saved_groups.map((g) => g.id),
+                  currentGroupIds: candidateObj.saved_groups?.map((g) => g.id),
                 }}
                 groups={allGroups}
               />
@@ -627,7 +629,7 @@ const CandidateList = () => {
             <div className={classes.infoItem}>
               <b>Saved groups: </b>
               <span>
-                {candidateObj.saved_groups.map((group) => (
+                {candidateObj.saved_groups?.map((group) => (
                   <Chip
                     label={
                       group.nickname
@@ -658,7 +660,7 @@ const CandidateList = () => {
             (candidateObj.is_source &&
               filterGroups?.filter(
                 (g) =>
-                  !candidateObj.saved_groups.map((x) => x.id).includes(g.id)
+                  !candidateObj.saved_groups?.map((x) => x.id)?.includes(g.id)
               ).length)
         ) && (
           // eslint-disable-next-line react/jsx-indent
@@ -671,8 +673,8 @@ const CandidateList = () => {
                   ? userAccessibleGroups?.filter(
                       (g) =>
                         !candidateObj.saved_groups
-                          .map((x) => x.id)
-                          .includes(g.id)
+                          ?.map((x) => x.id)
+                          ?.includes(g.id)
                     )
                   : userAccessibleGroups
               }
@@ -682,8 +684,8 @@ const CandidateList = () => {
                   ? filterGroups?.filter(
                       (g) =>
                         !candidateObj.saved_groups
-                          .map((x) => x.id)
-                          .includes(g.id)
+                          ?.map((x) => x.id)
+                          ?.includes(g.id)
                     )
                   : filterGroups
               }
@@ -834,7 +836,7 @@ const CandidateList = () => {
       pageNumber: page + 1,
       numPerPage,
       queryID,
-      groupIDs: filterGroups.map((g) => g.id).join(),
+      groupIDs: filterGroups?.map((g) => g.id)?.join(),
     };
     if (selectedAnnotationSortOptions !== null) {
       data = {
@@ -878,7 +880,7 @@ const CandidateList = () => {
     if (type === "chip") {
       const annotationsFilterList = filterList[3];
       setTableFilterList(annotationsFilterList);
-      const newFilterListQueryStrings = annotationsFilterList.map((chip) => {
+      const newFilterListQueryStrings = annotationsFilterList?.map((chip) => {
         const annotationObject = filterChipToAnnotationObj(chip);
         return JSON.stringify(annotationObject);
       });
@@ -931,8 +933,8 @@ const CandidateList = () => {
           key: {
             type: "string",
             title: "Key",
-            enum: fields.map((field) => `${origin}<>${Object.keys(field)[0]}`),
-            enumNames: fields.map((field) => Object.keys(field)[0]),
+            enum: fields?.map((field) => `${origin}<>${Object.keys(field)[0]}`),
+            enumNames: fields?.map((field) => Object.keys(field)[0]),
           },
         },
       };
