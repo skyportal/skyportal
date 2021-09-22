@@ -3158,7 +3158,10 @@ def classify_thumbnail_grayscale(mapper, connection, target):
 @event.listens_for(Thumbnail, 'remove')
 def delete_thumbnail_from_disk(mapper, connection, target):
     if target.file_uri is not None:
-        os.remove(target.file_uri)
+        try:
+            os.remove(target.file_uri)
+        except (FileNotFoundError, OSError):
+            pass
 
 
 class ObservingRun(Base):
