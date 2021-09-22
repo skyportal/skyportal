@@ -77,7 +77,7 @@ const NewGroupUserForm = ({ group_id }) => {
       <Autocomplete
         data-testid="newGroupUser"
         value={
-          allUsers.filter((user) => user.id === formState.userID)[0] || null
+          allUsers?.filter((user) => user.id === formState.userID)[0] || null
         }
         onChange={(event, newValue) => {
           setFormState({ userID: newValue?.id });

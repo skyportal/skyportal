@@ -150,7 +150,7 @@ const UserManagement = () => {
   ) {
     return <div>Access denied: Insufficient permissions.</div>;
   }
-  allGroups = allGroups.filter((group) => !group.single_user_group);
+  allGroups = allGroups?.filter((group) => !group.single_user_group);
 
   const validateGroups = () => {
     const formState = getValues({ nest: true });
@@ -435,7 +435,7 @@ const UserManagement = () => {
         </IconButton>
         {user.groups
           ?.filter((group) => !group.single_user_group)
-          .map((group) => (
+          ?.map((group) => (
             <Chip
               label={group.name}
               onDelete={() => {
@@ -763,7 +763,7 @@ const UserManagement = () => {
                   multiple
                   onChange={(e, data) => onChange(data)}
                   value={value}
-                  options={allGroups.filter(
+                  options={allGroups?.filter(
                     (g) =>
                       !clickedUser?.groups?.map((gr) => gr.id)?.includes(g.id)
                   )}
@@ -824,7 +824,7 @@ const UserManagement = () => {
                   multiple
                   onChange={(e, data) => onChange(data)}
                   value={value}
-                  options={streams.filter(
+                  options={streams?.filter(
                     (s) =>
                       !clickedUser?.streams
                         ?.map((strm) => strm.id)
@@ -887,7 +887,7 @@ const UserManagement = () => {
                   multiple
                   onChange={(e, data) => onChange(data)}
                   value={value}
-                  options={acls.filter(
+                  options={acls?.filter(
                     (acl) => !clickedUser?.permissions?.includes(acl)
                   )}
                   getOptionLabel={(acl) => acl}

@@ -178,7 +178,7 @@ const CandidatesPreferencesForm = ({
 
   const validateGroups = () => {
     formState = getValues({ nest: true });
-    return formState.groupIDs.filter((value) => Boolean(value)).length >= 1;
+    return formState.groupIDs?.filter((value) => Boolean(value)).length >= 1;
   };
 
   const validateSorting = () => {
@@ -197,7 +197,7 @@ const CandidatesPreferencesForm = ({
 
   const onSubmit = async (formData) => {
     const groupIDs = userAccessibleGroups.map((g) => g.id);
-    const selectedGroupIDs = groupIDs.filter(
+    const selectedGroupIDs = groupIDs?.filter(
       (ID, idx) => formData.groupIDs[idx]
     );
     const data = {

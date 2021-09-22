@@ -142,7 +142,7 @@ const UserInvitations = () => {
   ) {
     return <div>Access denied: Insufficient permissions.</div>;
   }
-  allGroups = allGroups.filter((group) => !group.single_user_group);
+  allGroups = allGroups?.filter((group) => !group.single_user_group);
 
   const validateInvitationGroups = () => {
     const formState = getValues({ nest: true });
@@ -156,8 +156,8 @@ const UserInvitations = () => {
 
   const handleClickDeleteInvitationGroup = async (invitation, groupID) => {
     const groupIDs = invitation.groups
-      .filter((group) => group.id !== groupID)
-      .map((g) => g.id);
+      ?.filter((group) => group.id !== groupID)
+      ?.map((g) => g.id);
     const result = await dispatch(
       invitationsActions.updateInvitation(invitation.id, { groupIDs })
     );
@@ -169,8 +169,8 @@ const UserInvitations = () => {
 
   const handleClickDeleteInvitationStream = async (invitation, streamID) => {
     const streamIDs = invitation.streams
-      .filter((stream) => stream.id !== streamID)
-      .map((s) => s.id);
+      ?.filter((stream) => stream.id !== streamID)
+      ?.map((s) => s.id);
     const result = await dispatch(
       invitationsActions.updateInvitation(invitation.id, { streamIDs })
     );

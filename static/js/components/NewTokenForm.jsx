@@ -33,7 +33,9 @@ const NewTokenForm = ({ availableAcls }) => {
   }, [reset, availableAcls]);
 
   const onSubmit = async (data) => {
-    const selectedACLs = availableAcls.filter((include, idx) => data.acls[idx]);
+    const selectedACLs = availableAcls?.filter(
+      (include, idx) => data.acls[idx]
+    );
     data.acls = selectedACLs;
 
     // Token groups are not currently supported

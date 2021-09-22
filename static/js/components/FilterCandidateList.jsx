@@ -196,7 +196,7 @@ const FilterCandidateList = ({
 
   // Get unique classification names, in alphabetical order
   const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
+  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
   let classifications = [];
   latestTaxonomyList.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy).map(
@@ -269,7 +269,7 @@ const FilterCandidateList = ({
 
   const validateGroups = () => {
     formState = getValues({ nest: true });
-    return formState.groupIDs.filter((value) => Boolean(value)).length >= 1;
+    return formState.groupIDs?.filter((value) => Boolean(value)).length >= 1;
   };
 
   const validateDates = () => {
@@ -295,7 +295,7 @@ const FilterCandidateList = ({
   const onSubmit = async (formData) => {
     setQueryInProgress(true);
     const groupIDs = userAccessibleGroups.map((g) => g.id);
-    const selectedGroupIDs = groupIDs.filter(
+    const selectedGroupIDs = groupIDs?.filter(
       (ID, idx) => formData.groupIDs[idx]
     );
     const data = {
@@ -333,7 +333,7 @@ const FilterCandidateList = ({
       data.annotationFilterList = annotationFilterList;
     }
     setFilterGroups(
-      userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
+      userAccessibleGroups?.filter((g) => selectedGroupIDs.includes(g.id))
     );
     const fetchParams = { ...data };
 
@@ -666,7 +666,7 @@ const FilterCandidateList = ({
                             const groupIDs = userAccessibleGroups.map(
                               (g) => g.id
                             );
-                            const selectedGroupIDs = groupIDs.filter(
+                            const selectedGroupIDs = groupIDs?.filter(
                               (ID, i) => getValues({ nest: true }).groupIDs[i]
                             );
                             setFilterGroups(
