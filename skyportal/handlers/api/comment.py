@@ -479,7 +479,7 @@ class CommentHandler(BaseHandler):
                     comment_id, self.current_user, mode="delete", raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible comments.', statu=403)
+                return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(c.spectrum_id)
 
         # add more options using elif

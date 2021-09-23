@@ -17,9 +17,15 @@ const DELETE_CLASSIFICATION = "skyportal/DELETE_CLASSIFICATION";
 const ADD_COMMENT = "skyportal/ADD_COMMENT";
 
 const DELETE_COMMENT = "skyportal/DELETE_COMMENT";
+const DELETE_COMMENT_ON_SPECTRUM = "skyportal/DELETE_COMMENT_ON_SPECTRUM";
 
 const GET_COMMENT_ATTACHMENT = "skyportal/GET_COMMENT_ATTACHMENT";
 const GET_COMMENT_ATTACHMENT_OK = "skyportal/GET_COMMENT_ATTACHMENT_OK";
+
+const GET_COMMENT_ON_SPECTRUM_ATTACHMENT =
+  "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT";
+const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK =
+  "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK";
 
 const ADD_SOURCE_VIEW = "skyportal/ADD_SOURCE_VIEW";
 
@@ -112,12 +118,32 @@ export function addComment(formData) {
   );
 }
 
-export function deleteComment(pathToComment) {
-  return API.DELETE(pathToComment, DELETE_COMMENT);
+export function deleteComment(sourceID, commentID) {
+  return API.DELETE(
+    `/api/sources/${sourceID}/comment/${commentID}`,
+    DELETE_COMMENT
+  );
 }
 
-export function getCommentAttachment(pathToComment) {
-  return API.GET(pathToComment, GET_COMMENT_ATTACHMENT);
+export function deleteCommentOnSpectrum(spectrumID, commentID) {
+  return API.DELETE(
+    `/api/spectrum/${spectrumID}/comment/${commentID}`,
+    DELETE_COMMENT_ON_SPECTRUM
+  );
+}
+
+export function getCommentAttachment(sourceID, commentID) {
+  return API.GET(
+    `/api/sources/${sourceID}/comment/${commentID}/attachment`,
+    GET_COMMENT_ATTACHMENT
+  );
+}
+
+export function getCommentOnSpectrumAttachment(spectrumID, commentID) {
+  return API.GET(
+    `/api/spectrum/${spectrumID}/comment/${commentID}/attachment`,
+    GET_COMMENT_ON_SPECTRUM_ATTACHMENT
+  );
 }
 
 export function fetchSource(id) {
@@ -223,6 +249,16 @@ const reducer = (state = { source: null, loadError: false }, action) => {
         loadError: "Unknown error while loading source",
       };
     case GET_COMMENT_ATTACHMENT_OK: {
+      const { commentId, attachment } = action.data;
+      return {
+        ...state,
+        commentAttachment: {
+          commentId,
+          attachment,
+        },
+      };
+    }
+    case GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK: {
       const { commentId, attachment } = action.data;
       return {
         ...state,

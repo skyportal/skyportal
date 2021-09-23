@@ -152,16 +152,6 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-export const commentPath = (comment) => {
-  if (comment.spectrum_id !== undefined) {
-    return `/api/spectrum/${comment.spectrum_id}/comment/${comment.id}`;
-  }
-  // add additional types of comments here
-
-  // the default is to return the object/source comment
-  return `/api/sources/${comment.obj_id}/comment/${comment.id}`;
-};
-
 const CommentList = ({
   isCandidate = false,
   associatedResourceType = "object",
@@ -239,10 +229,6 @@ const CommentList = ({
 
   comments = comments || [];
 
-  comments.forEach((c) => {
-    c.api_path = commentPath(c);
-  });
-
   const renderCommentText = (text, spectrum_id) => {
     if (
       spectrum_id &&
@@ -261,8 +247,14 @@ const CommentList = ({
     return text;
   };
 
-  const deleteComment = (pathToComment) => {
-    dispatch(sourceActions.deleteComment(pathToComment));
+  const deleteComment = (sourceID, commentID) => {
+    dispatch(sourceActions.deleteComment(sourceID, commentID));
+  };
+
+  const deleteCommentOnSpectrum = (commentSpectrumID, commentID) => {
+    dispatch(
+      sourceActions.deleteCommentOnSpectrum(commentSpectrumID, commentID)
+    );
   };
 
   const emojiSupport = (text) =>
@@ -289,10 +281,9 @@ const CommentList = ({
             attachment_name,
             groups,
             spectrum_id,
-            api_path,
           }) => (
             <span
-              key={id}
+              key={(spectrum_id ? "spectrum" : "object") + id}
               className={commentStyle}
               onMouseOver={() =>
                 handleMouseHover(id, userProfile, author.username)
@@ -345,9 +336,11 @@ const CommentList = ({
                           size="small"
                           color="primary"
                           name={`deleteCommentButton${id}`}
-                          onClick={() => {
-                            deleteComment(api_path);
-                          }}
+                          onClick={() =>
+                            spectrum_id
+                              ? deleteCommentOnSpectrum(spectrum_id, id)
+                              : deleteComment(objID, id)
+                          }
                           className="commentDelete"
                         >
                           <CloseIcon fontSize="small" />
@@ -402,9 +395,11 @@ const CommentList = ({
                           color="primary"
                           type="button"
                           name={`deleteCommentButton${id}`}
-                          onClick={() => {
-                            deleteComment(api_path);
-                          }}
+                          onClick={() =>
+                            spectrum_id
+                              ? deleteCommentOnSpectrum(spectrum_id, id)
+                              : deleteComment(objID, id)
+                          }
                           className="commentDelete"
                         >
                           <CloseIcon fontSize="small" />
