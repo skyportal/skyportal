@@ -303,7 +303,12 @@ const CommentList = ({
                       gravatarUrl={author.gravatar_url}
                     />
                   </div>
-                  <div className={styles.compactWrap} name={`commentDiv${id}`}>
+                  <div
+                    className={styles.compactWrap}
+                    name={`commentDiv${
+                      (spectrum_id ? "spectrum" : "object") + id
+                    }`}
+                  >
                     <ReactMarkdown
                       source={renderCommentText(
                         text,
@@ -335,7 +340,9 @@ const CommentList = ({
                           }
                           size="small"
                           color="primary"
-                          name={`deleteCommentButton${id}`}
+                          name={`deleteCommentButton${
+                            (spectrum_id ? "spectrum" : "object") + id
+                          }`}
                           onClick={() =>
                             spectrum_id
                               ? deleteCommentOnSpectrum(spectrum_id, id)
@@ -396,7 +403,9 @@ const CommentList = ({
                           size="small"
                           color="primary"
                           type="button"
-                          name={`deleteCommentButton${id}`}
+                          name={`deleteCommentButton${
+                            (spectrum_id ? "spectrum" : "object") + id
+                          }`}
                           onClick={() =>
                             spectrum_id
                               ? deleteCommentOnSpectrum(spectrum_id, id)
@@ -408,7 +417,12 @@ const CommentList = ({
                         </Button>
                       </div>
                     </div>
-                    <div className={styles.wrap} name={`commentDiv${id}`}>
+                    <div
+                      className={styles.wrap}
+                      name={`commentDiv${
+                        (spectrum_id ? "spectrum" : "object") + id
+                      }`}
+                    >
                       <ReactMarkdown
                         source={renderCommentText(
                           text,
