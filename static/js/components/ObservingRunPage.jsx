@@ -32,7 +32,7 @@ const ObservingRunList = ({ observingRuns }) => {
   return (
     <div className={classes.root}>
       <List component="nav">
-        {observingRuns.map((run) => (
+        {observingRuns?.map((run) => (
           <ListItem button component={Link} to={`/run/${run.id}`} key={run.id}>
             <ListItemText
               primary={observingRunTitle(

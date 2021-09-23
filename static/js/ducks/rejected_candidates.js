@@ -37,7 +37,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 const reducer = (state = { rejected_candidates: [] }, action) => {
   switch (action.type) {
     case FETCH_REJECTED_CANDIDATES_OK: {
-      const rejected_candidates = action.data.map((rej) => rej.obj_id);
+      const rejected_candidates = action.data?.map((rej) => rej.obj_id);
       return {
         ...state,
         rejected_candidates,

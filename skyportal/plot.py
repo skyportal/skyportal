@@ -1344,6 +1344,40 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
 
 def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
+    """
+    Create object spectroscopy line plot.
+
+    Parameters
+    ----------
+    obj_id : str
+        ID of Obj to be plotted.
+    user :
+        The user object that is requesting the plot.
+    spec_id : str or None
+        A string with a single spectrum ID or a
+        comma-separated list of IDs.
+        Only the spectra with matching IDs
+        are plotted.
+        If None (default), will plot all
+        spectra associated with the object
+        and accessible to the user.
+    width : int
+        Size of the plot in pixels. Default=600.
+    device : str
+        Choose one of the following options to describe
+        the device on which the plot will be displayed:
+        - "browser" (default)
+        - "mobile_portrait"
+        - "mobile_landscape"
+        - "tablet_portrait"
+        - "tablet_landscape"
+    Returns
+    -------
+    dict
+        Bokeh JSON embedding of the plot.
+
+    """
+
     obj = Obj.get_if_accessible_by(obj_id, user)
     spectra = (
         Spectrum.query_records_accessible_by(user)
@@ -1351,8 +1385,16 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         .all()
     )
 
-    if spec_id is not None:
-        spectra = [spec for spec in spectra if spec.id == int(spec_id)]
+    # Accept a string with a single spectrum ID
+    # or a comma separated list of IDs.
+    # If no IDs are given, choose all Object's spectra.
+    if spec_id is not None and len(spec_id) > 0:
+        spec_id = spec_id.split(',')
+        filtered_spectra = []
+        # choose any of the object's spectra that match one of the IDs given
+        for sid in spec_id:
+            filtered_spectra.extend([spec for spec in spectra if spec.id == int(sid)])
+        spectra = filtered_spectra
     if len(spectra) == 0:
         return None, None, None
 

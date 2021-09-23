@@ -63,7 +63,7 @@ const GroupShareSelect = ({
           if (numSelected <= maxGroups) {
             return (
               <div className={classes.chips}>
-                {selected.map((value) => (
+                {selected?.map((value) => (
                   <Chip
                     key={value}
                     label={groupIDToName[value]}
@@ -84,7 +84,7 @@ const GroupShareSelect = ({
           );
         }}
       >
-        {groupList.map((group) => (
+        {groupList?.map((group) => (
           <MenuItem
             key={group.id}
             value={group.id}

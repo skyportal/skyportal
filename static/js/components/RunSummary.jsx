@@ -282,7 +282,7 @@ const RunSummary = ({ route }) => {
     const assignment = assignments[dataIndex];
     return (
       <div key={`${assignment.obj.id}_groups`}>
-        {assignment.accessible_group_names.map((name) => (
+        {assignment.accessible_group_names?.map((name) => (
           <div key={name}>
             <Chip
               label={name.substring(0, 15)}
@@ -402,7 +402,7 @@ const RunSummary = ({ route }) => {
     selectableRows: "none",
   };
 
-  const data = assignments.map((assignment) => [
+  const data = assignments?.map((assignment) => [
     assignment.obj.id,
     assignment.status,
     assignment.obj.ra,

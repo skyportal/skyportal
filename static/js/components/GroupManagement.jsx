@@ -26,7 +26,7 @@ const useStyles = makeStyles(() => ({
 
 const GroupManagement = () => {
   const classes = useStyles();
-  const allGroups = useSelector((state) => state.groups.all).filter(
+  const allGroups = useSelector((state) => state.groups.all)?.filter(
     (group) => !group.single_user_group
   );
 

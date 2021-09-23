@@ -124,7 +124,7 @@ const UploadSpectrumForm = ({ route }) => {
       const result = await dispatch(fetchSource(route.id));
       const defaultFormData = {
         file: undefined,
-        group_ids: result.data.groups.map((group) => group.id),
+        group_ids: result.data.groups?.map((group) => group.id),
         mjd: undefined,
         wave_column: 0,
         flux_column: 1,
@@ -154,7 +154,7 @@ const UploadSpectrumForm = ({ route }) => {
   );
 
   const newPersistentFormData = { ...persistentFormData };
-  newPersistentFormData.group_ids = source.groups.map((group) => group.id);
+  newPersistentFormData.group_ids = source.groups?.map((group) => group.id);
 
   const header = [];
   const data = [];
@@ -261,7 +261,7 @@ const UploadSpectrumForm = ({ route }) => {
         title: "Share with...",
         items: {
           type: "integer",
-          anyOf: groups.map((group) => ({
+          anyOf: groups?.map((group) => ({
             enum: [group.id],
             title: group.name,
           })),
@@ -279,7 +279,7 @@ const UploadSpectrumForm = ({ route }) => {
         title: "Reducers",
         items: {
           type: "integer",
-          anyOf: users.map((user) => ({
+          anyOf: users?.map((user) => ({
             enum: [user.id],
             title: user.username,
           })),
@@ -297,7 +297,7 @@ const UploadSpectrumForm = ({ route }) => {
         title: "Observers",
         items: {
           type: "integer",
-          anyOf: users.map((user) => ({
+          anyOf: users?.map((user) => ({
             enum: [user.id],
             title: user.username,
           })),
@@ -311,9 +311,9 @@ const UploadSpectrumForm = ({ route }) => {
       instrument_id: {
         type: "integer",
         title: "Instrument",
-        enum: instruments.map((instrument) => instrument.id),
-        enumNames: instruments.map((instrument) => {
-          const telescope = telescopes.find(
+        enum: instruments?.map((instrument) => instrument.id),
+        enumNames: instruments?.map((instrument) => {
+          const telescope = telescopes?.find(
             (t) => t.id === instrument.telescope_id
           );
           let name = "";
@@ -361,7 +361,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Reducers",
                 items: {
                   type: "integer",
-                  anyOf: users.map((user) => ({
+                  anyOf: users?.map((user) => ({
                     enum: [user.id],
                     title: user.username,
                   })),
@@ -384,7 +384,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Point of contact user for reducers",
                 items: {
                   type: "integer",
-                  anyOf: users.map((user) => ({
+                  anyOf: users?.map((user) => ({
                     enum: [user.id],
                     title: user.username,
                   })),
@@ -412,7 +412,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Observers",
                 items: {
                   type: "integer",
-                  anyOf: users.map((user) => ({
+                  anyOf: users?.map((user) => ({
                     enum: [user.id],
                     title: user.username,
                   })),
@@ -435,7 +435,7 @@ const UploadSpectrumForm = ({ route }) => {
                 title: "Point of contact user for observers",
                 items: {
                   type: "integer",
-                  anyOf: users.map((user) => ({
+                  anyOf: users?.map((user) => ({
                     enum: [user.id],
                     title: user.username,
                   })),
@@ -550,7 +550,7 @@ const UploadSpectrumForm = ({ route }) => {
       dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
       setPersistentFormData({
         file: undefined,
-        group_ids: source.groups.map((group) => group.id),
+        group_ids: source.groups?.map((group) => group.id),
         mjd: undefined,
         wave_column: 0,
         flux_column: 1,

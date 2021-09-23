@@ -309,8 +309,8 @@ const CommentListMobile = ({
     <div className={styles.container}>
       <div className={styles.commentsList}>
         {comments
-          .slice(0, 3)
-          .map(
+          ?.slice(0, 3)
+          ?.map(
             ({
               id,
               author,
@@ -417,8 +417,8 @@ const CommentListMobile = ({
                           <div className={styles.commentUserGroup}>
                             <Tooltip
                               title={groups
-                                .map((group) => group.name)
-                                .join(", ")}
+                                ?.map((group) => group.name)
+                                ?.join(", ")}
                             >
                               <GroupIcon
                                 fontSize="small"

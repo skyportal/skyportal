@@ -277,7 +277,7 @@ const SourceTable = ({
   const theme = useTheme();
 
   if (favoritesRemoveButton) {
-    defaultDisplayedColumns = defaultDisplayedColumns.filter(
+    defaultDisplayedColumns = defaultDisplayedColumns?.filter(
       (c) => c !== "Favorites"
     );
   }
@@ -323,8 +323,8 @@ const SourceTable = ({
         // Save displayed column labels
         setDisplayedColumns(
           tableState.columns
-            .filter((column) => column.display === "true")
-            .map((column) => column.label)
+            ?.filter((column) => column.display === "true")
+            ?.map((column) => column.label)
         );
         break;
       case "sort":
@@ -378,7 +378,7 @@ const SourceTable = ({
   // helper function to get the classifications
   const getClassifications = (source) => {
     if (groupID !== undefined) {
-      return source.classifications.filter((cls) =>
+      return source.classifications?.filter((cls) =>
         cls.groups.find((g) => g.id === groupID)
       );
     }
@@ -620,7 +620,7 @@ const SourceTable = ({
   };
 
   // helper function to get the source groups
-  const getGroups = (source) => source.groups.filter((group) => group.active);
+  const getGroups = (source) => source.groups?.filter((group) => group.active);
   const history = useHistory();
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.

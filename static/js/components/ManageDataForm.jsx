@@ -209,15 +209,15 @@ const ManageDataForm = ({ route }) => {
   };
 
   const onSubmit = async (groupsFormData) => {
-    const selectedPhotIDs = selectedPhotRows.map(
+    const selectedPhotIDs = selectedPhotRows?.map(
       (idx) => photometry[route.id][idx].id
     );
-    const selectedSpecIDs = selectedSpecRows.map(
+    const selectedSpecIDs = selectedSpecRows?.map(
       (idx) => spectra[route.id][idx].id
     );
     setIsSubmitting(true);
     const data = {
-      groupIDs: groupsFormData.groups.map((g) => g.id),
+      groupIDs: groupsFormData.groups?.map((g) => g.id),
       photometryIDs: selectedPhotIDs,
       spectrumIDs: selectedSpecIDs,
     };

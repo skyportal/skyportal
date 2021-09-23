@@ -137,7 +137,7 @@ const ObservabilityPreferences = () => {
         >
           {[{ id: -1, name: "Clear selections" }]
             .concat(
-              telescopeList.filter((telescope) => telescope.fixed_location)
+              telescopeList?.filter((telescope) => telescope.fixed_location)
             )
             .map((telescope) => (
               <MenuItem
