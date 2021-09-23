@@ -420,32 +420,47 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     )
     select_box.click()
 
-    driver.click_xpath(
-        f'//li[contains(text(), "SEDM")][contains(text(), "{public_group.name}")]',
-        scroll_parent=True,
+    driver.execute_script(
+        "arguments[0].click();",
+        driver.wait_for_xpath(
+            f'//li[contains(text(), "SEDM")][contains(text(), "{public_group.name}")]'
+        ),
     )
 
     # Click somewhere outside to remove focus from instrument select
     driver.click_xpath("//header")
 
     # mode select
-    driver.click_xpath('//div[@id="root_observation_type"]', wait_clickable=False)
+    driver.execute_script(
+        "arguments[0].click();",
+        driver.wait_for_xpath('//div[@id="root_observation_type"]'),
+    )
 
     # mix n match option
-    driver.click_xpath('''//li[@data-value="Mix 'n Match"]''')
+    driver.execute_script(
+        "arguments[0].click();",
+        driver.wait_for_xpath('''//li[@data-value="Mix 'n Match"]'''),
+    )
 
     # u band option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+    driver.execute_script(
+        "arguments[0].click();",
+        driver.wait_for_xpath('//input[@id="root_observation_choices_0"]'),
     )
 
     # ifu option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices_4"]', wait_clickable=False
+    driver.execute_script(
+        "arguments[0].click();",
+        driver.wait_for_xpath('//input[@id="root_observation_choices_4"]'),
     )
-    driver.click_xpath(submit_button_xpath)
+    driver.execute_script(
+        "arguments[0].click();", driver.wait_for_xpath(submit_button_xpath)
+    )
 
-    driver.click_xpath("//div[@data-testid='SEDM-requests-header']")
+    driver.execute_script(
+        "arguments[0].click();",
+        driver.wait_for_xpath("//div[@data-testid='SEDM-requests-header']"),
+    )
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "Mix \'n Match")]'
     )
