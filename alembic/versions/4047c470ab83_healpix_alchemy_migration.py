@@ -44,7 +44,6 @@ def downgrade():
     op.drop_column('photometry', 'z')
     op.drop_column('photometry', 'y')
     op.drop_column('photometry', 'x')
-    op.drop_index(op.f('ix_objs_point'), table_name='objs')
     op.drop_index(op.f('ix_objs_nested'), table_name='objs')
     op.drop_column('objs', 'nested')
     op.drop_column('objs', 'z')
