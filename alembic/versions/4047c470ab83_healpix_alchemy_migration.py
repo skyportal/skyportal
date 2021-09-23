@@ -30,9 +30,6 @@ def upgrade():
     op.create_index(
         op.f('ix_photometry_nested'), 'photometry', ['nested'], unique=False
     )
-    op.create_index(
-        op.f('ix_photometry_point'), 'photometry', ['x', 'y', 'z'], unique=False
-    )
     # ### end Alembic commands ###
 
 
