@@ -198,7 +198,7 @@ const FilterCandidateList = ({
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
   let classifications = [];
-  latestTaxonomyList.forEach((taxonomy) => {
+  latestTaxonomyList?.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
       (option) => option.class
     );
@@ -220,8 +220,8 @@ const FilterCandidateList = ({
 
   useEffect(() => {
     const selectedGroupIDs = Array(userAccessibleGroups.length).fill(false);
-    const groupIDs = userAccessibleGroups.map((g) => g.id);
-    groupIDs.forEach((ID, i) => {
+    const groupIDs = userAccessibleGroups?.map((g) => g.id);
+    groupIDs?.forEach((ID, i) => {
       selectedGroupIDs[i] = selectedScanningProfile?.groupIDs.includes(ID);
     });
 
