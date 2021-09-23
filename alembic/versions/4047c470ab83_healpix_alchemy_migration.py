@@ -23,7 +23,6 @@ def upgrade():
     op.add_column('objs', sa.Column('z', sa.Float(), nullable=True))
     op.add_column('objs', sa.Column('nested', sa.BigInteger(), nullable=True))
     op.create_index(op.f('ix_objs_nested'), 'objs', ['nested'], unique=False)
-    op.create_index(op.f('ix_objs_point'), 'objs', ['x', 'y', 'z'], unique=False)
     op.add_column('photometry', sa.Column('x', sa.Float(), nullable=True))
     op.add_column('photometry', sa.Column('y', sa.Float(), nullable=True))
     op.add_column('photometry', sa.Column('z', sa.Float(), nullable=True))
