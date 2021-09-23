@@ -116,7 +116,7 @@ const CommentAttachmentPreview = ({
   filename,
   commentId,
   objectID,
-  commentType,
+  associatedResourceType,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -155,13 +155,17 @@ const CommentAttachmentPreview = ({
   }
 
   if (fileType.toLowerCase() === "json" && !isCached && open) {
-    dispatch(
-      sourceActions.getCommentAttachment(commentId, objectID, commentType)
-    );
+    if (associatedResourceType === "sources") {
+      dispatch(sourceActions.getCommentAttachment(commentId, objectID));
+    } else if (associatedResourceType === "spectrum") {
+      dispatch(
+        sourceActions.getCommentOnSpectrumAttachment(commentId, objectID)
+      );
+    }
   }
 
   // The FilePreviewer expects a url ending with .pdf for PDF files
-  const baseUrl = `/api/${commentType}/${objectID}/comment/${commentId}/attachment`;
+  const baseUrl = `/api/${associatedResourceType}/${objectID}/comment/${commentId}/attachment`;
   const url = fileType === "pdf" ? `${baseUrl}.pdf` : baseUrl;
 
   return (
@@ -243,7 +247,7 @@ CommentAttachmentPreview.propTypes = {
   filename: PropTypes.string.isRequired,
   objectID: PropTypes.string.isRequired,
   commentId: PropTypes.number.isRequired,
-  commentType: PropTypes.string.isRequired,
+  associatedResourceType: PropTypes.string.isRequired,
 };
 
 export default CommentAttachmentPreview;

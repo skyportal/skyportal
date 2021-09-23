@@ -283,7 +283,7 @@ const CommentList = ({
             spectrum_id,
           }) => (
             <span
-              key={(spectrum_id ? "spectrum" : "object") + id}
+              key={(spectrum_id ? "Spectrum" : "Source") + id}
               className={commentStyle}
               onMouseOver={() =>
                 handleMouseHover(id, userProfile, author.username)
@@ -306,7 +306,7 @@ const CommentList = ({
                   <div
                     className={styles.compactWrap}
                     name={`commentDiv${
-                      (spectrum_id ? "spectrum" : "object") + id
+                      (spectrum_id ? "Spectrum" : "Source") + id
                     }`}
                   >
                     <ReactMarkdown
@@ -341,7 +341,7 @@ const CommentList = ({
                           size="small"
                           color="primary"
                           name={`deleteCommentButton${
-                            (spectrum_id ? "spectrum" : "object") + id
+                            (spectrum_id ? "Spectrum" : "Source") + id
                           }`}
                           onClick={() =>
                             spectrum_id
@@ -404,7 +404,7 @@ const CommentList = ({
                           color="primary"
                           type="button"
                           name={`deleteCommentButton${
-                            (spectrum_id ? "spectrum" : "object") + id
+                            (spectrum_id ? "Spectrum" : "Source") + id
                           }`}
                           onClick={() =>
                             spectrum_id
@@ -420,7 +420,7 @@ const CommentList = ({
                     <div
                       className={styles.wrap}
                       name={`commentDiv${
-                        (spectrum_id ? "spectrum" : "object") + id
+                        (spectrum_id ? "Spectrum" : "Source") + id
                       }`}
                     >
                       <ReactMarkdown
@@ -440,7 +440,9 @@ const CommentList = ({
                           filename={attachment_name}
                           objectID={spectrum_id || objID}
                           commentId={id}
-                          commentType={spectrum_id ? "spectrum" : "sources"}
+                          associatedResourceType={
+                            spectrum_id ? "spectrum" : "sources"
+                          }
                         />
                       )}
                     </span>
