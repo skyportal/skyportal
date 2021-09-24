@@ -463,7 +463,7 @@ assignment:
   - obj_id: ZTF18aabcvnq
     run_id: =esi_run
     priority: "3"
-    comment: Please only take when seeing is below 2
+    comment: Please only take when seeing is below 2"
 
 photometry:
   - obj_id: ZTF18aaqjmps
