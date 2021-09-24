@@ -43,7 +43,7 @@ const GroupShareSelect = ({
   };
 
   const groupIDToName = {};
-  groupList.forEach((group) => {
+  groupList?.forEach((group) => {
     groupIDToName[group.id] = group.nickname ? group.nickname : group.name;
   });
 

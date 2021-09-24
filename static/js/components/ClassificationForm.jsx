@@ -64,7 +64,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);
   const groupIDToName = {};
-  groups.forEach((g) => {
+  groups?.forEach((g) => {
     groupIDToName[g.id] = g.name;
   });
   const ITEM_HEIGHT = 48;
@@ -250,7 +250,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       },
     },
   };
-  latestTaxonomyList.forEach((taxonomy) => {
+  latestTaxonomyList?.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy).map(
       (option) =>
         `${option.class} <> ${

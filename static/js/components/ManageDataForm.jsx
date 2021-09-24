@@ -37,7 +37,7 @@ function get_filename(spectrum) {
 
 function to_csv(spectrum) {
   const formatted = [];
-  spectrum.wavelengths.forEach((wave, i) => {
+  spectrum.wavelengths?.forEach((wave, i) => {
     const obj = {};
     obj.wavelength = wave;
     obj.flux = spectrum.fluxes[i];
