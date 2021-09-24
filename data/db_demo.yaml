@@ -411,13 +411,13 @@ annotation:
     data:
       numeric_field: 0.11235813
       some_boolean: true
-      some_text: "Some auto-annotated text"
+      class: "SNe II"
   - obj_id: ZTF18aabcvnq
     origin: "Program b"
     data:
       numeric_field: 0.213471118
       some_boolean: false
-      some_text: "More auto-annotated text"
+      class: "varstar"
   - obj_id: ZTFe028h94k
     origin: "Program B"
     data:
