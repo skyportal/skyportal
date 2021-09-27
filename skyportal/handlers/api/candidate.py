@@ -10,6 +10,7 @@ import numpy as np
 from tornado.ioloop import IOLoop
 
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import case, func, FromClause
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql import column
@@ -18,6 +19,7 @@ from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.models import conn as db_conn
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
@@ -25,6 +27,7 @@ from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    User,
     Obj,
     Candidate,
     Photometry,
@@ -48,9 +51,13 @@ cache = Cache(
 )
 log = make_log('api/candidate')
 
+Session = scoped_session(sessionmaker(bind=db_conn))
 
-def add_linked_thumbnails_and_push_ws_msg(obj_id, user):
+
+def add_linked_thumbnails_and_push_ws_msg(obj_id, user_id):
+    session = Session()
     try:
+        user = User.query.get(user_id)
         obj = Obj.get_if_accessible_by(obj_id, user)
         obj.add_linked_thumbnails()
         flow = Flow()
@@ -61,7 +68,7 @@ def add_linked_thumbnails_and_push_ws_msg(obj_id, user):
     except Exception as e:
         log(f"Unable to add linked thumbnails to {obj_id}: {e}")
     finally:
-        DBSession.remove()
+        session.remove()
 
 
 def update_redshift_history_if_relevant(request_data, obj, user):
@@ -1020,7 +1027,7 @@ class CandidateHandler(BaseHandler):
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj.id, self.current_user
+                    obj.id, self.current_user.id
                 ),
             )
 

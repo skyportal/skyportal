@@ -30,6 +30,7 @@ from ...models import (
     Comment,
     Instrument,
     Obj,
+    User,
     Source,
     Thumbnail,
     Token,
@@ -56,6 +57,7 @@ from .candidate import (
     grab_query_results,
     update_redshift_history_if_relevant,
     add_linked_thumbnails_and_push_ws_msg,
+    Session,
 )
 from .photometry import serialize
 from .color_mag import get_color_mag
@@ -78,8 +80,10 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
     return query
 
 
-def add_ps1_thumbnail_and_push_ws_msg(obj_id, user):
+def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
+    session = Session()
     try:
+        user = User.query.get(user_id)
         obj = Obj.get_if_accessible_by(obj_id, user)
         obj.add_ps1_thumbnail()
         flow = Flow()
@@ -90,7 +94,7 @@ def add_ps1_thumbnail_and_push_ws_msg(obj_id, user):
     except Exception as e:
         log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
     finally:
-        DBSession.remove()
+        session.remove()
 
 
 class SourceHandler(BaseHandler):
@@ -698,7 +702,7 @@ class SourceHandler(BaseHandler):
                     IOLoop.current().run_in_executor(
                         None,
                         lambda: add_ps1_thumbnail_and_push_ws_msg(
-                            obj_id, self.current_user
+                            obj_id, self.current_user.id
                         ),
                     )
                 if (
@@ -708,7 +712,7 @@ class SourceHandler(BaseHandler):
                     IOLoop.current().run_in_executor(
                         None,
                         lambda: add_linked_thumbnails_and_push_ws_msg(
-                            obj_id, self.current_user
+                            obj_id, self.current_user.id
                         ),
                     )
             if include_comments:
@@ -1445,7 +1449,7 @@ class SourceHandler(BaseHandler):
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj.id, self.current_user
+                    obj.id, self.current_user.id
                 ),
             )
         else:
@@ -2127,6 +2131,6 @@ class PS1ThumbnailHandler(BaseHandler):
         if obj_id is None:
             return self.error("Missing required parameter objID")
         IOLoop.current().add_callback(
-            lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self.current_user)
+            lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self.current_user.id)
         )
         return self.success()
