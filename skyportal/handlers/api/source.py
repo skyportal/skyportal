@@ -52,11 +52,7 @@ from ...utils.offset import (
     get_finding_chart,
     _calculate_best_position_for_offset_stars,
 )
-from .candidate import (
-    grab_query_results,
-    update_redshift_history_if_relevant,
-    add_linked_thumbnails_and_push_ws_msg,
-)
+from .candidate import grab_query_results, update_redshift_history_if_relevant
 from .photometry import serialize
 from .color_mag import get_color_mag
 
@@ -86,7 +82,9 @@ def add_ps1_thumbnail_and_push_ws_msg(obj_id, user):
         flow.push(
             '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
-        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
+        flow.push_all(
+            '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+        )
     except Exception as e:
         log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
     finally:
@@ -1428,23 +1426,16 @@ class SourceHandler(BaseHandler):
                         obj=obj, group=group, saved_by_id=self.associated_user_object.id
                     )
                 )
-
-        if not obj_already_exists:
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj.id, self.current_user
-                ),
-            )
-        else:
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-            )
-            self.push_all(
-                action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-            )
-
         self.verify_and_commit()
+        if not obj_already_exists:
+            obj.add_linked_thumbnails()
+        self.push_all(
+            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+        )
+
+        self.push_all(
+            action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+        )
         return self.success(data={"id": obj.id})
 
     @permissions(['Upload data'])
@@ -1491,7 +1482,7 @@ class SourceHandler(BaseHandler):
             payload={"obj_key": obj.internal_key},
         )
 
-        return self.success()
+        return self.success(action='skyportal/FETCH_SOURCES')
 
     @permissions(['Manage sources'])
     def delete(self, obj_id, group_id):
@@ -1529,7 +1520,7 @@ class SourceHandler(BaseHandler):
         s.unsaved_by = self.current_user
         self.verify_and_commit()
 
-        return self.success()
+        return self.success(action='skyportal/FETCH_SOURCES')
 
 
 class SourceOffsetsHandler(BaseHandler):
