@@ -693,21 +693,10 @@ class SourceHandler(BaseHandler):
                 self.verify_and_commit()
 
             if include_thumbnails:
-                existing_thumbnail_types = [thumb.type for thumb in s.thumbnails]
-                if "ps1" not in existing_thumbnail_types:
+                if "ps1" not in [thumb.type for thumb in s.thumbnails]:
                     IOLoop.current().run_in_executor(
                         None,
                         lambda: add_ps1_thumbnail_and_push_ws_msg(
-                            obj_id, self.current_user
-                        ),
-                    )
-                if (
-                    "sdss" not in existing_thumbnail_types
-                    or "dr8" not in existing_thumbnail_types
-                ):
-                    IOLoop.current().run_in_executor(
-                        None,
-                        lambda: add_linked_thumbnails_and_push_ws_msg(
                             obj_id, self.current_user
                         ),
                     )
