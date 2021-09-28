@@ -20,6 +20,7 @@ from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.flow import Flow
+from baselayer.app.custom_exceptions import AccessError
 from baselayer.log import make_log
 
 from ..base import BaseHandler
@@ -83,8 +84,12 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
 def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
     session = Session()
     try:
-        user = User.query.get(user_id)
-        obj = Obj.get_if_accessible_by(obj_id, user)
+        user = session.query(User).get(user_id)
+        if Obj.get_if_accessible_by(obj_id, user) is None:
+            raise AccessError(
+                f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+            )
+        obj = session.query(Obj).get(obj_id)
         obj.add_ps1_thumbnail(session=session)
         flow = Flow()
         flow.push(
