@@ -112,7 +112,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
   let classifications = [];
-  latestTaxonomyList.forEach((taxonomy) => {
+  latestTaxonomyList?.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy).map(
       (option) => `${taxonomy.name}: ${option.class}`
     );

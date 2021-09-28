@@ -131,7 +131,7 @@ const FollowupRequestLists = ({
       { name: "requester.username", label: "Requester" },
       { name: "allocation.group.name", label: "Allocation" },
     ];
-    keys.forEach((key) => {
+    keys?.forEach((key) => {
       const renderKey = (value) =>
         Array.isArray(value) ? value.join(",") : value;
 

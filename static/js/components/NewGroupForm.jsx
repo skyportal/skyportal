@@ -40,7 +40,7 @@ const NewGroupForm = () => {
   }, [dispatch, allUsers]);
 
   const userIDToName = {};
-  allUsers.forEach((u) => {
+  allUsers?.forEach((u) => {
     userIDToName[u.id] = u.username;
   });
 

@@ -12,7 +12,7 @@ is associated with.
 In the past, a comment was accessed via the endpoint
 `api/comment/<commentID>`
 
-In the new framework the comment must be accessed via
+In the new framework, a comment on a source must be accessed via
 the source path:
 `api/sources/<sourceID>/comment/<commentID>`
 
@@ -23,7 +23,8 @@ For annotations, use:
 `api/sources/<sourceID>/annotation/<annotationID>`
 
 In all cases, when posting a new comment/annotation,
-do not supply a commentID or annotationID at the end of the path.
+do not supply a commentID or annotationID at the end of the path, e.g.,
+POST to `api/sources/<sourceID>/comment`.
 
 Any existing scripts that use the comment or annotation
 API must be changed accordingly.

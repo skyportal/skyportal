@@ -77,22 +77,22 @@ const FollowupRequestForm = ({
   }
 
   const groupLookUp = {};
-  allGroups.forEach((group) => {
+  allGroups?.forEach((group) => {
     groupLookUp[group.id] = group;
   });
 
   const telLookUp = {};
-  telescopeList.forEach((tel) => {
+  telescopeList?.forEach((tel) => {
     telLookUp[tel.id] = tel;
   });
 
   const allocationLookUp = {};
-  allocationList.forEach((allocation) => {
+  allocationList?.forEach((allocation) => {
     allocationLookUp[allocation.id] = allocation;
   });
 
   const instLookUp = {};
-  instrumentList.forEach((instrumentObj) => {
+  instrumentList?.forEach((instrumentObj) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
 

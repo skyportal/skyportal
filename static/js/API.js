@@ -62,6 +62,8 @@ function API(endpoint, actionType, method = "GET", body = {}, otherArgs = {}) {
       return dispatch({
         type: `${actionType}_FAIL`,
         parameters,
+        status: "error",
+        message: error.message,
       });
     }
   };

@@ -53,7 +53,7 @@ const ScanningPageCandidateAnnotations = ({ annotations }) => {
   const dispatch = useDispatch();
 
   const initState = {};
-  annotations.forEach((annotation) => {
+  annotations?.forEach((annotation) => {
     initState[annotation.origin] = true;
   });
   const [openedOrigins, setopenedOrigins] = useState(initState);

@@ -246,7 +246,7 @@ const reducer = (state = { source: null, loadError: false }, action) => {
     case FETCH_LOADED_SOURCE_FAIL:
       return {
         ...state,
-        loadError: "Unknown error while loading source",
+        loadError: `Error while loading source: ${action.message}`,
       };
     case GET_COMMENT_ATTACHMENT_OK: {
       const { commentId, attachment } = action.data;

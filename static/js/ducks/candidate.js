@@ -29,11 +29,10 @@ const reducer = (state = initialState, action) => {
         ...state,
         loadError: action.message,
       };
-
     case FETCH_CANDIDATE_FAIL:
       return {
         ...state,
-        loadError: "Unknown error while loading candidate",
+        loadError: `Error while loading candidate: ${action.message}`,
       };
     default:
       return state;
