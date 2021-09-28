@@ -103,6 +103,7 @@ if __name__ == "__main__":
     RETRIES = 15
     timeout = 3
     admin_token = None
+    status = None
     for i in range(RETRIES):
         try:
             previous_admin_token = admin_token
