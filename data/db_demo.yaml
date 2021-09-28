@@ -400,6 +400,8 @@ comment:
     text: "Kilroy was here"
   - obj_id: ZTF21aaqjmps
     text: "Birds aren't real"
+  - obj_id: ZTF21aaqjmps
+    text: 'Thanks to Daniel Perley and his team for this spectrum. It was observed 2021-04-03 02:28:20 on LT/SPRAT"
 
   - obj_id: ZTF18aabcvnq
     text: "Gosh, stars are cool"
@@ -513,6 +515,7 @@ spectrum:
     instrument_id: =SPRAT
     observed_at: "2021-04-03T02:28:19.921"
     assignment_id: 1
+    origin: "Daniel Perley"
     group_ids:
       - =program_A
       - =program_B
