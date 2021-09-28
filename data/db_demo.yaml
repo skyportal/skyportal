@@ -309,7 +309,7 @@ allocation:
     instrument_id: =ZTF
 
 candidates:
-  - id: ZTF18aaqjmps
+  - id: ZTF21aaqjmps
     filter_ids:
       - =example_filter
       - =example_filter2
@@ -353,7 +353,7 @@ candidates:
     passed_at: "2020-10-30 11:23:06.475748"
 
 sources:
-  - id: ZTF18aaqjmps
+  - id: ZTF21aaqjmps
     ra: 202.5050541
     dec: 13.4111859
     group_ids:
@@ -396,9 +396,9 @@ sources:
     alias: [""]
 
 comment:
-  - obj_id: ZTF18aaqjmps
+  - obj_id: ZTF21aaqjmps
     text: "Kilroy was here"
-  - obj_id: ZTF18aaqjmps
+  - obj_id: ZTF21aaqjmps
     text: "Birds aren't real"
 
   - obj_id: ZTF18aabcvnq
@@ -406,7 +406,7 @@ comment:
   - obj_id: ZTF18aabcvnq
     text: "You're a star! <3"
 annotation:
-  - obj_id: ZTF18aaqjmps
+  - obj_id: ZTF21aaqjmps
     origin: "Program A"
     data:
       numeric_field: 0.11235813
@@ -455,7 +455,7 @@ observing_run:
     =id: lris_run
 
 assignment:
-  - obj_id: ZTF18aaqjmps
+  - obj_id: ZTF21aaqjmps
     run_id: =lris_run
     priority: "2"
     comment: Please get  3x100s
@@ -466,7 +466,7 @@ assignment:
     comment: Please only take when seeing is below 2"
 
 photometry:
-  - obj_id: ZTF18aaqjmps
+  - obj_id: ZTF21aaqjmps
     instrument_id: =ZTF
     assignment_id: 3
     file: ZTF21aaqjmps_phot.csv
@@ -508,7 +508,7 @@ photometry:
       - =ztf_partnership
 
 spectrum:
-  - obj_id: ZTF18aaqjmps
+  - obj_id: ZTF21aaqjmps
     file: ZTF21aaqjmps_spec.csv
     instrument_id: =SPRAT
     observed_at: "2021-04-03T02:28:19.921"
@@ -518,15 +518,15 @@ spectrum:
       - =program_B
 
 thumbnail:
-  - obj_id: ZTF18aaqjmps
+  - obj_id: ZTF21aaqjmps
     ttype: new
     data:
       file: ../skyportal/tests/data/ZTF21aaqjmps_new.png
-  - obj_id: ZTF18aaqjmps
+  - obj_id: ZTF21aaqjmps
     ttype: ref
     data:
       file: ../skyportal/tests/data/ZTF21aaqjmps_ref.png
-  - obj_id: ZTF18aaqjmps
+  - obj_id: ZTF21aaqjmps
     ttype: sub
     data:
       file: ../skyportal/tests/data/ZTF21aaqjmps_sub.png
