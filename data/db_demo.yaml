@@ -414,26 +414,31 @@ sources:
       - =program_B
     alias: [""]
 
-comment:
+sources/14gqr_unsaved_copy/comment:
   - obj_id: 14gqr_unsaved_copy
     text: "No source at transient location to R>26 in LRIS imaging"
   - obj_id: 14gqr_unsaved_copy
     text: "Strong calcium lines have emerged."
+
+sources/14gqr/comment:
   - obj_id: 14gqr
     text: "No source at transient location to R>26 in LRIS imaging"
   - obj_id: 14gqr
     text: "Strong calcium lines have emerged."
 
+sources/16fil_unsaved_copy/comment:
   - obj_id: 16fil_unsaved_copy
     text: "Dogs in the park"
   - obj_id: 16fil_unsaved_copy
     text: "Birds are not real"
+
+sources/16fil/comment:
   - obj_id: 16fil
     text: "Dogs in the park"
   - obj_id: 16fil
     text: "Birds are not real"
 
-annotation:
+sources/14gqr_unsaved_copy/annotation:
   - obj_id: 14gqr_unsaved_copy
     origin: "Program A"
     data:
@@ -452,6 +457,8 @@ annotation:
         flag: true
     group_ids:
       - =program_B
+
+sources/14gqr/annotation:
   - obj_id: 14gqr
     origin: "Program A"
     data:
@@ -479,6 +486,8 @@ annotation:
         Mag_Bp: 7.6
         Mag_Rp: 5.1
         A_G: 0.3
+
+sources/16fil_unsaved_copy/annotation:
   - obj_id: 16fil_unsaved_copy
     origin: "Program A"
     data:
@@ -486,6 +495,8 @@ annotation:
       some_boolean: false
     group_ids:
       - =program_A
+
+sources/16fil/annotation:
   - obj_id: 16fil
     origin: "Program A"
     data:
@@ -493,6 +504,8 @@ annotation:
       some_boolean: false
     group_ids:
       - =program_A
+
+sources/ZTFe028h94k/annotation:
   - obj_id: ZTFe028h94k
     origin: "Program B"
     data:
@@ -505,6 +518,8 @@ annotation:
       period: 0.5281217208459
     group_ids:
       - =program_B
+
+sources/ZTFrlh6cyjh/annotation:
   - obj_id: ZTFrlh6cyjh
     origin: "ZVM"
     data:
