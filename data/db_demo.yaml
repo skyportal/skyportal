@@ -395,7 +395,7 @@ sources:
       - =program_B
     alias: [""]
 
-comment:
+sources/ZTF21aaqjmps/comment:
   - obj_id: ZTF21aaqjmps
     text: "Kilroy was here"
   - obj_id: ZTF21aaqjmps
@@ -403,29 +403,37 @@ comment:
   - obj_id: ZTF21aaqjmps
     text: "Thanks to Daniel Perley and his team for this spectrum. It was observed 2021-04-03 02:28:20 on LT/SPRAT"
 
+sources/ZTF18aabcvnq/comment:
   - obj_id: ZTF18aabcvnq
     text: "Gosh, stars are cool"
   - obj_id: ZTF18aabcvnq
     text: "You're a star! <3"
-annotation:
+
+sources/ZTF21aaqjmps/annotation:
   - obj_id: ZTF21aaqjmps
     origin: "Program A"
     data:
       numeric_field: 0.11235813
       some_boolean: true
       class: "SNe II"
+
+sources/ZTF18aabcvnq/annotation:
   - obj_id: ZTF18aabcvnq
     origin: "Program b"
     data:
       numeric_field: 0.213471118
       some_boolean: false
       class: "varstar"
+
+sources/ZTFe028h94k/annotation:
   - obj_id: ZTFe028h94k
     origin: "Program B"
     data:
       period: 0.5281475
     group_ids:
       - =program_B
+
+sources/ZTFe028h94k/annotation:
   - obj_id: ZTFe028h94k
     origin: "ZVM"
     data:
