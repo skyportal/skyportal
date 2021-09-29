@@ -432,6 +432,8 @@ annotation:
       period: 0.5281217208459
     group_ids:
       - =program_B
+
+sources/ZTFrlh6cyjh/annotation:
   - obj_id: ZTFrlh6cyjh
     origin: "ZVM"
     data:

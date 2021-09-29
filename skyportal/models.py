@@ -1,3 +1,4 @@
+import os
 import json
 import re
 import uuid
@@ -63,6 +64,7 @@ from baselayer.app.models import (  # noqa
     AccessibleIfRelatedRowsAreAccessible,
     CronJobRun,
 )
+from baselayer.log import make_log
 from skyportal import facility_apis
 from . import schema
 from .email_utils import send_email
@@ -89,6 +91,8 @@ cosmo = establish_cosmology(cfg)
 
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
+
+log = make_log('db_models')
 
 
 def get_app_base_url():
@@ -1033,18 +1037,18 @@ class Obj(Base, ha.Point):
             .label('peak_detected_mag')
         )
 
-    def add_linked_thumbnails(self):
+    def add_linked_thumbnails(self, session=DBSession):
         """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
         sdss_thumb = Thumbnail(obj=self, public_url=self.sdss_url, type='sdss')
         dr8_thumb = Thumbnail(obj=self, public_url=self.desi_dr8_url, type='dr8')
-        DBSession().add_all([sdss_thumb, dr8_thumb])
-        DBSession().commit()
+        session.add_all([sdss_thumb, dr8_thumb])
+        session.commit()
 
-    def add_ps1_thumbnail(self):
+    def add_ps1_thumbnail(self, session=DBSession):
         ps1_thumb = Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1")
-        DBSession().add(ps1_thumb)
-        DBSession().commit()
+        session.add(ps1_thumb)
+        session.commit()
 
     @property
     def sdss_url(self):
@@ -3152,6 +3156,25 @@ def classify_thumbnail_grayscale(mapper, connection, target):
             )
         except requests.exceptions.RequestException:
             pass
+
+
+@event.listens_for(Thumbnail, 'after_delete')
+def delete_thumbnail_from_disk(mapper, connection, target):
+    if target.file_uri is not None:
+        try:
+            os.remove(target.file_uri)
+        except (FileNotFoundError, OSError) as e:
+            log(f"Error deleting thumbnail file {target.file_uri}: {e}")
+
+
+@event.listens_for(Obj, 'before_delete')
+def delete_obj_thumbnails_from_disk(mapper, connection, target):
+    for thumb in target.thumbnails:
+        if thumb.file_uri is not None:
+            try:
+                os.remove(thumb.file_uri)
+            except (FileNotFoundError, OSError) as e:
+                log(f"Error deleting thumbnail file {thumb.file_uri}: {e}")
 
 
 class ObservingRun(Base):

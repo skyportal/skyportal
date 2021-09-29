@@ -634,7 +634,7 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
 
     status, data = api(
         'POST',
-        'annotation',
+        f'sources/{public_source.id}/annotation',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',

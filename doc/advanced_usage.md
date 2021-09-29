@@ -32,7 +32,7 @@ data = {'obj_id': '2021example',
         }
 
 response = requests.post(
-      f'{url}/api/annotation',
+      f'{url}/api/sources/2021example/annotation',
       header=header,
       data=json.dumps(data)
     )

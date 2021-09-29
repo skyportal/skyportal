@@ -33,7 +33,7 @@ const Groups = () => {
     return <h3>Loading...</h3>;
   }
 
-  const nonMemberGroups = allGroups.filter(
+  const nonMemberGroups = allGroups?.filter(
     (g) => !g.single_user_group && !userGroups.map((ug) => ug.id).includes(g.id)
   );
 

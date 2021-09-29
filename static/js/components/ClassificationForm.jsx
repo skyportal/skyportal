@@ -64,7 +64,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);
   const groupIDToName = {};
-  groups.forEach((g) => {
+  groups?.forEach((g) => {
     groupIDToName[g.id] = g.name;
   });
   const ITEM_HEIGHT = 48;
@@ -77,7 +77,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
     },
   };
 
-  const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
+  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
 
   const handleSubmit = async ({ formData }) => {
     setSubmissionRequestInProcess(true);
@@ -90,7 +90,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       probability: formData.probability,
     };
     if (formData.groupIDs) {
-      data.group_ids = formData.groupIDs.map((id) => parseInt(id, 10));
+      data.group_ids = formData.groupIDs?.map((id) => parseInt(id, 10));
     }
     const result = await dispatch(Actions.addClassification(data));
     setSubmissionRequestInProcess(false);
@@ -112,7 +112,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
         onChange(event.target.value);
       }}
     >
-      {options.enumOptions.map((option) => {
+      {options.enumOptions?.map((option) => {
         const [classification, context] = option.value.split(" <> ");
         return (
           <MenuItem key={option.value} value={option.value}>
@@ -180,7 +180,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
         value={value || ""}
         renderValue={(selected) => (
           <div className={classes.chips}>
-            {selected.map((group) => (
+            {selected?.map((group) => (
               <Chip
                 key={group}
                 label={groupIDToName[group]}
@@ -194,7 +194,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
         multiple
       >
         {options.enumOptions.length > 0 &&
-          options.enumOptions.map((group) => (
+          options.enumOptions?.map((group) => (
             <MenuItem
               value={group.value}
               key={group.value.toString()}
@@ -230,16 +230,16 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
         type: "array",
         items: {
           type: "string",
-          enum: groups.map((group) => group.id.toString()),
-          enumNames: groups.map((group) => group.name),
+          enum: groups?.map((group) => group.id.toString()),
+          enumNames: groups?.map((group) => group.name),
         },
         uniqueItems: true,
       },
       taxonomy: {
         type: "string",
         title: "Taxonomy",
-        enum: latestTaxonomyList.map((taxonomy) => taxonomy.id.toString()),
-        enumNames: latestTaxonomyList.map(
+        enum: latestTaxonomyList?.map((taxonomy) => taxonomy.id.toString()),
+        enumNames: latestTaxonomyList?.map(
           (taxonomy) => `${taxonomy.name} (${taxonomy.version})`
         ),
       },
@@ -250,7 +250,7 @@ const ClassificationForm = ({ obj_id, taxonomyList }) => {
       },
     },
   };
-  latestTaxonomyList.forEach((taxonomy) => {
+  latestTaxonomyList?.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy).map(
       (option) =>
         `${option.class} <> ${

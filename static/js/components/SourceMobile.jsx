@@ -355,7 +355,7 @@ const SourceMobile = WidthProvider(
                 </div>
                 <br />
                 {showStarList && <StarList sourceId={source.id} />}
-                {source.groups.map((group) => (
+                {source.groups?.map((group) => (
                   <Tooltip
                     title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
                     key={group.id}
@@ -374,7 +374,7 @@ const SourceMobile = WidthProvider(
                 <EditSourceGroups
                   source={{
                     id: source.id,
-                    currentGroupIds: source.groups.map((g) => g.id),
+                    currentGroupIds: source.groups?.map((g) => g.id),
                   }}
                   groups={groups}
                   icon

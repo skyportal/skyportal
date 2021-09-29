@@ -34,7 +34,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 const reducer = (state = { favorites: [] }, action) => {
   switch (action.type) {
     case FETCH_FAVORITES_OK: {
-      const favorites = action.data.map((fav) => fav.obj_id);
+      const favorites = action.data?.map((fav) => fav.obj_id);
       return {
         ...state,
         favorites,
