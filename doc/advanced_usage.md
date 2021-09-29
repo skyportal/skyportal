@@ -92,7 +92,7 @@ the status would be 400.
 
 ## Spectroscopic lines
 
-The selection of element and galaxy lines on SkyPortal were derived from the NIST atomic database (https://www.nist.gov/pml/atomic-spectra-database) , using the methods of Gal-Yam (2019) (https://ui.adsabs.harvard.edu/abs/2019ApJ...882..102G/abstract). 
+The selection of element and galaxy lines on SkyPortal were derived from the NIST atomic database (<https://www.nist.gov/pml/atomic-spectra-database>) , using the methods of Gal-Yam (2019) (<https://ui.adsabs.harvard.edu/abs/2019ApJ...882..102G/abstract>). 
 Telluric and Skylines were migrated from the ZTF Marshal. 
 
-Element lines and galaxy lines move according to the set redshift or expansion velocity. Tellurics and skylines remain static. 
+Element lines and galaxy lines move according to the set redshift or expansion velocity. Tellurics and skylines remain static.
