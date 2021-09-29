@@ -1,3 +1,5 @@
+import uuid
+
 from skyportal.tests import api
 import datetime
 
@@ -274,3 +276,65 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
         'GET', f'spectrum/{spectrum_id}/comment/{comment_id}', token=comment_token
     )
     assert status == 403
+
+
+def test_get_source_comments(comment_token, upload_data_token, public_source, lris):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': "all",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    spectrum_id = data["data"]["id"]
+
+    # post a comment directly on the source
+    comment_text1 = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        f'sources/{public_source.id}/comment',
+        data={
+            'text': comment_text1,
+        },
+        token=comment_token,
+    )
+    assert status == 200
+    comment_id1 = data['data']['comment_id']
+
+    # post a comment on the spectrum on the source
+    comment_text2 = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        f'spectrum/{spectrum_id}/comment',
+        data={
+            'obj_id': public_source.id,
+            'spectrum_id': spectrum_id,
+            'text': comment_text2,
+        },
+        token=comment_token,
+    )
+    assert status == 200
+    comment_id2 = data['data']['comment_id']
+
+    status, data = api(
+        'GET',
+        f'sources/{public_source.id}',
+        params={'includeComments': True},
+        token=comment_token,
+    )
+
+    assert status == 200
+    comments = data['data']['comments']
+    comment1 = [c for c in comments if c['id'] == comment_id1][0]
+    comment2 = [c for c in comments if c['id'] == comment_id2][0]
+
+    assert comment1['text'] == comment_text1
+    assert comment2['text'] == comment_text2
