@@ -313,12 +313,12 @@ class AnnotationHandler(BaseHandler):
         elif associated_resource_type.lower() == "spectrum":
             schema = AnnotationOnSpectrum.__schema__()
             try:
-                c = AnnotationOnSpectrum.get_if_accessible_by(
+                a = AnnotationOnSpectrum.get_if_accessible_by(
                     annotation_id, self.current_user, mode="update", raise_if_none=True
                 )
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
-            annotation_resource_id_str = str(c.spectrum_id)
+            annotation_resource_id_str = str(a.spectrum_id)
 
         # add more options using elif
         else:
@@ -417,14 +417,14 @@ class AnnotationHandler(BaseHandler):
             annotation_resource_id_str = str(a.obj_id)
         elif associated_resource_type.lower() == "spectrum":
             try:
-                c = AnnotationOnSpectrum.get_if_accessible_by(
+                a = AnnotationOnSpectrum.get_if_accessible_by(
                     annotation_id, self.current_user, mode="delete", raise_if_none=True
                 )
             except AccessError:
                 return self.error(
                     'Could not find any accessible annotations.', status=403
                 )
-            annotation_resource_id_str = str(c.spectrum_id)
+            annotation_resource_id_str = str(a.spectrum_id)
 
         # add more options using elif
         else:
@@ -447,7 +447,7 @@ class AnnotationHandler(BaseHandler):
                 action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key}
             )
 
-        if isinstance(c, AnnotationOnSpectrum):  # also update the spectrum
+        if isinstance(a, AnnotationOnSpectrum):  # also update the spectrum
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_id': obj_id},
