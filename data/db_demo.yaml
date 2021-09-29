@@ -432,8 +432,6 @@ sources/ZTFe028h94k/annotation:
       period: 0.5281475
     group_ids:
       - =program_B
-
-sources/ZTFe028h94k/annotation:
   - obj_id: ZTFe028h94k
     origin: "ZVM"
     data:
