@@ -133,6 +133,8 @@ class SpectrumHandler(BaseHandler):
         spec.instrument = instrument
         spec.groups = groups
         spec.owner_id = owner_id
+        if spec.type is None:
+            spec.type = 'source'
         DBSession().add(spec)
         for reducer in reducers:
             reducer.spectrum = spec
