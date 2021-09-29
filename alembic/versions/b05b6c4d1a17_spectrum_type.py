@@ -21,11 +21,12 @@ def upgrade():
     op.add_column(
         'spectra', sa.Column('type', sa.String(), nullable=False, default="source")
     )
-    # ### end Alembic commands ###
     conn = op.get_bind()
     meta = sa.MetaData(bind=conn)
-    spectra = sa.Table('services', meta)
+    spectra = sa.Table('spectra', meta)
     conn.execute(spectra.update().where(spectra.c.type.is_(None)).values(type="source"))
+
+    # ### end Alembic commands ###
 
 
 def downgrade():
