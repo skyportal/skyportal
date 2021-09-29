@@ -1,8 +1,8 @@
 """spectrum type
 
-Revision ID: 9ab475331549
-Revises: b05b6c4d1a17
-Create Date: 2021-09-29 14:13:34.563693
+Revision ID: b05b6c4d1a17
+Revises: 171e9ea18885
+Create Date: 2021-09-29 13:55:31.409866
 
 """
 from alembic import op
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9ab475331549'
-down_revision = 'b05b6c4d1a17'
+revision = 'b05b6c4d1a17'
+down_revision = '171e9ea18885'
 branch_labels = None
 depends_on = None
 
