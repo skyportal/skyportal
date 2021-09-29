@@ -53,7 +53,7 @@ const SourceNotification = ({ sourceId }) => {
   const classes = useStyles();
   const groups = useSelector((state) => state.groups.userAccessible);
   const groupIDToName = {};
-  groups.forEach((g) => {
+  groups?.forEach((g) => {
     groupIDToName[g.id] = g.name;
   });
 

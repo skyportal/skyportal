@@ -153,6 +153,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const CommentList = ({
+  isCandidate = false,
   associatedResourceType = "object",
   objID = null,
   spectrumID = null,
@@ -175,7 +176,9 @@ const CommentList = ({
   };
 
   const dispatch = useDispatch();
-  const obj = useSelector((state) => state.source);
+  const source = useSelector((state) => state.source);
+  const candidate = useSelector((state) => state.candidate);
+  const obj = isCandidate ? candidate : source;
   const spectra = useSelector((state) => state.spectra);
   const userProfile = useSelector((state) => state.profile);
   const permissions = useSelector((state) => state.profile.permissions);
@@ -224,13 +227,6 @@ const CommentList = ({
     throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
   }
 
-  // Color styling
-  const userColorTheme = useSelector(
-    (state) => state.profile.preferences.theme
-  );
-  const commentStyle =
-    userColorTheme === "dark" ? styles.commentDark : styles.comment;
-
   comments = comments || [];
 
   const renderCommentText = (text, spectrum_id) => {
@@ -251,8 +247,14 @@ const CommentList = ({
     return text;
   };
 
-  const deleteComment = (commentID, resourceType) => {
-    dispatch(sourceActions.deleteComment(commentID, resourceType));
+  const deleteComment = (sourceID, commentID) => {
+    dispatch(sourceActions.deleteComment(sourceID, commentID));
+  };
+
+  const deleteCommentOnSpectrum = (commentSpectrumID, commentID) => {
+    dispatch(
+      sourceActions.deleteCommentOnSpectrum(commentSpectrumID, commentID)
+    );
   };
 
   const emojiSupport = (text) =>
@@ -260,10 +262,17 @@ const CommentList = ({
       emoji.getUnicode(name) ? emoji.getUnicode(name) : name
     );
 
+  // Color styling
+  const userColorTheme = useSelector(
+    (state) => state.profile.preferences.theme
+  );
+  const commentStyle =
+    userColorTheme === "dark" ? styles.commentDark : styles.comment;
+
   return (
     <div className={styles.commentsContainer}>
       <div className={styles.commentsList}>
-        {comments.map(
+        {comments?.map(
           ({
             id,
             author,
@@ -274,7 +283,7 @@ const CommentList = ({
             spectrum_id,
           }) => (
             <span
-              key={id}
+              key={(spectrum_id ? "Spectrum" : "Source") + id}
               className={commentStyle}
               onMouseOver={() =>
                 handleMouseHover(id, userProfile, author.username)
@@ -294,7 +303,12 @@ const CommentList = ({
                       gravatarUrl={author.gravatar_url}
                     />
                   </div>
-                  <div className={styles.compactWrap} name={`commentDiv${id}`}>
+                  <div
+                    className={styles.compactWrap}
+                    name={`commentDiv${
+                      (spectrum_id ? "Spectrum" : "Source") + id
+                    }`}
+                  >
                     <ReactMarkdown
                       source={renderCommentText(
                         text,
@@ -326,13 +340,14 @@ const CommentList = ({
                           }
                           size="small"
                           color="primary"
-                          name={`deleteCommentButton${id}`}
-                          onClick={() => {
-                            deleteComment(
-                              id,
-                              spectrum_id ? "spectrum" : "object"
-                            );
-                          }}
+                          name={`deleteCommentButton${
+                            (spectrum_id ? "Spectrum" : "Source") + id
+                          }`}
+                          onClick={() =>
+                            spectrum_id
+                              ? deleteCommentOnSpectrum(spectrum_id, id)
+                              : deleteComment(objID, id)
+                          }
                           className="commentDelete"
                         >
                           <CloseIcon fontSize="small" />
@@ -365,7 +380,9 @@ const CommentList = ({
                         </span>
                         <span className={styles.commentUserGroup}>
                           <Tooltip
-                            title={groups.map((group) => group.name).join(", ")}
+                            title={groups
+                              ?.map((group) => group.name)
+                              ?.join(", ")}
                           >
                             <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
                           </Tooltip>
@@ -386,20 +403,26 @@ const CommentList = ({
                           size="small"
                           color="primary"
                           type="button"
-                          name={`deleteCommentButton${id}`}
-                          onClick={() => {
-                            deleteComment(
-                              id,
-                              spectrum_id ? "spectrum" : "object"
-                            );
-                          }}
+                          name={`deleteCommentButton${
+                            (spectrum_id ? "Spectrum" : "Source") + id
+                          }`}
+                          onClick={() =>
+                            spectrum_id
+                              ? deleteCommentOnSpectrum(spectrum_id, id)
+                              : deleteComment(objID, id)
+                          }
                           className="commentDelete"
                         >
                           <CloseIcon fontSize="small" />
                         </Button>
                       </div>
                     </div>
-                    <div className={styles.wrap} name={`commentDiv${id}`}>
+                    <div
+                      className={styles.wrap}
+                      name={`commentDiv${
+                        (spectrum_id ? "Spectrum" : "Source") + id
+                      }`}
+                    >
                       <ReactMarkdown
                         source={renderCommentText(
                           text,
@@ -415,7 +438,11 @@ const CommentList = ({
                       {attachment_name && (
                         <CommentAttachmentPreview
                           filename={attachment_name}
+                          objectID={spectrum_id || objID}
                           commentId={id}
+                          associatedResourceType={
+                            spectrum_id ? "spectrum" : "sources"
+                          }
                         />
                       )}
                     </span>
@@ -435,6 +462,7 @@ const CommentList = ({
 };
 
 CommentList.propTypes = {
+  isCandidate: PropTypes.bool,
   objID: PropTypes.string,
   associatedResourceType: PropTypes.string,
   spectrumID: PropTypes.number,
@@ -442,6 +470,7 @@ CommentList.propTypes = {
 };
 
 CommentList.defaultProps = {
+  isCandidate: false,
   objID: null,
   associatedResourceType: "object",
   spectrumID: null,

@@ -167,23 +167,23 @@ const ThumbnailList = ({
   displayTypes = ["new", "ref", "sub", "sdss", "dr8", "ps1"],
 }) => {
   thumbnails
-    .filter((thumbnail) => displayTypes.includes(thumbnail.type))
-    .sort(sortThumbnailsByDate);
+    ?.filter((thumbnail) => displayTypes.includes(thumbnail.type))
+    ?.sort(sortThumbnailsByDate);
 
   const latestThumbnails = displayTypes
-    .map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
-    .filter((thumbnail) => thumbnail !== undefined);
+    ?.map((type) => thumbnails.find((thumbnail) => thumbnail.type === type))
+    ?.filter((thumbnail) => thumbnail !== undefined);
 
   const thumbnail_order = ["new", "ref", "sub", "sdss", "dr8", "ps1"];
   // Sort thumbnails by order of appearance in `thumbnail_order`
-  latestThumbnails.sort((a, b) =>
+  latestThumbnails?.sort((a, b) =>
     thumbnail_order.indexOf(a.type) < thumbnail_order.indexOf(b.type) ? -1 : 1
   );
 
   if (useGrid) {
     return (
       <Grid container direction="row" spacing={3}>
-        {latestThumbnails.map((t) => (
+        {latestThumbnails?.map((t) => (
           <Grid item key={t.id}>
             <Thumbnail
               key={`thumb_${t.type}`}
@@ -196,8 +196,8 @@ const ThumbnailList = ({
             />
           </Grid>
         ))}
-        {displayTypes.includes("ps1") &&
-          !latestThumbnails.map((t) => t.type).includes("ps1") && (
+        {displayTypes?.includes("ps1") &&
+          !latestThumbnails?.map((t) => t.type)?.includes("ps1") && (
             <Grid item key="placeholder">
               <Thumbnail
                 key="thumbPlaceHolder"
@@ -213,7 +213,7 @@ const ThumbnailList = ({
       </Grid>
     );
   }
-  return latestThumbnails.map((t) => (
+  return latestThumbnails?.map((t) => (
     <Grid item key={t.id}>
       <Thumbnail
         key={`thumb_${t.type}`}

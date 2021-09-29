@@ -4,7 +4,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common && \
-    curl -sL https://deb.nodesource.com/setup_12.x | bash - && \
+    curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
     apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y python3 python3-venv python3-dev \

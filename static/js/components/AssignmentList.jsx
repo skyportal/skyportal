@@ -136,21 +136,21 @@ const AssignmentList = ({ assignments }) => {
 
   const renderInstrument = (value, tableMeta) => {
     const { run_id } = assignments[tableMeta.rowIndex];
-    const run = observingRunList.filter((r) => r.id === run_id)[0];
+    const run = observingRunList?.filter((r) => r.id === run_id)[0];
     const instrument_id = run?.instrument_id;
-    const instrument = instrumentList.filter((i) => i.id === instrument_id)[0];
+    const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
     return instrument?.name || "Loading...";
   };
 
   const renderRunDate = (value, tableMeta) => {
     const { run_id } = assignments[tableMeta.rowIndex];
-    const run = observingRunList.filter((r) => r.id === run_id)[0];
+    const run = observingRunList?.filter((r) => r.id === run_id)[0];
     return run?.calendar_date || "Loading...";
   };
 
   const renderPI = (value, tableMeta) => {
     const { run_id } = assignments[tableMeta.rowIndex];
-    const run = observingRunList.filter((r) => r.id === run_id)[0];
+    const run = observingRunList?.filter((r) => r.id === run_id)[0];
     return run?.pi || "Loading...";
   };
 

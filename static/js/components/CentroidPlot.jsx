@@ -58,7 +58,7 @@ const getCirclePoints = (delRaGroup, delDecGroup) => {
   const medianRA = d3.median(delRaGroup);
   const medianDec = d3.median(delDecGroup);
 
-  const points = thetas.map((theta) => {
+  const points = thetas?.map((theta) => {
     const xx = medianRA + C * Math.cos(theta);
     const yy = medianDec + C * Math.sin(theta);
     return { xx, yy, theta };
@@ -87,7 +87,7 @@ const getMessages = (delRaGroup, delDecGroup) => {
 };
 
 // The Vega-Lite specifications for the centroid plot
-const spec = (inputData) => ({
+const spec = (inputData, textColor) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   width: "container",
   height: "container",
@@ -176,6 +176,9 @@ const spec = (inputData) => ({
             title: "\u0394RA (arcsec)",
             titleFontSize: 14,
             titlePadding: 8,
+            labelColor: textColor,
+            tickColor: textColor,
+            titleColor: textColor,
           },
         },
         y: {
@@ -185,6 +188,9 @@ const spec = (inputData) => ({
             title: "\u0394Dec (arcsec)",
             titleFontSize: 14,
             titlePadding: 8,
+            labelColor: textColor,
+            tickColor: textColor,
+            titleColor: textColor,
           },
         },
         tooltip: [
@@ -206,6 +212,8 @@ const spec = (inputData) => ({
             lableLimit: 240,
             rowPadding: 4,
             orient: "bottom",
+            labelColor: textColor,
+            titleColor: textColor,
           },
         },
         shape: {
@@ -255,6 +263,7 @@ const spec = (inputData) => ({
       },
       encoding: {
         text: { field: "message", type: "nominal" },
+        color: { value: textColor },
         x: {
           field: "x",
           type: "quantitative",
@@ -270,7 +279,7 @@ const spec = (inputData) => ({
 
 const processData = (photometry) => {
   // Only take points with a non-null RA and Dec
-  const filteredPhotometry = photometry.filter(
+  const filteredPhotometry = photometry?.filter(
     (point) => point.ra && point.dec
   );
 
@@ -347,7 +356,7 @@ const CentroidPlot = ({ sourceId, size }) => {
           data-testid="centroid-plot-div"
           ref={(node) => {
             if (node) {
-              embed(node, spec(plotData), {
+              embed(node, spec(plotData, theme.palette.text.primary), {
                 actions: false,
               });
             }

@@ -1,3 +1,4 @@
+import os
 import json
 import re
 import uuid
@@ -63,6 +64,7 @@ from baselayer.app.models import (  # noqa
     AccessibleIfRelatedRowsAreAccessible,
     CronJobRun,
 )
+from baselayer.log import make_log
 from skyportal import facility_apis
 from . import schema
 from .email_utils import send_email
@@ -89,6 +91,8 @@ cosmo = establish_cosmology(cfg)
 
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
+
+log = make_log('db_models')
 
 
 def get_app_base_url():
@@ -1042,18 +1046,18 @@ class Obj(Base, ha.Point):
             .label('peak_detected_mag')
         )
 
-    def add_linked_thumbnails(self):
+    def add_linked_thumbnails(self, session=DBSession):
         """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
         sdss_thumb = Thumbnail(obj=self, public_url=self.sdss_url, type='sdss')
         dr8_thumb = Thumbnail(obj=self, public_url=self.desi_dr8_url, type='dr8')
-        DBSession().add_all([sdss_thumb, dr8_thumb])
-        DBSession().commit()
+        session.add_all([sdss_thumb, dr8_thumb])
+        session.commit()
 
-    def add_ps1_thumbnail(self):
+    def add_ps1_thumbnail(self, session=DBSession):
         ps1_thumb = Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1")
-        DBSession().add(ps1_thumb)
-        DBSession().commit()
+        session.add(ps1_thumb)
+        session.commit()
 
     @property
     def sdss_url(self):
@@ -2452,7 +2456,9 @@ class Photometry(ha.Point, Base):
         """Signal-to-noise ratio of this Photometry point."""
         return (
             self.flux / self.fluxerr
-            if not np.isnan(self.flux) and not np.isnan(self.fluxerr)
+            if not np.isnan(self.flux)
+            and not np.isnan(self.fluxerr)
+            and self.fluxerr != 0
             else None
         )
 
@@ -2462,7 +2468,9 @@ class Photometry(ha.Point, Base):
         return sa.case(
             [
                 (
-                    sa.and_(self.flux != 'NaN', self.fluxerr != 0),  # noqa
+                    sa.and_(
+                        self.flux != 'NaN', self.fluxerr != 'NaN', self.fluxerr != 0
+                    ),  # noqa
                     self.flux / self.fluxerr,
                 )
             ],
@@ -2568,12 +2576,12 @@ class Spectrum(Base):
     reducers = relationship(
         "User",
         secondary="spectrum_reducers",
-        doc="Users that reduced this spectrum.",
+        doc="Users that reduced this spectrum, or users to serve as points of contact given an external reducer.",
     )
     observers = relationship(
         "User",
         secondary="spectrum_observers",
-        doc="Users that observed this spectrum.",
+        doc="Users that observed this spectrum, or users to serve as points of contact given an external observer.",
     )
 
     followup_request_id = sa.Column(
@@ -2820,6 +2828,22 @@ SpectrumObserver.create = (
 ) = SpectrumObserver.update = AccessibleIfUserMatches('spectrum.owner')
 
 # should be accessible only by spectrumowner ^^
+
+SpectrumReducer.external_reducer = sa.Column(
+    sa.String,
+    nullable=True,
+    doc="The actual reducer for the spectrum, provided as free text if the "
+    "reducer is not a user in the database. Separate from the point-of-contact "
+    "user designated as reducer",
+)
+SpectrumObserver.external_observer = sa.Column(
+    sa.String,
+    nullable=True,
+    doc="The actual observer for the spectrum, provided as free text if the "
+    "observer is not a user in the database. Separate from the point-of-contact "
+    "user designated as observer",
+)
+
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)
 GroupSpectrum.__doc__ = 'Join table mapping Groups to Spectra.'
@@ -3221,6 +3245,25 @@ def classify_thumbnail_grayscale(mapper, connection, target):
             )
         except requests.exceptions.RequestException:
             pass
+
+
+@event.listens_for(Thumbnail, 'after_delete')
+def delete_thumbnail_from_disk(mapper, connection, target):
+    if target.file_uri is not None:
+        try:
+            os.remove(target.file_uri)
+        except (FileNotFoundError, OSError) as e:
+            log(f"Error deleting thumbnail file {target.file_uri}: {e}")
+
+
+@event.listens_for(Obj, 'before_delete')
+def delete_obj_thumbnails_from_disk(mapper, connection, target):
+    for thumb in target.thumbnails:
+        if thumb.file_uri is not None:
+            try:
+                os.remove(thumb.file_uri)
+            except (FileNotFoundError, OSError) as e:
+                log(f"Error deleting thumbnail file {thumb.file_uri}: {e}")
 
 
 class ObservingRun(Base):
@@ -4025,6 +4068,54 @@ User.source_notifications = relationship(
     doc="Source notifications the User has sent out.",
     foreign_keys="SourceNotification.sent_by_id",
 )
+
+
+@event.listens_for(UserNotification, 'after_insert')
+def send_slack_notification(mapper, connection, target):
+
+    if not target.user:
+        return
+
+    if not target.user.preferences:
+        return
+
+    prefs = target.user.preferences.get('slack_integration')
+
+    if not prefs:
+        return
+
+    if prefs.get("active", False):
+        integration_url = prefs.get("url", "")
+    else:
+        return
+
+    if not integration_url.startswith(cfg.get("slack.expected_url_preamble", "https")):
+        return
+
+    slack_microservice_url = (
+        f'http://127.0.0.1:{cfg.get("slack.microservice_port", 64100)}'
+    )
+
+    is_mention = target.text.find("mentioned you") != -1
+
+    if (
+        is_mention
+        and not target.user.preferences['slack_integration'].get("mentions", False)
+    ) or (
+        not is_mention
+        and not target.user.preferences['slack_integration'].get(
+            "favorite_sources", False
+        )
+    ):
+        return
+
+    app_url = get_app_base_url()
+    data = json.dumps(
+        {"url": integration_url, "text": f'{target.text} ({app_url}{target.url})'}
+    )
+    requests.post(
+        slack_microservice_url, data=data, headers={'Content-Type': 'application/json'}
+    )
 
 
 @event.listens_for(SourceNotification, 'after_insert')

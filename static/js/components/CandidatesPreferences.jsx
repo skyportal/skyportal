@@ -63,10 +63,10 @@ const CandidatesPreferences = ({
 
   // Get unique classification names, in alphabetical order
   const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
+  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
   let classifications = [];
   latestTaxonomyList.forEach((taxonomy) => {
-    const currentClasses = allowedClasses(taxonomy.hierarchy).map(
+    const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
       (option) => option.class
     );
     classifications = classifications.concat(currentClasses);

@@ -32,19 +32,23 @@ jobs:
         with:
           python-version: "3.8"
 
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cache
-            ~/.local
-            ~/.npm
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
-
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
           submodules: true
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
 
       - name: Write SkyPortal configs
         run: |

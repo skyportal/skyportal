@@ -37,21 +37,24 @@ jobs:
         with:
           python-version: "3.8"
 
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cache
-            ~/.local
-            ~/.npm
-            cache
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
-
       - name: Checkout master
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
           ref: master
           submodules: true
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/pip
+          key: ${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
 
       - name: Write SkyPortal configs
         run: |
@@ -98,7 +101,7 @@ jobs:
           nginx -v
           firefox --version
 
-      - name: Install SkyPortal dependencies
+      - name: Install SkyPortal dependencies for master
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           make dependencies
@@ -147,12 +150,10 @@ jobs:
           submodules: true
           clean: false
 
-      - name: Test loading demo data
-        if: ${{ matrix.test_subset == 'api_and_utils' }}
+      - name: Refresh SkyPortal dependencies for tested version
         run: |
-          make run &
-          sleep 10 && make load_demo_data
-          kill %1
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          make dependencies
 
       - name: Formatting and linting checks
         if: ${{ github.ref != 'refs/heads/master' && matrix.test_subset == 'api_and_utils' }}

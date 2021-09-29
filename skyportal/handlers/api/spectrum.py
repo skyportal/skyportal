@@ -18,6 +18,8 @@ from ...models import (
     Instrument,
     Obj,
     Spectrum,
+    SpectrumReducer,
+    SpectrumObserver,
     User,
     ClassicalAssignment,
 )
@@ -98,26 +100,46 @@ class SpectrumHandler(BaseHandler):
         owner_id = self.associated_user_object.id
 
         reducers = []
+        external_reducer = data.pop("external_reducer", None)
         for reducer_id in data.pop('reduced_by', []):
             reducer = User.get_if_accessible_by(reducer_id, self.current_user)
             if reducer is None:
                 return self.error(f'Invalid reducer ID: {reducer_id}.')
-            reducers.append(reducer)
+            reducer_association = SpectrumReducer(external_reducer=external_reducer)
+            reducer_association.user = reducer
+            reducers.append(reducer_association)
+
+        if len(reducers) == 0 and external_reducer is not None:
+            self.error(
+                "At least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
+            )
 
         observers = []
+        external_observer = data.pop("external_observer", None)
         for observer_id in data.pop('observed_by', []):
             observer = User.get_if_accessible_by(observer_id, self.current_user)
             if observer is None:
                 return self.error(f'Invalid observer ID: {observer_id}.')
-            observers.append(observer)
+            observer_association = SpectrumObserver(external_observer=external_observer)
+            observer_association.user = observer
+            observers.append(observer_association)
+
+        if len(observers) == 0 and external_observer is not None:
+            self.error(
+                "At least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
+            )
 
         spec = Spectrum(**data)
-        spec.observers = observers
-        spec.reducers = reducers
         spec.instrument = instrument
         spec.groups = groups
         spec.owner_id = owner_id
         DBSession().add(spec)
+        for reducer in reducers:
+            reducer.spectrum = spec
+            DBSession().add(reducer)
+        for observer in observers:
+            observer.spectrum = spec
+            DBSession().add(observer)
         self.verify_and_commit()
 
         self.push_all(
@@ -177,6 +199,25 @@ class SpectrumHandler(BaseHandler):
         spec_dict["observers"] = spectrum.observers
         spec_dict["owner"] = spectrum.owner
         spec_dict["comments"] = comments
+
+        external_reducer = (
+            DBSession()
+            .query(SpectrumReducer.external_reducer)
+            .filter(SpectrumReducer.spectr_id == spectrum_id)
+            .first()
+        )
+        if external_reducer is not None:
+            spec_dict["external_reducer"] = external_reducer[0]
+
+        external_observer = (
+            DBSession()
+            .query(SpectrumObserver.external_observer)
+            .filter(SpectrumObserver.spectr_id == spectrum_id)
+            .first()
+        )
+        if external_observer is not None:
+            spec_dict["external_observer"] = external_observer[0]
+
         self.verify_and_commit()
         return self.success(data=spec_dict)
 
@@ -234,6 +275,10 @@ class SpectrumHandler(BaseHandler):
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': spectrum.obj.internal_key},
         )
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE_SPECTRA',
+            payload={'obj_id': spectrum.obj.id},
+        )
         return self.success()
 
     @permissions(['Upload data'])
@@ -273,7 +318,7 @@ class SpectrumHandler(BaseHandler):
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_id': spectrum.obj_id},
+            payload={'obj_id': spectrum.obj.id},
         )
 
         return self.success()
@@ -390,18 +435,32 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             groups.append(single_user_group)
 
         reducers = []
-        for reducer_id in json.get('reduced_by', []):
+        external_reducer = json.pop("external_reducer", None)
+        for reducer_id in json.pop('reduced_by', []):
             reducer = User.get_if_accessible_by(reducer_id, self.current_user)
             if reducer is None:
-                raise ValidationError(f'Invalid reducer ID: {reducer_id}.')
-            reducers.append(reducer)
+                return self.error(f'Invalid reducer ID: {reducer_id}.')
+            reducer_association = SpectrumReducer(external_reducer=external_reducer)
+            reducer_association.user = reducer
+            reducers.append(reducer_association)
+        if len(reducers) == 0 and external_reducer is not None:
+            self.error(
+                "At least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
+            )
 
         observers = []
-        for observer_id in json.get('observed_by', []):
+        external_observer = json.pop("external_observer", None)
+        for observer_id in json.pop('observed_by', []):
             observer = User.get_if_accessible_by(observer_id, self.current_user)
             if observer is None:
-                raise ValidationError(f'Invalid observer ID: {observer_id}.')
-            observers.append(observer)
+                return self.error(f'Invalid observer ID: {observer_id}.')
+            observer_association = SpectrumObserver(external_observer=external_observer)
+            observer_association.user = observer
+            observers.append(observer_association)
+        if len(observers) == 0 and external_observer is not None:
+            self.error(
+                "At least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
+            )
 
         # will never KeyError as missing value is imputed
         followup_request_id = json.pop('followup_request_id', None)
@@ -427,15 +486,25 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         spec.original_file_filename = Path(filename).name
         spec.groups = groups
-        spec.reducers = reducers
-        spec.observers = observers
 
         DBSession().add(spec)
+        for reducer in reducers:
+            reducer.spectrum = spec
+            DBSession().add(reducer)
+        for observer in observers:
+            observer.spectrum = spec
+            DBSession().add(observer)
+
         self.verify_and_commit()
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': spec.obj.internal_key},
+        )
+
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE_SPECTRA',
+            payload={'obj_id': spec.obj.id},
         )
 
         return self.success(data={'id': spec.id})
@@ -566,6 +635,22 @@ class ObjSpectraHandler(BaseHandler):
             spec_dict["groups"] = spec.groups
             spec_dict["reducers"] = spec.reducers
             spec_dict["observers"] = spec.observers
+            external_reducer = (
+                DBSession()
+                .query(SpectrumReducer.external_reducer)
+                .filter(SpectrumReducer.spectr_id == spec.id)
+                .first()
+            )
+            if external_reducer is not None:
+                spec_dict["external_reducer"] = external_reducer[0]
+            external_observer = (
+                DBSession()
+                .query(SpectrumObserver.external_observer)
+                .filter(SpectrumObserver.spectr_id == spec.id)
+                .first()
+            )
+            if external_observer is not None:
+                spec_dict["external_observer"] = external_observer[0]
             spec_dict["owner"] = spec.owner
 
             return_values.append(spec_dict)

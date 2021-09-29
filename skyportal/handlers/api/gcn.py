@@ -1,15 +1,18 @@
 # Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import os
+import functools
 import gcn
 import lxml
 import xmlschema
 from urllib.parse import urlparse
+from tornado.ioloop import IOLoop
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
+from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -19,6 +22,8 @@ from ...models import (
     Localization,
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
+
+log = make_log('api/gcn_event')
 
 
 class GcnEventHandler(BaseHandler):
@@ -110,8 +115,15 @@ class GcnEventHandler(BaseHandler):
             )
         except NoResultFound:
             localization = Localization(**skymap)
-            localization = get_contour(localization)
             DBSession().add(localization)
+            DBSession().commit()
+
+            contour_func = functools.partial(
+                add_contour,
+                localization.id,
+                self,
+            )
+            IOLoop.current().run_in_executor(None, contour_func)
 
         self.verify_and_commit()
 
@@ -207,6 +219,26 @@ class GcnEventHandler(BaseHandler):
         self.verify_and_commit()
 
         return self.success()
+
+
+def add_contour(localization_id, request_handler):
+    try:
+        localization = (
+            Localization.query_records_accessible_by(request_handler.current_user)
+            .filter(
+                Localization.id == localization_id,
+            )
+            .first()
+        )
+        localization = get_contour(localization)
+        DBSession().add(localization)
+        DBSession().commit()
+    except Exception as e:
+        return log(
+            f"Unable to generate contour for localization {localization_id}: {e}"
+        )
+    finally:
+        DBSession.remove()
 
 
 class LocalizationHandler(BaseHandler):
