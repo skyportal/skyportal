@@ -29,6 +29,7 @@ from ...models import (
     Allocation,
     Annotation,
     Comment,
+    CommentOnSpectrum,
     Instrument,
     Obj,
     User,
@@ -732,6 +733,18 @@ class SourceHandler(BaseHandler):
                     .filter(Comment.obj_id == obj_id)
                     .all()
                 )
+                comments_on_spectra = (
+                    CommentOnSpectrum.query_records_accessible_by(
+                        self.current_user,
+                        options=[
+                            joinedload(CommentOnSpectrum.author),
+                            joinedload(CommentOnSpectrum.groups),
+                        ],
+                    )
+                    .filter(CommentOnSpectrum.obj_id == obj_id)
+                    .all()
+                )
+                comments = comments + comments_on_spectra
                 source_info["comments"] = sorted(
                     [
                         {
@@ -1189,6 +1202,17 @@ class SourceHandler(BaseHandler):
                 obj_list.append(obj.to_dict())
 
                 if include_comments:
+                    comments = (
+                        Comment.query_records_accessible_by(self.current_user)
+                        .filter(Comment.obj_id == obj.id)
+                        .all()
+                    )
+                    comments_on_spectra = (
+                        CommentOnSpectrum.query_records_accessible_by(self.current_user)
+                        .filter(CommentOnSpectrum.obj_id == obj.id)
+                        .all()
+                    )
+                    comments = comments + comments_on_spectra
                     obj_list[-1]["comments"] = sorted(
                         [
                             {
@@ -1196,11 +1220,7 @@ class SourceHandler(BaseHandler):
                                 for k, v in c.to_dict().items()
                                 if k != "attachment_bytes"
                             }
-                            for c in Comment.query_records_accessible_by(
-                                self.current_user
-                            )
-                            .filter(Comment.obj_id == obj.id)
-                            .all()
+                            for c in comments
                         ],
                         key=lambda x: x["created_at"],
                         reverse=True,
