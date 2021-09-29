@@ -2517,6 +2517,9 @@ class Spectrum(Base):
         doc="Median UTC ISO time stamp of the exposure or exposures in which the Spectrum was acquired.",
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the spectrum.")
+    type = sa.Column(
+        sa.String, nullable=True, doc="Type of spectrum: source, host, etc. "
+    )
     # TODO program?
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete='CASCADE'),
