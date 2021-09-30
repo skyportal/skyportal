@@ -170,7 +170,7 @@ skyportal_handlers = [
     (r'/api/spectra/parse/ascii', SpectrumASCIIFileParser),
     (r'/api/spectra/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
     (r'/api/spectra/range(/.*)?', SpectrumRangeHandler),
-    # DEPRECATED: To be removed in an upcoming release
+    # FIXME: TODO: Deprecated, to be removed in an upcoming release
     (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
     (r'/api/spectrum/parse/ascii', SpectrumASCIIFileParser),
     (r'/api/spectrum/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
