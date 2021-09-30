@@ -728,8 +728,8 @@ class SourceHandler(BaseHandler):
                         comment_type.query_records_accessible_by(
                             self.current_user,
                             options=[
-                                joinedload(Comment.author),
-                                joinedload(Comment.groups),
+                                joinedload(comment_type.author),
+                                joinedload(comment_type.groups),
                             ],
                         )
                         .filter(comment_type.obj_id == obj_id)
