@@ -1,3 +1,4 @@
+import uuid
 from skyportal.tests import api
 
 
@@ -304,3 +305,21 @@ def test_problematic_post_comment_attachment_1275(
     )
     assert status == 200
     assert data['status'] == 'success'
+
+
+def test_fetch_all_comments_on_obj(comment_token, public_source):
+    comment_text = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        f'sources/{public_source.id}/comments',
+        data={'obj_id': public_source.id, 'text': comment_text},
+        token=comment_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'GET', f'sources/{public_source.id}/comments', token=comment_token
+    )
+
+    assert status == 200
+    assert any([comment['text'] == comment_text for comment in data['data']])

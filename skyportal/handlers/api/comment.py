@@ -30,48 +30,104 @@ def users_mentioned(text):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, comment_id):
+    def get(self, associated_resource_type, resource_id, comment_id=None):
         """
         ---
-        description: Retrieve a comment
-        tags:
-          - comments
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-            description: |
-               What underlying data the comment is on:
-               "sources" or "spectra".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-              enum: [sources, spectra]
-            description: |
-               The ID of the source or spectrum
-               that the comment is posted to.
-               This would be a string for a source ID
-               or an integer for a spectrum.
-          - in: path
-            name: comment_id
-            required: true
-            schema:
-              type: integer
+        single:
+          description: Retrieve a comment
+          tags:
+            - comments
+            - sources
+            - spectra
+          parameters:
+            - in: path
+              name: associated_resource_type
+              required: true
+              schema:
+                type: string
+              description: |
+                 What underlying data the comment is on:
+                 "sources" or "spectra".
+            - in: path
+              name: resource_id
+              required: true
+              schema:
+                type: string
+                enum: [sources, spectra]
+              description: |
+                 The ID of the source or spectrum
+                 that the comment is posted to.
+                 This would be a string for a source ID
+                 or an integer for a spectrum.
+            - in: path
+              name: comment_id
+              required: true
+              schema:
+                type: integer
 
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleComment
-          400:
-            content:
-              application/json:
-                schema: Error
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleComment
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all comments associated with specified resource
+          tags:
+            - comments
+            - spectra
+            - sources
+          parameters:
+            - in: path
+              name: associated_resource_type
+              required: true
+              schema:
+                type: string
+                enum: [sources]
+              description: |
+                 What underlying data the comment is on, e.g., "sources"
+                 or "spectra".
+            - in: path
+              name: resource_id
+              required: true
+              schema:
+                type: string
+              description: |
+                 The ID of the underlying data.
+                 This would be a string for a source ID
+                 or an integer for other data types like spectrum.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfComments
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
+        if comment_id is None:
+            if associated_resource_type.lower() == "sources":
+                comments = (
+                    Comment.query_records_accessible_by(self.current_user)
+                    .filter(Comment.obj_id == resource_id)
+                    .all()
+                )
+            elif associated_resource_type.lower() == "spectra":
+                comments = (
+                    CommentOnSpectrum.query_records_accessible_by(self.current_user)
+                    .filter(CommentOnSpectrum.spectrum_id == resource_id)
+                    .all()
+                )
+            else:
+                return self.error(
+                    f'Unsupported associated resource type "{associated_resource_type}".'
+                )
+            self.verify_and_commit()
+            return self.success(data=comments)
 
         try:
             comment_id = int(comment_id)
