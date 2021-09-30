@@ -1138,7 +1138,8 @@ class SpectrumPost(_Schema):
     origin = fields.String(required=False, description="Origin of the spectrum.")
 
     type = fields.String(
-        required=False, description="Type of spectrum, e.g., source, host, etc."
+        required=False,
+        description="Type of spectrum, e.g., source, host, etc. Default to source.",
     )
 
     instrument_id = fields.Integer(

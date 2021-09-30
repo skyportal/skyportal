@@ -2521,7 +2521,7 @@ class Spectrum(Base):
         sa.String,
         nullable=False,
         default='source',
-        doc="Type of spectrum: source, host, etc. ",
+        doc="Type of spectrum: source, host, etc.",
     )
     # TODO program?
     instrument_id = sa.Column(
