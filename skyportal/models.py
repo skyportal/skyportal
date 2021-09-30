@@ -2518,7 +2518,10 @@ class Spectrum(Base):
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the spectrum.")
     type = sa.Column(
-        sa.String, nullable=True, doc="Type of spectrum: source, host, etc. "
+        sa.String,
+        nullable=False,
+        default='source',
+        doc="Type of spectrum: source, host, etc. ",
     )
     # TODO program?
     instrument_id = sa.Column(

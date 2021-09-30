@@ -23,7 +23,7 @@ def upgrade():
     spectra = sa.Table('spectra', sa.MetaData(), sa.Column('type', sa.String()))
     conn = op.get_bind()
     conn.execute(spectra.update().where(spectra.c.type.is_(None)).values(type="source"))
-    op.alter_column("spectra", "type", nullable=False, default="source")
+    op.alter_column("spectra", "type", nullable=False)
     # ### end Alembic commands ###
 
 
