@@ -69,7 +69,7 @@
     "use-count-up": "2.3.1",
     "vega": "5.20.2",
     "vega-embed": "6.18.2",
-    "vega-lite": "4.17.0"
+    "vega-lite": "5.1.1"
   },
   "devDependencies": {
     "@babel/core": "7.15.5",
