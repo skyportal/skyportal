@@ -413,8 +413,8 @@ slack:
   expected_url_preamble: "https://hooks.slack.com/"
 
 spectrum_types:
-    types:
-     - source
-     - host
-     - host_center
-   default: source
+  types:
+   - source
+   - host
+   - host_center
+  default: source

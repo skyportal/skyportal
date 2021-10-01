@@ -50,10 +50,6 @@ allowed_spectrum_types = sa.Enum(
 )
 default_spectrum_type = cfg.get('spectrum_types.default', "source")
 
-default_spectrum_types = sa.Enum(
-    *ALLOWED_SPECTRUM_TYPES, name='spectrumtypes', validate_strings=True
-)
-
 allowed_magsystems = sa.Enum(
     *ALLOWED_MAGSYSTEMS, name="magsystems", validate_strings=True
 )
