@@ -23,7 +23,7 @@
     "d3": "6.7.0",
     "d3-geo": "3.0.1",
     "d3-geo-zoom": "1.4.3",
-    "data-uri-to-buffer": "3.0.1",
+    "data-uri-to-buffer": "4.0.0",
     "dayjs": "1.10.6",
     "dygraphs": "2.1.0",
     "emoji-dictionary": "1.0.11",
