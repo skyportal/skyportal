@@ -101,7 +101,7 @@ class AnnotationHandler(BaseHandler):
                         AnnotationOnSpectrum.query_records_accessible_by(
                             self.current_user
                         )
-                        .filter(AnnotationOnSpectrum.obj_id == resource_id)
+                        .filter(AnnotationOnSpectrum.spectrum_id == resource_id)
                         .all()
                     )
                     self.verify_and_commit()
@@ -250,12 +250,6 @@ class AnnotationHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible groups.', status=403)
 
-        schema = Annotation.__schema__(exclude=["author_id"])
-        try:
-            schema.load(data)
-        except ValidationError as e:
-            return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
-
         if not isinstance(annotation_data, Mapping):
             return self.error(
                 "Invalid data: the annotation data must be an object with at least one {key: value} pair"
@@ -265,6 +259,15 @@ class AnnotationHandler(BaseHandler):
 
         if associated_resource_type.lower() == "sources":
             obj_id = resource_id
+            data['obj_id'] = obj_id
+            schema = Annotation.__schema__(exclude=["author_id"])
+            try:
+                schema.load(data)
+            except ValidationError as e:
+                return self.error(
+                    f'Invalid/missing parameters: {e.normalized_messages()}'
+                )
+
             annotation = Annotation(
                 data=annotation_data,
                 obj_id=obj_id,
@@ -282,6 +285,16 @@ class AnnotationHandler(BaseHandler):
                 return self.error(
                     f'Could not access spectrum {spectrum_id}.', status=403
                 )
+            data['spectrum_id'] = spectrum_id
+            data['obj_id'] = spectrum.obj_id
+            schema = AnnotationOnSpectrum.__schema__(exclude=["author_id"])
+            try:
+                schema.load(data)
+            except ValidationError as e:
+                return self.error(
+                    f'Invalid/missing parameters: {e.normalized_messages()}'
+                )
+
             annotation = AnnotationOnSpectrum(
                 data=annotation_data,
                 spectrum_id=spectrum_id,

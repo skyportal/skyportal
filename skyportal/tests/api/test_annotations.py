@@ -9,7 +9,6 @@ def test_post_without_origin_fails(annotation_token, public_source, public_group
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
-            'obj_id': public_source.id,
             'data': {'offset_from_host_galaxy': 1.5},
             'group_ids': [public_group.id],
         },
@@ -24,7 +23,6 @@ def test_post_without_origin_fails(annotation_token, public_source, public_group
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
-            'obj_id': public_source.id,
             'origin': '',
             'data': {'offset_from_host_galaxy': 1.5},
             'group_ids': [public_group.id],
@@ -59,7 +57,6 @@ def test_post_same_origin_fails(annotation_token, public_source, public_group):
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
-            'obj_id': public_source.id,
             'origin': 'kowalski',
             'data': {'offset_from_host_galaxy': 1.5},
             'group_ids': [public_group.id],
@@ -78,7 +75,6 @@ def test_add_and_retrieve_annotation_group_id(
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
-            'obj_id': public_source.id,
             'origin': 'kowalski',
             'data': {'offset_from_host_galaxy': 1.5},
             'group_ids': [public_group.id],
@@ -104,7 +100,6 @@ def test_add_and_retrieve_annotation_no_group_id(annotation_token, public_source
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
-            'obj_id': public_source.id,
             'origin': 'kowalski',
             'data': {'offset_from_host_galaxy': 1.5},
         },
@@ -135,7 +130,6 @@ def test_add_and_retrieve_annotation_group_access(
         'POST',
         f'sources/{public_source_two_groups.id}/annotations',
         data={
-            'obj_id': public_source_two_groups.id,
             'origin': 'kowalski',
             'data': {'offset_from_host_galaxy': 1.5},
             'group_ids': [public_group2.id],
@@ -169,7 +163,6 @@ def test_add_and_retrieve_annotation_group_access(
         'POST',
         f'sources/{public_source_two_groups.id}/annotations',
         data={
-            'obj_id': public_source_two_groups.id,
             'origin': 'GAIA',
             'data': {'offset_from_host_galaxy': 1.5},
             'group_ids': [public_group.id, public_group2.id],
@@ -209,7 +202,6 @@ def test_update_annotation_group_list(
         'POST',
         f'sources/{public_source_two_groups.id}/annotations',
         data={
-            'obj_id': public_source_two_groups.id,
             'origin': 'kowalski',
             'data': {'offset_from_host_galaxy': 1.5},
             'group_ids': [public_group2.id],
@@ -271,7 +263,6 @@ def test_cannot_add_annotation_without_permission(view_only_token, public_source
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
-            'obj_id': public_source.id,
             'origin': 'kowalski',
             'data': {'offset_from_host_galaxy': 1.5},
         },
@@ -288,7 +279,6 @@ def test_delete_annotation(annotation_token, public_source):
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
-            'obj_id': public_source.id,
             'origin': origin,
             'data': {'offset_from_host_galaxy': 1.5},
         },
@@ -340,7 +330,6 @@ def test_obj_annotations(annotation_token, public_source, public_group):
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
-            'obj_id': public_source.id,
             'origin': origin,
             'data': {'offset_from_host_galaxy': 1.5},
         },
@@ -371,14 +360,16 @@ def test_cannot_add_annotation_without_data(
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
-            'obj_id': public_source.id,
             'origin': 'kowalski',
             'group_ids': [public_group.id],
         },
         token=annotation_token,
     )
     assert status == 400
-    assert "Missing data for required field" in data["message"]
+    assert (
+        "Invalid data: the annotation data must be an object with at least one {key: value} pair"
+        in data["message"]
+    )
 
 
 def test_post_invalid_data(annotation_token, public_source, public_group):
@@ -387,7 +378,6 @@ def test_post_invalid_data(annotation_token, public_source, public_group):
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
-            'obj_id': public_source.id,
             'data': "Test",
             'origin': origin,
             'group_ids': [public_group.id],
@@ -404,7 +394,6 @@ def test_fetch_all_annotations_on_obj(annotation_token, public_source, public_gr
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
-            'obj_id': public_source.id,
             'origin': 'kowalski',
             'data': {'offset_from_host_galaxy': 1.5},
             'group_ids': [public_group.id],
