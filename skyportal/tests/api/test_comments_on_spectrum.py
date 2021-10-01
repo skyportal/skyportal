@@ -327,19 +327,36 @@ def test_post_comment_attachment(super_admin_token, public_source, lris, public_
     assert data['data']['attachment_name'] == payload['name']
 
 
-def test_fetch_all_comments_on_obj(comment_token, public_source):
+def test_fetch_all_comments_on_obj(
+    upload_data_token, comment_token, public_source, lris
+):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': "all",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    spectrum_id = data["data"]["id"]
+
     comment_text = str(uuid.uuid4())
     status, data = api(
         'POST',
-        f'sources/{public_source.id}/comments',
-        data={'obj_id': public_source.id, 'text': comment_text},
+        f'spectra/{spectrum_id}/comments',
+        data={'text': comment_text},
         token=comment_token,
     )
     assert status == 200
 
-    status, data = api(
-        'GET', f'sources/{public_source.id}/comments', token=comment_token
-    )
+    status, data = api('GET', f'spectra/{spectrum_id}/comments', token=comment_token)
 
     assert status == 200
     assert any([comment['text'] == comment_text for comment in data['data']])
