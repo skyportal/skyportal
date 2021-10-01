@@ -9,51 +9,85 @@ from ...models import DBSession, Annotation, Group
 
 class AnnotationHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, annotation_id):
+    def get(self, associated_resource_type, resource_id, annotation_id=None):
         """
         ---
-        description: Retrieve an annotation
-        tags:
-          - annotations
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-              enum: [sources]
-            description: |
-               What underlying data the annotation is on:
-               currently only "sources" is supported.
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the underlying data.
-               This would be a string for a source ID
-               or an integer for other data types like spectrum.
-          - in: path
-            name: annotation_id
-            required: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleAnnotation
-          400:
-            content:
-              application/json:
-                schema: Error
+        single:
+          description: Retrieve an annotation
+          tags:
+            - annotations
+          parameters:
+            - in: path
+              name: associated_resource_type
+              required: true
+              schema:
+                type: string
+                enum: [sources]
+              description: |
+                 What underlying data the annotation is on:
+                 currently only "sources" is supported.
+            - in: path
+              name: resource_id
+              required: true
+              schema:
+                type: string
+              description: |
+                 The ID of the underlying data.
+                 This would be a string for a source ID
+                 or an integer for other data types like spectrum.
+            - in: path
+              name: annotation_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleAnnotation
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all annotations associated with specified resource
+          tags:
+            - annotations
+            - sources
+          parameters:
+            - in: path
+              name: obj_id
+              required: true
+              schema:
+                type: string
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfAnnotations
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
+        if annotation_id is None:
+            if associated_resource_type.lower() == "sources":
+                annotations = (
+                    Annotation.query_records_accessible_by(self.current_user)
+                    .filter(Annotation.obj_id == resource_id)
+                    .all()
+                )
+                self.verify_and_commit()
+                return self.success(data=annotations)
+            else:
+                return self.error(
+                    f'Unsupported associated resource type "{associated_resource_type}".'
+                )
 
         try:
             annotation_id = int(annotation_id)
         except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) annotation ID. ")
+            return self.error("Must provide a valid (scalar integer) annotation ID.")
 
         if associated_resource_type.lower() == "sources":
             try:
@@ -391,38 +425,3 @@ class AnnotationHandler(BaseHandler):
             )
 
         return self.success()
-
-
-class ObjAnnotationHandler(BaseHandler):
-    @auth_or_token
-    def get(self, obj_id):
-        """
-        ---
-        description: Retrieve object's annotations
-        tags:
-          - annotations
-          - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-        responses:
-          200:
-            content:
-              application/json:
-                schema: ArrayOfAnnotations
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-
-        annotations = (
-            Annotation.query_records_accessible_by(self.current_user)
-            .filter(Annotation.obj_id == obj_id)
-            .all()
-        )
-        self.verify_and_commit()
-        return self.success(data=annotations)

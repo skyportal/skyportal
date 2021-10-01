@@ -165,7 +165,7 @@ const CommentAttachmentPreview = ({
   }
 
   // The FilePreviewer expects a url ending with .pdf for PDF files
-  const baseUrl = `/api/${associatedResourceType}/${objectID}/comment/${commentId}/attachment`;
+  const baseUrl = `/api/${associatedResourceType}/${objectID}/comments/${commentId}/attachment`;
   const url = fileType === "pdf" ? `${baseUrl}.pdf` : baseUrl;
 
   return (
