@@ -56,10 +56,23 @@ class AnnotationHandler(BaseHandler):
             - sources
           parameters:
             - in: path
-              name: obj_id
+              name: associated_resource_type
               required: true
               schema:
                 type: string
+                enum: [sources]
+              description: |
+                 What underlying data the annotation is on:
+                 currently only "sources" is supported.
+            - in: path
+              name: resource_id
+              required: true
+              schema:
+                type: string
+              description: |
+                 The ID of the underlying data.
+                 This would be a string for a source ID
+                 or an integer for other data types like spectrum.
           responses:
             200:
               content:

@@ -1,5 +1,7 @@
-from skyportal.tests import api
+import uuid
 import datetime
+
+from skyportal.tests import api
 
 
 def test_add_and_retrieve_comment_group_id(
@@ -277,6 +279,7 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
 
 
 def test_post_comment_attachment(super_admin_token, public_source, lris, public_group):
+
     status, data = api(
         'POST',
         'spectrum',
@@ -322,3 +325,21 @@ def test_post_comment_attachment(super_admin_token, public_source, lris, public_
     assert data['data']['text'] == 'Looks like Ia'
     assert data['data']['attachment_bytes'] == payload['body']
     assert data['data']['attachment_name'] == payload['name']
+
+
+def test_fetch_all_comments_on_obj(comment_token, public_source):
+    comment_text = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        f'sources/{public_source.id}/comments',
+        data={'obj_id': public_source.id, 'text': comment_text},
+        token=comment_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'GET', f'sources/{public_source.id}/comments', token=comment_token
+    )
+
+    assert status == 200
+    assert any([comment['text'] == comment_text for comment in data['data']])
