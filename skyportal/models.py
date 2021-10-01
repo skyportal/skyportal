@@ -69,6 +69,8 @@ from skyportal import facility_apis
 from . import schema
 from .email_utils import send_email
 from .enum_types import (
+    allowed_spectrum_types,
+    default_spectrum_type,
     allowed_bandpasses,
     thumbnail_types,
     instrument_types,
@@ -2518,9 +2520,9 @@ class Spectrum(Base):
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the spectrum.")
     type = sa.Column(
-        sa.String,
+        allowed_spectrum_types,
         nullable=False,
-        default='source',
+        default=default_spectrum_type,
         doc="Type of spectrum: source, host, etc.",
     )
     # TODO program?
