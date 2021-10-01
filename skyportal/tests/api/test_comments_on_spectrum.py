@@ -1,5 +1,7 @@
-from skyportal.tests import api
+import uuid
 import datetime
+
+from skyportal.tests import api
 
 
 def test_add_and_retrieve_comment_group_id(
@@ -274,3 +276,47 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
         'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
     )
     assert status == 403
+
+
+def test_fetch_all_spectrum_comments(
+    comment_token, upload_data_token, public_source, public_group, lris
+):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    spectrum_id = data["data"]["id"]
+
+    comment_text = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        f'spectra/{spectrum_id}/comments',
+        data={
+            'obj_id': public_source.id,
+            'spectrum_id': spectrum_id,
+            'text': comment_text,
+            'group_ids': [public_group.id],
+        },
+        token=comment_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'GET',
+        f'spectra/{spectrum_id}/comments',
+        token=upload_data_token,
+    )
+
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['data'][0]['text'] == comment_text
