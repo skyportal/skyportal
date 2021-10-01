@@ -45,12 +45,13 @@ class CommentHandler(BaseHandler):
               enum: [sources, spectrum]
             description: |
                What underlying data the comment is on:
-               "sources" or "spectrum".
+               "sources" or "spectra".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
+              enum: [sources, spectra]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
@@ -88,7 +89,7 @@ class CommentHandler(BaseHandler):
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(comment.obj_id)
 
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectra":
             try:
                 comment = CommentOnSpectrum.get_if_accessible_by(
                     comment_id, self.current_user, raise_if_none=True
@@ -131,6 +132,7 @@ class CommentHandler(BaseHandler):
             required: true
             schema:
               type: string
+              enum: [sources, spectra]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
@@ -224,7 +226,7 @@ class CommentHandler(BaseHandler):
                 groups=groups,
                 bot=is_bot_request,
             )
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectra":
             spectrum_id = resource_id
             try:
                 spectrum = Spectrum.get_if_accessible_by(
@@ -264,13 +266,13 @@ class CommentHandler(BaseHandler):
             for user_mentioned in users_mentioned_in_comment:
                 self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
-        if isinstance(comment, Comment):
+        if comment.obj.id:  # comment on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': comment.obj.internal_key},
             )
 
-        if comment.obj.id:  # comment on object, or object related resources
+        if isinstance(comment, CommentOnSpectrum):
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_id': comment.obj.id},
@@ -294,12 +296,13 @@ class CommentHandler(BaseHandler):
               enum: [sources, spectrum]
             description: |
                What underlying data the comment is on:
-               "sources" or "spectrum".
+               "sources" or "spectra".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
+              enum: [sources, spectra]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
@@ -351,7 +354,7 @@ class CommentHandler(BaseHandler):
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(c.obj_id)
 
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectra":
             schema = CommentOnSpectrum.__schema__()
             try:
                 c = CommentOnSpectrum.get_if_accessible_by(
@@ -435,13 +438,13 @@ class CommentHandler(BaseHandler):
               type: string
             description: |
                What underlying data the comment is on:
-               "sources" or "spectrum".
+               "sources" or "spectra".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
-              enum: [sources, spectrum]
+              enum: [sources, spectra]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
@@ -463,7 +466,7 @@ class CommentHandler(BaseHandler):
         try:
             comment_id = int(comment_id)
         except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) comment ID. ")
+            return self.error("Must provide a valid (scalar integer) comment ID.")
 
         if associated_resource_type.lower() == "sources":
             try:
@@ -473,7 +476,7 @@ class CommentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(c.obj_id)
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectra":
             try:
                 c = CommentOnSpectrum.get_if_accessible_by(
                     comment_id, self.current_user, mode="delete", raise_if_none=True
@@ -530,12 +533,13 @@ class CommentAttachmentHandler(BaseHandler):
               enum: [sources, spectrum]
             description: |
                What underlying data the comment is on:
-               "sources" or "spectrum".
+               "sources" or "spectra".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
+              enum: [sources, spectra]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
@@ -594,7 +598,7 @@ class CommentAttachmentHandler(BaseHandler):
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(comment.obj_id)
 
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectra":
             try:
                 comment = CommentOnSpectrum.get_if_accessible_by(
                     comment_id, self.current_user, raise_if_none=True

@@ -9,50 +9,118 @@ from ...models import DBSession, Annotation, Spectrum, AnnotationOnSpectrum, Gro
 
 class AnnotationHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, annotation_id):
+    def get(self, associated_resource_type, resource_id, annotation_id=None):
         """
         ---
-        description: Retrieve an annotation
-        tags:
-          - annotations
-        parameters:
-          - in: path
-            name: associated_resource_type
-            required: true
-            schema:
-              type: string
-              enum: [sources]
-            description: |
-               What underlying data the annotation is on:
-               choose "sources" or "spectrum".
-          - in: path
-            name: resource_id
-            required: true
-            schema:
-              type: string
-            description: |
-               The ID of the underlying data.
-               This would be a string for a source ID
-               or an integer for other data types like spectrum.
-          - in: path
-            name: annotation_id
-            required: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleAnnotation
-          400:
-            content:
-              application/json:
-                schema: Error
+        single:
+          description: Retrieve an annotation
+          tags:
+            - annotations
+            - sources
+            - spectra
+          parameters:
+            - in: path
+              name: associated_resource_type
+              required: true
+              schema:
+                type: string
+                enum: [sources, spectra]
+              description: |
+                 What underlying data the annotation is on:
+                 choose "sources" or "spectra".
+            - in: path
+              name: resource_id
+              required: true
+              schema:
+                type: string
+              description: |
+                 The ID of the underlying data.
+                 This would be a string for a source ID
+                 or an integer for other data types like spectra.
+            - in: path
+              name: annotation_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleAnnotation
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all annotations associated with specified resource
+          tags:
+            - annotations
+            - sources
+            - spectra
+          parameters:
+            - in: path
+              name: associated_resource_type
+              required: true
+              schema:
+                type: string
+                enum: [sources, spectra]
+              description: |
+                 What underlying data the annotation is on:
+                 choose "sources" or "spectra".
+            - in: path
+              name: resource_id
+              required: true
+              schema:
+                type: string
+              description: |
+                The ID of the underlying data.
+                This would be a string for a source ID
+                or an integer for other data types like spectra.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfAnnotations
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
+        if annotation_id is None:
+            if associated_resource_type.lower() == "sources":
+                annotations = (
+                    Annotation.query_records_accessible_by(self.current_user)
+                    .filter(Annotation.obj_id == resource_id)
+                    .all()
+                )
+                self.verify_and_commit()
+                return self.success(data=annotations)
+            elif associated_resource_type.lower() == "spectra":
+                try:
+                    annotations = (
+                        AnnotationOnSpectrum.query_records_accessible_by(
+                            self.current_user
+                        )
+                        .filter(AnnotationOnSpectrum.obj_id == resource_id)
+                        .all()
+                    )
+                    self.verify_and_commit()
+                    return self.success(data=annotations)
+                except AccessError:
+                    return self.error(
+                        'Could not find any accessible annotations.', status=403
+                    )
+
+            # add more options using elif
+            else:
+                return self.error(
+                    f'Unsupported associated resource type "{associated_resource_type}".'
+                )
+
         try:
             annotation_id = int(annotation_id)
         except (TypeError, ValueError):
-            return self.error("Must provide a valid (scalar integer) annotation ID. ")
+            return self.error("Must provide a valid (scalar integer) annotation ID.")
 
         if associated_resource_type.lower() == "sources":
             try:
@@ -64,16 +132,16 @@ class AnnotationHandler(BaseHandler):
                     'Could not find any accessible annotations.', status=403
                 )
             annotation_resource_id_str = str(annotation.obj_id)
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectra":
             try:
-                comment = AnnotationOnSpectrum.get_if_accessible_by(
+                annotation = AnnotationOnSpectrum.get_if_accessible_by(
                     annotation_id, self.current_user, raise_if_none=True
                 )
             except AccessError:
                 return self.error(
                     'Could not find any accessible annotations.', status=403
                 )
-            annotation_resource_id_str = str(comment.spectrum_id)
+            annotation_resource_id_str = str(annotation.spectrum_id)
 
         # add more options using elif
         else:
@@ -204,7 +272,7 @@ class AnnotationHandler(BaseHandler):
                 author=author,
                 groups=groups,
             )
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectra":
             spectrum_id = resource_id
             try:
                 spectrum = Spectrum.get_if_accessible_by(
@@ -228,10 +296,11 @@ class AnnotationHandler(BaseHandler):
         DBSession().add(annotation)
         self.verify_and_commit()
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': annotation.obj.internal_key},
-        )
+        if annotation.obj.id:  # annotation on object or object related data
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': annotation.obj.internal_key},
+            )
         if isinstance(annotation, AnnotationOnSpectrum):
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
@@ -310,7 +379,7 @@ class AnnotationHandler(BaseHandler):
                     'Could not find any accessible annotations.', status=403
                 )
             annotation_resource_id_str = str(a.obj_id)
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectra":
             schema = AnnotationOnSpectrum.__schema__()
             try:
                 a = AnnotationOnSpectrum.get_if_accessible_by(
@@ -415,7 +484,7 @@ class AnnotationHandler(BaseHandler):
                     'Could not find any accessible annotations.', status=403
                 )
             annotation_resource_id_str = str(a.obj_id)
-        elif associated_resource_type.lower() == "spectrum":
+        elif associated_resource_type.lower() == "spectra":
             try:
                 a = AnnotationOnSpectrum.get_if_accessible_by(
                     annotation_id, self.current_user, mode="delete", raise_if_none=True
@@ -454,43 +523,3 @@ class AnnotationHandler(BaseHandler):
             )
 
         return self.success()
-
-
-class ObjAnnotationHandler(BaseHandler):
-    @auth_or_token
-    def get(self, obj_id):
-        """
-        ---
-        description: Retrieve object's annotations
-        tags:
-          - annotations
-          - sources
-        parameters:
-          - in: path
-            name: obj_id
-            required: true
-            schema:
-              type: string
-        responses:
-          200:
-            content:
-              application/json:
-                schema: ArrayOfAnnotations
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-
-        annotations = (
-            Annotation.query_records_accessible_by(self.current_user)
-            .filter(Annotation.obj_id == obj_id)
-            .all()
-        )
-        annotations_on_spectra = (
-            AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
-            .filter(AnnotationOnSpectrum.obj_id == obj_id)
-            .all()
-        )
-        self.verify_and_commit()
-        return self.success(data=annotations + annotations_on_spectra)
