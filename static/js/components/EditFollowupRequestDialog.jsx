@@ -42,9 +42,8 @@ const EditFollowupRequestDialog = ({
 
   // Since we are editing exsiting follow-up requests,
   // it makes more sense to set default form values to current request data
-  const { formSchema } = instrumentFormParams[
-    followupRequest.allocation.instrument.id
-  ];
+  const { formSchema } =
+    instrumentFormParams[followupRequest.allocation.instrument.id];
   Object.keys(formSchema.properties).forEach((key) => {
     // Set the form value for "key" to the value in the existing request's
     // payload, which is the form data sent to the external follow-up API

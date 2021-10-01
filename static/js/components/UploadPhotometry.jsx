@@ -58,14 +58,8 @@ const UploadPhotometryForm = () => {
   const [csvData, setCsvData] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const { id } = useParams();
-  const {
-    handleSubmit,
-    errors,
-    reset,
-    control,
-    getValues,
-    setValue,
-  } = useForm();
+  const { handleSubmit, errors, reset, control, getValues, setValue } =
+    useForm();
   let formState = getValues();
 
   // only show instruments that have an imaging mode

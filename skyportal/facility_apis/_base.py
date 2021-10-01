@@ -35,7 +35,7 @@ class _ListenerBase:
     @classmethod
     def get_acl_id(cls):
         """Return the ID of the ACL that a User must have in order to use
-        this API. """
+        this API."""
         return f'Post from {cls.__name__}'
 
 

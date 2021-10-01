@@ -74,9 +74,8 @@ const Group = () => {
 
   const [groupLoadError, setGroupLoadError] = useState("");
 
-  const [panelSourcesExpanded, setPanelSourcesExpanded] = React.useState(
-    "panel-sources"
-  );
+  const [panelSourcesExpanded, setPanelSourcesExpanded] =
+    React.useState("panel-sources");
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 

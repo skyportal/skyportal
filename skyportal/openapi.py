@@ -69,7 +69,10 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
     if metadata is not None:
         meta.update(metadata)
 
-    openapi_spec = APISpec(**meta, plugins=[MarshmallowPlugin()],)
+    openapi_spec = APISpec(
+        **meta,
+        plugins=[MarshmallowPlugin()],
+    )
 
     token_scheme = {
         "type": "apiKey",
