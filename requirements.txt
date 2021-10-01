@@ -9,7 +9,7 @@ pytest-randomly==3.8.0
 factory-boy==3.2.0
 astropy==4.2.1
 aplpy==2.0.3
-reproject==0.7.1
+reproject==0.8
 avro-python3==1.10.2
 fastavro==1.4.4
 tqdm>=4.27,<4.63
