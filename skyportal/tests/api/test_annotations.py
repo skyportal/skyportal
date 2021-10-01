@@ -397,3 +397,29 @@ def test_post_invalid_data(annotation_token, public_source, public_group):
 
     assert status == 400
     assert 'Invalid data' in data["message"]
+
+
+def test_fetch_all_annotations_on_obj(annotation_token, public_source, public_group):
+    status, data = api(
+        'POST',
+        f'sources/{public_source.id}/annotations',
+        data={
+            'obj_id': public_source.id,
+            'origin': 'kowalski',
+            'data': {'offset_from_host_galaxy': 1.5},
+            'group_ids': [public_group.id],
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'GET',
+        f'sources/{public_source.id}/annotations',
+        token=annotation_token,
+    )
+
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['data'][0]['data'] == {'offset_from_host_galaxy': 1.5}
+    assert data['data'][0]['origin'] == 'kowalski'
