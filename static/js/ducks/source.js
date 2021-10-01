@@ -87,7 +87,7 @@ export function addComment(formData) {
         if (formData.spectrum_id) {
           dispatch(
             API.POST(
-              `/api/spectrum/${formData.spectrum_id}/comment`,
+              `/api/spectra/${formData.spectrum_id}/comments`,
               ADD_COMMENT,
               formData
             )
@@ -95,7 +95,7 @@ export function addComment(formData) {
         } else {
           dispatch(
             API.POST(
-              `/api/sources/${formData.obj_id}/comment`,
+              `/api/sources/${formData.obj_id}/comments`,
               ADD_COMMENT,
               formData
             )
@@ -106,13 +106,13 @@ export function addComment(formData) {
   }
   if (formData.spectrum_id) {
     return API.POST(
-      `/api/spectrum/${formData.spectrum_id}/comment`,
+      `/api/spectra/${formData.spectrum_id}/comments`,
       ADD_COMMENT,
       formData
     );
   }
   return API.POST(
-    `/api/sources/${formData.obj_id}/comment`,
+    `/api/sources/${formData.obj_id}/comments`,
     ADD_COMMENT,
     formData
   );
@@ -120,28 +120,28 @@ export function addComment(formData) {
 
 export function deleteComment(sourceID, commentID) {
   return API.DELETE(
-    `/api/sources/${sourceID}/comment/${commentID}`,
+    `/api/sources/${sourceID}/comments/${commentID}`,
     DELETE_COMMENT
   );
 }
 
 export function deleteCommentOnSpectrum(spectrumID, commentID) {
   return API.DELETE(
-    `/api/spectrum/${spectrumID}/comment/${commentID}`,
+    `/api/spectra/${spectrumID}/comments/${commentID}`,
     DELETE_COMMENT_ON_SPECTRUM
   );
 }
 
 export function getCommentAttachment(sourceID, commentID) {
   return API.GET(
-    `/api/sources/${sourceID}/comment/${commentID}/attachment`,
+    `/api/sources/${sourceID}/comments/${commentID}/attachment`,
     GET_COMMENT_ATTACHMENT
   );
 }
 
 export function getCommentOnSpectrumAttachment(spectrumID, commentID) {
   return API.GET(
-    `/api/spectrum/${spectrumID}/comment/${commentID}/attachment`,
+    `/api/spectra/${spectrumID}/comments/${commentID}/attachment`,
     GET_COMMENT_ON_SPECTRUM_ATTACHMENT
   );
 }

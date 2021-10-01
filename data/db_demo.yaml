@@ -425,7 +425,7 @@ sources/ZTF18aabcvnq/annotation:
       some_boolean: false
       class: "varstar"
 
-sources/ZTFe028h94k/annotation:
+sources/ZTFe028h94k/annotations:
   - obj_id: ZTFe028h94k
     origin: "Program B"
     data:
@@ -439,7 +439,7 @@ sources/ZTFe028h94k/annotation:
     group_ids:
       - =program_B
 
-sources/ZTFrlh6cyjh/annotation:
+sources/ZTFrlh6cyjh/annotations:
   - obj_id: ZTFrlh6cyjh
     origin: "ZVM"
     data:

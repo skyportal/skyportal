@@ -14,17 +14,17 @@ In the past, a comment was accessed via the endpoint
 
 In the new framework, a comment on a source must be accessed via
 the source path:
-`api/sources/<sourceID>/comment/<commentID>`
+`api/sources/<sourceID>/comments/<commentID>`
 
 This also applies to comments on spectra:
-`api/spectrum/<spectrumID>/comment/<commentID>`
+`api/spectra/<spectrumID>/comments/<commentID>`
 
 For annotations, use:
-`api/sources/<sourceID>/annotation/<annotationID>`
+`api/sources/<sourceID>/annotations/<annotationID>`
 
 In all cases, when posting a new comment/annotation,
 do not supply a commentID or annotationID at the end of the path, e.g.,
-POST to `api/sources/<sourceID>/comment`.
+POST to `api/sources/<sourceID>/comments`.
 
 Any existing scripts that use the comment or annotation
 API must be changed accordingly.

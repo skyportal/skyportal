@@ -5,7 +5,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
 
     status, data = api(
         'POST',
-        f'sources/{public_source.id}/annotation',
+        f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -33,7 +33,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
     # add absorption by an edit to the annotation
     status, data = api(
         'PUT',
-        f'sources/{public_source.id}/annotation/{annotation_id}',
+        f'sources/{public_source.id}/annotations/{annotation_id}',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -63,7 +63,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
     # replace the magnitude in apparent bands with the absolute mag and color
     status, data = api(
         'PUT',
-        f'sources/{public_source.id}/annotation/{annotation_id}',
+        f'sources/{public_source.id}/annotations/{annotation_id}',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -124,7 +124,7 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
 
     status, data = api(
         'POST',
-        f'sources/{public_source.id}/annotation',
+        f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -149,7 +149,7 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
     # change the keys, replace capital letters with underscores
     status, data = api(
         'PUT',
-        f'sources/{public_source.id}/annotation/{annotation_id}',
+        f'sources/{public_source.id}/annotations/{annotation_id}',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -173,7 +173,7 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
     # change the keys to completely new names, rename the catalog as well
     status, data = api(
         'PUT',
-        f'sources/{public_source.id}/annotation/{annotation_id}',
+        f'sources/{public_source.id}/annotations/{annotation_id}',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -206,7 +206,7 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
 def test_add_multiple_color_mag_annotations(annotation_token, user, public_source):
     status, data = api(
         'POST',
-        f'sources/{public_source.id}/annotation',
+        f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -230,7 +230,7 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
     # post from a second origin
     status, data = api(
         'POST',
-        f'sources/{public_source.id}/annotation',
+        f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match2',
@@ -245,7 +245,7 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
     # post from a third origin
     status, data = api(
         'POST',
-        f'sources/{public_source.id}/annotation',
+        f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match3',
