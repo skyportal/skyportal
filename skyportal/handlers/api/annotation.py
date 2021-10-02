@@ -179,7 +179,6 @@ class AnnotationHandler(BaseHandler):
                       groups.
 
                 required:
-                  - obj_id
                   - origin
                   - data
         responses:
@@ -199,6 +198,8 @@ class AnnotationHandler(BaseHandler):
                               description: New annotation ID
         """
         data = self.get_json()
+        if associated_resource_type == "sources":
+            data["obj_id"] = resource_id
         group_ids = data.pop('group_ids', None)
         if not group_ids:
             groups = self.current_user.accessible_groups
