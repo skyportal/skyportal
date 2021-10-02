@@ -105,7 +105,7 @@ const Notifications = () => {
       >
         <Badge
           badgeContent={unreadCount}
-          overlap="circle"
+          overlap="circular"
           color={unreadCount > 0 ? "secondary" : "primary"}
           data-testid="notificationsBadge"
         >

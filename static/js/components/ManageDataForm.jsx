@@ -159,7 +159,7 @@ const SpectrumRow = ({ rowData, route }) => {
           >
             <Typography variant="h6">Comments</Typography>
             <CommentList
-              associatedResourceType="spectrum"
+              associatedResourceType="spectra"
               objID={route.id}
               spectrumID={
                 typeof rowData[0] === "number"
