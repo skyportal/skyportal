@@ -179,7 +179,6 @@ class AnnotationHandler(BaseHandler):
                       groups.
 
                 required:
-                  - obj_id
                   - origin
                   - data
         responses:
