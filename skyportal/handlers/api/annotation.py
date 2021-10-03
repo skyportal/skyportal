@@ -56,10 +56,23 @@ class AnnotationHandler(BaseHandler):
             - sources
           parameters:
             - in: path
-              name: obj_id
+              name: associated_resource_type
               required: true
               schema:
                 type: string
+                enum: [sources]
+              description: |
+                 What underlying data the annotation is on:
+                 currently only "sources" is supported.
+            - in: path
+              name: resource_id
+              required: true
+              schema:
+                type: string
+              description: |
+                 The ID of the underlying data.
+                 This would be a string for a source ID
+                 or an integer for other data types like spectrum.
           responses:
             200:
               content:
@@ -166,7 +179,6 @@ class AnnotationHandler(BaseHandler):
                       groups.
 
                 required:
-                  - obj_id
                   - origin
                   - data
         responses:
@@ -186,6 +198,8 @@ class AnnotationHandler(BaseHandler):
                               description: New annotation ID
         """
         data = self.get_json()
+        if associated_resource_type == "sources":
+            data["obj_id"] = resource_id
         group_ids = data.pop('group_ids', None)
         if not group_ids:
             groups = self.current_user.accessible_groups

@@ -1,3 +1,4 @@
+import uuid
 from skyportal.tests import api
 
 
@@ -6,7 +7,6 @@ def test_add_and_retrieve_comment_group_id(comment_token, public_source, public_
         'POST',
         f'sources/{public_source.id}/comments',
         data={
-            'obj_id': public_source.id,
             'text': 'Comment text',
             'group_ids': [public_group.id],
         },
@@ -28,7 +28,7 @@ def test_add_and_retrieve_comment_no_group_id(comment_token, public_source):
     status, data = api(
         'POST',
         f'sources/{public_source.id}/comments',
-        data={'obj_id': public_source.id, 'text': 'Comment text'},
+        data={'text': 'Comment text'},
         token=comment_token,
     )
     assert status == 200
@@ -53,7 +53,6 @@ def test_add_and_retrieve_comment_group_access(
         'POST',
         f'sources/{public_source_two_groups.id}/comments',
         data={
-            'obj_id': public_source_two_groups.id,
             'text': 'Comment text',
             'group_ids': [public_group2.id],
         },
@@ -84,7 +83,6 @@ def test_add_and_retrieve_comment_group_access(
         'POST',
         f'sources/{public_source_two_groups.id}/comments',
         data={
-            'obj_id': public_source_two_groups.id,
             'text': 'Comment text',
             'group_ids': [public_group.id, public_group2.id],
         },
@@ -121,7 +119,6 @@ def test_update_comment_group_list(
         'POST',
         f'sources/{public_source_two_groups.id}/comments',
         data={
-            'obj_id': public_source_two_groups.id,
             'text': 'Comment text',
             'group_ids': [public_group2.id],
         },
@@ -180,7 +177,7 @@ def test_cannot_add_comment_without_permission(view_only_token, public_source):
     status, data = api(
         'POST',
         f'sources/{public_source.id}/comments',
-        data={'obj_id': public_source.id, 'text': 'Comment text'},
+        data={'text': 'Comment text'},
         token=view_only_token,
     )
     assert status == 400
@@ -191,7 +188,7 @@ def test_delete_comment(comment_token, public_source):
     status, data = api(
         'POST',
         f'sources/{public_source.id}/comments',
-        data={'obj_id': public_source.id, 'text': 'Comment text'},
+        data={'text': 'Comment text'},
         token=comment_token,
     )
     assert status == 200
@@ -236,7 +233,6 @@ def test_problematic_put_comment_attachment_1275(
         'POST',
         f'sources/{public_source.id}/comments',
         data={
-            'obj_id': public_source.id,
             'text': 'asdf',
             'group_ids': [public_group.id],
         },
@@ -292,7 +288,6 @@ def test_problematic_post_comment_attachment_1275(
         'POST',
         f'sources/{public_source.id}/comments',
         data={
-            'obj_id': public_source.id,
             'text': 'asdf',
             'group_ids': [public_group.id],
             "attachment": {
@@ -304,3 +299,21 @@ def test_problematic_post_comment_attachment_1275(
     )
     assert status == 200
     assert data['status'] == 'success'
+
+
+def test_fetch_all_comments_on_obj(comment_token, public_source):
+    comment_text = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        f'sources/{public_source.id}/comments',
+        data={'text': comment_text},
+        token=comment_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'GET', f'sources/{public_source.id}/comments', token=comment_token
+    )
+
+    assert status == 200
+    assert any([comment['text'] == comment_text for comment in data['data']])
