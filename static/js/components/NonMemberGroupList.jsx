@@ -17,11 +17,11 @@ const NonMemberGroupList = ({ groups }) => {
     return <>Loading...</>;
   }
   const pendingRequestGroupIDs = groupAdmissionRequests
-    .filter((request) => request.status === "pending")
-    .map((request) => request.group_id);
+    ?.filter((request) => request.status === "pending")
+    ?.map((request) => request.group_id);
   const declinedRequestGroupIDs = groupAdmissionRequests
-    .filter((request) => request.status === "declined")
-    .map((request) => request.group_id);
+    ?.filter((request) => request.status === "declined")
+    ?.map((request) => request.group_id);
 
   const handleRequestAdmission = async (groupID) => {
     const result = await dispatch(
@@ -47,9 +47,9 @@ const NonMemberGroupList = ({ groups }) => {
       return <em>Admission request declined.</em>;
     }
     if (pendingRequestGroupIDs.includes(group.id)) {
-      const admissionRequestID = groupAdmissionRequests.filter(
+      const admissionRequestID = groupAdmissionRequests?.filter(
         (request) => request.group_id === group.id
-      )[0].id;
+      )[0]?.id;
       return (
         <>
           <em>Request pending...</em>

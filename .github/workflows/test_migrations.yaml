@@ -13,6 +13,15 @@ jobs:
     name: Test SkyPortal migrations
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      # We only check migrations from this point onward, since we know
+      # this specific commit to have migration integrity.
+      #
+      # This commit can be updated from time to time, if necessary
+      # (e.g., to get access to a newer data loader or dependencies).
+      # Pick any commit known to have passed the migration tests on
+      # CI, or which has deployed successfully.
+      MIGRATION_REFERENCE: 880cd56716015e33df22af1d256717ce98d7eb84
 
     services:
       postgres:
@@ -67,7 +76,7 @@ jobs:
           export PATH=${NPM_PACKAGES}/bin:$PATH
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
-          sudo npm -g install npm@6.14.11
+          sudo npm -g install npm@7.24.0
 
           which python; python --version
           echo npm $(npm --version)
@@ -93,11 +102,11 @@ jobs:
           echo ${current_head}
           echo "CURRENT_HEAD=${current_head}" >> $GITHUB_ENV
 
-      - name: Checkout commit before the very first migration
+      - name: Checkout migration reference commit
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          ref: c48fa7f040aa83a494a365f80a8dffeaa0af9a1f
+          ref: ${{ env.MIGRATION_REFERENCE }}
           submodules: true
 
       - name: Write SkyPortal configs

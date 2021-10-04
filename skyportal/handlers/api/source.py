@@ -20,6 +20,7 @@ from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.flow import Flow
+from baselayer.app.custom_exceptions import AccessError
 from baselayer.log import make_log
 
 from ..base import BaseHandler
@@ -30,6 +31,7 @@ from ...models import (
     Comment,
     Instrument,
     Obj,
+    User,
     Source,
     Thumbnail,
     Token,
@@ -56,6 +58,7 @@ from .candidate import (
     grab_query_results,
     update_redshift_history_if_relevant,
     add_linked_thumbnails_and_push_ws_msg,
+    Session,
 )
 from .photometry import serialize
 from .color_mag import get_color_mag
@@ -78,10 +81,16 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
     return query
 
 
-def add_ps1_thumbnail_and_push_ws_msg(obj_id, user):
+def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
+    session = Session()
     try:
-        obj = Obj.get_if_accessible_by(obj_id, user)
-        obj.add_ps1_thumbnail()
+        user = session.query(User).get(user_id)
+        if Obj.get_if_accessible_by(obj_id, user) is None:
+            raise AccessError(
+                f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+            )
+        obj = session.query(Obj).get(obj_id)
+        obj.add_ps1_thumbnail(session=session)
         flow = Flow()
         flow.push(
             '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
@@ -90,7 +99,7 @@ def add_ps1_thumbnail_and_push_ws_msg(obj_id, user):
     except Exception as e:
         log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
     finally:
-        DBSession.remove()
+        Session.remove()
 
 
 class SourceHandler(BaseHandler):
@@ -693,11 +702,22 @@ class SourceHandler(BaseHandler):
                 self.verify_and_commit()
 
             if include_thumbnails:
-                if "ps1" not in [thumb.type for thumb in s.thumbnails]:
+                existing_thumbnail_types = [thumb.type for thumb in s.thumbnails]
+                if "ps1" not in existing_thumbnail_types:
                     IOLoop.current().run_in_executor(
                         None,
                         lambda: add_ps1_thumbnail_and_push_ws_msg(
-                            obj_id, self.current_user
+                            obj_id, self.current_user.id
+                        ),
+                    )
+                if (
+                    "sdss" not in existing_thumbnail_types
+                    or "dr8" not in existing_thumbnail_types
+                ):
+                    IOLoop.current().run_in_executor(
+                        None,
+                        lambda: add_linked_thumbnails_and_push_ws_msg(
+                            obj_id, self.current_user.id
                         ),
                     )
             if include_comments:
@@ -1434,7 +1454,7 @@ class SourceHandler(BaseHandler):
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj.id, self.current_user
+                    obj.id, self.current_user.id
                 ),
             )
         else:
@@ -2116,6 +2136,6 @@ class PS1ThumbnailHandler(BaseHandler):
         if obj_id is None:
             return self.error("Missing required parameter objID")
         IOLoop.current().add_callback(
-            lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self.current_user)
+            lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self.current_user.id)
         )
         return self.success()

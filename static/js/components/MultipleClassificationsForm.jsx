@@ -95,21 +95,21 @@ const MultipleClassificationsForm = ({
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);
 
-  const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
+  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
 
   useEffect(() => {
     setSelectedTaxonomy(stateTaxonomy);
   }, [stateTaxonomy]);
 
   const initialFormState = {};
-  latestTaxonomyList.forEach((taxonomy) => {
+  latestTaxonomyList?.forEach((taxonomy) => {
     initialFormState[taxonomy.id] = {};
   });
   const sortedClassifications = getSortedClasses(currentClassifications);
 
   // For each existing taxonomy/classification, update initial sliders
-  sortedClassifications.forEach((classifications) => {
-    classifications.forEach((classification) => {
+  sortedClassifications?.forEach((classifications) => {
+    classifications?.forEach((classification) => {
       // Take just the latest values for each field
       if (
         !initialFormState[classification.taxonomy_id][
@@ -210,7 +210,7 @@ const MultipleClassificationsForm = ({
           newFormState[selectedTaxonomy.id][parent.class]?.probability -
           newFormState[selectedTaxonomy.id][ancestor].probability;
 
-        const siblings = parent.subclasses.filter(
+        const siblings = parent.subclasses?.filter(
           (sibling) => sibling.class !== ancestor
         );
         let currentTotalOfSiblings = 0;
@@ -218,7 +218,7 @@ const MultipleClassificationsForm = ({
           currentTotalOfSiblings +=
             newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
         });
-        siblings.forEach((sibling) => {
+        siblings?.forEach((sibling) => {
           const currentProbability =
             newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
           // Scale the siblings' probabilities based on the proportion they had
@@ -245,7 +245,7 @@ const MultipleClassificationsForm = ({
       const remainingProbability =
         newFormState[selectedTaxonomy.id][parent.class]?.probability - newValue;
 
-      const siblings = parent.subclasses.filter(
+      const siblings = parent.subclasses?.filter(
         (sibling) => sibling.class !== classification
       );
       let currentTotalOfSiblings = 0;
@@ -253,7 +253,7 @@ const MultipleClassificationsForm = ({
         currentTotalOfSiblings +=
           newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
       });
-      siblings.forEach((sibling) => {
+      siblings?.forEach((sibling) => {
         const currentProbability =
           newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
         // Scale the siblings' probabilities based on the proportion they had
@@ -413,7 +413,7 @@ const MultipleClassificationsForm = ({
     // Reset the depths for the posted classifications so that they
     // are not reposted upon further edits
     const newFormState = { ...formState };
-    toPost.forEach(([classification, { probability }]) => {
+    toPost?.forEach(([classification, { probability }]) => {
       newFormState[selectedTaxonomy.id][classification] = {
         depth: -1,
         probability,
@@ -454,7 +454,7 @@ const MultipleClassificationsForm = ({
           value={selectedTaxonomy || ""}
           onChange={handleSelectTaxonomy}
         >
-          {latestTaxonomyList.map((taxonomy) => (
+          {latestTaxonomyList?.map((taxonomy) => (
             <MenuItem key={taxonomy.name} value={taxonomy}>
               {taxonomy.name}
             </MenuItem>

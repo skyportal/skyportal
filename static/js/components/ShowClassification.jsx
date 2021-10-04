@@ -25,7 +25,7 @@ export const getSortedClasses = (classifications) => {
   const groupedClasses = groupBy(filteredClasses, "taxonomy_id");
   const sortedClasses = [];
 
-  Object.keys(groupedClasses).forEach((item) =>
+  Object.keys(groupedClasses)?.forEach((item) =>
     sortedClasses.push(
       groupedClasses[item].sort((a, b) => (a.modified < b.modified ? 1 : -1))
     )
@@ -52,7 +52,7 @@ function ShowClassification({ classifications, taxonomyList, shortened }) {
       <div>
         {title}
         {sortedClasses.map((c) => {
-          let name = taxonomyList.filter((i) => i.id === c[0].taxonomy_id);
+          let name = taxonomyList.filter((i) => i.id === c[0]?.taxonomy_id);
           if (name.length > 0) {
             name = name[0].name;
           }

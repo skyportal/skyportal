@@ -205,6 +205,9 @@ const SourceMobile = WidthProvider(
       (g) => !g.single_user_group
     );
 
+    const spectra = useSelector((state) => state.spectra)[source.id];
+    const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
+
     useEffect(() => {
       dispatch(spectraActions.fetchSourceSpectra(source.id));
     }, [source.id, dispatch]);
@@ -352,7 +355,7 @@ const SourceMobile = WidthProvider(
                 </div>
                 <br />
                 {showStarList && <StarList sourceId={source.id} />}
-                {source.groups.map((group) => (
+                {source.groups?.map((group) => (
                   <Tooltip
                     title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
                     key={group.id}
@@ -371,7 +374,7 @@ const SourceMobile = WidthProvider(
                 <EditSourceGroups
                   source={{
                     id: source.id,
-                    currentGroupIds: source.groups.map((g) => g.id),
+                    currentGroupIds: source.groups?.map((g) => g.id),
                   }}
                   groups={groups}
                   icon
@@ -487,7 +490,7 @@ const SourceMobile = WidthProvider(
                 <div className={classes.photometryContainer}>
                   <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
                     <Plot
-                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}`}
+                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
                     />
                   </Suspense>
                   <div className={classes.plotButtons}>

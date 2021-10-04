@@ -27,7 +27,7 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 import dayjs from "dayjs";
 import { isMobileOnly } from "react-device-detect";
 
-import { ra_to_hours, dec_to_dms, time_relative_to_local } from "../units";
+import { ra_to_hours, dec_to_dms } from "../units";
 import ThumbnailList from "./ThumbnailList";
 import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
@@ -277,7 +277,7 @@ const SourceTable = ({
   const theme = useTheme();
 
   if (favoritesRemoveButton) {
-    defaultDisplayedColumns = defaultDisplayedColumns.filter(
+    defaultDisplayedColumns = defaultDisplayedColumns?.filter(
       (c) => c !== "Favorites"
     );
   }
@@ -323,8 +323,8 @@ const SourceTable = ({
         // Save displayed column labels
         setDisplayedColumns(
           tableState.columns
-            .filter((column) => column.display === "true")
-            .map((column) => column.label)
+            ?.filter((column) => column.display === "true")
+            ?.map((column) => column.label)
         );
         break;
       case "sort":
@@ -378,7 +378,7 @@ const SourceTable = ({
   // helper function to get the classifications
   const getClassifications = (source) => {
     if (groupID !== undefined) {
-      return source.classifications.filter((cls) =>
+      return source.classifications?.filter((cls) =>
         cls.groups.find((g) => g.id === groupID)
       );
     }
@@ -459,6 +459,7 @@ const SourceTable = ({
                     created_at,
                     text,
                     attachment_name,
+                    api_path,
                     groups: comment_groups,
                   }) => (
                     <span key={id} className={commentStyle}>
@@ -501,7 +502,7 @@ const SourceTable = ({
                           {attachment_name && (
                             <div>
                               Attachment:&nbsp;
-                              <a href={`/api/comment/${id}/attachment`}>
+                              <a href={`${api_path}/attachment`}>
                                 {attachment_name}
                               </a>
                             </div>
@@ -619,7 +620,7 @@ const SourceTable = ({
   };
 
   // helper function to get the source groups
-  const getGroups = (source) => source.groups.filter((group) => group.active);
+  const getGroups = (source) => source.groups?.filter((group) => group.active);
   const history = useHistory();
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
@@ -722,27 +723,27 @@ const SourceTable = ({
     );
   };
 
-  const renderPeakMagnitude = (dataIndex) => {
-    const source = sources[dataIndex];
-    return source.peak_detected_mag ? (
-      <Tooltip title={time_relative_to_local(source.peak_detected_at)}>
-        <div>{`${source.peak_detected_mag.toFixed(4)}`}</div>
-      </Tooltip>
-    ) : (
-      <div>No photometry</div>
-    );
-  };
+  // const renderPeakMagnitude = (dataIndex) => {
+  //   const source = sources[dataIndex];
+  //   return source.peak_detected_mag ? (
+  //     <Tooltip title={time_relative_to_local(source.peak_detected_at)}>
+  //       <div>{`${source.peak_detected_mag.toFixed(4)}`}</div>
+  //     </Tooltip>
+  //   ) : (
+  //     <div>No photometry</div>
+  //   );
+  // };
 
-  const renderLatestMagnitude = (dataIndex) => {
-    const source = sources[dataIndex];
-    return source.last_detected_mag ? (
-      <Tooltip title={time_relative_to_local(source.last_detected_at)}>
-        <div>{`${source.last_detected_mag.toFixed(4)}`}</div>
-      </Tooltip>
-    ) : (
-      <div>No photometry</div>
-    );
-  };
+  // const renderLatestMagnitude = (dataIndex) => {
+  //   const source = sources[dataIndex];
+  //   return source.last_detected_mag ? (
+  //     <Tooltip title={time_relative_to_local(source.last_detected_at)}>
+  //       <div>{`${source.last_detected_mag.toFixed(4)}`}</div>
+  //     </Tooltip>
+  //   ) : (
+  //     <div>No photometry</div>
+  //   );
+  // };
 
   const renderTNSName = (dataIndex) => {
     const source = sources[dataIndex];
@@ -813,7 +814,7 @@ const SourceTable = ({
       const sourceFilterList = filterList[0];
       // Convert chip filter list to filter form data
       const data = {};
-      sourceFilterList.forEach((filterChip) => {
+      sourceFilterList?.forEach((filterChip) => {
         const [key, value] = filterChip.split(": ");
         if (key === "position") {
           const fields = value.split(/\s*\(\D*\),*\s*/);
@@ -1000,24 +1001,26 @@ const SourceTable = ({
         display: displayedColumns.includes("Spectrum?"),
       },
     },
-    {
-      name: "Peak Magnitude",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderPeakMagnitude,
-        display: displayedColumns.includes("Peak Magnitude"),
-      },
-    },
-    {
-      name: "Latest Magnitude",
-      options: {
-        filter: false,
-        sort: false,
-        customBodyRenderLite: renderLatestMagnitude,
-        display: displayedColumns.includes("Latest Magnitude"),
-      },
-    },
+    // Temporarily disable these two detection stats columns until we improve back-end performance
+    // {
+    //   name: "Peak Magnitude",
+    //   options: {
+    //     filter: false,
+    //     sort: false,
+    //     customBodyRenderLite: renderPeakMagnitude,
+    //     display: displayedColumns.includes("Peak Magnitude"),
+    //   },
+    // },
+    // {
+    //   name: "Latest Magnitude",
+    //   options: {
+    //     filter: false,
+    //     sort: false,
+    //     customBodyRenderLite: renderLatestMagnitude,
+    //     display: displayedColumns.includes("Latest Magnitude"),
+    //   },
+    // },
+
     {
       name: "TNS Name",
       options: {

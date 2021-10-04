@@ -1,5 +1,7 @@
-from skyportal.tests import api
+import uuid
 import datetime
+
+from skyportal.tests import api
 
 
 def test_add_and_retrieve_comment_group_id(
@@ -23,9 +25,8 @@ def test_add_and_retrieve_comment_group_id(
 
     status, data = api(
         'POST',
-        'comment',
+        f'spectra/{spectrum_id}/comments',
         data={
-            'obj_id': public_source.id,
             'spectrum_id': spectrum_id,
             'text': 'Comment text',
             'group_ids': [public_group.id],
@@ -35,7 +36,9 @@ def test_add_and_retrieve_comment_group_id(
     assert status == 200
     comment_id = data['data']['comment_id']
 
-    status, data = api('GET', f'comment/{comment_id}/spectrum', token=comment_token)
+    status, data = api(
+        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+    )
 
     assert status == 200
     assert data['data']['text'] == 'Comment text'
@@ -69,9 +72,8 @@ def test_add_and_retrieve_comment_group_access(
 
     status, data = api(
         'POST',
-        'comment',
+        f'spectra/{spectrum_id}/comments',
         data={
-            'obj_id': public_source_two_groups.id,
             'spectrum_id': spectrum_id,
             'text': 'Comment text',
             'group_ids': [public_group2.id],
@@ -83,22 +85,24 @@ def test_add_and_retrieve_comment_group_access(
 
     # This token belongs to public_group2
     status, data = api(
-        'GET', f'comment/{comment_id}/spectrum', token=comment_token_two_groups
+        'GET',
+        f'spectra/{spectrum_id}/comments/{comment_id}',
+        token=comment_token_two_groups,
     )
     assert status == 200
     assert data['data']['text'] == 'Comment text'
 
     # This token does not belong to public_group2
-    status, data = api('GET', f'comment/{comment_id}/spectrum', token=comment_token)
-    assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    status, data = api(
+        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+    )
+    assert status == 403
 
     # Both tokens should be able to view this comment, but not the underlying spectrum
     status, data = api(
         'POST',
-        'comment',
+        f'spectra/{spectrum_id}/comments',
         data={
-            'obj_id': public_source_two_groups.id,
             'spectrum_id': spectrum_id,
             'text': 'Comment text',
             'group_ids': [public_group.id, public_group2.id],
@@ -109,13 +113,17 @@ def test_add_and_retrieve_comment_group_access(
     comment_id = data['data']['comment_id']
 
     status, data = api(
-        'GET', f'comment/{comment_id}/spectrum', token=comment_token_two_groups
+        'GET',
+        f'spectra/{spectrum_id}/comments/{comment_id}',
+        token=comment_token_two_groups,
     )
     assert status == 200
     assert data['data']['text'] == 'Comment text'
 
-    status, data = api('GET', f'comment/{comment_id}/spectrum', token=comment_token)
-    assert status == 400  # the underlying spectrum is not accessible to group1
+    status, data = api(
+        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+    )
+    assert status == 403  # the underlying spectrum is not accessible to group1
 
     # post a new spectrum with a comment, open to both groups
     status, data = api(
@@ -137,9 +145,8 @@ def test_add_and_retrieve_comment_group_access(
 
     status, data = api(
         'POST',
-        'comment',
+        f'spectra/{spectrum_id}/comments',
         data={
-            'obj_id': public_source_two_groups.id,
             'spectrum_id': spectrum_id,
             'text': 'New comment text',
             'group_ids': [public_group2.id],
@@ -150,14 +157,15 @@ def test_add_and_retrieve_comment_group_access(
     comment_id = data['data']['comment_id']
 
     # token for group1 can view the spectrum but cannot see comment
-    status, data = api('GET', f'comment/{comment_id}/spectrum', token=comment_token)
-    assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    status, data = api(
+        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+    )
+    assert status == 403
 
     # Both tokens should be able to view comment after updating group list
     status, data = api(
         'PUT',
-        f'comment/{comment_id}/spectrum',
+        f'spectra/{spectrum_id}/comments/{comment_id}',
         data={
             'text': 'New comment text',
             'group_ids': [public_group.id, public_group2.id],
@@ -167,7 +175,9 @@ def test_add_and_retrieve_comment_group_access(
     assert status == 200
 
     # the new comment on the new spectrum should now accessible
-    status, data = api('GET', f'comment/{comment_id}/spectrum', token=comment_token)
+    status, data = api(
+        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+    )
     assert status == 200
     assert data['data']['text'] == 'New comment text'
 
@@ -194,9 +204,8 @@ def test_cannot_add_comment_without_permission(
 
     status, data = api(
         'POST',
-        'comment',
+        f'spectra/{spectrum_id}/comments',
         data={
-            'obj_id': public_source.id,
             'spectrum_id': spectrum_id,
             'text': 'Comment text',
         },
@@ -226,9 +235,8 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
 
     status, data = api(
         'POST',
-        'comment',
+        f'spectra/{spectrum_id}/comments',
         data={
-            'obj_id': public_source.id,
             'spectrum_id': spectrum_id,
             'text': 'Comment text',
         },
@@ -237,13 +245,71 @@ def test_delete_comment(comment_token, upload_data_token, public_source, lris):
     assert status == 200
     comment_id = data['data']['comment_id']
 
-    status, data = api('GET', f'comment/{comment_id}/spectrum', token=comment_token)
+    status, data = api(
+        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+    )
     assert status == 200
     assert data['data']['text'] == 'Comment text'
 
-    status, data = api('DELETE', f'comment/{comment_id}/spectrum', token=comment_token)
+    # try to delete using the wrong spectrum ID
+    status, data = api(
+        'DELETE', f'spectra/{spectrum_id+1}/comments/{comment_id}', token=comment_token
+    )
+    assert status == 400
+    assert (
+        "Comment resource ID does not match resource ID given in path"
+        in data["message"]
+    )
+
+    status, data = api(
+        'DELETE', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+    )
     assert status == 200
 
-    status, data = api('GET', f'comment/{comment_id}/spectrum', token=comment_token)
-    assert status == 400
-    assert "Invalid CommentOnSpectrum" in data["message"]
+    status, data = api(
+        'GET', f'spectra/{spectrum_id}/comments/{comment_id}', token=comment_token
+    )
+    assert status == 403
+
+
+def test_fetch_all_spectrum_comments(
+    comment_token, upload_data_token, public_source, public_group, lris
+):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    spectrum_id = data["data"]["id"]
+
+    comment_text = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        f'spectra/{spectrum_id}/comments',
+        data={
+            'spectrum_id': spectrum_id,
+            'text': comment_text,
+            'group_ids': [public_group.id],
+        },
+        token=comment_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'GET',
+        f'spectra/{spectrum_id}/comments',
+        token=upload_data_token,
+    )
+
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['data'][0]['text'] == comment_text

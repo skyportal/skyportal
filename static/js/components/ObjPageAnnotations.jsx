@@ -76,7 +76,7 @@ const ObjPageAnnotations = ({ annotations }) => {
   const renderTime = (created_at) => dayjs().to(dayjs.utc(`${created_at}Z`));
   // Curate data
   const tableData = [];
-  annotations.forEach((annotation) => {
+  annotations?.forEach((annotation) => {
     const { origin, data, author, created_at } = annotation;
     Object.entries(data).forEach(([key, value]) => {
       tableData.push({ origin, key, value, author, created_at });
