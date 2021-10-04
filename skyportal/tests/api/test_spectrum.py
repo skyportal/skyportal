@@ -5,6 +5,8 @@ import yaml
 import numpy as np
 import datetime
 
+from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
+
 
 def test_token_user_get_range_spectrum(
     upload_data_token, public_source, public_group, lris
@@ -819,3 +821,59 @@ def test_spectrum_plot_only_some_spectra(
     assert len(instruments) == 2
     assert 'LRIS' in str(instruments)
     assert 'SEDM' in str(instruments)
+
+
+def test_post_get_spectrum_type(upload_data_token, public_source, public_group, lris):
+
+    # post this spectrum without a type (should default to "source")
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    spectrum_id = data['data']['id']
+
+    status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['type'] == default_spectrum_type
+
+    assert default_spectrum_type in ALLOWED_SPECTRUM_TYPES
+
+    if len(ALLOWED_SPECTRUM_TYPES) > 1:
+
+        new_allowed_types = list(ALLOWED_SPECTRUM_TYPES)
+        new_allowed_types.remove(default_spectrum_type)
+
+        status, data = api(
+            'POST',
+            'spectrum',
+            data={
+                'obj_id': str(public_source.id),
+                'observed_at': str(datetime.datetime.now()),
+                'instrument_id': lris.id,
+                'wavelengths': [664, 665, 666],
+                'fluxes': [234.2, 232.1, 235.3],
+                'group_ids': [public_group.id],
+                'type': new_allowed_types[0],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+        spectrum_id = data['data']['id']
+
+        status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
+        assert status == 200
+        assert data['status'] == 'success'
+        assert data['data']['type'] == new_allowed_types[0]
