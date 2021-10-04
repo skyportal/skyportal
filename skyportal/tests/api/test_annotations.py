@@ -41,7 +41,6 @@ def test_post_same_origin_fails(annotation_token, public_source, public_group):
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
-            'obj_id': public_source.id,
             'origin': 'kowalski',
             'data': {'offset_from_host_galaxy': 1.5},
             'group_ids': [public_group.id],

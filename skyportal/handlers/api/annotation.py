@@ -231,7 +231,6 @@ class AnnotationHandler(BaseHandler):
                               description: New annotation ID
         """
         data = self.get_json()
-
         origin = data.get("origin")
 
         if not re.search(r'^\w+', origin):

@@ -217,7 +217,7 @@ const CommentList = ({
       comments = specComments.concat(comments);
       comments.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
     }
-  } else if (associatedResourceType === "spectrum") {
+  } else if (associatedResourceType === "spectra") {
     if (spectrumID === null) {
       throw new Error("Must specify a spectrumID for comments on spectra");
     }
@@ -441,7 +441,7 @@ const CommentList = ({
                           objectID={spectrum_id || objID}
                           commentId={id}
                           associatedResourceType={
-                            spectrum_id ? "spectrum" : "sources"
+                            spectrum_id ? "spectra" : "sources"
                           }
                         />
                       )}
