@@ -31,7 +31,7 @@ from ...schema import (
 
 from ...enum_types import default_spectrum_type
 
-cfg = load_env()
+_, cfg = load_env()
 
 
 class SpectrumHandler(BaseHandler):
