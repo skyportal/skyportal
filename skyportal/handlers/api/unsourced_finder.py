@@ -56,12 +56,20 @@ class UnSourcedFinderHandler(BaseHandler):
             minimum: 0.0
             maximum: 360.0
             exclusiveMaximum: true
+            description: |
+               RA of the source of interest at the time of observation of
+               interest (ie. the user is responsible for proper motion
+               calulations).
         - in: query
           name: dec
           schema:
             type: float
             minimum: -90.0
             maximum: 90.0
+            description: |
+               DEC of the source of interest at the time of observation of
+               interest (ie. the user is responsible for proper motion
+               calulations).
         - in: query
           name: imsize
           schema:
@@ -176,7 +184,7 @@ class UnSourcedFinderHandler(BaseHandler):
             except ValueError:
                 # could not handle inputs
                 return self.error('Invalid argument for `dec`')
-            obj_id = f'{ra:0.5}{dec:+d}'
+            obj_id = f'{ra:0.6g}{dec:+0.6g}'
             extra_display_string = ""
 
         output_type = self.get_query_argument('type', 'pdf')

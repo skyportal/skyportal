@@ -24,6 +24,7 @@ from astropy.time import Time
 from astropy.table import Table
 from astropy.utils.exceptions import AstropyWarning
 
+from astropy.wcs.wcs import FITSFixedWarning
 from astropy.wcs import WCS
 from astropy.wcs.utils import pixel_to_skycoord
 from astropy.io import fits
@@ -767,7 +768,6 @@ def get_nearby_offset_stars(
     queries_issued += 1
 
     catalog = SkyCoord.guess_from_table(r)
-    print("1", use_ztfref)
     if use_ztfref:
         ztfcatalog = get_ztfcatalog(source_ra, source_dec)
         if ztfcatalog is None:
@@ -791,7 +791,6 @@ def get_nearby_offset_stars(
                 )
                 use_ztfref = False
 
-    print("2", use_ztfref)
     # star needs to be this far away
     # from another star
     min_sep = min_sep_arcsec * u.arcsec
@@ -1045,6 +1044,7 @@ def fits_image(
     return get_hdu(url)
 
 
+@warningfilter(action="ignore", category=FITSFixedWarning)
 def get_finding_chart(
     source_ra,
     source_dec,
@@ -1265,7 +1265,7 @@ def get_finding_chart(
     colors = sns.color_palette("colorblind", ncolors)
 
     start_text = [-0.45, 0.99]
-    origin = "GaiaDR2" if not used_ztfref else "ZTFref"
+    origin = "GaiaEDR3" if not used_ztfref else "ZTFref"
     starlist_str = (
         f"# Note: {origin} used for offset star positions\n"
         "# Note: spacing in starlist many not copy/paste correctly in PDF\n"
