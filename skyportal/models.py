@@ -69,6 +69,7 @@ from skyportal import facility_apis
 from . import schema
 from .email_utils import send_email
 from .enum_types import (
+    ALLOWED_SPECTRUM_TYPES,
     allowed_spectrum_types,
     default_spectrum_type,
     allowed_bandpasses,
@@ -2523,7 +2524,8 @@ class Spectrum(Base):
         allowed_spectrum_types,
         nullable=False,
         default=default_spectrum_type,
-        doc="Type of spectrum: source, host, etc.",
+        doc=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+                        Defaults to 'f{default_spectrum_type}'.''',
     )
     # TODO program?
     instrument_id = sa.Column(

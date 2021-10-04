@@ -29,7 +29,9 @@ from ...schema import (
     SpectrumAsciiFileParseJSON,
 )
 
-_, cfg = load_env()
+from ...enum_types import default_spectrum_type
+
+cfg = load_env()
 
 
 class SpectrumHandler(BaseHandler):
@@ -134,7 +136,7 @@ class SpectrumHandler(BaseHandler):
         spec.groups = groups
         spec.owner_id = owner_id
         if spec.type is None:
-            spec.type = 'source'
+            spec.type = default_spectrum_type
         DBSession().add(spec)
         for reducer in reducers:
             reducer.spectrum = spec
