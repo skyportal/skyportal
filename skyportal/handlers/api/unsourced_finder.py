@@ -76,34 +76,39 @@ class UnSourcedFinderHandler(BaseHandler):
             type: float
             minimum: 2
             maximum: 15
-          description: Image size in arcmin (square)
+          description: Image size in arcmin (square). Defaults to 4.0
         - in: query
           name: facility
           nullable: true
           schema:
             type: string
             enum: [Keck, Shane, P200]
+            description: |
+               What type of starlist should be used? Defaults to Keck
         - in: query
           name: image_source
           nullable: true
           schema:
             type: string
             enum: [desi, dss, ztfref]
-          description: Source of the image used in the finding chart
+          description: |
+            Source of the image used in the finding chart. Defaults to ztfref
         - in: query
           name: use_ztfref
           required: false
           schema:
             type: boolean
           description: |
-            Use ZTFref catalog for offset star positions, otherwise DR2
+            Use ZTFref catalog for offset star positions, otherwise DR2.
+            Defaults to True.
         - in: query
           name: obstime
           nullable: True
           schema:
             type: string
           description: |
-            datetime of observation in isoformat (e.g. 2020-12-30T12:34:10)
+            datetime of observation in isoformat (e.g. 2020-12-30T12:34:10).
+            Defaults to now.
         - in: query
           name: type
           nullable: true
@@ -111,7 +116,7 @@ class UnSourcedFinderHandler(BaseHandler):
             type: string
             enum: [png, pdf]
           description: |
-            output type
+            Output datafile type. Defaults to pdf.
         - in: query
           name: num_offset_stars
           schema:

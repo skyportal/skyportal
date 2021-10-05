@@ -225,9 +225,9 @@ def get_ps1_url(ra, dec, imsize, *args, **kwargs):
 
     Parameters
     ----------
-    source_ra : float
+    ra : float
         Right ascension (J2000) of the source
-    source_dec : float
+    dec : float
         Declination (J2000) of the source
     imsize : float
         Requested image size (on a size) in arcmin
