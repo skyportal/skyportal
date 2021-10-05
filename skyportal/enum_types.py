@@ -17,7 +17,7 @@ def force_render_enum_markdown(values):
 
 
 ALLOWED_SPECTRUM_TYPES = tuple(
-    cfg.get('spectrum_types.types', ['source', 'host', 'host_center'])
+    cfg.get('spectrum_types.types', ['source', 'host', 'host center'])
 )
 ALLOWED_MAGSYSTEMS = tuple(val['name'] for val in _MAGSYSTEMS.get_loaders_metadata())
 ALLOWED_BANDPASSES = tuple(val['name'] for val in _BANDPASSES.get_loaders_metadata())
