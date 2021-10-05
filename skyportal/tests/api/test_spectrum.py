@@ -1,4 +1,5 @@
 import os
+import uuid
 from skyportal.tests import api
 from glob import glob
 import yaml
@@ -877,3 +878,24 @@ def test_post_get_spectrum_type(upload_data_token, public_source, public_group, 
         assert status == 200
         assert data['status'] == 'success'
         assert data['data']['type'] == new_allowed_types[0]
+
+
+def test_post_wrong_spectrum_type(upload_data_token, public_source, public_group, lris):
+
+    # post this spectrum with the wrong type
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+            'type': str(uuid.uuid4()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert 'is not among the defined enum values' in data['message']
