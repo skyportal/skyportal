@@ -2525,7 +2525,7 @@ class Spectrum(Base):
         nullable=False,
         default=default_spectrum_type,
         doc=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
-                        Defaults to 'f{default_spectrum_type}'.''',
+                Defaults to 'f{default_spectrum_type}'.''',
     )
     # TODO program?
     instrument_id = sa.Column(
