@@ -2172,7 +2172,7 @@ class AnnotationMixin:
 
 
 class Annotation(Base, AnnotationMixin):
-    """A sortable/searchable Annotation made by a filter or other robot,
+    """A sortable/searchable Annotation on a source, made by a filter or other robot,
     with a set of data as JSON"""
 
     create = AccessibleIfRelatedRowsAreAccessible(obj='read')

@@ -27,7 +27,7 @@ class AnnotationHandler(BaseHandler):
                 enum: [sources, spectra]
               description: |
                  What underlying data the annotation is on:
-                 choose "sources" or "spectra".
+                 must be one of either "sources" or "spectra".
             - in: path
               name: resource_id
               required: true
@@ -66,7 +66,7 @@ class AnnotationHandler(BaseHandler):
                 enum: [sources, spectra]
               description: |
                  What underlying data the annotation is on:
-                 choose "sources" or "spectra".
+                 must be one of either "sources" or "spectra".
             - in: path
               name: resource_id
               required: true
@@ -96,20 +96,13 @@ class AnnotationHandler(BaseHandler):
                 self.verify_and_commit()
                 return self.success(data=annotations)
             elif associated_resource_type.lower() == "spectra":
-                try:
-                    annotations = (
-                        AnnotationOnSpectrum.query_records_accessible_by(
-                            self.current_user
-                        )
-                        .filter(AnnotationOnSpectrum.spectrum_id == resource_id)
-                        .all()
-                    )
-                    self.verify_and_commit()
-                    return self.success(data=annotations)
-                except AccessError:
-                    return self.error(
-                        'Could not find any accessible annotations.', status=403
-                    )
+                annotations = (
+                    AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
+                    .filter(AnnotationOnSpectrum.spectrum_id == resource_id)
+                    .all()
+                )
+                self.verify_and_commit()
+                return self.success(data=annotations)
 
             # add more options using elif
             else:
@@ -171,7 +164,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               Choose "sources" or "spectrum".
+               must be one of either "sources" or "spectra".
           - in: path
             name: resource_id
             required: true
@@ -335,7 +328,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               choose "sources" or "spectrum".
+               must be one of either "sources" or "spectra".
           - in: path
             name: resource_id
             required: true
@@ -460,7 +453,7 @@ class AnnotationHandler(BaseHandler):
               type: string
             description: |
                What underlying data the annotation is on:
-               choose "sources" or "spectrum".
+               must be one of either "sources" or "spectra".
           - in: path
             name: resource_id
             required: true
