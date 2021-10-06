@@ -84,6 +84,8 @@ const CommentEntry = ({ addComment }) => {
           name="text"
           error={!!errors.text}
           helperText={errors.text ? "Required" : ""}
+          fullWidth
+          multiline
         />
       </div>
       <div className={styles.inputDiv}>
