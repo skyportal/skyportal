@@ -2,16 +2,23 @@ import sqlalchemy as sa
 from enum import Enum
 import inspect
 
+from baselayer.app.env import load_env
+
 from . import facility_apis
 
 from sncosmo.bandpasses import _BANDPASSES
 from sncosmo.magsystems import _MAGSYSTEMS
+
+_, cfg = load_env()
 
 
 def force_render_enum_markdown(values):
     return ', '.join(list(map(lambda v: f'`{v}`', values)))
 
 
+ALLOWED_SPECTRUM_TYPES = tuple(
+    cfg.get('spectrum_types.types', ['source', 'host', 'host_center'])
+)
 ALLOWED_MAGSYSTEMS = tuple(val['name'] for val in _MAGSYSTEMS.get_loaders_metadata())
 ALLOWED_BANDPASSES = tuple(val['name'] for val in _BANDPASSES.get_loaders_metadata())
 THUMBNAIL_TYPES = (
@@ -37,6 +44,11 @@ LISTENER_CLASSNAMES = [
 ]
 
 LISTENER_CLASSES = [getattr(facility_apis, c) for c in LISTENER_CLASSNAMES]
+
+allowed_spectrum_types = sa.Enum(
+    *ALLOWED_SPECTRUM_TYPES, name='spectrumtypes', validate_strings=True
+)
+default_spectrum_type = cfg.get('spectrum_types.default', "source")
 
 allowed_magsystems = sa.Enum(
     *ALLOWED_MAGSYSTEMS, name="magsystems", validate_strings=True
@@ -73,12 +85,14 @@ listener_classnames = sa.Enum(
     validate_strings=True,
 )
 
+py_allowed_spectrum_types = Enum('spectrumtypes', ALLOWED_SPECTRUM_TYPES)
 py_allowed_magsystems = Enum('magsystems', ALLOWED_MAGSYSTEMS)
 py_allowed_bandpasses = Enum('bandpasses', ALLOWED_BANDPASSES)
 py_thumbnail_types = Enum('thumbnail_types', THUMBNAIL_TYPES)
 py_followup_priorities = Enum('priority', FOLLOWUP_PRIORITIES)
 
 sqla_enum_types = [
+    allowed_spectrum_types,
     allowed_bandpasses,
     thumbnail_types,
     instrument_types,
