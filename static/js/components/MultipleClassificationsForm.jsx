@@ -102,14 +102,14 @@ const MultipleClassificationsForm = ({
   }, [stateTaxonomy]);
 
   const initialFormState = {};
-  latestTaxonomyList.forEach((taxonomy) => {
+  latestTaxonomyList?.forEach((taxonomy) => {
     initialFormState[taxonomy.id] = {};
   });
   const sortedClassifications = getSortedClasses(currentClassifications);
 
   // For each existing taxonomy/classification, update initial sliders
-  sortedClassifications.forEach((classifications) => {
-    classifications.forEach((classification) => {
+  sortedClassifications?.forEach((classifications) => {
+    classifications?.forEach((classification) => {
       // Take just the latest values for each field
       if (
         !initialFormState[classification.taxonomy_id][
@@ -218,7 +218,7 @@ const MultipleClassificationsForm = ({
           currentTotalOfSiblings +=
             newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
         });
-        siblings.forEach((sibling) => {
+        siblings?.forEach((sibling) => {
           const currentProbability =
             newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
           // Scale the siblings' probabilities based on the proportion they had
@@ -253,7 +253,7 @@ const MultipleClassificationsForm = ({
         currentTotalOfSiblings +=
           newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
       });
-      siblings.forEach((sibling) => {
+      siblings?.forEach((sibling) => {
         const currentProbability =
           newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
         // Scale the siblings' probabilities based on the proportion they had
@@ -413,7 +413,7 @@ const MultipleClassificationsForm = ({
     // Reset the depths for the posted classifications so that they
     // are not reposted upon further edits
     const newFormState = { ...formState };
-    toPost.forEach(([classification, { probability }]) => {
+    toPost?.forEach(([classification, { probability }]) => {
       newFormState[selectedTaxonomy.id][classification] = {
         depth: -1,
         probability,

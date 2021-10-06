@@ -69,6 +69,9 @@ from skyportal import facility_apis
 from . import schema
 from .email_utils import send_email
 from .enum_types import (
+    ALLOWED_SPECTRUM_TYPES,
+    allowed_spectrum_types,
+    default_spectrum_type,
     allowed_bandpasses,
     thumbnail_types,
     instrument_types,
@@ -1037,18 +1040,18 @@ class Obj(Base, ha.Point):
             .label('peak_detected_mag')
         )
 
-    def add_linked_thumbnails(self):
+    def add_linked_thumbnails(self, session=DBSession):
         """Determine the URLs of the SDSS and DESI DR8 thumbnails of the object,
         insert them into the Thumbnails table, and link them to the object."""
         sdss_thumb = Thumbnail(obj=self, public_url=self.sdss_url, type='sdss')
         dr8_thumb = Thumbnail(obj=self, public_url=self.desi_dr8_url, type='dr8')
-        DBSession().add_all([sdss_thumb, dr8_thumb])
-        DBSession().commit()
+        session.add_all([sdss_thumb, dr8_thumb])
+        session.commit()
 
-    def add_ps1_thumbnail(self):
+    def add_ps1_thumbnail(self, session=DBSession):
         ps1_thumb = Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1")
-        DBSession().add(ps1_thumb)
-        DBSession().commit()
+        session.add(ps1_thumb)
+        session.commit()
 
     @property
     def sdss_url(self):
@@ -2517,6 +2520,13 @@ class Spectrum(Base):
         doc="Median UTC ISO time stamp of the exposure or exposures in which the Spectrum was acquired.",
     )
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the spectrum.")
+    type = sa.Column(
+        allowed_spectrum_types,
+        nullable=False,
+        default=default_spectrum_type,
+        doc=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+                Defaults to 'f{default_spectrum_type}'.''',
+    )
     # TODO program?
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete='CASCADE'),

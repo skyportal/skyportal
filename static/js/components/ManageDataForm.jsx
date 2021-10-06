@@ -37,7 +37,7 @@ function get_filename(spectrum) {
 
 function to_csv(spectrum) {
   const formatted = [];
-  spectrum.wavelengths.forEach((wave, i) => {
+  spectrum.wavelengths?.forEach((wave, i) => {
     const obj = {};
     obj.wavelength = wave;
     obj.flux = spectrum.fluxes[i];
@@ -159,9 +159,13 @@ const SpectrumRow = ({ rowData, route }) => {
           >
             <Typography variant="h6">Comments</Typography>
             <CommentList
-              associatedResourceType="spectrum"
+              associatedResourceType="spectra"
               objID={route.id}
-              spectrumID={rowData[0]}
+              spectrumID={
+                typeof rowData[0] === "number"
+                  ? rowData[0]
+                  : parseInt(rowData[0], 10)
+              }
             />
           </Grid>
         </Grid>

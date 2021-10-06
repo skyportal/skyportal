@@ -25,7 +25,7 @@ export const getSortedClasses = (classifications) => {
   const groupedClasses = groupBy(filteredClasses, "taxonomy_id");
   const sortedClasses = [];
 
-  Object.keys(groupedClasses).forEach((item) =>
+  Object.keys(groupedClasses)?.forEach((item) =>
     sortedClasses.push(
       groupedClasses[item].sort((a, b) => (a.modified < b.modified ? 1 : -1))
     )

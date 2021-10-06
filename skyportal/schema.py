@@ -24,6 +24,8 @@ from marshmallow_enum import EnumField
 from baselayer.app.models import Base as _Base, DBSession as _DBSession
 from baselayer.app.env import load_env
 from skyportal.enum_types import (
+    ALLOWED_SPECTRUM_TYPES,
+    default_spectrum_type,
     py_allowed_bandpasses,
     py_allowed_magsystems,
     py_followup_priorities,
@@ -1136,6 +1138,12 @@ class SpectrumPost(_Schema):
     )
 
     origin = fields.String(required=False, description="Origin of the spectrum.")
+
+    type = fields.String(
+        required=False,
+        description=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+                        Defaults to 'f{default_spectrum_type}'.''',
+    )
 
     instrument_id = fields.Integer(
         required=True,

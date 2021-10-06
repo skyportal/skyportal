@@ -17,9 +17,15 @@ const DELETE_CLASSIFICATION = "skyportal/DELETE_CLASSIFICATION";
 const ADD_COMMENT = "skyportal/ADD_COMMENT";
 
 const DELETE_COMMENT = "skyportal/DELETE_COMMENT";
+const DELETE_COMMENT_ON_SPECTRUM = "skyportal/DELETE_COMMENT_ON_SPECTRUM";
 
 const GET_COMMENT_ATTACHMENT = "skyportal/GET_COMMENT_ATTACHMENT";
 const GET_COMMENT_ATTACHMENT_OK = "skyportal/GET_COMMENT_ATTACHMENT_OK";
+
+const GET_COMMENT_ON_SPECTRUM_ATTACHMENT =
+  "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT";
+const GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK =
+  "skyportal/GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK";
 
 const ADD_SOURCE_VIEW = "skyportal/ADD_SOURCE_VIEW";
 
@@ -77,24 +83,66 @@ export function addComment(formData) {
     return (dispatch) => {
       fileReaderPromise(formData.attachment).then((fileData) => {
         formData.attachment = fileData;
-        dispatch(API.POST(`/api/comment`, ADD_COMMENT, formData));
+
+        if (formData.spectrum_id) {
+          dispatch(
+            API.POST(
+              `/api/spectra/${formData.spectrum_id}/comments`,
+              ADD_COMMENT,
+              formData
+            )
+          );
+        } else {
+          dispatch(
+            API.POST(
+              `/api/sources/${formData.obj_id}/comments`,
+              ADD_COMMENT,
+              formData
+            )
+          );
+        }
       });
     };
   }
-  return API.POST(`/api/comment`, ADD_COMMENT, formData);
+  if (formData.spectrum_id) {
+    return API.POST(
+      `/api/spectra/${formData.spectrum_id}/comments`,
+      ADD_COMMENT,
+      formData
+    );
+  }
+  return API.POST(
+    `/api/sources/${formData.obj_id}/comments`,
+    ADD_COMMENT,
+    formData
+  );
 }
 
-export function deleteComment(comment_id, associatedResourceType = "object") {
+export function deleteComment(sourceID, commentID) {
   return API.DELETE(
-    `/api/comment/${comment_id}/${associatedResourceType}`,
+    `/api/sources/${sourceID}/comments/${commentID}`,
     DELETE_COMMENT
   );
 }
 
-export function getCommentAttachment(comment_id) {
+export function deleteCommentOnSpectrum(spectrumID, commentID) {
+  return API.DELETE(
+    `/api/spectra/${spectrumID}/comments/${commentID}`,
+    DELETE_COMMENT_ON_SPECTRUM
+  );
+}
+
+export function getCommentAttachment(sourceID, commentID) {
   return API.GET(
-    `/api/comment/${comment_id}/attachment?download=False`,
+    `/api/sources/${sourceID}/comments/${commentID}/attachment`,
     GET_COMMENT_ATTACHMENT
+  );
+}
+
+export function getCommentOnSpectrumAttachment(spectrumID, commentID) {
+  return API.GET(
+    `/api/spectra/${spectrumID}/comments/${commentID}/attachment`,
+    GET_COMMENT_ON_SPECTRUM_ATTACHMENT
   );
 }
 
@@ -201,6 +249,16 @@ const reducer = (state = { source: null, loadError: false }, action) => {
         loadError: `Error while loading source: ${action.message}`,
       };
     case GET_COMMENT_ATTACHMENT_OK: {
+      const { commentId, attachment } = action.data;
+      return {
+        ...state,
+        commentAttachment: {
+          commentId,
+          attachment,
+        },
+      };
+    }
+    case GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK: {
       const { commentId, attachment } = action.data;
       return {
         ...state,

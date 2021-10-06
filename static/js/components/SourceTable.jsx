@@ -459,6 +459,7 @@ const SourceTable = ({
                     created_at,
                     text,
                     attachment_name,
+                    api_path,
                     groups: comment_groups,
                   }) => (
                     <span key={id} className={commentStyle}>
@@ -501,7 +502,7 @@ const SourceTable = ({
                           {attachment_name && (
                             <div>
                               Attachment:&nbsp;
-                              <a href={`/api/comment/${id}/attachment`}>
+                              <a href={`${api_path}/attachment`}>
                                 {attachment_name}
                               </a>
                             </div>
@@ -813,7 +814,7 @@ const SourceTable = ({
       const sourceFilterList = filterList[0];
       // Convert chip filter list to filter form data
       const data = {};
-      sourceFilterList.forEach((filterChip) => {
+      sourceFilterList?.forEach((filterChip) => {
         const [key, value] = filterChip.split(": ");
         if (key === "position") {
           const fields = value.split(/\s*\(\D*\),*\s*/);

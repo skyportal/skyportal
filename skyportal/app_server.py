@@ -37,7 +37,6 @@ from skyportal.handlers.api import (
     ObjHandler,
     ObjPhotometryHandler,
     ObjClassificationHandler,
-    ObjAnnotationHandler,
     PhotometryRangeHandler,
     RoleHandler,
     UserRoleHandler,
@@ -111,20 +110,6 @@ skyportal_handlers = [
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
-    (
-        r'/api/comment(/[0-9]+)/attachment(/(?:object|spectrum))?',
-        CommentAttachmentHandler,
-    ),
-    # Allow the '.pdf' suffix for the attachment route, as the
-    # react-file-previewer package expects URLs ending with '.pdf' to
-    # load PDF files.
-    (
-        r'/api/comment(/[0-9]+)/attachment(/(?:object|spectrum))?.pdf',
-        CommentAttachmentHandler,
-    ),
-    (r'/api/comment(/[0-9]+)(/(?:object|spectrum))?', CommentHandler),
-    (r'/api/comment', CommentHandler),
-    (r'/api/annotation(/[0-9]+)?', AnnotationHandler),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
@@ -155,16 +140,42 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/offsets', SourceOffsetsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/finder', SourceFinderHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
-    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations', ObjAnnotationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
+    (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
+    (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?', CommentHandler),
+    (
+        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment',
+        CommentAttachmentHandler,
+    ),
+    # Allow the '.pdf' suffix for the attachment route, as the
+    # react-file-previewer package expects URLs ending with '.pdf' to
+    # load PDF files.
+    (
+        r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
+        CommentAttachmentHandler,
+    ),
+    (
+        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations',
+        AnnotationHandler,
+    ),
+    (
+        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations(/[0-9]+)?',
+        AnnotationHandler,
+    ),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),
+    (r'/api/spectra(/[0-9]+)?', SpectrumHandler),
+    (r'/api/spectra/parse/ascii', SpectrumASCIIFileParser),
+    (r'/api/spectra/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
+    (r'/api/spectra/range(/.*)?', SpectrumRangeHandler),
+    # FIXME: TODO: Deprecated, to be removed in an upcoming release
     (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
     (r'/api/spectrum/parse/ascii', SpectrumASCIIFileParser),
     (r'/api/spectrum/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
     (r'/api/spectrum/range(/.*)?', SpectrumRangeHandler),
+    # End deprecated
     (r'/api/streams(/[0-9]+)/users(/.*)?', StreamUserHandler),
     (r'/api/streams(/[0-9]+)?', StreamHandler),
     (r'/api/db_stats', StatsHandler),

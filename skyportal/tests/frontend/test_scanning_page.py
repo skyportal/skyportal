@@ -323,7 +323,7 @@ def test_submit_annotations_sorting(
     origin = str(uuid.uuid4())[:5]
     status, data = api(
         "POST",
-        "annotation",
+        f"sources/{public_candidate.id}/annotations",
         data={
             "obj_id": public_candidate.id,
             "origin": origin,
@@ -334,7 +334,7 @@ def test_submit_annotations_sorting(
     assert status == 200
     status, data = api(
         "POST",
-        "annotation",
+        f"sources/{public_candidate2.id}/annotations",
         data={
             "obj_id": public_candidate2.id,
             "origin": origin,
@@ -388,7 +388,7 @@ def test_submit_annotations_filtering(
     origin = str(uuid.uuid4())
     status, data = api(
         "POST",
-        "annotation",
+        f"sources/{public_candidate.id}/annotations",
         data={
             "obj_id": public_candidate.id,
             "origin": origin,
@@ -399,7 +399,7 @@ def test_submit_annotations_filtering(
     assert status == 200
     status, data = api(
         "POST",
-        "annotation",
+        f"sources/{public_candidate2.id}/annotations",
         data={
             "obj_id": public_candidate2.id,
             "origin": origin,
@@ -660,7 +660,7 @@ def test_add_scanning_profile(
     # Post an annotation to the test source, to test setting annotation sorting
     status, _ = api(
         'POST',
-        'annotation',
+        f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
             'origin': 'kowalski',

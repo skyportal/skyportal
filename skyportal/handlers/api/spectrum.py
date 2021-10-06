@@ -29,6 +29,8 @@ from ...schema import (
     SpectrumAsciiFileParseJSON,
 )
 
+from ...enum_types import default_spectrum_type
+
 _, cfg = load_env()
 
 
@@ -133,6 +135,8 @@ class SpectrumHandler(BaseHandler):
         spec.instrument = instrument
         spec.groups = groups
         spec.owner_id = owner_id
+        if spec.type is None:
+            spec.type = default_spectrum_type
         DBSession().add(spec)
         for reducer in reducers:
             reducer.spectrum = spec
@@ -149,7 +153,7 @@ class SpectrumHandler(BaseHandler):
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_key': spec.obj.internal_key},
+            payload={'obj_id': spec.obj.id},
         )
 
         return self.success(data={"id": spec.id})

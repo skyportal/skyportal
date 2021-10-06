@@ -3,6 +3,10 @@ name: Test Skyportal Migrations
 on:
   # Run only if potential changes in database schema
   pull_request:
+    paths:
+      - "baselayer"
+      - "skyportal/models.py"
+      - "alembic/versions/**"
 
 jobs:
   test:
@@ -17,7 +21,7 @@ jobs:
       # (e.g., to get access to a newer data loader or dependencies).
       # Pick any commit known to have passed the migration tests on
       # CI, or which has deployed successfully.
-      MIGRATION_REFERENCE: 7e06052da3428b97b9205023f8031e178a3bb02c
+      MIGRATION_REFERENCE: 880cd56716015e33df22af1d256717ce98d7eb84
 
     services:
       postgres:
