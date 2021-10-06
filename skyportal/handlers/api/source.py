@@ -707,7 +707,7 @@ class SourceHandler(BaseHandler):
                     IOLoop.current().run_in_executor(
                         None,
                         lambda: add_ps1_thumbnail_and_push_ws_msg(
-                            obj_id, self.current_user.id
+                            obj_id, self.associated_user_object.id
                         ),
                     )
                 if (
@@ -717,7 +717,7 @@ class SourceHandler(BaseHandler):
                     IOLoop.current().run_in_executor(
                         None,
                         lambda: add_linked_thumbnails_and_push_ws_msg(
-                            obj_id, self.current_user.id
+                            obj_id, self.associated_user_object.id
                         ),
                     )
             if include_comments:
@@ -1454,7 +1454,7 @@ class SourceHandler(BaseHandler):
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj.id, self.current_user.id
+                    obj.id, self.associated_user_object.id
                 ),
             )
         else:
@@ -2136,6 +2136,8 @@ class PS1ThumbnailHandler(BaseHandler):
         if obj_id is None:
             return self.error("Missing required parameter objID")
         IOLoop.current().add_callback(
-            lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self.current_user.id)
+            lambda: add_ps1_thumbnail_and_push_ws_msg(
+                obj_id, self.associated_user_object.id
+            )
         )
         return self.success()
