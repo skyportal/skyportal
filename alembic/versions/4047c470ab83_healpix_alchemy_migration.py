@@ -28,10 +28,10 @@ def upgrade():
         sa.sql.text(
             """
             UPDATE objs SET
-            x = cos(radians(ra)) * cos(radians(dec)),
-            y = sin(radians(ra)) * cos(radians(dec)),
-            z = sin(radians(dec));
-
+              x = cos(radians(ra)) * cos(radians(dec)),
+              y = sin(radians(ra)) * cos(radians(dec)),
+              z = sin(radians(dec))
+            WHERE ra IS NOT NULL AND dec IS NOT NULL;
             """
         )
     )
@@ -47,10 +47,10 @@ def upgrade():
         sa.sql.text(
             """
             UPDATE photometry SET
-            x = cos(radians(ra)) * cos(radians(dec)),
-            y = sin(radians(ra)) * cos(radians(dec)),
-            z = sin(radians(dec));
-
+              x = cos(radians(ra)) * cos(radians(dec)),
+              y = sin(radians(ra)) * cos(radians(dec)),
+              z = sin(radians(dec))
+            WHERE ra IS NOT NULL AND dec IS NOT NULL;
             """
         )
     )
