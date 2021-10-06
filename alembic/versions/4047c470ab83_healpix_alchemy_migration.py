@@ -1,7 +1,7 @@
 """healpix_alchemy migration
 
 Revision ID: 4047c470ab83
-Revises: 171e9ea18885
+Revises: 5b4d9d54142e
 Create Date: 2021-08-24 13:35:39.484659
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '4047c470ab83'
-down_revision = '171e9ea18885'
+down_revision = '5b4d9d54142e'
 branch_labels = None
 depends_on = None
 
