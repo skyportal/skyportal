@@ -29,10 +29,14 @@ class BaseHandler(BaselayerHandler):
         max_file_size=20 * 1024 ** 2,
     ):
         """
-        data: bytesIO data buffer
-        filename: a string defining what the filename of the ouput file should be
-        chunk_size: how many bytes per chunk (default: 1MB)
-        max_file_size: how big of a file will we allow sending (default: 20MB)
+        data : bytesIO
+            File contents.
+        filename : str
+            Downloaded filename.
+        chunk_size : int
+            The stream is sent in chunks of `chunk_size` bytes (default: 1MB).
+        max_file_size : int
+            Filesize limit in bytes (default: 20MB)
         """
         # Adapted from
         # https://bhch.github.io/posts/2017/12/serving-large-files-with-tornado-safely-without-blocking/
@@ -42,7 +46,7 @@ class BaseHandler(BaselayerHandler):
                 f"Refusing to send files larger than {max_file_size / mb:.2f} MB"
             )
 
-        # do not send result via `.success`, since that creates a JSON
+        # do not send result via `.success`, since that uses content-type JSON
         self.set_status(200)
         if output_type == "pdf":
             self.set_header("Content-Type", "application/pdf; charset='utf-8'")
@@ -53,8 +57,6 @@ class BaseHandler(BaselayerHandler):
         self.set_header(
             'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
         )
-
-        self.verify_and_commit()
 
         for i in range(ceil(max_file_size / chunk_size)):
             chunk = data.read(chunk_size)

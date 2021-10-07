@@ -59,5 +59,5 @@ from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
 from .thumbnail import ThumbnailHandler
 from .user import UserHandler
-from .unsourced_finder import UnSourcedFinderHandler
+from .unsourced_finder import UnsourcedFinderHandler
 from .weather import WeatherHandler
