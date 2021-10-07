@@ -301,7 +301,9 @@ class AnnotationHandler(BaseHandler):
         DBSession().add(annotation)
         self.verify_and_commit()
 
-        if annotation.obj.id:  # annotation on object or object related data
+        if isinstance(
+            annotation, (Annotation, AnnotationOnSpectrum)
+        ):  # annotation on object or object related data
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': annotation.obj.internal_key},
@@ -309,7 +311,7 @@ class AnnotationHandler(BaseHandler):
         if isinstance(annotation, AnnotationOnSpectrum):
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_id': annotation.obj.id},
+                payload={'obj_id': annotation.obj_id},
             )
         return self.success(data={'annotation_id': annotation.id})
 
@@ -425,7 +427,9 @@ class AnnotationHandler(BaseHandler):
 
         self.verify_and_commit()
 
-        if a.obj.id:  # annotation on object, or object related resources
+        if isinstance(
+            a, (Annotation, AnnotationOnSpectrum)
+        ):  # annotation on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': a.obj.internal_key},
@@ -516,7 +520,9 @@ class AnnotationHandler(BaseHandler):
         DBSession().delete(a)
         self.verify_and_commit()
 
-        if a.obj.id:  # annotation on object, or object related resources
+        if isinstance(
+            a, (Annotation, AnnotationOnSpectrum)
+        ):  # annotation on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key}
             )
