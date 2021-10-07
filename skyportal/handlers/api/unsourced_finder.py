@@ -24,7 +24,7 @@ _, cfg = load_env()
 log = make_log('api/unsourced_finder')
 
 
-class UnSourcedFinderHandler(BaseHandler):
+class UnsourcedFinderHandler(BaseHandler):
     @auth_or_token
     async def get(self):
         """
@@ -122,7 +122,7 @@ class UnSourcedFinderHandler(BaseHandler):
             minimum: 0
             maximum: 4
           description: |
-            output desired number of offset stars [0,4] (default: 3)
+            Number of offset stars to determine and show [0,4] (default: 3)
         responses:
           200:
             description: A PDF/PNG finding chart file
@@ -151,7 +151,13 @@ class UnSourcedFinderHandler(BaseHandler):
             return self.error('obstime is not valid isoformat')
 
         catalog_id = self.get_query_argument('catalog_id', 'unknown')
+
         if location_type != "pos":
+
+            # a Gaia source must be all integer characters
+            if not catalog_id.isnumeric():
+                return self.error('`catalog_id` must be a number')
+
             # database name should be something like gaiaedr3
             db_name = "".join(location_type.split("_"))
             obstime_decimalyear = Time(isoparse(obstime)).decimalyear
@@ -193,7 +199,9 @@ class UnSourcedFinderHandler(BaseHandler):
                 # could not handle inputs
                 return self.error('Invalid argument for `dec`')
             if not -90 <= dec <= 90.0:
-                return self.error("Invalid value for `dec`: must be -90 <= dec <= 90.0")
+                return self.error(
+                    "Invalid value for `dec`: must be in the range [-90,90]"
+                )
             obj_id = f'{ra:0.6g}{dec:+0.6g}'
             extra_display_string = ""
 
@@ -226,7 +234,7 @@ class UnSourcedFinderHandler(BaseHandler):
 
         if not 0 <= num_offset_stars <= 4:
             return self.error(
-                'The value for `num_offset_stars` is outside the allowed range'
+                'The value for `num_offset_stars` is outside the allowed range [0, 4]'
             )
 
         if facility not in facility_parameters:
