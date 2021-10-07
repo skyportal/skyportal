@@ -2527,6 +2527,11 @@ class Spectrum(Base):
         doc=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
                 Defaults to 'f{default_spectrum_type}'.''',
     )
+    label = sa.Column(
+        sa.String,
+        nullable=True,
+        doc='User defined label replacing the instrument/date labeling on plot legends.',
+    )
     # TODO program?
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete='CASCADE'),

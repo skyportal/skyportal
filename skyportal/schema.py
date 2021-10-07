@@ -1145,6 +1145,11 @@ class SpectrumPost(_Schema):
                         Defaults to 'f{default_spectrum_type}'.''',
     )
 
+    label = fields.String(
+        required=False,
+        description="User defined label replacing the instrument/date labeling on plot legends.",
+    )
+
     instrument_id = fields.Integer(
         required=True,
         description="ID of the Instrument that acquired the Spectrum.",
