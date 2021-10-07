@@ -61,6 +61,7 @@ from skyportal.handlers.api import (
     TelescopeHandler,
     ThumbnailHandler,
     UserHandler,
+    UnSourcedFinderHandler,
     WeatherHandler,
     PS1ThumbnailHandler,
 )
@@ -183,6 +184,7 @@ skyportal_handlers = [
     (r'/api/taxonomy(/.*)?', TaxonomyHandler),
     (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
     (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
+    (r'/api/unsourced_finder', UnSourcedFinderHandler),
     (r'/api/user(/[0-9]+)/acls(/.*)?', UserACLHandler),
     (r'/api/user(/[0-9]+)/roles(/.*)?', UserRoleHandler),
     (r'/api/user(/.*)?', UserHandler),
