@@ -1,12 +1,10 @@
 import io
-import math
 import datetime
 import functools
 
 import numpy.ma as ma
 from dateutil.parser import isoparse
 from astropy.time import Time
-import tornado
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
@@ -90,9 +88,9 @@ class UnSourcedFinderHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [desi, dss, ztfref]
+            enum: [ps1, desi, dss, ztfref]
           description: |
-            Source of the image used in the finding chart. Defaults to ztfref
+            Source of the image used in the finding chart. Defaults to ps1
         - in: query
           name: use_ztfref
           required: false
@@ -165,16 +163,19 @@ class UnSourcedFinderHandler(BaseHandler):
                 WHERE gaia.source_id={catalog_id}
                 ) AS subquery
             """
-            g = GaiaQuery()
-            r = g.query(query_string)
-            if len(r) != 1:
+            gaia_query = GaiaQuery()
+            response = gaia_query.query(query_string)
+            if len(response) != 1:
                 return self.error(
                     f'Cannot get position information for `catalog_id` = {catalog_id}'
                 )
-            ra = r["ra_obs"].data[0]
-            dec = r["dec_obs"].data[0]
+            ra = response["ra_obs"].data[0]
+            dec = response["dec_obs"].data[0]
             obj_id = f'{location_type.split("_")[-1]} {catalog_id}'
-            pmra, pmdec = ma.getdata(r["pmra"])[0], ma.getdata(r["pmdec"])[0]
+            pmra, pmdec = (
+                ma.getdata(response["pmra"])[0],
+                ma.getdata(response["pmdec"])[0],
+            )
             extra_display_string = f'{pmra:0.4} E \u2033/yr {pmdec:0.4} N \u2033/yr'
         else:
             ra = self.get_query_argument('ra')
@@ -183,12 +184,16 @@ class UnSourcedFinderHandler(BaseHandler):
             except ValueError:
                 # could not handle inputs
                 return self.error('Invalid argument for `ra`')
+            if not 0 <= ra < 360.0:
+                return self.error("Invalid value for `ra`: must be 0 <= ra < 360.0")
             dec = self.get_query_argument('dec')
             try:
                 dec = float(dec)
             except ValueError:
                 # could not handle inputs
                 return self.error('Invalid argument for `dec`')
+            if not -90 <= dec <= 90.0:
+                return self.error("Invalid value for `dec`: must be -90 <= dec <= 90.0")
             obj_id = f'{ra:0.6g}{dec:+0.6g}'
             extra_display_string = ""
 
@@ -207,7 +212,7 @@ class UnSourcedFinderHandler(BaseHandler):
             return self.error('The value for `imsize` is outside the allowed range')
 
         facility = self.get_query_argument('facility', 'Keck')
-        image_source = self.get_query_argument('image_source', 'ztfref')
+        image_source = self.get_query_argument('image_source', 'ps1')
         use_ztfref = self.get_query_argument('use_ztfref', True)
         if isinstance(use_ztfref, str):
             use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
@@ -218,6 +223,11 @@ class UnSourcedFinderHandler(BaseHandler):
         except ValueError:
             # could not handle inputs
             return self.error('Invalid argument for `num_offset_stars`')
+
+        if not 0 <= num_offset_stars <= 4:
+            return self.error(
+                'The value for `num_offset_stars` is outside the allowed range'
+            )
 
         if facility not in facility_parameters:
             return self.error('Invalid facility')
@@ -258,49 +268,6 @@ class UnSourcedFinderHandler(BaseHandler):
         rez = await IOLoop.current().run_in_executor(None, finder)
 
         filename = rez["name"]
-        image = io.BytesIO(rez["data"])
+        data = io.BytesIO(rez["data"])
 
-        # Adapted from
-        # https://bhch.github.io/posts/2017/12/serving-large-files-with-tornado-safely-without-blocking/
-        mb = 1024 * 1024 * 1
-        chunk_size = 1 * mb
-        max_file_size = 15 * mb
-        if not (image.getbuffer().nbytes < max_file_size):
-            return self.error(
-                f"Refusing to send files larger than {max_file_size / mb:.2f} MB"
-            )
-
-        # do not send result via `.success`, since that creates a JSON
-        self.set_status(200)
-        if output_type == "pdf":
-            self.set_header("Content-Type", "application/pdf; charset='utf-8'")
-            self.set_header("Content-Disposition", f"attachment; filename={filename}")
-        else:
-            self.set_header("Content-type", f"image/{output_type}")
-
-        self.set_header(
-            'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
-        )
-
-        self.verify_and_commit()
-
-        for i in range(math.ceil(max_file_size / chunk_size)):
-            chunk = image.read(chunk_size)
-            if not chunk:
-                break
-            try:
-                self.write(chunk)  # write the chunk to response
-                await self.flush()  # send the chunk to client
-            except tornado.iostream.StreamClosedError:
-                # this means the client has closed the connection
-                # so break the loop
-                break
-            finally:
-                # deleting the chunk is very important because
-                # if many clients are downloading files at the
-                # same time, the chunks in memory will keep
-                # increasing and will eat up the RAM
-                del chunk
-
-                # pause the coroutine so other handlers can run
-                await tornado.gen.sleep(1e-9)  # 1 ns
+        await self.send_file(data, filename, output_type=output_type)

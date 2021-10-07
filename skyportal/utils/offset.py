@@ -965,7 +965,7 @@ def fits_image(
     center_ra,
     center_dec,
     imsize=4.0,
-    image_source="ztfref",
+    image_source="ps1",
     cache_dir="./cache/finder/",
     cache_max_items=1000,
 ):
@@ -982,7 +982,7 @@ def fits_image(
     imsize : float, optional
         Requested image size (on a size) in arcmin
     image_source : str, optional
-        Survey where the image comes from "desi" or "dss" (more to be added)
+        Survey where the image comes from "desi", "dss", "ztfref", "ps1"
     cache_dir : str, optional
         Where should the cache live?
     cache_max_items : int, optional
@@ -1049,7 +1049,7 @@ def get_finding_chart(
     source_ra,
     source_dec,
     source_name,
-    image_source='ztfref',
+    image_source='ps1',
     output_format='pdf',
     imsize=3.0,
     tick_offset=0.02,
@@ -1072,9 +1072,9 @@ def get_finding_chart(
         Declination (J2000) of the source
     source_name : str
         Name of the source
-    image_source : {'desi', 'dss', 'ztfref'}, optional
-        Survey where the image comes from "desi", "dss", "ztfref"
-        (more to be added)
+    image_source : {'desi', 'dss', 'ztfref', 'ps1'}, optional
+        Survey where the image comes from "desi", "dss", "ztfref", "ps1"
+        defaults to "ps1"
     output_format : str, optional
         "pdf" of "png" -- determines the format of the returned finder
     imsize : float, optional
