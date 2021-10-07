@@ -122,7 +122,7 @@ def test_add_and_retrieve_annotation_group_access(
         'POST',
         f'spectra/{spectrum_id}/annotations',
         data={
-            'obj_id': public_source_two_groups.id,
+            'origin': 'IPAC',
             'spectrum_id': spectrum_id,
             'data': {'distance_from_host': 7.4},
             'group_ids': [public_group2.id],
@@ -139,7 +139,7 @@ def test_add_and_retrieve_annotation_group_access(
         token=annotation_token_two_groups,
     )
     assert status == 200
-    assert data['data']['data']['distance_from_host '] == 7.5
+    assert data['data']['data']['distance_from_host'] == 7.4
 
     # This token does not belong to public_group2
     status, data = api(
@@ -154,7 +154,7 @@ def test_add_and_retrieve_annotation_group_access(
         'POST',
         f'spectra/{spectrum_id}/annotations',
         data={
-            'obj_id': public_source_two_groups.id,
+            'origin': 'kowalski',
             'spectrum_id': spectrum_id,
             'data': {'ACAI_class': 'type Ia'},
             'group_ids': [public_group.id, public_group2.id],
@@ -201,7 +201,7 @@ def test_add_and_retrieve_annotation_group_access(
         'POST',
         f'spectra/{spectrum_id}/annotations',
         data={
-            'obj_id': public_source_two_groups.id,
+            'origin': 'kowalski',
             'spectrum_id': spectrum_id,
             'data': {'ACAI_class': 'type Ia'},
             'group_ids': [public_group2.id],
