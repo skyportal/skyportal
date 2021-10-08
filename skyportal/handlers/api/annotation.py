@@ -8,6 +8,27 @@ from ...models import DBSession, Annotation, Spectrum, AnnotationOnSpectrum, Gro
 
 
 class AnnotationHandler(BaseHandler):
+    def get_resource(self, associated_resource_type):
+        associated_resource_type = associated_resource_type.lower()
+        associated_resource_types = {
+            "sources": {
+                "class": Annotation,
+                "id_attr": 'obj_id',
+                "obj_associated": True,
+            },
+            "spectra": {
+                "class": AnnotationOnSpectrum,
+                "id_attr": 'spectrum_id',
+                "obj_associated": True,
+            },
+        }
+        if associated_resource_type not in associated_resource_types:
+            return self.error(
+                f'Unsupported associated resource type "{associated_resource_type}".'
+            )
+
+        return associated_resource_types[associated_resource_type]
+
     @auth_or_token
     def get(self, associated_resource_type, resource_id, annotation_id=None):
         """
@@ -86,63 +107,31 @@ class AnnotationHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        if annotation_id is None:
-            if associated_resource_type.lower() == "sources":
-                annotations = (
-                    Annotation.query_records_accessible_by(self.current_user)
-                    .filter(Annotation.obj_id == resource_id)
-                    .all()
-                )
-                self.verify_and_commit()
-                return self.success(data=annotations)
-            elif associated_resource_type.lower() == "spectra":
-                annotations = (
-                    AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
-                    .filter(AnnotationOnSpectrum.spectrum_id == resource_id)
-                    .all()
-                )
-                self.verify_and_commit()
-                return self.success(data=annotations)
+        resource = self.get_resource(associated_resource_type)
 
-            # add more options using elif
-            else:
-                return self.error(
-                    f'Unsupported associated resource type "{associated_resource_type}".'
-                )
+        if annotation_id is None:
+            annotations = (
+                resource['class']
+                .query_records_accessible_by(self.current_user)
+                .filter(getattr(resource['class'], resource['id_attr']) == resource_id)
+                .all()
+            )
+            self.verify_and_commit()
+            return self.success(data=annotations)
 
         try:
             annotation_id = int(annotation_id)
         except (TypeError, ValueError):
             return self.error("Must provide a valid (scalar integer) annotation ID.")
 
-        if associated_resource_type.lower() == "sources":
-            try:
-                annotation = Annotation.get_if_accessible_by(
-                    annotation_id, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible annotations.', status=403
-                )
-            annotation_resource_id_str = str(annotation.obj_id)
-        elif associated_resource_type.lower() == "spectra":
-            try:
-                annotation = AnnotationOnSpectrum.get_if_accessible_by(
-                    annotation_id, self.current_user, raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible annotations.', status=403
-                )
-            annotation_resource_id_str = str(annotation.spectrum_id)
-
-        # add more options using elif
-        else:
-            return self.error(
-                f'Unsupported associated resource type "{associated_resource_type}".'
+        try:
+            annotation = resource['class'].get_if_accessible_by(
+                annotation_id, self.current_user, raise_if_none=True
             )
+        except AccessError:
+            return self.error('Could not find any accessible annotations.', status=403)
 
-        if annotation_resource_id_str != resource_id:
+        if str(getattr(annotation, resource['id_attr'])) != resource_id:
             return self.error(
                 f'Annotation resource ID does not match resource ID given in path ({resource_id})'
             )
@@ -370,37 +359,21 @@ class AnnotationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
         try:
             annotation_id = int(annotation_id)
         except (TypeError, ValueError):
             return self.error("Must provide a valid (scalar integer) annotation ID. ")
 
-        if associated_resource_type.lower() == "sources":
-            schema = Annotation.__schema__()
-            try:
-                a = Annotation.get_if_accessible_by(
-                    annotation_id, self.current_user, mode="update", raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible annotations.', status=403
-                )
-            annotation_resource_id_str = str(a.obj_id)
-        elif associated_resource_type.lower() == "spectra":
-            schema = AnnotationOnSpectrum.__schema__()
-            try:
-                a = AnnotationOnSpectrum.get_if_accessible_by(
-                    annotation_id, self.current_user, mode="update", raise_if_none=True
-                )
-            except AccessError:
-                return self.error('Could not find any accessible comments.', status=403)
-            annotation_resource_id_str = str(a.spectrum_id)
+        resource = self.get_resource(associated_resource_type)
 
-        # add more options using elif
-        else:
-            return self.error(
-                f'Unsupported associated_resource_type "{associated_resource_type}".'
+        schema = resource['class'].__schema__()
+        try:
+            a = resource['class'].get_if_accessible_by(
+                annotation_id, self.current_user, mode="update", raise_if_none=True
             )
+        except AccessError:
+            return self.error('Could not find any accessible annotations.', status=403)
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
@@ -420,16 +393,16 @@ class AnnotationHandler(BaseHandler):
                 return self.error('Could not find any accessible groups.', status=403)
             a.groups = groups
 
-        if annotation_resource_id_str != resource_id:
+        if str(getattr(a, resource['id_attr'])) != resource_id:
             return self.error(
                 f'Annotation resource ID does not match resource ID given in path ({resource_id})'
             )
 
         self.verify_and_commit()
 
-        if isinstance(
-            a, (Annotation, AnnotationOnSpectrum)
-        ):  # annotation on object, or object related resources
+        if resource[
+            'obj_associated'
+        ]:  # annotation on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': a.obj.internal_key},
@@ -483,46 +456,28 @@ class AnnotationHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid annotation ID. ")
 
-        if associated_resource_type.lower() == "sources":
-            try:
-                a = Annotation.get_if_accessible_by(
-                    annotation_id, self.current_user, mode="delete", raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible annotations.', status=403
-                )
-            annotation_resource_id_str = str(a.obj_id)
-        elif associated_resource_type.lower() == "spectra":
-            try:
-                a = AnnotationOnSpectrum.get_if_accessible_by(
-                    annotation_id, self.current_user, mode="delete", raise_if_none=True
-                )
-            except AccessError:
-                return self.error(
-                    'Could not find any accessible annotations.', status=403
-                )
-            annotation_resource_id_str = str(a.spectrum_id)
+        resource = self.get_resource(associated_resource_type)
 
-        # add more options using elif
-        else:
-            return self.error(
-                f'Unsupported associated_resource_type "{associated_resource_type}".'
+        try:
+            a = resource['class'].get_if_accessible_by(
+                annotation_id, self.current_user, mode="delete", raise_if_none=True
             )
+        except AccessError:
+            return self.error('Could not find any accessible annotations.', status=403)
 
-        obj_key = a.obj.internal_key
-        obj_id = a.obj.id
-
-        if annotation_resource_id_str != resource_id:
+        if str(getattr(a, resource['id_attr'])) != resource_id:
             return self.error(
                 f'Annotation resource ID does not match resource ID given in path ({resource_id})'
             )
+
+        obj_key = a.obj.internal_key
+
         DBSession().delete(a)
         self.verify_and_commit()
 
-        if isinstance(
-            a, (Annotation, AnnotationOnSpectrum)
-        ):  # annotation on object, or object related resources
+        if resource[
+            'obj_associated'
+        ]:  # annotation on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE', payload={'obj_key': obj_key}
             )
@@ -530,7 +485,7 @@ class AnnotationHandler(BaseHandler):
         if isinstance(a, AnnotationOnSpectrum):  # also update the spectrum
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_id': obj_id},
+                payload={'obj_id': a.obj_id},
             )
 
         return self.success()
