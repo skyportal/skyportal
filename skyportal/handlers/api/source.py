@@ -3,10 +3,8 @@ from json.decoder import JSONDecodeError
 from dateutil.tz import UTC
 import python_http_client.exceptions
 from twilio.base.exceptions import TwilioException
-import tornado
 from tornado.ioloop import IOLoop
 import io
-import math
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
@@ -1800,8 +1798,9 @@ class SourceFinderHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [desi, dss, ztfref]
-          description: Source of the image used in the finding chart
+            enum: [desi, dss, ztfref, ps1]
+          description: |
+             Source of the image used in the finding chart. Defaults to ps1
         - in: query
           name: use_ztfref
           required: false
@@ -1884,7 +1883,7 @@ class SourceFinderHandler(BaseHandler):
             best_ra, best_dec = initial_pos[0], initial_pos[1]
 
         facility = self.get_query_argument('facility', 'Keck')
-        image_source = self.get_query_argument('image_source', 'ztfref')
+        image_source = self.get_query_argument('image_source', 'ps1')
         use_ztfref = self.get_query_argument('use_ztfref', True)
         if isinstance(use_ztfref, str):
             use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
@@ -1895,6 +1894,11 @@ class SourceFinderHandler(BaseHandler):
         except ValueError:
             # could not handle inputs
             return self.error('Invalid argument for `num_offset_stars`')
+
+        if not 0 <= num_offset_stars <= 4:
+            return self.error(
+                'The value for `num_offset_stars` is outside the allowed range'
+            )
 
         obstime = self.get_query_argument(
             'obstime', datetime.datetime.utcnow().isoformat()
@@ -1940,52 +1944,9 @@ class SourceFinderHandler(BaseHandler):
         rez = await IOLoop.current().run_in_executor(None, finder)
 
         filename = rez["name"]
-        image = io.BytesIO(rez["data"])
+        data = io.BytesIO(rez["data"])
 
-        # Adapted from
-        # https://bhch.github.io/posts/2017/12/serving-large-files-with-tornado-safely-without-blocking/
-        mb = 1024 * 1024 * 1
-        chunk_size = 1 * mb
-        max_file_size = 15 * mb
-        if not (image.getbuffer().nbytes < max_file_size):
-            return self.error(
-                f"Refusing to send files larger than {max_file_size / mb:.2f} MB"
-            )
-
-        # do not send result via `.success`, since that creates a JSON
-        self.set_status(200)
-        if output_type == "pdf":
-            self.set_header("Content-Type", "application/pdf; charset='utf-8'")
-            self.set_header("Content-Disposition", f"attachment; filename={filename}")
-        else:
-            self.set_header("Content-type", f"image/{output_type}")
-
-        self.set_header(
-            'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
-        )
-
-        self.verify_and_commit()
-
-        for i in range(math.ceil(max_file_size / chunk_size)):
-            chunk = image.read(chunk_size)
-            if not chunk:
-                break
-            try:
-                self.write(chunk)  # write the chunk to response
-                await self.flush()  # send the chunk to client
-            except tornado.iostream.StreamClosedError:
-                # this means the client has closed the connection
-                # so break the loop
-                break
-            finally:
-                # deleting the chunk is very important because
-                # if many clients are downloading files at the
-                # same time, the chunks in memory will keep
-                # increasing and will eat up the RAM
-                del chunk
-
-                # pause the coroutine so other handlers can run
-                await tornado.gen.sleep(1e-9)  # 1 ns
+        await self.send_file(data, filename, output_type=output_type)
 
 
 class SourceNotificationHandler(BaseHandler):

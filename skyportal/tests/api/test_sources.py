@@ -454,50 +454,6 @@ def test_starlist(upload_data_token, public_source):
         npt.assert_almost_equal(gaiadr2_star_position, ztf_star_position, decimal=10)
 
 
-@pytest.mark.xfail(strict=False)
-def test_finder(upload_data_token, public_source):
-    status, data = api(
-        "PATCH",
-        f"sources/{public_source.id}",
-        data={"ra": 234.22, "dec": -22.33},
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-
-    response = api(
-        "GET",
-        f"sources/{public_source.id}/finder",
-        params={"imsize": "2"},
-        token=upload_data_token,
-        raw_response=True,
-    )
-    status = response.status_code
-    data = response.text
-    assert status == 200
-    assert isinstance(data, str)
-    assert data[0:10].find("PDF") != -1
-    assert response.headers.get("Content-Type", "Empty").find("application/pdf") != -1
-
-    # try an image source we dont know about
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/finder",
-        params={"image_source": "whoknows"},
-        token=upload_data_token,
-    )
-    assert status == 400
-
-    # try an image too big
-    status, data = api(
-        "GET",
-        f"sources/{public_source.id}/finder",
-        params={"imsize": "30"},
-        token=upload_data_token,
-    )
-    assert status == 400
-
-
 def test_source_notifications_unauthorized(
     source_notification_user_token, public_group, public_source
 ):
