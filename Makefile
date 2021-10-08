@@ -21,6 +21,17 @@ help: baselayer/Makefile
 baselayer/Makefile:
 	git submodule update --init
 
+bundle = static/build/main.bundle.js
+webpack = npx webpack
+
+$(bundle):
+	tsc && $(webpack)
+
+bundle: $(bundle)
+
+bundle-watch:
+	tsc --watch && $(webpack) -w
+
 docker-images: ## Make and upload docker images
 docker-images: docker-local
 	@# Add --no-cache flag to rebuild from scratch
