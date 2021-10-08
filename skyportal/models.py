@@ -2530,7 +2530,7 @@ class Spectrum(Base):
     label = sa.Column(
         sa.String,
         nullable=True,
-        doc='User defined label replacing the instrument/date labeling on plot legends.',
+        doc='User defined label (can be used to replace default instrument/date labeling on plot legends).',
     )
     # TODO program?
     instrument_id = sa.Column(
