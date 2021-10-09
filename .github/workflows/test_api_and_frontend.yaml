@@ -185,6 +185,7 @@ jobs:
 
       - name: Run flaky tests
         if: ${{ matrix.test_subset == 'flaky' }}
+        continue-on-error: true
         run: |
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '${FLAKY_TEST_PATHS}'
 
