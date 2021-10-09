@@ -171,17 +171,17 @@ jobs:
       - name: Run front-end tests part 1
         if: ${{ matrix.test_subset == 'frontend_pt1' }}
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/frontend/sources_and_followup_etc' ${regex}
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/frontend/sources_and_followup_etc ${regex}'
 
       - name: Run front-end tests part 2
         if: ${{ matrix.test_subset == 'frontend_pt2' }}
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '--ignore=skyportal/tests/frontend/sources_and_followup_etc skyportal/tests/frontend' ${regex}
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '--ignore=skyportal/tests/frontend/sources_and_followup_etc skyportal/tests/frontend ${regex}'
 
       - name: Run API & utils tests
         if: ${{ matrix.test_subset == 'api_and_utils' }}
         run: |
-          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/api skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting' ${regex}
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/api skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting ${regex}'
 
       - name: Run flaky tests
         if: ${{ matrix.test_subset == 'flaky' }}
