@@ -8,7 +8,7 @@ from ...models import DBSession, Annotation, Spectrum, AnnotationOnSpectrum, Gro
 
 
 class AnnotationHandler(BaseHandler):
-    def get_resource(self, associated_resource_type):
+    def get_associated_resource(self, associated_resource_type):
         associated_resource_type = associated_resource_type.lower()
         associated_resource_types = {
             "sources": {
@@ -107,13 +107,18 @@ class AnnotationHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        resource = self.get_resource(associated_resource_type)
+        associated_resource = self.get_associated_resource(associated_resource_type)
 
         if annotation_id is None:
             annotations = (
-                resource['class']
+                associated_resource['class']
                 .query_records_accessible_by(self.current_user)
-                .filter(getattr(resource['class'], resource['id_attr']) == resource_id)
+                .filter(
+                    getattr(
+                        associated_resource['class'], associated_resource['id_attr']
+                    )
+                    == resource_id
+                )
                 .all()
             )
             self.verify_and_commit()
@@ -125,13 +130,13 @@ class AnnotationHandler(BaseHandler):
             return self.error("Must provide a valid (scalar integer) annotation ID.")
 
         try:
-            annotation = resource['class'].get_if_accessible_by(
+            annotation = associated_resource['class'].get_if_accessible_by(
                 annotation_id, self.current_user, raise_if_none=True
             )
         except AccessError:
             return self.error('Could not find any accessible annotations.', status=403)
 
-        if str(getattr(annotation, resource['id_attr'])) != resource_id:
+        if str(getattr(annotation, associated_resource['id_attr'])) != resource_id:
             return self.error(
                 f'Annotation resource ID does not match resource ID given in path ({resource_id})'
             )
@@ -365,11 +370,11 @@ class AnnotationHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid (scalar integer) annotation ID. ")
 
-        resource = self.get_resource(associated_resource_type)
+        associated_resource = self.get_associated_resource(associated_resource_type)
 
-        schema = resource['class'].__schema__()
+        schema = associated_resource['class'].__schema__()
         try:
-            a = resource['class'].get_if_accessible_by(
+            a = associated_resource['class'].get_if_accessible_by(
                 annotation_id, self.current_user, mode="update", raise_if_none=True
             )
         except AccessError:
@@ -393,14 +398,14 @@ class AnnotationHandler(BaseHandler):
                 return self.error('Could not find any accessible groups.', status=403)
             a.groups = groups
 
-        if str(getattr(a, resource['id_attr'])) != resource_id:
+        if str(getattr(a, associated_resource['id_attr'])) != resource_id:
             return self.error(
                 f'Annotation resource ID does not match resource ID given in path ({resource_id})'
             )
 
         self.verify_and_commit()
 
-        if resource[
+        if associated_resource[
             'obj_associated'
         ]:  # annotation on object, or object related resources
             self.push_all(
@@ -456,16 +461,16 @@ class AnnotationHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid annotation ID. ")
 
-        resource = self.get_resource(associated_resource_type)
+        associated_resource = self.get_associated_resource(associated_resource_type)
 
         try:
-            a = resource['class'].get_if_accessible_by(
+            a = associated_resource['class'].get_if_accessible_by(
                 annotation_id, self.current_user, mode="delete", raise_if_none=True
             )
         except AccessError:
             return self.error('Could not find any accessible annotations.', status=403)
 
-        if str(getattr(a, resource['id_attr'])) != resource_id:
+        if str(getattr(a, associated_resource['id_attr'])) != resource_id:
             return self.error(
                 f'Annotation resource ID does not match resource ID given in path ({resource_id})'
             )
@@ -475,7 +480,7 @@ class AnnotationHandler(BaseHandler):
         DBSession().delete(a)
         self.verify_and_commit()
 
-        if resource[
+        if associated_resource[
             'obj_associated'
         ]:  # annotation on object, or object related resources
             self.push_all(
