@@ -34,12 +34,6 @@ export const getSortedClasses = (classifications) => {
   return sortedClasses;
 };
 
-export const getLatestClassName = (classifications) => {
-  const classes = getSortedClasses(classifications);
-  if (classes && classes[0]) return classes[0][0].classification; // TODO: think of a better way to choose from multiple taxonomies
-  return "";
-};
-
 function ShowClassification({ classifications, taxonomyList, shortened }) {
   const classes = useStyles();
 
@@ -51,36 +45,38 @@ function ShowClassification({ classifications, taxonomyList, shortened }) {
     return (
       <div>
         {title}
-        {sortedClasses.map((c) => {
-          let name = taxonomyList.filter((i) => i.id === c[0]?.taxonomy_id);
+        {sortedClasses.map((classesGroup) => {
+          let name = taxonomyList.filter(
+            (i) => i.id === classesGroup[0]?.taxonomy_id
+          );
           if (name.length > 0) {
             name = name[0].name;
           }
-          // generate the tooltip for this classification, with an informative
-          // hover over.
-          return (
+          return classesGroup.map((cls) => (
+            // generate the tooltip for this classification, with an informative
+            // hover over.
             <Tooltip
-              key={`${c[0].modified}tt`}
+              key={`${cls.modified}tt`}
               disableFocusListener
               disableTouchListener
               title={
                 <>
                   P=
-                  {c[0].probability} ({name}
+                  {cls.probability} ({name}
                   )
                   <br />
-                  <i>{c[0].author_name}</i>
+                  <i>{cls.author_name}</i>
                 </>
               }
             >
               <Chip
-                label={c[0].classification}
-                key={`${c[0].modified}tb`}
+                label={cls.classification}
+                key={`${cls.modified}tb`}
                 size="small"
                 className={classes.chip}
               />
             </Tooltip>
-          );
+          ));
         })}
       </div>
     );
