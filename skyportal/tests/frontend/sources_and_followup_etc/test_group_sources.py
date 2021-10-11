@@ -99,10 +99,7 @@ def test_add_new_source_renders_on_group_sources_page(
     )
     assert status == 200
 
-    # need to reload the page to see changes!
-    driver.get(f"/group_sources/{public_group.id}")
-
-    # check the classification does show up after a refresh
+    # check the classification does show up
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
 
     status, data = api(
@@ -118,8 +115,10 @@ def test_add_new_source_renders_on_group_sources_page(
         token=classification_token_two_groups,
     )
     assert status == 200
+    # ensure new classification is displayed
+    driver.wait_for_xpath(f"//*[text()[contains(., '{'RS CVn'}')]]")
 
-    # make sure the new classification, made to group 2, does NOT show up!
+    # ensure other classification is still displayed
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
 
 
