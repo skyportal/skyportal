@@ -119,9 +119,6 @@ def test_add_new_source_renders_on_group_sources_page(
     )
     assert status == 200
 
-    # need to reload the page to see changes!
-    driver.get(f"/group_sources/{public_group.id}")
-
     # make sure the new classification, made to group 2, does NOT show up!
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
 
