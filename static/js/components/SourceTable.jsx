@@ -375,16 +375,6 @@ const SourceTable = ({
     }
   };
 
-  // helper function to get the classifications
-  const getClassifications = (source) => {
-    if (groupID !== undefined) {
-      return source.classifications?.filter((cls) =>
-        cls.groups.find((g) => g.id === groupID)
-      );
-    }
-    return source.classifications;
-  };
-
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     const colSpan = rowData.length + 1;
@@ -519,7 +509,7 @@ const SourceTable = ({
                 objId={source.id}
                 taxonomyList={taxonomyList}
                 groupId={groupID}
-                currentClassifications={getClassifications(source)}
+                currentClassifications={source.classifications}
               />
             </Grid>
             {favoritesRemoveButton ? (
@@ -611,7 +601,7 @@ const SourceTable = ({
     return (
       <Suspense fallback={<div>Loading classifications</div>}>
         <ShowClassification
-          classifications={getClassifications(source)}
+          classifications={source.classifications}
           taxonomyList={taxonomyList}
           shortened
         />
