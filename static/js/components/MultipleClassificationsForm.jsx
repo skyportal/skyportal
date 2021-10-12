@@ -109,11 +109,18 @@ const MultipleClassificationsForm = ({
   });
   const sortedClassifications = getSortedClasses(currentClassifications);
 
+  const normalizeProbabilities = useSelector(
+    (state) => state.classifications.normalizeProbabilities
+  );
+
   const [normalizeProbabilitiesChecked, setNormalizeProbabilitiesChecked] =
-    useState(true);
+    useState(normalizeProbabilities);
 
   const handleNormalizeProbabilitiesSwitchChange = (event) => {
     setNormalizeProbabilitiesChecked(event.target.checked);
+    dispatch(
+      ClassificationsActions.setNormalizeProbabilities(event.target.checked)
+    );
   };
 
   // For each existing taxonomy/classification, update initial sliders
@@ -487,7 +494,7 @@ const MultipleClassificationsForm = ({
         <FormControlLabel
           control={
             <Switch
-              checked={normalizeProbabilitiesChecked}
+              checked={normalizeProbabilities || false}
               onChange={handleNormalizeProbabilitiesSwitchChange}
               inputProps={{ "aria-label": "controlled" }}
             />
