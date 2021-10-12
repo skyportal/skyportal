@@ -20,7 +20,7 @@ const config = {
       {
         test: /\.(js|jsx)?$/,
         loader: "babel-loader",
-        include: /static\/tsc_compiled/,
+        include: [/static\/tsc_compiled/, /static\/js/],
         exclude: /node_modules/,
         options: {
           presets: ["@babel/preset-env", "@babel/preset-react"],
