@@ -56,14 +56,14 @@ const ScanningPageCandidateAnnotations = ({ annotations }) => {
   annotations?.forEach((annotation) => {
     initState[annotation.origin] = true;
   });
-  const [openedOrigins, setopenedOrigins] = useState(initState);
+  const [openedOrigins, setOpenedOrigins] = useState(initState);
 
   const selectedAnnotationSortOptions = useSelector(
     (state) => state.candidates.selectedAnnotationSortOptions
   );
 
   const handleClick = (origin) => {
-    setopenedOrigins({ ...openedOrigins, [origin]: !openedOrigins[origin] });
+    setOpenedOrigins({ ...openedOrigins, [origin]: !openedOrigins[origin] });
   };
 
   const handleItemSelect = (origin, key) => {
