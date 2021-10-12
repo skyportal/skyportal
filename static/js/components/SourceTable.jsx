@@ -478,7 +478,7 @@ const SourceTable = ({
             </Grid>
             <Grid item>
               <div className={classes.annotations}>
-                {annotations && (
+                {(!!annotations && annotations.length) && (
                   <List
                     component="nav"
                     aria-labelledby="nested-list-subheader"
