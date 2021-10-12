@@ -16,7 +16,7 @@ def test_post_without_origin_fails(annotation_token, public_source, public_group
     )
 
     assert status == 400
-    assert 'Missing data for required field.' in data["message"]
+    assert 'expected string or bytes-like object' in data["message"]
 
     # this should not work, since "origin" is empty
     status, data = api(
@@ -365,7 +365,10 @@ def test_cannot_add_annotation_without_data(
         token=annotation_token,
     )
     assert status == 400
-    assert "Missing data for required field" in data["message"]
+    assert (
+        "Invalid data: the annotation data must be an object with at least one {key: value} pair"
+        in data["message"]
+    )
 
 
 def test_post_invalid_data(annotation_token, public_source, public_group):

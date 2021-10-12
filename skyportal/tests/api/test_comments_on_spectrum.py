@@ -11,7 +11,7 @@ def test_add_and_retrieve_comment_group_id(
         'POST',
         'spectrum',
         data={
-            'obj_id': str(public_source.id),
+            'obj_id': public_source.id,
             'observed_at': str(datetime.datetime.now()),
             'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
@@ -27,7 +27,6 @@ def test_add_and_retrieve_comment_group_id(
         'POST',
         f'spectra/{spectrum_id}/comments',
         data={
-            'spectrum_id': spectrum_id,
             'text': 'Comment text',
             'group_ids': [public_group.id],
         },
@@ -74,7 +73,6 @@ def test_add_and_retrieve_comment_group_access(
         'POST',
         f'spectra/{spectrum_id}/comments',
         data={
-            'spectrum_id': spectrum_id,
             'text': 'Comment text',
             'group_ids': [public_group2.id],
         },
@@ -103,7 +101,6 @@ def test_add_and_retrieve_comment_group_access(
         'POST',
         f'spectra/{spectrum_id}/comments',
         data={
-            'spectrum_id': spectrum_id,
             'text': 'Comment text',
             'group_ids': [public_group.id, public_group2.id],
         },
@@ -147,7 +144,6 @@ def test_add_and_retrieve_comment_group_access(
         'POST',
         f'spectra/{spectrum_id}/comments',
         data={
-            'spectrum_id': spectrum_id,
             'text': 'New comment text',
             'group_ids': [public_group2.id],
         },
@@ -296,7 +292,6 @@ def test_fetch_all_spectrum_comments(
         'POST',
         f'spectra/{spectrum_id}/comments',
         data={
-            'spectrum_id': spectrum_id,
             'text': comment_text,
             'group_ids': [public_group.id],
         },

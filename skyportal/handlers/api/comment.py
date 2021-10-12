@@ -178,6 +178,7 @@ class CommentHandler(BaseHandler):
             required: true
             schema:
               type: string
+              enum: [sources, spectrum]
             description: |
                What underlying data the comment is on:
                "source" or "spectrum".
@@ -320,13 +321,13 @@ class CommentHandler(BaseHandler):
             for user_mentioned in users_mentioned_in_comment:
                 self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
-        if isinstance(comment, Comment):
+        if comment.obj.id:  # comment on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': comment.obj.internal_key},
             )
 
-        if comment.obj.id:  # comment on object, or object related resources
+        if isinstance(comment, CommentOnSpectrum):
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_id': comment.obj.id},
@@ -347,6 +348,7 @@ class CommentHandler(BaseHandler):
             required: true
             schema:
               type: string
+              enum: [sources, spectrum]
             description: |
                What underlying data the comment is on:
                "sources" or "spectra".
@@ -583,6 +585,7 @@ class CommentAttachmentHandler(BaseHandler):
             required: true
             schema:
               type: string
+              enum: [sources, spectrum]
             description: |
                What underlying data the comment is on:
                "sources" or "spectra".
