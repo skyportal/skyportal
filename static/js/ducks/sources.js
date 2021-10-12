@@ -1,6 +1,7 @@
 import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
+import * as sourceActions from "./source";
 
 const FETCH_SOURCES = "skyportal/FETCH_SOURCES";
 const FETCH_SOURCES_OK = "skyportal/FETCH_SOURCES_OK";
@@ -18,6 +19,9 @@ const FETCH_FAVORITE_SOURCES_OK = "skyportal/FETCH_FAVORITE_SOURCES_OK";
 
 const REFRESH_FAVORITE_SOURCES = "skyportal/REFRESH_FAVORITE_SOURCES";
 
+const FETCH_SOURCE_AND_MERGE = "skyportal/FETCH_SOURCE_AND_MERGE";
+const FETCH_SOURCE_AND_MERGE_OK = "skyportal/FETCH_SOURCE_AND_MERGE_OK";
+
 const addFilterParamDefaults = (filterParams) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
     filterParams.pageNumber = 1;
@@ -25,47 +29,32 @@ const addFilterParamDefaults = (filterParams) => {
   if (!Object.keys(filterParams).includes("numPerPage")) {
     filterParams.numPerPage = 10;
   }
-};
-
-export function fetchSources(filterParams = {}) {
-  addFilterParamDefaults(filterParams);
   filterParams.includePhotometryExists = true;
   filterParams.includeSpectrumExists = true;
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
   filterParams.includeDetectionStats = false;
+};
+
+export function fetchSources(filterParams = {}) {
+  addFilterParamDefaults(filterParams);
   return API.GET("/api/sources", FETCH_SOURCES, filterParams);
 }
 
 export function fetchSavedGroupSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
-  filterParams.includePhotometryExists = true;
-  filterParams.includeSpectrumExists = true;
-  filterParams.includeColorMagnitude = true;
-  filterParams.includeThumbnails = true;
-  filterParams.includeDetectionStats = false;
   return API.GET("/api/sources", FETCH_SAVED_GROUP_SOURCES, filterParams);
 }
 
 export function fetchPendingGroupSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.pendingOnly = true;
-  filterParams.includePhotometryExists = true;
-  filterParams.includeSpectrumExists = true;
-  filterParams.includeColorMagnitude = true;
-  filterParams.includeThumbnails = true;
-  filterParams.includeDetectionStats = false;
   return API.GET("/api/sources", FETCH_PENDING_GROUP_SOURCES, filterParams);
 }
 
 export function fetchFavoriteSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
-  filterParams.includePhotometryExists = true;
-  filterParams.includeSpectrumExists = true;
   filterParams.listName = "favorites";
-  filterParams.includeColorMagnitude = true;
-  filterParams.includeThumbnails = true;
-  filterParams.includeDetectionStats = false;
   return API.GET("/api/sources", FETCH_FAVORITE_SOURCES, filterParams);
 }
 
@@ -77,11 +66,30 @@ const initialState = {
 };
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType, payload, dispatch, getState) => {
+  const { sources } = getState();
   if (actionType === REFRESH_FAVORITE_SOURCES) {
     if (window.location.pathname === "/favorites") {
       dispatch(fetchFavoriteSources());
     }
+  }
+
+  if (actionType === sourceActions.REFRESH_SOURCE) {
+    let fetched = false;
+    ["latest", "savedGroupSources", "favorites", "pendingGroupSources"].forEach(
+      (branchName) => {
+        if (sources[branchName]?.sources && !fetched) {
+          sources[branchName].sources.forEach((obj) => {
+            if (obj.internal_key === payload.obj_key && !fetched) {
+              dispatch(
+                sourceActions.fetchSource(obj.id, FETCH_SOURCE_AND_MERGE)
+              );
+              fetched = true;
+            }
+          });
+        }
+      }
+    );
   }
 });
 
@@ -131,6 +139,28 @@ const reducer = (
       return {
         ...state,
         favorites: action.data,
+      };
+    }
+    case FETCH_SOURCE_AND_MERGE_OK: {
+      const newState = {};
+      [
+        "latest",
+        "savedGroupSources",
+        "favorites",
+        "pendingGroupSources",
+      ].forEach((branchName) => {
+        if (state[branchName]?.sources?.length) {
+          newState[branchName] = {
+            ...state[branchName],
+            sources: state[branchName].sources.map((obj) =>
+              obj.id === action.data.id ? action.data : obj
+            ),
+          };
+        }
+      });
+      return {
+        ...state,
+        ...newState,
       };
     }
     default:

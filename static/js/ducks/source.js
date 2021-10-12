@@ -3,7 +3,7 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
+export const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
 
 const FETCH_LOADED_SOURCE = "skyportal/FETCH_LOADED_SOURCE";
 const FETCH_LOADED_SOURCE_OK = "skyportal/FETCH_LOADED_SOURCE_OK";
@@ -146,10 +146,10 @@ export function getCommentOnSpectrumAttachment(spectrumID, commentID) {
   );
 }
 
-export function fetchSource(id) {
+export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
   return API.GET(
     `/api/sources/${id}?includeComments=true&includeColorMagnitude=true&includeThumbnails=true`,
-    FETCH_LOADED_SOURCE
+    actionType
   );
 }
 

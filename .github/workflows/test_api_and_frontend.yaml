@@ -10,6 +10,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      FLAKY_TEST_PATHS: "skyportal/tests/frontend/sources_and_followup_etc/test_followup_requests.py skyportal/tests/api/test_photometry.py::test_token_user_big_post"
 
     services:
       postgres:
@@ -30,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test_subset: ["api_and_utils", "frontend_pt1", "frontend_pt2"]
+        test_subset: ["api_and_utils", "frontend_pt1", "frontend_pt2", "flaky"]
 
     steps:
       - uses: actions/setup-python@v1
@@ -161,17 +163,31 @@ jobs:
           pip install pre-commit
           pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
+      - name: Parse flaky file paths
+        run: |
+          export separator=" --ignore="
+          export regex="$( printf "${separator}%s" "${($FLAKY_TEST_PATHS)[@]}" )"
+
       - name: Run front-end tests part 1
-        run: PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/frontend/sources_and_followup_etc'
         if: ${{ matrix.test_subset == 'frontend_pt1' }}
+        run: |
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/frontend/sources_and_followup_etc ${regex}'
 
       - name: Run front-end tests part 2
-        run: PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '--ignore=skyportal/tests/frontend/sources_and_followup_etc skyportal/tests/frontend'
         if: ${{ matrix.test_subset == 'frontend_pt2' }}
+        run: |
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '--ignore=skyportal/tests/frontend/sources_and_followup_etc skyportal/tests/frontend ${regex}'
 
       - name: Run API & utils tests
-        run: PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/api skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting'
         if: ${{ matrix.test_subset == 'api_and_utils' }}
+        run: |
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/api skyportal/tests/tools skyportal/tests/utils skyportal/tests/rate_limiting ${regex}'
+
+      - name: Run flaky tests
+        if: ${{ matrix.test_subset == 'flaky' }}
+        continue-on-error: true
+        run: |
+          PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless '${FLAKY_TEST_PATHS}'
 
       - name: Upload logs
         uses: actions/upload-artifact@v2

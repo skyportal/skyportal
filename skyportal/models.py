@@ -867,6 +867,15 @@ class Obj(Base, ha.Point):
         doc="Auto-annotations posted about the object.",
     )
 
+    annotations_on_spectra = relationship(
+        'AnnotationOnSpectrum',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="AnnotationOnSpectrum.created_at",
+        doc="Auto-annotations posted about a spectrum belonging to the object.",
+    )
+
     classifications = relationship(
         'Classification',
         back_populates='obj',
@@ -2085,33 +2094,10 @@ def user_update_delete_logic(cls, user_or_token):
 User.update = User.delete = CustomUserAccessControl(user_update_delete_logic)
 
 
-class Annotation(Base):
-    """A sortable/searchable Annotation made by a filter or other robot,
-    with a set of data as JSON"""
-
-    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
-    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        obj='read'
-    )
-    update = delete = AccessibleIfUserMatches('author')
-
-    __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
+class AnnotationMixin:
 
     data = sa.Column(
         JSONB, default=None, nullable=False, doc="Searchable data in JSON format"
-    )
-    author = relationship(
-        "User",
-        back_populates="annotations",
-        doc="Annotation's author.",
-        uselist=False,
-        foreign_keys="Annotation.author_id",
-    )
-    author_id = sa.Column(
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="ID of the Annotation author's User instance.",
     )
 
     origin = sa.Column(
@@ -2127,27 +2113,76 @@ class Annotation(Base):
             'annotation with multiple fields from each origin is allowed.'
         ),
     )
-    obj_id = sa.Column(
-        sa.ForeignKey('objs.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True,
-        doc="ID of the Annotation's Obj.",
-    )
 
-    obj = relationship('Obj', back_populates='annotations', doc="The Annotation's Obj.")
-    groups = relationship(
-        "Group",
-        secondary="group_annotations",
-        cascade="save-update, merge, refresh-expire, expunge",
-        passive_deletes=True,
-        doc="Groups that can see the annotation.",
-    )
+    @classmethod
+    def backref_name(cls):
+        if cls.__name__ == 'Annotation':
+            return "annotations"
+        if cls.__name__ == 'AnnotationOnSpectrum':
+            return 'annotations_on_spectra'
+
+    @declared_attr
+    def author(cls):
+        return relationship(
+            "User",
+            back_populates=cls.backref_name(),
+            doc="Annotation's author.",
+            uselist=False,
+            foreign_keys=f"{cls.__name__}.author_id",
+        )
+
+    @declared_attr
+    def author_id(cls):
+        return sa.Column(
+            sa.ForeignKey('users.id', ondelete='CASCADE'),
+            nullable=False,
+            index=True,
+            doc="ID of the Annotation author's User instance.",
+        )
+
+    @declared_attr
+    def obj_id(cls):
+        return sa.Column(
+            sa.ForeignKey('objs.id', ondelete='CASCADE'),
+            nullable=False,
+            index=True,
+            doc="ID of the Annotation's Obj.",
+        )
+
+    @declared_attr
+    def obj(cls):
+        return relationship(
+            'Obj',
+            back_populates=cls.backref_name(),
+            doc="The Annotation's Obj.",
+        )
+
+    @declared_attr
+    def groups(cls):
+        return relationship(
+            "Group",
+            secondary="group_" + cls.backref_name(),
+            cascade="save-update, merge, refresh-expire, expunge",
+            passive_deletes=True,
+            doc="Groups that can see the annotation.",
+        )
 
     def construct_author_info_dict(self):
         return {
             field: getattr(self.author, field)
             for field in ('username', 'first_name', 'last_name', 'gravatar_url')
         }
+
+
+class Annotation(Base, AnnotationMixin):
+    """A sortable/searchable Annotation on a source, made by a filter or other robot,
+    with a set of data as JSON"""
+
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read'
+    )
+    update = delete = AccessibleIfUserMatches('author')
 
     __table_args__ = (UniqueConstraint('obj_id', 'origin'),)
 
@@ -2527,6 +2562,11 @@ class Spectrum(Base):
         doc=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
                 Defaults to 'f{default_spectrum_type}'.''',
     )
+    label = sa.Column(
+        sa.String,
+        nullable=True,
+        doc='User defined label (can be used to replace default instrument/date labeling on plot legends).',
+    )
     # TODO program?
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete='CASCADE'),
@@ -2602,6 +2642,15 @@ class Spectrum(Base):
         passive_deletes=True,
         order_by="CommentOnSpectrum.created_at",
         doc="Comments posted about this spectrum.",
+    )
+
+    annotations = relationship(
+        'AnnotationOnSpectrum',
+        back_populates='spectrum',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="AnnotationOnSpectrum.created_at",
+        doc="Annotations posted about this spectrum.",
     )
 
     @classmethod
@@ -2858,6 +2907,51 @@ GroupCommentOnSpectrum = join_model(
 GroupCommentOnSpectrum.__doc__ = "Join table mapping Groups to CommentOnSpectrum."
 GroupCommentOnSpectrum.delete = GroupCommentOnSpectrum.update = (
     accessible_by_group_admins & GroupCommentOnSpectrum.read
+)
+
+
+class AnnotationOnSpectrum(Base, AnnotationMixin):
+
+    __tablename__ = 'annotations_on_spectra'
+
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read', spectrum='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read',
+        spectrum='read',
+    )
+
+    update = delete = AccessibleIfUserMatches('author')
+
+    spectrum_id = sa.Column(
+        sa.ForeignKey('spectra.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Annotation's Spectrum.",
+    )
+    spectrum = relationship(
+        'Spectrum',
+        back_populates='annotations',
+        doc="The Spectrum referred to by this annotation.",
+    )
+
+    __table_args__ = (UniqueConstraint('spectrum_id', 'origin'),)
+
+
+User.annotations_on_spectra = relationship(
+    "AnnotationOnSpectrum",
+    back_populates="author",
+    foreign_keys="AnnotationOnSpectrum.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
+
+GroupAnnotationOnSpectrum = join_model(
+    "group_annotations_on_spectra", Group, AnnotationOnSpectrum
+)
+GroupAnnotationOnSpectrum.__doc__ = "Join table mapping Groups to AnnotationOnSpectrum."
+GroupAnnotationOnSpectrum.delete = GroupAnnotationOnSpectrum.update = (
+    accessible_by_group_admins & GroupAnnotationOnSpectrum.read
 )
 
 
