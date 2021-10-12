@@ -30,6 +30,7 @@ import ExpandLess from "@material-ui/icons/ExpandLess";
 import ExpandMore from "@material-ui/icons/ExpandMore";
 import Collapse from "@material-ui/core/Collapse";
 import List from "@material-ui/core/List";
+import Typography from "@material-ui/core/Typography";
 
 import dayjs from "dayjs";
 import { isMobileOnly } from "react-device-detect";
@@ -479,56 +480,61 @@ const SourceTable = ({
             <Grid item>
               <div className={classes.annotations}>
                 {!!annotations && annotations.length && (
-                  <List
-                    component="nav"
-                    aria-labelledby="nested-list-subheader"
-                    className={classes.root}
-                    dense
-                  >
-                    {annotations.map((annotation) => (
-                      <div key={`annotation_${annotation.origin}`}>
-                        <Divider />
-                        <ListItem
-                          button
-                          onClick={() => handleClick(annotation.origin)}
-                        >
-                          <ListItemText
-                            primary={`${annotation.origin}`}
-                            primaryTypographyProps={{ variant: "button" }}
-                          />
-                          {openedOrigins[annotation.origin] ? (
-                            <ExpandLess />
-                          ) : (
-                            <ExpandMore />
-                          )}
-                        </ListItem>
-                        <Collapse
-                          in={openedOrigins[annotation.origin]}
-                          timeout="auto"
-                          unmountOnExit
-                        >
-                          <List component="div" dense disablePadding>
-                            {Object.entries(annotation.data).map(
-                              ([key, value]) => (
-                                <ListItem
-                                  key={`key_${annotation.origin}_${key}`}
-                                  button
-                                  className={classes.nested}
-                                >
-                                  <ListItemText
-                                    secondary={`${key}: ${getAnnotationValueString(
-                                      value
-                                    )}`}
-                                  />
-                                </ListItem>
-                              )
+                  <>
+                    <Typography variant="subtitle2">
+                      Auto-annotations:
+                    </Typography>
+                    <List
+                      component="nav"
+                      aria-labelledby="nested-list-subheader"
+                      className={classes.root}
+                      dense
+                    >
+                      {annotations.map((annotation) => (
+                        <div key={`annotation_${annotation.origin}`}>
+                          <Divider />
+                          <ListItem
+                            button
+                            onClick={() => handleClick(annotation.origin)}
+                          >
+                            <ListItemText
+                              primary={`${annotation.origin}`}
+                              primaryTypographyProps={{ variant: "button" }}
+                            />
+                            {openedOrigins[annotation.origin] ? (
+                              <ExpandLess />
+                            ) : (
+                              <ExpandMore />
                             )}
-                          </List>
-                        </Collapse>
-                        <Divider />
-                      </div>
-                    ))}
-                  </List>
+                          </ListItem>
+                          <Collapse
+                            in={openedOrigins[annotation.origin]}
+                            timeout="auto"
+                            unmountOnExit
+                          >
+                            <List component="div" dense disablePadding>
+                              {Object.entries(annotation.data).map(
+                                ([key, value]) => (
+                                  <ListItem
+                                    key={`key_${annotation.origin}_${key}`}
+                                    button
+                                    className={classes.nested}
+                                  >
+                                    <ListItemText
+                                      secondary={`${key}: ${getAnnotationValueString(
+                                        value
+                                      )}`}
+                                    />
+                                  </ListItem>
+                                )
+                              )}
+                            </List>
+                          </Collapse>
+                          <Divider />
+                        </div>
+                      ))}
+                    </List>
+                  </>
                 )}
               </div>
             </Grid>
