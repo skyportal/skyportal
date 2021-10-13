@@ -481,9 +481,7 @@ const SourceTable = ({
               <div className={classes.annotations}>
                 {!!annotations && annotations.length && (
                   <>
-                    <Typography variant="subtitle2">
-                      Auto-annotations:
-                    </Typography>
+                    <Typography variant="subtitle2">Annotations:</Typography>
                     <List
                       component="nav"
                       aria-labelledby="nested-list-subheader"
