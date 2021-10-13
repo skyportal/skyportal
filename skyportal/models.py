@@ -1799,6 +1799,7 @@ class Allocation(Base):
         'FollowupRequest',
         back_populates='allocation',
         doc='The requests made against this allocation.',
+        passive_deletes=True,
     )
 
     group_id = sa.Column(
