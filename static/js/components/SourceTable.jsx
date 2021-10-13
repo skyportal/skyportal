@@ -23,6 +23,14 @@ import CheckIcon from "@material-ui/icons/Check";
 import ClearIcon from "@material-ui/icons/Clear";
 import InfoIcon from "@material-ui/icons/Info";
 import CircularProgress from "@material-ui/core/CircularProgress";
+import Divider from "@material-ui/core/Divider";
+import ListItem from "@material-ui/core/ListItem";
+import ListItemText from "@material-ui/core/ListItemText";
+import ExpandLess from "@material-ui/icons/ExpandLess";
+import ExpandMore from "@material-ui/icons/ExpandMore";
+import Collapse from "@material-ui/core/Collapse";
+import List from "@material-ui/core/List";
+import Typography from "@material-ui/core/Typography";
 
 import dayjs from "dayjs";
 import { isMobileOnly } from "react-device-detect";
@@ -37,6 +45,7 @@ import MultipleClassificationsForm from "./MultipleClassificationsForm";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
 import { filterOutEmptyValues } from "../API";
+import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
@@ -154,6 +163,23 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     alignItems: "center",
     fontSize: "1rem",
+  },
+  annotations: (props) => ({
+    minWidth: props.annotationsMinWidth,
+    maxWidth: props.annotationsMaxWidth,
+    overflowWrap: "break-word",
+  }),
+  root: {
+    width: "100%",
+    background: theme.palette.background.paper,
+    padding: theme.spacing(1),
+    maxHeight: "15rem",
+    overflowY: "scroll",
+  },
+  nested: {
+    paddingLeft: theme.spacing(4),
+    paddingTop: 0,
+    paddingBottom: 0,
   },
 }));
 
@@ -375,12 +401,24 @@ const SourceTable = ({
     }
   };
 
+  const [openedOrigins, setOpenedOrigins] = useState({});
+
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     const colSpan = rowData.length + 1;
     const source = sources[rowMeta.dataIndex];
 
     const comments = source.comments || [];
+    const annotations = source.annotations || [];
+
+    const initState = {};
+    annotations?.forEach((annotation) => {
+      initState[annotation.origin] = true;
+    });
+
+    const handleClick = (origin) => {
+      setOpenedOrigins({ ...openedOrigins, [origin]: !openedOrigins[origin] });
+    };
 
     const plotWidth = isMobileOnly ? 200 : 400;
     const specPlotHeight = isMobileOnly ? 150 : 200;
@@ -438,6 +476,65 @@ const SourceTable = ({
                 </Suspense>
               )}
               {!source.spectrum_exists && <div> no spectra exist </div>}
+            </Grid>
+            <Grid item>
+              <div className={classes.annotations}>
+                {!!annotations && annotations.length && (
+                  <>
+                    <Typography variant="subtitle2">Annotations:</Typography>
+                    <List
+                      component="nav"
+                      aria-labelledby="nested-list-subheader"
+                      className={classes.root}
+                      dense
+                    >
+                      {annotations.map((annotation) => (
+                        <div key={`annotation_${annotation.origin}`}>
+                          <Divider />
+                          <ListItem
+                            button
+                            onClick={() => handleClick(annotation.origin)}
+                          >
+                            <ListItemText
+                              primary={`${annotation.origin}`}
+                              primaryTypographyProps={{ variant: "button" }}
+                            />
+                            {openedOrigins[annotation.origin] ? (
+                              <ExpandLess />
+                            ) : (
+                              <ExpandMore />
+                            )}
+                          </ListItem>
+                          <Collapse
+                            in={openedOrigins[annotation.origin]}
+                            timeout="auto"
+                            unmountOnExit
+                          >
+                            <List component="div" dense disablePadding>
+                              {Object.entries(annotation.data).map(
+                                ([key, value]) => (
+                                  <ListItem
+                                    key={`key_${annotation.origin}_${key}`}
+                                    button
+                                    className={classes.nested}
+                                  >
+                                    <ListItemText
+                                      secondary={`${key}: ${getAnnotationValueString(
+                                        value
+                                      )}`}
+                                    />
+                                  </ListItem>
+                                )
+                              )}
+                            </List>
+                          </Collapse>
+                          <Divider />
+                        </div>
+                      ))}
+                    </List>
+                  </>
+                )}
+              </div>
             </Grid>
             <Grid item>
               <div className={classes.commentListContainer}>
