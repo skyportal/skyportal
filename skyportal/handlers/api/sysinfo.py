@@ -3,7 +3,6 @@ import json
 import itertools
 
 from baselayer.app.env import load_env
-from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 
 from skyportal.models import cosmo
@@ -23,7 +22,6 @@ max_log_lines = 100
 
 
 class SysInfoHandler(BaseHandler):
-    @auth_or_token
     def get(self):
         """
         ---
