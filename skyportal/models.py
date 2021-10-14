@@ -4242,7 +4242,7 @@ def update_single_user_group(mapper, connection, target):
     def receive_after_flush(session, context):
         single_user_group = target.single_user_group
         single_user_group.name = slugify(target.username)
-        DBSession().add(single_user_group)
+        DBSession().merge(single_user_group)
 
 
 # Group / user / stream permissions
