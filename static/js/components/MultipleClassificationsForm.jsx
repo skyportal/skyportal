@@ -210,7 +210,7 @@ const MultipleClassificationsForm = ({
     if (normalizeProbabilitiesChecked) {
       // Update higher-level classification probabilities to be
       // the sum of the subclasses' probabilities.
-      path.forEach((ancestor, i) => {
+      path?.forEach((ancestor, i) => {
         const subpath = path.slice(i + 1);
         const probabilityOfSubclasses = Math.min(
           sumChildren(getNode(ancestor, subpath), newFormState),
