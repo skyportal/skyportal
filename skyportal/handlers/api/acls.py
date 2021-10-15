@@ -1,7 +1,7 @@
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.models import ACL, User, UserACL
 
 from ..base import BaseHandler
-from ...models import ACL, User, UserACL
 
 
 class ACLHandler(BaseHandler):

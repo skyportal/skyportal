@@ -34,7 +34,7 @@ from ...models import (
     StreamPhotometry,
 )
 
-from ...schema import (
+from ...models.schema import (
     PhotometryMag,
     PhotometryFlux,
     PhotFluxFlexible,

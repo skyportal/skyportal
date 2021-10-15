@@ -14,9 +14,12 @@ from sqlalchemy.orm.exc import ObjectDeletedError
 from baselayer.app.config import load_config
 from baselayer.app.env import load_env
 from baselayer.app.test_util import set_server_url
-from skyportal.models import (
+from baselayer.app.models import (
+    init_db,
     DBSession,
     User,
+)
+from skyportal.models import (
     Group,
     Photometry,
     Spectrum,
@@ -32,7 +35,6 @@ from skyportal.models import (
     ClassicalAssignment,
     Taxonomy,
     Classification,
-    init_db,
     FollowupRequest,
     Allocation,
     Invitation,

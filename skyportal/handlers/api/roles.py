@@ -1,7 +1,7 @@
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.models import Role, User, UserRole
 
 from ..base import BaseHandler
-from ...models import Role, User, UserRole
 
 
 class RoleHandler(BaseHandler):

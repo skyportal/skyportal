@@ -1,0 +1,37 @@
+from .allocation import *
+from .annotation import *
+from .assignment import *
+from .candidate import *
+from .classification import *
+from .comment import *
+from .facility import *
+from .filter import *
+from .followup_request import *
+from .gcn import *
+from .group import *
+from .group_joins import *
+from .instrument import *
+from .invitation import *
+from .listing import *
+from .localization import *
+from .obj import *
+from .observing_run import *
+from .photometry import *
+from .source import *
+from .source_view import *
+from .source_notification import *
+from .spectrum import *
+from .stream import *
+from .taxonomy import *
+from .telescope import *
+from .thumbnail import *
+from .user_notification import *
+from .user_token import *
+from .weather import *
+
+from .schema import setup_schema
+
+schema.setup_schema()
+
+# Base model
+from baselayer.app.models import Base

@@ -23,7 +23,7 @@ from ...models import (
     User,
     ClassicalAssignment,
 )
-from ...schema import (
+from ...models.schema import (
     SpectrumAsciiFilePostJSON,
     SpectrumPost,
     SpectrumAsciiFileParseJSON,

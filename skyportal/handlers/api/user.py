@@ -6,18 +6,8 @@ import arrow
 from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
-from ...models import (
-    DBSession,
-    User,
-    Group,
-    GroupUser,
-    StreamUser,
-    UserRole,
-    Role,
-    UserACL,
-    ACL,
-    Stream,
-)
+from baselayer.app.models import User, Role, UserRole, UserACL, ACL
+from ...models import DBSession, Group, GroupUser, StreamUser, Stream
 
 
 env, cfg = load_env()
