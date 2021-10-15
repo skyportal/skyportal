@@ -1,3 +1,7 @@
+# Baselayer models
+from baselayer.app.models import *
+
+# SkyPortal models
 from .allocation import *
 from .annotation import *
 from .assignment import *
@@ -36,6 +40,3 @@ from .cosmo import cosmo
 from .schema import setup_schema
 
 schema.setup_schema()
-
-# Base model
-from baselayer.app.models import Base
