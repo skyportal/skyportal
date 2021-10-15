@@ -17,8 +17,6 @@ import {
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
-import Tooltip from "@material-ui/core/Tooltip";
-import GroupIcon from "@material-ui/icons/Group";
 import CheckIcon from "@material-ui/icons/Check";
 import ClearIcon from "@material-ui/icons/Clear";
 import InfoIcon from "@material-ui/icons/Info";
@@ -32,12 +30,10 @@ import Collapse from "@material-ui/core/Collapse";
 import List from "@material-ui/core/List";
 import Typography from "@material-ui/core/Typography";
 
-import dayjs from "dayjs";
 import { isMobileOnly } from "react-device-detect";
 
 import { ra_to_hours, dec_to_dms } from "../units";
 import ThumbnailList from "./ThumbnailList";
-import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
 import FavoritesButton from "./FavoritesButton";
@@ -311,6 +307,7 @@ const SourceTable = ({
   const [displayedColumns, setDisplayedColumns] = useState(
     defaultDisplayedColumns
   );
+  const [openedRows, setOpenedRows] = useState([]);
 
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
 
@@ -324,13 +321,6 @@ const SourceTable = ({
       setQueryInProgress(false);
     }
   }, [sources]);
-
-  // Color styling
-  const userColorTheme = useSelector(
-    (state) => state.profile.preferences.theme
-  );
-  const commentStyle =
-    userColorTheme === "dark" ? classes.commentDark : classes.comment;
 
   const handleTableChange = (action, tableState) => {
     switch (action) {
@@ -408,7 +398,6 @@ const SourceTable = ({
     const colSpan = rowData.length + 1;
     const source = sources[rowMeta.dataIndex];
 
-    const comments = source.comments || [];
     const annotations = source.annotations || [];
 
     const initState = {};
@@ -533,71 +522,6 @@ const SourceTable = ({
                       ))}
                     </List>
                   </>
-                )}
-              </div>
-            </Grid>
-            <Grid item>
-              <div className={classes.commentListContainer}>
-                {comments.map(
-                  ({
-                    id,
-                    author,
-                    author_info,
-                    created_at,
-                    text,
-                    attachment_name,
-                    api_path,
-                    groups: comment_groups,
-                  }) => (
-                    <span key={id} className={commentStyle}>
-                      <div className={classes.commentUserAvatar}>
-                        <UserAvatar
-                          size={24}
-                          firstName={author_info.first_name}
-                          lastName={author_info.last_name}
-                          username={author_info.username}
-                          gravatarUrl={author_info.gravatar_url}
-                        />
-                      </div>
-                      <div className={classes.commentContent}>
-                        <div className={classes.commentHeader}>
-                          <span>
-                            <span className={classes.commentUserName}>
-                              {author.username}
-                            </span>
-                          </span>
-                          <span className={classes.commentTime}>
-                            {dayjs().to(dayjs.utc(`${created_at}Z`))}
-                          </span>
-                          <div className={classes.commentUserGroup}>
-                            <Tooltip
-                              title={comment_groups
-                                .map((group) => group.name)
-                                .join(", ")}
-                            >
-                              <GroupIcon
-                                fontSize="small"
-                                viewBox="0 -2 24 24"
-                              />
-                            </Tooltip>
-                          </div>
-                        </div>
-                        <div className={classes.wrap} name={`commentDiv${id}`}>
-                          <div className={classes.commentMessage}>{text}</div>
-                        </div>
-                        <span>
-                          {attachment_name && (
-                            <div>
-                              Attachment:&nbsp;
-                              <a href={`${api_path}/attachment`}>
-                                {attachment_name}
-                              </a>
-                            </div>
-                          )}
-                        </span>
-                      </div>
-                    </span>
-                  )
                 )}
               </div>
             </Grid>
@@ -1138,6 +1062,10 @@ const SourceTable = ({
     onFilterChange: handleTableFilterChipChange,
     onFilterDialogOpen: () => setFilterFormSubmitted(false),
     search: false,
+    rowsExpanded: openedRows,
+    onRowExpansionChange: (_, allRowsExpanded) => {
+      setOpenedRows(allRowsExpanded.map((i) => i.dataIndex));
+    },
   };
 
   if (sourceStatus === "requested") {
@@ -1204,7 +1132,6 @@ SourceTable.propTypes = {
           ),
         })
       ),
-      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
       altdata: PropTypes.shape({
         tns: PropTypes.shape({
           name: PropTypes.string,
