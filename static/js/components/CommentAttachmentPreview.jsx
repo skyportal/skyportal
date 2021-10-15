@@ -156,10 +156,10 @@ const CommentAttachmentPreview = ({
 
   if (fileType.toLowerCase() === "json" && !isCached && open) {
     if (associatedResourceType === "sources") {
-      dispatch(sourceActions.getCommentAttachment(commentId, objectID));
+      dispatch(sourceActions.getCommentAttachment(objectID, commentId));
     } else if (associatedResourceType === "spectra") {
       dispatch(
-        sourceActions.getCommentOnSpectrumAttachment(commentId, objectID)
+        sourceActions.getCommentOnSpectrumAttachment(objectID, commentId)
       );
     }
   }
