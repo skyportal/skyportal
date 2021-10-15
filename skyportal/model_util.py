@@ -1,6 +1,5 @@
 from social_tornado.models import TornadoStorage
-from baselayer.app.models import DBSession, ACL, Role, User, Token
-from skyportal.models import Group
+from skyportal.models import DBSession, ACL, Role, User, Token, Group
 from skyportal.enum_types import LISTENER_CLASSES, sqla_enum_types
 from baselayer.app.env import load_env
 

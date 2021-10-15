@@ -1,7 +1,6 @@
 import tornado.web
 
 from baselayer.app.app_server import MainPageHandler
-from baselayer.app.models import init_db
 from baselayer.app.model_util import create_tables
 from baselayer.log import make_log
 
@@ -89,6 +88,7 @@ from skyportal.handlers.api.internal import (
 )
 
 from . import model_util, openapi
+from .models import init_db
 
 
 log = make_log('app_server')

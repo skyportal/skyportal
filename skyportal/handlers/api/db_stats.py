@@ -1,8 +1,17 @@
 from baselayer.app.access import permissions
-from baselayer.app.models import DBSession, User, CronJobRun
 
 from ..base import BaseHandler
-from ...models import Obj, Source, Candidate, Token, Group, Spectrum
+from ...models import (
+    DBSession,
+    User,
+    CronJobRun,
+    Obj,
+    Source,
+    Candidate,
+    Token,
+    Group,
+    Spectrum,
+)
 
 
 class StatsHandler(BaseHandler):

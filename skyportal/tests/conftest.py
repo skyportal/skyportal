@@ -11,9 +11,11 @@ import pytest
 
 from baselayer.app import models
 from baselayer.app.test_util import driver  # noqa: F401
-from baselayer.app.models import DBSession, User, Role
 from skyportal.model_util import create_token, delete_token
 from skyportal.models import (
+    DBSession,
+    User,
+    Role,
     Source,
     Candidate,
     GroupStream,

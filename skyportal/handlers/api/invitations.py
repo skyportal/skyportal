@@ -4,10 +4,10 @@ import python_http_client.exceptions
 import arrow
 from baselayer.app.access import permissions, AccessError
 from baselayer.app.env import load_env
-from baselayer.app.models import Role
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    Role,
     Group,
     GroupStream,
     GroupInvitation,
