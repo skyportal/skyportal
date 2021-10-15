@@ -1,3 +1,17 @@
+__all__ = [
+    'GroupTaxonomy',
+    'GroupComment',
+    'GroupAnnotation',
+    'GroupClassification',
+    'GroupPhotometry',
+    'GroupSpectrum',
+    'GroupCommentOnSpectrum',
+    'GroupAnnotationOnSpectrum',
+    'GroupInvitation',
+    'GroupSourceNotification',
+    'GroupStream',
+]
+
 import sqlalchemy as sa
 
 from baselayer.app.models import join_model, User, AccessibleIfUserMatches

@@ -1,3 +1,5 @@
+__all__ = ['Photometry', 'PHOT_ZP', 'PHOT_SYS']
+
 import uuid
 
 import sqlalchemy as sa

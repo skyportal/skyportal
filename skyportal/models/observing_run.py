@@ -1,3 +1,5 @@
+__all__ = ['ObservingRun']
+
 from datetime import datetime, timezone
 
 import sqlalchemy as sa

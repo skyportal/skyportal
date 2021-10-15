@@ -1,3 +1,5 @@
+__all__ = ['Classification']
+
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 

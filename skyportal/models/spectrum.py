@@ -1,3 +1,5 @@
+__all__ = ['Spectrum', 'SpectrumReducer', 'SpectrumObserver']
+
 import warnings
 import json
 

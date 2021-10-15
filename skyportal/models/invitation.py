@@ -1,3 +1,5 @@
+__all__ = ['Invitation']
+
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects import postgresql as psql

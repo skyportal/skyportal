@@ -1,3 +1,5 @@
+__all__ = ['Stream', 'StreamUser', 'StreamPhotometry', 'StreamInvitation']
+
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship

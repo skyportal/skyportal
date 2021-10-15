@@ -1,3 +1,5 @@
+__all__ = ['Source']
+
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy import func

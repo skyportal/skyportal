@@ -1,3 +1,5 @@
+__all__ = ['Comment', 'CommentOnSpectrum']
+
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship

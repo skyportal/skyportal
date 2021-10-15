@@ -1,3 +1,5 @@
+__all__ = ['Allocation']
+
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine

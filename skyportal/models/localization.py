@@ -1,3 +1,5 @@
+__all__ = ['Localization']
+
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship, deferred
 from sqlalchemy.dialects.postgresql import JSONB

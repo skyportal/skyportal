@@ -1,3 +1,5 @@
+__all__ = ['Obj']
+
 import uuid
 import requests
 import re
@@ -29,17 +31,13 @@ from .photometry import Photometry
 from .spectrum import Spectrum
 from .candidate import Candidate
 from .thumbnail import Thumbnail
-
-from ..utils.cosmology import establish_cosmology
-
+from .cosmo import cosmo
 
 _, cfg = load_env()
 log = make_log('models.obj')
 
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
-
-cosmo = establish_cosmology(cfg)
 
 
 def delete_obj_if_all_data_owned(cls, user_or_token):

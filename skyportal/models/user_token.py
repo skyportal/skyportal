@@ -1,3 +1,5 @@
+# Customizations of baselayer User and Token models
+
 from sqlalchemy.orm import relationship
 from sqlalchemy import event
 

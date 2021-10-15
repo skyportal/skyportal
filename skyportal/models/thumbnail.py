@@ -1,3 +1,5 @@
+__all__ = ['Thumbnail']
+
 import os
 
 import sqlalchemy as sa

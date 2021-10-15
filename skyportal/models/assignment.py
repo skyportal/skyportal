@@ -1,3 +1,5 @@
+__all__ = ['ClassicalAssignment']
+
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property

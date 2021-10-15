@@ -1,3 +1,5 @@
+__all__ = ['Telescope']
+
 from datetime import timedelta
 
 import sqlalchemy as sa

@@ -4,7 +4,7 @@ from .assignment import *
 from .candidate import *
 from .classification import *
 from .comment import *
-from .facility import *
+from .facility_transaction import *
 from .filter import *
 from .followup_request import *
 from .gcn import *
@@ -29,6 +29,10 @@ from .user_notification import *
 from .user_token import *
 from .weather import *
 
+# Cosmology
+from .cosmo import cosmo
+
+# Generated schema
 from .schema import setup_schema
 
 schema.setup_schema()

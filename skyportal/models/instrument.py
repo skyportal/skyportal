@@ -1,3 +1,5 @@
+__all__ = ['Instrument']
+
 import re
 
 import sqlalchemy as sa

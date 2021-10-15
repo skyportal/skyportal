@@ -1,3 +1,5 @@
+__all__ = ['UserNotification']
+
 import json
 
 import sqlalchemy as sa

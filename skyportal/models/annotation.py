@@ -1,3 +1,5 @@
+__all__ = ['Annotation', 'AnnotationOnSpectrum']
+
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declared_attr

@@ -1,3 +1,5 @@
+__all__ = ['Taxonomy']
+
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB

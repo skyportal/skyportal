@@ -1,3 +1,5 @@
+__all__ = ['SourceView']
+
 import sqlalchemy as sa
 
 from datetime import datetime

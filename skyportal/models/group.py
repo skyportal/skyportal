@@ -1,3 +1,10 @@
+__all__ = [
+    'AccessibleIfUserMatches',
+    'AccessibleIfGroupUserIsAdminAndUserMatches',
+    'Group',
+    'GroupAdmissionRequest',
+]
+
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
