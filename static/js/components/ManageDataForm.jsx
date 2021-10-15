@@ -586,8 +586,8 @@ const ManageDataForm = ({ route }) => {
               ),
               expandableRowsOnClick: false,
               rowsExpanded: openedSpecRows,
-              onRowExpansionChange: (currentRowsExpanded) => {
-                setOpenedSpecRows(currentRowsExpanded.map((i) => i.dataIndex));
+              onRowExpansionChange: (_, expandedRows) => {
+                setOpenedSpecRows(expandedRows.map((i) => i.dataIndex));
               },
             }}
             data-testid="spectrum-table"

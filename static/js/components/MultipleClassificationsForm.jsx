@@ -105,7 +105,7 @@ const MultipleClassificationsForm = ({
 
   const initialFormState = {};
   latestTaxonomyList?.forEach((taxonomy) => {
-    initialFormState[taxonomy.id] = {};
+    initialFormState[taxonomy?.id] = {};
   });
   const sortedClassifications = getSortedClasses(currentClassifications);
 
@@ -128,6 +128,8 @@ const MultipleClassificationsForm = ({
     classifications?.forEach((classification) => {
       // Take just the latest values for each field
       if (
+        classification.taxonomy_id &&
+        classification.taxonomy_id in initialFormState &&
         !initialFormState[classification.taxonomy_id][
           classification.classification
         ]
