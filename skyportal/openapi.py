@@ -6,7 +6,7 @@ from . import __version__
 from tornado.routing import URLSpec
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
-from . import schema
+from .models import schema
 
 
 api_description = pjoin(os.path.dirname(__file__), 'api_description.md')
@@ -69,7 +69,10 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
     if metadata is not None:
         meta.update(metadata)
 
-    openapi_spec = APISpec(**meta, plugins=[MarshmallowPlugin()],)
+    openapi_spec = APISpec(
+        **meta,
+        plugins=[MarshmallowPlugin()],
+    )
 
     token_scheme = {
         "type": "apiKey",

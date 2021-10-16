@@ -9,13 +9,13 @@ from baselayer.app.env import load_env
 from ...models import (
     DBSession,
     User,
+    Role,
+    UserRole,
+    UserACL,
+    ACL,
     Group,
     GroupUser,
     StreamUser,
-    UserRole,
-    Role,
-    UserACL,
-    ACL,
     Stream,
 )
 

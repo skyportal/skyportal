@@ -1,7 +1,7 @@
 import tornado.web
 
 from baselayer.app.app_server import MainPageHandler
-from baselayer.app import model_util as baselayer_model_util
+from baselayer.app.model_util import create_tables
 from baselayer.log import make_log
 
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
@@ -87,7 +87,8 @@ from skyportal.handlers.api.internal import (
     RecentGcnEventsHandler,
 )
 
-from . import models, model_util, openapi
+from . import model_util, openapi
+from .models import init_db
 
 
 log = make_log('app_server')
@@ -292,7 +293,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     )
 
     app = CustomApplication(handlers, **settings)
-    models.init_db(
+    init_db(
         **cfg['database'],
         autoflush=False,
         engine_args={'pool_size': 10, 'max_overflow': 15, 'pool_recycle': 3600},
@@ -301,7 +302,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     # If tables are found in the database, new tables will only be added
     # in debug mode.  In production, we leave the tables alone, since
     # migrations might be used.
-    baselayer_model_util.create_tables(add=env.debug)
+    create_tables(add=env.debug)
     model_util.refresh_enums()
 
     model_util.setup_permissions()

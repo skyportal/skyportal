@@ -14,10 +14,10 @@ from baselayer.app.test_util import driver  # noqa: F401
 from skyportal.model_util import create_token, delete_token
 from skyportal.models import (
     DBSession,
+    User,
+    Role,
     Source,
     Candidate,
-    Role,
-    User,
     GroupStream,
     StreamUser,
     GroupUser,

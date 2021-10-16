@@ -7,6 +7,7 @@ from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    Role,
     Group,
     GroupStream,
     GroupInvitation,
@@ -15,7 +16,6 @@ from ...models import (
     User,
     Invitation,
     Stream,
-    Role,
 )
 
 _, cfg = load_env()

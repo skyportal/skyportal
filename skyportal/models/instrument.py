@@ -1,0 +1,131 @@
+__all__ = ['Instrument']
+
+import re
+
+import sqlalchemy as sa
+from sqlalchemy import cast
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.orm import relationship
+
+from baselayer.app.models import Base, restricted
+
+from skyportal import facility_apis
+
+from ..enum_types import (
+    instrument_types,
+    allowed_bandpasses,
+    listener_classnames,
+    api_classnames,
+)
+
+
+class ArrayOfEnum(ARRAY):
+    def bind_expression(self, bindvalue):
+        return cast(bindvalue, self)
+
+    def result_processor(self, dialect, coltype):
+        super_rp = super(ArrayOfEnum, self).result_processor(dialect, coltype)
+
+        def handle_raw_string(value):
+            if value is None or value == '{}':  # 2nd case, empty array
+                return []
+            inner = re.match(r"^{(.*)}$", value).group(1)
+            return inner.split(",")
+
+        def process(value):
+            return super_rp(handle_raw_string(value))
+
+        return process
+
+
+class Instrument(Base):
+    """An instrument attached to a telescope."""
+
+    create = restricted
+
+    name = sa.Column(sa.String, unique=True, nullable=False, doc="Instrument name.")
+    type = sa.Column(
+        instrument_types,
+        nullable=False,
+        doc="Instrument type, one of Imager, Spectrograph, or Imaging Spectrograph.",
+    )
+
+    band = sa.Column(
+        sa.String,
+        doc="The spectral band covered by the instrument " "(e.g., Optical, IR).",
+    )
+    telescope_id = sa.Column(
+        sa.ForeignKey('telescopes.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="The ID of the Telescope that hosts the Instrument.",
+    )
+    telescope = relationship(
+        'Telescope',
+        back_populates='instruments',
+        doc="The Telescope that hosts the Instrument.",
+    )
+
+    photometry = relationship(
+        'Photometry',
+        back_populates='instrument',
+        passive_deletes=True,
+        doc="The Photometry produced by this instrument.",
+    )
+    spectra = relationship(
+        'Spectrum',
+        back_populates='instrument',
+        passive_deletes=True,
+        doc="The Spectra produced by this instrument.",
+    )
+
+    # can be [] if an instrument is spec only
+    filters = sa.Column(
+        ArrayOfEnum(allowed_bandpasses),
+        nullable=False,
+        default=[],
+        doc='List of filters on the instrument (if any).',
+    )
+
+    allocations = relationship(
+        'Allocation',
+        back_populates="instrument",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+    )
+    observing_runs = relationship(
+        'ObservingRun',
+        back_populates='instrument',
+        passive_deletes=True,
+        doc="List of ObservingRuns on the Instrument.",
+    )
+
+    api_classname = sa.Column(
+        api_classnames, nullable=True, doc="Name of the instrument's API class."
+    )
+
+    listener_classname = sa.Column(
+        listener_classnames,
+        nullable=True,
+        doc="Name of the instrument's listener class.",
+    )
+
+    @property
+    def does_spectroscopy(self):
+        """Return a boolean indicating whether the instrument is capable of
+        performing spectroscopy."""
+        return 'spec' in self.type
+
+    @property
+    def does_imaging(self):
+        """Return a boolean indicating whether the instrument is capable of
+        performing imaging."""
+        return 'imag' in self.type
+
+    @property
+    def api_class(self):
+        return getattr(facility_apis, self.api_classname)
+
+    @property
+    def listener_class(self):
+        return getattr(facility_apis, self.listener_classname)
