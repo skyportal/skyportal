@@ -2,7 +2,7 @@
 import { Notifications } from "baselayer/components/Notifications";
 
 // React and Redux
-import React, { useEffect } from "react";
+import * as React from "react";
 import PropTypes from "prop-types";
 import { Provider, useSelector } from "react-redux";
 import ReactDOM from "react-dom";
@@ -76,13 +76,13 @@ const MainContent = ({ root }) => {
 
   const classes = useStyles();
 
-  useEffect(() => {
+  React.useEffect(() => {
     store.dispatch(hydrate());
     store.dispatch(rotateLogoActions.rotateLogo());
   }, []);
 
   const location = useLocation();
-  useEffect(() => {
+  React.useEffect(() => {
     document.title = "{{ app.title }}";
   }, [location]);
 
