@@ -441,6 +441,25 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             />
           </div>
         </div>
+        <div className={classes.formItem}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Time of Most Recent Spectrum (UTC)
+          </Typography>
+          <TextField
+            size="small"
+            label="Spectrum After"
+            name="specAfter"
+            inputRef={register}
+            placeholder="2021-01-01T00:00:00"
+          />
+          <TextField
+            size="small"
+            label="Spectrum Before"
+            name="specBefore"
+            inputRef={register}
+            placeholder="2021-01-01T00:00:00"
+          />
+        </div>
         <div className={classes.formButtons}>
           <ButtonGroup
             variant="contained"
