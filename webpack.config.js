@@ -6,7 +6,7 @@ const config = {
   entry: {
     main: [
       "@babel/polyfill",
-      path.resolve(__dirname, "static/tsc_compiled/components/Main.jsx"),
+      path.resolve(__dirname, "static/transpiled/components/Main.jsx"),
     ],
   },
   output: {
@@ -20,7 +20,7 @@ const config = {
       {
         test: /\.(js|jsx)?$/,
         loader: "babel-loader",
-        include: [/static\/tsc_compiled/, /static\/js/],
+        include: [/static\/transpiled/, /static\/js/],
         exclude: /node_modules/,
         options: {
           presets: ["@babel/preset-env", "@babel/preset-react"],
@@ -53,10 +53,7 @@ const config = {
       // Enable CSS Modules for Skyportal
       {
         test: /\.css$/,
-        include: [
-          /static\/tsc_compiled/,
-          /node_modules\/react-datepicker\/dist/,
-        ],
+        include: [/static\/transpiled/, /node_modules\/react-datepicker\/dist/],
         use: [
           {
             loader: "style-loader",
