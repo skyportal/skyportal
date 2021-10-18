@@ -77,7 +77,7 @@ const Thumbnail = ({ ra, dec, name, url, size, grayscale }) => {
       break;
     case "sdss":
       alt = "Link to SDSS Navigate tool";
-      link = `https://skyserver.sdss3.org/public/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.1981`;
+      link = `https://skyserver.sdss.org/dr16/en/tools/chart/navi.aspx?opt=G&ra=${ra}&dec=${dec}&scale=0.25`;
       break;
     case "dr8":
       alt = "Link to DESI DR8 Image Access";
@@ -234,6 +234,13 @@ ThumbnailList.propTypes = {
   thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired,
   size: PropTypes.string,
   displayTypes: PropTypes.arrayOf(PropTypes.string),
+  useGrid: PropTypes.bool,
+};
+
+ThumbnailList.defaultProps = {
+  size: "13rem",
+  displayTypes: ["new", "ref", "sub", "sdss", "dr8", "ps1"],
+  useGrid: true,
 };
 
 export default ThumbnailList;
