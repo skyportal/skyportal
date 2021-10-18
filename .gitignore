@@ -25,6 +25,8 @@ package-lock.json
 skyportal_image_cache
 .tokens.yaml
 .vscode
+static/transpiled
+tmp
 
 # Templated files
 static/js/components/Main.jsx
