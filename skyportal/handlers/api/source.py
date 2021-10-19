@@ -908,7 +908,7 @@ class SourceHandler(BaseHandler):
             spec_before = arrow.get(spec_before.strip()).datetime
             spectrum_subquery = (
                 Spectrum.query_records_accessible_by(self.current_user)
-                .filter(Spectrum.observed_at <= spec_after)
+                .filter(Spectrum.observed_at <= spec_before)
                 .subquery()
             )
             obj_query = obj_query.join(
