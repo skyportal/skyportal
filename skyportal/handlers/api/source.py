@@ -571,6 +571,8 @@ class SourceHandler(BaseHandler):
         min_latest_magnitude = self.get_query_argument("minLatestMagnitude", None)
         max_latest_magnitude = self.get_query_argument("maxLatestMagnitude", None)
         has_spectrum = self.get_query_argument("hasSpectrum", False)
+        spec_after = self.get_query_argument("specAfter", None)
+        spec_before = self.get_query_argument("specBefore", None)
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -891,6 +893,26 @@ class SourceHandler(BaseHandler):
             end_date = arrow.get(end_date.strip()).datetime
             obj_query = obj_query.filter(
                 Obj.last_detected_at(self.current_user) <= end_date
+            )
+        if spec_after:
+            spec_after = arrow.get(spec_after.strip()).datetime
+            spectrum_subquery = (
+                Spectrum.query_records_accessible_by(self.current_user)
+                .filter(Spectrum.observed_at >= spec_after)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
+            )
+        if spec_before:
+            spec_before = arrow.get(spec_before.strip()).datetime
+            spectrum_subquery = (
+                Spectrum.query_records_accessible_by(self.current_user)
+                .filter(Spectrum.observed_at <= spec_after)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
             )
         if saved_before:
             source_query = source_query.filter(Source.saved_at <= saved_before)
