@@ -17,7 +17,7 @@ cfg = load_config()
 
 
 def enter_comment_text(driver, comment_text):
-    comment_xpath = "//div[@data-testid='comments-accordion']//input[@name='text']"
+    comment_xpath = "//div[@data-testid='comments-accordion']//textarea[@name='text']"
     comment_box = driver.wait_for_xpath(comment_xpath)
     driver.click_xpath(comment_xpath)
     comment_box.send_keys(comment_text)
@@ -289,7 +289,7 @@ def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
     driver.get(f"/become_user/{view_only_user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.wait_for_xpath_to_disappear('//input[@name="text"]')
+    driver.wait_for_xpath_to_disappear('//textarea[@name="text"]')
 
 
 @pytest.mark.flaky(reruns=2)

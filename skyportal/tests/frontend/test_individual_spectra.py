@@ -4,9 +4,7 @@ from selenium.common.exceptions import TimeoutException
 
 
 def enter_comment_text(driver, comment_text):
-    comment_xpath = (
-        "//div[contains(@data-testid, 'individual-spectrum-id_')]//input[@name='text']"
-    )
+    comment_xpath = "//div[contains(@data-testid, 'individual-spectrum-id_')]//textarea[@name='text']"
     comment_box = driver.wait_for_xpath(comment_xpath)
     driver.click_xpath(comment_xpath)
     comment_box.send_keys(comment_text)
