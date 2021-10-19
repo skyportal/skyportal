@@ -1,4 +1,4 @@
-import messageHandler from "baselayer/MessageHandler";
+import messageHandler from "../../../baselayer/static/js/MessageHandler";
 
 import * as API from "../API";
 import store from "../store";
@@ -54,12 +54,26 @@ const SHARE_DATA = "skyportal/SHARE_DATA";
 
 const SEND_ALERT = "skyportal/SEND_ALERT";
 
-export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
+export const shareData = (data: {
+  groupIDs: number[];
+  photometryIDs: number[];
+  spectrumIDs: number[];
+}) => API.POST("/api/sharing", SHARE_DATA, data);
 
-export const uploadPhotometry = (data) =>
-  API.POST("/api/photometry", UPLOAD_PHOTOMETRY, data);
+export const uploadPhotometry = (data: {
+  obj_id: string;
+  group_ids: number[];
+  altdata: { [key: string]: any };
+  [key: string]: any;
+}) => API.POST("/api/photometry", UPLOAD_PHOTOMETRY, data);
 
-export function addClassification(formData) {
+export function addClassification(formData: {
+  taxonomy_id: number;
+  obj_id: string;
+  classification: string;
+  probability: number | string;
+  group_ids?: number[];
+}) {
   return API.POST(`/api/classification`, ADD_CLASSIFICATION, formData);
 }
 
