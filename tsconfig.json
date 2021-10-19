@@ -5,7 +5,7 @@
     "allowJs": true /* Allow javascript files to be compiled. */,
     "checkJs": false /* Report errors in .js files. */,
     "outDir": "./static/transpiled" /* Redirect output structure to the directory. */,
-    "rootDir": "./static/js" /* Specify the root directory of input files. Use to control the output directory structure with --outDir. */,
+    "rootDir": "." /* Specify the root directory of input files. Use to control the output directory structure with --outDir. */,
     "strict": false /* Enable all strict type-checking options. */,
     "esModuleInterop": true /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */,
     "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
@@ -19,7 +19,8 @@
       "@bokeh/bokehjs": ["node_modules/@bokeh/bokehjs/build/js/types"],
       "core/kinds": [
         "node_modules/@bokeh/bokehjs/build/js/types/core/kinds.d.ts"
-      ]
+      ],
+      "baselayer": ["baselayer/static/js"]
     }
   },
   "include": ["./static/js/**/*"]
