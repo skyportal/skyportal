@@ -911,6 +911,98 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     assert data["data"]["sources"][0]["id"] == obj_id2
 
 
+def test_sources_filter_by_time_spectrum(
+    upload_data_token, view_only_token, public_group, lris
+):
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+
+    # Upload two new sources
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id1
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id2
+
+    # Add spectrum to source 1
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': obj_id1,
+            'observed_at': str(datetime.now(timezone.utc)),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    t = datetime.now(timezone.utc)
+    # Add spectrum to source 2
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': obj_id2,
+            'observed_at': str(datetime.now(timezone.utc)),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # Filter for obj 1 only
+    status, data = api(
+        "GET",
+        "sources",
+        params={"hasSpectrumBefore": t.isoformat(), "group_ids": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id1
+
+    # Filter for obj 2 only
+    status, data = api(
+        "GET",
+        "sources",
+        params={"hasSpectrumAfter": t.isoformat(), "group_ids": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id2
+
+
 def test_sources_filter_by_last_detected(
     upload_data_token, view_only_token, public_group, ztf_camera
 ):
