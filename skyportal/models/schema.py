@@ -1035,6 +1035,17 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
     instrument_id = fields.Integer(
         description='The ID of the instrument that took the spectrum.', required=True
     )
+    type = fields.String(
+        description='The type of spectrum or object whose spectrum is measured. '
+        'Possible types are defined in the config under spectrum types.',
+        required=False,
+    )
+
+    label = fields.String(
+        description='User defined label to be placed in plot legends, '
+        'instead of the default <instrument>-<date taken>.',
+        required=False,
+    )
 
     observed_at = fields.DateTime(
         description='The ISO UTC time the spectrum was taken.', required=True

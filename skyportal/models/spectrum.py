@@ -177,6 +177,8 @@ class Spectrum(Base):
         file,
         obj_id=None,
         instrument_id=None,
+        type=None,
+        label=None,
         observed_at=None,
         wave_column=0,
         flux_column=1,
@@ -194,6 +196,13 @@ class Spectrum(Base):
         instrument_id : int
            ID of the Instrument with which this Spectrum was acquired,
            if not present in the ASCII header.
+        type: str
+           What is the underlying source of the spectrum.
+           Possible types are defined in the config under spectrum types.
+        label: str
+            User defined label to show on plot legends.
+            If not given, the default displayed label is
+            <instrument>-<date taken>.
         observed_at : string or datetime
            Median UTC ISO time stamp of the exposure or exposures in which
            the Spectrum was acquired, if not present in the ASCII header.
@@ -341,6 +350,8 @@ class Spectrum(Base):
         return cls(
             obj_id=obj_id,
             instrument_id=instrument_id,
+            type=type,
+            label=label,
             observed_at=observed_at,
             altdata=header,
             **spec_data,
