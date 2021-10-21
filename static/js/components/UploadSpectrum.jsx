@@ -570,7 +570,7 @@ const UploadSpectrumForm = ({ route }) => {
         flux_column: 1,
         has_fluxerr: "No",
         instrument_id: undefined,
-        spectrum_type: undefined,
+        spectrum_type: "source",
         user_label: undefined,
         fluxerr_column: undefined,
         observed_by: undefined,
