@@ -873,7 +873,7 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     )
     assert status == 200
     assert data["data"]["id"] == obj_id1
-    t = datetime.now(timezone.utc)
+    test_time = datetime.now(timezone.utc)
     status, data = api(
         "POST",
         "sources",
@@ -892,7 +892,10 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     status, data = api(
         "GET",
         "sources",
-        params={"savedBefore": t.isoformat(), "group_ids": f"{public_group.id}"},
+        params={
+            "savedBefore": test_time.isoformat(),
+            "group_ids": f"{public_group.id}",
+        },
         token=view_only_token,
     )
     assert status == 200
@@ -903,7 +906,7 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     status, data = api(
         "GET",
         "sources",
-        params={"savedAfter": t.isoformat(), "group_ids": f"{public_group.id}"},
+        params={"savedAfter": test_time.isoformat(), "group_ids": f"{public_group.id}"},
         token=view_only_token,
     )
     assert status == 200
@@ -962,7 +965,7 @@ def test_sources_filter_by_time_spectrum(
     assert status == 200
     assert data['status'] == 'success'
 
-    t = datetime.now(timezone.utc)
+    test_time = datetime.now(timezone.utc)
     # Add spectrum to source 2
     status, data = api(
         'POST',
@@ -984,7 +987,10 @@ def test_sources_filter_by_time_spectrum(
     status, data = api(
         "GET",
         "sources",
-        params={"hasSpectrumBefore": t.isoformat(), "group_ids": f"{public_group.id}"},
+        params={
+            "hasSpectrumBefore": test_time.isoformat(),
+            "group_ids": f"{public_group.id}",
+        },
         token=view_only_token,
     )
     assert status == 200
@@ -995,7 +1001,10 @@ def test_sources_filter_by_time_spectrum(
     status, data = api(
         "GET",
         "sources",
-        params={"hasSpectrumAfter": t.isoformat(), "group_ids": f"{public_group.id}"},
+        params={
+            "hasSpectrumAfter": test_time.isoformat(),
+            "group_ids": f"{public_group.id}",
+        },
         token=view_only_token,
     )
     assert status == 200

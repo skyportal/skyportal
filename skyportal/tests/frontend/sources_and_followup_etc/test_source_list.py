@@ -329,7 +329,7 @@ def test_filter_by_spectrum_time(
     assert status == 200
     assert data['status'] == 'success'
 
-    t = datetime.now(timezone.utc)
+    test_time = datetime.now(timezone.utc)
     # Add spectrum to source 2
     status, data = api(
         'POST',
@@ -356,11 +356,11 @@ def test_filter_by_spectrum_time(
         "//div[@data-testid='hasSpectrumBeforeTest']",
         scroll_parent=True,
     )
-    comment_box = driver.wait_for_xpath(
+    before_input = driver.wait_for_xpath(
         "//div[@data-testid='hasSpectrumBeforeTest']//input"
     )
 
-    comment_box.send_keys(str(t.isoformat()))
+    before_input.send_keys(str(test_time.isoformat()))
 
     driver.click_xpath(
         "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
@@ -375,11 +375,11 @@ def test_filter_by_spectrum_time(
         "//div[@data-testid='hasSpectrumAfterTest']",
         scroll_parent=True,
     )
-    comment_box = driver.wait_for_xpath(
+    after_input = driver.wait_for_xpath(
         "//div[@data-testid='hasSpectrumAfterTest']//input"
     )
 
-    comment_box.send_keys(str(t.isoformat()))
+    after_input.send_keys(str(test_time.isoformat()))
 
     driver.click_xpath(
         "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
