@@ -448,14 +448,14 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
           <TextField
             size="small"
             label="Spectrum After"
-            name="specAfter"
+            name="hasSpectrumAfter"
             inputRef={register}
             placeholder="2021-01-01T00:00:00"
           />
           <TextField
             size="small"
             label="Spectrum Before"
-            name="specBefore"
+            name="hasSpectrumBefore"
             inputRef={register}
             placeholder="2021-01-01T00:00:00"
           />
