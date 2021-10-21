@@ -449,6 +449,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             size="small"
             label="Spectrum After"
             name="hasSpectrumAfter"
+            data-testid="hasSpectrumAfterTest"
             inputRef={register}
             placeholder="2021-01-01T00:00:00"
           />
@@ -456,6 +457,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             size="small"
             label="Spectrum Before"
             name="hasSpectrumBefore"
+            data-testid="hasSpectrumBeforeTest"
             inputRef={register}
             placeholder="2021-01-01T00:00:00"
           />

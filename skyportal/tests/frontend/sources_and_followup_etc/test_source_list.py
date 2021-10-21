@@ -272,6 +272,123 @@ def test_filter_by_classification(
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
 
 
+def test_filter_by_spectrum_time(
+    driver,
+    user,
+    public_group,
+    upload_data_token,
+    taxonomy_token,
+    classification_token,
+    lris,
+):
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+
+    # Upload two new sources
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id1
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id2
+
+    # Add spectrum to source 1
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': obj_id1,
+            'observed_at': str(datetime.now(timezone.utc)),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    t = datetime.now(timezone.utc)
+    # Add spectrum to source 2
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': obj_id2,
+            'observed_at': str(datetime.now(timezone.utc)),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/sources")
+
+    # Filter for spectrum time after
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    driver.click_xpath(
+        "//div[@data-testid='hasSpectrumBeforeTest']",
+        scroll_parent=True,
+    )
+    comment_box = driver.wait_for_xpath(
+        "//div[@data-testid='hasSpectrumBeforeTest']//input"
+    )
+
+    comment_box.send_keys(str(t.isoformat()))
+
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+    )
+
+    # Should see the first source
+    driver.wait_for_xpath(f'//a[@data-testid="{obj_id1}"]')
+
+    # Filter for spectrum time after
+    driver.click_xpath("//button[@data-testid='Filter Table-iconButton']")
+    driver.click_xpath(
+        "//div[@data-testid='hasSpectrumAfterTest']",
+        scroll_parent=True,
+    )
+    comment_box = driver.wait_for_xpath(
+        "//div[@data-testid='hasSpectrumAfterTest']//input"
+    )
+
+    comment_box.send_keys(str(t.isoformat()))
+
+    driver.click_xpath(
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+    )
+
+    # Should see the posted source
+    driver.wait_for_xpath(f'//a[@data-testid="{obj_id2}"]')
+
+
 def test_filter_by_alias_and_origin(
     driver,
     user,
