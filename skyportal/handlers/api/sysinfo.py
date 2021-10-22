@@ -2,14 +2,9 @@ import glob
 import json
 import itertools
 
-from baselayer.app.env import load_env
 from ..base import BaseHandler
 
-from skyportal.models import cosmo
 from skyportal.utils.gitlog import get_gitlog, parse_gitlog
-
-
-_, cfg = load_env()
 
 # This file is generated with `utils.get_gitlog`.
 #
@@ -40,20 +35,10 @@ class SysInfoHandler(BaseHandler):
                         data:
                           type: object
                           properties:
-                            invitationsEnabled:
-                              type: boolean
-                              description: |
-                                Boolean indicating whether new user invitation pipeline
-                                is enabled in current deployment.
                             gitlog:
                                 type: array
                                 description: Recent git commit lines
-                            cosmology:
-                                type: string
-                                description: Details of the cosmology used here
-                            cosmoref:
-                                type: string
-                                description: Reference for the cosmology used.
+
         """
         # if another build system has written a gitlog file, use it
         gitlogs = []
@@ -75,12 +60,6 @@ class SysInfoHandler(BaseHandler):
 
         return self.success(
             data={
-                "slack_preamble": cfg.get(
-                    "slack.expected_url_preamble", "https://hooks.slack.com/"
-                ),
-                "invitationsEnabled": cfg["invitations.enabled"],
-                "cosmology": str(cosmo),
-                "cosmoref": cosmo.__doc__,
                 "gitlog": parsed_log,
             }
         )

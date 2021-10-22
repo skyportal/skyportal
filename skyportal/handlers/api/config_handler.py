@@ -3,6 +3,8 @@ from ..base import BaseHandler
 
 from ...enum_types import default_spectrum_type, ALLOWED_SPECTRUM_TYPES
 
+from skyportal.models import cosmo
+
 _, cfg = load_env()
 
 
@@ -35,9 +37,18 @@ class ConfigHandler(BaseHandler):
                               description: |
                                 URL preamble used for forwarding slack notifications.
                                 The default is "https://hooks.slack.com/".
-                            spectrum_types:
+                            cosmology:
+                                type: string
+                                description: Details of the cosmology used here
+                            cosmoref:
+                                type: string
+                                description: Reference for the cosmology used.
+                            allowedSpectrumTypes:
                               type: array
                               description: allowed values for spectrum type.
+                            defaultSpectrumType:
+                              type: string
+                              description: assigned to any spectrum posted without a type.
         """
 
         return self.success(
@@ -46,6 +57,8 @@ class ConfigHandler(BaseHandler):
                     "slack.expected_url_preamble", "https://hooks.slack.com/"
                 ),
                 "invitationsEnabled": cfg["invitations.enabled"],
+                "cosmology": str(cosmo),
+                "cosmoref": cosmo.__doc__,
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,
                 "defaultSpectrumType": default_spectrum_type,
             }
