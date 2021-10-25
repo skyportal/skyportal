@@ -1,4 +1,5 @@
 from baselayer.app.env import load_env
+from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 
 from ...enum_types import default_spectrum_type, ALLOWED_SPECTRUM_TYPES
@@ -9,6 +10,7 @@ _, cfg = load_env()
 
 
 class ConfigHandler(BaseHandler):
+    @auth_or_token
     def get(self):
         """
         ---
