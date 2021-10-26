@@ -84,7 +84,7 @@ const UserManagement = () => {
   const dispatch = useDispatch();
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [queryInProgress, setQueryInProgress] = useState(false);
-  const { invitationsEnabled } = useSelector((state) => state.sysInfo);
+  const { invitationsEnabled } = useSelector((state) => state.config);
   const currentUser = useSelector((state) => state.profile);
   const { users, totalMatches } = useSelector((state) => state.users);
   const [fetchParams, setFetchParams] = useState({

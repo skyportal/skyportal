@@ -55,6 +55,7 @@ from .spectrum import (
 )
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler
+from .config_handler import ConfigHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
 from .thumbnail import ThumbnailHandler
