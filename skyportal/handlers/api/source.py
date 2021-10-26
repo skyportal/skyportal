@@ -1,6 +1,8 @@
 import datetime
 from json.decoder import JSONDecodeError
 from dateutil.tz import UTC
+import astropy.units as u
+from geojson import Point, Feature
 import python_http_client.exceptions
 from twilio.base.exceptions import TwilioException
 from tornado.ioloop import IOLoop
@@ -41,6 +43,8 @@ from ...models import (
     SourceNotification,
     Classification,
     Taxonomy,
+    Localization,
+    LocalizationTile,
     Listing,
     Spectrum,
     SourceView,
@@ -572,6 +576,11 @@ class SourceHandler(BaseHandler):
         max_latest_magnitude = self.get_query_argument("maxLatestMagnitude", None)
         has_spectrum = self.get_query_argument("hasSpectrum", False)
 
+        localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        localization_name = self.get_query_argument("localizationName", None)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 1.01)
+        includeGeojson = self.get_query_argument("includeGeojson", False)
+
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
             """
@@ -882,6 +891,7 @@ class SourceHandler(BaseHandler):
                 )
             other = ca.Point(ra=ra, dec=dec)
             obj_query = obj_query.filter(Obj.within(other, radius))
+
         if start_date:
             start_date = arrow.get(start_date.strip()).datetime
             obj_query = obj_query.filter(
@@ -1048,6 +1058,36 @@ class SourceHandler(BaseHandler):
                     Obj.id == classification_subquery.c.obj_id,
                     isouter=True,
                 )
+
+        if localization_dateobs is not None:
+            if localization_name is not None:
+                localization = (
+                    Localization.query_records_accessible_by(self.current_user)
+                    .filter(Localization.dateobs == localization_dateobs)
+                    .filter(Localization.localization_name == localization_name)
+                    .first()
+                )
+            else:
+                localization = (
+                    Localization.query_records_accessible_by(self.current_user)
+                    .filter(Localization.dateobs == localization_dateobs)
+                    .first()
+                )
+            if localization is None:
+                return self.error("Localization not found", status=404)
+            tiles_subquery = (
+                LocalizationTile.query_records_accessible_by(self.current_user)
+                .filter(LocalizationTile.localization_id == localization.id)
+                .filter(LocalizationTile.cumprob <= localization_cumprob)
+                .subquery()
+            )
+
+            obj_query = obj_query.join(
+                tiles_subquery,
+                Obj.nested.between(
+                    tiles_subquery.c.nested_lo, tiles_subquery.c.nested_hi
+                ),
+            )
 
         source_query = apply_active_or_requested_filtering(
             source_query, include_requested, requested_only
@@ -1316,6 +1356,41 @@ class SourceHandler(BaseHandler):
             query_results["sources"] = obj_list
 
         query_results = recursive_to_dict(query_results)
+        if includeGeojson:
+            # features are JSON representations that the d3 stuff understands.
+            # We use these to render the contours of the sky localization and
+            # locations of the transients.
+
+            # FIXME: currently necessary for the sources to render
+            features = [
+                Feature(
+                    geometry=Point([float(-180), float(-180)]),
+                    properties={"name": "tmp"},
+                )
+                for ii in range(3)
+            ]
+
+            # useful for testing visualization
+            # import numpy as np
+            # for xx in np.arange(30, 180, 30):
+            #    features.append(Feature(
+            #        geometry=Point([float(xx), float(-30.0)]),
+            #        properties={"name": "tmp"},
+            #    ))
+
+            for source in query_results["sources"]:
+                point = Point((source["ra"], source["dec"]))
+                if source["alias"] is not None:
+                    source_name = ",".join(source["alias"])
+                else:
+                    source_name = f'{source["ra"]},{source["dec"]}'
+
+                features.append(
+                    Feature(geometry=point, properties={"name": source_name})
+                )
+
+            query_results["geojson"] = features
+
         self.verify_and_commit()
         return self.success(data=query_results)
 
@@ -1378,6 +1453,10 @@ class SourceHandler(BaseHandler):
 
         if dec is None and not obj_already_exists:
             return self.error("Dec must not be null for a new Obj")
+
+        # This adds a healpix index for a new object being created
+        if not obj_already_exists:
+            data["nested"] = ha.healpix.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]

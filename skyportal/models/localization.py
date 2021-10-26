@@ -1,4 +1,4 @@
-__all__ = ['Localization']
+__all__ = ['Localization', 'LocalizationTile']
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship, deferred
@@ -9,6 +9,7 @@ from astropy.table import Table
 import numpy as np
 import ligo.skymap.bayestar as ligo_bayestar
 import healpy
+import healpix_alchemy as ha
 
 from baselayer.app.models import Base, AccessibleIfUserMatches
 
@@ -16,7 +17,11 @@ from baselayer.app.models import Base, AccessibleIfUserMatches
 class Localization(Base):
     """Localization information, including the localization ID, event ID, right
     ascension, declination, error radius (if applicable), and the healpix
-    map."""
+    map. The healpix map is a multi-order healpix skymap, and this
+    representation of the skymap has many tiles (in the
+    LocalizationTile table). Healpix decomposes the sky into a set of equal
+    area tiles each with a unique index, convenient for decomposing
+    the sphere into subdivisions."""
 
     update = delete = AccessibleIfUserMatches('sent_by')
 
@@ -141,3 +146,32 @@ class Localization(Base):
             return healpy.reorder(result, 'NESTED', 'RING')
         else:
             return (self.flat_2d,)
+
+
+class LocalizationTile(ha.Tile, Base):
+    """This is a single tile within a skymap (as in the Localization table).
+    Each tile has an associated probability density and
+    cumulative probability."""
+
+    localization_id = sa.Column(
+        sa.ForeignKey('localizations.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='localization ID',
+    )
+
+    localization = relationship(
+        "Localization",
+        foreign_keys=localization_id,
+        doc="The Localization that this tile belongs to",
+    )
+
+    probdensity = sa.Column(
+        sa.Float,
+        nullable=False,
+        doc="Probability density for the tile",
+    )
+
+    cumprob = sa.Column(
+        sa.Float,
+        doc='Cumulative probability for the tile',
+    )

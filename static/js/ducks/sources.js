@@ -1,7 +1,13 @@
 import messageHandler from "baselayer/MessageHandler";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
 import * as API from "../API";
 import store from "../store";
 import * as sourceActions from "./source";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 const FETCH_SOURCES = "skyportal/FETCH_SOURCES";
 const FETCH_SOURCES_OK = "skyportal/FETCH_SOURCES_OK";
@@ -21,6 +27,9 @@ const REFRESH_FAVORITE_SOURCES = "skyportal/REFRESH_FAVORITE_SOURCES";
 
 const FETCH_SOURCE_AND_MERGE = "skyportal/FETCH_SOURCE_AND_MERGE";
 const FETCH_SOURCE_AND_MERGE_OK = "skyportal/FETCH_SOURCE_AND_MERGE_OK";
+
+const FETCH_GCNEVENT_SOURCES = "skyportal/FETCH_GCNEVENT_SOURCES";
+const FETCH_GCNEVENT_SOURCES_OK = "skyportal/FETCH_GCNEVENT_SOURCES_OK";
 
 const addFilterParamDefaults = (filterParams) => {
   if (!Object.keys(filterParams).includes("pageNumber")) {
@@ -58,6 +67,25 @@ export function fetchFavoriteSources(filterParams = {}) {
   return API.GET("/api/sources", FETCH_FAVORITE_SOURCES, filterParams);
 }
 
+export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
+  addFilterParamDefaults(filterParams);
+  filterParams.localizationDateobs = dateobs;
+  filterParams.localizationCumprob = 0.95;
+
+  if (dateobs) {
+    filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+    filterParams.endDate = dayjs(dateobs)
+      .add(7, "day")
+      .format("YYYY-MM-DD HH:mm:ss");
+  }
+
+  filterParams.startDate = null;
+  filterParams.endDate = null;
+
+  filterParams.includeGeojson = true;
+  return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);
+}
+
 const initialState = {
   sources: null,
   pageNumber: 1,
@@ -72,6 +100,10 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     if (window.location.pathname === "/favorites") {
       dispatch(fetchFavoriteSources());
     }
+  }
+  const { gcnEvent } = getState();
+  if (actionType === FETCH_GCNEVENT_SOURCES) {
+    dispatch(fetchGcnEventSources(gcnEvent.dateobs, {}));
   }
 
   if (actionType === sourceActions.REFRESH_SOURCE) {
@@ -161,6 +193,12 @@ const reducer = (
       return {
         ...state,
         ...newState,
+      };
+    }
+    case FETCH_GCNEVENT_SOURCES_OK: {
+      return {
+        ...state,
+        gcnEventSources: action.data,
       };
     }
     default:
