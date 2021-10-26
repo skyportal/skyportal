@@ -115,6 +115,13 @@ const UploadSpectrumForm = ({ route }) => {
   const classes = useStyles();
   const [persistentFormData, setPersistentFormData] = useState({});
   const [formKey, setFormKey] = useState(null);
+  const spectrumTypes = useSelector(
+    (state) => state.config.allowedSpectrumTypes
+  );
+
+  const defaultSpectrumType = useSelector(
+    (state) => state.config.defaultSpectrumType
+  );
 
   // on page load or refresh, block until state.spectra.parsed is reset
   useEffect(() => {
@@ -328,13 +335,13 @@ const UploadSpectrumForm = ({ route }) => {
       },
       spectrum_type: {
         type: "string",
-        default: "source",
-        title: "Spectrum Type",
-        enum: ["source", "host", "host_center"],
+        default: defaultSpectrumType,
+        title: "Spectrum type",
+        enum: spectrumTypes,
       },
       user_label: {
         type: "string",
-        title: "User Label",
+        title: "User label",
         default: "",
       },
       wave_column: {
