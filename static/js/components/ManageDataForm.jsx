@@ -24,6 +24,7 @@ import { showNotification } from "baselayer/components/Notifications";
 
 import FormValidationError from "./FormValidationError";
 import CommentList from "./CommentList";
+import ObjPageAnnotations from "./ObjPageAnnotations";
 
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
@@ -136,13 +137,21 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SpectrumRow = ({ rowData, route }) => {
+const SpectrumRow = ({ rowData, route, annotations }) => {
   const styles = useSourceStyles();
   const colSpan = rowData.length + 1;
+  const spectrumID =
+    typeof rowData[0] === "number" ? rowData[0] : parseInt(rowData[0], 10);
+
   return (
     <TableRow>
       <TableCell colSpan={colSpan}>
-        <Grid container direction="row" justify="center" alignItems="center">
+        <Grid
+          container
+          direction="row"
+          justifyContent="center"
+          alignItems="center"
+        >
           <Grid item className={styles.photometryContainer} sm={6}>
             <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
               <Plot
@@ -161,12 +170,12 @@ const SpectrumRow = ({ rowData, route }) => {
             <CommentList
               associatedResourceType="spectra"
               objID={route.id}
-              spectrumID={
-                typeof rowData[0] === "number"
-                  ? rowData[0]
-                  : parseInt(rowData[0], 10)
-              }
+              spectrumID={spectrumID}
             />
+          </Grid>
+          <Grid item sm={6}>
+            <Typography variant="h6">Annotations</Typography>
+            <ObjPageAnnotations annotations={annotations} />
           </Grid>
         </Grid>
       </TableCell>
@@ -179,6 +188,13 @@ SpectrumRow.propTypes = {
     id: PropTypes.string.isRequired,
   }).isRequired,
   rowData: PropTypes.arrayOf(PropTypes.number).isRequired,
+  annotations: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      origin: PropTypes.string.isRequired,
+      spectrum_id: PropTypes.number.isRequired,
+    })
+  ).isRequired,
 };
 
 const ManageDataForm = ({ route }) => {
@@ -582,7 +598,14 @@ const ManageDataForm = ({ route }) => {
               expandableRows: true,
               // eslint-disable-next-line react/display-name,no-unused-vars
               renderExpandableRow: (rowData, rowMeta) => (
-                <SpectrumRow rowData={rowData} route={route} />
+                <SpectrumRow
+                  rowData={rowData}
+                  route={route}
+                  annotations={
+                    spectra[route.id].find((spec) => spec.id === rowData[0])
+                      .annotations
+                  }
+                />
               ),
               expandableRowsOnClick: false,
               rowsExpanded: openedSpecRows,
