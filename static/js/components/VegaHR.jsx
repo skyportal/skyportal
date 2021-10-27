@@ -42,7 +42,7 @@ const spec = (data, textColor, width = 200, height = 200) => ({
             reverse: true,
           },
           axis: {
-            title: "Abs. Mag. G",
+            title: "Absolute Magnitude G",
             grid: false,
             labelColor: textColor,
             tickColor: textColor,
@@ -99,7 +99,6 @@ const spec = (data, textColor, width = 200, height = 200) => ({
             reverse: true,
           },
           axis: {
-            title: "mag G",
             grid: false,
             labelColor: textColor,
             tickColor: textColor,
@@ -159,7 +158,6 @@ const spec = (data, textColor, width = 200, height = 200) => ({
             reverse: true,
           },
           axis: {
-            title: "mag G",
             grid: false,
             labelColor: textColor,
             tickColor: textColor,

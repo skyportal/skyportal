@@ -64,7 +64,7 @@ def get_color_mag(annotations, **kwargs):
                         if normalize_key(parallax_key) == normalize_key(k):
                             plx = xmatch[k]
                         if mag is not None and plx is not None:
-                            abs_mag = mag - 5 * np.log10(plx / 100)
+                            abs_mag = mag + 5 * np.log10(plx / 100)
                             break  # no need to scan the rest of the cross match
 
                 # get the color data
