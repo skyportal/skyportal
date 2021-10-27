@@ -42,6 +42,7 @@ from skyportal.models import (
     PHOT_ZP,
     Spectrum,
 )
+from sqlalchemy.orm import joinedload
 
 import sncosmo
 
@@ -1380,7 +1381,9 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
 
     obj = Obj.get_if_accessible_by(obj_id, user)
     spectra = (
-        Spectrum.query_records_accessible_by(user)
+        Spectrum.query_records_accessible_by(
+            user, options=[joinedload(Spectrum.annotations)]
+        )
         .filter(Spectrum.obj_id == obj_id)
         .all()
     )
@@ -1409,6 +1412,12 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         normfac = np.nanmedian(np.abs(s.fluxes))
         normfac = normfac if normfac != 0.0 else 1e-20
         altdata = json.dumps(s.altdata) if s.altdata is not None else ""
+        annotations = (
+            json.dumps([{a.origin: a.data} for a in s.annotations])
+            if len(s.annotations)
+            else ""
+        )
+
         df = pd.DataFrame(
             {
                 'wavelength': s.wavelengths,
@@ -1428,6 +1437,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
                 ),
                 'origin': s.origin,
                 'altdata': altdata[:20] + "..." if len(altdata) > 20 else altdata,
+                'annotations': annotations,
             }
         )
         data.append(df)
@@ -1460,6 +1470,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
             ('PI', '@pi'),
             ('origin', '@origin'),
             ('altdata', '@altdata{safe}'),
+            ('annotations', '@annotations{safe}'),
         ]
     )
     smoothed_max = np.max(smoothed_data['flux'])
