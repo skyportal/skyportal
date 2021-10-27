@@ -23,6 +23,7 @@ Pillow==8.3.2
 sncosmo==2.5.0
 tdtax==0.1.3
 conesearch-alchemy==1.0.0
+mocpy==0.10.0
 healpix-alchemy @ git+https://github.com/skyportal/healpix-alchemy.git@cf7acbd3d0aec6fbb71a31e072e067c874de8181#egg=healpix_alchemy
 jsonschema==3.2.0
 jsonpath_ng==1.5.3
