@@ -64,7 +64,10 @@ def get_color_mag(annotations, **kwargs):
                         if normalize_key(parallax_key) == normalize_key(k):
                             plx = xmatch[k]
                         if mag is not None and plx is not None:
-                            abs_mag = mag + 5 * np.log10(plx / 100)
+                            if plx > 0:
+                                abs_mag = mag + 5 * np.log10(plx / 100)
+                            else:
+                                abs_mag = np.NaN
                             break  # no need to scan the rest of the cross match
 
                 # get the color data
@@ -93,12 +96,7 @@ def get_color_mag(annotations, **kwargs):
                             absorption = xmatch[k]
                             break  # no need to scan the rest of the cross match
 
-            if (
-                abs_mag is not None
-                and not np.isnan(abs_mag)
-                and color is not None
-                and not np.isnan(color)
-            ):
+            if abs_mag is not None and color is not None:
 
                 if absorption is not None and not np.isnan(absorption):
                     abs_mag = abs_mag + absorption  # apply the absorption term
