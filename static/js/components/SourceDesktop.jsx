@@ -484,7 +484,10 @@ const SourceDesktop = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <ObjPageAnnotations annotations={source.annotations} />
+              <ObjPageAnnotations
+                annotations={source.annotations}
+                spectra={spectra}
+              />
             </AccordionDetails>
           </Accordion>
         </div>

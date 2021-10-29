@@ -69,11 +69,21 @@ const getMuiTheme = (theme) =>
   });
 
 // Table for displaying Obj annotations on Candidate page and Source page
-const ObjPageAnnotations = ({ annotations }) => {
+const ObjPageAnnotations = ({ annotations, spectra = [] }) => {
   const classes = useStyles();
   const theme = useTheme();
   const renderValue = (value) => getAnnotationValueString(value);
   const renderTime = (created_at) => dayjs().to(dayjs.utc(`${created_at}Z`));
+  const renderSpectrumDate = (observed_at) => {
+    if (observed_at) {
+      const dayFraction = (parseFloat(observed_at.substring(11, 13)) / 24) * 10;
+      return [observed_at.substring(0, 10), ".", dayFraction.toFixed(0)].join(
+        ""
+      );
+    }
+    return "";
+  };
+
   // Curate data
   const tableData = [];
   annotations?.forEach((annotation) => {
@@ -112,6 +122,38 @@ const ObjPageAnnotations = ({ annotations }) => {
     },
   ];
 
+  // if there are any spectra given, we should add the spectrum annotations after object annotations
+  if (spectra.length > 0) {
+    // first add the observed_at property to each annotation in tableData:
+    tableData.forEach((ann) => {
+      ann.observed_at = null;
+    });
+
+    //
+    spectra.forEach((spec) => {
+      spec.annotations.forEach((annotation) => {
+        const { origin, data, author, created_at } = annotation;
+        Object.entries(data).forEach(([key, value]) => {
+          tableData.push({
+            origin,
+            key,
+            value,
+            author,
+            created_at,
+            observed_at: spec.observed_at,
+          });
+        });
+      });
+    });
+
+    // add another column to show the spectrum observed at property
+    columns.splice(1, 0, {
+      name: "observed_at",
+      label: "Spectrum Obs. at",
+      options: { customBodyRender: renderSpectrumDate },
+    });
+  }
+
   const options = {
     responsive: "standard",
     print: true,
@@ -146,6 +188,26 @@ ObjPageAnnotations.propTypes = {
       created_at: PropTypes.string.isRequired,
     })
   ).isRequired,
+  spectra: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      instrument_name: PropTypes.string.isRequired,
+      observed_at: PropTypes.string.isRequired,
+      annotations: PropTypes.arrayOf(
+        PropTypes.shape({
+          origin: PropTypes.string.isRequired,
+          data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+          author: PropTypes.shape({
+            username: PropTypes.string.isRequired,
+          }).isRequired,
+          created_at: PropTypes.string.isRequired,
+        }).isRequired
+      ),
+    })
+  ),
+};
+ObjPageAnnotations.defaultProps = {
+  spectra: [],
 };
 
 export default ObjPageAnnotations;
