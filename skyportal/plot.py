@@ -36,13 +36,13 @@ from skyportal.models import (
     DBSession,
     Obj,
     Annotation,
+    AnnotationOnSpectrum,
     Photometry,
     Instrument,
     Telescope,
     PHOT_ZP,
     Spectrum,
 )
-from sqlalchemy.orm import joinedload
 
 import sncosmo
 
@@ -1381,9 +1381,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
 
     obj = Obj.get_if_accessible_by(obj_id, user)
     spectra = (
-        Spectrum.query_records_accessible_by(
-            user, options=[joinedload(Spectrum.annotations)]
-        )
+        Spectrum.query_records_accessible_by(user)
         .filter(Spectrum.obj_id == obj_id)
         .all()
     )
@@ -1413,8 +1411,13 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         normfac = normfac if normfac != 0.0 else 1e-20
         altdata = json.dumps(s.altdata) if s.altdata is not None else ""
         annotations = (
-            json.dumps([{a.origin: a.data} for a in s.annotations])
-            if len(s.annotations)
+            AnnotationOnSpectrum.query_records_accessible_by(user)
+            .filter(AnnotationOnSpectrum.spectrum_id == s.id)
+            .all()
+        )
+        annotations = (
+            json.dumps([{a.origin: a.data} for a in annotations])
+            if len(annotations)
             else ""
         )
 

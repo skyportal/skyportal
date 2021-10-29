@@ -197,10 +197,7 @@ class SpectrumHandler(BaseHandler):
             .all()
         )
         annotations = (
-            AnnotationOnSpectrum.query_records_accessible_by(
-                self.current_user,
-                options=[joinedload(AnnotationOnSpectrum.groups)],
-            )
+            AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
             .filter(AnnotationOnSpectrum.spectrum_id == spectrum_id)
             .all()
         )
@@ -627,10 +624,7 @@ class ObjSpectraHandler(BaseHandler):
                 .all()
             )
             annotations = (
-                AnnotationOnSpectrum.query_records_accessible_by(
-                    self.current_user,
-                    options=[joinedload(AnnotationOnSpectrum.groups)],
-                )
+                AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
                 .filter(AnnotationOnSpectrum.spectrum_id == spec.id)
                 .all()
             )

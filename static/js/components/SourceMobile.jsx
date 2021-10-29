@@ -41,7 +41,7 @@ import EditSourceGroups from "./EditSourceGroups";
 import SourceNotification from "./SourceNotification";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
-import ObjPageAnnotations from "./ObjPageAnnotations";
+import AnnotationsTable from "./AnnotationsTable";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
@@ -429,7 +429,7 @@ const SourceMobile = WidthProvider(
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <ObjPageAnnotations annotations={source.annotations} />
+                <AnnotationsTable annotations={source.annotations} />
               </AccordionDetails>
             </Accordion>
           </div>

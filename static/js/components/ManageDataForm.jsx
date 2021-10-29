@@ -24,7 +24,7 @@ import { showNotification } from "baselayer/components/Notifications";
 
 import FormValidationError from "./FormValidationError";
 import CommentList from "./CommentList";
-import ObjPageAnnotations from "./ObjPageAnnotations";
+import AnnotationsTable from "./AnnotationsTable";
 
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
@@ -140,8 +140,7 @@ const useStyles = makeStyles(() => ({
 const SpectrumRow = ({ rowData, route, annotations }) => {
   const styles = useSourceStyles();
   const colSpan = rowData.length + 1;
-  const spectrumID =
-    typeof rowData[0] === "number" ? rowData[0] : parseInt(rowData[0], 10);
+  const spectrumID = parseInt(rowData[0], 10);
 
   return (
     <TableRow>
@@ -175,7 +174,7 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
           </Grid>
           <Grid item sm={6}>
             <Typography variant="h6">Annotations</Typography>
-            <ObjPageAnnotations annotations={annotations} />
+            <AnnotationsTable annotations={annotations} />
           </Grid>
         </Grid>
       </TableCell>

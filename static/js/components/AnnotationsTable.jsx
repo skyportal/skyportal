@@ -68,8 +68,8 @@ const getMuiTheme = (theme) =>
     },
   });
 
-// Table for displaying Obj annotations on Candidate page and Source page
-const ObjPageAnnotations = ({ annotations, spectra = [] }) => {
+// Table for displaying annotations
+const AnnotationsTable = ({ annotations, spectra = [] }) => {
   const classes = useStyles();
   const theme = useTheme();
   const renderValue = (value) => getAnnotationValueString(value);
@@ -77,9 +77,7 @@ const ObjPageAnnotations = ({ annotations, spectra = [] }) => {
   const renderSpectrumDate = (observed_at) => {
     if (observed_at) {
       const dayFraction = (parseFloat(observed_at.substring(11, 13)) / 24) * 10;
-      return [observed_at.substring(0, 10), ".", dayFraction.toFixed(0)].join(
-        ""
-      );
+      return `${observed_at.substring(0, 10)}.${dayFraction.toFixed(0)}`;
     }
     return "";
   };
@@ -177,7 +175,7 @@ const ObjPageAnnotations = ({ annotations, spectra = [] }) => {
   );
 };
 
-ObjPageAnnotations.propTypes = {
+AnnotationsTable.propTypes = {
   annotations: PropTypes.arrayOf(
     PropTypes.shape({
       origin: PropTypes.string.isRequired,
@@ -206,8 +204,8 @@ ObjPageAnnotations.propTypes = {
     })
   ),
 };
-ObjPageAnnotations.defaultProps = {
+AnnotationsTable.defaultProps = {
   spectra: [],
 };
 
-export default ObjPageAnnotations;
+export default AnnotationsTable;
