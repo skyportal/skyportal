@@ -20,7 +20,7 @@
     "convert-css-length": "2.0.1",
     "core-js": "3.17.3",
     "css-loader": "5.2.6",
-    "d3": "6.7.0",
+    "d3": "7.1.1",
     "d3-geo": "3.0.1",
     "d3-geo-zoom": "1.4.3",
     "data-uri-to-buffer": "4.0.0",
