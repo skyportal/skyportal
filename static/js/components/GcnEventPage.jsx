@@ -118,7 +118,7 @@ const GcnEventSourcesPage = ({ route, sources }) => {
         Event sources
       </Typography>
 
-      {!!sources.sources && (
+      {!!sources.sources.length && (
         <SourceTable
           sources={sources.sources}
           title="Event Sources"
