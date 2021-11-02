@@ -1074,7 +1074,16 @@ class SourceHandler(BaseHandler):
                     .first()
                 )
             if localization is None:
-                return self.error("Localization not found", status=404)
+                if localization_name is not None:
+                    return self.error(
+                        f"Localization {localization_dateobs} with name {localization_name} not found",
+                        status=404,
+                    )
+                else:
+                    return self.error(
+                        f"Localization {localization_dateobs} not found", status=404
+                    )
+
             tiles_subquery = (
                 LocalizationTile.query_records_accessible_by(self.current_user)
                 .filter(LocalizationTile.localization_id == localization.id)

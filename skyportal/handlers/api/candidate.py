@@ -993,6 +993,7 @@ class CandidateHandler(BaseHandler):
         if dec is None and not obj_already_exists:
             return self.error("Dec must not be null for a new Obj")
 
+        # This adds a healpix index for a new object being created
         if not obj_already_exists:
             data["nested"] = ha.healpix.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
