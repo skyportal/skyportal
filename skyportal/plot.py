@@ -1,6 +1,7 @@
 import itertools
 import math
 import json
+import collections
 
 import numpy as np
 import pandas as pd
@@ -601,27 +602,13 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     #
     # For the frame width, by default we take the desired plot width minus 64 for the y-axis/label taking
     # up horizontal space
-    frame_width = width - 64
-    if device == "mobile_portrait":
-        legend_items_per_row = 1
-        legend_row_height = 24
-        aspect_ratio = 1
-    elif device == "mobile_landscape":
-        legend_items_per_row = 4
-        legend_row_height = 50
-        aspect_ratio = 1.8
-    elif device == "tablet_portrait":
-        legend_items_per_row = 5
-        legend_row_height = 50
-        aspect_ratio = 1.5
-    elif device == "tablet_landscape":
-        legend_items_per_row = 7
-        legend_row_height = 50
-        aspect_ratio = 1.8
-    elif device == "browser":
-        # Width minus some base width for the legend, which is only a column to the right
-        # for browser mode
-        frame_width = width - 200
+
+    (
+        frame_width,
+        aspect_ratio,
+        legend_row_height,
+        legend_items_per_row,
+    ) = get_dimensions_by_device(device, width)
 
     height = (
         500
@@ -1400,423 +1387,473 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     if len(spectra) == 0:
         return None, None, None
 
+    # sort out the size of the plot
+
     layouts = []
     spectrum_types = []
-    for spec_type in ALLOWED_SPECTRUM_TYPES:
-        spectra_of_same_type = [s for s in spectra if s.type == spec_type]
-        if len(spectra_of_same_type) == 0:
-            continue
+    spectra_by_type = collections.defaultdict(list)
 
-        rainbow = cm.get_cmap('rainbow', len(spectra_of_same_type))
-        palette = list(map(rgb2hex, rainbow(range(len(spectra_of_same_type)))))
-        color_map = dict(zip([s.id for s in spectra_of_same_type], palette))
+    for s in spectra:
+        spectra_by_type[s.type].append(s)
+
+    # go over the types in the order they're defined in the config
+    for spec_type in ALLOWED_SPECTRUM_TYPES:
+
+        if len(spectra_by_type[spec_type]) == 0:
+            continue
 
         spectrum_types.append(spec_type)
 
-        data = []
-        for i, s in enumerate(spectra_of_same_type):
-
-            # normalize spectra to a median flux of 1 for easy comparison
-            normfac = np.nanmedian(np.abs(s.fluxes))
-            normfac = normfac if normfac != 0.0 else 1e-20
-            altdata = json.dumps(s.altdata) if s.altdata is not None else ""
-            df = pd.DataFrame(
-                {
-                    'wavelength': s.wavelengths,
-                    'flux': s.fluxes / normfac,
-                    'id': s.id,
-                    'telescope': s.instrument.telescope.name,
-                    'instrument': s.instrument.name,
-                    'date_observed': s.observed_at.isoformat(
-                        sep=' ', timespec='seconds'
-                    ),
-                    'pi': (
-                        s.assignment.run.pi
-                        if s.assignment is not None
-                        else (
-                            s.followup_request.allocation.pi
-                            if s.followup_request is not None
-                            else ""
-                        )
-                    ),
-                    'origin': s.origin,
-                    'altdata': altdata[:20] + "..." if len(altdata) > 20 else altdata,
-                }
-            )
-            data.append(df)
-        data = pd.concat(data)
-
-        data.sort_values(by=['date_observed', 'wavelength'], inplace=True)
-
-        dfs = []
-        for i, s in enumerate(spectra_of_same_type):
-            # Smooth the spectrum by using a rolling average
-            df = (
-                pd.DataFrame({'wavelength': s.wavelengths, 'flux': s.fluxes})
-                .rolling(2)
-                .mean(numeric_only=True)
-                .dropna()
-            )
-            dfs.append(df)
-
-        smoothed_data = pd.concat(dfs)
-
-        split = data.groupby('id', sort=False)
-
-        hover = HoverTool(
-            tooltips=[
-                ('wavelength', '@wavelength{0,0.000}'),
-                ('flux', '@flux'),
-                ('telesecope', '@telescope'),
-                ('instrument', '@instrument'),
-                ('UTC date observed', '@date_observed'),
-                ('PI', '@pi'),
-                ('origin', '@origin'),
-                ('altdata', '@altdata{safe}'),
-            ]
-        )
-        smoothed_max = np.max(smoothed_data['flux'])
-        smoothed_min = np.min(smoothed_data['flux'])
-        ymax = smoothed_max * 1.05
-        ymin = smoothed_min - 0.05 * (smoothed_max - smoothed_min)
-        xmin = np.min(data['wavelength']) - 100
-        xmax = np.max(data['wavelength']) + 100
-        if obj.redshift is not None and obj.redshift > 0:
-            xmin_rest = xmin / (1.0 + obj.redshift)
-            xmax_rest = xmax / (1.0 + obj.redshift)
-
-        active_drag = None if "mobile" in device or "tablet" in device else "box_zoom"
-        tools = (
-            "box_zoom, pan, reset"
-            if "mobile" in device or "tablet" in device
-            else "box_zoom,wheel_zoom,pan,reset"
-        )
-
-        # These values are equivalent from the photometry plot values
-        frame_width = width - 64
-        aspect_ratio = 2.0
-        legend_row_height = 25
-        legend_items_per_row = 1
-        if device == "mobile_portrait":
-            legend_items_per_row = 1
-            legend_row_height = 24
-            aspect_ratio = 1
-        elif device == "mobile_landscape":
-            legend_items_per_row = 4
-            legend_row_height = 50
-            aspect_ratio = 1.8
-        elif device == "tablet_portrait":
-            legend_items_per_row = 5
-            legend_row_height = 50
-            aspect_ratio = 1.5
-        elif device == "tablet_landscape":
-            legend_items_per_row = 7
-            legend_row_height = 50
-            aspect_ratio = 1.8
-        elif device == "browser":
-            frame_width = width - 200
-            aspect_ratio = 2.0
-            legend_row_height = 25
-            legend_items_per_row = 1
-        plot_height = (
-            math.floor(width / aspect_ratio)
-            if device == "browser"
-            else math.floor(width / aspect_ratio)
-            + legend_row_height * int(len(split) / legend_items_per_row)
-            + 30  # 30 is the height of the toolbar
-        )
-
-        # check browser plot_height for legend overflow
-        if device == "browser":
-            plot_height_of_legend = (
-                legend_row_height * int(len(split) / legend_items_per_row)
-                + 90  # 90 is height of toolbar plus legend offset
-            )
-
-            if plot_height_of_legend > plot_height:
-                plot_height = plot_height_of_legend
-
-        plot = figure(
-            frame_width=frame_width,
-            height=plot_height,
-            y_range=(ymin, ymax),
-            x_range=(xmin, xmax),
-            tools=tools,
-            toolbar_location="above",
-            active_drag=active_drag,
-        )
-        plot.add_tools(hover)
-
-        model_dict = {}
-        legend_items = []
-        for i, (key, df) in enumerate(split):
-            renderers = []
-            s = Spectrum.get_if_accessible_by(key, user)
-            if s.label is not None and len(s.label) > 0:
-                label = s.label
-            else:
-                label = (
-                    f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
-                )
-            model_dict['s' + str(i)] = plot.step(
-                x='wavelength',
-                y='flux',
-                color=color_map[key],
-                source=ColumnDataSource(df),
-            )
-            renderers.append(model_dict['s' + str(i)])
-            legend_items.append(LegendItem(label=label, renderers=renderers))
-            model_dict['l' + str(i)] = plot.line(
-                x='wavelength',
-                y='flux',
-                color=color_map[key],
-                source=ColumnDataSource(df),
-                line_alpha=0.0,
-            )
-        plot.xaxis.axis_label = 'Wavelength (Å)'
-        plot.yaxis.axis_label = 'Flux'
-        plot.toolbar.logo = None
-        if obj.redshift is not None and obj.redshift > 0:
-            plot.extra_x_ranges = {"rest_wave": Range1d(start=xmin_rest, end=xmax_rest)}
-            plot.add_layout(
-                LinearAxis(x_range_name="rest_wave", axis_label="Rest Wavelength (Å)"),
-                'above',
-            )
-
-        # TODO how to choose a good default?
-        plot.y_range = Range1d(0, 1.03 * data.flux.max())
-
-        legend_loc = "below" if "mobile" in device or "tablet" in device else "right"
-        legend_orientation = (
-            "vertical" if device in ["browser", "mobile_portrait"] else "horizontal"
-        )
-
-        add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
-
-        # 20 is for padding
-        slider_width = width if "mobile" in device else int(width / 2) - 20
-        z_title = Div(text="Redshift (<i>z</i>): ")
-        z_slider = Slider(
-            value=obj.redshift if obj.redshift is not None else 0.0,
-            start=0.0,
-            end=3.0,
-            step=0.001,
-            show_value=False,
-            format="0[.]000",
-        )
-        z_textinput = TextInput(
-            value=str(obj.redshift if obj.redshift is not None else 0.0)
-        )
-        z_slider.js_on_change(
-            'value',
-            CustomJS(
-                args={'slider': z_slider, 'textinput': z_textinput},
-                code="""
-                textinput.value = parseFloat(slider.value).toFixed(3);
-                textinput.change.emit();
-            """,
-            ),
-        )
-        z = column(
-            z_title,
-            z_slider,
-            z_textinput,
-            width=slider_width,
-            margin=(4, 10, 0, 10),
-        )
-
-        v_title = Div(text="<i>V</i><sub>expansion</sub> (km/s): ")
-        v_exp_slider = Slider(
-            value=0.0,
-            start=0.0,
-            end=3e4,
-            step=10.0,
-            show_value=False,
-        )
-        v_exp_textinput = TextInput(value='0')
-        v_exp_slider.js_on_change(
-            'value',
-            CustomJS(
-                args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
-                code="""
-                textinput.value = parseFloat(slider.value).toFixed(0);
-                textinput.change.emit();
-            """,
-            ),
-        )
-        v_exp = column(
-            v_title,
-            v_exp_slider,
-            v_exp_textinput,
-            width=slider_width,
-            margin=(0, 10, 0, 10),
-        )
-
-        # Track elements that need to be shifted with change in z / v
-        shifting_elements = []
-
-        for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
-
-            el_data = pd.DataFrame({'wavelength': wavelengths})
-
-            if name == 'Sky Lines':  # No redshift correction of skylines
-                el_data['x'] = el_data['wavelength']
-                segment = plot.segment(
-                    x0='x',
-                    x1='x',
-                    y0=0,
-                    y1=1e4,
-                    color=color,
-                    source=ColumnDataSource(el_data),
-                )
-                segment.visible = False
-                model_dict[f'element_{i}'] = segment
-
-            elif name in ('Tellurics-1', 'Tellurics-2'):
-                el_data['x'] = el_data['wavelength']
-                midtel1 = (el_data['x'][0] + el_data['x'][1]) / 2
-                widtel1 = el_data['x'][1] - el_data['x'][0]
-
-                vbar = plot.vbar(
-                    x=midtel1,
-                    width=widtel1,
-                    # TODO change limits
-                    top=1e4,
-                    color=color,
-                    alpha=0.3,
-                )
-                vbar.visible = False
-                model_dict[f'element_{i}'] = vbar
-
-            else:
-                obj_redshift = 0 if obj.redshift is None else obj.redshift
-                el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
-
-                segment = plot.segment(
-                    x0='x',
-                    x1='x',
-                    # TODO change limits
-                    y0=0,
-                    y1=1e4,
-                    color=color,
-                    source=ColumnDataSource(el_data),
-                )
-                segment.visible = False
-                model_dict[f'element_{i}'] = segment
-                shifting_elements.append(segment)
-
-        # Split spectral line legend into columns
-        if device == "mobile_portrait":
-            columns = 3
-        elif device == "mobile_landscape":
-            columns = 5
-        else:
-            columns = 7
-
-        # Create columns from a list.
-        #
-        # `list(zip_longest(a, b, c, ...))` returns a tuple where the i-th
-        # element comes from the i-th iterable argument.
-        #
-        # The trick here is to pass in the same iterable `column` times.
-        # This gives us rows.
-        rows = itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns)
-
-        # To form columns from the rows, zip the rows together.
-        element_dicts = zip(*rows)
-
-        all_column_checkboxes = []
-
-        for column_idx, element_dict in enumerate(element_dicts):
-            element_dict = [e for e in element_dict if e is not None]
-            labels = [name for name, _ in element_dict]
-            colors = [color for name, (wavelengths, color) in element_dict]
-            column_checkboxes = CheckboxWithLegendGroup(
-                labels=labels, active=[], colors=colors, width=width // (columns + 1)
-            )
-            all_column_checkboxes.append(column_checkboxes)
-
-            callback_toggle_lines = CustomJS(
-                args={'column_checkboxes': column_checkboxes, **model_dict},
-                code=f"""
-                for (let i = 0; i < {len(labels)}; i = i + 1) {{
-                    let el_idx = i * {columns} + {column_idx};
-                    let el = eval("element_" + el_idx);
-                    el.visible = (column_checkboxes.active.includes(i))
-                }}
-            """,
-            )
-            column_checkboxes.js_on_click(callback_toggle_lines)
-
-        # Move spectral lines when redshift or velocity changes
-        speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
-        callback_zvs = CustomJS(
-            args={'z': z_textinput, 'v_exp': v_exp_textinput, **speclines},
-            code=f"""
-            const c = 299792.458; // speed of light in km / s
-            for (let i = 0; i < {len(speclines)}; i = i + 1) {{
-                let el = eval("specline_" + i);
-                el.data_source.data.x = el.data_source.data.wavelength.map(
-                    x_i => (x_i * (1 + parseFloat(z.value)) /
-                                    (1 + parseFloat(v_exp.value) / c))
-                );
-                el.data_source.change.emit();
-            }}
-        """,
-        )
-
-        # Hook up callback that shifts spectral lines when z or v changes
-        z_textinput.js_on_change('value', callback_zvs)
-        v_exp_textinput.js_on_change('value', callback_zvs)
-
-        z_textinput.js_on_change(
-            'value',
-            CustomJS(
-                args={'z': z_textinput, 'slider': z_slider},
-                code="""
-                // Update slider value to match text input
-                slider.value = parseFloat(z.value).toFixed(3);
-            """,
-            ),
-        )
-
-        v_exp_textinput.js_on_change(
-            'value',
-            CustomJS(
-                args={'slider': v_exp_slider, 'v_exp': v_exp_textinput},
-                code="""
-                // Update slider value to match text input
-                slider.value = parseFloat(v_exp.value).toFixed(3);
-            """,
-            ),
-        )
-
-        # Add some height for the checkboxes and sliders
-        if device == "mobile_portrait":
-            height = plot_height + 440
-        elif device == "mobile_landscape":
-            height = plot_height + 370
-        else:
-            height = plot_height + 220
-
-        row2 = row(all_column_checkboxes)
-        row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
         layouts.append(
-            column(
-                plot,
-                row2,
-                row3,
-                sizing_mode='stretch_width',
-                width=width,
-                height=height,
-            )
+            make_spectrum_layout(obj, spectra_by_type[spec_type], user, device, width)
         )
+
+    print(layouts)
 
     if len(layouts) > 1:
         panels = []
         for i, layout in enumerate(layouts):
             panels.append(Panel(child=layout, title=spectrum_types[i]))
-        tabs = Tabs(tabs=panels, width=width, height=height + 60, sizing_mode='fixed')
+        # tabs = Tabs(tabs=panels, width=width, height=height + 60, sizing_mode='fixed')
+        tabs = Tabs(tabs=panels, width=width, height=1000, sizing_mode='fixed')
         return bokeh_embed.json_item(tabs)
 
     return bokeh_embed.json_item(layouts[0])
+
+
+def make_spectrum_layout(obj, spectra, user, device, width):
+    """
+    Helper function that takes the object, spectra and user info,
+    as well as the total width of the figure,
+    and produces one layout for a spectrum plot.
+    This can be used once for each tab on the spectrum plot,
+    if using different spectrum types.
+
+    Parameters
+    ----------
+    obj:
+        The underlying object that is associated with all these spectra.
+    spectra:
+        The different spectra to be plotted. This can be a subset of
+        e.g., all the spectra of one type.
+    user:
+        info about the user, used to get the individual user plot preferences.
+    device: string
+        name of the device used ("browser", "mobile", "mobile_portrait", "tablet", etc).
+    width: int
+        width of the external frame of the plot, including the buttons/sliders.
+
+    Returns
+    -------
+    dict
+        Bokeh JSON embedding of one layout that can be tabbed or
+        used as the plot specifications on its own.
+    """
+    rainbow = cm.get_cmap('rainbow', len(spectra))
+    palette = list(map(rgb2hex, rainbow(range(len(spectra)))))
+    color_map = dict(zip([s.id for s in spectra], palette))
+
+    data = []
+    for i, s in enumerate(spectra):
+        # normalize spectra to a median flux of 1 for easy comparison
+        normfac = np.nanmedian(np.abs(s.fluxes))
+        normfac = normfac if normfac != 0.0 else 1e-20
+        altdata = json.dumps(s.altdata) if s.altdata is not None else ""
+        df = pd.DataFrame(
+            {
+                'wavelength': s.wavelengths,
+                'flux': s.fluxes / normfac,
+                'id': s.id,
+                'telescope': s.instrument.telescope.name,
+                'instrument': s.instrument.name,
+                'date_observed': s.observed_at.isoformat(sep=' ', timespec='seconds'),
+                'pi': (
+                    s.assignment.run.pi
+                    if s.assignment is not None
+                    else (
+                        s.followup_request.allocation.pi
+                        if s.followup_request is not None
+                        else ""
+                    )
+                ),
+                'origin': s.origin,
+                'altdata': altdata[:20] + "..." if len(altdata) > 20 else altdata,
+            }
+        )
+        data.append(df)
+    data = pd.concat(data)
+
+    data.sort_values(by=['date_observed', 'wavelength'], inplace=True)
+
+    dfs = []
+    for i, s in enumerate(spectra):
+        # Smooth the spectrum by using a rolling average
+        df = (
+            pd.DataFrame({'wavelength': s.wavelengths, 'flux': s.fluxes})
+            .rolling(2)
+            .mean(numeric_only=True)
+            .dropna()
+        )
+        dfs.append(df)
+
+    smoothed_data = pd.concat(dfs)
+
+    # These values are equivalent from the photometry plot values
+
+    split = data.groupby('id', sort=False)
+
+    (
+        frame_width,
+        aspect_ratio,
+        legend_row_height,
+        legend_items_per_row,
+    ) = get_dimensions_by_device(device, width)
+
+    plot_height = (
+        math.floor(width / aspect_ratio)
+        if device == "browser"
+        else math.floor(width / aspect_ratio)
+        + legend_row_height * int(len(split) / legend_items_per_row)
+        + 30  # 30 is the height of the toolbar
+    )
+
+    # Add some height for the checkboxes and sliders
+    if device == "mobile_portrait":
+        height = plot_height + 440
+    elif device == "mobile_landscape":
+        height = plot_height + 370
+    else:
+        height = plot_height + 220
+
+    # check browser plot_height for legend overflow
+    if device == "browser":
+        plot_height_of_legend = (
+            legend_row_height * int(len(split) / legend_items_per_row)
+            + 90  # 90 is height of toolbar plus legend offset
+        )
+
+        if plot_height_of_legend > plot_height:
+            plot_height = plot_height_of_legend
+
+    hover = HoverTool(
+        tooltips=[
+            ('wavelength', '@wavelength{0,0.000}'),
+            ('flux', '@flux'),
+            ('telesecope', '@telescope'),
+            ('instrument', '@instrument'),
+            ('UTC date observed', '@date_observed'),
+            ('PI', '@pi'),
+            ('origin', '@origin'),
+            ('altdata', '@altdata{safe}'),
+        ]
+    )
+    smoothed_max = np.max(smoothed_data['flux'])
+    smoothed_min = np.min(smoothed_data['flux'])
+    ymax = smoothed_max * 1.05
+    ymin = smoothed_min - 0.05 * (smoothed_max - smoothed_min)
+    xmin = np.min(data['wavelength']) - 100
+    xmax = np.max(data['wavelength']) + 100
+    if obj.redshift is not None and obj.redshift > 0:
+        xmin_rest = xmin / (1.0 + obj.redshift)
+        xmax_rest = xmax / (1.0 + obj.redshift)
+
+    active_drag = None if "mobile" in device or "tablet" in device else "box_zoom"
+    tools = (
+        "box_zoom, pan, reset"
+        if "mobile" in device or "tablet" in device
+        else "box_zoom,wheel_zoom,pan,reset"
+    )
+
+    plot = figure(
+        frame_width=frame_width,
+        height=plot_height,
+        y_range=(ymin, ymax),
+        x_range=(xmin, xmax),
+        tools=tools,
+        toolbar_location="above",
+        active_drag=active_drag,
+    )
+    plot.add_tools(hover)
+
+    model_dict = {}
+    legend_items = []
+    for i, (key, df) in enumerate(split):
+        renderers = []
+        s = Spectrum.get_if_accessible_by(key, user)
+        if s.label is not None and len(s.label) > 0:
+            label = s.label
+        else:
+            label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
+        model_dict['s' + str(i)] = plot.step(
+            x='wavelength',
+            y='flux',
+            color=color_map[key],
+            source=ColumnDataSource(df),
+        )
+        renderers.append(model_dict['s' + str(i)])
+        legend_items.append(LegendItem(label=label, renderers=renderers))
+        model_dict['l' + str(i)] = plot.line(
+            x='wavelength',
+            y='flux',
+            color=color_map[key],
+            source=ColumnDataSource(df),
+            line_alpha=0.0,
+        )
+    plot.xaxis.axis_label = 'Wavelength (Å)'
+    plot.yaxis.axis_label = 'Flux'
+    plot.toolbar.logo = None
+    if obj.redshift is not None and obj.redshift > 0:
+        plot.extra_x_ranges = {"rest_wave": Range1d(start=xmin_rest, end=xmax_rest)}
+        plot.add_layout(
+            LinearAxis(x_range_name="rest_wave", axis_label="Rest Wavelength (Å)"),
+            'above',
+        )
+
+    # TODO how to choose a good default?
+    plot.y_range = Range1d(0, 1.03 * data.flux.max())
+
+    legend_loc = "below" if "mobile" in device or "tablet" in device else "right"
+    legend_orientation = (
+        "vertical" if device in ["browser", "mobile_portrait"] else "horizontal"
+    )
+
+    add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
+
+    # 20 is for padding
+    slider_width = width if "mobile" in device else int(width / 2) - 20
+    z_title = Div(text="Redshift (<i>z</i>): ")
+    z_slider = Slider(
+        value=obj.redshift if obj.redshift is not None else 0.0,
+        start=0.0,
+        end=3.0,
+        step=0.001,
+        show_value=False,
+        format="0[.]000",
+    )
+    z_textinput = TextInput(
+        value=str(obj.redshift if obj.redshift is not None else 0.0)
+    )
+    z_slider.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': z_slider, 'textinput': z_textinput},
+            code="""
+                    textinput.value = parseFloat(slider.value).toFixed(3);
+                    textinput.change.emit();
+                """,
+        ),
+    )
+    z = column(
+        z_title,
+        z_slider,
+        z_textinput,
+        width=slider_width,
+        margin=(4, 10, 0, 10),
+    )
+
+    v_title = Div(text="<i>V</i><sub>expansion</sub> (km/s): ")
+    v_exp_slider = Slider(
+        value=0.0,
+        start=0.0,
+        end=3e4,
+        step=10.0,
+        show_value=False,
+    )
+    v_exp_textinput = TextInput(value='0')
+    v_exp_slider.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
+            code="""
+                    textinput.value = parseFloat(slider.value).toFixed(0);
+                    textinput.change.emit();
+                """,
+        ),
+    )
+    v_exp = column(
+        v_title,
+        v_exp_slider,
+        v_exp_textinput,
+        width=slider_width,
+        margin=(0, 10, 0, 10),
+    )
+
+    # Track elements that need to be shifted with change in z / v
+    shifting_elements = []
+
+    for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
+
+        el_data = pd.DataFrame({'wavelength': wavelengths})
+
+        if name == 'Sky Lines':  # No redshift correction of skylines
+            el_data['x'] = el_data['wavelength']
+            segment = plot.segment(
+                x0='x',
+                x1='x',
+                y0=0,
+                y1=1e4,
+                color=color,
+                source=ColumnDataSource(el_data),
+            )
+            segment.visible = False
+            model_dict[f'element_{i}'] = segment
+
+        elif name in ('Tellurics-1', 'Tellurics-2'):
+            el_data['x'] = el_data['wavelength']
+            midtel1 = (el_data['x'][0] + el_data['x'][1]) / 2
+            widtel1 = el_data['x'][1] - el_data['x'][0]
+
+            vbar = plot.vbar(
+                x=midtel1,
+                width=widtel1,
+                # TODO change limits
+                top=1e4,
+                color=color,
+                alpha=0.3,
+            )
+            vbar.visible = False
+            model_dict[f'element_{i}'] = vbar
+
+        else:
+            obj_redshift = 0 if obj.redshift is None else obj.redshift
+            el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
+
+            segment = plot.segment(
+                x0='x',
+                x1='x',
+                # TODO change limits
+                y0=0,
+                y1=1e4,
+                color=color,
+                source=ColumnDataSource(el_data),
+            )
+            segment.visible = False
+            model_dict[f'element_{i}'] = segment
+            shifting_elements.append(segment)
+
+    # Split spectral line legend into columns
+    if device == "mobile_portrait":
+        columns = 3
+    elif device == "mobile_landscape":
+        columns = 5
+    else:
+        columns = 7
+
+    # Create columns from a list.
+    #
+    # `list(zip_longest(a, b, c, ...))` returns a tuple where the i-th
+    # element comes from the i-th iterable argument.
+    #
+    # The trick here is to pass in the same iterable `column` times.
+    # This gives us rows.
+    rows = itertools.zip_longest(*[iter(SPEC_LINES.items())] * columns)
+
+    # To form columns from the rows, zip the rows together.
+    element_dicts = zip(*rows)
+
+    all_column_checkboxes = []
+
+    for column_idx, element_dict in enumerate(element_dicts):
+        element_dict = [e for e in element_dict if e is not None]
+        labels = [name for name, _ in element_dict]
+        colors = [color for name, (wavelengths, color) in element_dict]
+        column_checkboxes = CheckboxWithLegendGroup(
+            labels=labels, active=[], colors=colors, width=width // (columns + 1)
+        )
+        all_column_checkboxes.append(column_checkboxes)
+
+        callback_toggle_lines = CustomJS(
+            args={'column_checkboxes': column_checkboxes, **model_dict},
+            code=f"""
+                    for (let i = 0; i < {len(labels)}; i = i + 1) {{
+                        let el_idx = i * {columns} + {column_idx};
+                        let el = eval("element_" + el_idx);
+                        el.visible = (column_checkboxes.active.includes(i))
+                    }}
+                """,
+        )
+        column_checkboxes.js_on_click(callback_toggle_lines)
+
+    # Move spectral lines when redshift or velocity changes
+    speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
+    callback_zvs = CustomJS(
+        args={'z': z_textinput, 'v_exp': v_exp_textinput, **speclines},
+        code=f"""
+                const c = 299792.458; // speed of light in km / s
+                for (let i = 0; i < {len(speclines)}; i = i + 1) {{
+                    let el = eval("specline_" + i);
+                    el.data_source.data.x = el.data_source.data.wavelength.map(
+                        x_i => (x_i * (1 + parseFloat(z.value)) /
+                                        (1 + parseFloat(v_exp.value) / c))
+                    );
+                    el.data_source.change.emit();
+                }}
+            """,
+    )
+
+    # Hook up callback that shifts spectral lines when z or v changes
+    z_textinput.js_on_change('value', callback_zvs)
+    v_exp_textinput.js_on_change('value', callback_zvs)
+
+    z_textinput.js_on_change(
+        'value',
+        CustomJS(
+            args={'z': z_textinput, 'slider': z_slider},
+            code="""
+                    // Update slider value to match text input
+                    slider.value = parseFloat(z.value).toFixed(3);
+                """,
+        ),
+    )
+
+    v_exp_textinput.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': v_exp_slider, 'v_exp': v_exp_textinput},
+            code="""
+                    // Update slider value to match text input
+                    slider.value = parseFloat(v_exp.value).toFixed(3);
+                """,
+        ),
+    )
+
+    row2 = row(all_column_checkboxes)
+    row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
+    return column(
+        plot,
+        row2,
+        row3,
+        sizing_mode='stretch_width',
+        width=width,
+        height=height,
+    )
+
+
+def get_dimensions_by_device(device, width):
+    frame_width = width - 64
+    aspect_ratio = 2.0
+    legend_row_height = 25
+    legend_items_per_row = 1
+    if device == "mobile_portrait":
+        legend_items_per_row = 1
+        legend_row_height = 24
+        aspect_ratio = 1
+    elif device == "mobile_landscape":
+        legend_items_per_row = 4
+        legend_row_height = 50
+        aspect_ratio = 1.8
+    elif device == "tablet_portrait":
+        legend_items_per_row = 5
+        legend_row_height = 50
+        aspect_ratio = 1.5
+    elif device == "tablet_landscape":
+        legend_items_per_row = 7
+        legend_row_height = 50
+        aspect_ratio = 1.8
+    elif device == "browser":
+        frame_width = width - 200
+        aspect_ratio = 2.0
+        legend_row_height = 25
+        legend_items_per_row = 1
+
+    return frame_width, aspect_ratio, legend_row_height, legend_items_per_row
