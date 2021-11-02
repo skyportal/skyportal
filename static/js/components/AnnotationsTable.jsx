@@ -69,7 +69,7 @@ const getMuiTheme = (theme) =>
   });
 
 // Table for displaying annotations
-const AnnotationsTable = ({ annotations, spectra = [] }) => {
+const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
   const classes = useStyles();
   const theme = useTheme();
   const renderValue = (value) => getAnnotationValueString(value);
@@ -84,10 +84,13 @@ const AnnotationsTable = ({ annotations, spectra = [] }) => {
 
   // Curate data
   const tableData = [];
+  annotations.push(...spectrumAnnotations);
   annotations?.forEach((annotation) => {
-    const { origin, data, author, created_at } = annotation;
+    const { origin, data, author, created_at, spectrum_observed_at } =
+      annotation;
+    const observed_at = spectrum_observed_at || null;
     Object.entries(data).forEach(([key, value]) => {
-      tableData.push({ origin, key, value, author, created_at });
+      tableData.push({ origin, key, value, author, created_at, observed_at });
     });
   });
 
@@ -120,30 +123,7 @@ const AnnotationsTable = ({ annotations, spectra = [] }) => {
     },
   ];
 
-  // if there are any spectra given, we should add the spectrum annotations after object annotations
-  if (spectra.length > 0) {
-    // first add the observed_at property to each annotation in tableData:
-    tableData.forEach((ann) => {
-      ann.observed_at = null;
-    });
-
-    //
-    spectra.forEach((spec) => {
-      spec.annotations.forEach((annotation) => {
-        const { origin, data, author, created_at } = annotation;
-        Object.entries(data).forEach(([key, value]) => {
-          tableData.push({
-            origin,
-            key,
-            value,
-            author,
-            created_at,
-            observed_at: spec.observed_at,
-          });
-        });
-      });
-    });
-
+  if (spectrumAnnotations && spectrumAnnotations.length) {
     // add another column to show the spectrum observed at property
     columns.splice(1, 0, {
       name: "observed_at",
@@ -186,26 +166,20 @@ AnnotationsTable.propTypes = {
       created_at: PropTypes.string.isRequired,
     })
   ).isRequired,
-  spectra: PropTypes.arrayOf(
+  spectrumAnnotations: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.number.isRequired,
-      instrument_name: PropTypes.string.isRequired,
-      observed_at: PropTypes.string.isRequired,
-      annotations: PropTypes.arrayOf(
-        PropTypes.shape({
-          origin: PropTypes.string.isRequired,
-          data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
-          author: PropTypes.shape({
-            username: PropTypes.string.isRequired,
-          }).isRequired,
-          created_at: PropTypes.string.isRequired,
-        }).isRequired
-      ),
+      origin: PropTypes.string.isRequired,
+      data: PropTypes.object.isRequired, // eslint-disable-line react/forbid-prop-types
+      author: PropTypes.shape({
+        username: PropTypes.string.isRequired,
+      }).isRequired,
+      created_at: PropTypes.string.isRequired,
+      spectrum_observed_at: PropTypes.string.isRequired,
     })
   ),
 };
 AnnotationsTable.defaultProps = {
-  spectra: [],
+  spectrumAnnotations: [],
 };
 
 export default AnnotationsTable;

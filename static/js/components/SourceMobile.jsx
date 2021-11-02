@@ -206,6 +206,15 @@ const SourceMobile = WidthProvider(
     );
 
     const spectra = useSelector((state) => state.spectra)[source.id];
+    const spectrumAnnotations = [];
+    if (spectra) {
+      spectra.forEach((spec) => {
+        spec.annotations.forEach((annotation) => {
+          annotation.spectrum_observed_at = spec.observed_at;
+          spectrumAnnotations.push(annotation);
+        });
+      });
+    }
     const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
 
     useEffect(() => {
@@ -429,7 +438,10 @@ const SourceMobile = WidthProvider(
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <AnnotationsTable annotations={source.annotations} />
+                <AnnotationsTable
+                  annotations={source.annotations}
+                  spectrumAnnotations={spectrumAnnotations}
+                />
               </AccordionDetails>
             </Accordion>
           </div>

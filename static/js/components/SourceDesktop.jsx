@@ -162,6 +162,15 @@ const SourceDesktop = ({ source }) => {
   );
 
   const spectra = useSelector((state) => state.spectra)[source.id];
+  const spectrumAnnotations = [];
+  if (spectra) {
+    spectra.forEach((spec) => {
+      spec.annotations.forEach((annotation) => {
+        annotation.spectrum_observed_at = spec.observed_at;
+        spectrumAnnotations.push(annotation);
+      });
+    });
+  }
   const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
 
   useEffect(() => {
@@ -486,7 +495,7 @@ const SourceDesktop = ({ source }) => {
             <AccordionDetails>
               <AnnotationsTable
                 annotations={source.annotations}
-                spectra={spectra}
+                spectrumAnnotations={spectrumAnnotations}
               />
             </AccordionDetails>
           </Accordion>
