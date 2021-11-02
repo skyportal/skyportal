@@ -101,9 +101,12 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
       dispatch(fetchFavoriteSources());
     }
   }
+
   const { gcnEvent } = getState();
   if (actionType === FETCH_GCNEVENT_SOURCES) {
-    dispatch(fetchGcnEventSources(gcnEvent?.dateobs));
+    if (gcnEvent?.dateobs) {
+      dispatch(fetchGcnEventSources(gcnEvent?.dateobs));
+    }
   }
 
   if (actionType === sourceActions.REFRESH_SOURCE) {

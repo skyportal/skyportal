@@ -1,7 +1,6 @@
 # inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import os
-import functools
 import gcn
 import lxml
 import xmlschema
@@ -12,6 +11,7 @@ from tornado.ioloop import IOLoop
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import sessionmaker, scoped_session
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -27,6 +27,9 @@ from ...models import (
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
 log = make_log('api/gcn_event')
+
+
+Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 
 class GcnEventHandler(BaseHandler):
@@ -121,19 +124,12 @@ class GcnEventHandler(BaseHandler):
             DBSession().add(localization)
             DBSession().commit()
 
-            tiles_func = functools.partial(
-                add_tiles,
-                localization.id,
-                self,
+            IOLoop.current().run_in_executor(
+                None, lambda: add_tiles(localization.id, self.current_user.id)
             )
-            IOLoop.current().run_in_executor(None, tiles_func)
-
-            contour_func = functools.partial(
-                add_contour,
-                localization.id,
-                self,
+            IOLoop.current().run_in_executor(
+                None, lambda: add_contour(localization.id, self.current_user.id)
             )
-            IOLoop.current().run_in_executor(None, contour_func)
 
         return self.success()
 
@@ -229,30 +225,32 @@ class GcnEventHandler(BaseHandler):
         return self.success()
 
 
-def add_contour(localization_id, request_handler):
+def add_contour(localization_id, user_id):
+    session = Session()
     try:
         localization = (
-            Localization.query_records_accessible_by(request_handler.current_user)
+            Localization.query_records_accessible_by(user_id)
             .filter(
                 Localization.id == localization_id,
             )
             .first()
         )
         localization = get_contour(localization)
-        DBSession().add(localization)
-        DBSession().commit()
+        session.add(localization)
+        session.commit()
     except Exception as e:
         return log(
             f"Unable to generate contour for localization {localization_id}: {e}"
         )
     finally:
-        DBSession.remove()
+        session.remove()
 
 
-def add_tiles(localization_id, request_handler):
+def add_tiles(localization_id, user_id):
+    session = Session()
     try:
         localization = (
-            Localization.query_records_accessible_by(request_handler.current_user)
+            Localization.query_records_accessible_by(user_id)
             .filter(
                 Localization.id == localization_id,
             )
@@ -279,12 +277,12 @@ def add_tiles(localization_id, request_handler):
 
         for tile, cumprob in zip(tiles, cumprobs):
             tile.cumprob = cumprob
-        DBSession().add_all(tiles)
-        DBSession().commit()
+        session.add_all(tiles)
+        session.commit()
     except Exception as e:
         return log(f"Unable to generate tiles for localization {localization_id}: {e}")
     finally:
-        DBSession.remove()
+        session.remove()
 
 
 class LocalizationHandler(BaseHandler):
