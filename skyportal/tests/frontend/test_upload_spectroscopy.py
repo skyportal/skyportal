@@ -1,4 +1,6 @@
 import os
+import uuid
+from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES
 
 
 def test_upload_spectroscopy(
@@ -31,6 +33,17 @@ def test_upload_spectroscopy(
     sedm_element_xpath = f'//li[@data-value="{inst_id}"]'
     driver.click_xpath(sedm_element_xpath, scroll_parent=True)
 
+    type_element_xpath = '//*[@id="root_spectrum_type"]'
+    driver.click_xpath(type_element_xpath)
+
+    host_element_xpath = f'//li[@data-value="{ALLOWED_SPECTRUM_TYPES[-1]}"]'
+    driver.click_xpath(host_element_xpath, scroll_parent=True)
+
+    label_element = driver.wait_for_xpath('//*[@id="root_user_label"]')
+    driver.scroll_to_element_and_click(label_element)
+    user_defined_label = str(uuid.uuid4())
+    label_element.send_keys(user_defined_label)
+
     preview_button_xpath = '//button[contains(.,"Preview")]'
     driver.click_xpath(preview_button_xpath)
 
@@ -44,3 +57,5 @@ def test_upload_spectroscopy(
     driver.get(f"/manage_data/{public_source.id}")
 
     driver.wait_for_xpath(f'//*[contains(.,"{sedm.name}")]', 20)
+    driver.wait_for_xpath(f'//*[contains(.,"{ALLOWED_SPECTRUM_TYPES[-1]}")]', 20)
+    driver.wait_for_xpath(f'//*[contains(.,"{user_defined_label}")]', 20)
