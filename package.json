@@ -73,7 +73,7 @@
     "vega-lite": "5.1.1"
   },
   "devDependencies": {
-    "@babel/core": "7.15.5",
+    "@babel/core": "7.16.0",
     "@babel/plugin-proposal-class-properties": "7.14.5",
     "@babel/plugin-proposal-export-namespace-from": "7.14.5",
     "@babel/plugin-proposal-object-rest-spread": "7.15.6",
