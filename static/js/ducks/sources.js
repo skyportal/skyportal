@@ -103,7 +103,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
   const { gcnEvent } = getState();
   if (actionType === FETCH_GCNEVENT_SOURCES) {
-    dispatch(fetchGcnEventSources(gcnEvent.dateobs, {}));
+    dispatch(fetchGcnEventSources(gcnEvent?.dateobs));
   }
 
   if (actionType === sourceActions.REFRESH_SOURCE) {
