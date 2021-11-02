@@ -274,14 +274,9 @@ const GcnEventPage = ({ route }) => {
     dispatch(sourcesActions.fetchGcnEventSources(route.dateobs, {}));
   }, [route, dispatch]);
 
-  if (!gcnEvent) {
+  if (!gcnEvent || !gncEventSources) {
     return <CircularProgress />;
   }
-
-  if (!gcnEventSources) {
-    return <CircularProgress />;
-  }
-
   return (
     <div>
       <h1 style={{ display: "inline-block" }}>Event Information</h1>
