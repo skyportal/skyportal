@@ -16,7 +16,7 @@ def test_galaxy(super_admin_token, view_only_token):
     assert status == 200
     assert data['status'] == 'success'
 
-    status, data = api('GET', 'galaxy', token=super_admin_token)
+    status, data = api('GET', 'galaxy', token=view_only_token)
     assert status == 200
     data = data["data"]
     assert len(data) == 10

@@ -6,7 +6,7 @@ from ..base import BaseHandler
 from ...models import DBSession, Galaxy
 
 
-class GalaxyHandler(BaseHandler):
+class GalaxyCatalogHandler(BaseHandler):
     @permissions(['System admin'])
     async def post(self):
         """

@@ -13,7 +13,15 @@ class Galaxy(Base, ha.Point):
     catalog_name = sa.Column(sa.String, doc="Name of the catalog.")
 
     name = sa.Column(sa.String, doc="Name of the object.")
+    alt_name = sa.Column(
+        sa.String, nullable=True, doc="Alternative Name of the object."
+    )
     distmpc = sa.Column(sa.Float, nullable=True, doc="Distance [Mpc]")
+    distmpc_unc = sa.Column(sa.Float, nullable=True, doc="Distance [Mpc] uncertainty")
+
+    redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
+    redshift_error = sa.Column(sa.Float, nullable=True, doc="Redshift error.")
+
     sfr_fuv = sa.Column(sa.Float, nullable=True, doc="SFR based on FUV [Msol/yr]")
     mstar = sa.Column(sa.Float, nullable=True, doc="Stellar mass [log(Msol)]")
     magb = sa.Column(sa.Float, nullable=True, doc="B band magnitude [mag]")
