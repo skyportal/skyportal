@@ -271,7 +271,7 @@ const GcnEventPage = ({ route }) => {
   }, [route, dispatch]);
 
   useEffect(() => {
-    dispatch(sourcesActions.fetchGcnEventSources(route.dateobs, {}));
+    dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
   }, [route, dispatch]);
 
   if (!gcnEvent || !gncEventSources) {
