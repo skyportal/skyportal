@@ -1408,14 +1408,13 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
             make_spectrum_layout(obj, spectra_by_type[spec_type], user, device, width)
         )
 
-    print(layouts)
-
     if len(layouts) > 1:
         panels = []
         for i, layout in enumerate(layouts):
             panels.append(Panel(child=layout, title=spectrum_types[i]))
-        # tabs = Tabs(tabs=panels, width=width, height=height + 60, sizing_mode='fixed')
-        tabs = Tabs(tabs=panels, width=width, height=1000, sizing_mode='fixed')
+        tabs = Tabs(
+            tabs=panels, width=width, height=layouts[0].height + 60, sizing_mode='fixed'
+        )
         return bokeh_embed.json_item(tabs)
 
     return bokeh_embed.json_item(layouts[0])
