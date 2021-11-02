@@ -1035,10 +1035,13 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
     instrument_id = fields.Integer(
         description='The ID of the instrument that took the spectrum.', required=True
     )
+
+    # type = ApispecEnumField(
+    #     py_allowed_spectrum_types,
     type = fields.String(
-        description='The type of spectrum or object whose spectrum is measured. '
-        'Possible types are defined in the config under spectrum types.',
         required=False,
+        description=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+                            Defaults to 'f{default_spectrum_type}'.''',
     )
 
     label = fields.String(
@@ -1150,6 +1153,8 @@ class SpectrumPost(_Schema):
 
     origin = fields.String(required=False, description="Origin of the spectrum.")
 
+    # type = ApispecEnumField(
+    # py_allowed_spectrum_types,
     type = fields.String(
         required=False,
         description=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
