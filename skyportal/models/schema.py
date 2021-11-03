@@ -26,7 +26,7 @@ from baselayer.app.env import load_env
 from skyportal.enum_types import (
     ALLOWED_SPECTRUM_TYPES,
     default_spectrum_type,
-    py_allowed_spectrum_types,
+    # py_allowed_spectrum_types,
     py_allowed_bandpasses,
     py_allowed_magsystems,
     py_followup_priorities,
@@ -1037,8 +1037,9 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         description='The ID of the instrument that took the spectrum.', required=True
     )
 
-    type = ApispecEnumField(
-        py_allowed_spectrum_types,
+    # type = ApispecEnumField(
+    #     py_allowed_spectrum_types,
+    type = fields.String(
         required=False,
         description=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
                             Defaults to 'f{default_spectrum_type}'.''',
@@ -1153,8 +1154,9 @@ class SpectrumPost(_Schema):
 
     origin = fields.String(required=False, description="Origin of the spectrum.")
 
-    type = ApispecEnumField(
-        py_allowed_spectrum_types,
+    # type = ApispecEnumField(
+    #     py_allowed_spectrum_types,
+    type = fields.String(
         required=False,
         description=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
                         Defaults to 'f{default_spectrum_type}'.''',
