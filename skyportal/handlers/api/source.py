@@ -12,7 +12,7 @@ import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 import functools
-import healpix_alchemy as ha
+import conesearch_alchemy as ca
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -674,7 +674,7 @@ class SourceHandler(BaseHandler):
                 .filter(ClassicalAssignment.obj_id == obj_id)
                 .all()
             )
-            point = ha.Point(ra=s.ra, dec=s.dec)
+            point = ca.Point(ra=s.ra, dec=s.dec)
             # Check for duplicates (within 4 arcsecs)
             duplicates = (
                 Obj.query_records_accessible_by(self.current_user)
@@ -878,7 +878,7 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for ra, dec or radius - could not convert to float"
                 )
-            other = ha.Point(ra=ra, dec=dec)
+            other = ca.Point(ra=ra, dec=dec)
             obj_query = obj_query.filter(Obj.within(other, radius))
         if start_date:
             start_date = arrow.get(start_date.strip()).datetime
