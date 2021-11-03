@@ -1430,12 +1430,12 @@ def make_spectrum_layout(obj, spectra, user, device, width):
 
     Parameters
     ----------
-    obj:
+    obj : dict
         The underlying object that is associated with all these spectra.
-    spectra:
+    spectra : dict
         The different spectra to be plotted. This can be a subset of
         e.g., all the spectra of one type.
-    user:
+    user : dict
         info about the user, used to get the individual user plot preferences.
     device: string
         name of the device used ("browser", "mobile", "mobile_portrait", "tablet", etc).
@@ -1496,8 +1496,6 @@ def make_spectrum_layout(obj, spectra, user, device, width):
         dfs.append(df)
 
     smoothed_data = pd.concat(dfs)
-
-    # These values are equivalent from the photometry plot values
 
     split = data.groupby('id', sort=False)
 

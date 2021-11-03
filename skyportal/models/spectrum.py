@@ -196,23 +196,23 @@ class Spectrum(Base):
         instrument_id : int
            ID of the Instrument with which this Spectrum was acquired,
            if not present in the ASCII header.
-        type: str
+        type : str
            What is the underlying source of the spectrum.
            Possible types are defined in the config under spectrum types.
-        label: str
+        label : str
             User defined label to show on plot legends.
             If not given, the default displayed label is
             <instrument>-<date taken>.
         observed_at : string or datetime
            Median UTC ISO time stamp of the exposure or exposures in which
            the Spectrum was acquired, if not present in the ASCII header.
-        wave_column: integer, optional
+        wave_column : integer, optional
            The 0-based index of the ASCII column corresponding to the wavelength
            values of the spectrum (default 0).
-        flux_column: integer, optional
+        flux_column : integer, optional
            The 0-based index of the ASCII column corresponding to the flux
            values of the spectrum (default 1).
-        fluxerr_column: integer or None, optional
+        fluxerr_column : integer or None, optional
            The 0-based index of the ASCII column corresponding to the flux error
            values of the spectrum (default None).
         Returns
