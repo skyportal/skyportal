@@ -81,6 +81,7 @@ with a specific schema:
   Please do not include multiple data keys with indistinguishable names,
   i.e., both `mag_g` and `Mag_G` in the same `Annotation` as this will
   cause undefined behavior.
+- The parallax ("Plx") is given in units of milli-arcsec.
 
 Finally, the return value `response` from the request
 should contain a `status==200` and a data dictionary

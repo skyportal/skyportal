@@ -639,7 +639,7 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
             'obj_id': public_source.id,
             'origin': 'cross_match1',
             'data': {
-                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20}
+                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 12.8, 'Mag_Rp': 11.0, 'Plx': 20}
             },
         },
         token=annotation_token,
