@@ -560,60 +560,65 @@ const ManageDataForm = ({ route }) => {
       <br />
       <div>
         {!!photometry[route.id] && (
-          <MUIDataTable
-            columns={photHeadCells}
-            data={photRows}
-            title="Photometry"
-            options={{
-              ...options,
-              rowsSelected: selectedPhotRows,
-              onRowSelectionChange: (
-                rowsSelectedData,
-                allRows,
-                rowsSelected
-              ) => {
-                setSelectedPhotRows(rowsSelected);
-              },
-              selectableRowsOnClick: true,
-            }}
-          />
+          <div>
+            <MUIDataTable
+              columns={photHeadCells}
+              data={photRows}
+              title="Photometry"
+              options={{
+                ...options,
+                rowsSelected: selectedPhotRows,
+                onRowSelectionChange: (
+                  rowsSelectedData,
+                  allRows,
+                  rowsSelected
+                ) => {
+                  setSelectedPhotRows(rowsSelected);
+                },
+                selectableRowsOnClick: true,
+              }}
+            />
+          </div>
         )}
+
         <br />
         {!!spectra[route.id] && (
-          <MUIDataTable
-            columns={specHeadCells}
-            data={specRows}
-            title="Spectra"
-            options={{
-              ...options,
-              rowsSelected: selectedSpecRows,
-              onRowSelectionChange: (
-                rowsSelectedData,
-                allRows,
-                rowsSelected
-              ) => {
-                setSelectedSpecRows(rowsSelected);
-              },
-              expandableRows: true,
-              // eslint-disable-next-line react/display-name,no-unused-vars
-              renderExpandableRow: (rowData, rowMeta) => (
-                <SpectrumRow
-                  rowData={rowData}
-                  route={route}
-                  annotations={
-                    spectra[route.id].find((spec) => spec.id === rowData[0])
-                      .annotations
-                  }
-                />
-              ),
-              expandableRowsOnClick: false,
-              rowsExpanded: openedSpecRows,
-              onRowExpansionChange: (_, expandedRows) => {
-                setOpenedSpecRows(expandedRows.map((i) => i.dataIndex));
-              },
-            }}
-            data-testid="spectrum-table"
-          />
+          <div data-testid="spectrum-div">
+            <MUIDataTable
+              columns={specHeadCells}
+              data={specRows}
+              title="Spectra"
+              data-testid="spectrum-table"
+              options={{
+                ...options,
+                rowsSelected: selectedSpecRows,
+                onRowSelectionChange: (
+                  rowsSelectedData,
+                  allRows,
+                  rowsSelected
+                ) => {
+                  setSelectedSpecRows(rowsSelected);
+                },
+                expandableRows: true,
+                // eslint-disable-next-line react/display-name,no-unused-vars
+                renderExpandableRow: (rowData, rowMeta) => (
+                  <SpectrumRow
+                    rowData={rowData}
+                    route={route}
+                    annotations={
+                      spectra[route.id].find((spec) => spec.id === rowData[0])
+                        .annotations
+                    }
+                  />
+                ),
+                expandableRowsOnClick: false,
+                rowsExpanded: openedSpecRows,
+                onRowExpansionChange: (_, expandedRows) => {
+                  setOpenedSpecRows(expandedRows.map((i) => i.dataIndex));
+                },
+              }}
+            />
+          </div>
         )}
       </div>
       <br />
