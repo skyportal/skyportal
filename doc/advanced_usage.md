@@ -25,7 +25,7 @@ header = {"Authorization": f"token {token}", "content_type": "application/json"}
 data = {'obj_id': '2021example',
         'origin': 'cross_match_robot',
         'data': {
-            Gaia': {
+            'Gaia': {
                 'Mag_G', 10.2,
                 'Mag_Bp': 9.8,
                 'Mag_Rp': 10.5,
