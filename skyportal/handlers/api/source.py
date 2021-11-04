@@ -363,6 +363,21 @@ class SourceHandler(BaseHandler):
             description: |
               Only return sources that were saved after this UTC datetime.
           - in: query
+            name: hasSpectrumAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources with a spectrum saved after this UTC datetime
+          - in: query
+            name: hasSpectrumBefore
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources with a spectrum saved before this UTC
+              datetime
+          - in: query
             name: saveSummary
             nullable: true
             schema:
