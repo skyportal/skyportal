@@ -1390,11 +1390,17 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     # sort out the size of the plot
 
     layouts = []
-    spectrum_types = []
     spectra_by_type = collections.defaultdict(list)
 
     for s in spectra:
         spectra_by_type[s.type].append(s)
+
+    # sort the dictionary to be ordered according to the given list
+    def sorted_dict(d, key_list):
+        return {key: d[key] for key in key_list if key in d}
+
+    # we want the tabs to appear in the order they're defined in the config:
+    spectra_by_type = sorted_dict(spectra_by_type, ALLOWED_SPECTRUM_TYPES)
 
     # go over the types in the order they're defined in the config
     for spec_type in ALLOWED_SPECTRUM_TYPES:
@@ -1402,14 +1408,13 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         if len(spectra_by_type[spec_type]) == 0:
             continue
 
-        spectrum_types.append(spec_type)
-
         layouts.append(
             make_spectrum_layout(obj, spectra_by_type[spec_type], user, device, width)
         )
 
     if len(layouts) > 1:
         panels = []
+        spectrum_types = [s for s in spectra_by_type]
         for i, layout in enumerate(layouts):
             panels.append(Panel(child=layout, title=spectrum_types[i]))
         tabs = Tabs(
