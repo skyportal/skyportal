@@ -66,6 +66,8 @@ SOURCES_PER_PAGE = 100
 _, cfg = load_env()
 log = make_log('api/source')
 
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
+
 
 def apply_active_or_requested_filtering(query, include_requested, requested_only):
     if include_requested:
@@ -538,6 +540,7 @@ class SourceHandler(BaseHandler):
         radius = self.get_query_argument('radius', None)
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
+        query_mode = int(self.get_query_argument('queryMode', 1))
         list_name = self.get_query_argument('listName', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         include_photometry = self.get_query_argument("includePhotometry", False)
@@ -882,9 +885,24 @@ class SourceHandler(BaseHandler):
             obj_query = obj_query.filter(Obj.within(other, radius))
         if start_date:
             start_date = arrow.get(start_date.strip()).datetime
-            obj_query = obj_query.filter(
-                Obj.last_detected_at(self.current_user) >= start_date
-            )
+            if query_mode == 1:
+                obj_query = obj_query.filter(
+                    Obj.last_detected_at(self.current_user) >= start_date
+                )
+            elif query_mode == 2:
+                utc_timestamp = start_date.timestamp()
+                mjd = utc_timestamp / 86400 + 40587  # from 1970 Jan 1
+                start_date_subquery = (
+                    Photometry.query_records_accessible_by(self.current_user)
+                    .filter(Photometry.mjd > mjd)
+                    .filter(
+                        Photometry.flux / Photometry.fluxerr > PHOT_DETECTION_THRESHOLD
+                    )
+                    .subquery()
+                )
+                obj_query = obj_query.join(
+                    start_date_subquery, Obj.id == start_date_subquery.c.obj_id
+                )
         if end_date:
             end_date = arrow.get(end_date.strip()).datetime
             obj_query = obj_query.filter(
