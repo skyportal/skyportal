@@ -898,4 +898,4 @@ def test_post_wrong_spectrum_type(upload_data_token, public_source, public_group
         token=upload_data_token,
     )
     assert status == 400
-    assert 'is not among the defined enum values' in data['message']
+    assert 'Must be one of: ' in data['message']

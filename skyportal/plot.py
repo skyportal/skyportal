@@ -1405,7 +1405,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     # go over the types in the order they're defined in the config
     for spec_type in ALLOWED_SPECTRUM_TYPES:
 
-        if len(spectra_by_type[spec_type]) == 0:
+        if spec_type not in spectra_by_type:
             continue
 
         layouts.append(
