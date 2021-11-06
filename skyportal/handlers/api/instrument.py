@@ -1,7 +1,7 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
-from ...models import DBSession, Instrument, Telescope
+from ...models import DBSession, Instrument, Telescope, InstrumentField
 from ...enum_types import ALLOWED_BANDPASSES
 
 
@@ -17,6 +17,9 @@ class InstrumentHandler(BaseHandler):
             telescope_id, self.current_user, raise_if_none=True, mode="read"
         )
 
+        field_data = data.pop("field_data", None)
+        field_region = data.pop("field_region", None)
+
         schema = Instrument.__schema__()
         try:
             instrument = schema.load(data)
@@ -27,6 +30,26 @@ class InstrumentHandler(BaseHandler):
         instrument.telescope = telescope
         DBSession().add(instrument)
         self.verify_and_commit()
+
+        if field_data is not None:
+            if field_region is None:
+                return self.error('`field_region` is required with field_data')
+
+            for reg in field_region:
+                print(reg)
+            print(stop)
+
+            add_instrument_tiles(instrument.id, self, field_data, field_region)
+            print(stop)
+
+            fields_func = functools.partial(
+                add_instrument_tiles,
+                instrument.id,
+                self,
+                field_data,
+                field_region,
+            )
+            IOLoop.current().run_in_executor(None, fields_func)
 
         return self.success(data={"id": instrument.id})
 
@@ -80,7 +103,11 @@ class InstrumentHandler(BaseHandler):
             return self.success(data=instrument)
 
         inst_name = self.get_query_argument("name", None)
-        query = Instrument.query_records_accessible_by(self.current_user, mode="read")
+        query = Instrument.query_records_accessible_by(
+            self.current_user,
+            mode="read",
+            options=[joinedload(Instrument.fields), joinedload(Instrument.tiles)],
+        )
         if inst_name is not None:
             query = query.filter(Instrument.name == inst_name)
         instruments = query.all()
@@ -208,3 +235,22 @@ InstrumentHandler.post.__doc__ = f"""
               application/json:
                 schema: Error
         """
+
+def add_instrument_tiles(
+    instrument_id, request_handler, field_data, field_region
+):
+    try:
+        tile_args = {'instrument_id': int(instrument_id)}
+        mocs = get_mocs(field_data, field_grid)
+        fields = [
+            InstrumentField.from_moc(moc, field_id=int(field_id), tile_args=tile_args)
+            for field_id, moc in zip(field_data['ID'], mocs)
+        ]
+        for field in fields:
+            field.instrument_id = int(instrument_id)
+            DBSession().add(field)
+        request_handler.verify_and_commit()
+    except Exception as e:
+        return request_handler.error(f"Unable to generate MOC tiles: {e}")
+    finally:
+        DBSession.remove()
