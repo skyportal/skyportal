@@ -77,6 +77,26 @@ class InstrumentHandler(BaseHandler):
                 lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
             )
 
+        if field_data is not None:
+            if field_region is None:
+                return self.error('`field_region` is required with field_data')
+
+            for reg in field_region:
+                print(reg)
+            print(stop)
+
+            add_instrument_tiles(instrument.id, self, field_data, field_region)
+            print(stop)
+
+            fields_func = functools.partial(
+                add_instrument_tiles,
+                instrument.id,
+                self,
+                field_data,
+                field_region,
+            )
+            IOLoop.current().run_in_executor(None, fields_func)
+
         return self.success(data={"id": instrument.id})
 
     @auth_or_token
@@ -263,11 +283,10 @@ InstrumentHandler.post.__doc__ = f"""
                               type: integer
                               description: New instrument ID
           400:
-            content:
+           content:
               application/json:
                 schema: Error
         """
-
 
 def add_tiles(instrument_id, instrument_name, regions, field_data):
     session = Session()
