@@ -1389,7 +1389,6 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
 
     # sort out the size of the plot
 
-    layouts = []
     spectra_by_type = collections.defaultdict(list)
 
     for s in spectra:
@@ -1402,12 +1401,8 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     # we want the tabs to appear in the order they're defined in the config:
     spectra_by_type = sorted_dict(spectra_by_type, ALLOWED_SPECTRUM_TYPES)
 
-    # go over the types in the order they're defined in the config
-    for spec_type in ALLOWED_SPECTRUM_TYPES:
-
-        if spec_type not in spectra_by_type:
-            continue
-
+    layouts = []
+    for spec_type in spectra_by_type:
         layouts.append(
             make_spectrum_layout(obj, spectra_by_type[spec_type], user, device, width)
         )
