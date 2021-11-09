@@ -24,11 +24,14 @@ token = '239868fa-8307-41ad-983f-4a8180609df6'
 header = {"Authorization": f"token {token}", "content_type": "application/json"}
 data = {'obj_id': '2021example',
         'origin': 'cross_match_robot',
-        'Gaia': {'Mag_G', 10.2,
-                 'Mag_Bp': 9.8,
-                 'Mag_Rp': 10.5,
-                 'Plx': 8.5
-                 }
+        'data': {
+            'Gaia': {
+                'Mag_G', 10.2,
+                'Mag_Bp': 9.8,
+                'Mag_Rp': 10.5,
+                'Plx': 8.5
+               }
+            }
         }
 
 response = requests.post(
@@ -57,7 +60,7 @@ to comply with the `Annotation` API,
 namely it must have a valid `obj_id`
 of an existing object that is accessible to the user,
 it must contain a non-empty string for the `origin`
-and it should contain the `Annotation` data,
+and it should contain the annotation `data`,
 that is a dictionary with arbitrary entries.
 
 In general, the `origin` field is used to
@@ -69,8 +72,8 @@ to each source, but that `Annotation` can contain arbitrary data.
 In the case of the color-magnitude plot,
 the system only recognizes annotations
 with a specific schema:
-- One of the keys in the `Annotation` data must be named `Gaia`.
-- The value of that key must be a dictionary.
+- One of the keys in the annotation `data` must be named `Gaia`.
+- The value of that key must be another dictionary.
 - That dictionary must contain the following entries:
 - `Mag_G', 'Mag_Bp', 'Mag_Rp', 'Plx'.
 - All these names (including the catalog name) may be made customizable
