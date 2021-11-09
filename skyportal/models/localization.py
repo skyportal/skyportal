@@ -163,6 +163,7 @@ class LocalizationTile(ha.Tile, Base):
         "Localization",
         foreign_keys=localization_id,
         doc="The Localization that this tile belongs to",
+        passive_deletes=True,
     )
 
     probdensity = sa.Column(
