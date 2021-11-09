@@ -578,7 +578,7 @@ class SourceHandler(BaseHandler):
 
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
-        localization_cumprob = self.get_query_argument("localizationCumprob", 1.01)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         includeGeojson = self.get_query_argument("includeGeojson", False)
 
         # These are just throwaway helper classes to help with deserialization

@@ -79,8 +79,8 @@ export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
       .format("YYYY-MM-DD HH:mm:ss");
   }
 
-  filterParams.startDate = null;
-  filterParams.endDate = null;
+  // filterParams.startDate = null;
+  // filterParams.endDate = null;
 
   filterParams.includeGeojson = true;
   return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);
