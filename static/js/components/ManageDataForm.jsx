@@ -104,6 +104,8 @@ const createSpecRow = (
   reducers,
   observers,
   origin,
+  type,
+  label,
   external_reducer,
   external_observer
 ) => ({
@@ -115,6 +117,8 @@ const createSpecRow = (
   reducers,
   observers,
   origin,
+  type,
+  label,
   external_reducer,
   external_observer,
 });
@@ -262,6 +266,8 @@ const ManageDataForm = ({ route }) => {
           spec.reducers,
           spec.observers,
           spec.origin,
+          spec.type,
+          spec.label,
           spec.external_reducer,
           spec.external_observer
         )
@@ -489,6 +495,18 @@ const ManageDataForm = ({ route }) => {
     {
       name: "origin",
       label: "Origin",
+    },
+    {
+      name: "type",
+      label: "Type",
+      filter: true,
+      display: false,
+    },
+    {
+      name: "label",
+      label: "Label",
+      filter: false,
+      display: false,
     },
     {
       name: "altdata",

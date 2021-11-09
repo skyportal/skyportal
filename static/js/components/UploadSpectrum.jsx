@@ -115,6 +115,13 @@ const UploadSpectrumForm = ({ route }) => {
   const classes = useStyles();
   const [persistentFormData, setPersistentFormData] = useState({});
   const [formKey, setFormKey] = useState(null);
+  const spectrumTypes = useSelector(
+    (state) => state.config.allowedSpectrumTypes
+  );
+
+  const defaultSpectrumType = useSelector(
+    (state) => state.config.defaultSpectrumType
+  );
 
   // on page load or refresh, block until state.spectra.parsed is reset
   useEffect(() => {
@@ -130,6 +137,8 @@ const UploadSpectrumForm = ({ route }) => {
         flux_column: 1,
         has_fluxerr: "No",
         instrument_id: undefined,
+        spectrum_type: "source",
+        user_label: undefined,
         fluxerr_column: undefined,
         observed_by: undefined,
         reduced_by: undefined,
@@ -324,6 +333,17 @@ const UploadSpectrumForm = ({ route }) => {
           return name;
         }),
       },
+      spectrum_type: {
+        type: "string",
+        default: defaultSpectrumType,
+        title: "Spectrum type",
+        enum: spectrumTypes,
+      },
+      user_label: {
+        type: "string",
+        title: "User label",
+        default: "",
+      },
       wave_column: {
         type: "integer",
         default: 0,
@@ -495,7 +515,6 @@ const UploadSpectrumForm = ({ route }) => {
     if (!parsed) {
       throw new Error("No spectrum loaded on frontend.");
     }
-
     const ascii = dataUriToBuffer(persistentFormData.file).toString();
     const filename = persistentFormData.file.split(";")[1].split("name=")[1];
     const payload = {
@@ -508,6 +527,8 @@ const UploadSpectrumForm = ({ route }) => {
           : null,
       obj_id: route.id,
       instrument_id: persistentFormData.instrument_id,
+      type: persistentFormData.spectrum_type,
+      label: persistentFormData.user_label,
       // 40_587 is the MJD of the unix epoch, 86400 converts days to seconds.
       observed_at: dayjs
         .unix((persistentFormData.mjd - 40_587) * 86400)
@@ -556,6 +577,8 @@ const UploadSpectrumForm = ({ route }) => {
         flux_column: 1,
         has_fluxerr: "No",
         instrument_id: undefined,
+        spectrum_type: "source",
+        user_label: undefined,
         fluxerr_column: undefined,
         observed_by: undefined,
         reduced_by: undefined,
