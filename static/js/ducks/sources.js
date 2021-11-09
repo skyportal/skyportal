@@ -104,8 +104,8 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 
   const { gcnEvent } = getState();
   if (actionType === FETCH_GCNEVENT_SOURCES) {
-    if (gcnEvent?.dateobs) {
-      dispatch(fetchGcnEventSources(gcnEvent?.dateobs));
+    if (gcnEvent && gcnEvent.id === payload.gcnEvent.id) {
+      dispatch(fetchGcnEventSources(gcnEvent.dateobs));
     }
   }
 
