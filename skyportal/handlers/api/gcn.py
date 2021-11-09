@@ -229,7 +229,7 @@ def add_contour(localization_id, user_id):
     session = Session()
     try:
         localization = (
-            Localization.query_records_accessible_by(user_id)
+            Localization.query_records_accessible_by(session.query(User).get(user_id))
             .filter(
                 Localization.id == localization_id,
             )
