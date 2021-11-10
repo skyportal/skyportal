@@ -84,11 +84,15 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
 
   // Curate data
   const tableData = [];
-  annotations.push(...spectrumAnnotations);
+  annotations?.push(...spectrumAnnotations);
   annotations?.forEach((annotation) => {
-    const { origin, data, author, created_at, spectrum_observed_at } =
-      annotation;
-    const observed_at = spectrum_observed_at || null;
+    const {
+      origin,
+      data,
+      author,
+      created_at,
+      spectrum_observed_at: observed_at = null,
+    } = annotation;
     Object.entries(data).forEach(([key, value]) => {
       tableData.push({ origin, key, value, author, created_at, observed_at });
     });
@@ -123,7 +127,7 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
     },
   ];
 
-  if (spectrumAnnotations && spectrumAnnotations.length) {
+  if (spectrumAnnotations?.length) {
     // add another column to show the spectrum observed at property
     columns.splice(1, 0, {
       name: "observed_at",
