@@ -627,16 +627,7 @@ photometry:
       - =ztf_partnership
 
 spectrum:
-  - obj_id: 14gqr_unsaved_copy
-    file: spec1.csv
-    instrument_id: =ALFOSC
-    observed_at: "2019-10-28T00:00:00"
-    origin: "demo_data"
-    assignment_id: 1
-    group_ids:
-      - =program_A
-      - =program_B
-  - obj_id: 14gqr
+  - obj_id: ZTFrlh6cyjh
     file: spec1.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T05:23:14"
@@ -646,16 +637,7 @@ spectrum:
       - =program_A
       - =program_B
     =id: "spectrum1"
-  - obj_id: 16fil_unsaved_copy
-    file: spec2.csv
-    instrument_id: =ALFOSC
-    observed_at: "2019-08-28T00:00:00"
-    origin: "demo_data"
-    assignment_id: 2
-    group_ids:
-      - =program_A
-      - =program_B
-  - obj_id: 16fil
+  - obj_id: ZTFe028h94k
     file: spec2.csv
     instrument_id: =ALFOSC
     observed_at: "2019-08-24T06:18:53"
@@ -668,23 +650,20 @@ spectrum:
       - =program_A
       - =program_B
     =id: "spectrum2"
-  - obj_id: 16fil
-    file: spec1.csv
-    instrument_id: =ALFOSC
-    observed_at: "2019-08-19T05:23:14"
-    origin: "demo_data"
-    assignment_id: 1
-    group_ids:
-      - =program_A
-      - =program_B
 
 spectra/=spectrum1/annotations:
   - origin: "Kowalski"
     data:
+      ACAI_score: 0.98765
+      transient_type: "TDE"
+    group_ids:
+      - =program_A
+  - origin: "SEDM"
+    data:
       numeric_field: 0.98765
       boolean_field: false
     group_ids:
-      - =program_A
+      - =program_B
 
 spectra/=spectrum2/annotations:
   - origin: "Super Fit"
