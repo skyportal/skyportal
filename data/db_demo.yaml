@@ -645,6 +645,7 @@ spectrum:
     group_ids:
       - =program_A
       - =program_B
+    =id: "spectrum1"
   - obj_id: 16fil_unsaved_copy
     file: spec2.csv
     instrument_id: =ALFOSC
@@ -666,6 +667,7 @@ spectrum:
     group_ids:
       - =program_A
       - =program_B
+    =id: "spectrum2"
   - obj_id: 16fil
     file: spec1.csv
     instrument_id: =ALFOSC
@@ -674,6 +676,22 @@ spectrum:
     assignment_id: 1
     group_ids:
       - =program_A
+      - =program_B
+
+spectra/=spectrum1/annotations:
+  - origin: "Kowalski"
+    data:
+      numeric_field: 0.98765
+      boolean_field: false
+    group_ids:
+      - =program_A
+
+spectra/=spectrum2/annotations:
+  - origin: "Super Fit"
+    data:
+      match_prob: 0.8765
+      classification: "Type Ia SN"
+    group_ids:
       - =program_B
 
 thumbnail:
