@@ -7,7 +7,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 
-import healpix_alchemy
+import conesearch_alchemy
 import numpy as np
 import arrow
 
@@ -23,7 +23,7 @@ PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
 
 
-class Photometry(healpix_alchemy.Point, Base):
+class Photometry(conesearch_alchemy.Point, Base):
     """Calibrated measurement of the flux of an object through a broadband filter."""
 
     __tablename__ = 'photometry'
