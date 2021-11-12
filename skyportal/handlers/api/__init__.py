@@ -8,7 +8,7 @@ from .db_stats import StatsHandler
 from .filter import FilterHandler
 from .followup_request import FollowupRequestHandler, AssignmentHandler
 from .facility_listener import FacilityMessageHandler
-from .galaxy import GalaxyHandler
+from .galaxy import GalaxyCatalogHandler
 from .gcn import (
     GcnEventHandler,
     LocalizationHandler,
