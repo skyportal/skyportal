@@ -14,6 +14,7 @@ import BuildIcon from "@material-ui/icons/Build";
 import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 import ImageAspectRatioIcon from "@material-ui/icons/ImageAspectRatio";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import Menu from "@material-ui/core/Menu";
 import MenuItem from "@material-ui/core/MenuItem";
@@ -166,7 +167,11 @@ const RunSummary = ({ route }) => {
 
   if (!("id" in observingRun && observingRun.id === parseInt(route.id, 10))) {
     // Don't need to do this for assignments -- we can just let the page be blank for a short time
-    return <b>Loading run...</b>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
   const { assignments } = observingRun;
 
