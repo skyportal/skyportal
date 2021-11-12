@@ -1,12 +1,12 @@
 __all__ = ['Galaxy']
 
 import sqlalchemy as sa
-import healpix_alchemy as ha
+import conesearch_alchemy as ca
 
 from baselayer.app.models import Base
 
 
-class Galaxy(Base, ha.Point):
+class Galaxy(Base, ca.Point):
     """A record of a galaxy and its metadata, such as position,
     distance, name, and magnitude."""
 
