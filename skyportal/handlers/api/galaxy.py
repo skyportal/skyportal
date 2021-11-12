@@ -1,6 +1,4 @@
 from baselayer.app.access import permissions, auth_or_token
-import astropy.units as u
-import healpix_alchemy as ha
 
 from ..base import BaseHandler
 from ...models import DBSession, Galaxy
@@ -33,16 +31,11 @@ class GalaxyCatalogHandler(BaseHandler):
         catalog_name = data.get('catalog_name')
         catalog_data = data.get('catalog_data')
 
-        catalog_data["nested"] = ha.healpix.HPX.lonlat_to_healpix(
-            catalog_data["ra"] * u.deg, catalog_data["dec"] * u.deg
-        )
-
         galaxies = [
             Galaxy(
                 catalog_name=catalog_name,
                 ra=ra,
                 dec=dec,
-                nested=int(nested),
                 name=name,
                 distmpc=distmpc,
                 sfr_fuv=sfr_fuv,
@@ -53,10 +46,9 @@ class GalaxyCatalogHandler(BaseHandler):
                 pa=pa,
                 btc=btc,
             )
-            for ra, dec, nested, name, distmpc, sfr_fuv, mstar, magb, a, b2a, pa, btc in zip(
+            for ra, dec, name, distmpc, sfr_fuv, mstar, magb, a, b2a, pa, btc in zip(
                 catalog_data['ra'],
                 catalog_data['dec'],
-                catalog_data['nested'],
                 catalog_data['name'],
                 catalog_data['distmpc'],
                 catalog_data['sfr_fuv'],
