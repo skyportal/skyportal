@@ -12,11 +12,11 @@ def test_galaxy(super_admin_token, view_only_token):
         'catalog_data': Table.read(datafile).to_pandas().to_dict(orient='list'),
     }
 
-    status, data = api('POST', 'galaxy', data=data, token=super_admin_token)
+    status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
 
-    status, data = api('GET', 'galaxy', token=view_only_token)
+    status, data = api('GET', 'galaxy_catalog', token=view_only_token)
     assert status == 200
     data = data["data"]
     assert len(data) == 10
