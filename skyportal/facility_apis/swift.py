@@ -136,7 +136,7 @@ class UVOTAPI(FollowUpAPI):
             "urgency": {
                 "type": "string",
                 "enum": ["1", "2", "3", "4"],
-                "default": "2",
+                "default": "3",
                 "title": "Urgency",
             },
             "obs_type": {
