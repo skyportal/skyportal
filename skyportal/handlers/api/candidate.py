@@ -6,8 +6,6 @@ import uuid
 
 import arrow
 import numpy as np
-import healpix_alchemy as ha
-import astropy.units as u
 
 from tornado.ioloop import IOLoop
 
@@ -992,10 +990,6 @@ class CandidateHandler(BaseHandler):
 
         if dec is None and not obj_already_exists:
             return self.error("Dec must not be null for a new Obj")
-
-        # This adds a healpix index for a new object being created
-        if not obj_already_exists:
-            data["nested"] = ha.healpix.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
         passing_alert_id = data.pop("passing_alert_id", None)
         passed_at = data.pop("passed_at", None)

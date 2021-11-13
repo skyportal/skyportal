@@ -9,7 +9,7 @@ from astropy.table import Table
 import numpy as np
 import ligo.skymap.bayestar as ligo_bayestar
 import healpy
-import healpix_alchemy as ha
+import healpix_alchemy
 
 from baselayer.app.models import Base, AccessibleIfUserMatches
 
@@ -147,8 +147,10 @@ class Localization(Base):
         else:
             return (self.flat_2d,)
 
+    tiles = relationship("LocalizationTile")
 
-class LocalizationTile(ha.Tile, Base):
+
+class LocalizationTile(Base):
     """This is a single tile within a skymap (as in the Localization table).
     Each tile has an associated probability density and
     cumulative probability."""
@@ -176,3 +178,5 @@ class LocalizationTile(ha.Tile, Base):
         sa.Float,
         doc='Cumulative probability for the tile',
     )
+
+    healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)

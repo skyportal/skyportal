@@ -15,6 +15,7 @@ from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 import functools
 import conesearch_alchemy as ca
+import healpix_alchemy as ha
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -1465,7 +1466,9 @@ class SourceHandler(BaseHandler):
 
         # This adds a healpix index for a new object being created
         if not obj_already_exists:
-            data["nested"] = ha.healpix.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
+            data["healpix"] = ha.constants.HPX.lonlat_to_healpix(
+                ra * u.deg, dec * u.deg
+            )
 
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
