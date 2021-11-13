@@ -116,7 +116,7 @@ class UVOTAPI(FollowUpAPI):
             "exposure_time": {
                 "title": "Exposure Time [s]",
                 "type": "number",
-                "default": 300.0,
+                "default": 4000.0,
             },
             "exposure_counts": {
                 "title": "Exposure Counts",
@@ -131,7 +131,7 @@ class UVOTAPI(FollowUpAPI):
             "xrt_countrate": {
                 "title": "XRT Count rate [counts/s]",
                 "type": "number",
-                "default": 0.1,
+                "default": 0.0025,
             },
             "urgency": {
                 "type": "string",
@@ -148,10 +148,12 @@ class UVOTAPI(FollowUpAPI):
             "source_type": {
                 "title": "Source Type",
                 "type": "string",
+                "default": "Optical fast transient",
             },
             "exp_time_just": {
                 "title": "Exposure Time Justification",
                 "type": "string",
+                "default": "At ~2.5e-3 counts/sec, 4ks should suffice to achieve a high SNR, assuming a background of ~1e-4 counts/sec (Pagani et al. 2007)",
             },
             "immediate_objective": {
                 "title": "Immediate Objective",
@@ -160,6 +162,7 @@ class UVOTAPI(FollowUpAPI):
             "uvot_mode": {
                 "title": "UVOT Mode",
                 "type": "string",
+                "default": "default",
             },
             "science_just": {
                 "title": "Science Justification",
