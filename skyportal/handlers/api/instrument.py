@@ -1,9 +1,24 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.log import make_log
+from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm.exc import NoResultFound
+from tornado.ioloop import IOLoop
+
+from healpix_alchemy import Tile
+from regions import Regions
+from astropy import coordinates
+from astropy import units as u
+import numpy as np
+
 from ..base import BaseHandler
-from ...models import DBSession, Instrument, Telescope, InstrumentField
+from ...models import DBSession, Instrument, Telescope, InstrumentField, InstrumentFieldTile
 from ...enum_types import ALLOWED_BANDPASSES
 
+log = make_log('api/instrument')
+
+Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 class InstrumentHandler(BaseHandler):
     @permissions(['System admin'])
@@ -27,29 +42,32 @@ class InstrumentHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
             )
-        instrument.telescope = telescope
-        DBSession().add(instrument)
-        self.verify_and_commit()
+
+        try:
+            instrument = (
+                Instrument.query_records_accessible_by(
+                    self.current_user,
+                )
+                .filter(
+                    Instrument.name == data.get('name'),
+                    Instrument.telescope_id == telescope_id,
+                )
+                .one()
+            )
+        except NoResultFound:
+            instrument.telescope = telescope
+            DBSession().add(instrument)
+            DBSession().commit()
 
         if field_data is not None:
             if field_region is None:
                 return self.error('`field_region` is required with field_data')
+            regions = Regions.parse(field_region, format='ds9')
 
-            for reg in field_region:
-                print(reg)
-            print(stop)
-
-            add_instrument_tiles(instrument.id, self, field_data, field_region)
-            print(stop)
-
-            fields_func = functools.partial(
-                add_instrument_tiles,
-                instrument.id,
-                self,
-                field_data,
-                field_region,
+            IOLoop.current().run_in_executor(
+                None, lambda: add_tiles(instrument.id,
+                                        regions, field_data)
             )
-            IOLoop.current().run_in_executor(None, fields_func)
 
         return self.success(data={"id": instrument.id})
 
@@ -236,21 +254,37 @@ InstrumentHandler.post.__doc__ = f"""
                 schema: Error
         """
 
-def add_instrument_tiles(
-    instrument_id, request_handler, field_data, field_region
-):
+def add_tiles(instrument_id, regions, field_data):
+    session = Session()
     try:
-        tile_args = {'instrument_id': int(instrument_id)}
-        mocs = get_mocs(field_data, field_grid)
-        fields = [
-            InstrumentField.from_moc(moc, field_id=int(field_id), tile_args=tile_args)
-            for field_id, moc in zip(field_data['ID'], mocs)
-        ]
-        for field in fields:
-            field.instrument_id = int(instrument_id)
-            DBSession().add(field)
-        request_handler.verify_and_commit()
+        # Loop over the telescope tiles and create fields for each 
+        skyoffset_frames = coordinates.SkyCoord(
+                field_data['RA'], field_data['Dec'], unit=u.deg
+        ).skyoffset_frame()
+
+        ra = np.array([reg.vertices.ra for reg in regions])
+        dec = np.array([reg.vertices.dec for reg in regions])
+        coords = np.stack([ra, dec])
+
+        coords_icrs = coordinates.SkyCoord(
+            *np.tile(coords[:, np.newaxis, ...],
+                     (len(field_data['RA']), 1, 1)), unit=u.deg,
+                      frame=skyoffset_frames[:, np.newaxis, np.newaxis]
+            ).transform_to(coordinates.ICRS)
+
+        fields = []
+        for ii, (field_id, coords) in enumerate(zip(field_data['ID'], coords_icrs)):
+            field = InstrumentField(instrument_id=instrument_id,
+                                    field_id=field_id)
+            tiles = [InstrumentFieldTile(instrument_id=instrument_id,
+                                        instrument_field_id=field_id,
+                                        healpix=Tile.tiles_from_polygon_skycoord(coord)) for coord in coords]
+            field.tiles = tiles
+            session.add(field)
+            session.add_all(tiles)
+        session.commit()
+        return log(f"Successfully generated fields for instrument {instrument_id}")
     except Exception as e:
-        return request_handler.error(f"Unable to generate MOC tiles: {e}")
+        return log(f"Unable to generate fields for instrument {instrument_id}: {e}")
     finally:
-        DBSession.remove()
+        Session.remove()

@@ -192,6 +192,8 @@ if __name__ == "__main__":
                     with open(filename, 'rb') as fid:
                         payload = fid.read()
                     return payload
+                elif filename.endswith('reg'):
+                    return Regions.read('data/ZTF.reg').serialize(format='ds9')
                 else:
                     raise NotImplementedError(
                         f'{filename}: Only CSV files currently supported for extending individual objects'
