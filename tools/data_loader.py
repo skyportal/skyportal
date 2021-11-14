@@ -11,6 +11,7 @@ import requests
 import pandas as pd
 import yaml
 from yaml import Loader
+from regions import Regions
 
 from baselayer.app.env import load_env, parser
 
