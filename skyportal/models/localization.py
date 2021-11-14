@@ -152,8 +152,7 @@ class Localization(Base):
 
 class LocalizationTile(Base):
     """This is a single tile within a skymap (as in the Localization table).
-    Each tile has an associated probability density and
-    cumulative probability."""
+    Each tile has an associated healpix id and probability density."""
 
     localization_id = sa.Column(
         sa.ForeignKey('localizations.id', ondelete="CASCADE"),
@@ -172,11 +171,6 @@ class LocalizationTile(Base):
         sa.Float,
         nullable=False,
         doc="Probability density for the tile",
-    )
-
-    cumprob = sa.Column(
-        sa.Float,
-        doc='Cumulative probability for the tile',
     )
 
     healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)

@@ -5,8 +5,6 @@ import gcn
 import lxml
 import xmlschema
 from urllib.parse import urlparse
-import healpix_alchemy as ha
-import numpy as np
 from tornado.ioloop import IOLoop
 
 from sqlalchemy.orm.exc import NoResultFound
@@ -124,12 +122,8 @@ class GcnEventHandler(BaseHandler):
             DBSession().add(localization)
             DBSession().commit()
 
-            IOLoop.current().run_in_executor(
-                None, lambda: add_tiles(localization.id, self.current_user.id)
-            )
-            IOLoop.current().run_in_executor(
-                None, lambda: add_contour(localization.id, self.current_user.id)
-            )
+            IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
+            IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
         return self.success()
 
@@ -225,64 +219,48 @@ class GcnEventHandler(BaseHandler):
         return self.success()
 
 
-def add_contour(localization_id, user_id):
+def add_tiles(localization_id):
     session = Session()
     try:
-        localization = (
-            Localization.query_records_accessible_by(session.query(User).get(user_id))
-            .filter(
-                Localization.id == localization_id,
+        localization = Localization.filter(
+            Localization.id == localization_id,
+        ).first()
+
+        tiles = [
+            LocalizationTile(
+                localization_id=localization.id, healpix=uniq, probdensity=probdensity
             )
-            .first()
-        )
-        localization = get_contour(localization)
+            for uniq, probdensity in zip(localization.uniq, localization.probdensity)
+        ]
+
         session.add(localization)
+        session.add_all(tiles)
         session.commit()
+        return log(f"Generated tiles for localization {localization_id}")
     except Exception as e:
         return log(
             f"Unable to generate contour for localization {localization_id}: {e}"
         )
     finally:
-        session.remove()
+        Session.remove()
 
 
-def add_tiles(localization_id, user_id):
+def add_contour(localization_id):
     session = Session()
     try:
-        localization = (
-            Localization.query_records_accessible_by(session.query(User).get(user_id))
-            .filter(
-                Localization.id == localization_id,
-            )
-            .first()
-        )
-
-        # Loop over the skymap MOC indices and probabilities
-        # and compute the integrated probability in the entire tile
-        tiles, probs = [], []
-        for uniq, probdensity in zip(localization.uniq, localization.probdensity):
-            tile = LocalizationTile(
-                localization_id=localization.id, uniq=int(uniq), probdensity=probdensity
-            )
-            area = (tile.nested_hi - tile.nested_lo + 1) * ha.healpix.PIXEL_AREA
-            prob = probdensity * area
-            tiles.append(tile)
-            probs.append(prob)
-
-        # Compute cumulative probabilities for the MOC (for ease of
-        # computing the percentiles for sources contained)
-        idx = np.argsort(probs)[::-1].astype(int)
-        tiles, probs = [tiles[ii] for ii in idx], [probs[ii] for ii in idx]
-        cumprobs = np.cumsum(probs)
-
-        for tile, cumprob in zip(tiles, cumprobs):
-            tile.cumprob = cumprob
-        session.add_all(tiles)
+        localization = Localization.filter(
+            Localization.id == localization_id,
+        ).first()
+        localization = get_contour(localization)
+        session.add(localization)
         session.commit()
+        return log(f"Generated contour for localization {localization_id}")
     except Exception as e:
-        return log(f"Unable to generate tiles for localization {localization_id}: {e}")
+        return log(
+            f"Unable to generate contour for localization {localization_id}: {e}"
+        )
     finally:
-        session.remove()
+        Session.remove()
 
 
 class LocalizationHandler(BaseHandler):
