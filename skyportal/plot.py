@@ -37,6 +37,7 @@ from skyportal.models import (
     DBSession,
     Obj,
     Annotation,
+    AnnotationOnSpectrum,
     Photometry,
     Instrument,
     Telescope,
@@ -1458,6 +1459,17 @@ def make_spectrum_layout(obj, spectra, user, device, width):
         normfac = np.nanmedian(np.abs(s.fluxes))
         normfac = normfac if normfac != 0.0 else 1e-20
         altdata = json.dumps(s.altdata) if s.altdata is not None else ""
+        annotations = (
+            AnnotationOnSpectrum.query_records_accessible_by(user)
+            .filter(AnnotationOnSpectrum.spectrum_id == s.id)
+            .all()
+        )
+        annotations = (
+            json.dumps([{a.origin: a.data} for a in annotations])
+            if len(annotations)
+            else ""
+        )
+
         df = pd.DataFrame(
             {
                 'wavelength': s.wavelengths,
@@ -1477,6 +1489,7 @@ def make_spectrum_layout(obj, spectra, user, device, width):
                 ),
                 'origin': s.origin,
                 'altdata': altdata[:20] + "..." if len(altdata) > 20 else altdata,
+                'annotations': annotations,
             }
         )
         data.append(df)
@@ -1542,6 +1555,7 @@ def make_spectrum_layout(obj, spectra, user, device, width):
             ('PI', '@pi'),
             ('origin', '@origin'),
             ('altdata', '@altdata{safe}'),
+            ('annotations', '@annotations{safe}'),
         ]
     )
     smoothed_max = np.max(smoothed_data['flux'])

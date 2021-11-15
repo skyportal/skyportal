@@ -32,7 +32,7 @@ import SourceNotification from "./SourceNotification";
 import EditSourceGroups from "./EditSourceGroups";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
-import ObjPageAnnotations from "./ObjPageAnnotations";
+import AnnotationsTable from "./AnnotationsTable";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
@@ -162,6 +162,15 @@ const SourceDesktop = ({ source }) => {
   );
 
   const spectra = useSelector((state) => state.spectra)[source.id];
+  const spectrumAnnotations = [];
+  if (spectra) {
+    spectra.forEach((spec) => {
+      spec.annotations.forEach((annotation) => {
+        annotation.spectrum_observed_at = spec.observed_at;
+        spectrumAnnotations.push(annotation);
+      });
+    });
+  }
   const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
 
   useEffect(() => {
@@ -484,7 +493,10 @@ const SourceDesktop = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <ObjPageAnnotations annotations={source.annotations} />
+              <AnnotationsTable
+                annotations={source.annotations}
+                spectrumAnnotations={spectrumAnnotations}
+              />
             </AccordionDetails>
           </Accordion>
         </div>

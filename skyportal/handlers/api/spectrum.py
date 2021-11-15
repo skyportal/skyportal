@@ -15,6 +15,7 @@ from ...models import (
     FollowupRequest,
     Group,
     CommentOnSpectrum,
+    AnnotationOnSpectrum,
     Instrument,
     Obj,
     Spectrum,
@@ -195,6 +196,11 @@ class SpectrumHandler(BaseHandler):
             .filter(CommentOnSpectrum.spectrum_id == spectrum_id)
             .all()
         )
+        annotations = (
+            AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
+            .filter(AnnotationOnSpectrum.spectrum_id == spectrum_id)
+            .all()
+        )
 
         spec_dict = recursive_to_dict(spectrum)
         spec_dict["instrument_name"] = spectrum.instrument.name
@@ -203,6 +209,7 @@ class SpectrumHandler(BaseHandler):
         spec_dict["observers"] = spectrum.observers
         spec_dict["owner"] = spectrum.owner
         spec_dict["comments"] = comments
+        spec_dict["annotations"] = annotations
 
         external_reducer = (
             DBSession()
@@ -618,6 +625,11 @@ class ObjSpectraHandler(BaseHandler):
                 .filter(CommentOnSpectrum.spectrum_id == spec.id)
                 .all()
             )
+            annotations = (
+                AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
+                .filter(AnnotationOnSpectrum.spectrum_id == spec.id)
+                .all()
+            )
 
             spec_dict["comments"] = sorted(
                 [
@@ -637,6 +649,10 @@ class ObjSpectraHandler(BaseHandler):
                 key=lambda x: x["created_at"],
                 reverse=True,
             )
+            annotations = [
+                {**a.to_dict(), 'author': a.author.to_dict()} for a in annotations
+            ]
+            spec_dict["annotations"] = annotations
             spec_dict["instrument_name"] = spec.instrument.name
             spec_dict["groups"] = spec.groups
             spec_dict["reducers"] = spec.reducers
