@@ -14,6 +14,7 @@ import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import {
   isBrowser,
@@ -446,7 +447,13 @@ const SourceMobile = WidthProvider(
               </AccordionSummary>
               <AccordionDetails>
                 <div className={classes.photometryContainer}>
-                  <Suspense fallback={<div>Loading photometry plot...</div>}>
+                  <Suspense
+                    fallback={
+                      <div>
+                        <CircularProgress color="secondary" />
+                      </div>
+                    }
+                  >
                     <Plot
                       url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
                     />
@@ -488,7 +495,13 @@ const SourceMobile = WidthProvider(
               </AccordionSummary>
               <AccordionDetails>
                 <div className={classes.photometryContainer}>
-                  <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+                  <Suspense
+                    fallback={
+                      <div>
+                        <CircularProgress color="secondary" />
+                      </div>
+                    }
+                  >
                     <Plot
                       url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
                     />
@@ -524,7 +537,13 @@ const SourceMobile = WidthProvider(
                 </AccordionSummary>
                 <AccordionDetails>
                   <div className={classes.HRDiagramContainer}>
-                    <Suspense fallback={<div>Loading HR diagram...</div>}>
+                    <Suspense
+                      fallback={
+                        <div>
+                          <CircularProgress color="secondary" />
+                        </div>
+                      }
+                    >
                       <VegaHR
                         data={source.color_magnitude}
                         width={hrDiagramSize}
@@ -619,7 +638,13 @@ const SourceMobile = WidthProvider(
             </AccordionSummary>
             <AccordionDetails>
               <div className={classes.centroidPlot}>
-                <Suspense fallback={<div>Loading centroid plot...</div>}>
+                <Suspense
+                  fallback={
+                    <div>
+                      <CircularProgress color="secondary" />
+                    </div>
+                  }
+                >
                   <CentroidPlot
                     className={classes.smallPlot}
                     sourceId={source.id}

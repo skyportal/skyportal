@@ -178,7 +178,11 @@ const RunSummary = ({ route }) => {
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     if (observingRun === undefined) {
-      return "Loading...";
+      return (
+        <div>
+          <CircularProgress color="secondary" />
+        </div>
+      );
     }
 
     const colSpan = rowData.length + 1;
