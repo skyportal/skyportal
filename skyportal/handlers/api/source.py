@@ -61,7 +61,8 @@ from .candidate import (
 from .photometry import serialize
 from .color_mag import get_color_mag
 
-SOURCES_PER_PAGE = 100
+DEFAULT_SOURCES_PER_PAGE = 100
+MAX_SOURCES_PER_PAGE = 500
 
 _, cfg = load_env()
 log = make_log('api/source')
@@ -261,7 +262,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: integer
             description: |
-              Number of sources to return per paginated request. Defaults to 100. Max 1000.
+              Number of sources to return per paginated request. Defaults to 100. Max 500.
           - in: query
             name: pageNumber
             nullable: true
@@ -529,9 +530,10 @@ class SourceHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        page_number = self.get_query_argument('pageNumber', None)
+        page_number = self.get_query_argument('pageNumber', 1)
         num_per_page = min(
-            int(self.get_query_argument("numPerPage", SOURCES_PER_PAGE)), 100
+            int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
+            MAX_SOURCES_PER_PAGE,
         )
         ra = self.get_query_argument('ra', None)
         dec = self.get_query_argument('dec', None)
@@ -1106,9 +1108,11 @@ class SourceHandler(BaseHandler):
                     else [classification_subquery.c.classification.desc().nullslast()]
                 )
 
-        if page_number:
+        if save_summary:
+            query_results = {"sources": source_query.all()}
+        else:
             try:
-                page_number = int(page_number)
+                page_number = max(int(page_number), 1)
             except ValueError:
                 return self.error("Invalid page number value.")
             try:
@@ -1127,22 +1131,7 @@ class SourceHandler(BaseHandler):
                 if "Page number out of range" in str(e):
                     return self.error("Page number out of range.")
                 raise
-        elif save_summary:
-            query_results = {"sources": source_query.all()}
-        else:
-            query_results = grab_query_results(
-                query,
-                total_matches,
-                None,
-                None,
-                "sources",
-                order_by=order_by,
-                # We'll join thumbnails in manually, as they lead to duplicate
-                # results downstream with the detection stats being added in
-                include_thumbnails=False,
-            )
 
-        if not save_summary:
             # Records are Objs, not Sources
             obj_list = []
 
