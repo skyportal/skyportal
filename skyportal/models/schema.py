@@ -14,6 +14,7 @@ from marshmallow_sqlalchemy import (
 from marshmallow import (
     Schema as _Schema,
     fields,
+    validate,
     post_load,
     pre_dump,
     ValidationError,
@@ -1036,6 +1037,20 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         description='The ID of the instrument that took the spectrum.', required=True
     )
 
+    type = fields.String(
+        validate=validate.OneOf(ALLOWED_SPECTRUM_TYPES),
+        by_value=True,
+        required=False,
+        description=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+                            Defaults to 'f{default_spectrum_type}'.''',
+    )
+
+    label = fields.String(
+        description='User defined label to be placed in plot legends, '
+        'instead of the default <instrument>-<date taken>.',
+        required=False,
+    )
+
     observed_at = fields.DateTime(
         description='The ISO UTC time the spectrum was taken.', required=True
     )
@@ -1140,6 +1155,7 @@ class SpectrumPost(_Schema):
     origin = fields.String(required=False, description="Origin of the spectrum.")
 
     type = fields.String(
+        validate=validate.OneOf(ALLOWED_SPECTRUM_TYPES),
         required=False,
         description=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
                         Defaults to 'f{default_spectrum_type}'.''',
