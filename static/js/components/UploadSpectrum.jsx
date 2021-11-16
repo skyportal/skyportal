@@ -12,6 +12,7 @@ import Paper from "@material-ui/core/Paper";
 import Button from "@material-ui/core/Button";
 import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
 import { makeStyles } from "@material-ui/core/styles";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import embed from "vega-embed";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -155,7 +156,11 @@ const UploadSpectrumForm = ({ route }) => {
     users.length === 0 ||
     source.id !== route.id
   ) {
-    return <p>Loading...</p>;
+    return (
+      <p>
+        <CircularProgress color="secondary" />
+      </p>
+    );
   }
 
   const instruments = instrumentList.filter((inst) =>
@@ -642,7 +647,7 @@ const UploadSpectrumForm = ({ route }) => {
           <Paper className={classes.formBox}>
             <Typography variant="h6">Spectrum Preview</Typography>
             <div className={classes.vegaDiv}>
-              <Suspense fallback="Loading spectrum plot...">
+              <Suspense fallback=<CircularProgress color="secondary" />>
                 <SpectrumPreview data={data} />
               </Suspense>
             </div>

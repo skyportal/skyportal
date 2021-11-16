@@ -14,6 +14,7 @@ import AccordionSummary from "@material-ui/core/AccordionSummary";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
 import Typography from "@material-ui/core/Typography";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import MUIDataTable from "mui-datatables";
 import dayjs from "dayjs";
 
@@ -104,7 +105,11 @@ const AssignmentList = ({ assignments }) => {
   }, [allUsers, dispatch]);
 
   if (allUsers.length === 0) {
-    return <b>Loading users...</b>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
 
   if (assignments.length === 0) {
@@ -112,7 +117,11 @@ const AssignmentList = ({ assignments }) => {
   }
 
   if (observingRunList.length === 0) {
-    return <b>Loading observing run list...</b>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
 
   const observingRunDict = {};

@@ -19,6 +19,7 @@ import TableRow from "@material-ui/core/TableRow";
 import TableCell from "@material-ui/core/TableCell";
 import Papa from "papaparse";
 import ReactJson from "react-json-view";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -156,7 +157,13 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
           alignItems="center"
         >
           <Grid item className={styles.photometryContainer} sm={6}>
-            <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+            <Suspense
+              fallback={
+                <div>
+                  <CircularProgress color="secondary" />
+                </div>
+              }
+            >
               <Plot
                 className={styles.plot}
                 // eslint-disable-next-line react/prop-types
@@ -251,7 +258,11 @@ const ManageDataForm = ({ route }) => {
   };
 
   if ((!photometry[route.id] && !spectra[route.id]) || !groups) {
-    return <>Loading...</>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
 
   const photRows = photometry[route.id]

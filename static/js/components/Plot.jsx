@@ -2,6 +2,8 @@ import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
+import CircularProgress from "@material-ui/core/CircularProgress";
+
 import * as Bokeh from "@bokeh/bokehjs";
 
 import * as Models from "./BokehModels";
@@ -27,7 +29,11 @@ const Plot = (props) => {
   }, [plotData, dispatch, url]);
 
   if (!plotData) {
-    return <b>Loading plotting data...</b>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
 
   const { bokehJSON } = plotData;
