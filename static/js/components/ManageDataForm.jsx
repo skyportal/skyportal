@@ -152,7 +152,6 @@ const SpectrumRow = ({ rowData, route }) => {
             <Suspense
               fallback={
                 <div>
-                  {" "}
                   <CircularProgress color="secondary" />
                 </div>
               }
