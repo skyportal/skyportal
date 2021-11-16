@@ -1,5 +1,8 @@
 from baselayer.app.access import permissions, auth_or_token
 
+import astropy.units as u
+import healpix_alchemy as ha
+
 from ..base import BaseHandler
 from ...models import DBSession, Galaxy
 
@@ -45,6 +48,7 @@ class GalaxyCatalogHandler(BaseHandler):
                 b2a=b2a,
                 pa=pa,
                 btc=btc,
+                healpix=ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg),
             )
             for ra, dec, name, distmpc, sfr_fuv, mstar, magb, a, b2a, pa, btc in zip(
                 catalog_data['ra'],

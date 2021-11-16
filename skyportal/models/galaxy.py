@@ -2,6 +2,7 @@ __all__ = ['Galaxy']
 
 import sqlalchemy as sa
 import conesearch_alchemy as ca
+import healpix_alchemy
 
 from baselayer.app.models import Base
 
@@ -18,6 +19,8 @@ class Galaxy(Base, ca.Point):
     )
     distmpc = sa.Column(sa.Float, nullable=True, doc="Distance [Mpc]")
     distmpc_unc = sa.Column(sa.Float, nullable=True, doc="Distance [Mpc] uncertainty")
+
+    healpix = sa.Column(healpix_alchemy.Point, index=True)
 
     redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
     redshift_error = sa.Column(sa.Float, nullable=True, doc="Redshift error.")
