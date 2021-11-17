@@ -8,6 +8,7 @@ from twilio.base.exceptions import TwilioException
 from tornado.ioloop import IOLoop
 import io
 from dateutil.parser import isoparse
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
 import arrow
@@ -1085,18 +1086,37 @@ class SourceHandler(BaseHandler):
                         f"Localization {localization_dateobs} not found", status=404
                     )
 
-            tiles_subquery = (
-                LocalizationTile.query_records_accessible_by(self.current_user)
+            cum_prob = (
+                sa.func.sum(
+                    LocalizationTile.probdensity * LocalizationTile.healpix.area
+                )
+                .over(order_by=LocalizationTile.probdensity.desc())
+                .label('cum_prob')
+            )
+            subquery1 = (
+                sa.select(LocalizationTile.probdensity, cum_prob)
                 .filter(LocalizationTile.localization_id == localization.id)
-                .filter(LocalizationTile.cumprob <= localization_cumprob)
+                .columns
+            )
+            subquery2 = (
+                sa.select(sa.func.min(subquery1.probdensity).label('min_probdensity'))
+                .filter(subquery1.cum_prob <= localization_cumprob)
+                .columns
+            )
+
+            tiles_subquery = (
+                sa.select(Obj.id)
+                .filter(
+                    LocalizationTile.localization_id == localization.id,
+                    LocalizationTile.healpix.contains(Obj.healpix),
+                    LocalizationTile.probdensity >= subquery2.min_probdensity,
+                )
                 .subquery()
             )
 
             obj_query = obj_query.join(
                 tiles_subquery,
-                Obj.nested.between(
-                    tiles_subquery.c.nested_lo, tiles_subquery.c.nested_hi
-                ),
+                Obj.id == tiles_subquery.c.obj_id,
             )
 
         source_query = apply_active_or_requested_filtering(
