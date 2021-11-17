@@ -503,6 +503,14 @@ class SourceHandler(BaseHandler):
             schema:
               type: boolean
             description: If true, return only those matches with at least one associated spectrum
+          - in: query
+            name: createdOrModifiedAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date-time string (e.g. 2020-01-01 or 2020-01-01T00:00:00 or 2020-01-01T00:00:00+00:00).
+              If provided, filter by created_at or modified > createdOrModifiedAfter
           responses:
             200:
               content:
@@ -571,6 +579,9 @@ class SourceHandler(BaseHandler):
         min_latest_magnitude = self.get_query_argument("minLatestMagnitude", None)
         max_latest_magnitude = self.get_query_argument("maxLatestMagnitude", None)
         has_spectrum = self.get_query_argument("hasSpectrum", False)
+        created_or_modified_after = self.get_query_argument(
+            "createdOrModifiedAfter", None
+        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -896,6 +907,16 @@ class SourceHandler(BaseHandler):
             source_query = source_query.filter(Source.saved_at <= saved_before)
         if saved_after:
             source_query = source_query.filter(Source.saved_at >= saved_after)
+        if created_or_modified_after:
+            created_or_modified_date = arrow.get(
+                created_or_modified_after.strip()
+            ).datetime
+            obj_query = obj_query.filter(
+                or_(
+                    Obj.created_at > created_or_modified_date,
+                    Obj.modified > created_or_modified_date,
+                )
+            )
         if list_name:
             listing_subquery = (
                 Listing.query_records_accessible_by(self.current_user)
