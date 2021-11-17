@@ -117,19 +117,16 @@ const GcnEventSourcesPage = ({ route, sources }) => {
       <Typography variant="h4" gutterBottom align="center">
         Event sources
       </Typography>
-
-      {!!sources.sources.length && (
-        <SourceTable
-          sources={sources.sources}
-          title="Event Sources"
-          paginateCallback={handleSourcesTablePagination}
-          pageNumber={sources.pageNumber}
-          totalMatches={sources.totalMatches}
-          numPerPage={sources.numPerPage}
-          sortingCallback={handleSourcesTableSorting}
-          favoritesRemoveButton
-        />
-      )}
+      <SourceTable
+        sources={sources.sources}
+        title="Event Sources"
+        paginateCallback={handleSourcesTablePagination}
+        pageNumber={sources.pageNumber}
+        totalMatches={sources.totalMatches}
+        numPerPage={sources.numPerPage}
+        sortingCallback={handleSourcesTableSorting}
+        favoritesRemoveButton
+      />
     </div>
   );
 };
@@ -274,7 +271,7 @@ const GcnEventPage = ({ route }) => {
     dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
   }, [route, dispatch]);
 
-  if (!gcnEvent || !gncEventSources) {
+  if (!gcnEvent || !gcnEventSources) {
     return <CircularProgress />;
   }
   return (
