@@ -1,3 +1,4 @@
+import requests
 from swifttools.swift_too import Swift_TOO
 
 from . import FollowUpAPI
@@ -6,6 +7,10 @@ from baselayer.app.env import load_env
 from ..utils import http
 
 env, cfg = load_env()
+
+
+# Submission URL
+API_URL = "https://www.swift.psu.edu/toop/submit_json.php"
 
 
 class UVOTRequest:
@@ -94,7 +99,11 @@ class UVOTAPI(FollowUpAPI):
         swiftreq = UVOTRequest(request)
 
         swiftreq.requestgroup.validate()
-        r = swiftreq.requestgroup.submit_post()
+
+        r = requests.post(
+            url=API_URL, verify=True, data={'jwt': swiftreq.requestgroup.jwt}
+        )
+        # r = swiftreq.requestgroup.submit_post()
 
         if r.status_code == 201:
             request.status = 'submitted'
@@ -158,6 +167,7 @@ class UVOTAPI(FollowUpAPI):
             "immediate_objective": {
                 "title": "Immediate Objective",
                 "type": "string",
+                "default": "We wish to measure the X-ray emission of an optically discovered potential orphan afterglow/kilonova.",
             },
             "uvot_mode": {
                 "title": "UVOT Mode",
@@ -167,6 +177,7 @@ class UVOTAPI(FollowUpAPI):
             "science_just": {
                 "title": "Science Justification",
                 "type": "string",
+                "default": "An X-ray detection of this transient will further associate this object to a relativistic explosion and will help unveil the nature of the progenitor type.",
             },
         },
         "required": [
