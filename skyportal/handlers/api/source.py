@@ -1094,23 +1094,23 @@ class SourceHandler(BaseHandler):
                 .label('cum_prob')
             )
             subquery1 = (
-                sa.select(LocalizationTile.probdensity, cum_prob)
-                .filter(LocalizationTile.localization_id == localization.id)
-                .columns
-            )
+                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                    LocalizationTile.localization_id == localization.id
+                )
+            ).subquery()
 
-            subquery2 = (
-                sa.select(sa.func.min(subquery1.probdensity).label('min_probdensity'))
-                .filter(subquery1.cum_prob <= localization_cumprob)
-                .columns
-            )
+            min_probdensity = (
+                sa.select(sa.func.min(subquery1.columns.probdensity)).filter(
+                    subquery1.columns.cum_prob <= localization_cumprob
+                )
+            ).scalar_subquery()
 
             tiles_subquery = (
                 sa.select(Obj.id)
                 .filter(
                     LocalizationTile.localization_id == localization.id,
                     LocalizationTile.healpix.contains(Obj.healpix),
-                    LocalizationTile.probdensity >= subquery2.min_probdensity,
+                    LocalizationTile.probdensity >= min_probdensity,
                 )
                 .subquery()
             )
