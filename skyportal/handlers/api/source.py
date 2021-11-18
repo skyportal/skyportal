@@ -1105,16 +1105,22 @@ class SourceHandler(BaseHandler):
                 .columns
             )
 
-            tiles_subquery = Obj.query.filter(
-                LocalizationTile.localization_id == localization.id,
-                LocalizationTile.healpix.contains(Obj.healpix),
-                LocalizationTile.probdensity >= subquery2.min_probdensity,
-            ).subquery()
+            tiles_subquery = (
+                sa.select(Obj.id)
+                .filter(
+                    LocalizationTile.localization_id == localization.id,
+                    LocalizationTile.healpix.contains(Obj.healpix),
+                    LocalizationTile.probdensity >= subquery2.min_probdensity,
+                )
+                .subquery()
+            )
 
             obj_query = obj_query.join(
                 tiles_subquery,
                 Obj.id == tiles_subquery.c.id,
             )
+
+            print(DBSession().execute(obj_query).all())
 
         source_query = apply_active_or_requested_filtering(
             source_query, include_requested, requested_only
@@ -1481,12 +1487,6 @@ class SourceHandler(BaseHandler):
         if dec is None and not obj_already_exists:
             return self.error("Dec must not be null for a new Obj")
 
-        # This adds a healpix index for a new object being created
-        if not obj_already_exists:
-            data["healpix"] = ha.constants.HPX.lonlat_to_healpix(
-                ra * u.deg, dec * u.deg
-            )
-
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
         if not user_group_ids:
@@ -1506,12 +1506,16 @@ class SourceHandler(BaseHandler):
                 "Invalid group_ids field. Please specify at least "
                 "one valid group ID that you belong to."
             )
+
         try:
             obj = schema.load(data)
         except ValidationError as e:
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
+
+        # This adds a healpix index for a new object being created
+        obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
         groups = (
             Group.query_records_accessible_by(self.current_user)
