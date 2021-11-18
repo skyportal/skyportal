@@ -13,9 +13,7 @@ import sncosmo
 from sncosmo.photdata import PhotometricData
 
 import sqlalchemy as sa
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.sql.expression import FromClause
-from sqlalchemy.sql import column
+from sqlalchemy.sql import column, Values
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
 
@@ -395,27 +393,6 @@ class PhotometryHandler(BaseHandler):
            `df` against the Photometry table using the deduplication index.
         """
 
-        # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
-        class _photometry_values(FromClause):
-            """Render a postgres VALUES statement (in-memory constant table)."""
-
-            named_with_column = True
-
-            def __init__(self, columns, *args, **kw):
-                self._column_args = columns
-                self.list = args
-                self.alias_name = self.name = kw.pop("alias_name", None)
-
-            def _populate_column_collection(self):
-                for c in self._column_args:
-                    c._make_proxy(self)  # noqa
-
-            @property
-            def _from_objects(self):
-                return [self]
-
-        # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
-        @compiles(_photometry_values)
         def _compile_photometry_values(element, compiler, asfrom=False, **kw):
             columns = element.columns
 
@@ -455,8 +432,8 @@ class PhotometryHandler(BaseHandler):
                     v = "(%s)" % v
             return v
 
-        values_table = _photometry_values(
-            (
+        values_table = (
+            Values(
                 column("pdidx", sa.Integer),
                 column("obj_id", sa.String),
                 column("instrument_id", sa.Integer),
@@ -464,20 +441,22 @@ class PhotometryHandler(BaseHandler):
                 column("mjd", sa.Float),
                 column("fluxerr", sa.Float),
                 column("flux", sa.Float),
-            ),
-            *[
-                (
-                    row.Index,
-                    row.obj_id,
-                    row.instrument_id,
-                    row.origin,
-                    float(row.mjd),
-                    float(row.standardized_fluxerr),
-                    float(row.standardized_flux),
-                )
-                for row in df.itertuples()
-            ],
-            alias_name="values_table",
+            )
+            .data(
+                [
+                    (
+                        row.Index,
+                        row.obj_id,
+                        row.instrument_id,
+                        row.origin,
+                        float(row.mjd),
+                        float(row.standardized_fluxerr),
+                        float(row.standardized_flux),
+                    )
+                    for row in df.itertuples()
+                ]
+            )
+            .alias("values_table")
         )
 
         # make sure no duplicate data are posted using the index
