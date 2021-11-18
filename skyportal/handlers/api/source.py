@@ -1120,8 +1120,6 @@ class SourceHandler(BaseHandler):
                 Obj.id == tiles_subquery.c.id,
             )
 
-            print(DBSession().execute(obj_query).all())
-
         source_query = apply_active_or_requested_filtering(
             source_query, include_requested, requested_only
         )
