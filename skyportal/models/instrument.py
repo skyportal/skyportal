@@ -1,11 +1,11 @@
-__all__ = ['Instrument','InstrumentField','InstrumentFieldTile']
+__all__ = ['Instrument', 'InstrumentField', 'InstrumentFieldTile']
 
 import re
 
 import healpix_alchemy
 import sqlalchemy as sa
 from sqlalchemy import cast
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base, restricted
@@ -131,7 +131,6 @@ class Instrument(Base):
     def listener_class(self):
         return getattr(facility_apis, self.listener_classname)
 
-
     fields = relationship("InstrumentField")
     tiles = relationship("InstrumentFieldTile")
 
@@ -160,6 +159,8 @@ class InstrumentField(Base):
         doc='The Field ID for the tile (can be repeated between instruments).',
         nullable=False,
     )
+
+    contour = sa.Column(JSONB, nullable=False, comment='GeoJSON contours')
 
     tiles = relationship("InstrumentFieldTile")
 

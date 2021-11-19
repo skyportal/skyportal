@@ -13,12 +13,19 @@ from astropy import units as u
 import numpy as np
 
 from ..base import BaseHandler
-from ...models import DBSession, Instrument, Telescope, InstrumentField, InstrumentFieldTile
+from ...models import (
+    DBSession,
+    Instrument,
+    Telescope,
+    InstrumentField,
+    InstrumentFieldTile,
+)
 from ...enum_types import ALLOWED_BANDPASSES
 
 log = make_log('api/instrument')
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+
 
 class InstrumentHandler(BaseHandler):
     @permissions(['System admin'])
@@ -65,8 +72,8 @@ class InstrumentHandler(BaseHandler):
             regions = Regions.parse(field_region, format='ds9')
 
             IOLoop.current().run_in_executor(
-                None, lambda: add_tiles(instrument.id,
-                                        regions, field_data)
+                None,
+                lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
             )
 
         return self.success(data={"id": instrument.id})
@@ -254,12 +261,13 @@ InstrumentHandler.post.__doc__ = f"""
                 schema: Error
         """
 
-def add_tiles(instrument_id, regions, field_data):
+
+def add_tiles(instrument_id, instrument_name, regions, field_data):
     session = Session()
     try:
-        # Loop over the telescope tiles and create fields for each 
+        # Loop over the telescope tiles and create fields for each
         skyoffset_frames = coordinates.SkyCoord(
-                field_data['RA'], field_data['Dec'], unit=u.deg
+            field_data['RA'], field_data['Dec'], unit=u.deg
         ).skyoffset_frame()
 
         ra = np.array([reg.vertices.ra for reg in regions])
@@ -267,19 +275,54 @@ def add_tiles(instrument_id, regions, field_data):
         coords = np.stack([ra, dec])
 
         coords_icrs = coordinates.SkyCoord(
-            *np.tile(coords[:, np.newaxis, ...],
-                     (len(field_data['RA']), 1, 1)), unit=u.deg,
-                      frame=skyoffset_frames[:, np.newaxis, np.newaxis]
-            ).transform_to(coordinates.ICRS)
+            *np.tile(coords[:, np.newaxis, ...], (len(field_data['RA']), 1, 1)),
+            unit=u.deg,
+            frame=skyoffset_frames[:, np.newaxis, np.newaxis],
+        ).transform_to(coordinates.ICRS)
 
-        fields = []
-        for ii, (field_id, coords) in enumerate(zip(field_data['ID'], coords_icrs)):
-            field = InstrumentField(instrument_id=instrument_id,
-                                    field_id=field_id)
-            tiles = [InstrumentFieldTile(instrument_id=instrument_id,
-                                        instrument_field_id=field_id,
-                                        healpix=Tile.tiles_from_polygon_skycoord(coord)) for coord in coords]
-            field.tiles = tiles
+        for ii, (field_id, ra, dec, coords) in enumerate(
+            zip(field_data['ID'], field_data['RA'], field_data['Dec'], coords_icrs)
+        ):
+            log(f'Loaded field {field_id} for instrument {instrument_id}')
+
+            contour = {
+                'type': 'FeatureCollection',
+                'properties': {
+                    'instrument': instrument_name,
+                    'field_id': int(field_id),
+                    'ra': ra,
+                    'dec': dec,
+                },
+            }
+
+            features = []
+            for coord in coords:
+                corners = [[c.ra.deg, c.dec.deg] for c in coord]
+                corners = corners + [corners[0]]
+                feature = {
+                    'type': 'Feature',
+                    'geometry': {
+                        'type': 'MultiLineString',
+                        'coordinates': corners,
+                    },
+                }
+                features.append(feature)
+            contour["features"] = features
+
+            field = InstrumentField(
+                instrument_id=instrument_id, field_id=int(field_id), contour=contour
+            )
+            tiles = []
+            for coord in coords:
+                for hpx in Tile.tiles_from_polygon_skycoord(coord):
+                    tiles.append(
+                        InstrumentFieldTile(
+                            instrument_id=instrument_id,
+                            instrument_field_id=int(field_id),
+                            healpix=hpx,
+                        )
+                    )
+
             session.add(field)
             session.add_all(tiles)
         session.commit()
