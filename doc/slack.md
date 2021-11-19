@@ -6,7 +6,7 @@ The Slack integration allows notifications for a given user to be mirrored to a 
 
 ## Slack App: Manage
 
-To manage an existing integration as a Slack workspace admin (e.g., add a new SkyPortal user or delete a webbook) you can jump to [https://api.slack.com/apps](https://api.slack.com/apps), then choose the app from the "Your Apps" list, then click "Incoming Webhooks."
+To manage an existing integration as a Slack workspace admin (e.g., add a new SkyPortal user or delete a webhook) you can jump to [https://api.slack.com/apps](https://api.slack.com/apps), then choose the app from the "Your Apps" list, then click "Incoming Webhooks."
 
 Otherwise to create a new Slack App, see the following:
 
