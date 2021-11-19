@@ -71,6 +71,7 @@ test_server:
     /api/requestgroups/: https://observe.lco.global # LCO
     /api/triggers/ztf: http://skipper.caltech.edu:4000 # ZTF
     /cgi-bin/internal/process_kait_ztf_request.py: http://herculesii.astro.berkeley.edu # KAIT
+    /toop/submit_json.php: https://www.swift.psu.edu # Swift
 
 app:
   lt_host: localhost
@@ -86,3 +87,6 @@ app:
     protocol: http
     host: localhost
     port: 64502
+  swift_protocol: http
+  swift_host: localhost
+  swift_port: 64502

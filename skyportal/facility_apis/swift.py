@@ -10,7 +10,7 @@ env, cfg = load_env()
 
 
 # Submission URL
-API_URL = "https://www.swift.psu.edu/toop/submit_json.php"
+API_URL = f"{cfg['app.swift_protocol']}://{cfg['app.swift_host']}:{cfg['app.swift_port']}/toop/submit_json.php"
 
 
 class UVOTRequest:

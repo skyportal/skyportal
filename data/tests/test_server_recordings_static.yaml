@@ -1,86 +1,17 @@
 interactions:
 - request:
-    body: '{"name": "cbbf7050a76247858a3084c5dabdc52c", "proposal": "TOM2020A-008",
-      "ipp_value": 1, "operator": "SINGLE", "observation_type": "NORMAL", "requests":
-      [{"configurations": [{"type": "EXPOSE", "instrument_type": "1M0-SCICAM-SINISTRO",
-      "constraints": {"max_airmass": 2, "min_lunar_distance": 30}, "target": {"name":
-      "cbbf7050a76247858a3084c5dabdc52c", "type": "ICRS", "ra": 123.813909, "dec":
-      -5.867007, "epoch": 2000}, "acquisition_config": {}, "guiding_config": {}, "instrument_configs":
-      [{"exposure_time": 300, "exposure_count": 1, "optical_elements": {"filter":
-      "gp"}}]}, {"type": "EXPOSE", "instrument_type": "1M0-SCICAM-SINISTRO", "constraints":
-      {"max_airmass": 2, "min_lunar_distance": 30}, "target": {"name": "cbbf7050a76247858a3084c5dabdc52c",
-      "type": "ICRS", "ra": 123.813909, "dec": -5.867007, "epoch": 2000}, "acquisition_config":
-      {}, "guiding_config": {}, "instrument_configs": [{"exposure_time": 300, "exposure_count":
-      1, "optical_elements": {"filter": "Y"}}]}], "windows": [{"start": "2021-04-16
-      00:00:00", "end": "2021-04-23 00:00:00"}], "location": {"telescope_class": "1m0"}}]}'
-    headers:
-      Accept:
-      - '*/*'
-      Accept-Encoding:
-      - gzip, deflate
-      Authorization:
-      - Token testtoken
-      Connection:
-      - keep-alive
-      Content-Length:
-      - '1094'
-      Content-Type:
-      - application/json
-      User-Agent:
-      - Python-urllib/3.8
-    method: POST
-    uri: https://observe.lco.global/api/requestgroups/
-  response:
-    body:
-      string: !!binary |
-        H4sIAAAAAAAA/+1VXW/aMBT9L34OyDYJCXmrurZCKlCVPuxDU+Q4Biwldmo7HRXiv+/ayVqmdd26
-        x6kSD+Z+nnPuvcoByQrlhMwIjWcRMuK+E9ZZlH85BA+NEzqlkwjVmjMntUL5ATlRC8t1KwpeMwvB
-        iDQYHSPEtdrIbWdC5HORJJ1mcUqC3zrDpPIdDqhh+4JJ04QadIwj1EhV1J1ipqikdUxxgfIJDh6I
-        7T3tjlkwq66ue7MVQqrtkwVKQA9lW2aE4o8/7GIP1gKMrPHNjwBXejRdI5QreuQ9ZLFvte2MKJxs
-        Qv8AQLdOclYXwN1nBAIbWTthgP+29fQbXUE82kC/YgN9BIqei3HdKQdSR6gEhPun12N4Ge2Y06YY
-        SqAX8H6NEOP3nbTSqzsgDjL2OavLy9N+Pfjfct92sgLVTsp4glqxGuUginhis1qiF8kf/76XY2Yr
-        XNicx9bXnJ/frqGq8hLliJflJsUJZumUxmmWZGyCs5gnFSsrnlAOkYaBSnQyzshkhmFPK8FRPkrG
-        2TTFOI1Qa2AbvXpBGh8dZvazOST1dkBX12w//BWt5jvYQNxP+vVNGSiQBR6tz+fnZ4vRer6cr+9u
-        V4BzcF58vFmtL14YoocktZHOT/0YnZ4H/Y/P49P7dbxfx9uug/qJfpOq0t/6tYN9N6ASopiSEY5H
-        ZHqHcR5+n30tVZ046eTE6StVw0cJ5WkWw8RKK8xDsBRKu2GpoEV43lwsP8yXVyhMWW6kqH7pS2ge
-        p+NZGtMJ9e25EZD7WlwSYDLORetYKWtgWbidEXana8ibgbgeqO3KRrr+bBq4iu2ulupN23DKbVB8
-        ubpdnF2HTRXGXxLYYC5X134Ksm2LB1Z3EEj8gP9EheBZoPIPahFCiU/1m6etPyZ0t1pALD4bYZyh
-        43c5DEUbjwgAAA==
-    headers:
-      Allow:
-      - GET, POST, HEAD, OPTIONS
-      Connection:
-      - keep-alive
-      Content-Encoding:
-      - gzip
-      Content-Length:
-      - '694'
-      Content-Type:
-      - application/json
-      Date:
-      - Fri, 16 Apr 2021 00:12:48 GMT
-      Server:
-      - nginx/1.19.1
-      Vary:
-      - Accept, Origin, Cookie, Accept-Encoding
-      X-Frame-Options:
-      - SAMEORIGIN
-    status:
-      code: 201
-      message: Created
-- request:
     body: null
     headers:
       Accept:
       - '*/*'
       Accept-Encoding:
-      - gzip, deflate
+      - gzip, deflate, br
       Connection:
       - keep-alive
       Host:
       - localhost:64502
       User-Agent:
-      - python-requests/2.25.1
+      - python-requests/2.26.0
     method: GET
     uri: https://observe.lco.global/api/requestgroups/
   response:
@@ -95,148 +26,53 @@ interactions:
       Content-Type:
       - text/html
       Date:
-      - Mon, 19 Apr 2021 16:31:45 GMT
+      - Fri, 19 Nov 2021 22:05:35 GMT
       Server:
       - nginx/1.19.1
     status:
       code: 404
       message: Not Found
 - request:
-    body: null
+    body: jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcGlfbmFtZSI6IlN3aWZ0X1RPT19SZXF1ZXN0IiwiYXBpX3ZlcnNpb24iOiIxLjIiLCJhcGlfZGF0YSI6eyJ1c2VybmFtZSI6ImFub255bW91cyIsInNvdXJjZV9uYW1lIjoiMTc1ZTZkMjNiMWEzNDM4YTljYjA1YTg2YzBmYzM2NTQiLCJzb3VyY2VfdHlwZSI6Ik9wdGljYWwgZmFzdCB0cmFuc2llbnQiLCJyYSI6MC4wLCJkZWMiOjAuMCwicG9zZXJyIjowLjAsImluc3RydW1lbnQiOiJYUlQiLCJ1cmdlbmN5IjozLCJ4cnRfY291bnRyYXRlIjowLjAwMjUsImltbWVkaWF0ZV9vYmplY3RpdmUiOiJXZSB3aXNoIHRvIG1lYXN1cmUgdGhlIFgtcmF5IGVtaXNzaW9uIG9mIGFuIG9wdGljYWxseSBkaXNjb3ZlcmVkIHBvdGVudGlhbCBvcnBoYW4gYWZ0ZXJnbG93L2tpbG9ub3ZhLiIsInNjaWVuY2VfanVzdCI6IkFuIFgtcmF5IGRldGVjdGlvbiBvZiB0aGlzIHRyYW5zaWVudCB3aWxsIGZ1cnRoZXIgYXNzb2NpYXRlIHRoaXMgb2JqZWN0IHRvIGEgcmVsYXRpdmlzdGljIGV4cGxvc2lvbiBhbmQgd2lsbCBoZWxwIHVudmVpbCB0aGUgbmF0dXJlIG9mIHRoZSBwcm9nZW5pdG9yIHR5cGUuIiwiZXhwb3N1cmUiOjQwMDAsImV4cF90aW1lX2p1c3QiOiJBdCB-Mi41ZS0zIGNvdW50cy9zZWMsIDRrcyBzaG91bGQgc3VmZmljZSB0byBhY2hpZXZlIGEgaGlnaCBTTlIsIGFzc3VtaW5nIGEgYmFja2dyb3VuZCBvZiB-MWUtNCBjb3VudHMvc2VjIChQYWdhbmkgZXQgYWwuIDIwMDcpIiwiZXhwX3RpbWVfcGVyX3Zpc2l0Ijo0MDAwLCJudW1fb2ZfdmlzaXRzIjoxLCJtb25pdG9yaW5nX2ZyZXEiOiIxIGRheXMiLCJ4cnRfbW9kZSI6IlBDIiwidXZvdF9tb2RlIjoiZGVmYXVsdCIsIm9ic19uIjoic2luZ2xlIiwib2JzX3R5cGUiOiJMaWdodCBDdXJ2ZSIsInZhbGlkYXRlX29ubHkiOmZhbHNlfX0.PrzYHA42kdg5apdpJD_7xRn7RsW0eGHGj3TDTw0jN5c
     headers:
       Accept:
       - '*/*'
       Accept-Encoding:
-      - gzip, deflate
-      Authorization:
-      - Token testtoken
+      - gzip, deflate, br
       Connection:
       - keep-alive
       Content-Length:
-      - '0'
+      - '1280'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Host:
+      - localhost:64502
       User-Agent:
-      - python-requests/2.25.1
+      - python-requests/2.26.0
     method: POST
-    uri: https://observe.lco.global/api/requestgroups/1191249/cancel/
+    uri: https://www.swift.psu.edu/toop/submit_json.php
   response:
     body:
-      string: !!binary |
-        H4sIAAAAAAAA/+1VW2/aMBT+L34OyHHueUOMTkgFpsLDLpoi4xiwlNip47RUiP++Yydrmca29nWq
-        xIM51+/7zjnKCYkS5b6f+STMPKT5fcdb06L828l5SBiRmAQeqhSjRiiJ8hMyvOItUw0vWEVbCEZ+
-        jdHZQ0zJndh32kW+FImSOA0T3/lbo6mQtsMJ1fRYUKFrV4OMsYdqIYuqk1QXpWgNlYyjPMDOA7G9
-        pznQFsyyq6re3HIu5P7ZAiWgh2wbqrlkTz/t/AjWAoy0ts3PAFdYNF3NpSl65D1kfmxU22leGFG7
-        /g6AaoxgtCqAu81wBHaiMlwD/31j6deqhHi0g37FDvpw5L0UY6qTBqT20BYQHp9fT+6llaFG6WIo
-        ga7g/e4hyu470Qqr7oDYydjnrG5uLvv14P/Ifd+JElS7KGMJKkkrlIMo/JnNaomukj+/vpehes+N
-        25ynxtacT+/WUFVaiXLEtttdgiNMk5iESRqlNMBpyKKSbksWEQaRmoJKJBinfpBh2NOSM5SPonEa
-        JxgnHmo0bKNVz0ljo93MfjW7pN4O6KqKHoe/vFHsABuI+0n/fVMGCv4Cj9bT+XSyGK3ny/l6c7cC
-        nINz9vnTaj27MkQLSSgtjJ362bs8D/Ifn8eX9+t4v463XQexE30UslSP/drBvmtQCRFM/BEOR368
-        wTh3v6+2liwvnCS4cNpK5fBRQnmShjCxbcv1g7MUUplhqaCFe04ny+nsdvYBuTGLneDlb439OAfF
-        MY7DKLX9meaQfCWO5GEyzpKQRA4nZYw3hm5FBTQLc9C8PagK8jJQ1yJtu20tTH83NZzF/lAJ+aZ1
-        uCQ3SL5c3S0mt25VubanBDYYzMdbOwbRNMUDrToI9O2E/0XFx5mj8kq5sg2BxDT3kzGO4iAjNtfu
-        nmrtOaHNagGxeDLCOEXnH8y7xjKRCAAA
+      string: '
+
+
+        {"api_name":"Swift_TOO_Status","api_version":"1.2","api_data":{"status":"Rejected","errors":["Cannot
+        submit TOOs from anonymous user."]}}'
     headers:
-      Allow:
-      - POST, OPTIONS
       Connection:
-      - keep-alive
-      Content-Encoding:
-      - gzip
+      - Keep-Alive
       Content-Length:
-      - '708'
+      - '139'
       Content-Type:
-      - application/json
+      - text/html; charset=UTF-8
       Date:
-      - Mon, 19 Apr 2021 22:48:17 GMT
+      - Fri, 19 Nov 2021 22:05:56 GMT
+      Keep-Alive:
+      - timeout=5, max=100
       Server:
-      - nginx/1.19.1
-      Vary:
-      - Accept, Origin, Cookie, Accept-Encoding
-      X-Frame-Options:
-      - SAMEORIGIN
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"targets": [{"request_id": 1, "program_id": 2, "field_id": 699, "ra":
-      0.0, "dec": 0.0, "filter_id": 1, "exposure_time": 300.0, "program_pi": "Kulkarni/9ed8c36f0be24ae398c49e59f850f0b0",
-      "subprogram_name": "ToO_GRB"}, {"request_id": 2, "program_id": 2, "field_id":
-      700, "ra": 0.0, "dec": 0.0, "filter_id": 1, "exposure_time": 300.0, "program_pi":
-      "Kulkarni/9ed8c36f0be24ae398c49e59f850f0b0", "subprogram_name": "ToO_GRB"},
-      {"request_id": 3, "program_id": 2, "field_id": 699, "ra": 0.0, "dec": 0.0, "filter_id":
-      2, "exposure_time": 300.0, "program_pi": "Kulkarni/9ed8c36f0be24ae398c49e59f850f0b0",
-      "subprogram_name": "ToO_GRB"}, {"request_id": 4, "program_id": 2, "field_id":
-      700, "ra": 0.0, "dec": 0.0, "filter_id": 2, "exposure_time": 300.0, "program_pi":
-      "Kulkarni/9ed8c36f0be24ae398c49e59f850f0b0", "subprogram_name": "ToO_GRB"},
-      {"request_id": 5, "program_id": 2, "field_id": 699, "ra": 0.0, "dec": 0.0, "filter_id":
-      3, "exposure_time": 300.0, "program_pi": "Kulkarni/9ed8c36f0be24ae398c49e59f850f0b0",
-      "subprogram_name": "ToO_GRB"}, {"request_id": 6, "program_id": 2, "field_id":
-      700, "ra": 0.0, "dec": 0.0, "filter_id": 3, "exposure_time": 300.0, "program_pi":
-      "Kulkarni/9ed8c36f0be24ae398c49e59f850f0b0", "subprogram_name": "ToO_GRB"}],
-      "queue_name": "ToO_2021-05-11T14:45:08.131531", "validity_window_mjd": [59345.614677448044,
-      59346.6146774482], "queue_type": "list", "user": "9ed8c36f0be24ae398c49e59f850f0b0"}'
-    headers:
-      Accept-Encoding:
-      - identity
-      Authorization:
-      - Bearer testtoken
-      Content-Length:
-      - '1420'
-      Content-Type:
-      - application/json
-      Host:
-      - localhost:64502
-      User-Agent:
-      - python-urllib3/1.26.4
-    method: PUT
-    uri: http://skipper.caltech.edu:4000/api/triggers/ztf
-  response:
-    body:
-      string: '{"status": "success", "message": "submitted", "data": {"Content-Type":
-        "text/plain; charset=utf-8", "Content-Length": "64", "Date": "Tue, 11 May
-        2021 14:45:54 GMT", "Server": "Python/3.7 aiohttp/3.5.4"}}'
-    headers:
-      Content-Length:
-      - '203'
-      Content-Type:
-      - application/json; charset=utf-8
-      Date:
-      - Tue, 11 May 2021 14:45:49 GMT
-      Server:
-      - Python/3.7 aiohttp/3.7.4.post0
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"queue_name": "ToO_2021-05-11T14:45:08.131531", "user": "9ed8c36f0be24ae398c49e59f850f0b0"}'
-    headers:
-      Accept-Encoding:
-      - identity
-      Authorization:
-      - Bearer testtoken
-      Content-Length:
-      - '92'
-      Content-Type:
-      - application/json
-      Host:
-      - localhost:64502
-      User-Agent:
-      - python-urllib3/1.26.4
-    method: DELETE
-    uri: http://skipper.caltech.edu:4000/api/triggers/ztf
-  response:
-    body:
-      string: '{"status": "success", "message": "deleted", "data": {"Content-Type":
-        "text/plain; charset=utf-8", "Content-Length": "49", "Date": "Tue, 11 May
-        2021 14:45:56 GMT", "Server": "Python/3.7 aiohttp/3.5.4"}}'
-    headers:
-      Content-Length:
-      - '201'
-      Content-Type:
-      - application/json; charset=utf-8
-      Date:
-      - Tue, 11 May 2021 14:45:51 GMT
-      Server:
-      - Python/3.7 aiohttp/3.7.4.post0
+      - Apache/2.4.6 (CentOS) OpenSSL/1.0.2k-fips PHP/5.4.16 mod_wsgi/3.4 Python/2.7.5
+      X-Powered-By:
+      - PHP/5.4.16
     status:
       code: 200
       message: OK

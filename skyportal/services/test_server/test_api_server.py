@@ -147,6 +147,28 @@ def ztf_request_matcher(r1, r2):
     assert r1_is_ztf and r2_is_ztf and r1.method == r2.method
 
 
+def swift_request_matcher(r1, r2):
+    """
+    Helper function to help determine if two requests to the Swift API are equivalent
+    """
+
+    # A request matches a Swift request if the URI and method matches
+    r1_uri = r1.uri.replace(":443", "")
+    r2_uri = r2.uri.replace(":443", "")
+
+    def is_swift_request(uri):
+        pattern = r"/toop/submit_json.php"
+        if re.search(pattern, uri) is not None:
+            return True
+
+        return False
+
+    r1_is_swift = is_swift_request(r1_uri)
+    r2_is_swift = is_swift_request(r2_uri)
+
+    assert r1_is_swift and r2_is_swift and r1.method == r2.
+
+
 def kait_request_matcher(r1, r2):
     """
     Helper function to help determine if two requests to the KAIT API are equivalent
@@ -168,6 +190,7 @@ def kait_request_matcher(r1, r2):
     r2_is_kait = is_kait_request(r2_uri)
 
     assert r1_is_kait and r2_is_kait and r1.method == r2.method
+
 
 
 class TestRouteHandler(tornado.web.RequestHandler):
@@ -265,6 +288,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 self.write("Could not find test route redirect")
 
     def put(self):
+
         is_soap_action = "Soapaction" in self.request.headers
         if "/api/requestgroups/" in self.request.uri:
             cache = get_cache_file_static()
@@ -350,6 +374,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 self.write("Could not find test route redirect")
 
     def get(self):
+
         is_wsdl = self.get_query_argument('wsdl', None)
         if self.request.uri in [
             "/api/requestgroups/",
@@ -421,12 +446,15 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 self.write("Could not find test route redirect")
 
     def post(self):
+
         is_soap_action = "Soapaction" in self.request.headers
         if self.request.uri in [
             "/api/requestgroups/",
             "/api/triggers/ztf",
             "/cgi-bin/internal/process_kait_ztf_request.py",
         ]:
+            cache = get_cache_file_static()
+        elif "/toop/submit_json.php" in self.request.uri:
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()
@@ -439,6 +467,8 @@ class TestRouteHandler(tornado.web.RequestHandler):
             match_on = ["ztf"]
         elif self.request.uri == "/cgi-bin/internal/process_kait_ztf_request.py":
             match_on = ["kait"]
+        elif "/toop/submit_json.php" in self.request.uri:
+            match_on = ["swift"]
 
         with my_vcr.use_cassette(
             cache,
@@ -513,6 +543,7 @@ if __name__ == "__main__":
     my_vcr.register_matcher("lco", lco_request_matcher)
     my_vcr.register_matcher("ztf", ztf_request_matcher)
     my_vcr.register_matcher("kait", kait_request_matcher)
+    my_vcr.register_matcher("swift", swift_request_matcher)
     if "test_server" in cfg:
         app = make_app()
         server = tornado.httpserver.HTTPServer(app)
