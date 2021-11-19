@@ -3,10 +3,6 @@ from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
-<<<<<<< HEAD
-=======
-from sqlalchemy.orm.exc import NoResultFound
->>>>>>> a7b1c47f... Creating fields with new healpix_alchemy
 from tornado.ioloop import IOLoop
 
 from healpix_alchemy import Tile
@@ -16,7 +12,6 @@ from astropy import units as u
 import numpy as np
 
 from ..base import BaseHandler
-<<<<<<< HEAD
 from ...models import (
     DBSession,
     Instrument,
@@ -24,18 +19,12 @@ from ...models import (
     InstrumentField,
     InstrumentFieldTile,
 )
-=======
-from ...models import DBSession, Instrument, Telescope, InstrumentField, InstrumentFieldTile
->>>>>>> a7b1c47f... Creating fields with new healpix_alchemy
 from ...enum_types import ALLOWED_BANDPASSES
 
 log = make_log('api/instrument')
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
-<<<<<<< HEAD
 
-=======
->>>>>>> a7b1c47f... Creating fields with new healpix_alchemy
 
 class InstrumentHandler(BaseHandler):
     @permissions(['System admin'])
@@ -60,7 +49,6 @@ class InstrumentHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
             )
 
-<<<<<<< HEAD
         existing_instrument = (
             Instrument.query_records_accessible_by(
                 self.current_user,
@@ -87,33 +75,6 @@ class InstrumentHandler(BaseHandler):
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
-            )
-=======
-        try:
-            instrument = (
-                Instrument.query_records_accessible_by(
-                    self.current_user,
-                )
-                .filter(
-                    Instrument.name == data.get('name'),
-                    Instrument.telescope_id == telescope_id,
-                )
-                .one()
-            )
-        except NoResultFound:
-            instrument.telescope = telescope
-            DBSession().add(instrument)
-            DBSession().commit()
->>>>>>> a7b1c47f... Creating fields with new healpix_alchemy
-
-        if field_data is not None:
-            if field_region is None:
-                return self.error('`field_region` is required with field_data')
-            regions = Regions.parse(field_region, format='ds9')
-
-            IOLoop.current().run_in_executor(
-                None, lambda: add_tiles(instrument.id,
-                                        regions, field_data)
             )
 
         return self.success(data={"id": instrument.id})
@@ -302,10 +263,11 @@ InstrumentHandler.post.__doc__ = f"""
                               type: integer
                               description: New instrument ID
           400:
-           content:
+            content:
               application/json:
                 schema: Error
         """
+
 
 def add_tiles(instrument_id, instrument_name, regions, field_data):
     session = Session()
