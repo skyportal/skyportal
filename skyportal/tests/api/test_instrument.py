@@ -1,3 +1,8 @@
+import os
+import pandas as pd
+import time
+from regions import Regions
+
 import uuid
 from skyportal.tests import api
 
@@ -21,6 +26,9 @@ def test_token_user_post_get_instrument(super_admin_token):
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
+    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF.reg'
+
     instrument_name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -31,17 +39,27 @@ def test_token_user_post_get_instrument(super_admin_token):
             'band': 'NIR',
             'filters': ['f110w'],
             'telescope_id': telescope_id,
+            'field_data': pd.read_csv(fielddatafile).to_dict(orient='list'),
+            'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
         },
         token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
 
+    # wait for the fields to populate
+    time.sleep(15)
+
     instrument_id = data['data']['id']
     status, data = api('GET', f'instrument/{instrument_id}', token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
     assert data['data']['band'] == 'NIR'
+
+    print(len(data['data']['fields']), len(data['data']['tiles']))
+
+    assert len(data['data']['fields']) == 10
+    assert len(data['data']['tiles']) == 2308
 
 
 def test_fetch_instrument_by_name(super_admin_token):

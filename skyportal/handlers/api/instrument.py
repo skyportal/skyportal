@@ -122,8 +122,16 @@ class InstrumentHandler(BaseHandler):
                   schema: Error
         """
         if instrument_id is not None:
-            instrument = Instrument.get_if_accessible_by(
-                int(instrument_id), self.current_user, raise_if_none=True, mode="read"
+            instrument = (
+                Instrument.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(Instrument.localizations),
+                        joinedload(Instrument.gcn_notices),
+                    ],
+                )
+                .filter(Instrument.id == int(instrument_id))
+                .first()
             )
             return self.success(data=instrument)
 
