@@ -22,9 +22,9 @@ marshmallow-enum==1.5.1
 Pillow==8.3.2
 sncosmo==2.5.0
 tdtax==0.1.3
+healpix-alchemy @ git+https://github.com/skyportal/healpix-alchemy.git@95064ae5e06bfe9e50162070212d3d6719fb3bdc#egg=healpix_alchemy
+mocpy==0.10.0
 conesearch-alchemy==1.0.0
-mocpy==0.9.0
-healpix-alchemy
 geojson==2.5.0
 jsonschema==3.2.0
 jsonpath_ng==1.5.3
