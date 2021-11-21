@@ -1512,8 +1512,9 @@ class SourceHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
 
-        # This adds a healpix index for a new object being created
-        obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
+        if (ra is not None) and (dec is not None):
+            # This adds a healpix index for a new object being created
+            obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
         groups = (
             Group.query_records_accessible_by(self.current_user)
