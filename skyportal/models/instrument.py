@@ -160,7 +160,7 @@ class InstrumentField(Base):
         nullable=False,
     )
 
-    contour = sa.Column(JSONB, nullable=False, comment='GeoJSON contours')
+    contour = sa.Column(JSONB, nullable=False, doc='GeoJSON contours')
 
     tiles = relationship("InstrumentFieldTile")
 

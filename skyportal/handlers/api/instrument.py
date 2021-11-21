@@ -303,7 +303,6 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
             log(f'Loaded field {field_id} for instrument {instrument_id}')
 
             contour = {
-                'type': 'FeatureCollection',
                 'properties': {
                     'instrument': instrument_name,
                     'field_id': int(field_id),
@@ -312,37 +311,23 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                 },
             }
 
-            features = []
-            for coord in coords:
-                corners = [[c.ra.deg, c.dec.deg] for c in coord]
-                corners = corners + [corners[0]]
-                feature = {
-                    'type': 'Feature',
-                    'geometry': {
-                        'type': 'MultiLineString',
-                        'coordinates': corners,
-                    },
-                }
-                features.append(feature)
-            contour["features"] = features
-
             field = InstrumentField(
                 instrument_id=instrument_id, field_id=int(field_id), contour=contour
             )
+            session.add(field)
+            session.commit()
             tiles = []
             for coord in coords:
                 for hpx in Tile.tiles_from_polygon_skycoord(coord):
                     tiles.append(
                         InstrumentFieldTile(
                             instrument_id=instrument_id,
-                            instrument_field_id=int(field_id),
+                            instrument_field_id=field.id,
                             healpix=hpx,
                         )
                     )
-
-            session.add(field)
             session.add_all(tiles)
-        session.commit()
+            session.commit()
         return log(f"Successfully generated fields for instrument {instrument_id}")
     except Exception as e:
         return log(f"Unable to generate fields for instrument {instrument_id}: {e}")
