@@ -71,6 +71,7 @@ class InstrumentHandler(BaseHandler):
                 return self.error('`field_region` is required with field_data')
             regions = Regions.parse(field_region, format='ds9')
 
+            # run async
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
