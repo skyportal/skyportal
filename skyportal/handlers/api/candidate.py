@@ -1257,19 +1257,13 @@ def grab_query_results(
     if len(obj_ids_in_page) > 0:
         # If there are no values, the VALUES statement above will cause a syntax error,
         # so only filter on the values if they exist
-        # obj_ids_values = get_obj_id_values(obj_ids_in_page)
-        # items = (
-        #    DBSession()
-        #    .query(Obj)
-        #    .options(query_options)
-        #    .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-        #    .order_by(obj_ids_values.c.ordering)
-        # )
+        obj_ids_values = get_obj_id_values(obj_ids_in_page)
         items = (
             DBSession()
             .query(Obj)
             .options(query_options)
-            .filter(Obj.id.in_(obj_ids_in_page))
+            .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+            .order_by(obj_ids_values.c.ordering)
         )
 
     info[items_name] = items
