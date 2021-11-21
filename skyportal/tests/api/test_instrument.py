@@ -48,7 +48,7 @@ def test_token_user_post_get_instrument(super_admin_token):
     assert data['status'] == 'success'
 
     # wait for the fields to populate
-    time.sleep(15)
+    time.sleep(120)
 
     instrument_id = data['data']['id']
     status, data = api('GET', f'instrument/{instrument_id}', token=super_admin_token)
