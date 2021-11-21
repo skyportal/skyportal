@@ -128,18 +128,12 @@ class InstrumentHandler(BaseHandler):
                     self.current_user,
                     options=[
                         joinedload(Instrument.fields),
-                        joinedload(Instrument.tiles),
                     ],
                 )
                 .filter(Instrument.id == int(instrument_id))
                 .first()
             )
-            data = {
-                **instrument.to_dict(),
-                "fields": instrument.fields,
-                "tiles": instrument.tiles,
-            }
-            return self.success(data=data)
+            return self.success(data=instrument)
 
         inst_name = self.get_query_argument("name", None)
         query = Instrument.query_records_accessible_by(
@@ -147,7 +141,6 @@ class InstrumentHandler(BaseHandler):
             mode="read",
             options=[
                 joinedload(Instrument.fields),
-                joinedload(Instrument.tiles),
             ],
         )
         if inst_name is not None:

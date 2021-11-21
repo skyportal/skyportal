@@ -56,10 +56,7 @@ def test_token_user_post_get_instrument(super_admin_token):
     assert data['status'] == 'success'
     assert data['data']['band'] == 'NIR'
 
-    print(len(data['data']['fields']), len(data['data']['tiles']))
-
     assert len(data['data']['fields']) == 10
-    assert len(data['data']['tiles']) == 2308
 
 
 def test_fetch_instrument_by_name(super_admin_token):
