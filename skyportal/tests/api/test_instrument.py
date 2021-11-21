@@ -39,7 +39,7 @@ def test_token_user_post_get_instrument(super_admin_token):
             'band': 'NIR',
             'filters': ['f110w'],
             'telescope_id': telescope_id,
-            'field_data': pd.read_csv(fielddatafile).to_dict(orient='list'),
+            'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
             'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
         },
         token=super_admin_token,
@@ -56,7 +56,7 @@ def test_token_user_post_get_instrument(super_admin_token):
     assert data['status'] == 'success'
     assert data['data']['band'] == 'NIR'
 
-    assert len(data['data']['fields']) == 10
+    assert len(data['data']['fields']) == 5
 
 
 def test_fetch_instrument_by_name(super_admin_token):
