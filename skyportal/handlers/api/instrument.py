@@ -126,8 +126,8 @@ class InstrumentHandler(BaseHandler):
                 Instrument.query_records_accessible_by(
                     self.current_user,
                     options=[
-                        joinedload(Instrument.localizations),
-                        joinedload(Instrument.gcn_notices),
+                        joinedload(Instrument.fields),
+                        joinedload(Instrument.tiles),
                     ],
                 )
                 .filter(Instrument.id == int(instrument_id))
