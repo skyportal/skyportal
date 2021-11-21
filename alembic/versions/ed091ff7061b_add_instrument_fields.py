@@ -30,7 +30,6 @@ def upgrade():
             'contour',
             postgresql.JSONB(astext_type=sa.Text()),
             nullable=False,
-            comment='GeoJSON contours',
         ),
         sa.ForeignKeyConstraint(
             ['instrument_id'], ['instruments.id'], ondelete='CASCADE'
