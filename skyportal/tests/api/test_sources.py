@@ -1480,5 +1480,4 @@ def test_source_healpix(upload_data_token, view_only_token, public_group):
     healpix = ha.constants.HPX.lonlat_to_healpix(
         229.9620403 * u.deg, 34.8442757 * u.deg
     )
-    print(data["data"]["healpix"], healpix)
     assert data["data"]["healpix"] == healpix
