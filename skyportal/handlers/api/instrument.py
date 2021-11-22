@@ -57,7 +57,7 @@ class InstrumentHandler(BaseHandler):
                 Instrument.name == data.get('name'),
                 Instrument.telescope_id == telescope_id,
             )
-            .one()
+            .first()
         )
         if instrument is None:
             instrument.telescope = telescope
