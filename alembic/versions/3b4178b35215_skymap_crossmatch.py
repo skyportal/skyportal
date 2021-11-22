@@ -1,16 +1,17 @@
-"""Add skymap slicing
+"""Skymap crossmatch
 
-Revision ID: 13092a80691c
+Revision ID: 3b4178b35215
 Revises: 80434b53562c
-Create Date: 2021-11-20 16:17:19.862052
+Create Date: 2021-11-22 09:45:32.350565
 
 """
 from alembic import op
 import sqlalchemy as sa
 import healpix_alchemy
 
+
 # revision identifiers, used by Alembic.
-revision = '13092a80691c'
+revision = '3b4178b35215'
 down_revision = '80434b53562c'
 branch_labels = None
 depends_on = None
@@ -26,7 +27,10 @@ def upgrade():
         sa.Column('localization_id', sa.Integer(), nullable=False),
         sa.Column('probdensity', sa.Float(), nullable=False),
         sa.Column('healpix', healpix_alchemy.types.Tile(), nullable=False),
-        sa.PrimaryKeyConstraint('id', 'healpix'),
+        sa.ForeignKeyConstraint(
+            ['localization_id'], ['localizations.id'], ondelete='CASCADE'
+        ),
+        sa.PrimaryKeyConstraint('id', 'localization_id', 'healpix'),
     )
     op.create_index(
         op.f('ix_localizationtiles_created_at'),
