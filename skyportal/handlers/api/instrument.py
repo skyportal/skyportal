@@ -3,7 +3,6 @@ from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.orm.exc import NoResultFound
 from tornado.ioloop import IOLoop
 
 from healpix_alchemy import Tile
