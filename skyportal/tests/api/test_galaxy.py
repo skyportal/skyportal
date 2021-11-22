@@ -20,3 +20,9 @@ def test_galaxy(super_admin_token, view_only_token):
     assert status == 200
     data = data["data"]
     assert len(data) == 10
+    assert any(
+        [
+            d['name'] == '6dFgs gJ0001313-055904' and d['mstar'] == 336.60756522868667
+            for d in data
+        ]
+    )
