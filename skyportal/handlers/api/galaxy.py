@@ -34,6 +34,11 @@ class GalaxyCatalogHandler(BaseHandler):
         catalog_name = data.get('catalog_name')
         catalog_data = data.get('catalog_data')
 
+        if catalog_name is None:
+            return self.error("catalog_name is a required parameter.")
+        if catalog_data is None:
+            return self.error("catalog_data is a required parameter.")
+
         galaxies = [
             Galaxy(
                 catalog_name=catalog_name,
