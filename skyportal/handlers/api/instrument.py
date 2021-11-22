@@ -50,21 +50,22 @@ class InstrumentHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
             )
 
-        try:
-            instrument = (
-                Instrument.query_records_accessible_by(
-                    self.current_user,
-                )
-                .filter(
-                    Instrument.name == data.get('name'),
-                    Instrument.telescope_id == telescope_id,
-                )
-                .one()
+        existing_instrument = (
+            Instrument.query_records_accessible_by(
+                self.current_user,
             )
-        except NoResultFound:
+            .filter(
+                Instrument.name == data.get('name'),
+                Instrument.telescope_id == telescope_id,
+            )
+            .first()
+        )
+        if existing_instrument is None:
             instrument.telescope = telescope
             DBSession().add(instrument)
             DBSession().commit()
+        else:
+            instrument = existing_instrument
 
         if field_data is not None:
             if field_region is None:
