@@ -3,7 +3,6 @@ from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.orm.exc import NoResultFound
 from tornado.ioloop import IOLoop
 
 from healpix_alchemy import Tile
@@ -50,18 +49,17 @@ class InstrumentHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
             )
 
-        try:
-            instrument = (
-                Instrument.query_records_accessible_by(
-                    self.current_user,
-                )
-                .filter(
-                    Instrument.name == data.get('name'),
-                    Instrument.telescope_id == telescope_id,
-                )
-                .one()
+        instrument = (
+            Instrument.query_records_accessible_by(
+                self.current_user,
             )
-        except NoResultFound:
+            .filter(
+                Instrument.name == data.get('name'),
+                Instrument.telescope_id == telescope_id,
+            )
+            .one()
+        )
+        if instrument is None:
             instrument.telescope = telescope
             DBSession().add(instrument)
             DBSession().commit()
