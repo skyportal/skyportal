@@ -182,7 +182,7 @@ instrument:
     field_data:
       file: ../data/ZTF_Fields.csv
     field_region:
-      file: ../data/ZTF.reg
+      file: ../data/ZTF_Region.reg
   - name: ALFOSC
     type: imaging spectrograph
     band: V
@@ -259,7 +259,7 @@ instrument:
     field_data:
       file: ../data/DECam_Fields.csv
     field_region:
-      file: ../data/DECam.reg
+      file: ../data/DECam_Region.reg
 
 allocation:
   - pi: Michael Coughlin
