@@ -156,7 +156,7 @@ class LocalizationTile(Base):
 
     localization_id = sa.Column(
         sa.ForeignKey('localizations.id', ondelete="CASCADE"),
-        nullable=False,
+        primary_key=True,
         doc='localization ID',
     )
 
