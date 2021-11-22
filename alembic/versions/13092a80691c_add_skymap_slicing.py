@@ -26,9 +26,6 @@ def upgrade():
         sa.Column('localization_id', sa.Integer(), nullable=False),
         sa.Column('probdensity', sa.Float(), nullable=False),
         sa.Column('healpix', healpix_alchemy.types.Tile(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ['localization_id'], ['localizations.id'], ondelete='CASCADE'
-        ),
         sa.PrimaryKeyConstraint('id', 'healpix'),
     )
     op.create_index(
