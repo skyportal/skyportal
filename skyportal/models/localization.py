@@ -147,8 +147,6 @@ class Localization(Base):
         else:
             return (self.flat_2d,)
 
-    tiles = relationship("LocalizationTile")
-
 
 class LocalizationTile(Base):
     """This is a single tile within a skymap (as in the Localization table).
@@ -158,13 +156,6 @@ class LocalizationTile(Base):
         sa.ForeignKey('localizations.id', ondelete="CASCADE"),
         primary_key=True,
         doc='localization ID',
-    )
-
-    localization = relationship(
-        "Localization",
-        foreign_keys=localization_id,
-        doc="The Localization that this tile belongs to",
-        passive_deletes=True,
     )
 
     probdensity = sa.Column(
