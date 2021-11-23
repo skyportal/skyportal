@@ -39,13 +39,58 @@ class GalaxyCatalogHandler(BaseHandler):
         if catalog_data is None:
             return self.error("catalog_data is a required parameter.")
 
+        if not all(x in ['ra', 'dec', 'name'] for x in list(catalog_data.keys())):
+            return self.error("ra, dec, and name required in catalog_data.")
+
+        # fill in any missing optional parameters
+        optional_parameters = [
+            'alt_name',
+            'distmpc',
+            'distmpc_unc',
+            'redshift',
+            'redshift_error',
+            'sfr_fuv',
+            'mstar',
+            'magb',
+            'a',
+            'b2a',
+            'pa',
+            'btc',
+        ]
+        for key in optional_parameters:
+            if key not in catalog_data:
+                catalog_data[key] = [None] * len(catalog_data['ra'])
+
+        # check for positive definite parameters
+        positive_definite_parameters = [
+            'distmpc',
+            'distmpc_unc',
+            'redshift',
+            'redshift_error',
+        ]
+        for key in positive_definite_parameters:
+            if any([(x is not None) and (x < 0) for x in catalog_data[key]]):
+                return self.error(f"{key} should be positive definite.")
+
+        # check RA bounds
+        if any([(x < 0) or (x > 360) for x in catalog_data['ra']]):
+            return self.error("ra should span 0<ra<360.")
+
+        # check Declination bounds
+        if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
+            return self.error("declination should span -90<dec<90.")
+
         galaxies = [
             Galaxy(
                 catalog_name=catalog_name,
                 ra=ra,
                 dec=dec,
                 name=name,
+                alt_name=alt_name,
                 distmpc=distmpc,
+                distmpc_unc=distmpc_unc,
+                redshift=redshift,
+                redshift_error=redshift_error,
                 sfr_fuv=sfr_fuv,
                 mstar=mstar,
                 magb=magb,
@@ -55,11 +100,15 @@ class GalaxyCatalogHandler(BaseHandler):
                 btc=btc,
                 healpix=ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg),
             )
-            for ra, dec, name, distmpc, sfr_fuv, mstar, magb, a, b2a, pa, btc in zip(
+            for ra, dec, name, alt_name, distmpc, distmpc_unc, redshift, redshift_error, sfr_fuv, mstar, magb, a, b2a, pa, btc in zip(
                 catalog_data['ra'],
                 catalog_data['dec'],
                 catalog_data['name'],
+                catalog_data['alt_name'],
                 catalog_data['distmpc'],
+                catalog_data['distmpc_unc'],
+                catalog_data['redshift'],
+                catalog_data['redshift_error'],
                 catalog_data['sfr_fuv'],
                 catalog_data['mstar'],
                 catalog_data['magb'],
@@ -70,8 +119,7 @@ class GalaxyCatalogHandler(BaseHandler):
             )
         ]
 
-        for galaxy in galaxies:
-            DBSession().add(galaxy)
+        DBSession().add_all(galaxies)
         self.verify_and_commit()
 
         return self.success()
