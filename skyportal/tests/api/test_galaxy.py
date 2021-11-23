@@ -1,4 +1,5 @@
 import os
+import time
 from astropy.table import Table
 
 from skyportal.tests import api
@@ -15,6 +16,9 @@ def test_galaxy(super_admin_token, view_only_token):
     status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
+
+    # wait for galaxies to load
+    time.sleep(15)
 
     status, data = api('GET', 'galaxy_catalog', token=view_only_token)
     assert status == 200
