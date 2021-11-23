@@ -39,7 +39,7 @@ class GalaxyCatalogHandler(BaseHandler):
         if catalog_data is None:
             return self.error("catalog_data is a required parameter.")
 
-        if not all(x in ['ra', 'dec', 'name'] for x in list(catalog_data.keys())):
+        if not all(k in catalog_data for k in ['ra', 'dec', 'name']):
             return self.error("ra, dec, and name required in catalog_data.")
 
         # fill in any missing optional parameters
