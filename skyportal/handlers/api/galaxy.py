@@ -83,7 +83,7 @@ class GalaxyCatalogHandler(BaseHandler):
 
         # check RA bounds
         if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
-            return self.error("ra should span 0<ra<360.")
+            return self.error("ra should span 0=<ra<360.")
 
         # check Declination bounds
         if any([(x > 90) or (x < -90) for x in catalog_data['dec']]):
