@@ -82,7 +82,7 @@ class GalaxyCatalogHandler(BaseHandler):
                 return self.error(f"{key} should be positive definite.")
 
         # check RA bounds
-        if any([(x < 0) or (x > 360) for x in catalog_data['ra']]):
+        if any([(x < 0) or (x >= 360) for x in catalog_data['ra']]):
             return self.error("ra should span 0<ra<360.")
 
         # check Declination bounds
