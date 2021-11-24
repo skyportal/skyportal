@@ -65,7 +65,17 @@ class UVOTRequest:
         too.exp_time_just = request.payload["exp_time_just"]
         too.immediate_objective = request.payload["immediate_objective"]
 
+        if request.payload["urgency"] not in ["1", "2", "3", "4"]:
+            raise ValueError('urgency outside of allowed bounds.')
         too.urgency = int(request.payload["urgency"])
+
+        if request.payload["obs_type"] not in [
+            "Spectroscopy",
+            "Light Curve",
+            "Position",
+            "Timing",
+        ]:
+            raise ValueError('obs_type not an allowed value.')
         too.obs_type = request.payload["obs_type"]
 
         too.uvot_mode = request.payload["uvot_mode"]
