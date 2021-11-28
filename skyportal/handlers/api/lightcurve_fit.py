@@ -25,90 +25,19 @@ class LightcurveFitHandler(BaseHandler):
           type: string
         description: ID of the object to retrieve photometry for
       - in: query
-        name: catalog
+        name: model_name
         required: false
         schema:
           type: string
         description: |
-          The name of the data key, associated with a catalog cross match,
-          from which the color-mag data should be retrieved.
-          Default is GAIA. Ignores case and underscores.
+          The name of the model type to be fit.
       - in: query
-        name: apparentMagKey
+        name: gptype
         required: false
         schema:
           type: string
         description: |
-          The key inside the cross-match which is associated
-          with the magnitude of the color-magnitude data.
-          Will look for parallax data in addition to this magnitude
-          in order to calculate the absolute magnitude of the object.
-          Default is "Mag_G". Ignores case and underscores.
-      - in: query
-        name: parallaxKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the parallax of the source.
-          Will look for magnitude data in addition to this parallax
-          in order to calculate the absolute magnitude of the object.
-          Default is "Plx". Ignores case and underscores.
-      - in: query
-        name: absorptionKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the source absorption term.
-          Will add this term to the absolute magnitude calculated
-          from apparent magnitude and parallax.
-          Default is "A_G". Ignores case and underscores.
-      - in: query
-        name: absoluteMagKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the absolute magnitude of the color-magnitude data.
-          If given, will override the "apparentMagKey", "parallaxKey"
-          and "absorptionKey", and takes the magnitude directly from
-          this key in the cross match dictionary.
-          Default is None. Ignores case and underscores.
-      - in: query
-        name: blueMagKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the source magnitude in the shorter wavelength.
-          Will add this term to the red magnitude to get the color.
-          Default is "Mag_Bp". Ignores case and underscores.
-      - in: query
-        name: redMagKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the source magnitude in the longer wavelength.
-          Will add this term to the blue magnitude to get the color.
-          Default is "Mag_Rp". Ignores case and underscores.
-      - in: query
-        name: colorKey
-        required: false
-        schema:
-          type: string
-        description: |
-          The key inside the cross-match which is associated
-          with the color term of the color-magnitude data.
-          If given, will override the "blueMagKey", and "redMagKey",
-          taking the color directly from the associated dictionary value.
-          Default is None. Ignores case and underscores.
+          The type of interpolator to use for the model (if allowed).
 
     responses:
       200:
