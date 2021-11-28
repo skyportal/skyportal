@@ -25,6 +25,7 @@ from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
+from .lightcurve_fit import LightcurveFitHandler
 from .news_feed import NewsFeedHandler
 from .observingrun import ObservingRunHandler
 from .photometry import (

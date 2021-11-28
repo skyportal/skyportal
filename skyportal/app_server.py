@@ -29,6 +29,7 @@ from skyportal.handlers.api import (
     InstrumentHandler,
     InvalidEndpointHandler,
     InvitationHandler,
+    LightcurveFitHandler,
     UserObjListHandler,
     NewsFeedHandler,
     ObservingRunHandler,
@@ -145,6 +146,7 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/fit', LightcurveFitHandler),
     (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
     (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?', CommentHandler),
     (

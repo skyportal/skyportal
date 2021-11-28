@@ -10,6 +10,7 @@ from .classification import *
 from .comment import *
 from .facility_transaction import *
 from .filter import *
+from .fitting import *
 from .followup_request import *
 from .gcn import *
 from .group import *
