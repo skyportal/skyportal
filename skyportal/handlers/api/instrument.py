@@ -281,6 +281,8 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
         dec = np.array([reg.vertices.dec for reg in regions])
         coords = np.stack([ra, dec])
 
+        # Copy the tile coordinates such that there is one per field
+        # in the grid
         coords_icrs = coordinates.SkyCoord(
             *np.tile(coords[:, np.newaxis, ...], (len(field_data['RA']), 1, 1)),
             unit=u.deg,
