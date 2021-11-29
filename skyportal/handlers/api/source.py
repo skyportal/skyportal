@@ -362,6 +362,21 @@ class SourceHandler(BaseHandler):
             description: |
               Only return sources that were saved after this UTC datetime.
           - in: query
+            name: hasSpectrumAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources with a spectrum saved after this UTC datetime
+          - in: query
+            name: hasSpectrumBefore
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources with a spectrum saved before this UTC
+              datetime
+          - in: query
             name: saveSummary
             nullable: true
             schema:
@@ -571,6 +586,8 @@ class SourceHandler(BaseHandler):
         min_latest_magnitude = self.get_query_argument("minLatestMagnitude", None)
         max_latest_magnitude = self.get_query_argument("maxLatestMagnitude", None)
         has_spectrum = self.get_query_argument("hasSpectrum", False)
+        has_spectrum_after = self.get_query_argument("hasSpectrumAfter", None)
+        has_spectrum_before = self.get_query_argument("hasSpectrumBefore", None)
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -891,6 +908,36 @@ class SourceHandler(BaseHandler):
             end_date = arrow.get(end_date.strip()).datetime
             obj_query = obj_query.filter(
                 Obj.last_detected_at(self.current_user) <= end_date
+            )
+        if has_spectrum_after:
+            try:
+                has_spectrum_after = arrow.get(has_spectrum_after.strip()).datetime
+            except arrow.ParserError:
+                return self.error(
+                    f"Invalid input for parameter hasSpectrumAfter:{has_spectrum_after}"
+                )
+            spectrum_subquery = (
+                Spectrum.query_records_accessible_by(self.current_user)
+                .filter(Spectrum.observed_at >= has_spectrum_after)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
+            )
+        if has_spectrum_before:
+            try:
+                has_spectrum_before = arrow.get(has_spectrum_before.strip()).datetime
+            except arrow.ParserError:
+                return self.error(
+                    f"Invalid input for parameter hasSpectrumBefore:{has_spectrum_before}"
+                )
+            spectrum_subquery = (
+                Spectrum.query_records_accessible_by(self.current_user)
+                .filter(Spectrum.observed_at <= has_spectrum_before)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
             )
         if saved_before:
             source_query = source_query.filter(Source.saved_at <= saved_before)
