@@ -558,9 +558,8 @@ class SourceHandler(BaseHandler):
         radius = self.get_query_argument('radius', None)
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
-        query_mode = int(
-            self.get_query_argument('queryMode', 1)
-        )  # this is only for debugging / benchmarking
+        # this is only for debugging / benchmarking
+        query_mode = self.get_query_argument('queryMode', 'new')
         list_name = self.get_query_argument('listName', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         include_photometry = self.get_query_argument("includePhotometry", False)
@@ -908,26 +907,35 @@ class SourceHandler(BaseHandler):
         if start_date or end_date:
             if start_date:
                 mjd_start = Time(start_date, format='iso').mjd
+                end_date = arrow.get(end_date.strip()).datetime
             else:
                 mjd_start = 0
 
             if end_date:
                 mjd_end = Time(end_date, format='iso').mjd
+                end_date = arrow.get(end_date.strip()).datetime
             else:
-                mjd_end = Time.nowtime().mjd
+                mjd_end = Time.now().mjd
+                end_date = Time.now().datetime
 
-            # TODO: raise if time between start->end is too long
+            if mjd_end - mjd_start < 0:
+                return self.error('endDate must be after startDate')
 
-            if query_mode == 1:  # old method, for comparison
-                start_date = arrow.get(start_date.strip()).datetime
+            # raise if time between start->end is too long
+            # if mjd_end - mjd_start > 31:  # more than one month
+            #     return self.error(f'endDate {end_date} is more than one month from startDate {start_date}. ')
+
+            if query_mode == 'old':  # old method, for comparison
                 obj_query = obj_query.filter(
                     Obj.last_detected_at(self.current_user) >= start_date
                 )
-                end_date = arrow.get(end_date.strip()).datetime
                 obj_query = obj_query.filter(
                     Obj.last_detected_at(self.current_user) <= end_date
                 )
-            elif query_mode == 2:  # new method, to become the only one after validation
+            elif (
+                query_mode == 'new'
+            ):  # new method, to become the only one after validation
+                # first get only the objects within that have any detections within the time range
                 mjd_subquery = (
                     Photometry.query_records_accessible_by(self.current_user)
                     .filter(Photometry.mjd >= mjd_start, Photometry.mjd <= mjd_end)
@@ -936,6 +944,10 @@ class SourceHandler(BaseHandler):
                 )
                 obj_query = obj_query.join(
                     mjd_subquery, Obj.id == mjd_subquery.c.obj_id
+                )
+                # then must also disqualify objects that have detections after the time range
+                obj_query = obj_query.filter(
+                    Obj.last_detected_at(self.current_user) <= end_date
                 )
         if has_spectrum_after:
             try:
