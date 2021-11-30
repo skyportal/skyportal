@@ -1,8 +1,8 @@
-"""Add instrument fields
+"""add instrument fields
 
-Revision ID: ed091ff7061b
-Revises: 80434b53562c
-Create Date: 2021-11-20 17:21:56.698258
+Revision ID: 8c48c49f057f
+Revises: 1aeb080b0eda
+Create Date: 2021-11-30 13:49:31.434111
 
 """
 from alembic import op
@@ -11,8 +11,8 @@ import healpix_alchemy
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'ed091ff7061b'
-down_revision = '80434b53562c'
+revision = '8c48c49f057f'
+down_revision = '1aeb080b0eda'
 branch_labels = None
 depends_on = None
 
@@ -26,11 +26,7 @@ def upgrade():
         sa.Column('modified', sa.DateTime(), nullable=False),
         sa.Column('instrument_id', sa.Integer(), nullable=False),
         sa.Column('field_id', sa.Integer(), nullable=False),
-        sa.Column(
-            'contour',
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=False,
-        ),
+        sa.Column('contour', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.ForeignKeyConstraint(
             ['instrument_id'], ['instruments.id'], ondelete='CASCADE'
         ),
