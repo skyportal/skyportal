@@ -9,6 +9,7 @@ from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
 import arrow
+from astropy.time import Time
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 import functools
@@ -557,7 +558,9 @@ class SourceHandler(BaseHandler):
         radius = self.get_query_argument('radius', None)
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
-        query_mode = int(self.get_query_argument('queryMode', 1))
+        query_mode = int(
+            self.get_query_argument('queryMode', 1)
+        )  # this is only for debugging / benchmarking
         list_name = self.get_query_argument('listName', None)
         sourceID = self.get_query_argument('sourceID', None)  # Partial ID to match
         include_photometry = self.get_query_argument("includePhotometry", False)
@@ -902,31 +905,38 @@ class SourceHandler(BaseHandler):
                 )
             other = ca.Point(ra=ra, dec=dec)
             obj_query = obj_query.filter(Obj.within(other, radius))
-        if start_date:
-            start_date = arrow.get(start_date.strip()).datetime
-            if query_mode == 1:
+        if start_date or end_date:
+            if start_date:
+                mjd_start = Time(start_date, format='iso').mjd
+            else:
+                mjd_start = 0
+
+            if end_date:
+                mjd_end = Time(end_date, format='iso').mjd
+            else:
+                mjd_end = Time.nowtime().mjd
+
+            # TODO: raise if time between start->end is too long
+
+            if query_mode == 1:  # old method, for comparison
+                start_date = arrow.get(start_date.strip()).datetime
                 obj_query = obj_query.filter(
                     Obj.last_detected_at(self.current_user) >= start_date
                 )
-            elif query_mode == 2:
-                utc_timestamp = start_date.timestamp()
-                mjd = utc_timestamp / 86400 + 40587  # from 1970 Jan 1
-                start_date_subquery = (
+                end_date = arrow.get(end_date.strip()).datetime
+                obj_query = obj_query.filter(
+                    Obj.last_detected_at(self.current_user) <= end_date
+                )
+            elif query_mode == 2:  # new method, to become the only one after validation
+                mjd_subquery = (
                     Photometry.query_records_accessible_by(self.current_user)
-                    .filter(Photometry.mjd > mjd)
-                    .filter(
-                        Photometry.flux / Photometry.fluxerr > PHOT_DETECTION_THRESHOLD
-                    )
+                    .filter(Photometry.mjd >= mjd_start, Photometry.mjd <= mjd_end)
+                    .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
                     .subquery()
                 )
                 obj_query = obj_query.join(
-                    start_date_subquery, Obj.id == start_date_subquery.c.obj_id
+                    mjd_subquery, Obj.id == mjd_subquery.c.obj_id
                 )
-        if end_date:
-            end_date = arrow.get(end_date.strip()).datetime
-            obj_query = obj_query.filter(
-                Obj.last_detected_at(self.current_user) <= end_date
-            )
         if has_spectrum_after:
             try:
                 has_spectrum_after = arrow.get(has_spectrum_after.strip()).datetime
