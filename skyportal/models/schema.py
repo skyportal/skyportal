@@ -1197,6 +1197,11 @@ class GroupIDList(_Schema):
     group_ids = fields.List(fields.Integer, required=True)
 
 
+class GalaxyHandlerPost(_Schema):
+    catalog_name = fields.String(description='Galaxy catalog name.')
+    catalog_data = fields.List(fields.Field(), description='Galaxy catalog data')
+
+
 def register_components(spec):
     print('Registering schemas with APISpec')
 

@@ -609,3 +609,8 @@ gcn_event:
       file: ../skyportal/tests/data/GW190425_initial.xml
   - xml:
       file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
+
+galaxy_catalog:
+  - catalog_name: CLU_mini
+    catalog_data:
+      file: ../data/CLU_mini.hdf5
