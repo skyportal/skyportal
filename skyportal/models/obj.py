@@ -14,7 +14,7 @@ from sqlalchemy.ext.hybrid import hybrid_method
 from astropy import coordinates as ap_coord
 from astropy import units as u
 import astroplan
-import healpix_alchemy
+import conesearch_alchemy
 import numpy as np
 
 from baselayer.app.env import load_env
@@ -140,7 +140,7 @@ def delete_obj_if_all_data_owned(cls, user_or_token):
     )
 
 
-class Obj(Base, healpix_alchemy.Point):
+class Obj(Base, conesearch_alchemy.Point):
     """A record of an astronomical Object and its metadata, such as position,
     positional uncertainties, name, and redshift."""
 

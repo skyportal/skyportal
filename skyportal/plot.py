@@ -1,6 +1,7 @@
 import itertools
 import math
 import json
+import collections
 
 import numpy as np
 import pandas as pd
@@ -36,6 +37,7 @@ from skyportal.models import (
     DBSession,
     Obj,
     Annotation,
+    AnnotationOnSpectrum,
     Photometry,
     Instrument,
     Telescope,
@@ -44,6 +46,8 @@ from skyportal.models import (
 )
 
 import sncosmo
+
+from .enum_types import ALLOWED_SPECTRUM_TYPES
 
 _, cfg = load_env()
 # The minimum signal-to-noise ratio to consider a photometry point as detected
@@ -599,27 +603,13 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     #
     # For the frame width, by default we take the desired plot width minus 64 for the y-axis/label taking
     # up horizontal space
-    frame_width = width - 64
-    if device == "mobile_portrait":
-        legend_items_per_row = 1
-        legend_row_height = 24
-        aspect_ratio = 1
-    elif device == "mobile_landscape":
-        legend_items_per_row = 4
-        legend_row_height = 50
-        aspect_ratio = 1.8
-    elif device == "tablet_portrait":
-        legend_items_per_row = 5
-        legend_row_height = 50
-        aspect_ratio = 1.5
-    elif device == "tablet_landscape":
-        legend_items_per_row = 7
-        legend_row_height = 50
-        aspect_ratio = 1.8
-    elif device == "browser":
-        # Width minus some base width for the legend, which is only a column to the right
-        # for browser mode
-        frame_width = width - 200
+
+    (
+        frame_width,
+        aspect_ratio,
+        legend_row_height,
+        legend_items_per_row,
+    ) = get_dimensions_by_device(device, width)
 
     height = (
         500
@@ -1398,17 +1388,88 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     if len(spectra) == 0:
         return None, None, None
 
+    # sort out the size of the plot
+
+    spectra_by_type = collections.defaultdict(list)
+
+    for s in spectra:
+        spectra_by_type[s.type].append(s)
+
+    # sort the dictionary to be ordered according to the given list
+    def sorted_dict(d, key_list):
+        return {key: d[key] for key in key_list if key in d}
+
+    # we want the tabs to appear in the order they're defined in the config:
+    spectra_by_type = sorted_dict(spectra_by_type, ALLOWED_SPECTRUM_TYPES)
+
+    layouts = []
+    for spec_type in spectra_by_type:
+        layouts.append(
+            make_spectrum_layout(obj, spectra_by_type[spec_type], user, device, width)
+        )
+
+    if len(layouts) > 1:
+        panels = []
+        spectrum_types = [s for s in spectra_by_type]
+        for i, layout in enumerate(layouts):
+            panels.append(Panel(child=layout, title=spectrum_types[i]))
+        tabs = Tabs(
+            tabs=panels, width=width, height=layouts[0].height + 60, sizing_mode='fixed'
+        )
+        return bokeh_embed.json_item(tabs)
+
+    return bokeh_embed.json_item(layouts[0])
+
+
+def make_spectrum_layout(obj, spectra, user, device, width):
+    """
+    Helper function that takes the object, spectra and user info,
+    as well as the total width of the figure,
+    and produces one layout for a spectrum plot.
+    This can be used once for each tab on the spectrum plot,
+    if using different spectrum types.
+
+    Parameters
+    ----------
+    obj : dict
+        The underlying object that is associated with all these spectra.
+    spectra : dict
+        The different spectra to be plotted. This can be a subset of
+        e.g., all the spectra of one type.
+    user : dict
+        info about the user, used to get the individual user plot preferences.
+    device: string
+        name of the device used ("browser", "mobile", "mobile_portrait", "tablet", etc).
+    width: int
+        width of the external frame of the plot, including the buttons/sliders.
+
+    Returns
+    -------
+    dict
+        Bokeh JSON embedding of one layout that can be tabbed or
+        used as the plot specifications on its own.
+    """
     rainbow = cm.get_cmap('rainbow', len(spectra))
     palette = list(map(rgb2hex, rainbow(range(len(spectra)))))
     color_map = dict(zip([s.id for s in spectra], palette))
 
     data = []
     for i, s in enumerate(spectra):
-
         # normalize spectra to a median flux of 1 for easy comparison
         normfac = np.nanmedian(np.abs(s.fluxes))
         normfac = normfac if normfac != 0.0 else 1e-20
         altdata = json.dumps(s.altdata) if s.altdata is not None else ""
+        annotations = (
+            AnnotationOnSpectrum.query_records_accessible_by(user)
+            .filter(AnnotationOnSpectrum.spectrum_id == s.id)
+            .all()
+        )
+        annotations = (
+            json.dumps([{a.origin: a.data} for a in annotations])
+            if len(annotations)
+            else ""
+        )
+
         df = pd.DataFrame(
             {
                 'wavelength': s.wavelengths,
@@ -1428,6 +1489,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
                 ),
                 'origin': s.origin,
                 'altdata': altdata[:20] + "..." if len(altdata) > 20 else altdata,
+                'annotations': annotations,
             }
         )
         data.append(df)
@@ -1450,6 +1512,39 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
 
     split = data.groupby('id', sort=False)
 
+    (
+        frame_width,
+        aspect_ratio,
+        legend_row_height,
+        legend_items_per_row,
+    ) = get_dimensions_by_device(device, width)
+
+    plot_height = (
+        math.floor(width / aspect_ratio)
+        if device == "browser"
+        else math.floor(width / aspect_ratio)
+        + legend_row_height * int(len(split) / legend_items_per_row)
+        + 30  # 30 is the height of the toolbar
+    )
+
+    # Add some height for the checkboxes and sliders
+    if device == "mobile_portrait":
+        height = plot_height + 440
+    elif device == "mobile_landscape":
+        height = plot_height + 370
+    else:
+        height = plot_height + 220
+
+    # check browser plot_height for legend overflow
+    if device == "browser":
+        plot_height_of_legend = (
+            legend_row_height * int(len(split) / legend_items_per_row)
+            + 90  # 90 is height of toolbar plus legend offset
+        )
+
+        if plot_height_of_legend > plot_height:
+            plot_height = plot_height_of_legend
+
     hover = HoverTool(
         tooltips=[
             ('wavelength', '@wavelength{0,0.000}'),
@@ -1460,6 +1555,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
             ('PI', '@pi'),
             ('origin', '@origin'),
             ('altdata', '@altdata{safe}'),
+            ('annotations', '@annotations{safe}'),
         ]
     )
     smoothed_max = np.max(smoothed_data['flux'])
@@ -1479,50 +1575,6 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         else "box_zoom,wheel_zoom,pan,reset"
     )
 
-    # These values are equivalent from the photometry plot values
-    frame_width = width - 64
-    aspect_ratio = 2.0
-    legend_row_height = 25
-    legend_items_per_row = 1
-    if device == "mobile_portrait":
-        legend_items_per_row = 1
-        legend_row_height = 24
-        aspect_ratio = 1
-    elif device == "mobile_landscape":
-        legend_items_per_row = 4
-        legend_row_height = 50
-        aspect_ratio = 1.8
-    elif device == "tablet_portrait":
-        legend_items_per_row = 5
-        legend_row_height = 50
-        aspect_ratio = 1.5
-    elif device == "tablet_landscape":
-        legend_items_per_row = 7
-        legend_row_height = 50
-        aspect_ratio = 1.8
-    elif device == "browser":
-        frame_width = width - 200
-        aspect_ratio = 2.0
-        legend_row_height = 25
-        legend_items_per_row = 1
-    plot_height = (
-        math.floor(width / aspect_ratio)
-        if device == "browser"
-        else math.floor(width / aspect_ratio)
-        + legend_row_height * int(len(split) / legend_items_per_row)
-        + 30  # 30 is the height of the toolbar
-    )
-
-    # check browser plot_height for legend overflow
-    if device == "browser":
-        plot_height_of_legend = (
-            legend_row_height * int(len(split) / legend_items_per_row)
-            + 90  # 90 is height of toolbar plus legend offset
-        )
-
-        if plot_height_of_legend > plot_height:
-            plot_height = plot_height_of_legend
-
     plot = figure(
         frame_width=frame_width,
         height=plot_height,
@@ -1539,7 +1591,10 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     for i, (key, df) in enumerate(split):
         renderers = []
         s = Spectrum.get_if_accessible_by(key, user)
-        label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
+        if s.label is not None and len(s.label) > 0:
+            label = s.label
+        else:
+            label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
         model_dict['s' + str(i)] = plot.step(
             x='wavelength',
             y='flux',
@@ -1594,9 +1649,9 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         CustomJS(
             args={'slider': z_slider, 'textinput': z_textinput},
             code="""
-            textinput.value = parseFloat(slider.value).toFixed(3);
-            textinput.change.emit();
-        """,
+                    textinput.value = parseFloat(slider.value).toFixed(3);
+                    textinput.change.emit();
+                """,
         ),
     )
     z = column(
@@ -1621,9 +1676,9 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         CustomJS(
             args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
             code="""
-            textinput.value = parseFloat(slider.value).toFixed(0);
-            textinput.change.emit();
-        """,
+                    textinput.value = parseFloat(slider.value).toFixed(0);
+                    textinput.change.emit();
+                """,
         ),
     )
     v_exp = column(
@@ -1721,12 +1776,12 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         callback_toggle_lines = CustomJS(
             args={'column_checkboxes': column_checkboxes, **model_dict},
             code=f"""
-            for (let i = 0; i < {len(labels)}; i = i + 1) {{
-                let el_idx = i * {columns} + {column_idx};
-                let el = eval("element_" + el_idx);
-                el.visible = (column_checkboxes.active.includes(i))
-            }}
-        """,
+                    for (let i = 0; i < {len(labels)}; i = i + 1) {{
+                        let el_idx = i * {columns} + {column_idx};
+                        let el = eval("element_" + el_idx);
+                        el.visible = (column_checkboxes.active.includes(i))
+                    }}
+                """,
         )
         column_checkboxes.js_on_click(callback_toggle_lines)
 
@@ -1735,16 +1790,16 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     callback_zvs = CustomJS(
         args={'z': z_textinput, 'v_exp': v_exp_textinput, **speclines},
         code=f"""
-        const c = 299792.458; // speed of light in km / s
-        for (let i = 0; i < {len(speclines)}; i = i + 1) {{
-            let el = eval("specline_" + i);
-            el.data_source.data.x = el.data_source.data.wavelength.map(
-                x_i => (x_i * (1 + parseFloat(z.value)) /
-                                (1 + parseFloat(v_exp.value) / c))
-            );
-            el.data_source.change.emit();
-        }}
-    """,
+                const c = 299792.458; // speed of light in km / s
+                for (let i = 0; i < {len(speclines)}; i = i + 1) {{
+                    let el = eval("specline_" + i);
+                    el.data_source.data.x = el.data_source.data.wavelength.map(
+                        x_i => (x_i * (1 + parseFloat(z.value)) /
+                                        (1 + parseFloat(v_exp.value) / c))
+                    );
+                    el.data_source.change.emit();
+                }}
+            """,
     )
 
     # Hook up callback that shifts spectral lines when z or v changes
@@ -1756,9 +1811,9 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         CustomJS(
             args={'z': z_textinput, 'slider': z_slider},
             code="""
-            // Update slider value to match text input
-            slider.value = parseFloat(z.value).toFixed(3);
-        """,
+                    // Update slider value to match text input
+                    slider.value = parseFloat(z.value).toFixed(3);
+                """,
         ),
     )
 
@@ -1767,23 +1822,15 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         CustomJS(
             args={'slider': v_exp_slider, 'v_exp': v_exp_textinput},
             code="""
-            // Update slider value to match text input
-            slider.value = parseFloat(v_exp.value).toFixed(3);
-        """,
+                    // Update slider value to match text input
+                    slider.value = parseFloat(v_exp.value).toFixed(3);
+                """,
         ),
     )
 
-    # Add some height for the checkboxes and sliders
-    if device == "mobile_portrait":
-        height = plot_height + 440
-    elif device == "mobile_landscape":
-        height = plot_height + 370
-    else:
-        height = plot_height + 220
-
     row2 = row(all_column_checkboxes)
     row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
-    layout = column(
+    return column(
         plot,
         row2,
         row3,
@@ -1791,4 +1838,33 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         width=width,
         height=height,
     )
-    return bokeh_embed.json_item(layout)
+
+
+def get_dimensions_by_device(device, width):
+    frame_width = width - 64
+    aspect_ratio = 2.0
+    legend_row_height = 25
+    legend_items_per_row = 1
+    if device == "mobile_portrait":
+        legend_items_per_row = 1
+        legend_row_height = 24
+        aspect_ratio = 1
+    elif device == "mobile_landscape":
+        legend_items_per_row = 4
+        legend_row_height = 50
+        aspect_ratio = 1.8
+    elif device == "tablet_portrait":
+        legend_items_per_row = 5
+        legend_row_height = 50
+        aspect_ratio = 1.5
+    elif device == "tablet_landscape":
+        legend_items_per_row = 7
+        legend_row_height = 50
+        aspect_ratio = 1.8
+    elif device == "browser":
+        frame_width = width - 200
+        aspect_ratio = 2.0
+        legend_row_height = 25
+        legend_items_per_row = 1
+
+    return frame_width, aspect_ratio, legend_row_height, legend_items_per_row
