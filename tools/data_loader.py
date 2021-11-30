@@ -12,6 +12,7 @@ import pandas as pd
 import yaml
 from yaml import Loader
 from regions import Regions
+from astropy.table import Table
 
 from baselayer.app.env import load_env, parser
 
@@ -195,9 +196,12 @@ if __name__ == "__main__":
                     return payload
                 elif filename.endswith('reg'):
                     return Regions.read(filename).serialize(format='ds9')
+                elif filename.endswith('h5') or filename.endswith('hdf5'):
+                    payload = Table.read(filename).to_pandas().to_dict(orient='list')
+                    return payload
                 else:
                     raise NotImplementedError(
-                        f'{filename}: Only CSV files currently supported for extending individual objects'
+                        f'{filename}: Only CSV, PNG, xml, reg, and hdf5 files currently supported for extending individual objects'
                     )
 
             for k, v in obj.items():

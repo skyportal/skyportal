@@ -16,6 +16,7 @@ import IconButton from "@material-ui/core/IconButton";
 import CloseIcon from "@material-ui/icons/Close";
 import Typography from "@material-ui/core/Typography";
 import grey from "@material-ui/core/colors/grey";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import ThumbnailList from "./ThumbnailList";
 import ShowClassification from "./ShowClassification";
@@ -87,7 +88,7 @@ const DialogContentDiv = ({ source, isCached, taxonomyList }) => {
   if (!isCached) {
     return (
       <div>
-        <span>Loading...</span>
+        <CircularProgress color="secondary" />
       </div>
     );
   }

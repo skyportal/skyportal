@@ -73,7 +73,11 @@ const FollowupRequestForm = ({
     telescopeList.length === 0 ||
     instrumentList.length === 0
   ) {
-    return <h3>Loading...</h3>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
 
   const groupLookUp = {};

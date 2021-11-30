@@ -240,7 +240,9 @@ def add_followup_request_using_frontend_and_verify_Floyds(
 
     driver.click_xpath(submit_button_xpath)
 
-    driver.click_xpath("//div[@data-testid='Floyds-requests-header']")
+    driver.click_xpath(
+        "//div[@data-testid='Floyds-requests-header']", scroll_parent=True
+    )
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "Floyds_followupRequestsTable")]//div[contains(., "300")]'
     )
