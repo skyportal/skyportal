@@ -58,6 +58,15 @@ def test_token_user_post_get_instrument(super_admin_token):
 
     assert len(data['data']['fields']) == 5
 
+    assert any(
+        [
+            d['field_id'] == 1
+            and d['contour']['properties']['ra'] == 0.0
+            and d['contour']['properties']['dec'] == -89.05
+            for d in data['data']['fields']
+        ]
+    )
+
 
 def test_fetch_instrument_by_name(super_admin_token):
     tel_name = str(uuid.uuid4())
