@@ -6,7 +6,7 @@ joblib==1.0.1
 seaborn==0.11.2
 bokeh==2.4.1
 pytest-randomly==3.10.1
-factory-boy==3.2.0
+factory-boy==3.2.1
 astropy==4.3.1
 aplpy==2.0.3
 reproject==0.8
