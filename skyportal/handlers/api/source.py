@@ -906,13 +906,13 @@ class SourceHandler(BaseHandler):
             obj_query = obj_query.filter(Obj.within(other, radius))
         if start_date or end_date:
             if start_date:
-                mjd_start = Time(start_date, format='iso').mjd
-                end_date = arrow.get(end_date.strip()).datetime
+                mjd_start = Time(isoparse(start_date)).mjd
+                start_date = arrow.get(start_date.strip()).datetime
             else:
                 mjd_start = 0
 
             if end_date:
-                mjd_end = Time(end_date, format='iso').mjd
+                mjd_end = Time(isoparse(end_date)).mjd
                 end_date = arrow.get(end_date.strip()).datetime
             else:
                 mjd_end = Time.now().mjd
