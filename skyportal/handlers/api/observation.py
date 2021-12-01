@@ -35,7 +35,7 @@ class ObservationHandler(BaseHandler):
         ---
         description: Ingest a set of ExecutedObservations
         tags:
-          - galaxies
+          - observations
         requestBody:
           content:
             application/json:
