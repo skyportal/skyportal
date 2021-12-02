@@ -1,4 +1,4 @@
-numpy==1.21.2
+numpy==1.21.4
 scipy==1.7.1
 pandas==1.2.5
 dask==2021.10.0
