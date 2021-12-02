@@ -292,8 +292,6 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
         for ii, (field_id, ra, dec, coords) in enumerate(
             zip(field_data['ID'], field_data['RA'], field_data['Dec'], coords_icrs)
         ):
-            log(f'Loaded field {field_id} for instrument {instrument_id}')
-
             contour = {
                 'properties': {
                     'instrument': instrument_name,
