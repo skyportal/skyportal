@@ -187,7 +187,7 @@ const CommentList = ({
   );
 
   if (!objID) {
-    objID = obj.internal_key;
+    objID = obj.id;
   }
 
   const addComment = (formData) => {

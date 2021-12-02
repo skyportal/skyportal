@@ -154,7 +154,7 @@ class SpectrumHandler(BaseHandler):
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_id': spec.obj.internal_key},
+            payload={'obj_key': spec.obj.internal_key},
         )
 
         return self.success(data={"id": spec.id})
@@ -288,7 +288,7 @@ class SpectrumHandler(BaseHandler):
         )
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_id': spectrum.obj.internal_key},
+            payload={'obj_key': spectrum.obj.internal_key},
         )
         return self.success()
 
@@ -329,7 +329,7 @@ class SpectrumHandler(BaseHandler):
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_id': spectrum.obj.internal_key},
+            payload={'obj_key': spectrum.obj.internal_key},
         )
 
         return self.success()
@@ -517,7 +517,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_id': spec.obj.internal_key},
+            payload={'obj_key': spec.obj.internal_key},
         )
 
         return self.success(data={'id': spec.id})

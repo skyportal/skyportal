@@ -235,7 +235,7 @@ const CommentListMobile = ({
   );
 
   if (!objID) {
-    objID = obj.internal_key;
+    objID = obj.id;
   }
 
   let comments = null;
