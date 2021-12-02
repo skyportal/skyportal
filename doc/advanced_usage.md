@@ -135,7 +135,7 @@ You should then see something like:
  'version': '0.9.dev0+git...'}
 ```
 
-If the `name` of the taxonomy is the exactly the same as a taxonomy already in the system, this new taxonomy will supercede that taxonomy. That is, by default it will be set to be the latest version (`IsLatest = True`) and shown to end users in the dropdown menu on the Source page. Older classifications will be still associated with the `taxonomy_id` they were originally connected to.
+If the `name` of the taxonomy is exactly the same as a taxonomy already in the system, this new taxonomy will supercede that taxonomy. That is, by default it will be set to be the latest version (`IsLatest = True`) and shown to end users in the dropdown menu on the Source page. Older classifications will be still associated with the `taxonomy_id` they were originally connected to.
 
 NOTE: in very rare cases you may wish to delete a taxonomy (e.g., if you made a typo when loading it). This should be done with extreme care: if anyone has classifications associated with that taxonomy their classifications will be lost upon delete.
 
