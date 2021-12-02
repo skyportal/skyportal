@@ -97,7 +97,7 @@
     "eslint-plugin-react": "7.27.1",
     "eslint-plugin-react-hooks": "4.2.0",
     "json-loader": "0.5.7",
-    "webpack": "4.46.0",
+    "webpack": "5.64.4",
     "webpack-bundle-analyzer": "4.4.2",
     "webpack-cli": "4.9.1"
   },
