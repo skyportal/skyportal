@@ -179,10 +179,10 @@ instrument:
     filters: ["ztfg", "ztfr", "ztfi"]
     =id: ZTF
     api_classname: ZTFAPI
-    field_data:
-      file: ../data/ZTF_Fields.csv
-    field_region:
-      file: ../data/ZTF_Region.reg
+    # field_data:
+    #   file: ../data/ZTF_Fields.csv
+    # field_region:
+    #   file: ../data/ZTF_Region.reg
   - name: ALFOSC
     type: imaging spectrograph
     band: V
@@ -256,10 +256,10 @@ instrument:
     telescope_id: =CTIO-4m
     type: imager
     filters: ['sdssu', 'desg', 'desr', 'desi', 'desz', 'desy']
-    field_data:
-      file: ../data/DECam_Fields.csv
-    field_region:
-      file: ../data/DECam_Region.reg
+    # field_data:
+    #   file: ../data/DECam_Fields.csv
+    # field_region:
+    #   file: ../data/DECam_Region.reg
 
 allocation:
   - pi: Michael Coughlin
