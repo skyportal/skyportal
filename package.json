@@ -38,6 +38,7 @@
     "numeral": "2.0.6",
     "papaparse": "5.3.1",
     "path-browserify": "1.0.1",
+    "process": "0.11.10",
     "prop-types": "15.7.2",
     "qrcode.react": "1.0.1",
     "raw-loader": "4.0.2",

@@ -1,4 +1,5 @@
 const path = require("path");
+const webpack = require("webpack");
 
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
@@ -13,7 +14,7 @@ const config = {
     path: path.resolve(__dirname, "static/build"),
     publicPath: "/static/build/",
     filename: "[name].bundle.js",
-    chunkFilename: "[name].[chunkHash].bundle.js",
+    chunkFilename: "[name].[contenthash].bundle.js",
   },
   module: {
     rules: [
@@ -85,6 +86,9 @@ const config = {
   plugins: [
     // Uncomment the following line to enable bundle size analysis
     //    new BundleAnalyzerPlugin()
+    new webpack.ProvidePlugin({
+      process: path.resolve(__dirname, "node_modules/process/browser.js"),
+    }),
   ],
   resolve: {
     alias: {
