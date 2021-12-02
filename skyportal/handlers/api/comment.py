@@ -330,7 +330,7 @@ class CommentHandler(BaseHandler):
         if isinstance(comment, CommentOnSpectrum):
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_id': comment.obj.id},
+                payload={'obj_id': comment.obj.internal_key},
             )
 
         return self.success(data={'comment_id': comment.id})
@@ -473,7 +473,7 @@ class CommentHandler(BaseHandler):
         if isinstance(c, CommentOnSpectrum):  # also update the spectrum
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_id': c.obj.id},
+                payload={'obj_id': c.obj.internal_key},
             )
 
         return self.success()
@@ -547,7 +547,6 @@ class CommentHandler(BaseHandler):
             )
 
         obj_key = c.obj.internal_key
-        obj_id = c.obj.id
 
         if comment_resource_id_str != resource_id:
             return self.error(
@@ -565,7 +564,7 @@ class CommentHandler(BaseHandler):
         if isinstance(c, CommentOnSpectrum):  # also update the spectrum
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_id': obj_id},
+                payload={'obj_id': obj_key},
             )
 
         return self.success()
