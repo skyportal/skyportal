@@ -305,7 +305,7 @@ class AnnotationHandler(BaseHandler):
         if isinstance(annotation, AnnotationOnSpectrum):
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_id': annotation.obj_id},
+                payload={'obj_key': annotation.obj.internal_key},
             )
         return self.success(data={'annotation_id': annotation.id})
 
@@ -415,7 +415,7 @@ class AnnotationHandler(BaseHandler):
         if isinstance(a, AnnotationOnSpectrum):  # also update the spectrum
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_id': a.obj.id},
+                payload={'obj_key': a.obj.internal_key},
             )
 
         return self.success()
@@ -490,7 +490,7 @@ class AnnotationHandler(BaseHandler):
         if isinstance(a, AnnotationOnSpectrum):  # also update the spectrum
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_id': a.obj_id},
+                payload={'obj_key': a.obj_key},
             )
 
         return self.success()
