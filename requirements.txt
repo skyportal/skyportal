@@ -2,7 +2,7 @@ numpy==1.21.4
 scipy==1.7.1
 pandas==1.2.5
 dask==2021.10.0
-joblib==1.0.1
+joblib==1.1.0
 seaborn==0.11.2
 bokeh==2.4.1
 pytest-randomly==3.10.1
