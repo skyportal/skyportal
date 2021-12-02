@@ -103,7 +103,9 @@ const config = {
       ),
     },
     extensions: [".js", ".jsx", ".json"],
+    fallback: { path: path.resolve(__dirname, "node_modules/path-browserify") },
   },
+
   watchOptions: {
     ignored: /node_modules/,
     // Set to true if you have trouble with JS change monitoring
