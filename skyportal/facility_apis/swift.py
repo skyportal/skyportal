@@ -111,7 +111,6 @@ class UVOTAPI(FollowUpAPI):
         r = requests.post(
             url=API_URL, verify=True, data={'jwt': swiftreq.requestgroup.jwt}
         )
-        # r = swiftreq.requestgroup.submit_post()
 
         if r.status_code == 201:
             request.status = 'submitted'
