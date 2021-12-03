@@ -490,7 +490,7 @@ class AnnotationHandler(BaseHandler):
         if isinstance(a, AnnotationOnSpectrum):  # also update the spectrum
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_key': a.obj_key},
+                payload={'obj_key': obj_key},
             )
 
         return self.success()
