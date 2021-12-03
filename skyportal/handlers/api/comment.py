@@ -330,7 +330,7 @@ class CommentHandler(BaseHandler):
         if isinstance(comment, CommentOnSpectrum):
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_key': comment.obj.internal_key},
+                payload={'obj_id': comment.obj.id},
             )
 
         return self.success(data={'comment_id': comment.id})
