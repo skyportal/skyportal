@@ -104,7 +104,6 @@ class GaiaQuery:
         if not self.is_backup:
             job = self.connection.launch_job(q)
             rez = job.get_results()
-
             return rez
         else:
             # native return type is pyvo.dal.tap.TAPResults
