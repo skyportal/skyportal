@@ -104,6 +104,7 @@ class GaiaQuery:
         if not self.is_backup:
             job = self.connection.launch_job(q)
             rez = job.get_results()
+
             return rez
         else:
             # native return type is pyvo.dal.tap.TAPResults
@@ -726,7 +727,7 @@ def get_nearby_offset_stars(
     min_distance = 5.0 / 3600.0  # min distance from source for offset star
     source_in_catalog_dist = 0.5 / 3600.0  # min distance from source for offset star
     query_string = f"""
-                  SELECT TOP {how_many*search_multipler} DISTANCE(
+                  SELECT DISTANCE(
                     POINT('ICRS', ra, dec),
                     POINT('ICRS', {source_ra}, {source_dec})) AS
                     dist, source_id, ra, dec, ref_epoch,
@@ -736,18 +737,26 @@ def get_nearby_offset_stars(
                     POINT('ICRS', ra, dec),
                     CIRCLE('ICRS', {source_ra}, {source_dec},
                            {radius_degrees}))
-                  AND phot_rp_mean_mag < {mag_limit + fainter_diff}
-                  AND phot_rp_mean_mag > {mag_min}
-                  AND parallax < 250
-                  ORDER BY dist ASC
                 """
 
     g = GaiaQuery()
     r = g.query(query_string)
 
-    # get brighter stars at top:
-    r.sort("phot_rp_mean_mag")
+    # we need to filter here to get around the new Gaia archive slowdown
+    # when SQL filtering on different columns
+    filter_mask = (
+        (r["phot_rp_mean_mag"] < mag_limit + fainter_diff)
+        & (r["phot_rp_mean_mag"] > mag_min)
+        & (r["parallax"] < 250)
+    )
+    r = r[filter_mask]
+    # sort by distance and take the top several results
+    # we need to do this here because gaia ADQL sort is not working
+    r.sort("dist")
+    r = r[: int(how_many * search_multipler)]
 
+    # get brighter stars at top for the nearby sources:
+    r.sort("phot_rp_mean_mag")
     potential_source_in_gaia_query = r[r["dist"] < source_in_catalog_dist]
     if len(potential_source_in_gaia_query) > 0:
         # try to find offset stars brighter than the catalog brightness of the
