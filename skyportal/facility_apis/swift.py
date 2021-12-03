@@ -38,7 +38,7 @@ class UVOTRequest:
             The request to add to the queue and the SkyPortal database.
 
         Returns
-        ----------
+        -------
         payload: json
             payload for requests.
         """
