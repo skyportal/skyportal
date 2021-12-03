@@ -162,6 +162,14 @@ telescope:
     skycam_link: null
     robotic: true
     =id: LCOGT2m
+  - diameter: 4.0
+    elevation: 2207.0
+    lat: -30.169661
+    lon: -70.806525
+    name: CTIO Victor M. Blanco 4-meter Telescope
+    nickname: CTIO-4m
+    skycam_link: null
+    =id: CTIO-4m
 
 instrument:
   - name: ZTF
@@ -171,6 +179,10 @@ instrument:
     filters: ["ztfg", "ztfr", "ztfi"]
     =id: ZTF
     api_classname: ZTFAPI
+    # field_data:
+    #   file: ../data/ZTF_Fields.csv
+    # field_region:
+    #   file: ../data/ZTF_Region.reg
   - name: ALFOSC
     type: imaging spectrograph
     band: V
@@ -239,6 +251,15 @@ instrument:
     filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: MUSCATAPI
     =id: MUSCAT
+  - band: optical
+    name: DECam
+    telescope_id: =CTIO-4m
+    type: imager
+    filters: ['sdssu', 'desg', 'desr', 'desi', 'desz', 'desy']
+    # field_data:
+    #   file: ../data/DECam_Fields.csv
+    # field_region:
+    #   file: ../data/DECam_Region.reg
 
 allocation:
   - pi: Michael Coughlin
