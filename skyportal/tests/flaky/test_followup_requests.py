@@ -52,7 +52,15 @@ else:
     ztf_isonline = True
 
 
-<<<<<<< HEAD:skyportal/tests/flaky/test_followup_requests_flaky.py
+swift_url = "https://www.swift.psu.edu/toop/submit_json.php"
+swift_isonline = False
+try:
+    requests.get(swift_url, timeout=5)
+except requests.exceptions.ConnectTimeout:
+    pass
+else:
+    swift_isonline = True
+
 if cfg['app.kait.port'] is None:
     KAIT_URL = f"{cfg['app.kait.protocol']}://{cfg['app.kait.host']}"
 else:
@@ -67,18 +75,6 @@ except requests.exceptions.ConnectTimeout:
     pass
 else:
     kait_isonline = True
-
-url = "https://www.swift.psu.edu/toop/submit_json.php"
-=======
-swift_url = "https://www.swift.psu.edu/toop/submit_json.php"
->>>>>>> 3e3f7e6e (Update skyportal/tests/frontend/sources_and_followup_etc/test_followup_requests.py):skyportal/tests/flaky/test_followup_requests.py
-swift_isonline = False
-try:
-    requests.get(swift_url, timeout=5)
-except requests.exceptions.ConnectTimeout:
-    pass
-else:
-    swift_isonline = True
 
 
 def add_telescope_and_instrument(instrument_name, token):
@@ -207,6 +203,23 @@ def add_allocation_sedmv2(instrument_id, group_id, token):
     assert data["status"] == "success"
 
 
+def add_allocation_kait(instrument_id, group_id, token):
+    status, data = api(
+        "POST",
+        "allocation",
+        data={
+            "group_id": group_id,
+            "instrument_id": instrument_id,
+            "hours_allocated": 100,
+            "pi": "Ed Hubble",
+        },
+        token=token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    return data["data"]
+
+
 def add_allocation_uvot(instrument_id, group_id, token):
     status, data = api(
         "POST",
@@ -224,21 +237,6 @@ def add_allocation_uvot(instrument_id, group_id, token):
     assert data["status"] == "success"
     return data["data"]
 
-def add_allocation_kait(instrument_id, group_id, token):
-    status, data = api(
-        "POST",
-        "allocation",
-        data={
-            "group_id": group_id,
-            "instrument_id": instrument_id,
-            "hours_allocated": 100,
-            "pi": "Ed Hubble",
-        },
-        token=token,
-    )
-    assert status == 200
-    assert data["status"] == "success"
-    return data["data"]
 
 def add_followup_request_using_frontend_and_verify_SEDMv2(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -288,54 +286,6 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
     )
 
 
-def add_followup_request_using_frontend_and_verify_KAIT(
-    driver, super_admin_user, public_source, super_admin_token, public_group
-):
-    """Adds a new followup request and makes sure it renders properly."""
-    idata = add_telescope_and_instrument("KAIT", super_admin_token)
-    add_allocation_kait(idata['id'], public_group.id, super_admin_token)
-
-    driver.get(f"/become_user/{super_admin_user.id}")
-
-    driver.get(f"/source/{public_source.id}")
-
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
-    )
-    driver.wait_for_xpath(submit_button_xpath)
-
-    select_box = driver.find_element_by_id(
-        "mui-component-select-followupRequestAllocationSelect"
-    )
-    select_box.click()
-
-    driver.click_xpath(
-        f'//li[contains(text(), "KAIT")][contains(text(), "{public_group.name}")]',
-        scroll_parent=True,
-    )
-
-    # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
-
-    # U band option
-    driver.click_xpath(
-        '//input[@id="root_observation_choices_0"]', wait_clickable=False
-    )
-
-    # Click somewhere outside to remove focus from instrument select
-    driver.click_xpath("//header")
-
-    driver.click_xpath(submit_button_xpath)
-
-    driver.click_xpath("//div[@data-testid='KAIT-requests-header']")
-    driver.wait_for_xpath(
-        '//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "U")]'
-    )
-    driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "submitted")]'''
-    )
-
-
 def add_followup_request_using_frontend_and_verify_UVOT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -381,6 +331,53 @@ def add_followup_request_using_frontend_and_verify_UVOT(
     driver.wait_for_xpath(
         '''//div[contains(@data-testid, "UVOT_followupRequestsTable")]//div[contains(., "Cannot submit TOOs from anonymous user.")]'''
     )
+
+
+def add_followup_request_using_frontend_and_verify_KAIT(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+    idata = add_telescope_and_instrument("KAIT", super_admin_token)
+    add_allocation_kait(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "KAIT")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    # U band option
+    driver.click_xpath(
+        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    driver.click_xpath(submit_button_xpath)
+
+    driver.click_xpath("//div[@data-testid='KAIT-requests-header']")
+    driver.wait_for_xpath(
+        '//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "U")]'
+    )
+    driver.wait_for_xpath(
+        '''//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "submitted")]'''
 
 
 def add_followup_request_using_frontend_and_verify_ZTF(
@@ -848,11 +845,10 @@ def test_submit_new_followup_request_UVOT(
 ):
 
     add_followup_request_using_frontend_and_verify_UVOT(
-        driver, super_admin_user, public_source, super_admin_token, public_group
+         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
-@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not kait_isonline, reason="KAIT server down")
 def test_submit_new_followup_request_KAIT(
     driver, super_admin_user, public_source, super_admin_token, public_group
