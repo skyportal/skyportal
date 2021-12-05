@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
@@ -11,6 +11,7 @@ import Button from "@material-ui/core/Button";
 import Box from "@material-ui/core/Box";
 
 import FormValidationError from "./FormValidationError";
+import Trie from "../trie";
 
 const useStyles = makeStyles(() => ({
   commentEntry: {
@@ -18,6 +19,7 @@ const useStyles = makeStyles(() => ({
   },
   inputDiv: {
     padding: "0.3rem",
+    position: "relative",
   },
   customizeGroupsContainer: {
     flexWrap: "wrap",
@@ -28,6 +30,21 @@ const useStyles = makeStyles(() => ({
 const CommentEntry = ({ addComment }) => {
   const styles = useStyles();
   const { userAccessible: groups } = useSelector((state) => state.groups);
+  const [textValue, setTextValue] = useState("");
+  const [textInputCursorIndex, setTextInputCursorIndex] = useState(0);
+  const [autosuggestVisible, setAutosuggestVisible] = useState(false);
+  const [usernamePrefixMatches, setUsernamePrefixMatches] = useState([]);
+  const { users } = useSelector((state) => state.users);
+
+  const usernamesTrie = useMemo(() => {
+    const trie = Trie();
+    if (users?.length) {
+      users.forEach((user) => {
+        trie.insert(user.username);
+      });
+    }
+    return trie;
+  }, [users]);
 
   const {
     handleSubmit,
@@ -62,6 +79,27 @@ const CommentEntry = ({ addComment }) => {
     addComment(data);
     reset();
     setGroupSelectVisible(false);
+    setTextValue("");
+    setAutosuggestVisible(false);
+    setUsernamePrefixMatches([]);
+  };
+
+  const handleTextInputChange = (event) => {
+    const text = event.target.value;
+    const cursorIdx = event.target.selectionStart;
+    const currentWord = text.slice(0, cursorIdx).trim().split(" ").pop();
+    if (currentWord.startsWith("@")) {
+      const matches = usernamesTrie.findAllStartingWith(currentWord.slice(1));
+      setUsernamePrefixMatches(matches);
+      if (matches.length > 0) {
+        setTextInputCursorIndex(cursorIdx);
+        setAutosuggestVisible(true);
+      }
+    } else {
+      setAutosuggestVisible(false);
+    }
+    setTextValue(text);
+    setValue("text", text);
   };
 
   const handleFileInputChange = (event) => {
@@ -74,19 +112,66 @@ const CommentEntry = ({ addComment }) => {
     return formState.group_ids?.filter((value) => Boolean(value)).length >= 1;
   };
 
+  const handleClickSuggestedUsername = (username) => {
+    const currentWord = textValue
+      .slice(0, textInputCursorIndex)
+      .trim()
+      .split(" ")
+      .pop();
+    setTextValue(
+      `${textValue.slice(
+        0,
+        textInputCursorIndex - currentWord.length
+      )}@${username} ${textValue.slice(textInputCursorIndex)}`
+    );
+    setAutosuggestVisible(false);
+    setUsernamePrefixMatches([]);
+  };
+
   return (
     <form className={styles.commentEntry} onSubmit={handleSubmit(onSubmit)}>
       <Typography variant="h6">Add comment</Typography>
       <div className={styles.inputDiv}>
-        <TextField
-          label="Comment text"
-          inputRef={register({ required: true })}
+        <Controller
+          render={() => (
+            <TextField
+              value={textValue}
+              onChange={(event) => {
+                handleTextInputChange(event);
+              }}
+              label="Comment text"
+              inputRef={register({ required: true })}
+              name="text"
+              error={!!errors.text}
+              helperText={errors.text ? "Required" : ""}
+              fullWidth
+              multiline
+            />
+          )}
           name="text"
-          error={!!errors.text}
-          helperText={errors.text ? "Required" : ""}
-          fullWidth
-          multiline
+          control={control}
+          rules={{ required: true }}
+          defaultValue=""
         />
+      </div>
+      <div
+        style={{
+          paddingLeft: "2rem",
+          overflowY: "scroll",
+          maxHeight: "10rem",
+          display: autosuggestVisible ? "block" : "none",
+        }}
+      >
+        {usernamePrefixMatches.map((match) => (
+          <li key={match}>
+            <Button
+              onClick={() => handleClickSuggestedUsername(match)}
+              style={{ textTransform: "none" }}
+            >
+              {match}
+            </Button>
+          </li>
+        ))}
       </div>
       <div className={styles.inputDiv}>
         <label>
