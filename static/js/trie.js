@@ -3,16 +3,20 @@ const Trie = () => {
 
   const getAllPathsFromHere = (trieNode) => {
     const matches = [];
-    Object.keys(trieNode).forEach((key) => {
-      if (key !== "matchTerminatesHere") {
-        getAllPathsFromHere(trieNode[key]).forEach((subMatch) => {
-          matches.push(key + subMatch);
-        });
+
+    const traverseAndSaveMatches = (currNode = trieNode, currStr = "") => {
+      if (currNode.matchTerminatesHere) {
+        matches.push(currStr);
       }
-    });
-    if (trieNode.matchTerminatesHere) {
-      matches.push("");
-    }
+      Object.keys(currNode)
+        .filter((key) => key !== "matchTerminatesHere")
+        .forEach((char) => {
+          traverseAndSaveMatches(currNode[char], currStr + char);
+        });
+    };
+
+    traverseAndSaveMatches();
+
     return matches;
   };
 
@@ -43,6 +47,18 @@ const Trie = () => {
         matches.push(prefix + match);
       });
       return matches;
+    },
+
+    someStartWith: (prefix) => {
+      let thisLevel = trieRoot;
+      for (let i = 0; i < prefix.length; i += 1) {
+        const char = prefix[i];
+        if (!thisLevel[char]) {
+          return false;
+        }
+        thisLevel = thisLevel[char];
+      }
+      return true;
     },
   };
 };
