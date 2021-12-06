@@ -49,6 +49,21 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
 
+def test_comment_username_autosuggestion(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_text = "hey @"
+    enter_comment_text(driver, comment_text)
+    driver.wait_for_xpath(f'//button//span[text()="{user.username}"]')
+    driver.click_xpath(f'//button//span[text()="{user.username}"]')
+    driver.wait_for_xpath_to_disappear(f'//button//span[text()="{user.username}"]')
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
+    driver.wait_for_xpath(f'//p[text()="hey @{user.username} "]')
+
+
 @pytest.mark.flaky(reruns=2)
 def test_public_source_page_null_z(driver, user, public_source, public_group):
     public_source.redshift = None
