@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
@@ -11,7 +11,6 @@ import Button from "@material-ui/core/Button";
 import Box from "@material-ui/core/Box";
 
 import FormValidationError from "./FormValidationError";
-import Trie from "../trie";
 
 const useStyles = makeStyles(() => ({
   commentEntry: {
@@ -35,16 +34,6 @@ const CommentEntry = ({ addComment }) => {
   const [autosuggestVisible, setAutosuggestVisible] = useState(false);
   const [usernamePrefixMatches, setUsernamePrefixMatches] = useState([]);
   const { users } = useSelector((state) => state.users);
-
-  const usernamesTrie = useMemo(() => {
-    const trie = Trie();
-    if (users?.length) {
-      users.forEach((user) => {
-        trie.insert(user.username);
-      });
-    }
-    return trie;
-  }, [users]);
 
   const {
     handleSubmit,
@@ -89,7 +78,20 @@ const CommentEntry = ({ addComment }) => {
     const cursorIdx = event.target.selectionStart;
     const currentWord = text.slice(0, cursorIdx).trim().split(" ").pop();
     if (currentWord.startsWith("@")) {
-      const matches = usernamesTrie.findAllStartingWith(currentWord.slice(1));
+      const matches = users
+        .filter(
+          (user) =>
+            user.username.includes(currentWord.slice(1)) ||
+            `${user.first_name || ""} ${user.last_name || ""}`
+              .trim()
+              .toLowerCase()
+              .includes(currentWord.slice(1).toLowerCase())
+        )
+        .map((user) =>
+          `${user.username} ${user.first_name || ""} ${
+            user.last_name || ""
+          }`.trim()
+        );
       setUsernamePrefixMatches(matches);
       if (matches.length > 0) {
         setTextInputCursorIndex(cursorIdx);
@@ -112,17 +114,16 @@ const CommentEntry = ({ addComment }) => {
     return formState.group_ids?.filter((value) => Boolean(value)).length >= 1;
   };
 
-  const handleClickSuggestedUsername = (username) => {
+  const handleClickSuggestedUsername = (usernameFirstLast) => {
     const currentWord = textValue
       .slice(0, textInputCursorIndex)
       .trim()
       .split(" ")
       .pop();
     setTextValue(
-      `${textValue.slice(
-        0,
-        textInputCursorIndex - currentWord.length
-      )}@${username} ${textValue.slice(textInputCursorIndex)}`
+      `${textValue.slice(0, textInputCursorIndex - currentWord.length)}@${
+        usernameFirstLast.split(" ")[0]
+      } ${textValue.slice(textInputCursorIndex)}`
     );
     setAutosuggestVisible(false);
     setUsernamePrefixMatches([]);
