@@ -101,6 +101,7 @@ const CommentEntry = ({ addComment }) => {
       setAutosuggestVisible(false);
     }
     setTextValue(text);
+    // RHF-specific state
     setValue("text", text);
   };
 
@@ -120,12 +121,14 @@ const CommentEntry = ({ addComment }) => {
       .trim()
       .split(" ")
       .pop();
-    setTextValue(
-      `${textValue.slice(
-        0,
-        textInputCursorIndex - currentWord.length
-      )}@${username} ${textValue.slice(textInputCursorIndex)}`
-    );
+
+    const newTextValue = `${textValue.slice(
+      0,
+      textInputCursorIndex - currentWord.length
+    )}@${username} ${textValue.slice(textInputCursorIndex)}`;
+
+    setTextValue(newTextValue);
+    setValue("text", newTextValue);
     setAutosuggestVisible(false);
     setUsernamePrefixMatches({});
   };
