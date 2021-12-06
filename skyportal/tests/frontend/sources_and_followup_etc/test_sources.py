@@ -53,7 +53,43 @@ def test_comment_username_autosuggestion(driver, user, public_source):
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    comment_text = "hey @"
+    comment_text = f"hey @{user.username[:5]}"
+    enter_comment_text(driver, comment_text)
+    matchButtonXpath = (
+        f'//button//span[text()="{user.username} {user.first_name} {user.last_name}"]'
+    )
+    driver.wait_for_xpath(matchButtonXpath)
+    driver.click_xpath(matchButtonXpath)
+    driver.wait_for_xpath_to_disappear(matchButtonXpath)
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
+    driver.wait_for_xpath(f'//p[text()="hey @{user.username} "]')
+
+
+def test_comment_user_last_name_autosuggestion(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_text = f"hey @{user.last_name[:5]}"
+    enter_comment_text(driver, comment_text)
+    matchButtonXpath = (
+        f'//button//span[text()="{user.username} {user.first_name} {user.last_name}"]'
+    )
+    driver.wait_for_xpath(matchButtonXpath)
+    driver.click_xpath(matchButtonXpath)
+    driver.wait_for_xpath_to_disappear(matchButtonXpath)
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
+    driver.wait_for_xpath(f'//p[text()="hey @{user.username} "]')
+
+
+def test_comment_user_first_name_autosuggestion(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_text = f"hey @{user.first_name[:5]}"
     enter_comment_text(driver, comment_text)
     matchButtonXpath = (
         f'//button//span[text()="{user.username} {user.first_name} {user.last_name}"]'
