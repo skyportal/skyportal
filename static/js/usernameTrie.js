@@ -1,7 +1,7 @@
 // A simple trie (aka prefix tree) implementation (https://en.wikipedia.org/wiki/Trie) that supports
 // searching for users by supplying a prefix to their username, first name or last name.
 // Case-insensitive.
-// Initialized empty: `const trie = Trie()`
+// Initialized empty: `const trie = UsernameTrie()`
 // Returns an object that supports the following methods:
 //  `insertUser({ username: string, firstName: string, lastName: string })` - inserts the user's names into the trie
 //  `findAllStartingWith(prefix)` - returns an object mapping username to `{ firstName, lastName }` for all user

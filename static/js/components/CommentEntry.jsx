@@ -171,7 +171,7 @@ const CommentEntry = ({ addComment }) => {
                 onClick={() => handleClickSuggestedUsername(username)}
                 style={{ textTransform: "none" }}
               >
-                {`${username} ${firstName || ""} ${lastName || ""}`}
+                {`${username} ${firstName || ""} ${lastName || ""}`.trim()}
               </Button>
             </li>
           )
