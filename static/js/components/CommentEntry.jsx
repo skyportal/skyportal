@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
@@ -11,6 +11,7 @@ import Button from "@material-ui/core/Button";
 import Box from "@material-ui/core/Box";
 
 import FormValidationError from "./FormValidationError";
+import UsernameTrie from "../usernameTrie";
 
 const useStyles = makeStyles(() => ({
   commentEntry: {
@@ -32,8 +33,20 @@ const CommentEntry = ({ addComment }) => {
   const [textValue, setTextValue] = useState("");
   const [textInputCursorIndex, setTextInputCursorIndex] = useState(0);
   const [autosuggestVisible, setAutosuggestVisible] = useState(false);
-  const [usernamePrefixMatches, setUsernamePrefixMatches] = useState([]);
+  const [usernamePrefixMatches, setUsernamePrefixMatches] = useState({});
   const { users } = useSelector((state) => state.users);
+
+  const usernameTrie = useMemo(() => {
+    const trie = UsernameTrie();
+    users.forEach((user) => {
+      trie.insertUser({
+        username: user.username,
+        firstName: user.first_name || "",
+        lastName: user.last_name || "",
+      });
+    });
+    return trie;
+  }, [users]);
 
   const {
     handleSubmit,
@@ -70,7 +83,7 @@ const CommentEntry = ({ addComment }) => {
     setGroupSelectVisible(false);
     setTextValue("");
     setAutosuggestVisible(false);
-    setUsernamePrefixMatches([]);
+    setUsernamePrefixMatches({});
   };
 
   const handleTextInputChange = (event) => {
@@ -78,22 +91,9 @@ const CommentEntry = ({ addComment }) => {
     const cursorIdx = event.target.selectionStart;
     const currentWord = text.slice(0, cursorIdx).trim().split(" ").pop();
     if (currentWord.startsWith("@")) {
-      const matches = users
-        .filter(
-          (user) =>
-            user.username.includes(currentWord.slice(1)) ||
-            `${user.first_name || ""} ${user.last_name || ""}`
-              .trim()
-              .toLowerCase()
-              .includes(currentWord.slice(1).toLowerCase())
-        )
-        .map((user) =>
-          `${user.username} ${user.first_name || ""} ${
-            user.last_name || ""
-          }`.trim()
-        );
+      const matches = usernameTrie.findAllStartingWith(currentWord.slice(1));
       setUsernamePrefixMatches(matches);
-      if (matches.length > 0) {
+      if (Object.keys(matches).length > 0) {
         setTextInputCursorIndex(cursorIdx);
         setAutosuggestVisible(true);
       }
@@ -114,19 +114,20 @@ const CommentEntry = ({ addComment }) => {
     return formState.group_ids?.filter((value) => Boolean(value)).length >= 1;
   };
 
-  const handleClickSuggestedUsername = (usernameFirstLast) => {
+  const handleClickSuggestedUsername = (username) => {
     const currentWord = textValue
       .slice(0, textInputCursorIndex)
       .trim()
       .split(" ")
       .pop();
     setTextValue(
-      `${textValue.slice(0, textInputCursorIndex - currentWord.length)}@${
-        usernameFirstLast.split(" ")[0]
-      } ${textValue.slice(textInputCursorIndex)}`
+      `${textValue.slice(
+        0,
+        textInputCursorIndex - currentWord.length
+      )}@${username} ${textValue.slice(textInputCursorIndex)}`
     );
     setAutosuggestVisible(false);
-    setUsernamePrefixMatches([]);
+    setUsernamePrefixMatches({});
   };
 
   return (
@@ -163,16 +164,18 @@ const CommentEntry = ({ addComment }) => {
           display: autosuggestVisible ? "block" : "none",
         }}
       >
-        {usernamePrefixMatches.map((match) => (
-          <li key={match}>
-            <Button
-              onClick={() => handleClickSuggestedUsername(match)}
-              style={{ textTransform: "none" }}
-            >
-              {match}
-            </Button>
-          </li>
-        ))}
+        {Object.entries(usernamePrefixMatches).map(
+          ([username, { firstName, lastName }]) => (
+            <li key={username}>
+              <Button
+                onClick={() => handleClickSuggestedUsername(username)}
+                style={{ textTransform: "none" }}
+              >
+                {`${username} ${firstName || ""} ${lastName || ""}`}
+              </Button>
+            </li>
+          )
+        )}
       </div>
       <div className={styles.inputDiv}>
         <label>
