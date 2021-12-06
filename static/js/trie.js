@@ -1,3 +1,10 @@
+// A simple trie (aka prefix tree) implementation (https://en.wikipedia.org/wiki/Trie)
+// Initialized empty: `const trie = Trie()`
+// Returns an object that supports the following methods:
+//  `insert(word)` - inserts the word into the trie
+//  `findAllStartingWith(prefix)` - returns an array of all words in the trie that start with the given prefix
+//  `someStartWith(prefix)` - returns true if there is at least one word in the trie that starts with the given prefix
+
 const Trie = () => {
   const trieRoot = {};
 
