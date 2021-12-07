@@ -142,7 +142,7 @@ while retry_attempts <= max_retry_attempts:
     if data["status"] != "success":
         print(data)  # log as appropriate
         retry_attempts += 1
-        time.sleep(1)
+        time.sleep(5)
         continue
     else:
         retry_attempts = 0
