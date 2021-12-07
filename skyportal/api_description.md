@@ -144,8 +144,7 @@ while retry_attempts <= max_retry_attempts:
         retry_attempts += 1
         time.sleep(1)
         continue
-
-    if retry_attempts != 0:
+    else:
         retry_attempts = 0
 
     all_sources.extend(data["data"]["sources"])
