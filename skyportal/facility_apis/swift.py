@@ -93,7 +93,7 @@ class UVOTAPI(FollowUpAPI):
 
         Parameters
         ----------
-        request: skyportal.models.FollowupRequest
+        request : skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
         """
 
