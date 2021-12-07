@@ -955,9 +955,12 @@ class SourceHandler(BaseHandler):
         if saved_after:
             source_query = source_query.filter(Source.saved_at >= saved_after)
         if created_or_modified_after:
-            created_or_modified_date = arrow.get(
-                created_or_modified_after.strip()
-            ).datetime
+            try:
+                created_or_modified_date = arrow.get(
+                    created_or_modified_after.strip()
+                ).datetime
+            except arrow.ParserError:
+                return self.error("Invalid value provided for createdOrModifiedAfter")
             obj_query = obj_query.filter(
                 or_(
                     Obj.created_at > created_or_modified_date,
