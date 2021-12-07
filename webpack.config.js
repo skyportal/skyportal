@@ -86,6 +86,7 @@ const config = {
   plugins: [
     // Uncomment the following line to enable bundle size analysis
     //    new BundleAnalyzerPlugin()
+    // Needed for non-polyfilled node modules; we aim to remove this when possible
     new webpack.ProvidePlugin({
       process: path.resolve(__dirname, "node_modules/process/browser.js"),
     }),
@@ -107,6 +108,7 @@ const config = {
       ),
     },
     extensions: [".js", ".jsx", ".json"],
+    // Needed for non-polyfilled node modules; we aim to remove this when possible
     fallback: { path: path.resolve(__dirname, "node_modules/path-browserify") },
   },
 
