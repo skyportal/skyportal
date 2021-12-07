@@ -101,6 +101,14 @@ def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
         Session.remove()
 
 
+def paginate_summary_query(query, page, num_per_page, total_matches):
+    if total_matches is None:
+        total_matches = query.count()
+    query = query.offset((page - 1) * num_per_page)
+    query = query.limit(num_per_page)
+    return {"sources": query.all(), "total_matches": total_matches}
+
+
 class SourceHandler(BaseHandler):
     @auth_or_token
     def head(self, obj_id=None):
@@ -1155,13 +1163,18 @@ class SourceHandler(BaseHandler):
                     else [classification_subquery.c.classification.desc().nullslast()]
                 )
 
+        try:
+            page_number = max(int(page_number), 1)
+        except ValueError:
+            return self.error("Invalid page number value.")
         if save_summary:
-            query_results = {"sources": source_query.all()}
+            query_results = paginate_summary_query(
+                source_query,
+                page_number,
+                num_per_page,
+                total_matches,
+            )
         else:
-            try:
-                page_number = max(int(page_number), 1)
-            except ValueError:
-                return self.error("Invalid page number value.")
             try:
                 query_results = grab_query_results(
                     query,
