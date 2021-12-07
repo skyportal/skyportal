@@ -341,3 +341,10 @@
   type: imager
   # todo: add unfiltered
   filters: []
+- name: SEDMv2
+  type: imaging spectrograph
+  band: V
+  telescope_id: =KPNO2m
+  filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
+  api_classname: SEDMv2API
+  =id: SEDMv2

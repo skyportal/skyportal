@@ -503,3 +503,11 @@
   nickname: CNEOST
   skycam_link: null
   =id: CNEOST
+- diameter: 2.1
+  elevation: 2096.0
+  lat: 31.9599
+  lon: -111.5997
+  name: Kitt Peak 2.1m Telescope
+  nickname: KPNO2m
+  skycam_link: null
+  =id: KPNO2m
