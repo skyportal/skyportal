@@ -125,7 +125,7 @@ import time
 
 base_url = "https://fritz.science/api/sources"
 token = "your_token_id_here"
-group_id = 4  # If applicable
+group_ids = [4, 71]  # If applicable
 all_sources = []
 num_per_page = 500
 page = 1
@@ -135,10 +135,17 @@ max_retry_attempts = 10
 
 while retry_attempts <= max_retry_attempts:
     r = requests.get(
-        f"{base_url}?group_ids={group_id}&pageNumber={page}&numPerPage={num_per_page}&totalMatches={total_matches}",
+        f"{base_url}?group_ids={','.join([str(gid) for gid in group_ids])}&pageNumber={page}&numPerPage={num_per_page}&totalMatches={total_matches}",
         headers={"Authorization": f"token {token}"},
     )
+    
+    if r.status_code == 429:
+        print("Request rate limit exceeded; sleeping 1s before trying again...")
+        time.sleep(1)
+        continue
+
     data = r.json()
+
     if data["status"] != "success":
         print(data)  # log as appropriate
         retry_attempts += 1
