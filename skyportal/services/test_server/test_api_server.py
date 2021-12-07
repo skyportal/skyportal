@@ -447,14 +447,9 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
     def post(self):
 
-        is_soap_action = "Soapaction" in self.request.headers
-        if self.request.uri in [
-            "/api/requestgroups/",
-            "/api/triggers/ztf",
-            "/cgi-bin/internal/process_kait_ztf_request.py",
-        ]:
-            cache = get_cache_file_static()
-        elif "/toop/submit_json.php" in self.request.uri:
+        cached_urls = [".*/api/requestgroups/.*", ".*/toop/submit_json.php$", ".*/cgi-bin/internal/process_kait_ztf_request.py$", ".*/api/triggers/ztf/.*", ".*/node_agent2/node_agent/.*"]
+
+        if any(re.match(pat, self.request.uri) for pat in cached_urls):
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()

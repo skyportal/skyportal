@@ -10,7 +10,7 @@ env, cfg = load_env()
 
 
 # Submission URL
-API_URL = f"{cfg['app.swift_protocol']}://{cfg['app.swift_host']}:{cfg['app.swift_port']}/toop/submit_json.php"
+API_URL = f"{cfg['app.swift.protocol']}://{cfg['app.swift.host']}:{cfg['app.swift.port']}/toop/submit_json.php"
 
 
 class UVOTRequest:
@@ -39,7 +39,7 @@ class UVOTRequest:
 
         Returns
         -------
-        payload: json
+        payload : swifttools.swift_too.Swift_TOO
             payload for requests.
         """
 
@@ -48,7 +48,6 @@ class UVOTRequest:
         too = Swift_TOO()
         too.username = altdata["username"]
         too.shared_secret = altdata["secret"]
-        # too.debug = True
 
         too.source_name = request.obj.id
         too.ra, too.dec = request.obj.ra, request.obj.dec
@@ -111,6 +110,7 @@ class UVOTAPI(FollowUpAPI):
         r = requests.post(
             url=API_URL, verify=True, data={'jwt': swiftreq.requestgroup.jwt}
         )
+        r.raise_for_status()
 
         if r.status_code == 201:
             request.status = 'submitted'
