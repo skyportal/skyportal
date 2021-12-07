@@ -1,4 +1,5 @@
 const path = require("path");
+const TsconfigPathsPlugin = require("tsconfig-paths-webpack-plugin");
 
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
@@ -6,7 +7,10 @@ const config = {
   entry: {
     main: [
       "@babel/polyfill",
-      path.resolve(__dirname, "static/transpiled/components/Main.jsx"),
+      path.resolve(
+        __dirname,
+        "static/transpiled/static/js/components/Main.jsx"
+      ),
     ],
   },
   output: {
@@ -87,6 +91,9 @@ const config = {
     //    new BundleAnalyzerPlugin()
   ],
   resolve: {
+    plugins: [
+      new TsconfigPathsPlugin({ extensions: [".ts", ".tsx", ".js", ".jsx"] }),
+    ],
     alias: {
       baselayer: path.resolve(__dirname, "baselayer/static/js"),
       reactgridlayoutcss: path.resolve(

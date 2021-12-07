@@ -1,4 +1,4 @@
-import messageHandler from "../../../baselayer/static/js/MessageHandler";
+import messageHandler from "baselayer/static/js/MessageHandler";
 
 import * as API from "../API";
 import store from "../store";
