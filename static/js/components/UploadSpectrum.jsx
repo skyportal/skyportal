@@ -647,7 +647,7 @@ const UploadSpectrumForm = ({ route }) => {
           <Paper className={classes.formBox}>
             <Typography variant="h6">Spectrum Preview</Typography>
             <div className={classes.vegaDiv}>
-              <Suspense fallback=<CircularProgress color="secondary" />>
+              <Suspense fallback={<CircularProgress color="secondary" />}>
                 <SpectrumPreview data={data} />
               </Suspense>
             </div>

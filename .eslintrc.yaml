@@ -6,7 +6,7 @@ plugins: ["import", "react", "react-hooks"]
 extends: ["airbnb", "plugin:react/recommended", "prettier"]
 settings:
   import/resolver:
-    node: {}
+    node: { extensions: [".js", ".jsx", ".ts", ".tsx"] }
     webpack:
       config: webpack.config.js
   react:
@@ -22,3 +22,5 @@ rules:
   react/jsx-one-expression-per-line: 0
   no-param-reassign: 0
   react/jsx-curly-newline: 0
+  import/extensions: 0
+  import/no-unresolved: "warn"
