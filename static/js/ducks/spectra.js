@@ -43,7 +43,10 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
     const state = getState().spectra;
 
     Object.entries(state).forEach(([objID, spectra]) => {
-      if (spectra[0]?.obj_internal_key === payload.obj_internal_key) {
+      if (
+        spectra &&
+        spectra[0]?.obj_internal_key === payload.obj_internal_key
+      ) {
         dispatch(fetchSourceSpectra(objID));
       }
     });
