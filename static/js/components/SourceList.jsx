@@ -44,6 +44,12 @@ const useStyles = makeStyles((theme) => ({
   },
   spinner: {
     marginTop: "1rem",
+    marginLeft: "auto",
+    marginRight: "auto",
+    display: "flex",
+    top: "50%",
+    left: "50%",
+    position: "fixed",
   },
 }));
 
@@ -96,11 +102,12 @@ const SourceList = () => {
     return <UninitializedDBMessage />;
   }
   if (!sourcesState.sources) {
-    return <CircularProgress />;
+    return <CircularProgress className={classes.spinner}/>;
   }
 
+
   return (
-    <Paper elevation={1}>
+    <Paper elevation={1} className={classes.paper}>
       <div className={classes.paperDiv}>
         <Typography variant="h6" display="inline">
           Sources

@@ -62,6 +62,13 @@ const useStyles = makeStyles((theme) => ({
   spinnerDiv: {
     paddingTop: "2rem",
   },
+  spinner: {
+    marginTop: "1rem",
+    marginLeft: "auto",
+    marginRight: "auto",
+    display: "flex",
+    left: "50%",
+  },
   itemPaddingBottom: {
     paddingBottom: "0.1rem",
   },
@@ -757,7 +764,7 @@ const CandidateList = () => {
   const renderPhotometry = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
     return (
-      <Suspense fallback={<CircularProgress />}>
+      <Suspense fallback={<CircularProgress className={classes.spinner}/>}>
         <VegaPlot dataUrl={`/api/sources/${candidateObj.id}/photometry`} />
       </Suspense>
     );
@@ -1101,7 +1108,7 @@ const CandidateList = () => {
           display={queryInProgress ? "block" : "none"}
           className={classes.spinnerDiv}
         >
-          <CircularProgress />
+          <CircularProgress className={classes.spinner}/>
         </Box>
         <Box display={queryInProgress ? "none" : "block"}>
           <MuiThemeProvider theme={getMuiTheme(theme)}>
