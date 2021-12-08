@@ -90,6 +90,9 @@ const config = {
     new webpack.ProvidePlugin({
       process: path.resolve(__dirname, "node_modules/process/browser.js"),
     }),
+    new webpack.ProvidePlugin({
+      Buffer: ["buffer", "Buffer"],
+    }),
   ],
   resolve: {
     alias: {
@@ -109,7 +112,10 @@ const config = {
     },
     extensions: [".js", ".jsx", ".json"],
     // Needed for non-polyfilled node modules; we aim to remove this when possible
-    fallback: { path: path.resolve(__dirname, "node_modules/path-browserify") },
+    fallback: {
+      path: path.resolve(__dirname, "node_modules/path-browserify"),
+      buffer: path.resolve(__dirname, "node_modules/buffer"),
+    },
   },
 
   watchOptions: {
