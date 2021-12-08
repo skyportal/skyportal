@@ -62,6 +62,15 @@ const useStyles = makeStyles(() => ({
   expired: {
     color: "red",
   },
+  spinner: {
+    marginTop: "1rem",
+    marginLeft: "auto",
+    marginRight: "auto",
+    display: "flex",
+    top: "50%",
+    left: "50%",
+    position: "fixed",
+  }
 }));
 
 const dataTableStyles = (theme) =>
@@ -133,12 +142,8 @@ const UserManagement = () => {
     !roles?.length
   ) {
     return (
-      <Box
-        display={queryInProgress ? "block" : "none"}
-        className={classes.spinnerDiv}
-      >
-        <CircularProgress />
-      </Box>
+        <CircularProgress className={classes.spinner} />
+
     );
   }
 

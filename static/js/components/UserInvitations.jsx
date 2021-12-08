@@ -61,6 +61,15 @@ const useStyles = makeStyles(() => ({
   expired_user: {
     color: "red",
   },
+  spinner: {
+    marginTop: "1rem",
+    marginLeft: "auto",
+    marginRight: "auto",
+    display: "flex",
+    top: "50%",
+    left: "50%",
+    position: "fixed",
+  }
 }));
 
 const dataTableStyles = (theme) =>
@@ -129,7 +138,7 @@ const UserInvitations = () => {
         display={queryInProgress ? "block" : "none"}
         className={classes.spinnerDiv}
       >
-        <CircularProgress />
+        <CircularProgress className={classes.spinner}/>
       </Box>
     );
   }
