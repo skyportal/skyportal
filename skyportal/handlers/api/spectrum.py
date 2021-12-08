@@ -620,7 +620,6 @@ class ObjSpectraHandler(BaseHandler):
             comments = (
                 CommentOnSpectrum.query_records_accessible_by(
                     self.current_user,
-                    options=[joinedload(CommentOnSpectrum.groups)],
                 )
                 .filter(CommentOnSpectrum.spectrum_id == spec.id)
                 .all()
