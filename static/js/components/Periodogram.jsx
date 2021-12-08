@@ -73,6 +73,11 @@ const useStyles = makeStyles((theme) => ({
     textAlign: "center",
     height: "100vh",
   },
+  spinner: {
+    flex: "1",
+    top: "50%",
+    position: "absolute",
+  },
   labels: {
     fontSize: "0.75rem",
   },
@@ -543,7 +548,7 @@ const Periodogram = () => {
                         <span>Showing selected filter</span>
                       </TextLoop>{" "}
                       <br /> <br />
-                      <CircularProgress color="primary" />
+                      <CircularProgress color="primary" className={classes.spinner}/>
                     </div>
                   )}
                 </div>
