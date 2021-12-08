@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
@@ -11,6 +11,7 @@ import Button from "@material-ui/core/Button";
 import Box from "@material-ui/core/Box";
 
 import FormValidationError from "./FormValidationError";
+import UsernameTrie from "../usernameTrie";
 
 const useStyles = makeStyles(() => ({
   commentEntry: {
@@ -18,6 +19,7 @@ const useStyles = makeStyles(() => ({
   },
   inputDiv: {
     padding: "0.3rem",
+    position: "relative",
   },
   customizeGroupsContainer: {
     flexWrap: "wrap",
@@ -28,6 +30,25 @@ const useStyles = makeStyles(() => ({
 const CommentEntry = ({ addComment }) => {
   const styles = useStyles();
   const { userAccessible: groups } = useSelector((state) => state.groups);
+  const [textValue, setTextValue] = useState("");
+  const [textInputCursorIndex, setTextInputCursorIndex] = useState(0);
+  const [autosuggestVisible, setAutosuggestVisible] = useState(false);
+  const [usernamePrefixMatches, setUsernamePrefixMatches] = useState({});
+  const textAreaRef = useRef(null);
+  const autoSuggestRootItem = useRef(null);
+  const { users } = useSelector((state) => state.users);
+
+  const usernameTrie = useMemo(() => {
+    const trie = UsernameTrie();
+    users.forEach((user) => {
+      trie.insertUser({
+        username: user.username,
+        firstName: user.first_name || "",
+        lastName: user.last_name || "",
+      });
+    });
+    return trie;
+  }, [users]);
 
   const {
     handleSubmit,
@@ -62,6 +83,28 @@ const CommentEntry = ({ addComment }) => {
     addComment(data);
     reset();
     setGroupSelectVisible(false);
+    setTextValue("");
+    setAutosuggestVisible(false);
+    setUsernamePrefixMatches({});
+  };
+
+  const handleTextInputChange = (event) => {
+    const text = event.target.value;
+    const cursorIdx = event.target.selectionStart;
+    const currentWord = text.slice(0, cursorIdx).split(" ").pop();
+    if (currentWord.startsWith("@")) {
+      const matches = usernameTrie.findAllStartingWith(currentWord.slice(1));
+      setUsernamePrefixMatches(matches);
+      if (Object.keys(matches).length > 0) {
+        setTextInputCursorIndex(cursorIdx);
+        setAutosuggestVisible(true);
+      }
+    } else {
+      setAutosuggestVisible(false);
+    }
+    setTextValue(text);
+    // RHF-specific state
+    setValue("text", text);
   };
 
   const handleFileInputChange = (event) => {
@@ -74,19 +117,97 @@ const CommentEntry = ({ addComment }) => {
     return formState.group_ids?.filter((value) => Boolean(value)).length >= 1;
   };
 
+  const handleClickSuggestedUsername = (username) => {
+    const currentWord = textValue
+      .slice(0, textInputCursorIndex)
+      .trim()
+      .split(" ")
+      .pop();
+
+    const newTextValue = `${textValue.slice(
+      0,
+      textInputCursorIndex - currentWord.length
+    )}@${username} ${textValue.slice(textInputCursorIndex)}`;
+
+    setTextValue(newTextValue);
+    setValue("text", newTextValue);
+    setAutosuggestVisible(false);
+    setUsernamePrefixMatches({});
+    textAreaRef.current.focus();
+  };
+
   return (
     <form className={styles.commentEntry} onSubmit={handleSubmit(onSubmit)}>
       <Typography variant="h6">Add comment</Typography>
       <div className={styles.inputDiv}>
-        <TextField
-          label="Comment text"
-          inputRef={register({ required: true })}
+        <Controller
+          render={() => (
+            <TextField
+              value={textValue}
+              onChange={(event) => {
+                handleTextInputChange(event);
+              }}
+              label="Comment text"
+              name="text"
+              error={!!errors.text}
+              helperText={errors.text ? "Required" : ""}
+              fullWidth
+              multiline
+              inputRef={textAreaRef}
+              onKeyDown={(event) => {
+                // On down arrow, move focus to autocomplete
+                if (event.key === "ArrowDown" && autosuggestVisible) {
+                  autoSuggestRootItem.current.focus();
+                  // Do not scroll the list
+                  event.preventDefault();
+                }
+              }}
+            />
+          )}
           name="text"
-          error={!!errors.text}
-          helperText={errors.text ? "Required" : ""}
-          fullWidth
-          multiline
+          control={control}
+          rules={{ required: true }}
+          defaultValue=""
         />
+      </div>
+      <div
+        style={{
+          paddingLeft: "2rem",
+          overflowY: "scroll",
+          maxHeight: "10rem",
+          display: autosuggestVisible ? "block" : "none",
+        }}
+      >
+        {Object.entries(usernamePrefixMatches).map(
+          ([username, { firstName, lastName }], ix) => (
+            <li key={username}>
+              <Button
+                onClick={() => handleClickSuggestedUsername(username)}
+                style={{ textTransform: "none" }}
+                ref={ix === 0 ? autoSuggestRootItem : null}
+                onKeyDown={(event) => {
+                  // On down arrow, move to next sibling
+                  if (event.key === "ArrowDown") {
+                    // Focus on next item in list
+                    // -> parent (li) -> sibling (li) -> firstChild (button)
+                    event.target.parentNode.nextSibling?.firstChild.focus();
+                    // Do not scroll the list
+                    event.preventDefault();
+                  }
+                  // Up arrow
+                  if (event.key === "ArrowUp") {
+                    // Focus on previous item in list
+                    // -> parent (li) -> sibling (li) -> firstChild (button)
+                    event.target.parentNode.previousSibling?.firstChild.focus();
+                    event.preventDefault();
+                  }
+                }}
+              >
+                {`${username} ${firstName || ""} ${lastName || ""}`.trim()}
+              </Button>
+            </li>
+          )
+        )}
       </div>
       <div className={styles.inputDiv}>
         <label>
