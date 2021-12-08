@@ -45,10 +45,10 @@ def test_upload_spectroscopy(
     label_element.send_keys(user_defined_label)
 
     preview_button_xpath = '//button[contains(.,"Preview")]'
-    driver.click_xpath(preview_button_xpath)
+    driver.click_xpath(preview_button_xpath, scroll_parent=True)
 
     submit_button_xpath = '//button[contains(.,"Upload Spectrum")]'
-    driver.click_xpath(submit_button_xpath)
+    driver.click_xpath(submit_button_xpath, scroll_parent=True)
 
     driver.wait_for_xpath('//*[contains(.,"successful")]')
 
