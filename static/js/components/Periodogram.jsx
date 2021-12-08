@@ -64,19 +64,23 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     wrap: "nowrap",
   },
-  spinner: {
+  spinnerDiv: {
     position: "relative",
     margin: "auto",
     width: "50%",
     fontWeight: "bold",
     fontSize: "1.25rem",
     textAlign: "center",
+    height: "100vh",
   },
   labels: {
     fontSize: "0.75rem",
   },
   clipboard: {
     fontSize: "0.5rem",
+  },
+  test: {
+    height: "100vh",
   },
 }));
 
@@ -532,7 +536,7 @@ const Periodogram = () => {
                   {photometry ? (
                     <div ref={dataplotRef} className={classes.dygraphChart} />
                   ) : (
-                    <div className={classes.spinner}>
+                    <div className={classes.spinnerDiv}>
                       <TextLoop>
                         <span>Downloading photometry</span>
                         <span>Determining filters</span>
