@@ -155,7 +155,7 @@ const CommentEntry = ({ addComment }) => {
               multiline
               onKeyDown={(event) => {
                 // On down arrow, move focus to autocomplete
-                if (event.keyCode === 40 && autosuggestVisible) {
+                if (event.key === "ArrowDown" && autosuggestVisible) {
                   autoSuggestRootItem.current.focus();
                   // Do not scroll the list
                   event.preventDefault();
@@ -179,29 +179,32 @@ const CommentEntry = ({ addComment }) => {
       >
         {Object.entries(usernamePrefixMatches).map(
           ([username, { firstName, lastName }], ix) => (
-            <Button
-              key={username}
-              onClick={() => handleClickSuggestedUsername(username)}
-              style={{ textTransform: "none", width: "100%" }}
-              ref={ix === 0 ? autoSuggestRootItem : null}
-              onKeyDown={(event) => {
-                // On down arrow, move to next sibling
-                if (event.keyCode === 40) {
-                  // Focus on next item in list
-                  event.target.nextSibling?.focus();
-                  // Do not scroll the list
-                  event.preventDefault();
-                }
-                // Up arrow
-                if (event.keyCode === 38) {
-                  // Focus on previous item in list
-                  event.target.previousSibling?.focus();
-                  event.preventDefault();
-                }
-              }}
-            >
-              {`${username} ${firstName || ""} ${lastName || ""}`.trim()}
-            </Button>
+            <li key={username}>
+              <Button
+                onClick={() => handleClickSuggestedUsername(username)}
+                style={{ textTransform: "none" }}
+                ref={ix === 0 ? autoSuggestRootItem : null}
+                onKeyDown={(event) => {
+                  // On down arrow, move to next sibling
+                  if (event.key === "ArrowDown") {
+                    // Focus on next item in list
+                    // -> parent (li) -> sibling (li) -> firstChild (button)
+                    event.target.parentNode.nextSibling?.firstChild.focus();
+                    // Do not scroll the list
+                    event.preventDefault();
+                  }
+                  // Up arrow
+                  if (event.key === "ArrowUp") {
+                    // Focus on previous item in list
+                    // -> parent (li) -> sibling (li) -> firstChild (button)
+                    event.target.parentNode.previousSibling?.firstChild.focus();
+                    event.preventDefault();
+                  }
+                }}
+              >
+                {`${username} ${firstName || ""} ${lastName || ""}`.trim()}
+              </Button>
+            </li>
           )
         )}
       </div>
