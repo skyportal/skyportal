@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
@@ -133,6 +133,8 @@ const CommentEntry = ({ addComment }) => {
     setUsernamePrefixMatches({});
   };
 
+  const autoSuggestRootItem = useRef(null);
+
   return (
     <form className={styles.commentEntry} onSubmit={handleSubmit(onSubmit)}>
       <Typography variant="h6">Add comment</Typography>
@@ -151,6 +153,14 @@ const CommentEntry = ({ addComment }) => {
               helperText={errors.text ? "Required" : ""}
               fullWidth
               multiline
+              onKeyDown={(event) => {
+                // On down arrow, move focus to autocomplete
+                if (event.keyCode === 40 && autosuggestVisible) {
+                  autoSuggestRootItem.current.focus();
+                  // Do not scroll the list
+                  event.preventDefault();
+                }
+              }}
             />
           )}
           name="text"
@@ -168,15 +178,30 @@ const CommentEntry = ({ addComment }) => {
         }}
       >
         {Object.entries(usernamePrefixMatches).map(
-          ([username, { firstName, lastName }]) => (
-            <li key={username}>
-              <Button
-                onClick={() => handleClickSuggestedUsername(username)}
-                style={{ textTransform: "none" }}
-              >
-                {`${username} ${firstName || ""} ${lastName || ""}`.trim()}
-              </Button>
-            </li>
+          ([username, { firstName, lastName }], ix) => (
+            <Button
+              key={username}
+              onClick={() => handleClickSuggestedUsername(username)}
+              style={{ textTransform: "none", width: "100%" }}
+              ref={ix === 0 ? autoSuggestRootItem : null}
+              onKeyDown={(event) => {
+                // On down arrow, move to next sibling
+                if (event.keyCode === 40) {
+                  // Focus on next item in list
+                  event.target.nextSibling?.focus();
+                  // Do not scroll the list
+                  event.preventDefault();
+                }
+                // Up arrow
+                if (event.keyCode === 38) {
+                  // Focus on previous item in list
+                  event.target.previousSibling?.focus();
+                  event.preventDefault();
+                }
+              }}
+            >
+              {`${username} ${firstName || ""} ${lastName || ""}`.trim()}
+            </Button>
           )
         )}
       </div>
