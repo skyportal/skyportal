@@ -28,13 +28,13 @@ def test_upload_spectroscopy(
     mjd_element.send_keys('51232.')
 
     instrument_id_element_xpath = '//*[@id="root_instrument_id"]'
-    driver.click_xpath(instrument_id_element_xpath)
+    driver.click_xpath(instrument_id_element_xpath, scroll_parent=True)
 
     sedm_element_xpath = f'//li[@data-value="{inst_id}"]'
     driver.click_xpath(sedm_element_xpath, scroll_parent=True)
 
     type_element_xpath = '//*[@id="root_spectrum_type"]'
-    driver.click_xpath(type_element_xpath)
+    driver.click_xpath(type_element_xpath, scroll_parent=True)
 
     host_element_xpath = f'//li[@data-value="{ALLOWED_SPECTRUM_TYPES[-1]}"]'
     driver.click_xpath(host_element_xpath, scroll_parent=True)
