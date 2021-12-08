@@ -34,6 +34,8 @@ const CommentEntry = ({ addComment }) => {
   const [textInputCursorIndex, setTextInputCursorIndex] = useState(0);
   const [autosuggestVisible, setAutosuggestVisible] = useState(false);
   const [usernamePrefixMatches, setUsernamePrefixMatches] = useState({});
+  const textAreaRef = useRef(null);
+  const autoSuggestRootItem = useRef(null);
   const { users } = useSelector((state) => state.users);
 
   const usernameTrie = useMemo(() => {
@@ -131,9 +133,8 @@ const CommentEntry = ({ addComment }) => {
     setValue("text", newTextValue);
     setAutosuggestVisible(false);
     setUsernamePrefixMatches({});
+    textAreaRef.current.focus();
   };
-
-  const autoSuggestRootItem = useRef(null);
 
   return (
     <form className={styles.commentEntry} onSubmit={handleSubmit(onSubmit)}>
@@ -147,12 +148,12 @@ const CommentEntry = ({ addComment }) => {
                 handleTextInputChange(event);
               }}
               label="Comment text"
-              inputRef={register({ required: true })}
               name="text"
               error={!!errors.text}
               helperText={errors.text ? "Required" : ""}
               fullWidth
               multiline
+              inputRef={textAreaRef}
               onKeyDown={(event) => {
                 // On down arrow, move focus to autocomplete
                 if (event.key === "ArrowDown" && autosuggestVisible) {
