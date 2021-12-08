@@ -138,7 +138,7 @@ while retry_attempts <= max_retry_attempts:
         f"{base_url}?group_ids={','.join([str(gid) for gid in group_ids])}&pageNumber={page}&numPerPage={num_per_page}&totalMatches={total_matches}",
         headers={"Authorization": f"token {token}"},
     )
-    
+
     if r.status_code == 429:
         print("Request rate limit exceeded; sleeping 1s before trying again...")
         time.sleep(1)
