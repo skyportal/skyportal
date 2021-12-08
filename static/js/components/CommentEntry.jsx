@@ -89,7 +89,7 @@ const CommentEntry = ({ addComment }) => {
   const handleTextInputChange = (event) => {
     const text = event.target.value;
     const cursorIdx = event.target.selectionStart;
-    const currentWord = text.slice(0, cursorIdx).trim().split(" ").pop();
+    const currentWord = text.slice(0, cursorIdx).split(" ").pop();
     if (currentWord.startsWith("@")) {
       const matches = usernameTrie.findAllStartingWith(currentWord.slice(1));
       setUsernamePrefixMatches(matches);
