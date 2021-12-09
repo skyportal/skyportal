@@ -60,7 +60,7 @@ class SourceViewsHandler(BaseHandler):
                             "is_grayscale": t.is_grayscale,
                             "public_url": t.public_url,
                         }
-                        for t in sorted(s.thumbnails, key=lambda t: tIndex(t.type))
+                        for t in sorted(s.thumbnails, key=lambda t: t_index(t.type))
                     ],
                     'classifications': s.classifications,
                 }
@@ -80,6 +80,6 @@ class SourceViewsHandler(BaseHandler):
         return self.success()
 
 
-def tIndex(t):
+def t_index(t):
     thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8', 'ps1']
     return thumbnail_order.index(t) if t in thumbnail_order else len(thumbnail_order)

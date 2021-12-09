@@ -4,7 +4,7 @@ from collections import defaultdict
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from ....models import Obj, Source
-from .source_views import tIndex
+from .source_views import t_index
 
 
 default_prefs = {'maxNumSources': 5}
@@ -71,7 +71,7 @@ class RecentSourcesHandler(BaseHandler):
                             "is_grayscale": t.is_grayscale,
                             "public_url": t.public_url,
                         }
-                        for t in sorted(s.thumbnails, key=lambda t: tIndex(t.type))
+                        for t in sorted(s.thumbnails, key=lambda t: t_index(t.type))
                     ],
                     'classifications': s.classifications,
                     'recency_index': recency_index,
