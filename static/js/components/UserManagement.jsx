@@ -84,7 +84,7 @@ const UserManagement = () => {
   const dispatch = useDispatch();
   const [rowsPerPage, setRowsPerPage] = useState(defaultNumPerPage);
   const [queryInProgress, setQueryInProgress] = useState(false);
-  const { invitationsEnabled } = useSelector((state) => state.sysInfo);
+  const { invitationsEnabled } = useSelector((state) => state.config);
   const currentUser = useSelector((state) => state.profile);
   const { users, totalMatches } = useSelector((state) => state.users);
   const [fetchParams, setFetchParams] = useState({
@@ -150,7 +150,7 @@ const UserManagement = () => {
   ) {
     return <div>Access denied: Insufficient permissions.</div>;
   }
-  allGroups = allGroups.filter((group) => !group.single_user_group);
+  allGroups = allGroups?.filter((group) => !group.single_user_group);
 
   const validateGroups = () => {
     const formState = getValues({ nest: true });
@@ -173,8 +173,8 @@ const UserManagement = () => {
   };
 
   const handleAddUserToGroups = async (formData) => {
-    const groupIDs = formData.groups.map((g) => g.id);
-    const promises = groupIDs.map((gid) =>
+    const groupIDs = formData.groups?.map((g) => g.id);
+    const promises = groupIDs?.map((gid) =>
       dispatch(
         groupsActions.addGroupUser({
           userID: clickedUser.id,
@@ -196,8 +196,8 @@ const UserManagement = () => {
   };
 
   const handleAddUserToStreams = async (formData) => {
-    const streamIDs = formData.streams.map((g) => g.id);
-    const promises = streamIDs.map((sid) =>
+    const streamIDs = formData.streams?.map((g) => g.id);
+    const promises = streamIDs?.map((sid) =>
       dispatch(
         streamsActions.addStreamUser({
           user_id: clickedUser.id,
@@ -237,7 +237,7 @@ const UserManagement = () => {
     const result = await dispatch(
       rolesActions.addUserRoles({
         userID: clickedUser.id,
-        roleIds: formData.roles.map((role) => role.id),
+        roleIds: formData.roles?.map((role) => role.id),
       })
     );
     if (result.status === "success") {
@@ -333,7 +333,7 @@ const UserManagement = () => {
         >
           <AddCircleIcon color="disabled" />
         </IconButton>
-        {user.roles.map((role) => (
+        {user?.roles?.map((role) => (
           <Chip
             label={role}
             onDelete={() => {
@@ -356,7 +356,7 @@ const UserManagement = () => {
           <>
             <b>Each role is associated with the following ACLs:</b>
             <ul>
-              {roles.map((role) => (
+              {roles?.map((role) => (
                 <li key={role.id}>
                   {role.id}: {role.acls.join(", ")}
                 </li>
@@ -385,7 +385,7 @@ const UserManagement = () => {
         >
           <AddCircleIcon color="disabled" />
         </IconButton>
-        {user.acls.map((acl) => (
+        {user?.acls?.map((acl) => (
           <Chip
             label={acl}
             onDelete={() => {
@@ -435,7 +435,7 @@ const UserManagement = () => {
         </IconButton>
         {user.groups
           ?.filter((group) => !group.single_user_group)
-          .map((group) => (
+          ?.map((group) => (
             <Chip
               label={group.name}
               onDelete={() => {
@@ -594,7 +594,7 @@ const UserManagement = () => {
         role: {
           title: "Role",
           type: "string",
-          enum: roles.map((role) => role.id),
+          enum: roles?.map((role) => role.id),
         },
         acl: {
           title: "Additional ACL",
@@ -604,12 +604,12 @@ const UserManagement = () => {
         group: {
           title: "Group",
           type: "string",
-          enum: allGroups.map((group) => group.name),
+          enum: allGroups?.map((group) => group.name),
         },
         stream: {
           title: "Stream",
           type: "string",
-          enum: streams.map((stream) => stream.name),
+          enum: streams?.map((stream) => stream.name),
         },
       },
     };
@@ -763,7 +763,7 @@ const UserManagement = () => {
                   multiple
                   onChange={(e, data) => onChange(data)}
                   value={value}
-                  options={allGroups.filter(
+                  options={allGroups?.filter(
                     (g) =>
                       !clickedUser?.groups?.map((gr) => gr.id)?.includes(g.id)
                   )}
@@ -824,7 +824,7 @@ const UserManagement = () => {
                   multiple
                   onChange={(e, data) => onChange(data)}
                   value={value}
-                  options={streams.filter(
+                  options={streams?.filter(
                     (s) =>
                       !clickedUser?.streams
                         ?.map((strm) => strm.id)
@@ -887,7 +887,7 @@ const UserManagement = () => {
                   multiple
                   onChange={(e, data) => onChange(data)}
                   value={value}
-                  options={acls.filter(
+                  options={acls?.filter(
                     (acl) => !clickedUser?.permissions?.includes(acl)
                   )}
                   getOptionLabel={(acl) => acl}

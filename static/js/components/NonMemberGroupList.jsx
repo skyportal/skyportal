@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Button from "@material-ui/core/Button";
 import MUIDataTable from "mui-datatables";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -14,14 +15,18 @@ const NonMemberGroupList = ({ groups }) => {
     (state) => state.profile
   );
   if (currentUserID === null) {
-    return <>Loading...</>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
   const pendingRequestGroupIDs = groupAdmissionRequests
-    .filter((request) => request.status === "pending")
-    .map((request) => request.group_id);
+    ?.filter((request) => request.status === "pending")
+    ?.map((request) => request.group_id);
   const declinedRequestGroupIDs = groupAdmissionRequests
-    .filter((request) => request.status === "declined")
-    .map((request) => request.group_id);
+    ?.filter((request) => request.status === "declined")
+    ?.map((request) => request.group_id);
 
   const handleRequestAdmission = async (groupID) => {
     const result = await dispatch(
@@ -47,9 +52,9 @@ const NonMemberGroupList = ({ groups }) => {
       return <em>Admission request declined.</em>;
     }
     if (pendingRequestGroupIDs.includes(group.id)) {
-      const admissionRequestID = groupAdmissionRequests.filter(
+      const admissionRequestID = groupAdmissionRequests?.filter(
         (request) => request.group_id === group.id
-      )[0].id;
+      )[0]?.id;
       return (
         <>
           <em>Request pending...</em>
@@ -114,6 +119,7 @@ const NonMemberGroupList = ({ groups }) => {
     pagination: true,
     rowHover: false,
     print: false,
+    elevation: 1,
   };
   return (
     <MUIDataTable

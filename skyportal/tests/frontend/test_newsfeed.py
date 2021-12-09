@@ -6,9 +6,7 @@ from skyportal.tests import api
 
 
 @pytest.mark.flaky(reruns=2)
-def test_news_feed(
-    driver, user, public_source, public_group, upload_data_token, comment_token
-):
+def test_news_feed(driver, user, public_group, upload_data_token, comment_token):
     obj_id_base = str(uuid.uuid4())
     for i in range(2):
         status, data = api(
@@ -30,7 +28,7 @@ def test_news_feed(
 
         status, data = api(
             'POST',
-            'comment',
+            f'sources/{obj_id_base}_{i}/comments',
             data={'obj_id': f'{obj_id_base}_{i}', 'text': f'comment_text_{i}'},
             token=comment_token,
         )
@@ -46,7 +44,7 @@ def test_news_feed(
     for i in range(2):
         # Source added item
         driver.wait_for_xpath(
-            f'//div[contains(@class, "NewsFeed__entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
+            f'//div[contains(@class, "entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
         )
 
         # Comment item
@@ -55,7 +53,7 @@ def test_news_feed(
 
 @pytest.mark.flaky(reruns=2)
 def test_news_feed_prefs_widget(
-    driver, user, public_source, public_group, upload_data_token, comment_token
+    driver, user, public_group, upload_data_token, comment_token
 ):
     obj_id_base = str(uuid.uuid4())
     for i in range(2):
@@ -78,7 +76,7 @@ def test_news_feed_prefs_widget(
 
         status, data = api(
             'POST',
-            'comment',
+            f'sources/{obj_id_base}_{i}/comments',
             data={'obj_id': f'{obj_id_base}_{i}', 'text': f'comment_text_{i}'},
             token=comment_token,
         )
@@ -94,7 +92,7 @@ def test_news_feed_prefs_widget(
     for i in range(2):
         # Source added item
         driver.wait_for_xpath(
-            f'//div[contains(@class, "NewsFeed__entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
+            f'//div[contains(@class, "entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
         )
 
         # Comment item
@@ -105,7 +103,7 @@ def test_news_feed_prefs_widget(
     n_items_input.clear()
     ActionChains(driver).click(n_items_input).send_keys("2").perform()
     driver.click_xpath('//button[contains(., "Save")]')
-    source_added_item_xpath = f'//div[contains(@class, "NewsFeed__entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_0"]]'
+    source_added_item_xpath = f'//div[contains(@class, "entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_0"]]'
     driver.wait_for_xpath_to_disappear(source_added_item_xpath)
 
     driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')
@@ -121,7 +119,7 @@ def test_news_feed_prefs_widget(
     for i in range(2):
         # Source added item
         driver.wait_for_xpath_to_disappear(
-            f'//div[contains(@class, "NewsFeed__entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
+            f'//div[contains(@class, "entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
         )
 
     driver.click_xpath('//*[@id="newsFeedSettingsIcon"]')

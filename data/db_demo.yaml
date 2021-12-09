@@ -162,6 +162,14 @@ telescope:
     skycam_link: null
     robotic: true
     =id: LCOGT2m
+  - diameter: 4.0
+    elevation: 2207.0
+    lat: -30.169661
+    lon: -70.806525
+    name: CTIO Victor M. Blanco 4-meter Telescope
+    nickname: CTIO-4m
+    skycam_link: null
+    =id: CTIO-4m
 
 instrument:
   - name: ZTF
@@ -171,6 +179,10 @@ instrument:
     filters: ["ztfg", "ztfr", "ztfi"]
     =id: ZTF
     api_classname: ZTFAPI
+    # field_data:
+    #   file: ../data/ZTF_Fields.csv
+    # field_region:
+    #   file: ../data/ZTF_Region.reg
   - name: ALFOSC
     type: imaging spectrograph
     band: V
@@ -216,14 +228,14 @@ instrument:
     name: Sinistro
     telescope_id: =LCOGT1m
     type: imager
-    filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz", "desy"]
     api_classname: SINISTROAPI
     =id: SINISTRO
   - band: optical
     name: SPECTRAL
     telescope_id: =LCOGT2m
     type: imager
-    filters: ['sdssu', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'desy']
+    filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz", "desy"]
     api_classname: SPECTRALAPI
     =id: SPECTRAL
   - band: optical
@@ -236,9 +248,18 @@ instrument:
     name: MUSCAT
     telescope_id: =LCOGT2m
     type: imager
-    filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz']
+    filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: MUSCATAPI
     =id: MUSCAT
+  - band: optical
+    name: DECam
+    telescope_id: =CTIO-4m
+    type: imager
+    filters: ['sdssu', 'desg', 'desr', 'desi', 'desz', 'desy']
+    # field_data:
+    #   file: ../data/DECam_Fields.csv
+    # field_region:
+    #   file: ../data/DECam_Region.reg
 
 allocation:
   - pi: Michael Coughlin
@@ -309,46 +330,27 @@ allocation:
     instrument_id: =ZTF
 
 candidates:
-  - id: 14gqr_unsaved_copy
+  - id: ZTF21aaqjmps
     filter_ids:
       - =example_filter
       - =example_filter2
-    ra: 353.36647
-    dec: 33.646149
-    redshift: 0.063
-    redshift_error: 0.002
+    ra: 202.5050541
+    dec: 13.4111859
+    redshift: 0.0246
     varstar: false
-    passed_at: "2020-10-30 21:17:06.475748"
-    origin: "ASAS-SN"
-  - id: 14gqr
+    passed_at: "2021-03-21 06:27:01.728"
+    origin: "ZTF"
+    alias: ["SN 2021gvm"]
+  - id: ZTF18aabcvnq
     filter_ids:
       - =example_filter
       - =example_filter2
-    ra: 353.36647
-    dec: 33.646149
-    redshift: 0.063
-    redshift_error: 0.002
-    varstar: false
-    passed_at: "2020-10-30 21:18:06.475748"
-    origin: "ASAS-SN"
-  - id: 16fil_unsaved_copy
-    filter_ids:
-      - =example_filter
-    ra: 322.718872
-    dec: 27.574113
-    redshift: 0.001
-    varstar: false
-    passed_at: "2020-10-30 21:19:06.475748"
-    alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
-  - id: 16fil
-    filter_ids:
-      - =example_filter
-    ra: 322.718872
-    dec: 27.574113
-    redshift: 0.001
-    varstar: false
-    passed_at: "2020-10-30 21:13:06.475748"
-    alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
+    ra: 172.0534465
+    dec: 25.6596908
+    varstar: true
+    passed_at: "2018-04-25 04:13:26.000"
+    origin: "ZTF"
+    alias: ["AT 2018cbj"]
   - id: ZTFe028h94k
     filter_ids:
       - =example_filter
@@ -359,7 +361,7 @@ candidates:
       simbad:
         class: RRLyr
     passed_at: "2020-10-30 11:13:06.475748"
-    alias: ['SN2020abc']
+    alias: ["SN2020abc"]
   - id: ZTFrlh6cyjh
     filter_ids:
       - =example_filter
@@ -372,24 +374,24 @@ candidates:
     passed_at: "2020-10-30 11:23:06.475748"
 
 sources:
-  - id: 14gqr
-    ra: 353.36647
-    dec: 33.646149
+  - id: ZTF21aaqjmps
+    ra: 202.5050541
+    dec: 13.4111859
     group_ids:
-      # Adding the public_group_id is a hack until the admin token i
-      # allowed to create sources outside of its own groups, as per
-      # https://github.com/skyportal/skyportal/issues/619
       - =public_group_id
       - =program_A
       - =program_B
-    origin: "ASAS-SN"
-  - id: 16fil
-    ra: 322.718872
-    dec: 27.574113
+    origin: "ZTF"
+    alias: [ "SN 2021gvm" ]
+  - id: ZTF18aabcvnq
+    ra: 172.0534465
+    dec: 25.6596908
     group_ids:
       - =public_group_id
       - =program_A
-    alias: ['ZTF21whatnow', 'ASAS-SN21zzz']
+      - =program_B
+    origin: "ZTF"
+    alias: ["AT 2018cbj"]
   - id: ZTFe028h94k
     ra: 229.9620403
     dec: 34.8442757
@@ -397,7 +399,7 @@ sources:
       - =public_group_id
       - =program_A
       - =program_B
-    alias: ['SN2020abc']
+    alias: ["SN2020abc"]
   - id: ZTFrlh6cyjh
     ra: 342.4596
     dec: 51.2634
@@ -405,86 +407,46 @@ sources:
       - =public_group_id
       - =program_A
       - =program_B
-
-comment:
-  - obj_id: 14gqr_unsaved_copy
-    text: "No source at transient location to R>26 in LRIS imaging"
-  - obj_id: 14gqr_unsaved_copy
-    text: "Strong calcium lines have emerged."
-  - obj_id: 14gqr
-    text: "No source at transient location to R>26 in LRIS imaging"
-  - obj_id: 14gqr
-    text: "Strong calcium lines have emerged."
-
-  - obj_id: 16fil_unsaved_copy
-    text: "Dogs in the park"
-  - obj_id: 16fil_unsaved_copy
-    text: "Birds are not real"
-  - obj_id: 16fil
-    text: "Dogs in the park"
-  - obj_id: 16fil
-    text: "Birds are not real"
-
-annotation:
-  - obj_id: 14gqr_unsaved_copy
-    origin: "Program A"
-    data:
-      numeric_field: 0.123456789
-      some_boolean: true
-      some_text: "some text auto-annotation"
+  - id: ZTFJ201825+380316
+    ra: 304.607916280
+    dec: 38.05469
     group_ids:
+      - =public_group_id
       - =program_A
-  - obj_id: 14gqr_unsaved_copy
-    origin: "Program B"
-    data:
-      numeric_field2: 0.321455
-      some_boolean2: false
-      nested_field:
-        comment: "test annotation"
-        flag: true
-    group_ids:
       - =program_B
-  - obj_id: 14gqr
+    alias: [""]
+
+sources/ZTF21aaqjmps/comments:
+  - obj_id: ZTF21aaqjmps
+    text: "Kilroy was here"
+  - obj_id: ZTF21aaqjmps
+    text: "Birds aren't real"
+  - obj_id: ZTF21aaqjmps
+    text: "Thanks to Daniel Perley and his team for this spectrum. It was observed 2021-04-03 02:28:20 on LT/SPRAT"
+
+sources/ZTF18aabcvnq/comments:
+  - obj_id: ZTF18aabcvnq
+    text: "Gosh, stars are cool"
+  - obj_id: ZTF18aabcvnq
+    text: "You're a star! <3"
+
+sources/ZTF21aaqjmps/annotations:
+  - obj_id: ZTF21aaqjmps
     origin: "Program A"
     data:
-      numeric_field: 0.123456789
+      numeric_field: 0.11235813
       some_boolean: true
-      some_text: "some text auto-annotation"
-    group_ids:
-      - =program_A
-  - obj_id: 14gqr
-    origin: "Program B"
+      class: "SNe II"
+
+sources/ZTF18aabcvnq/annotations:
+  - obj_id: ZTF18aabcvnq
+    origin: "Program b"
     data:
-      numeric_field2: 0.321455
-      some_boolean2: false
-      nested_field:
-        comment: "test annotation"
-        flag: true
-    group_ids:
-      - =program_B
-  - obj_id: 14gqr
-    origin: "cross_match"
-    data:
-      gaia:
-        Plx: 20
-        Mag_G: 6.5
-        Mag_Bp: 7.6
-        Mag_Rp: 5.1
-        A_G: 0.3
-  - obj_id: 16fil_unsaved_copy
-    origin: "Program A"
-    data:
-      numeric_field: 0.98765
+      numeric_field: 0.213471118
       some_boolean: false
-    group_ids:
-      - =program_A
-  - obj_id: 16fil
-    origin: "Program A"
-    data:
-      numeric_field: 0.98765
-      some_boolean: false
-    group_ids:
-      - =program_A
+      class: "varstar"
+
+sources/ZTFe028h94k/annotations:
   - obj_id: ZTFe028h94k
     origin: "Program B"
     data:
@@ -497,6 +459,8 @@ annotation:
       period: 0.5281217208459
     group_ids:
       - =program_B
+
+sources/ZTFrlh6cyjh/annotations:
   - obj_id: ZTFrlh6cyjh
     origin: "ZVM"
     data:
@@ -522,60 +486,31 @@ observing_run:
     =id: lris_run
 
 assignment:
-  - obj_id: 14gqr
+  - obj_id: ZTF21aaqjmps
     run_id: =lris_run
-    priority: "4"
+    priority: "2"
+    comment: Please get  3x100s
     status: "complete"
-    comment: Please get 2x625s
-  - obj_id: 16fil
-    run_id: =lris_run
+  - obj_id: ZTF18aabcvnq
+    run_id: =esi_run
     priority: "3"
-    status: "complete"
-    comment: Please do i-band imaging to 24th mag
-  - obj_id: 14gqr
-    run_id: =esi_run
-    priority: "2"
-    comment: Please integrate for 1200s
-  - obj_id: 16fil
-    run_id: =esi_run
-    priority: "2"
-    comment: Please take only when seeing is less than 1.5"
+    comment: Please only take when seeing is below 2"
 
 photometry:
-  - obj_id: 14gqr_unsaved_copy
+  - obj_id: ZTF21aaqjmps
     instrument_id: =ZTF
-    assignment_id: 1
-    file: 14gqr_phot.csv
+    assignment_id: 3
+    file: ZTF21aaqjmps_phot.csv
     group_ids:
       - =program_A
       - =program_B
     stream_ids:
       - =ztf_public
       - =ztf_partnership
-  - obj_id: 14gqr
+  - obj_id: ZTF18aabcvnq
     instrument_id: =ZTF
-    assignment_id: 1
-    file: 14gqr_phot.csv
-    group_ids:
-      - =program_A
-      - =program_B
-    stream_ids:
-      - =ztf_public
-      - =ztf_partnership
-  - obj_id: 16fil_unsaved_copy
-    instrument_id: =ZTF
-    assignment_id: 2
-    file: 16fil_phot.csv
-    group_ids:
-      - =program_A
-      - =program_B
-    stream_ids:
-      - =ztf_public
-      - =ztf_partnership
-  - obj_id: 16fil
-    instrument_id: =ZTF
-    assignment_id: 2
-    file: 16fil_phot.csv
+    assignment_id: 3
+    file: ZTF18aabcvnq_phot.csv
     group_ids:
       - =program_A
       - =program_B
@@ -604,99 +539,83 @@ photometry:
       - =ztf_partnership
 
 spectrum:
-  - obj_id: 14gqr_unsaved_copy
-    file: spec1.csv
-    instrument_id: =ALFOSC
-    observed_at: "2019-10-28T00:00:00"
-    assignment_id: 1
-    group_ids:
-      - =program_A
-      - =program_B
-  - obj_id: 14gqr
+  - obj_id: ZTFrlh6cyjh
     file: spec1.csv
     instrument_id: =ALFOSC
     observed_at: "2019-10-24T05:23:14"
+    origin: "demo_data"
     assignment_id: 1
     group_ids:
       - =program_A
       - =program_B
-  - obj_id: 16fil_unsaved_copy
-    file: spec2.csv
-    instrument_id: =ALFOSC
-    observed_at: "2019-08-28T00:00:00"
-    assignment_id: 2
-    group_ids:
-      - =program_A
-      - =program_B
-  - obj_id: 16fil
+    =id: "spectrum1"
+  - obj_id: ZTFe028h94k
     file: spec2.csv
     instrument_id: =ALFOSC
     observed_at: "2019-08-24T06:18:53"
+    origin: "demo_data"
     assignment_id: 2
+    altdata:
+      some_value: 1
+      some_other_value: 2
     group_ids:
       - =program_A
       - =program_B
-  - obj_id: 16fil
-    file: spec1.csv
-    instrument_id: =ALFOSC
-    observed_at: "2019-08-19T05:23:14"
+    =id: "spectrum2"
+  - obj_id: ZTF21aaqjmps
+    file: ZTF21aaqjmps_spec.csv
+    instrument_id: =SPRAT
+    observed_at: "2021-04-03T02:28:19.921"
     assignment_id: 1
+
+spectra/=spectrum1/annotations:
+  - origin: "Kowalski"
+    data:
+      ACAI_score: 0.98765
+      transient_type: "TDE"
     group_ids:
       - =program_A
+  - origin: "SEDM"
+    data:
+      numeric_field: 0.98765
+      boolean_field: false
+    group_ids:
+      - =program_B
+
+spectra/=spectrum2/annotations:
+  - origin: "Super Fit"
+    data:
+      match_prob: 0.8765
+      classification: "Type Ia SN"
+    group_ids:
       - =program_B
 
 thumbnail:
-  - obj_id: 14gqr_unsaved_copy
+  - obj_id: ZTF21aaqjmps
     ttype: new
     data:
-      file: ../skyportal/tests/data/14gqr_new.png
-  - obj_id: 14gqr_unsaved_copy
+      file: ../skyportal/tests/data/ZTF21aaqjmps_new.png
+  - obj_id: ZTF21aaqjmps
     ttype: ref
     data:
-      file: ../skyportal/tests/data/14gqr_ref.png
-  - obj_id: 14gqr_unsaved_copy
+      file: ../skyportal/tests/data/ZTF21aaqjmps_ref.png
+  - obj_id: ZTF21aaqjmps
     ttype: sub
     data:
-      file: ../skyportal/tests/data/14gqr_sub.png
+      file: ../skyportal/tests/data/ZTF21aaqjmps_sub.png
 
-  - obj_id: 14gqr
+  - obj_id: ZTF18aabcvnq
     ttype: new
     data:
-      file: ../skyportal/tests/data/14gqr_new.png
-  - obj_id: 14gqr
+      file: ../skyportal/tests/data/ZTF18aabcvnq_new.png
+  - obj_id: ZTF18aabcvnq
     ttype: ref
     data:
-      file: ../skyportal/tests/data/14gqr_ref.png
-  - obj_id: 14gqr
+      file: ../skyportal/tests/data/ZTF18aabcvnq_ref.png
+  - obj_id: ZTF18aabcvnq
     ttype: sub
     data:
-      file: ../skyportal/tests/data/14gqr_sub.png
-
-  - obj_id: 16fil_unsaved_copy
-    ttype: new
-    data:
-      file: ../skyportal/tests/data/16fil_new.png
-  - obj_id: 16fil_unsaved_copy
-    ttype: ref
-    data:
-      file: ../skyportal/tests/data/16fil_ref.png
-  - obj_id: 16fil_unsaved_copy
-    ttype: sub
-    data:
-      file: ../skyportal/tests/data/16fil_sub.png
-
-  - obj_id: 16fil
-    ttype: new
-    data:
-      file: ../skyportal/tests/data/16fil_new.png
-  - obj_id: 16fil
-    ttype: ref
-    data:
-      file: ../skyportal/tests/data/16fil_ref.png
-  - obj_id: 16fil
-    ttype: sub
-    data:
-      file: ../skyportal/tests/data/16fil_sub.png
+      file: ../skyportal/tests/data/ZTF18aabcvnq_sub.png
   - obj_id: ZTFe028h94k
     ttype: new
     data:
@@ -711,3 +630,8 @@ gcn_event:
       file: ../skyportal/tests/data/GW190425_initial.xml
   - xml:
       file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
+
+galaxy_catalog:
+  - catalog_name: CLU_mini
+    catalog_data:
+      file: ../data/CLU_mini.hdf5

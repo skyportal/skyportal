@@ -1,8 +1,10 @@
 import io
 import os
+import math
 import datetime
 import warnings
 from functools import wraps
+import re
 
 import pandas as pd
 import requests
@@ -22,6 +24,7 @@ from astropy.time import Time
 from astropy.table import Table
 from astropy.utils.exceptions import AstropyWarning
 
+from astropy.wcs.wcs import FITSFixedWarning
 from astropy.wcs import WCS
 from astropy.wcs.utils import pixel_to_skycoord
 from astropy.io import fits
@@ -215,6 +218,58 @@ def get_url(*args, **kwargs):
 
 
 @memcache
+def get_ps1_url(ra, dec, imsize, *args, **kwargs):
+    """
+    Returns the URL that points to the PS1 image for the
+    requested position
+
+    Parameters
+    ----------
+    ra : float
+        Right ascension (J2000) of the source
+    dec : float
+        Declination (J2000) of the source
+    imsize : float
+        Requested image size (on a size) in arcmin
+    *args : optional
+        Extra args (not needed here)
+    **kwargs : optional
+        Extra kwargs (not needed here)
+
+    Returns
+    -------
+    str
+        the URL to download the PS1 image
+
+    """
+    # calculate number of PS1 pixels given the 0.25"/pix scale
+    numpix = math.ceil(60 * imsize / 0.25)
+
+    ps_query_url = (
+        f"https://ps1images.stsci.edu/cgi-bin/ps1cutouts"
+        f"?pos={ra}+{dec}&"
+        f"filter=r&filetypes=stack&size={numpix}"
+    )
+
+    response = requests.get(ps_query_url)
+
+    if response.status_code != 200:
+        log(f"Note: cannot get PS1 image at position {ra} {dec}")
+        return ''
+
+    try:
+        # see models.py for how this URL is constructed
+        match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
+        url = match.group().replace('src="', 'http:').replace('"', '')
+        url += f"&format=fits&imagename=ps1{ra}{dec:+f}.fits"
+    except Exception as e:
+        log(f"Error getting PS1 image URL {e.message}")
+        return ""
+
+    return url
+
+
+@memcache
 def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
     """
     From:
@@ -225,9 +280,9 @@ def get_ztfref_url(ra, dec, imsize, *args, **kwargs):
 
     Parameters
     ----------
-    source_ra : float
+    ra : float
         Right ascension (J2000) of the source
-    source_dec : float
+    dec : float
         Declination (J2000) of the source
     imsize : float
         Requested image size (on a size) in arcmin
@@ -302,6 +357,13 @@ source_image_parameters = {
         'npixels': 500,
         'smooth': None,
         'str': 'ZTF Ref',
+    },
+    'ps1': {
+        'url': get_ps1_url,
+        'reproject': True,
+        'npixels': 500,
+        'smooth': None,
+        'str': 'PS1 r-band',
     },
 }
 
@@ -405,11 +467,15 @@ def _calculate_best_position_for_offset_stars(
         # when there is no position information for a photometry
         # point)
         med_ra, med_dec = np.nanmedian(df["ra"]), np.nanmedian(df["dec"])
-    except TypeError:
+    except (TypeError, AttributeError):
         log(
             "Warning: could not find the median of the positions"
             " from the photometry data associated with this source "
         )
+        return fallback
+    except Exception as e:
+        log(e)
+        log("Uncaught error in ra, dec determination")
         return fallback
 
     # check to make sure that the median isn't too far away from the
@@ -578,7 +644,7 @@ def get_nearby_offset_stars(
     radius_degrees=2 / 60.0,
     mag_limit=18.0,
     mag_min=10.0,
-    min_sep_arcsec=5,
+    min_sep_arcsec=2,
     starlist_type='Keck',
     obstime=None,
     use_source_pos_in_starlist=True,
@@ -646,8 +712,6 @@ def get_nearby_offset_stars(
         # TODO: check the obstime format
         source_obstime = Time(obstime)
 
-    gaia_obstime = "J2016.0"
-
     center = SkyCoord(
         source_ra,
         source_dec,
@@ -657,10 +721,12 @@ def get_nearby_offset_stars(
     )
     # get three times as many stars as requested for now
     # and go fainter as well
-    fainter_diff = 2.0  # mag
-    search_multipler = 10
+    fainter_diff = 1.5  # mag
+    search_multipler = 20
+    min_distance = 5.0 / 3600.0  # min distance from source for offset star
+    source_in_catalog_dist = 0.5 / 3600.0  # min distance from source for offset star
     query_string = f"""
-                  SELECT TOP {how_many*search_multipler} DISTANCE(
+                  SELECT DISTANCE(
                     POINT('ICRS', ra, dec),
                     POINT('ICRS', {source_ra}, {source_dec})) AS
                     dist, source_id, ra, dec, ref_epoch,
@@ -670,19 +736,46 @@ def get_nearby_offset_stars(
                     POINT('ICRS', ra, dec),
                     CIRCLE('ICRS', {source_ra}, {source_dec},
                            {radius_degrees}))
-                  AND phot_rp_mean_mag < {mag_limit + fainter_diff}
-                  AND phot_rp_mean_mag > {mag_min}
-                  AND parallax < 250
                 """
 
     g = GaiaQuery()
     r = g.query(query_string)
-    # get brighter stars at top:
+
+    # we need to filter here to get around the new Gaia archive slowdown
+    # when SQL filtering on different columns
+    filter_mask = (
+        (r["phot_rp_mean_mag"] < mag_limit + fainter_diff)
+        & (r["phot_rp_mean_mag"] > mag_min)
+        & (r["parallax"] < 250)
+    )
+    r = r[filter_mask]
+    # sort by distance and take the top several results
+    # we need to do this here because gaia ADQL sort is not working
+    r.sort("dist")
+    r = r[: int(how_many * search_multipler)]
+
+    # get brighter stars at top for the nearby sources:
     r.sort("phot_rp_mean_mag")
+    potential_source_in_gaia_query = r[r["dist"] < source_in_catalog_dist]
+    if len(potential_source_in_gaia_query) > 0:
+        # try to find offset stars brighter than the catalog brightness of the
+        # source.
+        source_catalog_mag = potential_source_in_gaia_query["phot_rp_mean_mag"]
+        offset_brightness_limit = source_catalog_mag
+        for _ in range(3):
+            temp_r = r[r["phot_rp_mean_mag"] <= offset_brightness_limit]
+            if len(temp_r) > how_many + 2:
+                r = temp_r
+                break
+            offset_brightness_limit += 0.5
+
+    # filter out stars near the source (and the source itself)
+    # since we do not want waste an offset star on very nearby sources
+    r = r[r["dist"] > min_distance]
+
     queries_issued += 1
 
     catalog = SkyCoord.guess_from_table(r)
-
     if use_ztfref:
         ztfcatalog = get_ztfcatalog(source_ra, source_dec)
         if ztfcatalog is None:
@@ -715,13 +808,11 @@ def get_nearby_offset_stars(
             ra=source["ra"],
             dec=source["dec"],
             unit=(u.degree, u.degree),
-            pm_ra_cosdec=(
-                np.cos(source["dec"] * np.pi / 180.0) * source['pmra'] * u.mas / u.yr
-            ),
+            pm_ra_cosdec=source['pmra'] * u.mas / u.yr,
             pm_dec=source["pmdec"] * u.mas / u.yr,
             frame='icrs',
             distance=min(abs(1 / source["parallax"]), 10) * u.kpc,
-            obstime=gaia_obstime,
+            obstime=Time(source['ref_epoch'], format='jyear'),
         )
 
         d2d = c.separation(catalog)  # match it to the catalog
@@ -742,6 +833,7 @@ def get_nearby_offset_stars(
                     )
 
                     dra, ddec = cprime.spherical_offsets_to(center)
+                    pa = cprime.position_angle(center).degree
                     # use the RA, DEC from ZTF here
                     source["ra"] = ztfcatalog[idx].ra.value
                     source["dec"] = ztfcatalog[idx].dec.value
@@ -752,6 +844,7 @@ def get_nearby_offset_stars(
                             source,
                             dra.to(u.arcsec),
                             ddec.to(u.arcsec),
+                            pa,
                         )
                     )
             else:
@@ -760,8 +853,16 @@ def get_nearby_offset_stars(
                 # TODO: put this in geocentric coords to account for parallax
                 cprime = c.apply_space_motion(new_obstime=source_obstime)
                 dra, ddec = cprime.spherical_offsets_to(center)
+                pa = cprime.position_angle(center).degree
                 good_list.append(
-                    (source["dist"], c, source, dra.to(u.arcsec), ddec.to(u.arcsec))
+                    (
+                        source["dist"],
+                        cprime,
+                        source,
+                        dra.to(u.arcsec),
+                        ddec.to(u.arcsec),
+                        pa,
+                    )
                 )
 
     good_list.sort()
@@ -823,7 +924,7 @@ def get_nearby_offset_stars(
             }
         )
 
-    for i, (dist, c, source, dra, ddec) in enumerate(good_list[:how_many]):
+    for i, (dist, c, source, dra, ddec, pa) in enumerate(good_list[:how_many]):
         dras = f"{dra.value:<0.03f}\" E" if dra > 0 else f"{abs(dra.value):<0.03f}\" W"
         ddecs = (
             f"{ddec.value:<0.03f}\" N" if ddec > 0 else f"{abs(ddec.value):<0.03f}\" S"
@@ -841,19 +942,20 @@ def get_nearby_offset_stars(
             + f"{c.to_string('hmsdms', sep=sep, decimal=False, precision=2, alwayssign=True)[1:]}"
             + f" 2000.0 {offsets}"
             + f" {commentstr} dist={3600*dist:<0.02f}\"; {source['phot_rp_mean_mag']:<0.02f} mag"
-            + f"; {dras}, {ddecs} "
+            + f"; {dras}, {ddecs} PA={pa:<0.02f} deg"
             + f" ID={source['source_id']}"
         )
 
         star_list.append(
             {
                 "str": star_list_format,
-                "ra": float(source["ra"]),
-                "dec": float(source["dec"]),
+                "ra": c.ra.value,
+                "dec": c.dec.value,
                 "name": name,
                 "dras": dras,
                 "ddecs": ddecs,
                 "mag": float(source["phot_rp_mean_mag"]),
+                "pa": pa,
             }
         )
 
@@ -871,7 +973,7 @@ def fits_image(
     center_ra,
     center_dec,
     imsize=4.0,
-    image_source="ztfref",
+    image_source="ps1",
     cache_dir="./cache/finder/",
     cache_max_items=1000,
 ):
@@ -888,7 +990,7 @@ def fits_image(
     imsize : float, optional
         Requested image size (on a size) in arcmin
     image_source : str, optional
-        Survey where the image comes from "desi" or "dss" (more to be added)
+        Survey where the image comes from "desi", "dss", "ztfref", "ps1"
     cache_dir : str, optional
         Where should the cache live?
     cache_max_items : int, optional
@@ -950,11 +1052,12 @@ def fits_image(
     return get_hdu(url)
 
 
+@warningfilter(action="ignore", category=FITSFixedWarning)
 def get_finding_chart(
     source_ra,
     source_dec,
     source_name,
-    image_source='ztfref',
+    image_source='ps1',
     output_format='pdf',
     imsize=3.0,
     tick_offset=0.02,
@@ -962,6 +1065,7 @@ def get_finding_chart(
     fallback_image_source='dss',
     zscale_contrast=0.045,
     zscale_krej=2.5,
+    extra_display_string="",
     **offset_star_kwargs,
 ):
 
@@ -976,9 +1080,9 @@ def get_finding_chart(
         Declination (J2000) of the source
     source_name : str
         Name of the source
-    image_source : {'desi', 'dss', 'ztfref'}, optional
-        Survey where the image comes from "desi", "dss", "ztfref"
-        (more to be added)
+    image_source : {'desi', 'dss', 'ztfref', 'ps1'}, optional
+        Survey where the image comes from "desi", "dss", "ztfref", "ps1"
+        defaults to "ps1"
     output_format : str, optional
         "pdf" of "png" -- determines the format of the returned finder
     imsize : float, optional
@@ -994,6 +1098,8 @@ def get_finding_chart(
         Contrast parameter for the ZScale interval
     zscale_krej : float, optional
         Krej parameter for the Zscale interval
+    extra_display_string :  str, optional
+        What else to show for the source itself in the chart (e.g. proper motion)
     **offset_star_kwargs : dict, optional
         Other parameters passed to `get_nearby_offset_stars`
 
@@ -1144,7 +1250,9 @@ def get_finding_chart(
     ax.set_ylabel(r'$\delta$ (J2000)', fontsize='large')
     obstime = offset_star_kwargs.get("obstime", datetime.datetime.utcnow().isoformat())
     ax.set_title(
-        f'{source_name} Finder ({obstime})', fontsize='large', fontweight='bold'
+        f'{source_name} Finder (for {obstime.split("T")[0]})',
+        fontsize='large',
+        fontweight='bold',
     )
 
     star_list, _, _, _, used_ztfref = get_nearby_offset_stars(
@@ -1164,8 +1272,8 @@ def get_finding_chart(
         ncolors -= 1
     colors = sns.color_palette("colorblind", ncolors)
 
-    start_text = [-0.35, 0.99]
-    origin = "GaiaDR2" if not used_ztfref else "ZTFref"
+    start_text = [-0.45, 0.99]
+    origin = "GaiaEDR3" if not used_ztfref else "ZTFref"
     starlist_str = (
         f"# Note: {origin} used for offset star positions\n"
         "# Note: spacing in starlist many not copy/paste correctly in PDF\n"
@@ -1198,6 +1306,28 @@ def get_finding_chart(
             transform=ax.transAxes,
             fontsize='medium',
             fontweight='bold',
+            color="yellow",
+            alpha=0.5,
+            bbox=props,
+        )
+
+    date_obs = hdr.get('DATE-OBS')
+    if not date_obs:
+        mjd_obs = hdr.get('MJD-OBS')
+        if mjd_obs:
+            date_obs = Time(f"{mjd_obs}", format='mjd').to_value(
+                'fits', subfmt='date_hms'
+            )
+
+    if date_obs:
+        ax.text(
+            0.95,
+            0.95,
+            f'image date {date_obs.split("T")[0]}',
+            horizontalalignment='right',
+            verticalalignment='center',
+            transform=ax.transAxes,
+            fontsize='small',
             color="yellow",
             alpha=0.5,
             bbox=props,
@@ -1259,10 +1389,10 @@ def get_finding_chart(
         # mark up the right side of the page with position and offset info
         name_title = star["name"]
         if star.get("mag") is not None:
-            name_title += f", mag={star.get('mag'):.2f}"
+            name_title += f" {star.get('mag'):.2f} mag"
         ax_text.text(
             start_text[0],
-            start_text[1] - i / ncolors,
+            start_text[1] - (i * 1.1) / ncolors,
             name_title,
             ha='left',
             va='top',
@@ -1272,12 +1402,18 @@ def get_finding_chart(
             color=colors[i],
         )
         source_text = f"  {star['ra']:.5f} {star['dec']:.5f}\n"
-        source_text += f"  {c1.to_string('hmsdms')}\n"
-        if (star.get("dras") is not None) and (star.get("ddecs") is not None):
-            source_text += f'  {star.get("dras")} {star.get("ddecs")} to {source_name}'
+        source_text += f"  {c1.to_string('hmsdms', precision=2)}\n"
+        if i == 0 and extra_display_string != "":
+            source_text += f"  {extra_display_string}\n"
+        if (
+            (star.get("dras") is not None)
+            and (star.get("ddecs") is not None)
+            and (star.get("pa") is not None)
+        ):
+            source_text += f'  {star.get("dras")} {star.get("ddecs")} (PA={star.get("pa"):<0.02f}°)'
         ax_text.text(
             start_text[0],
-            start_text[1] - i / ncolors - 0.06,
+            start_text[1] - (i * 1.1) / ncolors - 0.06,
             source_text,
             ha='left',
             va='top',

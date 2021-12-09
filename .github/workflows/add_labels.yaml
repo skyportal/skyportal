@@ -1,4 +1,4 @@
-name: Add labels to SkyPortal PRs
+name: Label PRs
 
 on:
   # Note: https://github.com/actions/labeler/issues/121

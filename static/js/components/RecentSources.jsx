@@ -11,6 +11,7 @@ import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
@@ -111,7 +112,11 @@ const defaultPrefs = {
 
 const RecentSourcesList = ({ sources, styles }) => {
   if (sources === undefined) {
-    return <div>Loading recent sources...</div>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
 
   if (sources.length === 0) {
@@ -125,7 +130,7 @@ const RecentSourcesList = ({ sources, styles }) => {
           let recentSourceName = `${source.obj_id}`;
           if (source.classifications.length > 0) {
             // Display the most recent non-zero probability class
-            const filteredClasses = source.classifications.filter(
+            const filteredClasses = source.classifications?.filter(
               (i) => i.probability > 0
             );
             const sortedClasses = filteredClasses.sort((a, b) =>

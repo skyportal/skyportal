@@ -3,7 +3,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 
 from skyportal.tests import api
-from skyportal.tests.frontend.test_sources import add_comment_and_wait_for_display
+from skyportal.tests.frontend.sources_and_followup_etc.test_sources import (
+    add_comment_and_wait_for_display,
+)
 
 
 def filter_for_value(driver, value, last=False):

@@ -7,6 +7,7 @@ import Slide from "@material-ui/core/Slide";
 import CloseIcon from "@material-ui/icons/Close";
 import IconButton from "@material-ui/core/IconButton";
 import Tooltip from "@material-ui/core/Tooltip";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import MUIDataTable from "mui-datatables";
 
@@ -24,7 +25,11 @@ const PhotometryTable = ({ obj_id, open, onClose }) => {
   let bodyContent = null;
 
   if (!Object.keys(photometry).includes(obj_id)) {
-    bodyContent = <p>Loading...</p>;
+    bodyContent = (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   } else {
     const data = photometry[obj_id];
     if (data.length === 0) {

@@ -3,10 +3,8 @@ from json.decoder import JSONDecodeError
 from dateutil.tz import UTC
 import python_http_client.exceptions
 from twilio.base.exceptions import TwilioException
-import tornado
 from tornado.ioloop import IOLoop
 import io
-import math
 from dateutil.parser import isoparse
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
@@ -14,10 +12,15 @@ import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 import functools
-import healpix_alchemy as ha
+import conesearch_alchemy as ca
+
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.flow import Flow
+from baselayer.app.custom_exceptions import AccessError
+from baselayer.log import make_log
+
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -26,6 +29,7 @@ from ...models import (
     Comment,
     Instrument,
     Obj,
+    User,
     Source,
     Thumbnail,
     Token,
@@ -48,13 +52,20 @@ from ...utils.offset import (
     get_finding_chart,
     _calculate_best_position_for_offset_stars,
 )
-from .candidate import grab_query_results, update_redshift_history_if_relevant
+from .candidate import (
+    grab_query_results,
+    update_redshift_history_if_relevant,
+    add_linked_thumbnails_and_push_ws_msg,
+    Session,
+)
 from .photometry import serialize
 from .color_mag import get_color_mag
 
-SOURCES_PER_PAGE = 100
+DEFAULT_SOURCES_PER_PAGE = 100
+MAX_SOURCES_PER_PAGE = 500
 
 _, cfg = load_env()
+log = make_log('api/source')
 
 
 def apply_active_or_requested_filtering(query, include_requested, requested_only):
@@ -69,20 +80,33 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
     return query
 
 
-def add_ps1_thumbnail_and_push_ws_msg(obj_id, request_handler):
+def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
+    session = Session()
     try:
-        obj = Obj.get_if_accessible_by(obj_id, request_handler.current_user)
-        obj.add_ps1_thumbnail()
-        request_handler.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+        user = session.query(User).get(user_id)
+        if Obj.get_if_accessible_by(obj_id, user) is None:
+            raise AccessError(
+                f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+            )
+        obj = session.query(Obj).get(obj_id)
+        obj.add_ps1_thumbnail(session=session)
+        flow = Flow()
+        flow.push(
+            '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
         )
-        request_handler.push_all(
-            action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-        )
+        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
     except Exception as e:
-        return request_handler.error(f"Unable to generate PS1 thumbnail URL: {e}")
+        log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
     finally:
-        DBSession.remove()
+        Session.remove()
+
+
+def paginate_summary_query(query, page, num_per_page, total_matches):
+    if total_matches is None:
+        total_matches = query.count()
+    query = query.offset((page - 1) * num_per_page)
+    query = query.limit(num_per_page)
+    return {"sources": query.all(), "total_matches": total_matches}
 
 
 class SourceHandler(BaseHandler):
@@ -246,7 +270,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: integer
             description: |
-              Number of sources to return per paginated request. Defaults to 100. Max 1000.
+              Number of sources to return per paginated request. Defaults to 100. Max 500.
           - in: query
             name: pageNumber
             nullable: true
@@ -345,6 +369,21 @@ class SourceHandler(BaseHandler):
               type: string
             description: |
               Only return sources that were saved after this UTC datetime.
+          - in: query
+            name: hasSpectrumAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources with a spectrum saved after this UTC datetime
+          - in: query
+            name: hasSpectrumBefore
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources with a spectrum saved before this UTC
+              datetime
           - in: query
             name: saveSummary
             nullable: true
@@ -487,6 +526,14 @@ class SourceHandler(BaseHandler):
             schema:
               type: boolean
             description: If true, return only those matches with at least one associated spectrum
+          - in: query
+            name: createdOrModifiedAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date-time string (e.g. 2020-01-01 or 2020-01-01T00:00:00 or 2020-01-01T00:00:00+00:00).
+              If provided, filter by created_at or modified > createdOrModifiedAfter
           responses:
             200:
               content:
@@ -514,9 +561,10 @@ class SourceHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        page_number = self.get_query_argument('pageNumber', None)
+        page_number = self.get_query_argument('pageNumber', 1)
         num_per_page = min(
-            int(self.get_query_argument("numPerPage", SOURCES_PER_PAGE)), 100
+            int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
+            MAX_SOURCES_PER_PAGE,
         )
         ra = self.get_query_argument('ra', None)
         dec = self.get_query_argument('dec', None)
@@ -554,6 +602,11 @@ class SourceHandler(BaseHandler):
         min_latest_magnitude = self.get_query_argument("minLatestMagnitude", None)
         max_latest_magnitude = self.get_query_argument("maxLatestMagnitude", None)
         has_spectrum = self.get_query_argument("hasSpectrum", False)
+        has_spectrum_after = self.get_query_argument("hasSpectrumAfter", None)
+        has_spectrum_before = self.get_query_argument("hasSpectrumBefore", None)
+        created_or_modified_after = self.get_query_argument(
+            "createdOrModifiedAfter", None
+        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -659,7 +712,7 @@ class SourceHandler(BaseHandler):
                 .filter(ClassicalAssignment.obj_id == obj_id)
                 .all()
             )
-            point = ha.Point(ra=s.ra, dec=s.dec)
+            point = ca.Point(ra=s.ra, dec=s.dec)
             # Check for duplicates (within 4 arcsecs)
             duplicates = (
                 Obj.query_records_accessible_by(self.current_user)
@@ -685,9 +738,23 @@ class SourceHandler(BaseHandler):
                 self.verify_and_commit()
 
             if include_thumbnails:
-                if "ps1" not in [thumb.type for thumb in s.thumbnails]:
-                    IOLoop.current().add_callback(
-                        lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self)
+                existing_thumbnail_types = [thumb.type for thumb in s.thumbnails]
+                if "ps1" not in existing_thumbnail_types:
+                    IOLoop.current().run_in_executor(
+                        None,
+                        lambda: add_ps1_thumbnail_and_push_ws_msg(
+                            obj_id, self.associated_user_object.id
+                        ),
+                    )
+                if (
+                    "sdss" not in existing_thumbnail_types
+                    or "dr8" not in existing_thumbnail_types
+                ):
+                    IOLoop.current().run_in_executor(
+                        None,
+                        lambda: add_linked_thumbnails_and_push_ws_msg(
+                            obj_id, self.associated_user_object.id
+                        ),
                     )
             if include_comments:
                 comments = (
@@ -849,7 +916,7 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid values for ra, dec or radius - could not convert to float"
                 )
-            other = ha.Point(ra=ra, dec=dec)
+            other = ca.Point(ra=ra, dec=dec)
             obj_query = obj_query.filter(Obj.within(other, radius))
         if start_date:
             start_date = arrow.get(start_date.strip()).datetime
@@ -861,10 +928,53 @@ class SourceHandler(BaseHandler):
             obj_query = obj_query.filter(
                 Obj.last_detected_at(self.current_user) <= end_date
             )
+        if has_spectrum_after:
+            try:
+                has_spectrum_after = arrow.get(has_spectrum_after.strip()).datetime
+            except arrow.ParserError:
+                return self.error(
+                    f"Invalid input for parameter hasSpectrumAfter:{has_spectrum_after}"
+                )
+            spectrum_subquery = (
+                Spectrum.query_records_accessible_by(self.current_user)
+                .filter(Spectrum.observed_at >= has_spectrum_after)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
+            )
+        if has_spectrum_before:
+            try:
+                has_spectrum_before = arrow.get(has_spectrum_before.strip()).datetime
+            except arrow.ParserError:
+                return self.error(
+                    f"Invalid input for parameter hasSpectrumBefore:{has_spectrum_before}"
+                )
+            spectrum_subquery = (
+                Spectrum.query_records_accessible_by(self.current_user)
+                .filter(Spectrum.observed_at <= has_spectrum_before)
+                .subquery()
+            )
+            obj_query = obj_query.join(
+                spectrum_subquery, Obj.id == spectrum_subquery.c.obj_id
+            )
         if saved_before:
             source_query = source_query.filter(Source.saved_at <= saved_before)
         if saved_after:
             source_query = source_query.filter(Source.saved_at >= saved_after)
+        if created_or_modified_after:
+            try:
+                created_or_modified_date = arrow.get(
+                    created_or_modified_after.strip()
+                ).datetime
+            except arrow.ParserError:
+                return self.error("Invalid value provided for createdOrModifiedAfter")
+            obj_query = obj_query.filter(
+                or_(
+                    Obj.created_at > created_or_modified_date,
+                    Obj.modified > created_or_modified_date,
+                )
+            )
         if list_name:
             listing_subquery = (
                 Listing.query_records_accessible_by(self.current_user)
@@ -1077,11 +1187,18 @@ class SourceHandler(BaseHandler):
                     else [classification_subquery.c.classification.desc().nullslast()]
                 )
 
-        if page_number:
-            try:
-                page_number = int(page_number)
-            except ValueError:
-                return self.error("Invalid page number value.")
+        try:
+            page_number = max(int(page_number), 1)
+        except ValueError:
+            return self.error("Invalid page number value.")
+        if save_summary:
+            query_results = paginate_summary_query(
+                source_query,
+                page_number,
+                num_per_page,
+                total_matches,
+            )
+        else:
             try:
                 query_results = grab_query_results(
                     query,
@@ -1098,22 +1215,7 @@ class SourceHandler(BaseHandler):
                 if "Page number out of range" in str(e):
                     return self.error("Page number out of range.")
                 raise
-        elif save_summary:
-            query_results = {"sources": source_query.all()}
-        else:
-            query_results = grab_query_results(
-                query,
-                total_matches,
-                None,
-                None,
-                "sources",
-                order_by=order_by,
-                # We'll join thumbnails in manually, as they lead to duplicate
-                # results downstream with the detection stats being added in
-                include_thumbnails=False,
-            )
 
-        if not save_summary:
             # Records are Objs, not Sources
             obj_list = []
 
@@ -1339,6 +1441,13 @@ class SourceHandler(BaseHandler):
                               type: string
                               description: New source ID
         """
+
+        # Note that this POST method allows updating an object,
+        # something usually reserved for PATCH/PUT. This is because
+        # the user doing the POST may not have had access to the
+        # object before (and therefore would have been unaware of its
+        # existence).
+
         data = self.get_json()
         obj_already_exists = (
             Obj.get_if_accessible_by(data["id"], self.current_user) is not None
@@ -1411,15 +1520,22 @@ class SourceHandler(BaseHandler):
                     )
                 )
         self.verify_and_commit()
-        if not obj_already_exists:
-            obj.add_linked_thumbnails()
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-        )
 
-        self.push_all(
-            action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-        )
+        if not obj_already_exists:
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_linked_thumbnails_and_push_ws_msg(
+                    obj.id, self.associated_user_object.id
+                ),
+            )
+        else:
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
+            )
+            self.push_all(
+                action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            )
+
         return self.success(data={"id": obj.id})
 
     @permissions(['Upload data'])
@@ -1466,7 +1582,7 @@ class SourceHandler(BaseHandler):
             payload={"obj_key": obj.internal_key},
         )
 
-        return self.success(action='skyportal/FETCH_SOURCES')
+        return self.success()
 
     @permissions(['Manage sources'])
     def delete(self, obj_id, group_id):
@@ -1504,7 +1620,7 @@ class SourceHandler(BaseHandler):
         s.unsaved_by = self.current_user
         self.verify_and_commit()
 
-        return self.success(action='skyportal/FETCH_SOURCES')
+        return self.success()
 
 
 class SourceOffsetsHandler(BaseHandler):
@@ -1755,8 +1871,9 @@ class SourceFinderHandler(BaseHandler):
           nullable: true
           schema:
             type: string
-            enum: [desi, dss, ztfref]
-          description: Source of the image used in the finding chart
+            enum: [desi, dss, ztfref, ps1]
+          description: |
+             Source of the image used in the finding chart. Defaults to ps1
         - in: query
           name: use_ztfref
           required: false
@@ -1839,7 +1956,7 @@ class SourceFinderHandler(BaseHandler):
             best_ra, best_dec = initial_pos[0], initial_pos[1]
 
         facility = self.get_query_argument('facility', 'Keck')
-        image_source = self.get_query_argument('image_source', 'ztfref')
+        image_source = self.get_query_argument('image_source', 'ps1')
         use_ztfref = self.get_query_argument('use_ztfref', True)
         if isinstance(use_ztfref, str):
             use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
@@ -1850,6 +1967,11 @@ class SourceFinderHandler(BaseHandler):
         except ValueError:
             # could not handle inputs
             return self.error('Invalid argument for `num_offset_stars`')
+
+        if not 0 <= num_offset_stars <= 4:
+            return self.error(
+                'The value for `num_offset_stars` is outside the allowed range'
+            )
 
         obstime = self.get_query_argument(
             'obstime', datetime.datetime.utcnow().isoformat()
@@ -1895,52 +2017,9 @@ class SourceFinderHandler(BaseHandler):
         rez = await IOLoop.current().run_in_executor(None, finder)
 
         filename = rez["name"]
-        image = io.BytesIO(rez["data"])
+        data = io.BytesIO(rez["data"])
 
-        # Adapted from
-        # https://bhch.github.io/posts/2017/12/serving-large-files-with-tornado-safely-without-blocking/
-        mb = 1024 * 1024 * 1
-        chunk_size = 1 * mb
-        max_file_size = 15 * mb
-        if not (image.getbuffer().nbytes < max_file_size):
-            return self.error(
-                f"Refusing to send files larger than {max_file_size / mb:.2f} MB"
-            )
-
-        # do not send result via `.success`, since that creates a JSON
-        self.set_status(200)
-        if output_type == "pdf":
-            self.set_header("Content-Type", "application/pdf; charset='utf-8'")
-            self.set_header("Content-Disposition", f"attachment; filename={filename}")
-        else:
-            self.set_header("Content-type", f"image/{output_type}")
-
-        self.set_header(
-            'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'
-        )
-
-        self.verify_and_commit()
-
-        for i in range(math.ceil(max_file_size / chunk_size)):
-            chunk = image.read(chunk_size)
-            if not chunk:
-                break
-            try:
-                self.write(chunk)  # write the chunk to response
-                await self.flush()  # send the chunk to client
-            except tornado.iostream.StreamClosedError:
-                # this means the client has closed the connection
-                # so break the loop
-                break
-            finally:
-                # deleting the chunk is very important because
-                # if many clients are downloading files at the
-                # same time, the chunks in memory will keep
-                # increasing and will eat up the RAM
-                del chunk
-
-                # pause the coroutine so other handlers can run
-                await tornado.gen.sleep(1e-9)  # 1 ns
+        await self.send_file(data, filename, output_type=output_type)
 
 
 class SourceNotificationHandler(BaseHandler):
@@ -2089,8 +2168,10 @@ class PS1ThumbnailHandler(BaseHandler):
         data = self.get_json()
         obj_id = data.get("objID")
         if obj_id is None:
-            return self.error("Missing required paramter objID")
+            return self.error("Missing required parameter objID")
         IOLoop.current().add_callback(
-            lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, self)
+            lambda: add_ps1_thumbnail_and_push_ws_msg(
+                obj_id, self.associated_user_object.id
+            )
         )
         return self.success()

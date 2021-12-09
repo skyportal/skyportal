@@ -12,6 +12,7 @@ import Paper from "@material-ui/core/Paper";
 import Button from "@material-ui/core/Button";
 import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
 import { makeStyles } from "@material-ui/core/styles";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import embed from "vega-embed";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -115,6 +116,13 @@ const UploadSpectrumForm = ({ route }) => {
   const classes = useStyles();
   const [persistentFormData, setPersistentFormData] = useState({});
   const [formKey, setFormKey] = useState(null);
+  const spectrumTypes = useSelector(
+    (state) => state.config.allowedSpectrumTypes
+  );
+
+  const defaultSpectrumType = useSelector(
+    (state) => state.config.defaultSpectrumType
+  );
 
   // on page load or refresh, block until state.spectra.parsed is reset
   useEffect(() => {
@@ -124,12 +132,14 @@ const UploadSpectrumForm = ({ route }) => {
       const result = await dispatch(fetchSource(route.id));
       const defaultFormData = {
         file: undefined,
-        group_ids: result.data.groups.map((group) => group.id),
+        group_ids: result.data.groups?.map((group) => group.id),
         mjd: undefined,
         wave_column: 0,
         flux_column: 1,
         has_fluxerr: "No",
         instrument_id: undefined,
+        spectrum_type: "source",
+        user_label: undefined,
         fluxerr_column: undefined,
         observed_by: undefined,
         reduced_by: undefined,
@@ -146,7 +156,11 @@ const UploadSpectrumForm = ({ route }) => {
     users.length === 0 ||
     source.id !== route.id
   ) {
-    return <p>Loading...</p>;
+    return (
+      <p>
+        <CircularProgress color="secondary" />
+      </p>
+    );
   }
 
   const instruments = instrumentList.filter((inst) =>
@@ -154,7 +168,7 @@ const UploadSpectrumForm = ({ route }) => {
   );
 
   const newPersistentFormData = { ...persistentFormData };
-  newPersistentFormData.group_ids = source.groups.map((group) => group.id);
+  newPersistentFormData.group_ids = source.groups?.map((group) => group.id);
 
   const header = [];
   const data = [];
@@ -261,31 +275,43 @@ const UploadSpectrumForm = ({ route }) => {
         title: "Share with...",
         items: {
           type: "integer",
-          anyOf: groups.map((group) => ({
+          anyOf: groups?.map((group) => ({
             enum: [group.id],
             title: group.name,
           })),
         },
         uniqueItems: true,
       },
+      reducer_mode: {
+        type: "string",
+        default: "User",
+        title: "Reducer type",
+        enum: ["User", "External"],
+      },
       reduced_by: {
         type: "array",
         title: "Reducers",
         items: {
           type: "integer",
-          anyOf: users.map((user) => ({
+          anyOf: users?.map((user) => ({
             enum: [user.id],
             title: user.username,
           })),
         },
         uniqueItems: true,
       },
+      observer_mode: {
+        type: "string",
+        default: "User",
+        title: "Observer type",
+        enum: ["User", "External"],
+      },
       observed_by: {
         type: "array",
         title: "Observers",
         items: {
           type: "integer",
-          anyOf: users.map((user) => ({
+          anyOf: users?.map((user) => ({
             enum: [user.id],
             title: user.username,
           })),
@@ -299,9 +325,9 @@ const UploadSpectrumForm = ({ route }) => {
       instrument_id: {
         type: "integer",
         title: "Instrument",
-        enum: instruments.map((instrument) => instrument.id),
-        enumNames: instruments.map((instrument) => {
-          const telescope = telescopes.find(
+        enum: instruments?.map((instrument) => instrument.id),
+        enumNames: instruments?.map((instrument) => {
+          const telescope = telescopes?.find(
             (t) => t.id === instrument.telescope_id
           );
           let name = "";
@@ -311,6 +337,17 @@ const UploadSpectrumForm = ({ route }) => {
           name += instrument.name;
           return name;
         }),
+      },
+      spectrum_type: {
+        type: "string",
+        default: defaultSpectrumType,
+        title: "Spectrum type",
+        enum: spectrumTypes,
+      },
+      user_label: {
+        type: "string",
+        title: "User label",
+        default: "",
       },
       wave_column: {
         type: "integer",
@@ -337,6 +374,108 @@ const UploadSpectrumForm = ({ route }) => {
       "instrument_id",
     ],
     dependencies: {
+      reducer_mode: {
+        oneOf: [
+          {
+            properties: {
+              reducer_mode: {
+                enum: ["User"],
+              },
+              reduced_by: {
+                type: "array",
+                title: "Reducers",
+                items: {
+                  type: "integer",
+                  anyOf: users?.map((user) => ({
+                    enum: [user.id],
+                    title: user.username,
+                  })),
+                },
+                uniqueItems: true,
+              },
+            },
+          },
+          {
+            properties: {
+              reducer_mode: {
+                enum: ["External"],
+              },
+              reduced_by: {
+                type: "string",
+                title: "Reducers",
+              },
+              reducer_point_of_contact: {
+                type: "array",
+                title: "Point of contact user for reducers",
+                items: {
+                  type: "integer",
+                  anyOf: users?.map((user) => ({
+                    enum: [user.id],
+                    title: user.username,
+                  })),
+                },
+                uniqueItems: true,
+              },
+            },
+            required: [
+              "reducer_mode",
+              "reduced_by",
+              "reducer_point_of_contact",
+            ],
+          },
+        ],
+      },
+      observer_mode: {
+        oneOf: [
+          {
+            properties: {
+              observer_mode: {
+                enum: ["User"],
+              },
+              observed_by: {
+                type: "array",
+                title: "Observers",
+                items: {
+                  type: "integer",
+                  anyOf: users?.map((user) => ({
+                    enum: [user.id],
+                    title: user.username,
+                  })),
+                },
+                uniqueItems: true,
+              },
+            },
+          },
+          {
+            properties: {
+              observer_mode: {
+                enum: ["External"],
+              },
+              observed_by: {
+                type: "string",
+                title: "Observers",
+              },
+              observer_point_of_contact: {
+                type: "array",
+                title: "Point of contact user for observers",
+                items: {
+                  type: "integer",
+                  anyOf: users?.map((user) => ({
+                    enum: [user.id],
+                    title: user.username,
+                  })),
+                },
+                uniqueItems: true,
+              },
+            },
+            required: [
+              "observer_mode",
+              "observed_by",
+              "observer_point_of_contact",
+            ],
+          },
+        ],
+      },
       has_fluxerr: {
         oneOf: [
           {
@@ -381,7 +520,6 @@ const UploadSpectrumForm = ({ route }) => {
     if (!parsed) {
       throw new Error("No spectrum loaded on frontend.");
     }
-
     const ascii = dataUriToBuffer(persistentFormData.file).toString();
     const filename = persistentFormData.file.split(";")[1].split("name=")[1];
     const payload = {
@@ -394,14 +532,42 @@ const UploadSpectrumForm = ({ route }) => {
           : null,
       obj_id: route.id,
       instrument_id: persistentFormData.instrument_id,
+      type: persistentFormData.spectrum_type,
+      label: persistentFormData.user_label,
       // 40_587 is the MJD of the unix epoch, 86400 converts days to seconds.
       observed_at: dayjs
         .unix((persistentFormData.mjd - 40_587) * 86400)
         .utc()
         .format(),
       filename,
-      observed_by: persistentFormData.observed_by,
-      reduced_by: persistentFormData.reduced_by,
+      // The observed_by list of users is either the actual users
+      // who are observers, or users to be listed as points of
+      // contact
+      observed_by:
+        persistentFormData?.observer_mode === "User"
+          ? persistentFormData.observed_by
+          : persistentFormData.observer_point_of_contact,
+      // If providing external observers as free text, the text
+      // will be in the 'observed_by' field and the associated
+      // users will be in 'observer_point_of_contact'
+      external_observer:
+        persistentFormData?.observer_mode === "External"
+          ? persistentFormData.observed_by
+          : null,
+      // The reduced_by list of users is either the actual users
+      // who are reducers, or users to be listed as points of
+      // contact
+      reduced_by:
+        persistentFormData?.reducer_mode === "User"
+          ? persistentFormData.reduced_by
+          : persistentFormData.reducer_point_of_contact,
+      // If providing external reducers as free text, the text
+      // will be in the 'reduced_by' field and the associated
+      // users will be in 'reducer_point_of_contact'
+      external_reducer:
+        persistentFormData?.reducer_mode === "External"
+          ? persistentFormData.reduced_by
+          : null,
       group_ids: persistentFormData.group_ids,
     };
     const result = await dispatch(spectraActions.uploadASCIISpectrum(payload));
@@ -410,12 +576,14 @@ const UploadSpectrumForm = ({ route }) => {
       dispatch({ type: spectraActions.RESET_PARSED_SPECTRUM });
       setPersistentFormData({
         file: undefined,
-        group_ids: source.groups.map((group) => group.id),
+        group_ids: source.groups?.map((group) => group.id),
         mjd: undefined,
         wave_column: 0,
         flux_column: 1,
         has_fluxerr: "No",
         instrument_id: undefined,
+        spectrum_type: "source",
+        user_label: undefined,
         fluxerr_column: undefined,
         observed_by: undefined,
         reduced_by: undefined,
@@ -479,7 +647,7 @@ const UploadSpectrumForm = ({ route }) => {
           <Paper className={classes.formBox}>
             <Typography variant="h6">Spectrum Preview</Typography>
             <div className={classes.vegaDiv}>
-              <Suspense fallback="Loading spectrum plot...">
+              <Suspense fallback={<CircularProgress color="secondary" />}>
                 <SpectrumPreview data={data} />
               </Suspense>
             </div>

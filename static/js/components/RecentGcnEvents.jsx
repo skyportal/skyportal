@@ -124,7 +124,7 @@ const RecentGcnEvents = ({ classes }) => {
                   </Link>
                   <div>({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})</div>
                   <div className={styles.eventTags}>
-                    {gcnEvent.tags.map((tag) => (
+                    {gcnEvent.tags?.map((tag) => (
                       <Chip
                         className={styles[tag]}
                         size="small"

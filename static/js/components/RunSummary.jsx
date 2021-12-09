@@ -14,6 +14,7 @@ import BuildIcon from "@material-ui/icons/Build";
 import Link from "@material-ui/core/Link";
 import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 import ImageAspectRatioIcon from "@material-ui/icons/ImageAspectRatio";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import Menu from "@material-ui/core/Menu";
 import MenuItem from "@material-ui/core/MenuItem";
@@ -22,7 +23,6 @@ import { makeStyles } from "@material-ui/core/styles";
 
 import MUIDataTable from "mui-datatables";
 import ThumbnailList from "./ThumbnailList";
-import styles from "./RunSummary.css";
 import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "./StarList";
 import * as SourceAction from "../ducks/source";
@@ -37,6 +37,13 @@ const AirmassPlot = React.lazy(() => import("./AirmassPlot"));
 const useStyles = makeStyles((theme) => ({
   chip: {
     margin: theme.spacing(0.5),
+  },
+  displayInlineBlock: {
+    display: "inline-block",
+  },
+  center: {
+    margin: "auto",
+    padding: "0.625rem",
   },
 }));
 
@@ -147,6 +154,7 @@ SimpleMenu.propTypes = {
 
 const RunSummary = ({ route }) => {
   const dispatch = useDispatch();
+  const styles = useStyles();
   const observingRun = useSelector((state) => state.observingRun);
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -159,14 +167,22 @@ const RunSummary = ({ route }) => {
 
   if (!("id" in observingRun && observingRun.id === parseInt(route.id, 10))) {
     // Don't need to do this for assignments -- we can just let the page be blank for a short time
-    return <b>Loading run...</b>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
   const { assignments } = observingRun;
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     if (observingRun === undefined) {
-      return "Loading...";
+      return (
+        <div>
+          <CircularProgress color="secondary" />
+        </div>
+      );
     }
 
     const colSpan = rowData.length + 1;
@@ -275,7 +291,7 @@ const RunSummary = ({ route }) => {
     const assignment = assignments[dataIndex];
     return (
       <div key={`${assignment.obj.id}_groups`}>
-        {assignment.accessible_group_names.map((name) => (
+        {assignment.accessible_group_names?.map((name) => (
           <div key={name}>
             <Chip
               label={name.substring(0, 15)}
@@ -395,7 +411,7 @@ const RunSummary = ({ route }) => {
     selectableRows: "none",
   };
 
-  const data = assignments.map((assignment) => [
+  const data = assignments?.map((assignment) => [
     assignment.obj.id,
     assignment.status,
     assignment.obj.ra,
@@ -412,53 +428,51 @@ const RunSummary = ({ route }) => {
   ]);
 
   return (
-    <div className={styles.source}>
-      <div className={styles.center}>
-        <Typography variant="h4" gutterBottom color="textSecondary">
-          Plan for:{" "}
-          <b>
-            {observingRunTitle(
-              observingRun,
-              instrumentList,
-              telescopeList,
-              groups
-            )}
-          </b>
-        </Typography>
-        <MUIDataTable
-          title="Targets"
-          columns={columns}
-          data={data}
-          options={options}
-        />
-        <Grid container className={styles.center}>
-          <Grid
-            item
-            xs={12}
-            sm={12}
-            md={12}
-            lg={8}
-            xl={8}
-            className={styles.displayInlineBlock}
-          >
-            <Typography gutterBottom align="center">
-              Starlist and Offsets
-            </Typography>
-            <ObservingRunStarList observingRunId={observingRun.id} />
-          </Grid>
-          <Grid
-            item
-            xs={12}
-            sm={12}
-            md={12}
-            lg={4}
-            xl={4}
-            className={styles.displayInlineBlock}
-          >
-            <SkyCam telescope={observingRun.instrument.telescope} />
-          </Grid>
+    <div className={styles.center}>
+      <Typography variant="h4" gutterBottom color="textSecondary">
+        Plan for:{" "}
+        <b>
+          {observingRunTitle(
+            observingRun,
+            instrumentList,
+            telescopeList,
+            groups
+          )}
+        </b>
+      </Typography>
+      <MUIDataTable
+        title="Targets"
+        columns={columns}
+        data={data}
+        options={options}
+      />
+      <Grid container className={styles.center}>
+        <Grid
+          item
+          xs={12}
+          sm={12}
+          md={12}
+          lg={8}
+          xl={8}
+          className={styles.displayInlineBlock}
+        >
+          <Typography gutterBottom align="center">
+            Starlist and Offsets
+          </Typography>
+          <ObservingRunStarList observingRunId={observingRun.id} />
         </Grid>
-      </div>
+        <Grid
+          item
+          xs={12}
+          sm={12}
+          md={12}
+          lg={4}
+          xl={4}
+          className={styles.displayInlineBlock}
+        >
+          <SkyCam telescope={observingRun.instrument.telescope} />
+        </Grid>
+      </Grid>
     </div>
   );
 };

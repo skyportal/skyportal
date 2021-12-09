@@ -74,9 +74,9 @@ const ObservabilityPreferences = () => {
     dispatch(profileActions.updateUserPreferences(prefs));
   };
 
-  telescopeList.sort((a, b) => (a.name < b.name ? -1 : 1));
+  telescopeList?.sort((a, b) => (a.name < b.name ? -1 : 1));
   const telescopeIDToName = { "-1": "Clear selections" };
-  telescopeList.forEach((telescope) => {
+  telescopeList?.forEach((telescope) => {
     telescopeIDToName[telescope.id] = telescope.name;
   });
 
@@ -137,7 +137,7 @@ const ObservabilityPreferences = () => {
         >
           {[{ id: -1, name: "Clear selections" }]
             .concat(
-              telescopeList.filter((telescope) => telescope.fixed_location)
+              telescopeList?.filter((telescope) => telescope.fixed_location)
             )
             .map((telescope) => (
               <MenuItem

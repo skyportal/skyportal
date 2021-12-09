@@ -11,7 +11,7 @@ class TokenHandler(BaseHandler):
     def post(self):
         """
         ---
-        description: Generate new token
+        description: Generate new token (limit 1 per user)
         requestBody:
           content:
             application/json:
@@ -40,6 +40,11 @@ class TokenHandler(BaseHandler):
             return self.error(
                 "User has attempted to grant token ACLs they do not have "
                 "access to. Please try again."
+            )
+        if len(user.tokens) > 0 and not user.is_admin:
+            return self.error(
+                "You have reached the maximum number of tokens "
+                "allowed for your account type."
             )
         token_name = data['name']
         if Token.query.filter(Token.name == token_name).first():

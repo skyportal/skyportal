@@ -196,10 +196,10 @@ const FilterCandidateList = ({
 
   // Get unique classification names, in alphabetical order
   const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
+  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
   let classifications = [];
-  latestTaxonomyList.forEach((taxonomy) => {
-    const currentClasses = allowedClasses(taxonomy.hierarchy).map(
+  latestTaxonomyList?.forEach((taxonomy) => {
+    const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
       (option) => option.class
     );
     classifications = classifications.concat(currentClasses);
@@ -220,8 +220,8 @@ const FilterCandidateList = ({
 
   useEffect(() => {
     const selectedGroupIDs = Array(userAccessibleGroups.length).fill(false);
-    const groupIDs = userAccessibleGroups.map((g) => g.id);
-    groupIDs.forEach((ID, i) => {
+    const groupIDs = userAccessibleGroups?.map((g) => g.id);
+    groupIDs?.forEach((ID, i) => {
       selectedGroupIDs[i] = selectedScanningProfile?.groupIDs.includes(ID);
     });
 
@@ -269,7 +269,7 @@ const FilterCandidateList = ({
 
   const validateGroups = () => {
     formState = getValues({ nest: true });
-    return formState.groupIDs.filter((value) => Boolean(value)).length >= 1;
+    return formState.groupIDs?.filter((value) => Boolean(value)).length >= 1;
   };
 
   const validateDates = () => {
@@ -295,7 +295,7 @@ const FilterCandidateList = ({
   const onSubmit = async (formData) => {
     setQueryInProgress(true);
     const groupIDs = userAccessibleGroups.map((g) => g.id);
-    const selectedGroupIDs = groupIDs.filter(
+    const selectedGroupIDs = groupIDs?.filter(
       (ID, idx) => formData.groupIDs[idx]
     );
     const data = {
@@ -333,7 +333,7 @@ const FilterCandidateList = ({
       data.annotationFilterList = annotationFilterList;
     }
     setFilterGroups(
-      userAccessibleGroups.filter((g) => selectedGroupIDs.includes(g.id))
+      userAccessibleGroups?.filter((g) => selectedGroupIDs.includes(g.id))
     );
     const fetchParams = { ...data };
 
@@ -424,7 +424,7 @@ const FilterCandidateList = ({
               input={<Input data-testid="savedStatusSelect" />}
               defaultValue={selectedScanningProfile?.savedStatus || "all"}
             >
-              {savedStatusSelectOptions.map((option) => (
+              {savedStatusSelectOptions?.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   {option.label}
                 </MenuItem>
@@ -449,7 +449,7 @@ const FilterCandidateList = ({
                   input={<Input id="classifications-select" />}
                   renderValue={(selected) => (
                     <div className={classes.chips}>
-                      {selected.map((classification) => (
+                      {selected?.map((classification) => (
                         <Chip
                           key={classification}
                           label={classification}
@@ -460,7 +460,7 @@ const FilterCandidateList = ({
                   )}
                   MenuProps={MenuProps}
                 >
-                  {classifications.map((classification) => (
+                  {classifications?.map((classification) => (
                     <MenuItem
                       key={classification}
                       value={classification}
@@ -540,7 +540,7 @@ const FilterCandidateList = ({
               input={<Input data-testid="rejectedStatusSelect" />}
               defaultValue={selectedScanningProfile?.rejectedStatus || "hide"}
             >
-              {rejectedStatusSelectOptions.map((option) => (
+              {rejectedStatusSelectOptions?.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   {option.label}
                 </MenuItem>
@@ -666,7 +666,7 @@ const FilterCandidateList = ({
                             const groupIDs = userAccessibleGroups.map(
                               (g) => g.id
                             );
-                            const selectedGroupIDs = groupIDs.filter(
+                            const selectedGroupIDs = groupIDs?.filter(
                               (ID, i) => getValues({ nest: true }).groupIDs[i]
                             );
                             setFilterGroups(

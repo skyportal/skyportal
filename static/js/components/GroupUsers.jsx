@@ -44,10 +44,9 @@ const getMuiTheme = (theme) =>
 const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [openedPopoverId, setOpenedPopoverId] = React.useState(null);
-  const [panelMembersExpanded, setPanelMembersExpanded] = React.useState(
-    "panel-members"
-  );
-  const { invitationsEnabled } = useSelector((state) => state.sysInfo);
+  const [panelMembersExpanded, setPanelMembersExpanded] =
+    React.useState("panel-members");
+  const { invitationsEnabled } = useSelector((state) => state.config);
 
   const handlePopoverOpen = (event, popoverId) => {
     setOpenedPopoverId(popoverId);
@@ -177,8 +176,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
         sort: true,
         customBodyRenderLite: renderAdmin,
         filter: true,
-        hint:
-          "An admin is anyone that is a system admin, has group management permissions, and/or is specifically an admin of this group.",
+        hint: "An admin is anyone that is a system admin, has group management permissions, and/or is specifically an admin of this group.",
       },
     },
     {
@@ -189,8 +187,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
         customBodyRenderLite: renderActions,
         filter: false,
         display: isAdmin(currentUser),
-        hint:
-          "Note that removing admin status only applies to group-specific admin status. Users who are also system admins and/or have 'Manage groups' permissions will remain admins regardless.",
+        hint: "Note that removing admin status only applies to group-specific admin status. Users who are also system admins and/or have 'Manage groups' permissions will remain admins regardless.",
       },
     },
   ];

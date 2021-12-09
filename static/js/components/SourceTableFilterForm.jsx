@@ -110,9 +110,9 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
 
   // Get unique classification names, in alphabetical order
   const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
+  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
   let classifications = [];
-  latestTaxonomyList.forEach((taxonomy) => {
+  latestTaxonomyList?.forEach((taxonomy) => {
     const currentClasses = allowedClasses(taxonomy.hierarchy).map(
       (option) => `${taxonomy.name}: ${option.class}`
     );
@@ -209,6 +209,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Time Last Detected (UTC)
           </Typography>
           <TextField
+            disabled
             size="small"
             label="Last Detected After"
             name="startDate"
@@ -216,6 +217,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             placeholder="2012-08-30T00:00:00"
           />
           <TextField
+            disabled
             size="small"
             label="Last Detected Before"
             name="endDate"
@@ -319,6 +321,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Peak Magnitude
           </Typography>
           <TextField
+            disabled
             size="small"
             label="Min"
             name="minPeakMagnitude"
@@ -329,6 +332,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
           />
           <TextField
+            disabled
             size="small"
             label="Max"
             name="maxPeakMagnitude"
@@ -370,6 +374,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             Latest Magnitude
           </Typography>
           <TextField
+            disabled
             size="small"
             label="Min"
             name="minLatestMagnitude"
@@ -380,6 +385,7 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
             inputRef={register}
           />
           <TextField
+            disabled
             size="small"
             label="Max"
             name="maxLatestMagnitude"
@@ -434,6 +440,27 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
               }
             />
           </div>
+        </div>
+        <div className={classes.formItem}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Time of Most Recent Spectrum (UTC)
+          </Typography>
+          <TextField
+            size="small"
+            label="Spectrum After"
+            name="hasSpectrumAfter"
+            data-testid="hasSpectrumAfterTest"
+            inputRef={register}
+            placeholder="2021-01-01T00:00:00"
+          />
+          <TextField
+            size="small"
+            label="Spectrum Before"
+            name="hasSpectrumBefore"
+            data-testid="hasSpectrumBeforeTest"
+            inputRef={register}
+            placeholder="2021-01-01T00:00:00"
+          />
         </div>
         <div className={classes.formButtons}>
           <ButtonGroup

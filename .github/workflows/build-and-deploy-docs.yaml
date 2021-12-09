@@ -1,4 +1,4 @@
-name: Build and deploy documentation
+name: Build/deploy docs
 
 on:
   push:
@@ -30,17 +30,6 @@ jobs:
           --health-retries 5
 
     steps:
-
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.cache/sphinx
-            ~/.ccache
-            ~/.local
-            ~/.npm
-          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
-
       - uses: actions/setup-python@v1
         with:
           python-version: '3.8'
@@ -48,6 +37,18 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
 
       - name: Setup Graphviz
         uses: ts-graphviz/setup-graphviz@v1
