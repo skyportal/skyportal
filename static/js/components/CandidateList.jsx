@@ -6,7 +6,7 @@ import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
@@ -131,7 +131,7 @@ const useStyles = makeStyles((theme) => ({
 
 // Tweak responsive column widths
 const getMuiTheme = (theme) =>
-  createMuiTheme({
+  createTheme({
     palette: theme.palette,
     overrides: {
       MUIDataTableBodyCell: {
@@ -231,7 +231,7 @@ const getMostRecentClassification = (classifications) => {
 };
 
 const getMuiPopoverTheme = () =>
-  createMuiTheme({
+  createTheme({
     overrides: {
       MuiPopover: {
         paper: {
