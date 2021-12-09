@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
@@ -27,7 +27,7 @@ const useStyles = makeStyles(() => ({
 
 // Tweak responsive column widths
 const getMuiTheme = (theme) =>
-  createMuiTheme({
+  createTheme({
     palette: theme.palette,
     overrides: {
       MUIDataTableBodyCell: {
