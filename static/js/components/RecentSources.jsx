@@ -143,30 +143,46 @@ const RecentSourcesList = ({ sources, styles }) => {
           }
 
           // Use first thumbnail available
-          const fetchThumbnail = async (index) => {
-            const response = await fetch(source.thumbnails[index]?.public_url, {
-              mode: "no-cors",
+          let firstThumbnail =
+            source.thumbnails.filter((thumbnail) =>
+              thumbnail.public_url?.startsWith("/static")
+            )[0] || null;
+          if (firstThumbnail == null) {
+            const remoteRequests = [];
+            const remoteRequestThumbnails = [];
+            // Generate list of request promises
+            source.thumbnails.forEach((thumbnail) => {
+              if (!thumbnail.public_url?.startsWith("/static")) {
+                console.log(
+                  "obj_id: ",
+                  source.obj_id,
+                  "gonna try fetching: ",
+                  thumbnail.public_url
+                );
+                remoteRequests.push(
+                  fetch(thumbnail.public_url, { mode: "cors" })
+                );
+                remoteRequestThumbnails.push(thumbnail);
+              }
             });
-            return response.status;
-          };
-          let idx = 0;
-          let statusCode = 0;
-          while (idx < source.thumbnails.length - 1) {
-            if (
-              source.thumbnails[idx]?.public_url &&
-              source.thumbnails[idx].public_url.startsWith("/static")
-            ) {
-              break;
-            }
-            statusCode = fetchThumbnail(idx);
-            if (statusCode === 200) {
-              break;
-            }
-            idx += 1;
-          }
-          const thumbnail = source.thumbnails[idx];
 
-          const imgClasses = thumbnail.is_grayscale
+            // Set firstThumbnail to first
+            Promise.all(remoteRequests)
+              .then((responses) => {
+                responses.forEach((response, idx) => {
+                  console.log({ response });
+                  if (firstThumbnail === null && response.status === 200) {
+                    firstThumbnail = remoteRequestThumbnails[idx];
+                    console.log({ firstThumbnail, obj_id: source.obj_id });
+                  }
+                });
+              })
+              .catch((err) => {
+                console.log("obj_id: ", source.obj_id, err);
+              });
+          }
+
+          const imgClasses = firstThumbnail?.is_grayscale
             ? `${styles.stamp} ${styles.inverted}`
             : `${styles.stamp}`;
           return (
@@ -182,7 +198,7 @@ const RecentSourcesList = ({ sources, styles }) => {
                   >
                     <img
                       className={imgClasses}
-                      src={thumbnail.public_url}
+                      src={firstThumbnail?.public_url}
                       alt={source.obj_id}
                       loading="lazy"
                     />
