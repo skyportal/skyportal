@@ -4,22 +4,28 @@
 // Initialized empty: `const trie = UsernameTrie()`
 // Returns an object that supports the following methods:
 //  `insertUser({ username: string, firstName: string, lastName: string })` - inserts the user's names into the trie
-//  `findAllStartingWith(prefix)` - returns an object mapping username to `{ firstName, lastName }` for all user
-//    objects in the trie with at least one of username, first name or last name matching the given prefix
+//  `findAllStartingWith(prefix, limit = Infinity)` - returns an object mapping username to `{ firstName, lastName }` for all user
+//    objects in the trie with at least one of username, first name or last name matching the given prefix,
+//    up to the given limit if provided, otherwise all matches are returned.
 
 const UsernameTrie = () => {
   const trieRoot = {};
 
-  const getAllMatchesFromHere = (trieNode) => {
+  const getAllMatchesFromHere = (trieNode, limit) => {
     const matches = {};
+    let numMatches = 0;
 
     const traverseAndSaveMatches = (currNode = trieNode) => {
       if (currNode.matchTerminatesHere) {
         Object.keys(currNode.matchingUsersMap).forEach((username) => {
-          if (!matches[username]) {
+          if (!matches[username] && numMatches < limit) {
             matches[username] = currNode.matchingUsersMap[username];
+            numMatches += 1;
           }
         });
+      }
+      if (numMatches >= limit) {
+        return;
       }
       Object.keys(currNode)
         .filter(
@@ -57,7 +63,7 @@ const UsernameTrie = () => {
         });
     },
 
-    findAllStartingWith: (prefix) => {
+    findAllStartingWith: (prefix, limit = Infinity) => {
       let thisLevel = trieRoot;
       for (let i = 0; i < prefix.length; i += 1) {
         const char = prefix[i].toLowerCase();
@@ -66,7 +72,7 @@ const UsernameTrie = () => {
         }
         thisLevel = thisLevel[char];
       }
-      return getAllMatchesFromHere(thisLevel);
+      return getAllMatchesFromHere(thisLevel, limit);
     },
   };
 };
