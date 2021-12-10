@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
@@ -86,6 +86,17 @@ const defaultPrefs = {
 };
 
 const TopSourcesList = ({ sources, styles }) => {
+  const [thumbnailIdxs, setThumbnailIdxs] = useState({});
+
+  useEffect(() => {
+    sources?.forEach((source) => {
+      setThumbnailIdxs((prevState) => ({
+        ...prevState,
+        [source.obj_id]: 0,
+      }));
+    });
+  }, [sources]);
+
   const topSourceSpecificStyles = useStyles();
   if (sources === undefined) {
     return <div>Loading top sources...</div>;
@@ -114,31 +125,8 @@ const TopSourcesList = ({ sources, styles }) => {
             }
           }
 
-          // Use first thumbnail available
-          const fetchThumbnail = async (index) => {
-            const response = await fetch(source.thumbnails[index]?.public_url, {
-              mode: "no-cors",
-            });
-            return response.status;
-          };
-          let idx = 0;
-          let statusCode = 0;
-          while (idx < source.thumbnails.length - 1) {
-            if (
-              source.thumbnails[idx]?.public_url &&
-              source.thumbnails[idx].public_url.startsWith("/static")
-            ) {
-              break;
-            }
-            statusCode = fetchThumbnail(idx);
-            if (statusCode === 200) {
-              break;
-            }
-            idx += 1;
-          }
-          const thumbnail = source.thumbnails[idx];
-
-          const imgClasses = thumbnail.is_grayscale
+          const imgClasses = source.thumbnails[thumbnailIdxs[source.obj_id]]
+            ?.is_grayscale
             ? `${styles.stamp} ${styles.inverted}`
             : `${styles.stamp}`;
 
@@ -155,8 +143,25 @@ const TopSourcesList = ({ sources, styles }) => {
                   >
                     <img
                       className={imgClasses}
-                      src={thumbnail.public_url}
+                      src={
+                        source.thumbnails[thumbnailIdxs[source.obj_id]]
+                          ?.public_url ||
+                        "/static/images/currently_unavailable.png"
+                      }
                       alt={source.obj_id}
+                      onError={(e) => {
+                        // avoid infinite loop
+                        if (
+                          thumbnailIdxs[source.obj_id] ===
+                          source.thumbnails.length - 1
+                        ) {
+                          e.target.onerror = null;
+                        }
+                        setThumbnailIdxs((prevState) => ({
+                          ...prevState,
+                          [source.obj_id]: prevState[source.obj_id] + 1,
+                        }));
+                      }}
                     />
                   </Link>
                   <div className={styles.sourceInfo}>

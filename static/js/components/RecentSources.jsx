@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
@@ -111,6 +111,17 @@ const defaultPrefs = {
 };
 
 const RecentSourcesList = ({ sources, styles }) => {
+  const [thumbnailIdxs, setThumbnailIdxs] = useState({});
+
+  useEffect(() => {
+    sources?.forEach((source) => {
+      setThumbnailIdxs((prevState) => ({
+        ...prevState,
+        [source.obj_id]: 0,
+      }));
+    });
+  }, [sources]);
+
   if (sources === undefined) {
     return (
       <div>
@@ -142,47 +153,8 @@ const RecentSourcesList = ({ sources, styles }) => {
             }
           }
 
-          // Use first thumbnail available
-          let firstThumbnail =
-            source.thumbnails.filter((thumbnail) =>
-              thumbnail.public_url?.startsWith("/static")
-            )[0] || null;
-          if (firstThumbnail == null) {
-            const remoteRequests = [];
-            const remoteRequestThumbnails = [];
-            // Generate list of request promises
-            source.thumbnails.forEach((thumbnail) => {
-              if (!thumbnail.public_url?.startsWith("/static")) {
-                console.log(
-                  "obj_id: ",
-                  source.obj_id,
-                  "gonna try fetching: ",
-                  thumbnail.public_url
-                );
-                remoteRequests.push(
-                  fetch(thumbnail.public_url, { mode: "cors" })
-                );
-                remoteRequestThumbnails.push(thumbnail);
-              }
-            });
-
-            // Set firstThumbnail to first
-            Promise.all(remoteRequests)
-              .then((responses) => {
-                responses.forEach((response, idx) => {
-                  console.log({ response });
-                  if (firstThumbnail === null && response.status === 200) {
-                    firstThumbnail = remoteRequestThumbnails[idx];
-                    console.log({ firstThumbnail, obj_id: source.obj_id });
-                  }
-                });
-              })
-              .catch((err) => {
-                console.log("obj_id: ", source.obj_id, err);
-              });
-          }
-
-          const imgClasses = firstThumbnail?.is_grayscale
+          const imgClasses = source.thumbnails[thumbnailIdxs[source.obj_id]]
+            ?.is_grayscale
             ? `${styles.stamp} ${styles.inverted}`
             : `${styles.stamp}`;
           return (
@@ -198,9 +170,26 @@ const RecentSourcesList = ({ sources, styles }) => {
                   >
                     <img
                       className={imgClasses}
-                      src={firstThumbnail?.public_url}
+                      src={
+                        source.thumbnails[thumbnailIdxs[source.obj_id]]
+                          ?.public_url ||
+                        "/static/images/currently_unavailable.png"
+                      }
                       alt={source.obj_id}
                       loading="lazy"
+                      onError={(e) => {
+                        // avoid infinite loop
+                        if (
+                          thumbnailIdxs[source.obj_id] ===
+                          source.thumbnails.length - 1
+                        ) {
+                          e.target.onerror = null;
+                        }
+                        setThumbnailIdxs((prevState) => ({
+                          ...prevState,
+                          [source.obj_id]: prevState[source.obj_id] + 1,
+                        }));
+                      }}
                     />
                   </Link>
                   <div className={styles.sourceInfo}>
