@@ -7,7 +7,6 @@ import Paper from "@material-ui/core/Paper";
 import Chip from "@material-ui/core/Chip";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import Typography from "@material-ui/core/Typography";
-import Box from "@material-ui/core/Box";
 import Autocomplete from "@material-ui/lab/Autocomplete";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
@@ -70,7 +69,7 @@ const useStyles = makeStyles(() => ({
     top: "50%",
     left: "50%",
     position: "fixed",
-  }
+  },
 }));
 
 const dataTableStyles = (theme) =>
@@ -141,10 +140,7 @@ const UserManagement = () => {
     !acls?.length ||
     !roles?.length
   ) {
-    return (
-        <CircularProgress className={classes.spinner} />
-
-    );
+    return <CircularProgress className={classes.spinner} />;
   }
 
   if (
