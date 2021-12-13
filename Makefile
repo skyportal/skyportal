@@ -68,6 +68,10 @@ db_migrate: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
 db_migrate: FLAGS := $(subst --,-x ,$(FLAGS))
 db_migrate:
 	PYTHONPATH=. alembic $(FLAGS) upgrade head
+	
+seed_grandma: FLAGS := $(if $(FLAGS),$(FLAGS),--config=config.yaml)
+seed_grandma:
+	cd data; $(MAKE) auto; 
 
 # https://www.gnu.org/software/make/manual/html_node/Overriding-Makefiles.html
 %: baselayer/Makefile force
