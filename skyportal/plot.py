@@ -1497,18 +1497,18 @@ def make_spectrum_layout(obj, spectra, user, device, width):
 
     data.sort_values(by=['date_observed', 'wavelength'], inplace=True)
 
-    dfs = []
-    for i, s in enumerate(spectra):
-        # Smooth the spectrum by using a rolling average
-        df = (
-            pd.DataFrame({'wavelength': s.wavelengths, 'flux': s.fluxes})
-            .rolling(2)
-            .mean(numeric_only=True)
-            .dropna()
-        )
-        dfs.append(df)
-
-    smoothed_data = pd.concat(dfs)
+    # dfs = []
+    # for i, s in enumerate(spectra):
+    #     # Smooth the spectrum by using a rolling average
+    #     df = (
+    #         pd.DataFrame({'wavelength': s.wavelengths, 'flux': s.fluxes})
+    #         .rolling(2)
+    #         .mean(numeric_only=True)
+    #         .dropna()
+    #     )
+    #     dfs.append(df)
+    #
+    # smoothed_data = pd.concat(dfs)
 
     split = data.groupby('id', sort=False)
 
@@ -1556,10 +1556,11 @@ def make_spectrum_layout(obj, spectra, user, device, width):
             ('origin', '@origin'),
             ('altdata', '@altdata{safe}'),
             ('annotations', '@annotations{safe}'),
-        ]
+        ],
     )
-    smoothed_max = np.max(smoothed_data['flux'])
-    smoothed_min = np.min(smoothed_data['flux'])
+
+    smoothed_max = np.max(data['flux'])
+    smoothed_min = np.min(data['flux'])
     ymax = smoothed_max * 1.05
     ymin = smoothed_min - 0.05 * (smoothed_max - smoothed_min)
     xmin = np.min(data['wavelength']) - 100
@@ -1584,13 +1585,13 @@ def make_spectrum_layout(obj, spectra, user, device, width):
         toolbar_location="above",
         active_drag=active_drag,
     )
-    plot.add_tools(hover)
 
     model_dict = {}
     legend_items = []
     for i, (key, df) in enumerate(split):
+
         renderers = []
-        s = Spectrum.get_if_accessible_by(key, user)
+        s = next(spec for spec in spectra if spec.id == key)
         if s.label is not None and len(s.label) > 0:
             label = s.label
         else:
@@ -1603,6 +1604,7 @@ def make_spectrum_layout(obj, spectra, user, device, width):
         )
         renderers.append(model_dict['s' + str(i)])
         legend_items.append(LegendItem(label=label, renderers=renderers))
+        # add this line plot to be able to show tooltip at hover
         model_dict['l' + str(i)] = plot.line(
             x='wavelength',
             y='flux',
@@ -1629,6 +1631,10 @@ def make_spectrum_layout(obj, spectra, user, device, width):
     )
 
     add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
+    hover.renderers = list(
+        model_dict.values()
+    )  # only plot spectra, not elemental lines
+    plot.add_tools(hover)
 
     # 20 is for padding
     slider_width = width if "mobile" in device else int(width / 2) - 20
@@ -1691,56 +1697,66 @@ def make_spectrum_layout(obj, spectra, user, device, width):
 
     # Track elements that need to be shifted with change in z / v
     shifting_elements = []
-
+    renderers = []
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
 
-        el_data = pd.DataFrame({'wavelength': wavelengths})
-
-        if name == 'Sky Lines':  # No redshift correction of skylines
-            el_data['x'] = el_data['wavelength']
-            segment = plot.segment(
-                x0='x',
-                x1='x',
-                y0=0,
-                y1=1e4,
+        if name in ('Tellurics-1', 'Tellurics-2'):
+            el_data = pd.DataFrame(
+                {
+                    'name': name,
+                    'wavelength': [(wavelengths[0] + wavelengths[1]) / 2],
+                    'bandwidth': [wavelengths[1] - wavelengths[0]],
+                }
+            )
+            new_line = plot.vbar(
+                x='wavelength',
+                width='bandwidth',
+                top=ymax,
                 color=color,
                 source=ColumnDataSource(el_data),
-            )
-            segment.visible = False
-            model_dict[f'element_{i}'] = segment
-
-        elif name in ('Tellurics-1', 'Tellurics-2'):
-            el_data['x'] = el_data['wavelength']
-            midtel1 = (el_data['x'][0] + el_data['x'][1]) / 2
-            widtel1 = el_data['x'][1] - el_data['x'][0]
-
-            vbar = plot.vbar(
-                x=midtel1,
-                width=widtel1,
-                # TODO change limits
-                top=1e4,
-                color=color,
                 alpha=0.3,
             )
-            vbar.visible = False
-            model_dict[f'element_{i}'] = vbar
 
         else:
-            obj_redshift = 0 if obj.redshift is None else obj.redshift
-            el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
-
-            segment = plot.segment(
-                x0='x',
-                x1='x',
-                # TODO change limits
-                y0=0,
-                y1=1e4,
+            flux_values = list(np.linspace(ymin, ymax, 100))
+            flux_values[-1] = np.nan
+            wavelength_values = [
+                w for w in wavelengths for _ in flux_values
+            ]  # repeat each wavelength 100 times
+            el_data = pd.DataFrame(
+                {
+                    'name': name,
+                    'x': wavelength_values,
+                    'wavelength': wavelength_values,
+                    'flux': [f for _ in wavelengths for f in flux_values],
+                }
+            )
+            new_line = plot.line(
+                x='x',
+                y='flux',
                 color=color,
+                line_alpha=0.3,
                 source=ColumnDataSource(el_data),
             )
-            segment.visible = False
-            model_dict[f'element_{i}'] = segment
-            shifting_elements.append(segment)
+
+        new_line.visible = False
+        model_dict[f'element_{i}'] = new_line
+        renderers.append(new_line)
+
+        if name not in ('Sky Lines', 'Tellurics-1', 'Tellurics-2'):
+            shifting_elements.append(new_line)
+            new_line.glyph.line_alpha = 1.0
+
+    # add the elemental lines to hover tool
+    hover_lines = HoverTool(
+        tooltips=[
+            ('name', '@name'),
+            ('wavelength', '@wavelength{0}'),
+        ],
+        renderers=renderers,
+    )
+
+    plot.add_tools(hover_lines)
 
     # Split spectral line legend into columns
     if device == "mobile_portrait":
