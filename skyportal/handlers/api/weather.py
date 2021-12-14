@@ -22,9 +22,16 @@ class WeatherHandler(BaseHandler):
         """
         ---
         description: Retrieve weather info at the telescope site saved by user
+                     or named telescope
         tags:
           - weather
           - telescopes
+        parameters:
+            - in: query
+              name: telescope_id
+              required: false
+              schema:
+                type: integer
         responses:
           200:
             content:
@@ -65,6 +72,9 @@ class WeatherHandler(BaseHandler):
         weather_prefs = {**default_prefs, **weather_prefs}
 
         telescope_id = int(weather_prefs["telescopeID"])
+        # use the query telecope ID otherwise fall back to preferences id
+        telescope_id = self.get_query_argument("telescope_id", telescope_id)
+
         telescope = Telescope.get_if_accessible_by(telescope_id, self.current_user)
         if telescope is None:
             return self.error(
