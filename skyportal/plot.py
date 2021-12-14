@@ -20,7 +20,14 @@ from bokeh.models import (
     Legend,
     LegendItem,
 )
-from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
+from bokeh.models.widgets import (
+    CheckboxGroup,
+    TextInput,
+    NumericInput,
+    Panel,
+    Tabs,
+    Div,
+)
 from bokeh.plotting import figure, ColumnDataSource
 
 import bokeh.embed as bokeh_embed
@@ -1333,7 +1340,15 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     return bokeh_embed.json_item(tabs)
 
 
-def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
+def spectroscopy_plot(
+    obj_id,
+    user,
+    spec_id=None,
+    width=600,
+    device="browser",
+    smoothing=False,
+    smooth_number=10,
+):
     """
     Create object spectroscopy line plot.
 
@@ -1361,6 +1376,13 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         - "mobile_landscape"
         - "tablet_portrait"
         - "tablet_landscape"
+    smoothing: bool
+        choose if to start the display with the smoothed plot or the full resolution spectrum.
+        default is no smoothing.
+    smooth_number: int
+        number of data points to use in the moving average when displaying the smoothed spectrum.
+        default is 10 points.
+
     Returns
     -------
     dict
@@ -1405,7 +1427,15 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     layouts = []
     for spec_type in spectra_by_type:
         layouts.append(
-            make_spectrum_layout(obj, spectra_by_type[spec_type], user, device, width)
+            make_spectrum_layout(
+                obj,
+                spectra_by_type[spec_type],
+                user,
+                device,
+                width,
+                smoothing,
+                smooth_number,
+            )
         )
 
     if len(layouts) > 1:
@@ -1421,7 +1451,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     return bokeh_embed.json_item(layouts[0])
 
 
-def make_spectrum_layout(obj, spectra, user, device, width):
+def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_number):
     """
     Helper function that takes the object, spectra and user info,
     as well as the total width of the figure,
@@ -1442,6 +1472,10 @@ def make_spectrum_layout(obj, spectra, user, device, width):
         name of the device used ("browser", "mobile", "mobile_portrait", "tablet", etc).
     width: int
         width of the external frame of the plot, including the buttons/sliders.
+    smoothing: bool
+        choose if to start the display with the smoothed plot or the full resolution spectrum.
+    smooth_number: int
+        number of data points to use in the moving average when displaying the smoothed spectrum.
 
     Returns
     -------
@@ -1474,6 +1508,7 @@ def make_spectrum_layout(obj, spectra, user, device, width):
             {
                 'wavelength': s.wavelengths,
                 'flux': s.fluxes / normfac,
+                'flux_original': s.fluxes / normfac,
                 'id': s.id,
                 'telescope': s.instrument.telescope.name,
                 'instrument': s.instrument.name,
@@ -1493,22 +1528,9 @@ def make_spectrum_layout(obj, spectra, user, device, width):
             }
         )
         data.append(df)
+
     data = pd.concat(data)
-
     data.sort_values(by=['date_observed', 'wavelength'], inplace=True)
-
-    # dfs = []
-    # for i, s in enumerate(spectra):
-    #     # Smooth the spectrum by using a rolling average
-    #     df = (
-    #         pd.DataFrame({'wavelength': s.wavelengths, 'flux': s.fluxes})
-    #         .rolling(2)
-    #         .mean(numeric_only=True)
-    #         .dropna()
-    #     )
-    #     dfs.append(df)
-    #
-    # smoothed_data = pd.concat(dfs)
 
     split = data.groupby('id', sort=False)
 
@@ -1559,10 +1581,10 @@ def make_spectrum_layout(obj, spectra, user, device, width):
         ],
     )
 
-    smoothed_max = np.max(data['flux'])
-    smoothed_min = np.min(data['flux'])
-    ymax = smoothed_max * 1.05
-    ymin = smoothed_min - 0.05 * (smoothed_max - smoothed_min)
+    flux_max = np.max(data['flux'])
+    flux_min = np.min(data['flux'])
+    ymax = flux_max * 1.05
+    ymin = flux_min - 0.05 * (flux_max - flux_min)
     xmin = np.min(data['wavelength']) - 100
     xmax = np.max(data['wavelength']) + 100
     if obj.redshift is not None and obj.redshift > 0:
@@ -1612,6 +1634,7 @@ def make_spectrum_layout(obj, spectra, user, device, width):
             source=ColumnDataSource(df),
             line_alpha=0.0,
         )
+
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
@@ -1631,13 +1654,70 @@ def make_spectrum_layout(obj, spectra, user, device, width):
     )
 
     add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
-    hover.renderers = list(
-        model_dict.values()
-    )  # only plot spectra, not elemental lines
+    # only show this tooltip for spectra, not elemental lines
+    hover.renderers = list(model_dict.values())
     plot.add_tools(hover)
 
+    smooth_title = Div(text="Smoothing")
+    smooth_input = NumericInput(value=smooth_number)
+    smooth_checkbox = CheckboxGroup(
+        labels=["smoothing"],
+        active=[0] if smoothing else [],
+    )
+    spectrum_plots = [v for k, v in model_dict.items()]
+
+    smooth_callback = CustomJS(
+        args=dict(plots=spectrum_plots, checkbox=smooth_checkbox, window=smooth_input),
+        code="""
+            const smoothing_func = (values, window_size) => {
+                if(values === undefined || values === null){
+                    return null;
+                }
+                const output = new Array(values.length).fill(0);
+                const under = parseInt(window_size / 2) - 1;
+                const over = parseInt(window_size / 2);
+
+                for(let i=0; i < values.length; i++){
+                    const idx_low = i-under >= 0 ? i-under : 0;
+                    const idx_high = i+over < values.length ? i+over : values.length - 1;
+                    let N = 0;
+                    for(let j=idx_low; j < idx_high; j++){
+                        N++;
+                        output[i]+=values[j];
+                    }
+                    output[i]/=N;
+                }
+                return output;
+            }
+            plots.forEach( p => {
+
+                let new_flux = []
+                if(0 in checkbox.active){
+                    new_flux = smoothing_func(p.data_source.data.flux_original, window.value);
+                }
+                else{
+                     new_flux = p.data_source.data.flux_original;
+                }
+                p.data_source.data.flux = new_flux;
+                p.data_source.change.emit();
+
+            });
+
+            """,
+    )
+    smooth_checkbox.js_on_click(smooth_callback)
+    smooth_input.js_on_change('value', smooth_callback)
+
+    smooth_column = column(
+        smooth_title,
+        smooth_checkbox,
+        smooth_input,
+        width=width if "mobile" in device else int(width * 1 / 5) - 20,
+        margin=(4, 10, 0, 10),
+    )
+
     # 20 is for padding
-    slider_width = width if "mobile" in device else int(width / 2) - 20
+    slider_width = width if "mobile" in device else int(width * 2 / 5) - 20
     z_title = Div(text="Redshift (<i>z</i>): ")
     z_slider = Slider(
         value=obj.redshift if obj.redshift is not None else 0.0,
@@ -1751,7 +1831,7 @@ def make_spectrum_layout(obj, spectra, user, device, width):
     hover_lines = HoverTool(
         tooltips=[
             ('name', '@name'),
-            ('wavelength', '@wavelength{0}'),
+            ('wavelength', '@wavelength{0,0}'),
         ],
         renderers=renderers,
     )
@@ -1845,7 +1925,11 @@ def make_spectrum_layout(obj, spectra, user, device, width):
     )
 
     row2 = row(all_column_checkboxes)
-    row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
+    row3 = (
+        column(z, v_exp, smooth_column)
+        if "mobile" in device
+        else row(z, v_exp, smooth_column)
+    )
     return column(
         plot,
         row2,
