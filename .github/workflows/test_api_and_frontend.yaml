@@ -100,10 +100,12 @@ jobs:
           nginx -v
           firefox --version
 
-      - name: Install SkyPortal dependencies for master
-        run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          make dependencies
+      - name: Checkout branch being tested
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: true
+          clean: false
 
       - name: Initialize SkyPortal
         run: |
@@ -141,13 +143,6 @@ jobs:
           geckodriver --version
           pip install --upgrade selenium
           python -c "import selenium; print(f'Selenium {selenium.__version__}')"
-
-      - name: Checkout branch being tested
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          submodules: true
-          clean: false
 
       - name: Refresh SkyPortal dependencies for tested version
         run: |
