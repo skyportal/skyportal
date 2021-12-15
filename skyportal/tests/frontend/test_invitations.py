@@ -127,7 +127,7 @@ def test_edit_invitation_role(
     # Edit role
     driver.click_xpath(f"//*[@data-testid='editInvitationRoleButton{user_email}']")
     driver.click_xpath("//*[@data-testid='invitationRoleSelect']")
-    driver.click_xpath("//*[text()='View only']")
+    driver.click_xpath("//*[text()='View only']", wait_clickable=False)
     driver.click_xpath("//*[@data-testid='submitEditRoleButton']")
     driver.wait_for_xpath(
         "//*[@data-testid='pendingInvitations']//*[text()='View only']"
