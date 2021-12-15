@@ -4,6 +4,7 @@ from collections import defaultdict
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 from ....models import Obj, Source
+from .source_views import t_index
 
 
 default_prefs = {'maxNumSources': 5}
@@ -58,15 +59,20 @@ class RecentSourcesHandler(BaseHandler):
                 .first()
             )
 
-            info = first_thumbnail_info(s.thumbnails)
             sources.append(
                 {
                     'obj_id': s.id,
                     'ra': s.ra,
                     'dec': s.dec,
                     'created_at': source_entry.created_at,
-                    'public_url': info[0],
-                    'is_grayscale': info[1],
+                    'thumbnails': [
+                        {
+                            "type": t.type,
+                            "is_grayscale": t.is_grayscale,
+                            "public_url": t.public_url,
+                        }
+                        for t in sorted(s.thumbnails, key=lambda t: t_index(t.type))
+                    ],
                     'classifications': s.classifications,
                     'recency_index': recency_index,
                 }
@@ -85,16 +91,3 @@ class RecentSourcesHandler(BaseHandler):
 
         self.verify_and_commit()
         return self.success(data=sources)
-
-
-def first_thumbnail_info(thumbnails):
-    infos = [
-        (t.public_url, t.is_grayscale)
-        for t in sorted(thumbnails, key=lambda t: tIndex(t.type))
-    ]
-    return infos[0] if infos else ("", False)
-
-
-def tIndex(t):
-    thumbnail_order = ['new', 'ref', 'sub', 'sdss', 'dr8']
-    return thumbnail_order.index(t) if t in thumbnail_order else len(thumbnail_order)
