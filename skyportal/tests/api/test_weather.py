@@ -18,7 +18,6 @@ def test_weather_api(upload_data_token, super_admin_token):
     }
 
     status, data = api('POST', 'telescope', data=post_data, token=super_admin_token)
-    print(data)
     assert status == 200
     assert data['status'] == 'success'
 
@@ -29,7 +28,6 @@ def test_weather_api(upload_data_token, super_admin_token):
     status, data = api(
         'PATCH', 'internal/profile', data=patch_data, token=upload_data_token
     )
-    print(data)
     assert status == 200
     assert data['status'] == 'success'
 
@@ -37,6 +35,5 @@ def test_weather_api(upload_data_token, super_admin_token):
     status, data = api(
         'GET', f'weather?telescope_id={telescope_id}', token=upload_data_token
     )
-    print(data)
     assert status == 200
     assert data['status'] == 'success'
