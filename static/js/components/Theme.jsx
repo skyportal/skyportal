@@ -2,14 +2,14 @@ import React from "react";
 import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 
-import { createMuiTheme, ThemeProvider } from "@material-ui/core/styles";
+import { createTheme, ThemeProvider } from "@material-ui/core/styles";
 import CssBaseline from "@material-ui/core/CssBaseline";
 import grey from "@material-ui/core/colors/grey";
 
 const Theme = ({ disableTransitions, children }) => {
   const theme = useSelector((state) => state.profile.preferences.theme);
   const dark = theme === "dark";
-  const materialTheme = createMuiTheme({
+  const materialTheme = createTheme({
     // Color palette inspired from: https://coolors.co/e63946-f1faee-a8dadc-457b9d-1d3557
     palette: {
       type: theme || "light",

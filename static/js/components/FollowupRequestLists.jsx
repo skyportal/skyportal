@@ -10,7 +10,7 @@ import Typography from "@material-ui/core/Typography";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
@@ -38,7 +38,7 @@ const useStyles = makeStyles(() => ({
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
-  createMuiTheme({
+  createTheme({
     palette: theme.palette,
     overrides: {
       MUIDataTable: {
