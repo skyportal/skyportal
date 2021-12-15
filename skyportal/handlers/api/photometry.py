@@ -480,7 +480,10 @@ class PhotometryHandler(BaseHandler):
             values_table, condition = self.get_values_table_and_condition(df)
 
             duplicated_photometry = (
-                DBSession().query(Photometry).join(values_table, condition)
+                DBSession()
+                .execute(sa.select(Photometry).join(values_table, condition))
+                .scalars()
+                .all()
             )
 
             dict_rep = [d.to_dict() for d in duplicated_photometry]
@@ -645,8 +648,12 @@ class PhotometryHandler(BaseHandler):
         elif group_ids == 'all':
             public_group = (
                 DBSession()
-                .query(Group)
-                .filter(Group.name == cfg["misc"]["public_group_name"])
+                .execute(
+                    sa.select(Group).filter(
+                        Group.name == cfg["misc"]["public_group_name"]
+                    )
+                )
+                .scalars()
                 .first()
             )
             group_ids = [public_group.id]
@@ -821,8 +828,7 @@ class PhotometryHandler(BaseHandler):
         )
 
         new_photometry_query = (
-            DBSession()
-            .query(values_table.c.pdidx)
+            sa.select(values_table.c.pdidx)
             .outerjoin(Photometry, condition)
             .filter(Photometry.id.is_(None))
         )
@@ -833,10 +839,14 @@ class PhotometryHandler(BaseHandler):
 
         duplicated_photometry = (
             DBSession()
-            .query(values_table.c.pdidx, Photometry)
-            .join(Photometry, condition)
-            .options(joinedload(Photometry.groups))
-            .options(joinedload(Photometry.streams))
+            .execute(
+                sa.select(values_table.c.pdidx, Photometry)
+                .join(Photometry, condition)
+                .options(joinedload(Photometry.groups))
+                .options(joinedload(Photometry.streams))
+            )
+            .scalars()
+            .all()
         )
 
         for df_index, duplicate in duplicated_photometry:
@@ -850,8 +860,8 @@ class PhotometryHandler(BaseHandler):
                 group_ids_update = set(group_ids).union(duplicate_group_ids)
                 groups = (
                     DBSession()
-                    .query(Group)
-                    .filter(Group.id.in_(group_ids_update))
+                    .execute(sa.select(Group).filter(Group.id.in_(group_ids_update)))
+                    .sclars()
                     .all()
                 )
                 # update the corresponding photometry entry in the db
