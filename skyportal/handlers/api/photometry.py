@@ -48,6 +48,14 @@ def save_data_using_copy(rows, table, columns):
     # Prepare data
     output = StringIO()
     df = pd.DataFrame.from_records(rows)
+    print("\n\n\n\n\nrows:", rows)
+    print()
+    print("df:", df.head())
+    print()
+    print("table:", table)
+    print()
+    print("columns:", columns)
+    print("\n\n\n\n\n")
     df.to_csv(
         output,
         index=False,
@@ -475,7 +483,7 @@ class PhotometryHandler(BaseHandler):
         self, df, instrument_cache, group_ids, stream_ids, validate=True
     ):
         # check for existing photometry and error if any is found
-
+        print("GROUP_IDS", group_ids)
         if validate:
             values_table, condition = self.get_values_table_and_condition(df)
 
@@ -634,6 +642,7 @@ class PhotometryHandler(BaseHandler):
     def get_group_ids(self):
         data = self.get_json()
         group_ids = data.pop("group_ids", [])
+        print("inside get_group_ids group_ids:", group_ids)
         if isinstance(group_ids, (list, tuple)):
             for group_id in group_ids:
                 try:
@@ -742,6 +751,8 @@ class PhotometryHandler(BaseHandler):
             df, instrument_cache = self.standardize_photometry_data()
         except (ValidationError, RuntimeError) as e:
             return self.error(e.args[0])
+
+        print("top of post hander GROUP_IDS:", group_ids)
 
         # This lock ensures that the Photometry table data are not modified in any way
         # between when the query for duplicate photometry is first executed and
@@ -906,9 +917,23 @@ class PhotometryHandler(BaseHandler):
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
+        print("self.current_user:", self.current_user)
+        print(
+            "current user's streams:",
+            [g.id for g in self.current_user.created_by.streams],
+        )
+        print(
+            "phot streams:", [g.id for g in Photometry.query.get(photometry_id).streams]
+        )
+        print(
+            "phot groups:", [g.id for g in Photometry.query.get(photometry_id).groups]
+        )
+
         phot = Photometry.get_if_accessible_by(
             photometry_id, self.current_user, raise_if_none=True
         )
+        print("photometry_id:", photometry_id)
+        print("phot:", phot)
 
         # get the desired output format
         format = self.get_query_argument('format', 'mag')
