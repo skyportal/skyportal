@@ -31,7 +31,7 @@ jsonpath_ng==1.5.3
 pytest-rerunfailures==10.2
 timezonefinder==5.2.0
 astroplan==0.8
-py3-validate-email==1.0.3
+validate-email
 alembic==1.7.4
 marshmallow-jsonschema==0.13.0
 requests_toolbelt==0.9.1
@@ -50,3 +50,5 @@ healpy==1.15.0
 pygcn==1.1.1
 xmlschema==1.9.0
 requests==2.26
+pyocclient
+python-ligo-lw==1.7.1

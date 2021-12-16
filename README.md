@@ -29,3 +29,8 @@ An Astronomical Data Platform
 ## Installation & Usage
 
 Please refer to the <a href="https://skyportal.io/docs">project documentation</a>.
+
+This version has been modified to add a make command that allows to load data from grandma's owncloud into SkyPortal.
+It should be used ONLY by Grandma collaboration member's with an access to Grandma's owncloud.
+
+This is the added command : make seed_grandma PARAMS='"owncloud_username" "owncloud_password"'

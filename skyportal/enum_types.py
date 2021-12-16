@@ -1,20 +1,52 @@
 import sqlalchemy as sa
 from enum import Enum
 import inspect
+import numpy as np
+from astropy import units as u, wcs
 
 from baselayer.app.env import load_env
 
 from . import facility_apis
 
-from sncosmo.bandpasses import _BANDPASSES
+from sncosmo.bandpasses import (
+    Bandpass, _BANDPASSES, _BANDPASS_INTERPOLATORS, read_bandpass)
 from sncosmo.magsystems import _MAGSYSTEMS
 
 _, cfg = load_env()
 
+def tophat_bandpass_um(ctr, width, name=None):
+    """Create a tophat Bandpass centered at `ctr` with width `width` (both
+    in microns)."""
+
+    wave = np.array([ctr - width / 2.0, ctr + width / 2.0])
+    trans = np.array([1.0, 1.0])
+    return Bandpass(wave, trans, wave_unit=u.micron, name=name)
+
+
+    trans = np.array([1.0, 1.0])
+    return Bandpass(wave, trans, wave_unit=u.nano, name=name)
+
+# GRANDMA FILTERS
+
+# find values for C and w
+grandmafilters_meta = {
+    'filterset': 'grandma filters',
+    'retrieved': '15 Nov 2021',
+    'description': 'grandma filters from Alldata.txt'}
+for name, ctr, width in [('grandma::B',  0.445, 0.01),
+                    ('grandma::C',  0.01, 0.01),
+                    ('grandma::G', 0.464, 0.01),
+                    ('grandma::I', 0.806, 0.01),
+                    ('grandma::L', 3.450, 0.01),
+                    ('grandma::N', 10.5, 0.01),
+                    ('grandma::R', 0.658, 0.01),
+                    ('grandma::V', 0.551, 0.01),
+                    ('grandma::w',  0.01, 0.01)]:
+    _BANDPASSES.register_loader(name, tophat_bandpass_um,
+                                args=(ctr, width), meta=grandmafilters_meta)
 
 def force_render_enum_markdown(values):
     return ', '.join(list(map(lambda v: f'`{v}`', values)))
-
 
 ALLOWED_SPECTRUM_TYPES = tuple(
     cfg.get('spectrum_types.types', ['source', 'host', 'host_center'])

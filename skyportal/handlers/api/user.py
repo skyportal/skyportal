@@ -337,10 +337,9 @@ class UserHandler(BaseHandler):
         email = data.get("contact_email")
         if email not in [None, ""]:
             if not validate_email(
-                email_address=email,
-                check_blacklist=False,
-                check_dns=False,
-                check_smtp=False,
+                email=email,
+                check_mx=False,
+                debug=False,
             ):
                 return self.error("Email does not appear to be valid")
             contact_email = email
