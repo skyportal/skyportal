@@ -71,9 +71,9 @@ class WeatherHandler(BaseHandler):
         weather_prefs = user_prefs.get('weather', {})
         weather_prefs = {**default_prefs, **weather_prefs}
 
-        telescope_id = int(weather_prefs["telescopeID"])
+        default_telescope_id = int(weather_prefs["telescopeID"])
         # use the query telecope ID otherwise fall back to preferences id
-        telescope_id = self.get_query_argument("telescope_id", telescope_id)
+        telescope_id = self.get_query_argument("telescope_id", default_telescope_id)
 
         telescope = Telescope.get_if_accessible_by(telescope_id, self.current_user)
         if telescope is None:
