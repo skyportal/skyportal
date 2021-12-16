@@ -31,9 +31,18 @@ def test_weather_api(upload_data_token, super_admin_token):
     assert status == 200
     assert data['status'] == 'success'
 
+    # get the weather for the user preference telescope
+    status, data = api('GET', 'weather', token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
     # get the weather for this telescope id
-    status, data = api(
+    status, data_specific_id = api(
         'GET', f'weather?telescope_id={telescope_id}', token=upload_data_token
     )
     assert status == 200
-    assert data['status'] == 'success'
+    assert data_specific_id['status'] == 'success'
+
+    # did we get the same results?
+    assert data_specific_id["data"]["telescope_name"] == data["data"]["telescope_name"]
+    assert data_specific_id["data"]["weather"] == data["data"]["weather"]
