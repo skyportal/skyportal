@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "@bokeh/bokehjs": "2.4.2",
+    "@cquiroz/aladin-lite": "^0.5.1",
     "@date-io/dayjs": "1.3.13",
     "@material-ui/core": "4.12.3",
     "@material-ui/icons": "4.11.2",

@@ -20,6 +20,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
+import Aladin from "./Aladin";
+
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
 
@@ -214,6 +216,14 @@ const GcnEventPage = ({ route }) => {
             <DownloadXMLButton gcn_notice={gcn_notice} />
           </li>
         ))}
+      </div>
+      <div style={{ flex: 1 }}>
+        <Aladin
+          ra={13.623}
+          dec={-23.8063}
+          fov={180.0}
+          mode="P/Mellinger/color"
+        />
       </div>
     </div>
   );
