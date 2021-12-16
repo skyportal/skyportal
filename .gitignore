@@ -16,7 +16,7 @@ geckodriver.log
 __pycache__/
 node_modules/
 *.pyc
-#config.yaml
+config.yaml
 static/thumbnails
 *.lock
 *.dirlock
@@ -27,7 +27,7 @@ skyportal_image_cache
 .vscode
 
 # Templated files
-#static/js/components/Main.jsx
+static/js/components/Main.jsx
 static/js/components/SidebarAndHeader.jsx
 static/js/components/HeaderContent.jsx
 static/js/components/HomePage.jsx

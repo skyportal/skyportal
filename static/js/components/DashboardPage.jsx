@@ -1,13 +1,12 @@
 import React from 'react';
 import { useState, useEffect }from "react";
-import { POST } from "../API";
 
-
-//import LoadingSpinner from '../../components/LoadingSpinner';
-//import { useGlobalReducer } from '../../contexts/GlobalContext';
+import LoadingSpinner from './LoadingSpinner';
+import { useGlobalReducer } from '../contexts/GlobalContext';
 import Select from 'react-select';
 
-import ListAlerts from './ListAlerts'
+import ListAlerts from './ListAlerts';
+import Aladin from './Aladin';
 
 import Axios from 'axios';
 
@@ -20,7 +19,7 @@ const AppButton = ({ onPress, title }) => {
   );
 };
 
-/*function DashboardPage({navigation}) {
+function Dashboard({navigation}) {
   //const db
   const [relatedSources, setRelateSources] = useState([]);
   const [telescopeName, setTelescopeName] = useState([]);
@@ -28,6 +27,7 @@ const AppButton = ({ onPress, title }) => {
   const [navigationID,setNavigationId]=useState(0)
 
   const [relatedTransients, setRelatedTransients] = useState([])
+  //const [my_state, my_dispatch] = useGlobalReducer();
 
   useEffect(()=>{
     Axios.get('http://localhost:19007/api/get/id').then((response)=>{
@@ -83,127 +83,35 @@ const AppButton = ({ onPress, title }) => {
     label: source.name
   }));
 
-  console.log('relatedTransients =',relatedTransients)
-  if(navigationID==1){
-    return(
-        <div>
-          <AppButton
-            title="Retour"
-            onPress={() => {
-              setNavigationId(0)
-            }
-          }/>
-          <ListAlerts />
-        </div>
-    )
-  }
-  return (
-    <div>
-      {eventId.map((val)=> {
-          return (<p style={styles.paragraph}>S190814bv - Campaign on going {"\n"}
-          ID: {val.id}</p>)
-        })}
-      <p>Telescope Obs</p>
-      <Select
-            isMulti
-            name="telescopes"
-            options={telescopesOptions}
-            className="basic-multi-select"
-            classNamePrefix="select"
-            menuPortalTarget={document.body}
-          />
-      <p>          Related Sources (eg. OTs) </p>
-      <Select
-            isMulti
-            name="sources"
-            options={sourcesOptions}
-            className="basic-multi-select"
-            classNamePrefix="select"
-            menuPortalTarget={document.body}
-          />
-      {relatedTransients.map((val)=> {
-          return (<p style={styles.text}>Transients: {val.alias}</p>)
-        })}
-      <AppButton
-          title="List of alerts"
-          onPress={() => {
-            setNavigationId(1)
-          }
-        }/>
+  // Below is the skymap with basic setting hard coded to fix the initial display of the skymap.
+  let fov = 180.0;
+      
+
+  let renderPage = <div style={{flex:1}}>
+      <Aladin ra={13.623}
+              dec={-23.8063}
+              fov={fov}
+              mode={'P/Mellinger/color'}/>
     </div>
-  );
-  
-};*/
 
-const DashboardPage = () => {
-  const [relatedSources, setRelateSources] = useState([]);
-  const [telescopeName, setTelescopeName] = useState([]);
-  const [eventId, setEventId] = useState([]);
-  const [navigationID,setNavigationId]=useState(0)
-
-  const [relatedTransients, setRelatedTransients] = useState([])
-
-  useEffect(()=>{
-    Axios.get('http://localhost:19007/api/get/id').then((response)=>{
-      setEventId(response.data)
-    })
-  },[]);
-
-  useEffect(()=>{
-    Axios.get('http://localhost:19007/api/get/sources').then((response)=>{
-      setRelateSources(response.data)
-    })
-  },[]);
-
-  useEffect(()=>{
-    Axios.get('http://localhost:19007/api/get/telescopes').then((response)=>{
-      setTelescopeName(response.data)
-    })
-  },[]);
-
-  useEffect(()=>{
-    Axios.get('http://localhost:19007/api/get/transients_related').then((response)=>{
-      setRelatedTransients(response.data)
-
-      console.log('setRelatedTransients=>',response.data)
-    })
-
-  },[]);
-
-  // const SubmitReview = () =>{
-  //   Axios.post('http://localhost:19007/api/insert', {
-  //     totoId: totoId,
-  //     totoName: totoName,
-  //   }).then(() => {
-  //     alert("Succesful insert");
-  //   })
-  // }
-
-  //revision slider
-  const [value, setValue] = React.useState(30);
-  const handleChange = (event, newValue) => {
-    setValue(newValue);
-  };
-
-  //choice box telescope
-  const telescopesOptions = telescopeName.map(telescope => ({
-    value: telescope.name,
-    label: telescope.name
-  }));
-
-  //choice box sources
-  const sourcesOptions = relatedSources.map(source => ({
-    value: source.name,
-    label: source.name
-  }));
-
-  const LOG_ERROR = `relatedTransients = ${relatedTransients}`;
-  const logError = (errorInfo) => POST(`/api/internal/log`, LOG_ERROR, errorInfo);
+  /*if (my_state.fetched_tca === "fetched") {
+      renderPage = <div style={{flex:1}}>
+          <Aladin ra={my_state.aladin_ra}
+                  dec={my_state.aladin_dec}
+                  fov={fov}
+                  mode={my_state.aladin_mode}
+                  tca={my_state.tca}
+                  zadko={my_state.zadko}/>
+      </div>
+  } else {
+      renderPage = <LoadingSpinner/>
+  }*/
 
   console.log('relatedTransients =', relatedTransients)
   if(navigationID==1){
     return(
         <div>
+          {renderPage}
           <AppButton
             title="Retour"
             onPress={() => {
@@ -216,7 +124,7 @@ const DashboardPage = () => {
   }
   return (
     <div>
-      <h1>Dashboard Grandma</h1>
+      {renderPage}
       {eventId.map((val)=> {
           return (<p style={styles.paragraph}>S190814bv - Campaign on going {"\n"}
           ID: {val.id}</p>)
@@ -250,10 +158,9 @@ const DashboardPage = () => {
         }/>
     </div>
   );
-};
+}
 
-
-export default DashboardPage;
+export default Dashboard
 
 const styles = {
   container: {
