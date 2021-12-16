@@ -4,14 +4,14 @@ const smoothing_func = (values, window_size) => {
     return null;
   }
   const output = new Array(values.length).fill(0);
-  const under = parseInt(window_size / 2) - 1;
+  const under = parseInt((window_size + 1) / 2) - 1;
   const over = parseInt(window_size / 2);
 
   for (let i = 0; i < values.length; i++) {
     const idx_low = i - under >= 0 ? i - under : 0;
     const idx_high = i + over < values.length ? i + over : values.length - 1;
     let N = 0;
-    for (let j = idx_low; j < idx_high; j++) {
+    for (let j = idx_low; j <= idx_high; j++) {
       N++;
       output[i] += values[j];
     }

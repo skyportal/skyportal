@@ -1669,7 +1669,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     smooth_callback = CustomJS(
         args=dict(plots=spectrum_plots, checkbox=smooth_checkbox, window=smooth_input),
         code=open(
-            os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'stackf.js')
+            os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'smooth.js')
         ).read(),
     )
     smooth_checkbox.js_on_click(smooth_callback)
