@@ -22,7 +22,7 @@ class WeatherHandler(BaseHandler):
         """
         ---
         description: Retrieve weather info at the telescope site saved by user
-                     or named telescope
+                     or telescope specified by `telescope_id` parameter
         tags:
           - weather
           - telescopes
