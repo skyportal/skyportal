@@ -556,6 +556,69 @@ def test_token_user_source_summary(
     assert status == 400
 
 
+def test_source_summary_pagination(super_admin_user, super_admin_token):
+    group_name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "groups",
+        data={"name": group_name, "group_admins": [super_admin_user.id]},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    new_group_id = data["data"]["id"]
+    ids = set()
+    for _ in range(1, 51):
+        id = str(uuid.uuid4())
+        ids.add(id)
+        status, data = api(
+            "POST",
+            "sources",
+            data={
+                "id": id,
+                "ra": 234.22,
+                "dec": 22.33,
+                "group_ids": [new_group_id],
+            },
+            token=super_admin_token,
+        )
+        assert status == 200
+        assert data["status"] == "success"
+
+    status, data = api(
+        "GET",
+        f"sources?saveSummary=true&group_ids={new_group_id}",
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert "sources" in data["data"]
+    sources = data["data"]["sources"]
+    assert len(sources) == 50
+    source = sources[0]
+    assert "ra" not in source
+    assert "dec" not in source
+
+    fetched_ids = set()
+    for i in range(1, 6):
+        status, data = api(
+            "GET",
+            f"sources?saveSummary=true&group_ids={new_group_id}&pageNumber={i}&numPerPage=10",
+            token=super_admin_token,
+        )
+        assert status == 200
+        assert "sources" in data["data"]
+        sources = data["data"]["sources"]
+        assert len(sources) == 10
+        source = sources[0]
+        assert "ra" not in source
+        assert "dec" not in source
+        for source in sources:
+            assert source["obj_id"] in ids
+            fetched_ids.add(source["obj_id"])
+
+    assert len(fetched_ids) == 50
+
+
 def test_sources_sorting(upload_data_token, view_only_token, public_group):
     obj_id = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
@@ -829,7 +892,7 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     )
     assert status == 200
     assert data["data"]["id"] == obj_id1
-    t = datetime.now(timezone.utc)
+    test_time = datetime.now(timezone.utc)
     status, data = api(
         "POST",
         "sources",
@@ -848,7 +911,10 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     status, data = api(
         "GET",
         "sources",
-        params={"savedBefore": t.isoformat(), "group_ids": f"{public_group.id}"},
+        params={
+            "savedBefore": test_time.isoformat(),
+            "group_ids": f"{public_group.id}",
+        },
         token=view_only_token,
     )
     assert status == 200
@@ -859,7 +925,105 @@ def test_sources_filter_by_time_saved(upload_data_token, view_only_token, public
     status, data = api(
         "GET",
         "sources",
-        params={"savedAfter": t.isoformat(), "group_ids": f"{public_group.id}"},
+        params={"savedAfter": test_time.isoformat(), "group_ids": f"{public_group.id}"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id2
+
+
+def test_sources_filter_by_time_spectrum(
+    upload_data_token, view_only_token, public_group, lris
+):
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+
+    # Upload two new sources
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id1
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id2
+
+    # Add spectrum to source 1
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': obj_id1,
+            'observed_at': str(datetime.now(timezone.utc)),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    test_time = datetime.now(timezone.utc)
+    # Add spectrum to source 2
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': obj_id2,
+            'observed_at': str(datetime.now(timezone.utc)),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # Filter for obj 1 only
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "hasSpectrumBefore": test_time.isoformat(),
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id1
+
+    # Filter for obj 2 only
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "hasSpectrumAfter": test_time.isoformat(),
+            "group_ids": f"{public_group.id}",
+        },
         token=view_only_token,
     )
     assert status == 200
@@ -1455,3 +1619,174 @@ def test_sources_hidden_photometry_not_leaked(
     assert data["data"]["id"] == obj_id
     assert len(public_source.photometry) - 1 == len(data["data"]["photometry"])
     assert photometry_id not in map(lambda x: x["id"], data["data"]["photometry"])
+
+
+def test_filter_sources_by_created_at(upload_data_token, view_only_token, public_group):
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+
+    time_before_both = datetime.now(timezone.utc)
+
+    # Upload two new sources
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id1
+
+    partition_time = datetime.now(timezone.utc)
+
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id2
+
+    time_after_both = datetime.now(timezone.utc)
+
+    # Filter for obj 2 only
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "createdOrModifiedAfter": str(partition_time),
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id2
+
+    # Fetch both
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "createdOrModifiedAfter": str(time_before_both),
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 2
+
+    # Filter both out
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "createdOrModifiedAfter": str(time_after_both),
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 0
+
+
+def test_filter_sources_by_modified(upload_data_token, view_only_token, public_group):
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+
+    time_before_both = datetime.now(timezone.utc)
+
+    # Upload two new sources
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id1
+
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id2
+
+    partition_time = datetime.now(timezone.utc)
+
+    status, data = api(
+        "PATCH",
+        f"sources/{obj_id2}",
+        data={
+            "ra": 234.11,
+            "dec": -22.11,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    time_after_both = datetime.now(timezone.utc)
+
+    # Filter for obj 2 only
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "createdOrModifiedAfter": str(partition_time),
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id2
+
+    # Fetch both
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "createdOrModifiedAfter": str(time_before_both),
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 2
+
+    # Filter both out
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "createdOrModifiedAfter": str(time_after_both),
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 0

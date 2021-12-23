@@ -1,10 +1,11 @@
-__all__ = ['Instrument']
+__all__ = ['Instrument', 'InstrumentField', 'InstrumentFieldTile']
 
 import re
 
+import healpix_alchemy
 import sqlalchemy as sa
 from sqlalchemy import cast
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base, restricted
@@ -129,3 +130,66 @@ class Instrument(Base):
     @property
     def listener_class(self):
         return getattr(facility_apis, self.listener_classname)
+
+    fields = relationship("InstrumentField")
+    tiles = relationship("InstrumentFieldTile")
+
+
+class InstrumentField(Base):
+    """A multi-order healpix representation of a telescope's field shape,
+    as represented by many InstrumentFieldTiles."""
+
+    tile_class = lambda: InstrumentFieldTile  # pylint: disable=E731 # noqa
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='Instrument ID',
+    )
+
+    instrument = relationship(
+        "Instrument",
+        foreign_keys=instrument_id,
+        doc="The Instrument that this field belongs to",
+    )
+
+    field_id = sa.Column(
+        sa.Integer,
+        index=True,
+        doc='The Field ID for the tile (can be repeated between instruments).',
+        nullable=False,
+    )
+
+    contour = sa.Column(JSONB, nullable=False, doc='GeoJSON contours')
+
+    tiles = relationship("InstrumentFieldTile")
+
+
+class InstrumentFieldTile(Base):
+    """An individual healpix tile for an InstrumentField."""
+
+    instrument_id = sa.Column(
+        sa.ForeignKey('instruments.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='Instrument ID',
+    )
+
+    instrument = relationship(
+        "Instrument",
+        foreign_keys=instrument_id,
+        doc="The Instrument that this tile belongs to",
+    )
+
+    instrument_field_id = sa.Column(
+        sa.ForeignKey('instrumentfields.id', ondelete="CASCADE"),
+        nullable=False,
+        doc='Instrument Field ID',
+    )
+
+    field = relationship(
+        "InstrumentField",
+        foreign_keys=instrument_field_id,
+        doc="The Field that this tile belongs to",
+    )
+
+    healpix = sa.Column(healpix_alchemy.Tile, primary_key=True, index=True)
