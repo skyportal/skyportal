@@ -38,7 +38,7 @@ def validate_request_to_sedmv2(request):
             raise ValueError(f'Filter configuration {filt} unknown.')
 
 
-class SEDMv2API(FollowUpAPI):
+class SEDMV2API(FollowUpAPI):
     """SkyPortal interface to the Spectral Energy Distribution machine (SEDMv2)."""
 
     @staticmethod
@@ -56,7 +56,19 @@ class SEDMv2API(FollowUpAPI):
         validate_request_to_sedmv2(request)
 
         if cfg['app.sedmv2_endpoint'] is not None:
-            r = requests.post(cfg['app.sedmv2_endpoint'], json=request.payload)
+            altdata = request.allocation.altdata
+
+            payload = {
+                'obj_id': request.obj_id,
+                'allocation_id': request.allocation.id,
+                'payload': request.payload,
+            }
+
+            r = requests.post(
+                cfg['app.sedmv2_endpoint'],
+                json=payload,
+                headers={"Authorization": f"token {altdata['api_token']}"},
+            )
 
             if r.status_code == 200:
                 request.status = 'submitted'

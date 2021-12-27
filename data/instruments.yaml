@@ -346,5 +346,5 @@
   band: V
   telescope_id: =KPNO2m
   filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
-  api_classname: SEDMv2API
+  api_classname: SEDMV2API
   =id: SEDMv2
