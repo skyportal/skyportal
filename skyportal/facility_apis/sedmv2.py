@@ -1,6 +1,7 @@
 from . import FollowUpAPI
 from baselayer.app.env import load_env
 from datetime import datetime, timedelta
+import json
 import requests
 
 from ..utils import http
@@ -58,6 +59,9 @@ class SEDMV2API(FollowUpAPI):
         if cfg['app.sedmv2_endpoint'] is not None:
             altdata = request.allocation.altdata
 
+            if not altdata:
+                raise ValueError('Missing allocation information.')
+
             payload = {
                 'obj_id': request.obj_id,
                 'allocation_id': request.allocation.id,
@@ -103,12 +107,34 @@ class SEDMV2API(FollowUpAPI):
             The request to delete from the queue and the SkyPortal database.
         """
 
-        from ..models import FacilityTransaction, DBSession
+        from ..models import DBSession, FollowupRequest, FacilityTransaction
 
         validate_request_to_sedmv2(request)
 
         if cfg['app.sedmv2_endpoint'] is not None:
-            r = requests.delete(cfg['app.sedmv2_endpoint'], json=request.payload)
+            altdata = request.allocation.altdata
+
+            req = (
+                DBSession()
+                .query(FollowupRequest)
+                .filter(FollowupRequest.id == request.id)
+                .one()
+            )
+
+            altdata = request.allocation.altdata
+
+            if not altdata:
+                raise ValueError('Missing allocation information.')
+
+            content = req.transactions[0].response["content"]
+            content = json.loads(content)
+
+            uid = content["data"]["id"]
+
+            r = requests.delete(
+                f"{cfg['app.sedmv2_endpoint']}/{uid}",
+                headers={"Authorization": f"token {altdata['api_token']}"},
+            )
             r.raise_for_status()
             request.status = "deleted"
 
