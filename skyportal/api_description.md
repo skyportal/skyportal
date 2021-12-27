@@ -110,3 +110,56 @@ for the failure given in `message`:
   "version": "0.9.1"
 }
 ```
+
+### Pagination
+
+Several API endpoints (notably the sources and candidates APIs) enforce
+pagination to limit the number of records that can be fetched per request.
+These APIs expose parameters that facilitate pagination (see the various
+API docs for details). A sample pagination script is included here:
+
+```python
+import requests
+import time
+
+
+base_url = "https://fritz.science/api/sources"
+token = "your_token_id_here"
+group_ids = [4, 71]  # If applicable
+all_sources = []
+num_per_page = 500
+page = 1
+total_matches = None
+retry_attempts = 0
+max_retry_attempts = 10
+
+while retry_attempts <= max_retry_attempts:
+    r = requests.get(
+        f"{base_url}?group_ids={','.join([str(gid) for gid in group_ids])}&pageNumber={page}&numPerPage={num_per_page}&totalMatches={total_matches}",
+        headers={"Authorization": f"token {token}"},
+    )
+
+    if r.status_code == 429:
+        print("Request rate limit exceeded; sleeping 1s before trying again...")
+        time.sleep(1)
+        continue
+
+    data = r.json()
+
+    if data["status"] != "success":
+        print(data)  # log as appropriate
+        retry_attempts += 1
+        time.sleep(5)
+        continue
+    else:
+        retry_attempts = 0
+
+    all_sources.extend(data["data"]["sources"])
+    total_matches = data["data"]["totalMatches"]
+
+    print(f"Fetched {len(all_sources)} of {total_matches} sources.")
+
+    if len(all_sources) >= total_matches:
+        break
+    page += 1
+```

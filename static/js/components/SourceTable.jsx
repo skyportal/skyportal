@@ -13,7 +13,7 @@ import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 import MUIDataTable from "mui-datatables";
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
@@ -180,7 +180,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const getMuiTheme = (theme) =>
-  createMuiTheme({
+  createTheme({
     palette: theme.palette,
     overrides: {
       MUIDataTableHeadCell: {
