@@ -37,6 +37,8 @@ app:
   kait:
     protocol: http
     host: herculesii.astro.berkeley.edu
+  
+  atlas_endpoint: https://fallingstar-data.com/forcedphot
 
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes

@@ -170,6 +170,14 @@ telescope:
     nickname: CTIO-4m
     skycam_link: null
     =id: CTIO-4m
+  - diameter: 0.5
+    elevation: 3055.0
+    lat: 20.7204
+    lon: -156.1552
+    name: Asteroid Terrestrial-impact Last Alert System
+    nickname: ATLAS-0.5m
+    skycam_link: null
+    =id: ATLAS-0p5m
   - diameter: 0.3
     elevation: 1283.0
     lat: 37.341033
@@ -277,6 +285,13 @@ instrument:
     # field_region:
     #   file: ../data/DECam_Region.reg
   - band: optical
+    name: ATLAS
+    telescope_id: =ATLAS-0p5m
+    type: imager
+    api_classname: ATLASAPI
+    =id: ATLAS
+    filters: ["sdssg", "sdssr"]
+  - band: optical
     name: KAIT
     telescope_id: =KAIT
     type: imager
@@ -290,6 +305,7 @@ instrument:
     filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: SEDMV2API
     =id: SEDMv2
+
 
 allocation:
   - pi: Michael Coughlin
@@ -358,6 +374,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =ZTF
+  - pi: Michael Coughlin
+    proposal_id: ATLAS-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =ATLAS
   - pi: Michael Coughlin
     proposal_id: SEDMv2-001
     start_date: "3020-02-12T00:00:00"
