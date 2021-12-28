@@ -38,6 +38,24 @@ def validate_request_to_sedmv2(request):
         if filt not in ["IFU", "g", "r", "i", "z"]:
             raise ValueError(f'Filter configuration {filt} unknown.')
 
+    if request.payload["exposure_time"] < 0:
+        raise ValueError('exposure_time must be positive.')
+
+    if request.payload["exposure_counts"] < 1:
+        raise ValueError('exposure_counts must be at least 1.')
+
+    if request.payload["maximum_airmass"] < 1:
+        raise ValueError('maximum_airmass must be at least 1.')
+
+    if (
+        request.payload["minimum_lunar_distance"] < 0
+        or request.payload["minimum_lunar_distance"] > 180
+    ):
+        raise ValueError('maximum_airmass must be within 0-180.')
+
+    if request.payload["priority"] < 1 or request.payload["priority"] > 5:
+        raise ValueError('priority must be within 1-5.')
+
 
 class SEDMV2API(FollowUpAPI):
     """SkyPortal interface to the Spectral Energy Distribution machine (SEDMv2)."""
@@ -184,7 +202,7 @@ class SEDMV2API(FollowUpAPI):
                 "maximum": 3,
             },
             "minimum_lunar_distance": {
-                "title": "Maximum Seeing [arcsec] (0-180)",
+                "title": "Maximum Lunar Distance [deg] (0-180)",
                 "type": "number",
                 "default": 30.0,
                 "minimum": 0,
