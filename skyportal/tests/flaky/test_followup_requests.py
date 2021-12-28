@@ -108,7 +108,6 @@ def add_allocation_sedm(instrument_id, group_id, token):
     )
     assert status == 200
     assert data["status"] == "success"
-    return data["data"]
 
 
 def add_allocation_lt(instrument_id, group_id, token):
@@ -126,7 +125,6 @@ def add_allocation_lt(instrument_id, group_id, token):
     )
     assert status == 200
     assert data["status"] == "success"
-    return data["data"]
 
 
 def add_allocation_lco(instrument_id, group_id, token):
@@ -144,7 +142,6 @@ def add_allocation_lco(instrument_id, group_id, token):
     )
     assert status == 200
     assert data["status"] == "success"
-    return data["data"]
 
 
 def add_allocation_ztf(instrument_id, group_id, token):
@@ -162,7 +159,6 @@ def add_allocation_ztf(instrument_id, group_id, token):
     )
     assert status == 200
     assert data["status"] == "success"
-    return data["data"]
 
 
 def add_allocation_sedmv2(instrument_id, group_id, token):
@@ -180,7 +176,6 @@ def add_allocation_sedmv2(instrument_id, group_id, token):
     )
     assert status == 200
     assert data["status"] == "success"
-    return data["data"]
 
 
 def add_followup_request_using_frontend_and_verify_SEDMv2(
