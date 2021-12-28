@@ -87,7 +87,7 @@ function Dashboard({navigation}) {
   let fov = 180.0;
       
 
-  let renderPage = <div style={{flex:1}}>
+  let Skymap = <div style={{flex:1}}>
       <Aladin ra={13.623}
               dec={-23.8063}
               fov={fov}
@@ -111,7 +111,7 @@ function Dashboard({navigation}) {
   if(navigationID==1){
     return(
         <div>
-          {renderPage}
+          {Skymap}
           <AppButton
             title="Retour"
             onPress={() => {
@@ -124,7 +124,7 @@ function Dashboard({navigation}) {
   }
   return (
     <div>
-      {renderPage}
+      {Skymap}
       {eventId.map((val)=> {
           return (<p style={styles.paragraph}>S190814bv - Campaign on going {"\n"}
           ID: {val.id}</p>)
