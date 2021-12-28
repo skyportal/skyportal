@@ -1,6 +1,7 @@
 import requests
-from sqlalchemy.orm.exc import NoResultFound
 from baselayer.app.access import auth_or_token
+from baselayer.app.env import load_env
+
 from ..base import BaseHandler
 
 from ...models import (
@@ -9,6 +10,13 @@ from ...models import (
     Obj,
     Photometry,
 )
+
+env, cfg = load_env()
+
+if cfg['app.lc_fit.port'] is None:
+    LCFIT_URL = f"{cfg['app.lc_fit.protocol']}://{cfg['app.lc_fit.host']}"
+else:
+    LCFIT_URL = f"{cfg['app.lc_fit.protocol']}://{cfg['app.lc_fit.host']}:{cfg['app.lc_fit.port']}"
 
 
 class LightcurveFitHandler(BaseHandler):
@@ -96,7 +104,7 @@ class LightcurveFitHandler(BaseHandler):
 
         data2 = {'username': username, 'password': password, 'email': email}
 
-        r = requests.post("http://0.0.0.0:4001/api/auth", json=data2)
+        r = requests.post(f"{LCFIT_URL}/api/auth", json=data2)
 
         credentials = r.json()['data']
         jwt_token = credentials["token"].encode()
@@ -110,29 +118,33 @@ class LightcurveFitHandler(BaseHandler):
             'gptype': gptype,
         }
 
-        try:
-            lcfit = LightcurveFit.query.filter_by(
-                model_name=model_name, object_id=obj_id
-            ).one()
-        except NoResultFound:
-            r = requests.get("http://0.0.0.0:4001/api/fit", json=data, headers=headers)
-            if not r.status_code == 200:
-                r = requests.post(
-                    "http://0.0.0.0:4001/api/fit", json=data, headers=headers
-                )
+        lcfit = LightcurveFit.query.filter_by(
+            model_name=model_name, object_id=obj_id
+        ).first()
+        if lcfit is None or not lcfit.status == lcfit.Status.READY:
+            print(lcfit)
+            r = requests.get(f"{LCFIT_URL}/api/fit", json=data, headers=headers)
+            print(r.json())
+
+            if r.status_code == 200 and r.json()["data"]["status"] == 1:
+                if lcfit is None:
+                    lcfit = LightcurveFit(object_id=obj_id, model_name=model_name)
+                lcfit.posterior_samples = r.json()["data"]["posterior_samples"]
+                lcfit.bestfit_lightcurve = r.json()["data"]["bestfit_lightcurve"]
+                lcfit.log_bayes_factor = r.json()["data"]["log_bayes_factor"]
+                lcfit.status = LightcurveFit.Status.READY
+                DBSession().merge(lcfit)
+            elif r.status_code == 200 and r.json()["data"]["status"] == 0:
+                # fit is still running
+                pass
+            else:
+                r = requests.post(f"{LCFIT_URL}/api/fit", json=data, headers=headers)
+                r.raise_for_status()
 
                 lcfit = LightcurveFit(object_id=obj_id, model_name=model_name)
                 lcfit.status = lcfit.Status.WORKING
-            else:
-                lcfit = LightcurveFit(
-                    object_id=obj_id,
-                    model_name=model_name,
-                    posterior_samples=r.json()["data"]["posterior_samples"],
-                    bestfit_lightcurve=r.json()["data"]["bestfit_lightcurve"],
-                    log_bayes_factor=r.json()["data"]["log_bayes_factor"],
-                    status=LightcurveFit.Status.READY,
-                )
-            DBSession().add(lcfit)
+                DBSession().add(lcfit)
+                DBSession().commit()
 
         self.verify_and_commit()
 
@@ -149,6 +161,6 @@ class LightcurveFitHandler(BaseHandler):
 
         lcfit = LightcurveFit.query.filter_by(
             model_name=model_name, object_id=obj_id
-        ).one()
+        ).first()
 
         return self.success(data=lcfit)

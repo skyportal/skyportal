@@ -33,6 +33,11 @@ app:
     host: skipper.caltech.edu
     port: 4000
 
+  lc_fit:
+    protocol: http
+    host: 0.0.0.0
+    port: 4001
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
