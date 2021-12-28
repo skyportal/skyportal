@@ -193,8 +193,8 @@ class SEDMV2API(FollowUpAPI):
             "priority": {
                 "type": "number",
                 "default": 1.0,
-                "minimum": 1,
-                "maximum": 5,
+                "minimum": 1.0,
+                "maximum": 5.0,
                 "title": "Priority",
             },
             "start_date": {
