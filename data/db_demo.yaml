@@ -170,6 +170,14 @@ telescope:
     nickname: CTIO-4m
     skycam_link: null
     =id: CTIO-4m
+  - diameter: 1.8
+    elevation: 4215.0
+    lat: 204.5317
+    lon: 19.825
+    name: PAN-STARRS 1.8m
+    nickname: PS1
+    skycam_link: null
+    =id: PS1
 
 instrument:
   - name: ZTF
@@ -260,6 +268,13 @@ instrument:
     #   file: ../data/DECam_Fields.csv
     # field_region:
     #   file: ../data/DECam_Region.reg
+  - band: optical
+    name: PS1
+    telescope_id: =PS1
+    type: imager
+    api_classname: PS1API
+    =id: PS1
+    filters: ['ps1::open', 'ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y', 'ps1::w']
 
 allocation:
   - pi: Michael Coughlin
@@ -328,6 +343,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =ZTF
+  - pi: Michael Coughlin
+    proposal_id: PS1-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =PS1
 
 candidates:
   - id: ZTF21aaqjmps

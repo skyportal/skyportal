@@ -20,7 +20,7 @@ marshmallow==3.14.1
 marshmallow-sqlalchemy==0.24.3
 marshmallow-enum==1.5.1
 Pillow>=8.4.0
-sncosmo==2.5.0
+sncosmo==2.7.0
 tdtax==0.1.4
 healpix-alchemy==1.0.0
 mocpy==0.10.0

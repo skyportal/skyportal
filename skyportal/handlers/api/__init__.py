@@ -35,6 +35,7 @@ from .photometry import (
     PhotometryRangeHandler,
 )
 from .color_mag import ObjColorMagHandler
+from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
