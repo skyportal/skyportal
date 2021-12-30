@@ -181,10 +181,9 @@ class ProfileHandler(BaseHandler):
             if email not in [None, ""]:
                 if not validate_email(
                     email_address=email,
-                    check_regex=True,
-                    check_mx=False,
-                    use_blacklist=True,
-                    debug=False,
+                    check_blacklist=False,
+                    check_dns=False,
+                    check_smtp=False,
                 ):
                     return self.error("Email does not appear to be valid")
                 user.contact_email = email
