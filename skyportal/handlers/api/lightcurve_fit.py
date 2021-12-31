@@ -1,4 +1,5 @@
 import requests
+import numpy as np
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
@@ -40,7 +41,7 @@ class LightcurveFitHandler(BaseHandler):
         description: |
           The name of the model type to be fit.
       - in: query
-        name: gptype
+        name: interpolation_type
         required: false
         schema:
           type: string
@@ -78,8 +79,13 @@ class LightcurveFitHandler(BaseHandler):
         if obj is None:
             return self.error('Invalid object id.')
 
+        # probably to be displayed?
+        model_scope = self.get_query_argument('model_scope', 'kilonova_fitter')
+        print(model_scope)
+
         model_name = self.get_query_argument('model_name', 'Bu2019lm')
-        gptype = self.get_query_argument('gptype', 'tensorflow')
+        interpolation_type = self.get_query_argument('interpolation_type', 'tensorflow')
+        redshift = self.get_query_argument('redshift', np.nan)
 
         photometry = (
             Photometry.query_records_accessible_by(self.current_user)
@@ -88,6 +94,7 @@ class LightcurveFitHandler(BaseHandler):
         )
         phot_data = []
         for phot in photometry:
+            # What to do about limits?
             if phot.mag is not None:
                 phot_data.append(
                     [
@@ -115,14 +122,14 @@ class LightcurveFitHandler(BaseHandler):
             'model_name': model_name,
             'cand_name': obj_id,
             'nmma_data': phot_data,
-            'gptype': gptype,
+            'gptype': interpolation_type,
+            'redshift': redshift,
         }
 
         lcfit = LightcurveFit.query.filter_by(
             model_name=model_name, object_id=obj_id
         ).first()
         if lcfit is None or not lcfit.status == lcfit.Status.READY:
-            print(lcfit)
             r = requests.get(f"{LCFIT_URL}/api/fit", json=data, headers=headers)
             print(r.json())
 
