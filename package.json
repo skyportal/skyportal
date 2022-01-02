@@ -33,7 +33,7 @@
     "geojson-prop-types": "0.2.0",
     "imports-loader": "1.2.0",
     "material-ui-phone-number": "2.2.6",
-    "mathjs": "9.4.4",
+    "mathjs": "10.0.2",
     "mui-datatables": "3.6.0",
     "npm-check": "5.9.2",
     "numeral": "2.0.6",
