@@ -42,7 +42,7 @@ responses==0.16.0
 numba==0.53.1
 pyvo==1.2
 lxml==4.6.5
-suds-py3==1.4.4.1
+suds-py3==1.4.5.0
 vcrpy==4.1.1
 aiosmtpd==1.4.2
 ligo.skymap>=0.6
