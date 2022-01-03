@@ -17,7 +17,7 @@ matplotlib==3.5.1
 astroquery==0.4.3
 apispec==4.0.0
 marshmallow==3.14.1
-marshmallow-sqlalchemy==0.24.3
+marshmallow-sqlalchemy==0.27.0
 marshmallow-enum==1.5.1
 Pillow>=8.4.0
 sncosmo==2.5.0
