@@ -10,7 +10,6 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 import IconButton from "@material-ui/core/IconButton";
 import GetAppIcon from "@material-ui/icons/GetApp";
 
-import * as d3 from "d3";
 // eslint-disable-next-line
 import d3GeoZoom from "d3-geo-zoom";
 // eslint-disable-next-line
@@ -20,8 +19,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-//import Aladin from "./Aladin";
-import Aladin from './Aladin';
+import Aladin from "./Aladin";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
@@ -93,15 +91,16 @@ const CreateSkyMap = ({ loc }) => {
   // else return the Aladin Skymap
   return (
     <Aladin
-        ra={13.623}
-        dec={-23.8063}
-        fov={180.0}
-        height={400}
-        width={700}
-        data={localization.contour}
-        mode="P/Mellinger/color"/>
+      ra={13.623}
+      dec={-23.8063}
+      fov={180.0}
+      height={400}
+      width={700}
+      feature_data={localization.contour}
+      mode="P/Mellinger/color"
+    />
   );
-}
+};
 
 const GcnEventPage = ({ route }) => {
   const mapRef = useRef();
@@ -116,7 +115,6 @@ const GcnEventPage = ({ route }) => {
   if (!gcnEvent) {
     return <CircularProgress />;
   }
-  console.log('gcnEvent.localizations ====',gcnEvent.localizations)
 
   return (
     <div>
