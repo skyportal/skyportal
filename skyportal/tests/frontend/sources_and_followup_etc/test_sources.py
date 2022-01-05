@@ -184,7 +184,6 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     )
     # Notification
     driver.wait_for_xpath("//*[text()='Classification saved']")
-
     # Scroll up to get top of classifications list component in view
     classifications = driver.find_element_by_xpath(
         "//div[@id='classifications-header']"
@@ -197,6 +196,27 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
     driver.wait_for_xpath_to_disappear(
         "//span[contains(@class, 'MuiButton-label') and text()='Symmetrical']"
+    )
+
+    # ensure low probability classifications have a question mark on the label
+
+    driver.click_xpath('//div[@id="root_taxonomy"]')
+    driver.click_xpath(
+        f'//*[text()="{tax_name} ({tax_version})"]',
+        wait_clickable=False,
+        scroll_parent=True,
+    )
+    driver.click_xpath('//*[@id="classification"]')
+    driver.click_xpath('//li[contains(@data-value, "Mult-mode")]', scroll_parent=True)
+    driver.click_xpath('//*[@id="probability"]')
+    driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02", Keys.ENTER)
+    driver.click_xpath(
+        "//*[@id='classifications-content']//span[text()='Submit']",
+        wait_clickable=False,
+    )
+    driver.wait_for_xpath("//*[text()='Classification saved']")
+    driver.find_element_by_xpath(
+        "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']"
     )
 
 
