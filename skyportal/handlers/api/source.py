@@ -1835,6 +1835,7 @@ class SourceOffsetsHandler(BaseHandler):
                 'noffsets': noffsets,
                 'queries_issued': queries_issued,
                 'query': query_string,
+                'used_ztfref': used_ztfref,
             }
         )
 
