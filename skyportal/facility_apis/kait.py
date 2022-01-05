@@ -39,13 +39,15 @@ class KAITRequest:
         for filt in request.payload["observation_choices"]:
             assert filt in ["U", "g", "r", "i", "z", "B", "V", "R", "I"]
 
+        assert request.payload["observation_type"] in ["long", "short"]
+
         # The target of the observation
         target = {
             'name': request.obj.id,
             'ra': "{:.5f}".format(request.obj.ra),
             'dec': "{:.5f}".format(request.obj.dec),
             'filters': "".join(request.payload["observation_choices"]),
-            'exposure': 'long',
+            'exposure': request.payload["observation_type"],
         }
 
         return target
@@ -112,9 +114,15 @@ class KAITAPI(FollowUpAPI):
                 "uniqueItems": True,
                 "minItems": 1,
             },
+            "observation_type": {
+                "type": "string",
+                "enum": ["long", "short"],
+                "default": "long",
+            },
         },
         "required": [
             "observation_choices",
+            "observation_type",
         ],
     }
 
