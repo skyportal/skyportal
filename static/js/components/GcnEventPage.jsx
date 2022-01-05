@@ -20,6 +20,9 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
+//import Aladin from "./Aladin";
+import Aladin from './Aladin';
+
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
 
@@ -69,89 +72,36 @@ const DownloadXMLButton = ({ gcn_notice }) => {
   );
 };
 
-const useD3 = (renderChartFn) => {
-  const ref = useRef();
-
-  useEffect(() => {
-    renderChartFn(d3.select(ref.current));
-    return () => {};
-  }, [renderChartFn, ref]);
-  return ref;
-};
-
-const Globe = ({ data }) => {
-  const projRef = useRef(d3.geoOrthographic());
-
-  function renderMap(svg) {
-    const path = d3.geoPath().projection(projRef.current);
-
-    function render() {
-      svg.selectAll("path").attr("d", path);
-    }
-
-    d3GeoZoom().projection(projRef.current).onMove(render)(svg.node());
-
-    if (data) {
-      svg
-        .selectAll("path")
-        .data(data.features)
-        .enter()
-        .append("path")
-        .attr("class", (d) => d.properties.name)
-        .attr("d", path)
-        .style("fill", "none")
-        .style("stroke", "black")
-        .style("stroke-width", "0.5px");
-    }
-
-    svg
-      .selectAll("path")
-      .data([{ type: "Feature", geometry: d3.geoGraticule10() }])
-      .enter()
-      .append("path")
-      .attr("class", "graticule")
-      .attr("d", path)
-      .style("fill", "none")
-      .style("stroke", "lightgray")
-      .style("stroke-width", "0.5px");
-  }
-
-  const svgRef = useD3(renderMap);
-
-  useEffect(() => {
-    const height = svgRef.current.clientHeight;
-    const width = svgRef.current.clientWidth;
-    projRef.current.translate([width / 2, height / 2]);
-  }, [data, svgRef]);
-
-  return <svg id="globe" ref={svgRef} />;
-};
-
-const Localization = ({ loc }) => {
+// Create the skymap from Aladin and display the MOC Json
+const CreateSkyMap = ({ loc }) => {
+  // get the localization data to display in the skymap
   const localization = useSelector((state) => state.localization);
   const dispatch = useDispatch();
 
+  // useEffect to fetch the data of localization
   useEffect(() => {
     dispatch(
       localizationActions.fetchLocalization(loc.dateobs, loc.localization_name)
     );
   }, [loc, dispatch]);
 
+  // if you don't have data, display the loading icon
   if (!localization) {
     return <CircularProgress />;
   }
 
+  // else return the Aladin Skymap
   return (
-    <>
-      <Chip
-        size="small"
-        label={localization.localization_name}
-        key={localization.localization_name}
-      />
-      <Globe data={localization.contour} />
-    </>
+    <Aladin
+        ra={13.623}
+        dec={-23.8063}
+        fov={180.0}
+        height={400}
+        width={700}
+        data={localization.contour}
+        mode="P/Mellinger/color"/>
   );
-};
+}
 
 const GcnEventPage = ({ route }) => {
   const mapRef = useRef();
@@ -166,6 +116,7 @@ const GcnEventPage = ({ route }) => {
   if (!gcnEvent) {
     return <CircularProgress />;
   }
+  console.log('gcnEvent.localizations ====',gcnEvent.localizations)
 
   return (
     <div>
@@ -201,7 +152,7 @@ const GcnEventPage = ({ route }) => {
         {gcnEvent.localizations?.map((localization) => (
           <li key={localization.localization_name}>
             <div id="map" ref={mapRef}>
-              <Localization loc={localization} />
+              <CreateSkyMap loc={localization} />
             </div>
           </li>
         ))}
@@ -219,7 +170,7 @@ const GcnEventPage = ({ route }) => {
   );
 };
 
-Localization.propTypes = {
+CreateSkyMap.propTypes = {
   loc: PropTypes.shape({
     dateobs: PropTypes.string,
     localization_name: PropTypes.string,
@@ -236,13 +187,6 @@ DownloadXMLButton.propTypes = {
 GcnEventPage.propTypes = {
   route: PropTypes.shape({
     dateobs: PropTypes.string,
-  }).isRequired,
-};
-
-Globe.propTypes = {
-  data: PropTypes.shape({
-    length: PropTypes.number,
-    features: GeoPropTypes.FeatureCollection,
   }).isRequired,
 };
 
