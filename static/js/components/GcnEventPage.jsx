@@ -9,6 +9,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import IconButton from "@material-ui/core/IconButton";
 import GetAppIcon from "@material-ui/icons/GetApp";
+import Grid from "@material-ui/core/Grid";
 
 import * as d3 from "d3";
 // eslint-disable-next-line
@@ -26,6 +27,7 @@ import AccordionSummary from "@material-ui/core/AccordionSummary";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
+import SharePage from "./SharePage";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
@@ -67,6 +69,7 @@ const useStyles = makeStyles((theme) => ({
   },
   comments: {
     width: "100%",
+    flex: "40px",
   }
 }));
 
@@ -182,54 +185,60 @@ const GcnEventPage = ({ route }) => {
   }
 
   return (
-    <div>
-      <h1 style={{ display: "inline-block" }}>Event Information</h1>
-      <div>
-        &nbsp; -&nbsp;
-        <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-          <Button color="primary">
-            {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
-          </Button>
-        </Link>
-        ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
-      </div>
-      {gcnEvent.lightcurve && (
-        <div>
-          {" "}
-          <h3 style={{ display: "inline-block" }}>Light Curve</h3> &nbsp;
-          -&nbsp; <img src={gcnEvent.lightcurve} alt="loading..." />{" "}
+    <Grid container spacing={2} className={styles.source}>
+      <Grid item xs={7}>
+      <div className={styles.alignLeft}>
+          <SharePage />
         </div>
-      )}
-      <h3 style={{ display: "inline-block" }}>Tags</h3>
-      <div>
-        &nbsp; -&nbsp;
-        <div className={styles.eventTags}>
-          {gcnEvent.tags?.map((tag) => (
-            <Chip className={styles[tag]} size="small" label={tag} key={tag} />
+        <h1 style={{ display: "inline-block" }}>Event Information</h1>
+        <div>
+          &nbsp; -&nbsp;
+          <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
+            <Button color="primary">
+              {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
+            </Button>
+          </Link>
+          ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
+        </div>
+        {gcnEvent.lightcurve && (
+          <div>
+            {" "}
+            <h3 style={{ display: "inline-block" }}>Light Curve</h3> &nbsp;
+            -&nbsp; <img src={gcnEvent.lightcurve} alt="loading..." />{" "}
+          </div>
+        )}
+        <h3 style={{ display: "inline-block" }}>Tags</h3>
+        <div>
+          &nbsp; -&nbsp;
+          <div className={styles.eventTags}>
+            {gcnEvent.tags?.map((tag) => (
+              <Chip className={styles[tag]} size="small" label={tag} key={tag} />
+            ))}
+          </div>
+        </div>
+        <h3>Skymaps</h3>
+        <div>
+          &nbsp; -&nbsp;
+          {gcnEvent.localizations?.map((localization) => (
+            <li key={localization.localization_name}>
+              <div id="map" ref={mapRef}>
+                <Localization loc={localization} />
+              </div>
+            </li>
           ))}
         </div>
-      </div>
-      <h3>Skymaps</h3>
-      <div>
-        &nbsp; -&nbsp;
-        {gcnEvent.localizations?.map((localization) => (
-          <li key={localization.localization_name}>
-            <div id="map" ref={mapRef}>
-              <Localization loc={localization} />
-            </div>
-          </li>
-        ))}
-      </div>
-      <h3 style={{ display: "inline-block" }}>GCN Notices</h3>
-      <div>
-        &nbsp; -&nbsp;
-        {gcnEvent.gcn_notices?.map((gcn_notice) => (
-          <li key={gcn_notice.ivorn}>
-            <DownloadXMLButton gcn_notice={gcn_notice} />
-          </li>
-        ))}
-      </div>
-      <div className={styles.columnItem}>
+        <h3 style={{ display: "inline-block" }}>GCN Notices</h3>
+        <div>
+          &nbsp; -&nbsp;
+          {gcnEvent.gcn_notices?.map((gcn_notice) => (
+            <li key={gcn_notice.ivorn}>
+              <DownloadXMLButton gcn_notice={gcn_notice} />
+            </li>
+          ))}
+        </div>
+      </Grid>
+      <Grid item xs={5}>
+        <div className={styles.columnItem} >
           <Accordion
             defaultExpanded
             className={styles.comments}
@@ -249,7 +258,9 @@ const GcnEventPage = ({ route }) => {
             </AccordionDetails>
           </Accordion>
         </div>
-    </div>
+      </Grid>
+    </Grid>
+    
   );
 };
 
