@@ -20,6 +20,13 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
+import CommentList from "./CommentList";
+import Accordion from "@material-ui/core/Accordion";
+import AccordionSummary from "@material-ui/core/AccordionSummary";
+import AccordionDetails from "@material-ui/core/AccordionDetails";
+import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
+import Typography from "@material-ui/core/Typography";
+
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
 
@@ -54,6 +61,13 @@ const useStyles = makeStyles((theme) => ({
   Terrestrial: {
     background: "#999999!important",
   },
+  accordionHeading: {
+    fontSize: "1.25rem",
+    fontWeight: theme.typography.fontWeightRegular,
+  },
+  comments: {
+    width: "100%",
+  }
 }));
 
 const DownloadXMLButton = ({ gcn_notice }) => {
@@ -215,6 +229,26 @@ const GcnEventPage = ({ route }) => {
           </li>
         ))}
       </div>
+      <div className={styles.columnItem}>
+          <Accordion
+            defaultExpanded
+            className={styles.comments}
+            data-testid="comments-accordion"
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="comments-content"
+              id="comments-header"
+            >
+              <Typography className={styles.accordionHeading}>
+                Logbook
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <CommentList />
+            </AccordionDetails>
+          </Accordion>
+        </div>
     </div>
   );
 };
