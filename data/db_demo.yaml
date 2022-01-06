@@ -170,6 +170,14 @@ telescope:
     nickname: CTIO-4m
     skycam_link: null
     =id: CTIO-4m
+  - diameter: 2.1
+    elevation: 2096.0
+    lat: 31.9599
+    lon: -111.5997
+    name: Kitt Peak 2.1m Telescope
+    nickname: KPNO2m
+    skycam_link: null
+    =id: KPNO2m
 
 instrument:
   - name: ZTF
@@ -260,6 +268,13 @@ instrument:
     #   file: ../data/DECam_Fields.csv
     # field_region:
     #   file: ../data/DECam_Region.reg
+  - name: SEDMv2
+    type: imaging spectrograph
+    band: V
+    telescope_id: =KPNO2m
+    filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
+    api_classname: SEDMV2API
+    =id: SEDMv2
 
 allocation:
   - pi: Michael Coughlin
@@ -328,6 +343,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =ZTF
+  - pi: Michael Coughlin
+    proposal_id: SEDMv2-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =SEDMv2
 
 candidates:
   - id: ZTF21aaqjmps
