@@ -51,7 +51,7 @@ def validate_request_to_sedmv2(request):
         request.payload["minimum_lunar_distance"] < 0
         or request.payload["minimum_lunar_distance"] > 180
     ):
-        raise ValueError('maximum_airmass must be within 0-180.')
+        raise ValueError('minimum lunar distance must be within 0-180.')
 
     if request.payload["priority"] < 1 or request.payload["priority"] > 5:
         raise ValueError('priority must be within 1-5.')
