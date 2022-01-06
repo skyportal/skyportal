@@ -127,8 +127,6 @@ class SEDMV2API(FollowUpAPI):
 
         from ..models import DBSession, FollowupRequest, FacilityTransaction
 
-        validate_request_to_sedmv2(request)
-
         if cfg['app.sedmv2_endpoint'] is not None:
             altdata = request.allocation.altdata
 
