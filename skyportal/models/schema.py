@@ -107,7 +107,8 @@ def setup_schema():
     module.
 
     """
-    for class_ in _Base._decl_class_registry.values():
+    for mapper in _Base.registry.mappers:
+        class_ = mapper.class_
         if hasattr(class_, '__tablename__'):
             if class_.__name__.endswith('Schema'):
                 raise _ModelConversionError(
