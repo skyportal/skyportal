@@ -222,7 +222,7 @@ class GcnEventHandler(BaseHandler):
 def add_tiles(localization_id):
     session = Session()
     try:
-        localization = Localization.filter(
+        localization = session.query(Localization).filter(
             Localization.id == localization_id,
         ).first()
 
@@ -248,11 +248,11 @@ def add_tiles(localization_id):
 def add_contour(localization_id):
     session = Session()
     try:
-        localization = Localization.filter(
+        localization = session.query(Localization).filter(
             Localization.id == localization_id,
         ).first()
         localization = get_contour(localization)
-        session.add(localization)
+        session.merge(localization)
         session.commit()
         return log(f"Generated contour for localization {localization_id}")
     except Exception as e:
