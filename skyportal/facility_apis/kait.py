@@ -37,9 +37,13 @@ class KAITRequest:
         """
 
         for filt in request.payload["observation_choices"]:
-            assert filt in ["U", "g", "r", "i", "z", "B", "V", "R", "I"]
+            if filt not in ["U", "g", "r", "i", "z", "B", "V", "R", "I"]:
+                raise ValueError(f"Improper observation_choice {filt}")
 
-        assert request.payload["observation_type"] in ["long", "short"]
+        if request.payload["observation_type"] not in ["long", "short"]:
+            raise ValueError(
+                f"Improper observation_type {request.payload['observation_type']}"
+            )
 
         # The target of the observation
         target = {
