@@ -69,7 +69,10 @@ const useStyles = makeStyles((theme) => ({
   },
   comments: {
     width: "100%",
-    flex: "40px",
+  },
+  alignLeft: {
+    display: "inline-block",
+    verticalAlign: "super",
   }
 }));
 
@@ -237,8 +240,11 @@ const GcnEventPage = ({ route }) => {
           ))}
         </div>
       </Grid>
-      <Grid item xs={5}>
-        <div className={styles.columnItem} >
+      <Grid item xs={5} id="logbook">
+      <div className={styles.alignMiddle }>
+          <SharePage />
+        </div>
+        <div className={styles.columnItem}>
           <Accordion
             defaultExpanded
             className={styles.comments}

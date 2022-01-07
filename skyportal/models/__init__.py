@@ -19,6 +19,7 @@ from .instrument import *
 from .invitation import *
 from .listing import *
 from .localization import *
+from .logbook import *
 from .obj import *
 from .observing_run import *
 from .photometry import *
@@ -33,6 +34,7 @@ from .thumbnail import *
 from .user_notification import *
 from .user_token import *
 from .weather import *
+
 
 # Cosmology
 from .cosmo import cosmo

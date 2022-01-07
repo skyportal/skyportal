@@ -3,6 +3,7 @@ from .allocation import AllocationHandler
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
+from .logbook import LogbookHandler, LogbookAttachmentHandler
 from .annotation import AnnotationHandler
 from .db_stats import StatsHandler
 from .filter import FilterHandler
