@@ -157,6 +157,7 @@ const Localization = ({ loc }) => {
 const GcnEventPage = ({ route }) => {
   const mapRef = useRef();
   const gcnEvent = useSelector((state) => state.gcnEvent);
+  const galaxies = useSelector((state) => state.galaxies);
   const dispatch = useDispatch();
   const styles = useStyles();
 
@@ -165,7 +166,7 @@ const GcnEventPage = ({ route }) => {
   }, [route, dispatch]);
 
   useEffect(() => {
-    dispatch(galaxiesActions.fetchGalaxies());
+    dispatch(galaxiesActions.fetchGalaxies(route.dateobs));
   }, [route, dispatch]);
 
   if (!gcnEvent || !galaxies) {

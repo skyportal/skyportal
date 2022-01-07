@@ -5,8 +5,6 @@ from geojson import Point, Feature
 
 from sqlalchemy.orm import sessionmaker, scoped_session
 import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
-from sqlalchemy import func, or_, distinct
 
 import astropy.units as u
 import healpix_alchemy as ha
@@ -194,7 +192,7 @@ class GalaxyCatalogHandler(BaseHandler):
             print(query)
 
         galaxies = query.all()
-        query_results = {'sources': galaxies} 
+        query_results = {'sources': galaxies}
 
         if includeGeojson:
             # features are JSON representations that the d3 stuff understands.
@@ -215,7 +213,6 @@ class GalaxyCatalogHandler(BaseHandler):
                 )
 
             query_results["geojson"] = features
-
 
         self.verify_and_commit()
         return self.success(data=query_results)

@@ -7,12 +7,27 @@ const FETCH_GALAXIES = "skyportal/FETCH_GALAXIES";
 const FETCH_GALAXIES_OK = "skyportal/FETCH_GALAXIES_OK";
 
 // eslint-disable-next-line import/prefer-default-export
-export const fetchGalaxies = () => API.GET("/api/galaxy_catalog", FETCH_GALAXIES);
+export function fetchGalaxies(
+  dateobs = null,
+  catalog_name = "CLU_mini",
+  filterParams = {}
+) {
+  filterParams.localizationDateobs = dateobs;
+  filterParams.localizationCumprob = 0.95;
+  filterParams.catalog_name = catalog_name;
+
+  filterParams.includeGeojson = true;
+  return API.GET("/api/galaxy_catalog", FETCH_GALAXIES, filterParams);
+}
 
 // Websocket message handler
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType, payload, dispatch, getState) => {
+  const { gcnEvent } = getState();
+
   if (actionType === FETCH_GALAXIES) {
-    dispatch(fetchGalaxies());
+    if (gcnEvent && gcnEvent.id === payload.gcnEvent.id) {
+      dispatch(fetchGalaxies(gcnEvent.dateobs));
+    }
   }
 });
 
