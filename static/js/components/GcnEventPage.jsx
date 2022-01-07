@@ -22,6 +22,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
+import * as galaxiesActions from "../ducks/galaxies";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -163,7 +164,11 @@ const GcnEventPage = ({ route }) => {
     dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
   }, [route, dispatch]);
 
-  if (!gcnEvent) {
+  useEffect(() => {
+    dispatch(galaxiesActions.fetchGalaxies());
+  }, [route, dispatch]);
+
+  if (!gcnEvent || !galaxies) {
     return <CircularProgress />;
   }
 

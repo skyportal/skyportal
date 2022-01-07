@@ -1,14 +1,18 @@
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 from tornado.ioloop import IOLoop
+from geojson import Point, Feature
 
 from sqlalchemy.orm import sessionmaker, scoped_session
+import sqlalchemy as sa
+from sqlalchemy.orm import joinedload
+from sqlalchemy import func, or_, distinct
 
 import astropy.units as u
 import healpix_alchemy as ha
 
 from ..base import BaseHandler
-from ...models import DBSession, Galaxy
+from ...models import DBSession, Galaxy, Localization, LocalizationTile
 
 
 log = make_log('api/galaxy')
@@ -120,12 +124,101 @@ class GalaxyCatalogHandler(BaseHandler):
         """
 
         catalog_name = self.get_query_argument("catalog_name", None)
+        localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        localization_name = self.get_query_argument("localizationName", None)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        includeGeojson = self.get_query_argument("includeGeojson", False)
+
         query = Galaxy.query_records_accessible_by(self.current_user, mode="read")
         if catalog_name is not None:
             query = query.filter(Galaxy.catalog_name == catalog_name)
+
+        if localization_dateobs is not None:
+            if localization_name is not None:
+                localization = (
+                    Localization.query_records_accessible_by(self.current_user)
+                    .filter(Localization.dateobs == localization_dateobs)
+                    .filter(Localization.localization_name == localization_name)
+                    .first()
+                )
+            else:
+                localization = (
+                    Localization.query_records_accessible_by(self.current_user)
+                    .filter(Localization.dateobs == localization_dateobs)
+                    .first()
+                )
+            if localization is None:
+                if localization_name is not None:
+                    return self.error(
+                        f"Localization {localization_dateobs} with name {localization_name} not found",
+                        status=404,
+                    )
+                else:
+                    return self.error(
+                        f"Localization {localization_dateobs} not found", status=404
+                    )
+
+            cum_prob = (
+                sa.func.sum(
+                    LocalizationTile.probdensity * LocalizationTile.healpix.area
+                )
+                .over(order_by=LocalizationTile.probdensity.desc())
+                .label('cum_prob')
+            )
+            subquery1 = (
+                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                    LocalizationTile.localization_id == localization.id
+                )
+            ).subquery()
+
+            min_probdensity = (
+                sa.select(sa.func.min(subquery1.columns.probdensity)).filter(
+                    subquery1.columns.cum_prob <= localization_cumprob
+                )
+            ).scalar_subquery()
+
+            tiles_subquery = (
+                sa.select(Galaxy.id)
+                .filter(
+                    LocalizationTile.localization_id == localization.id,
+                    LocalizationTile.healpix.contains(Galaxy.healpix),
+                    LocalizationTile.probdensity >= min_probdensity,
+                )
+                .subquery()
+            )
+
+            query = query.join(
+                tiles_subquery,
+                Galaxy.id == tiles_subquery.c.id,
+            )
+            print(query)
+
         galaxies = query.all()
+        query_results = {'sources': galaxies} 
+
+        if includeGeojson:
+            # features are JSON representations that the d3 stuff understands.
+            # We use these to render the contours of the sky localization and
+            # locations of the transients.
+
+            features = []
+            for source in query_results["sources"]:
+                print(source)
+                point = Point((source.ra, source.dec))
+                if source.name is not None:
+                    source_name = source.name
+                else:
+                    source_name = f'{source.ra},{source.dec}'
+
+                features.append(
+                    Feature(geometry=point, properties={"name": source_name})
+                )
+
+            query_results["geojson"] = features
+
+
         self.verify_and_commit()
-        return self.success(data=galaxies)
+        return self.success(data=query_results)
 
 
 def add_galaxies(catalog_name, catalog_data):
