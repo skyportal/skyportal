@@ -178,6 +178,14 @@ telescope:
     nickname: KAIT
     skycam_link: null
     =id: KAIT
+  - diameter: 2.1
+    elevation: 2096.0
+    lat: 31.9599
+    lon: -111.5997
+    name: Kitt Peak 2.1m Telescope
+    nickname: KPNO2m
+    skycam_link: null
+    =id: KPNO2m
 
 instrument:
   - name: ZTF
@@ -275,6 +283,13 @@ instrument:
     filters: ['bessellux', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'bessellb', 'bessellv', 'bessellr', 'besselli']
     api_classname: KAITAPI
     =id: KAIT
+  - name: SEDMv2
+    type: imaging spectrograph
+    band: V
+    telescope_id: =KPNO2m
+    filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
+    api_classname: SEDMV2API
+    =id: SEDMv2
 
 allocation:
   - pi: Michael Coughlin
@@ -343,6 +358,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =ZTF
+  - pi: Michael Coughlin
+    proposal_id: SEDMv2-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =SEDMv2
   - pi: Michael Coughlin
     proposal_id: KAIT-001
     start_date: "3020-02-12T00:00:00"
@@ -468,6 +490,7 @@ sources/ZTF18aabcvnq/annotations:
       some_boolean: false
       class: "varstar"
 
+
 sources/ZTFe028h94k/annotations:
   - obj_id: ZTFe028h94k
     origin: "Program B"
@@ -492,6 +515,16 @@ sources/ZTFrlh6cyjh/annotations:
 
 taxonomy:
   file: taxonomy_demo.yaml
+
+classification:
+  - taxonomy_id: 1
+    obj_id: ZTF18aabcvnq
+    probability: 0.9
+    classification: "Time-domain Source"
+  - taxonomy_id: 2
+    obj_id: ZTF18aabcvnq
+    probability: 0.02
+    classification: "variable"
 
 observing_run:
   - pi: Danny Goldstein
