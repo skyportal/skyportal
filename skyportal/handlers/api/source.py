@@ -104,6 +104,14 @@ def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
         Session.remove()
 
 
+def paginate_summary_query(query, page, num_per_page, total_matches):
+    if total_matches is None:
+        total_matches = query.count()
+    query = query.offset((page - 1) * num_per_page)
+    query = query.limit(num_per_page)
+    return {"sources": query.all(), "total_matches": total_matches}
+
+
 class SourceHandler(BaseHandler):
     @auth_or_token
     def head(self, obj_id=None):
@@ -521,6 +529,14 @@ class SourceHandler(BaseHandler):
             schema:
               type: boolean
             description: If true, return only those matches with at least one associated spectrum
+          - in: query
+            name: createdOrModifiedAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date-time string (e.g. 2020-01-01 or 2020-01-01T00:00:00 or 2020-01-01T00:00:00+00:00).
+              If provided, filter by created_at or modified > createdOrModifiedAfter
           responses:
             200:
               content:
@@ -593,6 +609,9 @@ class SourceHandler(BaseHandler):
         has_spectrum = self.get_query_argument("hasSpectrum", False)
         has_spectrum_after = self.get_query_argument("hasSpectrumAfter", None)
         has_spectrum_before = self.get_query_argument("hasSpectrumBefore", None)
+        created_or_modified_after = self.get_query_argument(
+            "createdOrModifiedAfter", None
+        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -983,6 +1002,19 @@ class SourceHandler(BaseHandler):
             source_query = source_query.filter(Source.saved_at <= saved_before)
         if saved_after:
             source_query = source_query.filter(Source.saved_at >= saved_after)
+        if created_or_modified_after:
+            try:
+                created_or_modified_date = arrow.get(
+                    created_or_modified_after.strip()
+                ).datetime
+            except arrow.ParserError:
+                return self.error("Invalid value provided for createdOrModifiedAfter")
+            obj_query = obj_query.filter(
+                or_(
+                    Obj.created_at > created_or_modified_date,
+                    Obj.modified > created_or_modified_date,
+                )
+            )
         if list_name:
             listing_subquery = (
                 Listing.query_records_accessible_by(self.current_user)
@@ -1195,13 +1227,18 @@ class SourceHandler(BaseHandler):
                     else [classification_subquery.c.classification.desc().nullslast()]
                 )
 
+        try:
+            page_number = max(int(page_number), 1)
+        except ValueError:
+            return self.error("Invalid page number value.")
         if save_summary:
-            query_results = {"sources": source_query.all()}
+            query_results = paginate_summary_query(
+                source_query,
+                page_number,
+                num_per_page,
+                total_matches,
+            )
         else:
-            try:
-                page_number = max(int(page_number), 1)
-            except ValueError:
-                return self.error("Invalid page number value.")
             try:
                 query_results = grab_query_results(
                     query,
@@ -1838,6 +1875,7 @@ class SourceOffsetsHandler(BaseHandler):
                 'noffsets': noffsets,
                 'queries_issued': queries_issued,
                 'query': query_string,
+                'used_ztfref': used_ztfref,
             }
         )
 

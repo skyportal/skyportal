@@ -80,9 +80,11 @@ const WidgetPrefsDialog = ({
                     <Typography variant="subtitle2">Select {key}:</Typography>
                     {Object.keys(initialValues[key]).map((subKey) =>
                       subKey === "includeCommentsFromBots" ? (
-                        <Tooltip title="Bot comments are those posted programmatically using API tokens">
+                        <Tooltip
+                          key={subKey}
+                          title="Bot comments are those posted programmatically using API tokens"
+                        >
                           <FormControlLabel
-                            key={subKey}
                             control={
                               <Controller
                                 render={({ onChange, value }) => (

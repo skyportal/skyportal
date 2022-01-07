@@ -11,6 +11,7 @@ from .comment import *
 from .facility_transaction import *
 from .filter import *
 from .followup_request import *
+from .galaxy import *
 from .gcn import *
 from .group import *
 from .group_joins import *

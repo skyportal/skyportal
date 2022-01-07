@@ -25,7 +25,7 @@ import Tooltip from "@material-ui/core/Tooltip";
 import HelpIcon from "@material-ui/icons/Help";
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
@@ -64,7 +64,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const dataTableStyles = (theme) =>
-  createMuiTheme({
+  createTheme({
     overrides: {
       MuiPaper: {
         elevation4: {

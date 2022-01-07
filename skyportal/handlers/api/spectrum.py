@@ -154,7 +154,7 @@ class SpectrumHandler(BaseHandler):
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_id': spec.obj.id},
+            payload={'obj_internal_key': spec.obj.internal_key},
         )
 
         return self.success(data={"id": spec.id})
@@ -288,7 +288,7 @@ class SpectrumHandler(BaseHandler):
         )
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_id': spectrum.obj.id},
+            payload={'obj_internal_key': spectrum.obj.internal_key},
         )
         return self.success()
 
@@ -329,7 +329,7 @@ class SpectrumHandler(BaseHandler):
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_id': spectrum.obj.id},
+            payload={'obj_internal_key': spectrum.obj.internal_key},
         )
 
         return self.success()
@@ -517,7 +517,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_id': spec.obj.id},
+            payload={'obj_internal_key': spec.obj.internal_key},
         )
 
         return self.success(data={'id': spec.id})
@@ -620,7 +620,6 @@ class ObjSpectraHandler(BaseHandler):
             comments = (
                 CommentOnSpectrum.query_records_accessible_by(
                     self.current_user,
-                    options=[joinedload(CommentOnSpectrum.groups)],
                 )
                 .filter(CommentOnSpectrum.spectrum_id == spec.id)
                 .all()
@@ -674,6 +673,7 @@ class ObjSpectraHandler(BaseHandler):
             if external_observer is not None:
                 spec_dict["external_observer"] = external_observer[0]
             spec_dict["owner"] = spec.owner
+            spec_dict["obj_internal_key"] = obj.internal_key
 
             return_values.append(spec_dict)
 
