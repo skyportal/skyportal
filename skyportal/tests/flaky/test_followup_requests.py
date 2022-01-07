@@ -774,7 +774,8 @@ def test_submit_new_followup_request_KAIT(
     add_followup_request_using_frontend_and_verify_KAIT(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
-      
+
+
 @pytest.mark.flaky(reruns=2)
 def test_submit_new_followup_request_SEDMv2(
     driver, super_admin_user, public_source, super_admin_token, public_group
