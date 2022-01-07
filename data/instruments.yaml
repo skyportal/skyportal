@@ -341,6 +341,12 @@
   type: imager
   # todo: add unfiltered
   filters: []
+- band: optical
+  name: KAIT
+  telescope_id: =KAIT
+  type: imager
+  filters: ['bessellux', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'bessellb', 'bessellv', 'bessellr', 'besselli']
+  api_classname: KAITAPI
 - name: SEDMv2
   type: imaging spectrograph
   band: V
