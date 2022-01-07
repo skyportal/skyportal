@@ -1,7 +1,7 @@
 import tornado.web
 
 from baselayer.app.app_server import MainPageHandler
-from baselayer.app import model_util as baselayer_model_util
+from baselayer.app.model_util import create_tables
 from baselayer.log import make_log
 
 from skyportal.handlers import BecomeUserHandler, LogoutHandler
@@ -18,6 +18,7 @@ from skyportal.handlers.api import (
     FilterHandler,
     FollowupRequestHandler,
     FacilityMessageHandler,
+    GalaxyCatalogHandler,
     GcnEventHandler,
     LocalizationHandler,
     GroupHandler,
@@ -37,7 +38,6 @@ from skyportal.handlers.api import (
     ObjHandler,
     ObjPhotometryHandler,
     ObjClassificationHandler,
-    ObjAnnotationHandler,
     PhotometryRangeHandler,
     RoleHandler,
     UserRoleHandler,
@@ -58,10 +58,12 @@ from skyportal.handlers.api import (
     StreamHandler,
     StreamUserHandler,
     SysInfoHandler,
+    ConfigHandler,
     TaxonomyHandler,
     TelescopeHandler,
     ThumbnailHandler,
     UserHandler,
+    UnsourcedFinderHandler,
     WeatherHandler,
     PS1ThumbnailHandler,
 )
@@ -87,7 +89,8 @@ from skyportal.handlers.api.internal import (
     RecentGcnEventsHandler,
 )
 
-from . import models, model_util, openapi
+from . import model_util, openapi
+from .models import init_db
 
 
 log = make_log('app_server')
@@ -111,23 +114,10 @@ skyportal_handlers = [
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
-    (
-        r'/api/comment(/[0-9]+)/attachment(/(?:object|spectrum))?',
-        CommentAttachmentHandler,
-    ),
-    # Allow the '.pdf' suffix for the attachment route, as the
-    # react-file-previewer package expects URLs ending with '.pdf' to
-    # load PDF files.
-    (
-        r'/api/comment(/[0-9]+)/attachment.pdf(/(?:object|spectrum))?',
-        CommentAttachmentHandler,
-    ),
-    (r'/api/comment(/[0-9]+)(/(?:object|spectrum))?', CommentHandler),
-    (r'/api/comment', CommentHandler),
-    (r'/api/annotation(/[0-9]+)?', AnnotationHandler),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
+    (r'/api/galaxy_catalog(/[0-9]+)?', GalaxyCatalogHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
     (r'/api/localization(/.*)/name(/.*)?', LocalizationHandler),
     (r'/api/groups/public', PublicGroupHandler),
@@ -155,23 +145,51 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/offsets', SourceOffsetsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/finder', SourceFinderHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
-    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations', ObjAnnotationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
+    (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
+    (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?', CommentHandler),
+    (
+        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment',
+        CommentAttachmentHandler,
+    ),
+    # Allow the '.pdf' suffix for the attachment route, as the
+    # react-file-previewer package expects URLs ending with '.pdf' to
+    # load PDF files.
+    (
+        r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
+        CommentAttachmentHandler,
+    ),
+    (
+        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations',
+        AnnotationHandler,
+    ),
+    (
+        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations(/[0-9]+)?',
+        AnnotationHandler,
+    ),
     (r'/api/sources(/.*)?', SourceHandler),
     (r'/api/source_notifications', SourceNotificationHandler),
     (r'/api/source_groups(/.*)?', SourceGroupsHandler),
+    (r'/api/spectra(/[0-9]+)?', SpectrumHandler),
+    (r'/api/spectra/parse/ascii', SpectrumASCIIFileParser),
+    (r'/api/spectra/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
+    (r'/api/spectra/range(/.*)?', SpectrumRangeHandler),
+    # FIXME: TODO: Deprecated, to be removed in an upcoming release
     (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),
     (r'/api/spectrum/parse/ascii', SpectrumASCIIFileParser),
     (r'/api/spectrum/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
     (r'/api/spectrum/range(/.*)?', SpectrumRangeHandler),
+    # End deprecated
     (r'/api/streams(/[0-9]+)/users(/.*)?', StreamUserHandler),
     (r'/api/streams(/[0-9]+)?', StreamHandler),
     (r'/api/db_stats', StatsHandler),
     (r'/api/sysinfo', SysInfoHandler),
+    (r'/api/config', ConfigHandler),
     (r'/api/taxonomy(/.*)?', TaxonomyHandler),
     (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
     (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
+    (r'/api/unsourced_finder', UnsourcedFinderHandler),
     (r'/api/user(/[0-9]+)/acls(/.*)?', UserACLHandler),
     (r'/api/user(/[0-9]+)/roles(/.*)?', UserRoleHandler),
     (r'/api/user(/.*)?', UserHandler),
@@ -279,7 +297,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     )
 
     app = CustomApplication(handlers, **settings)
-    models.init_db(
+    init_db(
         **cfg['database'],
         autoflush=False,
         engine_args={'pool_size': 10, 'max_overflow': 15, 'pool_recycle': 3600},
@@ -288,7 +306,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     # If tables are found in the database, new tables will only be added
     # in debug mode.  In production, we leave the tables alone, since
     # migrations might be used.
-    baselayer_model_util.create_tables(add=env.debug)
+    create_tables(add=env.debug)
     model_util.refresh_enums()
 
     model_util.setup_permissions()

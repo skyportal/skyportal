@@ -14,6 +14,7 @@ from marshmallow_sqlalchemy import (
 from marshmallow import (
     Schema as _Schema,
     fields,
+    validate,
     post_load,
     pre_dump,
     ValidationError,
@@ -24,6 +25,8 @@ from marshmallow_enum import EnumField
 from baselayer.app.models import Base as _Base, DBSession as _DBSession
 from baselayer.app.env import load_env
 from skyportal.enum_types import (
+    ALLOWED_SPECTRUM_TYPES,
+    default_spectrum_type,
     py_allowed_bandpasses,
     py_allowed_magsystems,
     py_followup_priorities,
@@ -155,7 +158,9 @@ def setup_schema():
 
             schema_class_name = class_.__name__
             add_schema(
-                schema_class_name, exclude=['created_at', 'modified'], add_to_model=True
+                schema_class_name,
+                exclude=['healpix', 'created_at', 'modified'],
+                add_to_model=True,
             )
             add_schema(
                 f'{schema_class_name}NoID',
@@ -165,6 +170,7 @@ def setup_schema():
                     'modified',
                     'owner_id',
                     'last_modified_by_id',
+                    'healpix',
                 ],
             )
             if schema_class_name == "Obj":
@@ -1034,6 +1040,20 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         description='The ID of the instrument that took the spectrum.', required=True
     )
 
+    type = fields.String(
+        validate=validate.OneOf(ALLOWED_SPECTRUM_TYPES),
+        by_value=True,
+        required=False,
+        description=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+                            Defaults to 'f{default_spectrum_type}'.''',
+    )
+
+    label = fields.String(
+        description='User defined label to be placed in plot legends, '
+        'instead of the default <instrument>-<date taken>.',
+        required=False,
+    )
+
     observed_at = fields.DateTime(
         description='The ISO UTC time the spectrum was taken.', required=True
     )
@@ -1137,6 +1157,18 @@ class SpectrumPost(_Schema):
 
     origin = fields.String(required=False, description="Origin of the spectrum.")
 
+    type = fields.String(
+        validate=validate.OneOf(ALLOWED_SPECTRUM_TYPES),
+        required=False,
+        description=f'''Type of spectrum. One of: {', '.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+                        Defaults to 'f{default_spectrum_type}'.''',
+    )
+
+    label = fields.String(
+        required=False,
+        description="User defined label (can be used to replace default instrument/date labeling on plot legends).",
+    )
+
     instrument_id = fields.Integer(
         required=True,
         description="ID of the Instrument that acquired the Spectrum.",
@@ -1166,6 +1198,11 @@ class SpectrumPost(_Schema):
 class GroupIDList(_Schema):
 
     group_ids = fields.List(fields.Integer, required=True)
+
+
+class GalaxyHandlerPost(_Schema):
+    catalog_name = fields.String(description='Galaxy catalog name.')
+    catalog_data = fields.List(fields.Field(), description='Galaxy catalog data')
 
 
 def register_components(spec):

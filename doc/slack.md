@@ -4,7 +4,14 @@ While the SkyPortal frontend already has real-time notifications for comment men
 
 The Slack integration allows notifications for a given user to be mirrored to a Slack channel of choice. To set this up, the Slack workspace administrator generates a webhook URL (one per user/channel combination), and the user then adds that URL to their **Profile** page.
 
+## Slack App: Manage
+
+To manage an existing integration as a Slack workspace admin (e.g., add a new SkyPortal user or delete a webhook) you can jump to [https://api.slack.com/apps](https://api.slack.com/apps), then choose the app from the "Your Apps" list, then click "Incoming Webhooks."
+
+Otherwise to create a new Slack App, see the following section.
+
 ## Slack App Creation: One-time Admin Set Up
+
 
 We first need to create a "Slack App" that acts as a conduit from SkyPortal to Slack. A logged in Slack Admin for a workspace should navigate to:
 

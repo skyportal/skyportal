@@ -17,7 +17,7 @@ cfg = load_config()
 
 
 def enter_comment_text(driver, comment_text):
-    comment_xpath = "//div[@data-testid='comments-accordion']//input[@name='text']"
+    comment_xpath = "//div[@data-testid='comments-accordion']//textarea[@name='text']"
     comment_box = driver.wait_for_xpath(comment_xpath)
     driver.click_xpath(comment_xpath)
     comment_box.send_keys(comment_text)
@@ -47,6 +47,60 @@ def test_public_source_page(driver, user, public_source, public_group):
     driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
     driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
+
+
+def test_comment_username_autosuggestion(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_text = f"hey @{user.username[:5]}"
+    enter_comment_text(driver, comment_text)
+    matchButtonXpath = (
+        f'//button//span[text()="{user.username} {user.first_name} {user.last_name}"]'
+    )
+    driver.wait_for_xpath(matchButtonXpath)
+    driver.click_xpath(matchButtonXpath)
+    driver.wait_for_xpath_to_disappear(matchButtonXpath)
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
+    driver.wait_for_xpath(f'//p[text()="hey @{user.username} "]')
+
+
+def test_comment_user_last_name_autosuggestion(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_text = f"hey @{user.last_name[:5]}"
+    enter_comment_text(driver, comment_text)
+    matchButtonXpath = (
+        f'//button//span[text()="{user.username} {user.first_name} {user.last_name}"]'
+    )
+    driver.wait_for_xpath(matchButtonXpath)
+    driver.click_xpath(matchButtonXpath)
+    driver.wait_for_xpath_to_disappear(matchButtonXpath)
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
+    driver.wait_for_xpath(f'//p[text()="hey @{user.username} "]')
+
+
+def test_comment_user_first_name_autosuggestion(driver, user, public_source):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+    comment_text = f"hey @{user.first_name[:5]}"
+    enter_comment_text(driver, comment_text)
+    matchButtonXpath = (
+        f'//button//span[text()="{user.username} {user.first_name} {user.last_name}"]'
+    )
+    driver.wait_for_xpath(matchButtonXpath)
+    driver.click_xpath(matchButtonXpath)
+    driver.wait_for_xpath_to_disappear(matchButtonXpath)
+    driver.click_xpath(
+        '//div[@data-testid="comments-accordion"]//*[@name="submitCommentButton"]'
+    )
+    driver.wait_for_xpath(f'//p[text()="hey @{user.username} "]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -130,7 +184,6 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     )
     # Notification
     driver.wait_for_xpath("//*[text()='Classification saved']")
-
     # Scroll up to get top of classifications list component in view
     classifications = driver.find_element_by_xpath(
         "//div[@id='classifications-header']"
@@ -143,6 +196,27 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
     driver.wait_for_xpath_to_disappear(f"//i[text()='{tax_name}']")
     driver.wait_for_xpath_to_disappear(
         "//span[contains(@class, 'MuiButton-label') and text()='Symmetrical']"
+    )
+
+    # ensure low probability classifications have a question mark on the label
+
+    driver.click_xpath('//div[@id="root_taxonomy"]')
+    driver.click_xpath(
+        f'//*[text()="{tax_name} ({tax_version})"]',
+        wait_clickable=False,
+        scroll_parent=True,
+    )
+    driver.click_xpath('//*[@id="classification"]')
+    driver.click_xpath('//li[contains(@data-value, "Mult-mode")]', scroll_parent=True)
+    driver.click_xpath('//*[@id="probability"]')
+    driver.wait_for_xpath('//*[@id="probability"]').send_keys("0.02", Keys.ENTER)
+    driver.click_xpath(
+        "//*[@id='classifications-content']//span[text()='Submit']",
+        wait_clickable=False,
+    )
+    driver.wait_for_xpath("//*[text()='Classification saved']")
+    driver.find_element_by_xpath(
+        "//span[contains(@class, 'MuiChip-label') and text()='Mult-mode?']"
     )
 
 
@@ -289,7 +363,7 @@ def test_view_only_user_cannot_comment(driver, view_only_user, public_source):
     driver.get(f"/become_user/{view_only_user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.wait_for_xpath_to_disappear('//input[@name="text"]')
+    driver.wait_for_xpath_to_disappear('//textarea[@name="text"]')
 
 
 @pytest.mark.flaky(reruns=2)
@@ -634,12 +708,12 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
 
     status, data = api(
         'POST',
-        'annotation',
+        f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
             'data': {
-                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20}
+                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 12.8, 'Mag_Rp': 11.0, 'Plx': 20}
             },
         },
         token=annotation_token,

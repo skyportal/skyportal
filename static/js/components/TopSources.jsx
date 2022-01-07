@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
@@ -86,6 +86,17 @@ const defaultPrefs = {
 };
 
 const TopSourcesList = ({ sources, styles }) => {
+  const [thumbnailIdxs, setThumbnailIdxs] = useState({});
+
+  useEffect(() => {
+    sources?.forEach((source) => {
+      setThumbnailIdxs((prevState) => ({
+        ...prevState,
+        [source.obj_id]: 0,
+      }));
+    });
+  }, [sources]);
+
   const topSourceSpecificStyles = useStyles();
   if (sources === undefined) {
     return <div>Loading top sources...</div>;
@@ -98,11 +109,11 @@ const TopSourcesList = ({ sources, styles }) => {
   return (
     <div className={topSourceSpecificStyles.sourceListContainer}>
       <ul className={styles.sourceList}>
-        {sources.map((source) => {
+        {sources?.map((source) => {
           let topsourceName = `${source.obj_id}`;
           if (source.classifications.length > 0) {
             // Display the most recent non-zero probability class
-            const filteredClasses = source.classifications.filter(
+            const filteredClasses = source.classifications?.filter(
               (i) => i.probability > 0
             );
             const sortedClasses = filteredClasses.sort((a, b) =>
@@ -114,7 +125,8 @@ const TopSourcesList = ({ sources, styles }) => {
             }
           }
 
-          const imgClasses = source.is_grayscale
+          const imgClasses = source.thumbnails[thumbnailIdxs[source.obj_id]]
+            ?.is_grayscale
             ? `${styles.stamp} ${styles.inverted}`
             : `${styles.stamp}`;
 
@@ -131,8 +143,25 @@ const TopSourcesList = ({ sources, styles }) => {
                   >
                     <img
                       className={imgClasses}
-                      src={source.public_url}
+                      src={
+                        source.thumbnails[thumbnailIdxs[source.obj_id]]
+                          ?.public_url ||
+                        "/static/images/currently_unavailable.png"
+                      }
                       alt={source.obj_id}
+                      onError={(e) => {
+                        // avoid infinite loop
+                        if (
+                          thumbnailIdxs[source.obj_id] ===
+                          source.thumbnails.length - 1
+                        ) {
+                          e.target.onerror = null;
+                        }
+                        setThumbnailIdxs((prevState) => ({
+                          ...prevState,
+                          [source.obj_id]: prevState[source.obj_id] + 1,
+                        }));
+                      }}
                     />
                   </Link>
                   <div className={styles.sourceInfo}>
@@ -177,8 +206,13 @@ TopSourcesList.propTypes = {
       ra: PropTypes.number,
       dec: PropTypes.number,
       views: PropTypes.number.isRequired,
-      public_url: PropTypes.string,
-      is_grayscale: PropTypes.bool,
+      thumbnails: PropTypes.arrayOf(
+        PropTypes.shape({
+          public_url: PropTypes.string,
+          is_grayscale: PropTypes.bool,
+          type: PropTypes.string,
+        })
+      ),
       classifications: PropTypes.arrayOf(
         PropTypes.shape({
           author_name: PropTypes.string,

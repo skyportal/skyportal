@@ -135,7 +135,7 @@ const ClassificationList = () => {
               {dayjs().to(dayjs.utc(`${created_at}Z`))}
             </span>
             &nbsp;
-            <Tooltip title={groups.map((group) => group.name).join(", ")}>
+            <Tooltip title={groups?.map((group) => group.name)?.join(", ")}>
               <GroupIcon
                 fontSize="small"
                 style={{ paddingTop: "6px", paddingBottom: "0px" }}

@@ -4,6 +4,8 @@ import PropTypes from "prop-types";
 import embed from "vega-embed";
 import dayjs from "dayjs";
 
+import CircularProgress from "@material-ui/core/CircularProgress";
+
 import VegaPlot from "./VegaPlot";
 import * as ephemerisActions from "../ducks/ephemeris";
 
@@ -176,7 +178,11 @@ export const AirMassPlotWithEphemURL = ({ dataUrl, ephemerisUrl }) => {
     return <AirmassPlot dataUrl={dataUrl} ephemeris={ephemeris} />;
   }
 
-  return <p>Loading plot...</p>;
+  return (
+    <div>
+      <CircularProgress color="secondary" />
+    </div>
+  );
 };
 
 AirMassPlotWithEphemURL.propTypes = {

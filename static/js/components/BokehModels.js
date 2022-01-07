@@ -3,19 +3,18 @@
 import { input, label, div, span } from "bokehjs/core/dom";
 import { includes } from "bokehjs/core/util/array";
 import * as p from "bokehjs/core/properties";
-import { bk_inline } from "bokehjs/styles/mixins";
-import { bk_input_group } from "bokehjs/styles/widgets/inputs";
+import * as inputs from "bokehjs/styles/widgets/inputs.css";
+import { InputGroupView } from "bokehjs/models/widgets/input_group";
 import {
   CheckboxGroup,
   CheckboxGroupView,
 } from "bokehjs/models/widgets/checkbox_group";
-import { InputGroupView } from "bokehjs/models/widgets/input_group";
 
 export class CheckboxWithLegendGroupView extends CheckboxGroupView {
   render() {
     InputGroupView.prototype.render.call(this);
     const group = div({
-      class: [bk_input_group, this.model.inline ? bk_inline : null],
+      class: [inputs.input_group, this.model.inline ? inputs.inline : null],
     });
     this.el.appendChild(group);
     const { active, colors, labels } = this.model;
@@ -34,16 +33,6 @@ export class CheckboxWithLegendGroupView extends CheckboxGroupView {
       const label_el = label(attrs, checkbox, span({}, labels[i]));
       group.appendChild(label_el);
     }
-  }
-
-  change_active(i) {
-    const active = new Set(this.model.active);
-    if (active.has(i)) {
-      active.delete(i);
-    } else {
-      active.add(i);
-    }
-    this.model.active = [...active].sort();
   }
 }
 // eslint-disable-next-line no-underscore-dangle

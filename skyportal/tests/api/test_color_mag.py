@@ -5,7 +5,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
 
     status, data = api(
         'POST',
-        'annotation',
+        f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -27,13 +27,13 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
 
     assert status == 200
     assert data['data'][0]['origin'] == 'cross_match1'
-    assert abs(data['data'][0]['abs_mag'] - 18.6) < 0.1
+    assert abs(data['data'][0]['abs_mag'] - 11.6) < 0.1
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
     # add absorption by an edit to the annotation
     status, data = api(
         'PUT',
-        f'annotation/{annotation_id}',
+        f'sources/{public_source.id}/annotations/{annotation_id}',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -57,13 +57,13 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
 
     assert status == 200
     assert data['data'][0]['origin'] == 'cross_match1'
-    assert abs(data['data'][0]['abs_mag'] - 18.9) < 0.1
+    assert abs(data['data'][0]['abs_mag'] - 11.9) < 0.1
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
     # replace the magnitude in apparent bands with the absolute mag and color
     status, data = api(
         'PUT',
-        f'annotation/{annotation_id}',
+        f'sources/{public_source.id}/annotations/{annotation_id}',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -73,7 +73,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
                     'Mag_Bp': 16.1,
                     'Mag_Rp': 14.0,
                     'Plx': 20,
-                    'Abs_mag_G': 19.5,
+                    'Abs_mag_G': 12.5,
                     'color': 1.8,
                 },
             },
@@ -90,7 +90,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
 
     assert status == 200
     assert data['data'][0]['origin'] == 'cross_match1'
-    assert abs(data['data'][0]['abs_mag'] - 18.6) < 0.1
+    assert abs(data['data'][0]['abs_mag'] - 11.6) < 0.1
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
     # here the request asks for the specific keys for abs-mag and color
@@ -103,7 +103,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
 
     assert status == 200
     assert data['data'][0]['origin'] == 'cross_match1'
-    assert abs(data['data'][0]['abs_mag'] - 19.5) < 0.1
+    assert abs(data['data'][0]['abs_mag'] - 12.5) < 0.1
     assert abs(data['data'][0]['color'] - 1.8) < 0.1
 
     # check that the source also provides the same info (with default keys!)
@@ -116,7 +116,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
 
     assert status == 200
     assert data['data']['color_magnitude'][0]['origin'] == 'cross_match1'
-    assert abs(data['data']['color_magnitude'][0]['abs_mag'] - 18.6) < 0.1
+    assert abs(data['data']['color_magnitude'][0]['abs_mag'] - 11.6) < 0.1
     assert abs(data['data']['color_magnitude'][0]['color'] - 2.1) < 0.1
 
 
@@ -124,7 +124,7 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
 
     status, data = api(
         'POST',
-        'annotation',
+        f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -143,13 +143,13 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
 
     assert status == 200
     assert data['data'][0]['origin'] == 'cross_match1'
-    assert abs(data['data'][0]['abs_mag'] - 18.6) < 0.1
+    assert abs(data['data'][0]['abs_mag'] - 11.6) < 0.1
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
     # change the keys, replace capital letters with underscores
     status, data = api(
         'PUT',
-        f'annotation/{annotation_id}',
+        f'sources/{public_source.id}/annotations/{annotation_id}',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -167,13 +167,13 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
 
     assert status == 200
     assert data['data'][0]['origin'] == 'cross_match1'
-    assert abs(data['data'][0]['abs_mag'] - 18.6) < 0.1
+    assert abs(data['data'][0]['abs_mag'] - 11.6) < 0.1
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
     # change the keys to completely new names, rename the catalog as well
     status, data = api(
         'PUT',
-        f'annotation/{annotation_id}',
+        f'sources/{public_source.id}/annotations/{annotation_id}',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -199,14 +199,14 @@ def test_change_color_mag_keys(annotation_token, user, public_source):
 
     assert status == 200
     assert data['data'][0]['origin'] == 'cross_match1'
-    assert abs(data['data'][0]['abs_mag'] - 18.6) < 0.1
+    assert abs(data['data'][0]['abs_mag'] - 11.6) < 0.1
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
 
 def test_add_multiple_color_mag_annotations(annotation_token, user, public_source):
     status, data = api(
         'POST',
-        'annotation',
+        f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match1',
@@ -224,13 +224,13 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
 
     assert status == 200
     assert data['data'][0]['origin'] == 'cross_match1'
-    assert abs(data['data'][0]['abs_mag'] - 18.6) < 0.1
+    assert abs(data['data'][0]['abs_mag'] - 11.6) < 0.1
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
     # post from a second origin
     status, data = api(
         'POST',
-        'annotation',
+        f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match2',
@@ -245,7 +245,7 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
     # post from a third origin
     status, data = api(
         'POST',
-        'annotation',
+        f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
             'origin': 'cross_match3',
@@ -268,15 +268,15 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
 
     # make sure the first one still exists
     assert data['data'][0]['origin'] == 'cross_match1'
-    assert abs(data['data'][0]['abs_mag'] - 18.6) < 0.1
+    assert abs(data['data'][0]['abs_mag'] - 11.6) < 0.1
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
     # make sure the second one still exists
     assert data['data'][1]['origin'] == 'cross_match2'
-    assert abs(data['data'][1]['abs_mag'] - 18.7) < 0.1
+    assert abs(data['data'][1]['abs_mag'] - 11.7) < 0.1
     assert abs(data['data'][1]['color'] - 2.2) < 0.1
 
     # make sure the last was added
     assert data['data'][2]['origin'] == 'cross_match3'
-    assert abs(data['data'][2]['abs_mag'] - 21.8) < 0.1
+    assert abs(data['data'][2]['abs_mag'] - 8.8) < 0.1
     assert abs(data['data'][2]['color'] - 2.3) < 0.1

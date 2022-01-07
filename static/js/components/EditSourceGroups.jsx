@@ -35,20 +35,20 @@ const EditSourceGroups = ({ source, groups, icon }) => {
 
   const { handleSubmit, errors, reset, control, getValues } = useForm();
 
-  const unsavedGroups = groups.filter(
+  const unsavedGroups = groups?.filter(
     (g) => !source.currentGroupIds.includes(g.id)
   );
-  const savedGroups = groups.filter((g) =>
+  const savedGroups = groups?.filter((g) =>
     source.currentGroupIds.includes(g.id)
   );
 
   useEffect(() => {
     reset({
       inviteGroupIds: Array(
-        groups.filter((g) => !source.currentGroupIds.includes(g.id)).length
+        groups?.filter((g) => !source.currentGroupIds.includes(g.id)).length
       ).fill(false),
       unsaveGroupIds: Array(
-        groups.filter((g) => source.currentGroupIds.includes(g.id)).length
+        groups?.filter((g) => source.currentGroupIds.includes(g.id)).length
       ).fill(false),
     });
   }, [reset, groups, source]);
@@ -75,13 +75,13 @@ const EditSourceGroups = ({ source, groups, icon }) => {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     data.objId = source.id;
-    const unsavedGroupIds = unsavedGroups.map((g) => g.id);
-    const inviteGroupIds = unsavedGroupIds.filter(
+    const unsavedGroupIds = unsavedGroups?.map((g) => g.id);
+    const inviteGroupIds = unsavedGroupIds?.filter(
       (ID, idx) => data.inviteGroupIds[idx]
     );
     data.inviteGroupIds = inviteGroupIds;
-    const savedGroupIds = savedGroups.map((g) => g.id);
-    const unsaveGroupIds = savedGroupIds.filter(
+    const savedGroupIds = savedGroups?.map((g) => g.id);
+    const unsaveGroupIds = savedGroupIds?.filter(
       (ID, idx) => data.unsaveGroupIds[idx]
     );
     data.unsaveGroupIds = unsaveGroupIds;

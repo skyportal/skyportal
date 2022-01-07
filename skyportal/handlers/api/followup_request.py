@@ -16,7 +16,7 @@ from ...models import (
 
 from sqlalchemy.orm import joinedload
 
-from ...schema import AssignmentSchema, FollowupRequestPost
+from ...models.schema import AssignmentSchema, FollowupRequestPost
 
 
 class AssignmentHandler(BaseHandler):

@@ -15,6 +15,7 @@ from ...models import (
     FollowupRequest,
     Group,
     CommentOnSpectrum,
+    AnnotationOnSpectrum,
     Instrument,
     Obj,
     Spectrum,
@@ -23,11 +24,13 @@ from ...models import (
     User,
     ClassicalAssignment,
 )
-from ...schema import (
+from ...models.schema import (
     SpectrumAsciiFilePostJSON,
     SpectrumPost,
     SpectrumAsciiFileParseJSON,
 )
+
+from ...enum_types import default_spectrum_type
 
 _, cfg = load_env()
 
@@ -133,6 +136,8 @@ class SpectrumHandler(BaseHandler):
         spec.instrument = instrument
         spec.groups = groups
         spec.owner_id = owner_id
+        if spec.type is None:
+            spec.type = default_spectrum_type
         DBSession().add(spec)
         for reducer in reducers:
             reducer.spectrum = spec
@@ -149,7 +154,7 @@ class SpectrumHandler(BaseHandler):
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_key': spec.obj.internal_key},
+            payload={'obj_internal_key': spec.obj.internal_key},
         )
 
         return self.success(data={"id": spec.id})
@@ -191,6 +196,11 @@ class SpectrumHandler(BaseHandler):
             .filter(CommentOnSpectrum.spectrum_id == spectrum_id)
             .all()
         )
+        annotations = (
+            AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
+            .filter(AnnotationOnSpectrum.spectrum_id == spectrum_id)
+            .all()
+        )
 
         spec_dict = recursive_to_dict(spectrum)
         spec_dict["instrument_name"] = spectrum.instrument.name
@@ -199,6 +209,7 @@ class SpectrumHandler(BaseHandler):
         spec_dict["observers"] = spectrum.observers
         spec_dict["owner"] = spectrum.owner
         spec_dict["comments"] = comments
+        spec_dict["annotations"] = annotations
 
         external_reducer = (
             DBSession()
@@ -275,6 +286,10 @@ class SpectrumHandler(BaseHandler):
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': spectrum.obj.internal_key},
         )
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE_SPECTRA',
+            payload={'obj_internal_key': spectrum.obj.internal_key},
+        )
         return self.success()
 
     @permissions(['Upload data'])
@@ -314,7 +329,7 @@ class SpectrumHandler(BaseHandler):
 
         self.push_all(
             action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_id': spectrum.obj_id},
+            payload={'obj_internal_key': spectrum.obj.internal_key},
         )
 
         return self.success()
@@ -353,6 +368,8 @@ class ASCIIHandler:
             file,
             obj_id=json.get('obj_id', None),
             instrument_id=json.get('instrument_id', None),
+            type=json.get('type', None),
+            label=json.get('label', None),
             observed_at=json.get('observed_at', None),
             wave_column=json.get('wave_column', None),
             flux_column=json.get('flux_column', None),
@@ -498,6 +515,11 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
             payload={'obj_key': spec.obj.internal_key},
         )
 
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE_SPECTRA',
+            payload={'obj_internal_key': spec.obj.internal_key},
+        )
+
         return self.success(data={'id': spec.id})
 
 
@@ -598,9 +620,13 @@ class ObjSpectraHandler(BaseHandler):
             comments = (
                 CommentOnSpectrum.query_records_accessible_by(
                     self.current_user,
-                    options=[joinedload(CommentOnSpectrum.groups)],
                 )
                 .filter(CommentOnSpectrum.spectrum_id == spec.id)
+                .all()
+            )
+            annotations = (
+                AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
+                .filter(AnnotationOnSpectrum.spectrum_id == spec.id)
                 .all()
             )
 
@@ -622,6 +648,10 @@ class ObjSpectraHandler(BaseHandler):
                 key=lambda x: x["created_at"],
                 reverse=True,
             )
+            annotations = [
+                {**a.to_dict(), 'author': a.author.to_dict()} for a in annotations
+            ]
+            spec_dict["annotations"] = annotations
             spec_dict["instrument_name"] = spec.instrument.name
             spec_dict["groups"] = spec.groups
             spec_dict["reducers"] = spec.reducers
@@ -643,6 +673,7 @@ class ObjSpectraHandler(BaseHandler):
             if external_observer is not None:
                 spec_dict["external_observer"] = external_observer[0]
             spec_dict["owner"] = spec.owner
+            spec_dict["obj_internal_key"] = obj.internal_key
 
             return_values.append(spec_dict)
 

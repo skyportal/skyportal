@@ -38,7 +38,7 @@ const SourceRedshiftHistory = ({ redshiftHistory }) => {
   });
 
   if (allUsers.length) {
-    allUsers.forEach((user) => {
+    allUsers?.forEach((user) => {
       userIdToUsername[user.id] = user.username;
     });
   }

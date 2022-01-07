@@ -20,6 +20,7 @@ app:
 
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://pharos.caltech.edu/add_fritz
+  sedmv2_endpoint:
 
   lt_host: 161.72.57.3
   lt_port: 8080
@@ -411,3 +412,10 @@ image_grayscale_params:
 slack:
   microservice_port: 64100
   expected_url_preamble: "https://hooks.slack.com/"
+
+spectrum_types:
+  types:
+   - source
+   - host
+   - host_center
+  default: source

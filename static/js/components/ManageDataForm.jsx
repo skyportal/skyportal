@@ -19,11 +19,13 @@ import TableRow from "@material-ui/core/TableRow";
 import TableCell from "@material-ui/core/TableCell";
 import Papa from "papaparse";
 import ReactJson from "react-json-view";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
 
 import FormValidationError from "./FormValidationError";
 import CommentList from "./CommentList";
+import AnnotationsTable from "./AnnotationsTable";
 
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
@@ -37,7 +39,7 @@ function get_filename(spectrum) {
 
 function to_csv(spectrum) {
   const formatted = [];
-  spectrum.wavelengths.forEach((wave, i) => {
+  spectrum.wavelengths?.forEach((wave, i) => {
     const obj = {};
     obj.wavelength = wave;
     obj.flux = spectrum.fluxes[i];
@@ -104,6 +106,8 @@ const createSpecRow = (
   reducers,
   observers,
   origin,
+  type,
+  label,
   external_reducer,
   external_observer
 ) => ({
@@ -115,6 +119,8 @@ const createSpecRow = (
   reducers,
   observers,
   origin,
+  type,
+  label,
   external_reducer,
   external_observer,
 });
@@ -136,15 +142,28 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const SpectrumRow = ({ rowData, route }) => {
+const SpectrumRow = ({ rowData, route, annotations }) => {
   const styles = useSourceStyles();
   const colSpan = rowData.length + 1;
+  const spectrumID = parseInt(rowData[0], 10);
+
   return (
     <TableRow>
       <TableCell colSpan={colSpan}>
-        <Grid container direction="row" justify="center" alignItems="center">
+        <Grid
+          container
+          direction="row"
+          justifyContent="center"
+          alignItems="center"
+        >
           <Grid item className={styles.photometryContainer} sm={6}>
-            <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+            <Suspense
+              fallback={
+                <div>
+                  <CircularProgress color="secondary" />
+                </div>
+              }
+            >
               <Plot
                 className={styles.plot}
                 // eslint-disable-next-line react/prop-types
@@ -159,10 +178,14 @@ const SpectrumRow = ({ rowData, route }) => {
           >
             <Typography variant="h6">Comments</Typography>
             <CommentList
-              associatedResourceType="spectrum"
+              associatedResourceType="spectra"
               objID={route.id}
-              spectrumID={rowData[0]}
+              spectrumID={spectrumID}
             />
+          </Grid>
+          <Grid item sm={6}>
+            <Typography variant="h6">Annotations</Typography>
+            <AnnotationsTable annotations={annotations} />
           </Grid>
         </Grid>
       </TableCell>
@@ -175,6 +198,13 @@ SpectrumRow.propTypes = {
     id: PropTypes.string.isRequired,
   }).isRequired,
   rowData: PropTypes.arrayOf(PropTypes.number).isRequired,
+  annotations: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      origin: PropTypes.string.isRequired,
+      spectrum_id: PropTypes.number.isRequired,
+    })
+  ).isRequired,
 };
 
 const ManageDataForm = ({ route }) => {
@@ -205,15 +235,15 @@ const ManageDataForm = ({ route }) => {
   };
 
   const onSubmit = async (groupsFormData) => {
-    const selectedPhotIDs = selectedPhotRows.map(
+    const selectedPhotIDs = selectedPhotRows?.map(
       (idx) => photometry[route.id][idx].id
     );
-    const selectedSpecIDs = selectedSpecRows.map(
+    const selectedSpecIDs = selectedSpecRows?.map(
       (idx) => spectra[route.id][idx].id
     );
     setIsSubmitting(true);
     const data = {
-      groupIDs: groupsFormData.groups.map((g) => g.id),
+      groupIDs: groupsFormData.groups?.map((g) => g.id),
       photometryIDs: selectedPhotIDs,
       spectrumIDs: selectedSpecIDs,
     };
@@ -228,7 +258,11 @@ const ManageDataForm = ({ route }) => {
   };
 
   if ((!photometry[route.id] && !spectra[route.id]) || !groups) {
-    return <>Loading...</>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
 
   const photRows = photometry[route.id]
@@ -258,6 +292,8 @@ const ManageDataForm = ({ route }) => {
           spec.reducers,
           spec.observers,
           spec.origin,
+          spec.type,
+          spec.label,
           spec.external_reducer,
           spec.external_observer
         )
@@ -487,6 +523,18 @@ const ManageDataForm = ({ route }) => {
       label: "Origin",
     },
     {
+      name: "type",
+      label: "Type",
+      filter: true,
+      display: false,
+    },
+    {
+      name: "label",
+      label: "Label",
+      filter: false,
+      display: false,
+    },
+    {
       name: "altdata",
       label: "Altdata",
       options: { customBodyRenderLite: AltdataButton, filter: false },
@@ -541,53 +589,65 @@ const ManageDataForm = ({ route }) => {
       <br />
       <div>
         {!!photometry[route.id] && (
-          <MUIDataTable
-            columns={photHeadCells}
-            data={photRows}
-            title="Photometry"
-            options={{
-              ...options,
-              rowsSelected: selectedPhotRows,
-              onRowSelectionChange: (
-                rowsSelectedData,
-                allRows,
-                rowsSelected
-              ) => {
-                setSelectedPhotRows(rowsSelected);
-              },
-              selectableRowsOnClick: true,
-            }}
-          />
+          <div>
+            <MUIDataTable
+              columns={photHeadCells}
+              data={photRows}
+              title="Photometry"
+              options={{
+                ...options,
+                rowsSelected: selectedPhotRows,
+                onRowSelectionChange: (
+                  rowsSelectedData,
+                  allRows,
+                  rowsSelected
+                ) => {
+                  setSelectedPhotRows(rowsSelected);
+                },
+                selectableRowsOnClick: true,
+              }}
+            />
+          </div>
         )}
+
         <br />
         {!!spectra[route.id] && (
-          <MUIDataTable
-            columns={specHeadCells}
-            data={specRows}
-            title="Spectra"
-            options={{
-              ...options,
-              rowsSelected: selectedSpecRows,
-              onRowSelectionChange: (
-                rowsSelectedData,
-                allRows,
-                rowsSelected
-              ) => {
-                setSelectedSpecRows(rowsSelected);
-              },
-              expandableRows: true,
-              // eslint-disable-next-line react/display-name,no-unused-vars
-              renderExpandableRow: (rowData, rowMeta) => (
-                <SpectrumRow rowData={rowData} route={route} />
-              ),
-              expandableRowsOnClick: false,
-              rowsExpanded: openedSpecRows,
-              onRowExpansionChange: (currentRowsExpanded) => {
-                setOpenedSpecRows(currentRowsExpanded.map((i) => i.dataIndex));
-              },
-            }}
-            data-testid="spectrum-table"
-          />
+          <div data-testid="spectrum-div">
+            <MUIDataTable
+              columns={specHeadCells}
+              data={specRows}
+              title="Spectra"
+              data-testid="spectrum-table"
+              options={{
+                ...options,
+                rowsSelected: selectedSpecRows,
+                onRowSelectionChange: (
+                  rowsSelectedData,
+                  allRows,
+                  rowsSelected
+                ) => {
+                  setSelectedSpecRows(rowsSelected);
+                },
+                expandableRows: true,
+                // eslint-disable-next-line react/display-name,no-unused-vars
+                renderExpandableRow: (rowData, rowMeta) => (
+                  <SpectrumRow
+                    rowData={rowData}
+                    route={route}
+                    annotations={
+                      spectra[route.id].find((spec) => spec.id === rowData[0])
+                        .annotations
+                    }
+                  />
+                ),
+                expandableRowsOnClick: false,
+                rowsExpanded: openedSpecRows,
+                onRowExpansionChange: (_, expandedRows) => {
+                  setOpenedSpecRows(expandedRows.map((i) => i.dataIndex));
+                },
+              }}
+            />
+          </div>
         )}
       </div>
       <br />

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
@@ -11,6 +11,7 @@ import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import { ra_to_hours, dec_to_dms } from "../units";
 import * as profileActions from "../ducks/profile";
@@ -110,8 +111,23 @@ const defaultPrefs = {
 };
 
 const RecentSourcesList = ({ sources, styles }) => {
+  const [thumbnailIdxs, setThumbnailIdxs] = useState({});
+
+  useEffect(() => {
+    sources?.forEach((source) => {
+      setThumbnailIdxs((prevState) => ({
+        ...prevState,
+        [source.obj_id]: 0,
+      }));
+    });
+  }, [sources]);
+
   if (sources === undefined) {
-    return <div>Loading recent sources...</div>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
 
   if (sources.length === 0) {
@@ -125,7 +141,7 @@ const RecentSourcesList = ({ sources, styles }) => {
           let recentSourceName = `${source.obj_id}`;
           if (source.classifications.length > 0) {
             // Display the most recent non-zero probability class
-            const filteredClasses = source.classifications.filter(
+            const filteredClasses = source.classifications?.filter(
               (i) => i.probability > 0
             );
             const sortedClasses = filteredClasses.sort((a, b) =>
@@ -137,7 +153,8 @@ const RecentSourcesList = ({ sources, styles }) => {
             }
           }
 
-          const imgClasses = source.is_grayscale
+          const imgClasses = source.thumbnails[thumbnailIdxs[source.obj_id]]
+            ?.is_grayscale
             ? `${styles.stamp} ${styles.inverted}`
             : `${styles.stamp}`;
           return (
@@ -153,9 +170,26 @@ const RecentSourcesList = ({ sources, styles }) => {
                   >
                     <img
                       className={imgClasses}
-                      src={source.public_url}
+                      src={
+                        source.thumbnails[thumbnailIdxs[source.obj_id]]
+                          ?.public_url ||
+                        "/static/images/currently_unavailable.png"
+                      }
                       alt={source.obj_id}
                       loading="lazy"
+                      onError={(e) => {
+                        // avoid infinite loop
+                        if (
+                          thumbnailIdxs[source.obj_id] ===
+                          source.thumbnails.length - 1
+                        ) {
+                          e.target.onerror = null;
+                        }
+                        setThumbnailIdxs((prevState) => ({
+                          ...prevState,
+                          [source.obj_id]: prevState[source.obj_id] + 1,
+                        }));
+                      }}
                     />
                   </Link>
                   <div className={styles.sourceInfo}>
@@ -201,8 +235,13 @@ RecentSourcesList.propTypes = {
       ra: PropTypes.number,
       dec: PropTypes.number,
       created_at: PropTypes.string.isRequired,
-      public_url: PropTypes.string,
-      is_grayscale: PropTypes.bool,
+      thumbnails: PropTypes.arrayOf(
+        PropTypes.shape({
+          public_url: PropTypes.string,
+          is_grayscale: PropTypes.bool,
+          type: PropTypes.string,
+        })
+      ),
       resaved: PropTypes.bool,
       classifications: PropTypes.arrayOf(
         PropTypes.shape({

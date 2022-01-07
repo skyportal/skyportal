@@ -104,7 +104,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
   let wi;
 
   const goodi = t_data_uf
-    .map((e, ind) =>
+    ?.map((e, ind) =>
       !(
         Number.isNaN(e) ||
         e == null ||
@@ -114,7 +114,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
         ? ind
         : undefined
     )
-    .filter((x) => x);
+    ?.filter((x) => x);
   const t_data = goodi.map((ind) => t_data_uf[ind]);
   const y_data = goodi.map((ind) => y_data_uf[ind]);
   const e_y = goodi.map((ind) => kwa.e_y[ind]);
@@ -125,9 +125,9 @@ function GLS(t_data_uf, y_data_uf, kwa) {
   // sorted time vector and the time differences between successive obs
   const tsort = [...t].sort((a, b) => a - b);
   const diffs = tsort
-    .slice(1)
-    .map((x, q) => x - tsort[q])
-    .filter((val) => val !== 0);
+    ?.slice(1)
+    ?.map((x, q) => x - tsort[q])
+    ?.filter((val) => val !== 0);
   const tbase = Math.max.apply(null, t);
 
   i = t.length;
@@ -287,7 +287,7 @@ const Periodogram = () => {
     const dat = transpose([times, mags])
       .map((x, i) => [x[0], [x[1], me[i]]])
       .sort((a, b) => b[0] - a[0]);
-    const filteredy = mags.filter((n) => n);
+    const filteredy = mags?.filter((n) => n);
     // eslint-disable-next-line no-new
     new Dygraph(dataplotRef.current, dat, {
       drawPoints: true,
@@ -305,7 +305,7 @@ const Periodogram = () => {
   function plotphased(times, mags, p, title) {
     // Create graph with native array as data source
     const pp = [...times.map((x) => x % p), ...times.map((x) => (x % p) + p)];
-    const filteredy = mags.filter((n) => n);
+    const filteredy = mags?.filter((n) => n);
     // eslint-disable-next-line no-new
     new Dygraph(phaseplotRef.current, transpose([pp, [...mags, ...mags]]), {
       drawPoints: true,
@@ -327,10 +327,10 @@ const Periodogram = () => {
 
     // select only the range we want (< periodmax)
     const goodi = periods_all
-      .map((e, i) => (e < kwargs.periodmax ? i : undefined))
-      .filter((x) => x);
-    const periods = goodi.map((i) => periods_all[i]);
-    const power = goodi.map((i) => power_all[i]);
+      ?.map((e, i) => (e < kwargs.periodmax ? i : undefined))
+      ?.filter((x) => x);
+    const periods = goodi?.map((i) => periods_all[i]);
+    const power = goodi?.map((i) => power_all[i]);
 
     const graph = new Dygraph(glsplotRef.current, transpose([periods, power]), {
       clickCallback(e) {

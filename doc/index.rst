@@ -51,8 +51,14 @@ GitHub <https://github.com/skyportal/skyportal>`_:
 
   $ git clone --recurse-submodules git@github.com:skyportal/skyportal.git
 
-then install the `system dependencies <./setup.html#dependencies>`_. From the
-``skyportal`` directory, run
+then install the `system dependencies <./setup.html#dependencies>`_. If you haven't
+already initialized the database, from the ``skyportal`` directory, run
+
+.. code-block:: bash
+
+  $ make db_init
+
+Then start the app with
 
 .. code-block:: bash
 

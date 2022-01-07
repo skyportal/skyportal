@@ -24,15 +24,18 @@ token = '239868fa-8307-41ad-983f-4a8180609df6'
 header = {"Authorization": f"token {token}", "content_type": "application/json"}
 data = {'obj_id': '2021example',
         'origin': 'cross_match_robot',
-        'Gaia': {'Mag_G', 10.2,
-                 'Mag_Bp': 9.8,
-                 'Mag_Rp': 10.5,
-                 'Plx': 8.5
-                 }
+        'data': {
+            'Gaia': {
+                'Mag_G', 10.2,
+                'Mag_Bp': 9.8,
+                'Mag_Rp': 10.5,
+                'Plx': 8.5
+               }
+            }
         }
 
 response = requests.post(
-      f'{url}/api/annotation',
+      f'{url}/api/sources/2021example/annotations',
       header=header,
       data=json.dumps(data)
     )
@@ -57,7 +60,7 @@ to comply with the `Annotation` API,
 namely it must have a valid `obj_id`
 of an existing object that is accessible to the user,
 it must contain a non-empty string for the `origin`
-and it should contain the `Annotation` data,
+and it should contain the annotation `data`,
 that is a dictionary with arbitrary entries.
 
 In general, the `origin` field is used to
@@ -69,8 +72,8 @@ to each source, but that `Annotation` can contain arbitrary data.
 In the case of the color-magnitude plot,
 the system only recognizes annotations
 with a specific schema:
-- One of the keys in the `Annotation` data must be named `Gaia`.
-- The value of that key must be a dictionary.
+- One of the keys in the annotation `data` must be named `Gaia`.
+- The value of that key must be another dictionary.
 - That dictionary must contain the following entries:
 - `Mag_G', 'Mag_Bp', 'Mag_Rp', 'Plx'.
 - All these names (including the catalog name) may be made customizable
@@ -81,6 +84,7 @@ with a specific schema:
   Please do not include multiple data keys with indistinguishable names,
   i.e., both `mag_g` and `Mag_G` in the same `Annotation` as this will
   cause undefined behavior.
+- The parallax ("Plx") is given in units of milli-arcsec.
 
 Finally, the return value `response` from the request
 should contain a `status==200` and a data dictionary
@@ -88,7 +92,52 @@ with the data that was posted.
 If the posting was unsuccessful,
 the status would be 400.
 
+## Upgrading an existing Taxonomy
 
+Taxonomies are used for classification. There is typically a sitewide taxonomy that all users of SkyPortal can see. By default, we seed a new SP database with the latest taxonomy from the [Time-domain Astronomy Taxonomy
+ (Github)](https://github.com/profjsb/timedomain-taxonomy) (`tdtax`). From time to time, the latest taxonomy may be upgraded as new subclasses of sources are discovered and SP admins may need to push a new version of the taxonomy to the live application.
+
+To upgrade to the latest `tdtax`, as an admin, you will need to generate a token with a "Post taxonomy" ACL. Next install the latest `tdtax` on your system:
+
+```
+pip install -U tdtax
+```
+
+Next, in Python:
+
+```python
+import requests
+import tdtax
+
+tax_obj =  {'name': 'Sitewide Taxonomy',
+            'provenance': 'https://github.com/profjsb/timedomain-taxonomy',
+            'hierarchy': tdtax.taxonomy,
+            'version': str(tdtax.__version__),
+}
+
+token = "USE-YOUR-TOKEN-HERE"
+def api(method, endpoint, data=None):
+    headers = {'Authorization': f'token {token}'}
+    response = requests.request(method, endpoint, json=data, headers=headers)
+    return response
+
+response = api('POST',
+               'URL_TO_SKYPORTAL_INSTANCE/api/taxonomy',
+                data=tax_obj)
+
+print(response.json())
+```
+You should then see something like:
+
+```
+{'status': 'success',
+ 'data': {'taxonomy_id': 9},
+ 'version': '0.9.dev0+git...'}
+```
+
+If the `name` of the taxonomy is exactly the same as a taxonomy already in the system, this new taxonomy will supercede that taxonomy. That is, by default it will be set to be the latest version (`IsLatest = True`) and shown to end users in the dropdown menu on the Source page. Older classifications will be still associated with the `taxonomy_id` they were originally connected to.
+
+NOTE: in very rare cases you may wish to delete a taxonomy (e.g., if you made a typo when loading it). This should be done with extreme care: if anyone has classifications associated with that taxonomy their classifications will be lost upon delete.
 
 ## Spectroscopic lines
 

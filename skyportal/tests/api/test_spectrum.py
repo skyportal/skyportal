@@ -1,9 +1,12 @@
 import os
+import uuid
 from skyportal.tests import api
 from glob import glob
 import yaml
 import numpy as np
 import datetime
+
+from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 
 
 def test_token_user_get_range_spectrum(
@@ -742,3 +745,157 @@ def test_spectrum_external_reducer_and_observer(
     assert data['data']['observers'][0]['id'] == user.id
     assert data['data']['external_reducer'] == "Test external reducer"
     assert data['data']['external_observer'] == "Test external observer"
+
+
+def test_spectrum_plot_only_some_spectra(
+    upload_data_token, public_source, public_group, lris, sedm
+):
+    # upload spectrum 1
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    spec_id1 = data['data']['id']
+
+    # upload spectrum 2
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': sedm.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [134.2, 132.1, 135.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    spec_id2 = data['data']['id']
+
+    status, data = api(
+        'GET', f'internal/plot/spectroscopy/{public_source.id}', token=upload_data_token
+    )
+
+    assert status == 200
+
+    # check how many different instruments are plotted
+    instruments = set()
+    refs = data['data']['bokehJSON']['doc']['roots']['references']
+    for r in refs:
+        if 'data' in r['attributes'] and 'instrument' in r['attributes']['data']:
+            instruments.add(r['attributes']['data']['instrument'][0])
+
+    assert len(instruments) > 2
+
+    # now ask for the same plot but with only one spectrum
+    status, data = api(
+        'GET',
+        f'internal/plot/spectroscopy/{public_source.id}',
+        params={'spectrumID': f'{spec_id1},{spec_id2}'},
+        token=upload_data_token,
+    )
+
+    assert status == 200
+
+    # check how many different instruments are plotted
+    instruments = set()
+    refs = data['data']['bokehJSON']['doc']['roots']['references']
+    for r in refs:
+        if 'data' in r['attributes'] and 'instrument' in r['attributes']['data']:
+            instruments.add(r['attributes']['data']['instrument'][0])
+
+    assert len(instruments) == 2
+    assert 'LRIS' in str(instruments)
+    assert 'SEDM' in str(instruments)
+
+
+def test_post_get_spectrum_type(upload_data_token, public_source, public_group, lris):
+
+    # post this spectrum without a type (should default to "source")
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    spectrum_id = data['data']['id']
+
+    status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['type'] == default_spectrum_type
+
+    assert default_spectrum_type in ALLOWED_SPECTRUM_TYPES
+
+    if len(ALLOWED_SPECTRUM_TYPES) > 1:
+
+        new_allowed_types = list(ALLOWED_SPECTRUM_TYPES)
+        new_allowed_types.remove(default_spectrum_type)
+
+        status, data = api(
+            'POST',
+            'spectrum',
+            data={
+                'obj_id': str(public_source.id),
+                'observed_at': str(datetime.datetime.now()),
+                'instrument_id': lris.id,
+                'wavelengths': [664, 665, 666],
+                'fluxes': [234.2, 232.1, 235.3],
+                'group_ids': [public_group.id],
+                'type': new_allowed_types[0],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+        spectrum_id = data['data']['id']
+
+        status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
+        assert status == 200
+        assert data['status'] == 'success'
+        assert data['data']['type'] == new_allowed_types[0]
+
+
+def test_post_wrong_spectrum_type(upload_data_token, public_source, public_group, lris):
+
+    # post this spectrum with the wrong type
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': str(datetime.datetime.now()),
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [public_group.id],
+            'type': str(uuid.uuid4()),
+        },
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert 'Must be one of: ' in data['message']

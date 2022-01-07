@@ -2,6 +2,8 @@ import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
+import CircularProgress from "@material-ui/core/CircularProgress";
+
 import * as Action from "../ducks/users";
 
 const UserInfo = ({ route }) => {
@@ -12,7 +14,11 @@ const UserInfo = ({ route }) => {
   const { users } = useSelector((state) => state.users);
   const userInfo = users[route.id];
   if (userInfo === undefined) {
-    return <div>Loading...</div>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
   const { created_at, username, permissions } = userInfo;
   return (

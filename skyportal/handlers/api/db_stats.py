@@ -1,15 +1,16 @@
 from baselayer.app.access import permissions
+
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    User,
+    CronJobRun,
     Obj,
     Source,
     Candidate,
-    User,
     Token,
     Group,
     Spectrum,
-    CronJobRun,
 )
 
 

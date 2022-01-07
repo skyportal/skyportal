@@ -15,6 +15,7 @@ import CardContent from "@material-ui/core/CardContent";
 import Box from "@material-ui/core/Box";
 import Tooltip from "@material-ui/core/Tooltip";
 import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import Typography from "@material-ui/core/Typography";
 import { makeStyles, withStyles, useTheme } from "@material-ui/core/styles";
 import { useForm, Controller } from "react-hook-form";
@@ -58,14 +59,8 @@ const UploadPhotometryForm = () => {
   const [csvData, setCsvData] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const { id } = useParams();
-  const {
-    handleSubmit,
-    errors,
-    reset,
-    control,
-    getValues,
-    setValue,
-  } = useForm();
+  const { handleSubmit, errors, reset, control, getValues, setValue } =
+    useForm();
   let formState = getValues();
 
   // only show instruments that have an imaging mode
@@ -256,7 +251,11 @@ const UploadPhotometryForm = () => {
   };
 
   if (!sortedInstrumentList || !userGroups) {
-    return <div>Loading...</div>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
 
   return (

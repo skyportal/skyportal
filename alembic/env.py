@@ -6,7 +6,7 @@ from baselayer.app.config import load_config
 from baselayer.app.models import init_db
 
 # These imports need to happen for their side-effects of registering models
-from baselayer.app import models as BaselayerModels  # noqa
+from baselayer.app import models as baselayer_models  # noqa
 from baselayer.app import psa  # noqa
 from skyportal import models  # noqa
 
@@ -24,7 +24,7 @@ fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-target_metadata = models.Base.metadata
+target_metadata = baselayer_models.Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
