@@ -170,6 +170,14 @@ telescope:
     nickname: CTIO-4m
     skycam_link: null
     =id: CTIO-4m
+  - diameter: 0.3
+    elevation: 1283.0
+    lat: 37.341033
+    lon: -121.642932
+    name: Katzman Automatic Imaging Telescope
+    nickname: KAIT
+    skycam_link: null
+    =id: KAIT
   - diameter: 2.1
     elevation: 2096.0
     lat: 31.9599
@@ -268,6 +276,13 @@ instrument:
     #   file: ../data/DECam_Fields.csv
     # field_region:
     #   file: ../data/DECam_Region.reg
+  - band: optical
+    name: KAIT
+    telescope_id: =KAIT
+    type: imager
+    filters: ['bessellux', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'bessellb', 'bessellv', 'bessellr', 'besselli']
+    api_classname: KAITAPI
+    =id: KAIT
   - name: SEDMv2
     type: imaging spectrograph
     band: V
@@ -350,6 +365,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =SEDMv2
+  - pi: Michael Coughlin
+    proposal_id: KAIT-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =KAIT
 
 candidates:
   - id: ZTF21aaqjmps
