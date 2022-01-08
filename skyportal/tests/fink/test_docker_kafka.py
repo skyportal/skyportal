@@ -23,7 +23,7 @@ from fink_client.configuration import load_credentials
 
 from astropy.time import Time
 
-sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))+ '/utils/')
+sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))+ '/utils/fink/')
 
 
 import post_fink_alerts as sa
@@ -34,9 +34,9 @@ basedir = os.path.abspath(os.path.join(
 
 data_path = basedir + '/sample.avro'
 
-schema_path = basedir + '/schemas/alert.avsc'
+schema_path = basedir + '/schemas/schema_test.avsc'
 
-taxonomy_dir = basedir + '/../data/taxonomy_demo.yaml'
+taxonomy_dir = basedir + '/../../../data/taxonomy_demo.yaml'
 
 
 def test_kafka_producer():
@@ -53,7 +53,7 @@ def test_kafka_producer():
 
     r = AlertReader(data_path)
     alerts = r.to_list()
-    assert len(alerts) == 1
+    assert len(alerts) > 0
     conf = load_credentials()
 
     kafka_servers = conf['servers']
@@ -104,14 +104,14 @@ def test_fink_consumer():
     
     r = AlertReader(data_path)
     alerts = r.to_list()
-    assert len(alerts) == 1
+    assert len(alerts) > 0
     
     assert alert is not None
-    assert alerts[0]['objectId'] == alert['objectId']
-    assert alerts[0]['candidate']['ra'] == alert['candidate']['ra']
-    assert alerts[0]['candidate']['dec'] == alert['candidate']['dec']
-    assert alerts[0]['candidate']['jd'] == alert['candidate']['jd']
-    assert alerts[0]['candidate']['fid'] == alert['candidate']['fid']
+    assert alerts[len(alerts)-1]['objectId'] == alert['objectId']
+    assert alerts[len(alerts)-1]['candidate']['ra'] == alert['candidate']['ra']
+    assert alerts[len(alerts)-1]['candidate']['dec'] == alert['candidate']['dec']
+    assert alerts[len(alerts)-1]['candidate']['jd'] == alert['candidate']['jd']
+    assert alerts[len(alerts)-1]['candidate']['fid'] == alert['candidate']['fid']
 
 def test_skyportal_api(super_admin_token):
     r = AlertReader(data_path)
@@ -156,7 +156,7 @@ def test_skyportal_api(super_admin_token):
         status, source_ids = sa.get_all_source_ids(token=super_admin_token)
         if ztf_id not in source_ids:
             print('this source doesnt exist yet')
-            status, id = sa.post_source(ztf_id, ra, dec, group_ids, token=super_admin_token)
+            status, id = sa.post_source(ztf_id, ra, dec, [id_fink], token=super_admin_token)
             assert status == 200
         status, candidate_ids = sa.get_all_candidate_ids(token=super_admin_token)
         if ztf_id not in candidate_ids:
