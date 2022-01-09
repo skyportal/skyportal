@@ -2,6 +2,7 @@ from ..base import BaseHandler
 from ...models import DBSession, Group, Allocation, Instrument
 from baselayer.app.access import auth_or_token, permissions
 from marshmallow.exceptions import ValidationError
+import sqlalchemy as sa
 
 
 class AllocationHandler(BaseHandler):
@@ -67,7 +68,34 @@ class AllocationHandler(BaseHandler):
         if instrument_id is not None:
             allocations = allocations.filter(Allocation.instrument_id == instrument_id)
 
+        apitype = self.get_query_argument('apitype', None)
+        if apitype is not None:
+            if apitype == "api_classname":
+                instruments_subquery = sa.select(Instrument.id).filter(
+                    Instrument.api_classname.isnot(None)
+                )
+
+                allocations = allocations.join(
+                    instruments_subquery,
+                    Allocation.instrument_id == instruments_subquery.c.id,
+                )
+            elif apitype == "api_observationplan_classname":
+                instruments_subquery = sa.select(Instrument.id).filter(
+                    Instrument.api_observationplan_classname.isnot(None)
+                )
+
+                allocations = allocations.join(
+                    instruments_subquery,
+                    Allocation.instrument_id == instruments_subquery.c.id,
+                )
+            else:
+                return self.error(
+                    f"apitype can only be api_classname or api_observationplan_classname, not {apitype}"
+                )
+
         allocations = allocations.all()
+        print(allocations)
+        print(apitype)
         self.verify_and_commit()
         return self.success(data=allocations)
 
