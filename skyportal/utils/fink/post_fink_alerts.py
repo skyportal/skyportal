@@ -1,6 +1,9 @@
 import requests
 from astropy.time import Time
 import time
+from baselayer.app.env import load_env
+
+_, cfg = load_env()
 
 
 def api(
@@ -12,7 +15,7 @@ def api(
 
 
 def get_all_group_ids(token):
-    groups = api("GET", "http://91.162.240.183:31000/api/groups", token=token)
+    groups = api("GET", f"http://localhost:{cfg['ports.app']}/api/groups", token=token)
 
     data = []
     if groups.status_code == 200:
@@ -21,7 +24,7 @@ def get_all_group_ids(token):
 
 
 def get_group_ids_and_name(token):
-    groups = api("GET", "http://91.162.240.183:31000/api/groups", token=token)
+    groups = api("GET", f"http://localhost:{cfg['ports.app']}/api/groups", token=token)
 
     data = {}
     if groups.status_code == 200:
@@ -33,7 +36,9 @@ def get_group_ids_and_name(token):
 
 
 def get_all_instruments(token):
-    instruments = api("GET", "http://91.162.240.183:31000/api/instrument", token=token)
+    instruments = api(
+        "GET", f"http://localhost:{cfg['ports.app']}/api/instrument", token=token
+    )
 
     data = {}
     if instruments.status_code == 200:
@@ -45,7 +50,9 @@ def get_all_instruments(token):
 
 
 def get_all_source_ids(token):
-    sources = api("GET", "http://91.162.240.183:31000/api/sources", token=token)
+    sources = api(
+        "GET", f"http://localhost:{cfg['ports.app']}/api/sources", token=token
+    )
 
     data = []
     if sources.status_code == 200:
@@ -54,7 +61,9 @@ def get_all_source_ids(token):
 
 
 def get_all_candidate_ids(token):
-    candidates = api("GET", "http://91.162.240.183:31000/api/candidates", token=token)
+    candidates = api(
+        "GET", f"http://localhost:{cfg['ports.app']}/api/candidates", token=token
+    )
 
     return candidates.status_code, [
         candidate['id'] for candidate in candidates.json()['data']['candidates']
@@ -69,7 +78,9 @@ def get_all_candidate_ids(token):
 
 
 def get_all_streams(token):
-    streams = api("GET", "http://91.162.240.183:31000/api/streams", token=token)
+    streams = api(
+        "GET", f"http://localhost:{cfg['ports.app']}/api/streams", token=token
+    )
 
     return streams.status_code, streams['data']
 
@@ -81,18 +92,25 @@ def get_all_streams(token):
 def classification_exists_for_objs(object_id, token):
     classifications = api(
         "GET",
-        "http://91.162.240.183:31000/api/sources/{}/classifications".format(object_id),
+        f"http://localhost:{cfg['ports.app']}/api/sources/classifications/{object_id}",
         token=token,
     )
-    return classifications.json()['data'] != []
+    print("///////")
+    print(classifications.json())
+    print("///////")
+    return classifications.json()['data'] != {}
 
 
 def classification_id_for_objs(object_id, token):
     classifications = api(
         "GET",
-        "http://91.162.240.183:31000/api/sources/{}/classifications".format(object_id),
+        f"http://localhost:{cfg['ports.app']}/api/sources/classifications/{object_id}",
         token=token,
     )
+
+    print("________")
+    print(classifications.json())
+    print("________")
 
     data = {}
     if classifications.status_code == 200:
@@ -129,7 +147,9 @@ def post_source(ztf_id, ra, dec, group_ids, token):
         "group_ids": group_ids,
     }
 
-    response = api('POST', "http://91.162.240.183:31000/api/sources", data, token=token)
+    response = api(
+        'POST', f"http://localhost:{cfg['ports.app']}/api/sources", data, token=token
+    )
     if response.status_code in (200, 400):
         print(f'JSON response: {response.json()}')
     return (
@@ -166,7 +186,7 @@ def post_candidate(ztf_id, ra, dec, filter_ids, passed_at, token):
         "passed_at": passed_at,
     }
     response = api(
-        'POST', "http://91.162.240.183:31000/api/candidates", data, token=token
+        'POST', f"http://localhost:{cfg['ports.app']}/api/candidates", data, token=token
     )
     if response.status_code in (200, 400):
         print(f'JSON response: {response.json()}')
@@ -213,7 +233,7 @@ def post_photometry(
     }
 
     response = api(
-        'POST', "http://91.162.240.183:31000/api/photometry", data, token=token
+        'POST', f"http://localhost:{cfg['ports.app']}/api/photometry", data, token=token
     )
 
     print(f'HTTP code: {response.status_code}, {response.reason}')
@@ -236,7 +256,10 @@ def post_classification(
     }
 
     response = api(
-        'POST', "http://91.162.240.183:31000/api/classification", data, token=token
+        'POST',
+        f"http://localhost:{cfg['ports.app']}/api/classification",
+        data,
+        token=token,
     )
 
     print(f'HTTP code: {response.status_code}, {response.reason}')
@@ -256,7 +279,9 @@ def post_user(username, token):
         "username": username
     }
 
-    response = api('POST', "http://91.162.240.183:31000/api/user", data, token=token)
+    response = api(
+        'POST', f"http://localhost:{cfg['ports.app']}/api/user", data, token=token
+    )
 
     print(f'HTTP code: {response.status_code}, {response.reason}')
     return (
@@ -268,7 +293,9 @@ def post_user(username, token):
 def post_streams(name, token):
     data = {"name": name}
 
-    response = api('POST', "http://91.162.240.183:31000/api/streams", data, token=token)
+    response = api(
+        'POST', f"http://localhost:{cfg['ports.app']}/api/streams", data, token=token
+    )
     return (
         response.status_code,
         response.json()['data']['id'] if response.json()['data'] != {} else None,
@@ -278,7 +305,9 @@ def post_streams(name, token):
 def post_filters(name, stream_id, group_id, token):
     data = {"name": name, 'stream_id': stream_id, 'group_id': group_id}
 
-    response = api('POST', "http://91.162.240.183:31000/api/filters", data, token=token)
+    response = api(
+        'POST', f"http://localhost:{cfg['ports.app']}/api/filters", data, token=token
+    )
     return (
         response.status_code,
         response.json()['data']['id'] if response.json()['data'] != {} else None,
@@ -288,7 +317,7 @@ def post_filters(name, stream_id, group_id, token):
 def post_telescopes(name, nickname, diameter, token):
     data = {"name": name, "nickname": nickname, "diameter": diameter}
     response = api(
-        'POST', "http://91.162.240.183:31000/api/telescope", data, token=token
+        'POST', f"http://localhost:{cfg['ports.app']}/api/telescope", data, token=token
     )
     return (
         response.status_code,
@@ -304,7 +333,7 @@ def post_instruments(name, type, telescope_id, filters, token):
         "telescope_id": telescope_id,
     }
     response = api(
-        'POST', "http://91.162.240.183:31000/api/instrument", data, token=token
+        'POST', f"http://localhost:{cfg['ports.app']}/api/instrument", data, token=token
     )
     return (
         response.status_code,
@@ -317,7 +346,9 @@ def post_fink_group(topic, token):
         "name": topic,
         "group_admins": [1],
     }
-    response = api('POST', "http://91.162.240.183:31000/api/groups", data, token=token)
+    response = api(
+        'POST', f"http://localhost:{cfg['ports.app']}/api/groups", data, token=token
+    )
     print(f'HTTP code: {response.status_code}, {response.reason}, group posting')
     return (
         response.status_code,
@@ -335,7 +366,7 @@ def post_taxonomy(name, hierarchy, version, token):
         # "isLatest": true
     }
     response = api(
-        'POST', "http://91.162.240.183:31000/api/taxonomy", data, token=token
+        'POST', f"http://localhost:{cfg['ports.app']}/api/taxonomy", data, token=token
     )
     print(f'HTTP code: {response.status_code}, {response.reason}')
     return (
@@ -367,7 +398,7 @@ def update_classification(
 
     response = api(
         'PUT',
-        "http://91.162.240.183:31000/api/classification/{}".format(classification_id),
+        f"http://localhost:{cfg['ports.app']}/api/classification/" + classification_id,
         data,
         token=token,
     )
