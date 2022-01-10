@@ -29,7 +29,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test_subset: ["api_and_utils", "frontend_pt1", "frontend_pt2", "flaky"]
+        test_subset:
+          [
+            "api_and_utils",
+            "frontend_pt1",
+            "frontend_pt2",
+            "flaky",
+            "fink-client",
+          ]
 
     steps:
       - uses: actions/setup-python@v1
@@ -178,7 +185,6 @@ jobs:
 
       - name: Run fink-client tests
         if: ${{ matrix.test_subset == 'fink-client' }}
-        continue-on-error: true
         run: |
           PYTHONPATH=. python baselayer/tools/test_frontend.py --xml --headless 'skyportal/tests/fink'
 
