@@ -35,6 +35,7 @@ schema_path = basedir + '/schemas/schema_test.avsc'
 taxonomy_dir = basedir + '/../../../data/taxonomy_demo.yaml'
 
 
+@pytest.mark.dependency()
 def test_fink_registration():
     fink_registration = [
         'fink_client_register',
@@ -56,6 +57,7 @@ def test_fink_registration():
     assert test.returncode == 0
 
 
+@pytest.mark.dependency(depends=['test_fink_registration'])
 def test_kafka_producer():
 
     test = subprocess.Popen(
@@ -95,6 +97,7 @@ def test_kafka_producer():
     p.flush()
 
 
+@pytest.mark.dependency(depends=['test_kafka_producer'])
 def test_fink_consumer():
 
     conf = load_credentials()
@@ -129,6 +132,7 @@ def test_fink_consumer():
     assert alerts[len(alerts) - 1]['candidate']['fid'] == alert['candidate']['fid']
 
 
+@pytest.mark.dependency(depends=['test_fink_consumer'])
 def test_skyportal_api(super_admin_token):
     r = AlertReader(data_path)
     alert = r.to_list()[0]
