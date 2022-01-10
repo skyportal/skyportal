@@ -38,6 +38,11 @@ app:
     protocol: http
     host: herculesii.astro.berkeley.edu
 
+  t80cam:
+    protocol: https
+    host: hooks.slack.com
+    slack_channel: TFRQJA3CJ/B02T7F1C2AW
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:

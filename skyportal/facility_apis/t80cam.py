@@ -1,0 +1,171 @@
+import json
+import requests
+import textwrap
+
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+
+from . import FollowUpAPI
+from baselayer.app.env import load_env
+
+from ..app_utils import get_app_base_url
+from ..utils import http
+
+env, cfg = load_env()
+
+
+if cfg['app.t80cam.port'] is None:
+    T80CAM_URL = f"{cfg['app.t80cam.protocol']}://{cfg['app.t80cam.host']}/services/{cfg['app.t80cam.slack_channel']}"
+else:
+    T80CAM_URL = f"{cfg['app.t80cam.protocol']}://{cfg['app.t80cam.host']}:{cfg['app.t80cam.port']}/services/{cfg['app.t80cam.slack_channel']}"
+
+
+class T80CAMRequest:
+
+    """A dictionary structure for T80CAM ToO requests."""
+
+    def _build_payload(self, request):
+        """Payload json for T80CAM queue requests.
+
+        Parameters
+        ----------
+
+        request: skyportal.models.FollowupRequest
+            The request to add to the queue and the SkyPortal database.
+
+        Returns
+        ----------
+        payload: json
+            payload for requests.
+        """
+
+        for filt in request.payload["observation_choices"]:
+            if filt not in ["g", "r", "i", "z"]:
+                raise ValueError(f"Improper observation_choice {filt}")
+
+        if request.payload["exposure_time"] <= 0:
+            raise ValueError("Exposure time must be greater than 0")
+
+        if request.payload["exposure_counts"] <= 0:
+            raise ValueError("Number of exposures must be greater than 0")
+
+        # The target of the observation
+        target = {
+            'name': request.obj.id,
+            'instrument_request': request.allocation.instrument.name,
+            'ra': "{:.5f}".format(request.obj.ra),
+            'dec': "{:.5f}".format(request.obj.dec),
+            'filters': ",".join(request.payload["observation_choices"]),
+            'exposure_time': request.payload["exposure_time"],
+            'exposure_counts': request.payload["exposure_counts"],
+            'username': request.requester.username,
+        }
+
+        c = SkyCoord(ra=request.obj.ra * u.degree, dec=request.obj.dec * u.degree)
+
+        app_url = get_app_base_url()
+        skyportal_url = f"{app_url}/source/{request.obj.id}"
+        text = (
+            f"Name: {target['name']}\n"
+            f"SkyPortal Link: {skyportal_url}\n"
+            f"RA / Dec: {c.ra.to_string(sep=':')} {c.dec.to_string(sep=':')} ({target['ra']} {target['dec']})\n"
+            f"Filters: {target['filters']}\n"
+            f"Exposure time: {target['exposure_time']}\n"
+            f"Exposure counts: {target['exposure_counts']}\n"
+            f"Username: {target['username']}"
+        )
+
+        return target, textwrap.dedent(text)
+
+
+class T80CAMAPI(FollowUpAPI):
+
+    """An interface to T80CAM operations."""
+
+    # subclasses *must* implement the method below
+    @staticmethod
+    def submit(request):
+
+        """Submit a follow-up request to T80CAM.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to add to the queue and the SkyPortal database.
+        """
+
+        from ..models import FacilityTransaction, DBSession
+
+        req = T80CAMRequest()
+        requestgroup, requesttext = req._build_payload(request)
+
+        altdata = request.allocation.altdata
+
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        slack_microservice_url = (
+            f'http://127.0.0.1:{cfg.get("slack.microservice_port", 64100)}'
+        )
+
+        data = json.dumps(
+            {"url": f"{T80CAM_URL}/{altdata['slack_token']}", "text": requesttext}
+        )
+
+        r = requests.post(
+            slack_microservice_url,
+            data=data,
+            headers={'Content-Type': 'application/json'},
+        )
+        r.raise_for_status()
+
+        if r.status_code == 200:
+            request.status = 'submitted'
+        else:
+            request.status = f'rejected: {r.content}'
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(r.request),
+            response=http.serialize_requests_response(r),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+
+        DBSession().add(transaction)
+
+    form_json_schema = {
+        "type": "object",
+        "properties": {
+            "observation_choices": {
+                "type": "array",
+                "title": "Desired Observations",
+                "items": {
+                    "type": "string",
+                    "enum": ["g", "r", "i", "z"],
+                },
+                "uniqueItems": True,
+                "minItems": 1,
+            },
+            "exposure_time": {
+                "title": "Exposure Time [s]",
+                "type": "number",
+                "default": 300.0,
+            },
+            "exposure_counts": {
+                "title": "Exposure Counts",
+                "type": "number",
+                "default": 1,
+            },
+        },
+        "required": [
+            "observation_choices",
+            "exposure_time",
+            "exposure_counts",
+        ],
+    }
+
+    ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
+
+    alias_lookup = {
+        'observation_choices': "Request",
+    }
