@@ -1,0 +1,971 @@
+- group_ids:
+  - =program_A
+  - =program_B
+  hierarchy:
+    class: Time-domain Source
+    subclasses:
+    - class: Nonstellar
+      subclasses:
+      - class: DM annihilation
+        other names:
+        - dark matter annihilation
+      - class: Solar System Object
+        other names:
+        - SSO
+      - class: Galactic Nuclei
+        subclasses:
+        - class: Tidal Disruption Event
+          other names:
+          - TDE
+        - class: AGN
+          other names:
+          - Active Galactic Nuclei
+          subclasses:
+          - class: Seyfert
+            other names:
+            - Sy
+          - class: QSO
+            other names:
+            - Quasistellar Object
+          - class: Blazar
+            subclasses:
+            - class: OVV
+              other names:
+              - optically violent variable
+            - class: BL Lac
+        - class: gravitational lensing
+          other names:
+          - lensing
+          tags:
+          - time delay
+        tags:
+        - extragalactic
+        - black hole
+    - class: Stellar variable
+      subclasses:
+      - class: Cataclysmic
+        subclasses:
+        - class: compact merger
+          other names:
+          - gravitational wave event
+          subclasses:
+          - class: DNS
+            other names:
+            - double neutron star
+            - NS-NS
+            subclasses:
+            - class: kilonova
+              other names:
+              - KN
+            tags:
+            - neutron star
+            - short GRB
+          - class: NS-BH
+            other names:
+            - NSBH
+            subclasses:
+            - class: kilonova
+              other names:
+              - KN
+            tags:
+            - black hole
+            - neutron star
+            - short GRB
+        - class: GRB
+          other names:
+          - Gamma-ray bursts
+          - GRBs
+          subclasses:
+          - class: short GRB
+            other names:
+            - SHB
+            - sGRB
+            tags:
+            - gravitational waves
+            - compact object
+          - class: long GRB
+            other names:
+            - LSB
+            - lGRB
+            - long-soft GRB
+        - class: Supernova
+          other names:
+          - SN
+          - sn
+          - sne
+          - supernova
+          - supernovae
+          subclasses:
+          - class: Type I
+            other names:
+            - SN Type I
+            subclasses:
+            - class: Ia
+              other names:
+              - Ia-p
+              - SN Ia
+              - SNIa
+              - supernovae Ia
+              - SNe Ia
+              subclasses:
+              - class: Ia-pec
+                other names:
+                - SN Ia-pec
+                - SNIa-pec
+                - Ia-p
+                tags:
+                - peculiar
+              - class: Ia-norm
+                other names:
+                - SN Ia-normal
+                - normal SN Ia
+                tags:
+                - normal
+              - class: Ia-91T
+                other names:
+                - SN Ia-91T
+                - 1991T-like
+                tags:
+                - over-luminous
+              - class: Ia-91bg
+                other names:
+                - SN Ia-91bg
+                - 1991bg-like
+                tags:
+                - under-luminous
+              - class: Ia-02cx
+                other names:
+                - SN Ia-02cx
+                - 2002cx-like
+                - Iax
+                - SN Iax
+                tags:
+                - under-luminous
+              - class: Ia-CSM
+                other names:
+                - SN Ia-CSM
+                - interacting SN Ia
+                - 2002ic-like
+                - SN Ia-02ic
+                tags:
+                - over-luminous
+                - interacting
+                - narrow line
+              - class: Ia-03fg
+                other names:
+                - SN Ia-03fg
+                - 2003fg-like
+                - super Chandra
+                - Ia-SC
+                tags:
+                - over-luminous
+              - class: Ia-18byg
+                other names:
+                - SN Ia-18byg
+                - 2018byg-like
+                tags: []
+              tags:
+              - white dwarf
+              - cosmology
+              - thermonuclear
+            - class: Ib
+              other names:
+              - SN Ib
+              - SNIb
+              - supernovae Ib
+              - SNe Ib
+              subclasses:
+              - class: Ib-pec
+                other names:
+                - SN Ib-p
+                - Ib-p
+                tags:
+                - peculiar
+              - class: Ib-norm
+                other names:
+                - SN Ib-norm
+                - normal SN Ib
+                tags:
+                - normal
+              - class: Ibn
+                other names:
+                - SN Ibn
+                - 2006jc-like
+                tags:
+                - interacting
+                - narrow line
+              tags:
+              - core collapse
+              - helium rich
+            - class: Ic
+              other names:
+              - SN Ic
+              - SNIc
+              - supernovae Ic
+              - SNe Ic
+              subclasses:
+              - class: Ic-BL
+                other names:
+                - SN IcBL
+                - SN Ic-BL
+                - hypernova
+                - broad-lined supernova
+                tags:
+                - broad lines
+                - high-velocity
+                - massive stars
+              - class: Ic-SLSN
+                other names:
+                - SLSN Type I
+                - SLSN-I
+                - super-luminous SN
+                - SLSN I
+                tags:
+                - bright
+                - super-luminous
+              - class: Ic-pec
+                other names:
+                - SN Ic-p
+                - Ic-p
+                tags:
+                - peculiar
+              - class: Ic-norm
+                other names:
+                - SN Ic-norm
+                - normal SN Ic
+                tags:
+                - normal
+              - class: Icn
+                other names:
+                - SN Icn
+                tags:
+                - interacting
+                - narrow line
+              tags:
+              - core collapse
+              - no helium
+            - class: Ib/c
+              other names:
+              - SN Ib/c
+              - SNIb/c
+              - SN Ibc
+              - Ibc
+              tags:
+              - core collapse
+              - unclear which subclass
+            tags:
+            - hydrogen poor
+          - class: Type II
+            other names:
+            - SN Type II
+            subclasses:
+            - class: IIn
+              other names:
+              - SN IIn
+              - SNe IIn
+              tags:
+              - interacting
+              - narrow line
+            - class: II-norm
+              other names:
+              - SN II-norm
+              - normal SN II
+              - SNII
+              - SN II
+              subclasses:
+              - class: IIP
+                other names:
+                - SNIIP
+                - SN II-P
+                - SN Type IIP
+                tags:
+                - plateau
+              - class: IIL
+                other names:
+                - SNIIL
+                - SN II-L
+                - SN Type IIL
+                tags:
+                - linear
+              tags:
+              - normal
+            - class: IIb
+              other names:
+              - SNIIb
+              - SN II-b
+              - SN Type IIb
+              tags:
+              - helium rich
+            - class: II-pec
+              comments: SN 1987a
+              other names:
+              - SNIIp
+              - SN II-p
+              - SN Type IIp
+              - IIpec
+              - II-p
+              tags:
+              - peculiar
+            tags:
+            - hydrogen rich
+          - class: FBOT
+            comments: 'This is a newly-discovered class of engine-driven explosions.
+
+              '
+            links:
+            - https://en.wikipedia.org/wiki/Fast_blue_optical_transient
+            other names:
+            - FELT
+            tags:
+            - fast blue optical transient
+            - fast-evolving luminous transient
+          - class: Ca-rich
+            other names:
+            - Ca strong
+            tags:
+            - hydrogen poor
+          tags:
+          - explosive
+          - transient
+        - class: Novae
+          subclasses:
+          - class: Classical Nova
+            other names: []
+          - class: Nova-like
+            other names: []
+            subclasses:
+            - class: SW Sex
+              other names: []
+            - class: VY Scl
+              other names: []
+            - class: UX UMa
+              other names: []
+            - class: AM CVn
+              other names: []
+          - class: Polars
+            subclasses:
+            - class: AM Her
+              other names: []
+            - class: DQ Her
+              other names: []
+          - class: Recurrent Nova
+            other names: []
+          - class: U Gem
+            subclasses:
+            - class: SS Cyg
+              other names: []
+            - class: Z Cam
+              other names: []
+            - class: SU UMaj
+              other names: []
+              subclasses:
+              - class: ER U Maj
+                other names: []
+              - class: WZ Sge
+                other names: []
+          tags:
+          - binary
+      - class: Eclipsing
+        subclasses:
+        - class: Beta Lyrae
+          other names:
+          - EB
+          - B Lyr
+          tags:
+          - types A/B
+          - ellipsoidal
+          - giant/supergiant
+          - accretion disk
+        - class: X-Ray Burster
+          other names:
+          - XB
+          - XRay Burster
+          tags:
+          - neutron star
+          - main sequence companion
+          - standard candle
+        - class: System with Planet(s)
+          other names:
+          - EP
+          - System with planet
+          - Binary star system w/ planet
+          - Binary star system with planet
+          - Planetary transit
+          tags:
+          - exoplanet
+        - class: RS CVn
+          other names:
+          - RS Canum Venaticorum
+          - RS Can Venat
+          - RS
+          - radio
+          - X-ray
+          - Ca II
+          tags:
+          - active chromosphere
+          - eruptive
+        - class: W Ursae Maj
+          other names:
+          - EW
+          - W Ursae Majoris
+          - W UMa
+          subclasses:
+          - class: EWa
+            other names:
+            - A-type W UMa
+            - W Uma a
+            tags:
+            - types A/F
+          - class: EWw
+            other names:
+            - W-type W UMa
+            - W UMa w
+            tags:
+            - types G/K
+          tags:
+          - contact binary
+          - ellipsoidal
+        - class: Algol
+          other names:
+          - EA
+          - Algol-type
+          - Beta Persei-type
+          - Beta Per
+          tags:
+          - main sequence star
+          - less massive companion
+          - semidetached
+        - class: Symbiotic Var
+          other names:
+          - Symbiotic Variable
+          - ZAND
+          tags:
+          - cataclysmic
+      - class: Rotating
+        subclasses:
+        - class: SX Ari
+          other names:
+          - SXA
+          - SXARI
+          - SX Arietus
+          - SX Ari
+          - helium variable
+          tags:
+          - type BOp-B9p
+          - main sequence
+          - strong He I/Si III
+        - class: Alpha2 CVn
+          other names:
+          - Alpha2 Canum Venaticorum
+          - ACV
+          subclasses:
+          - class: Rapidly Oscillating
+            other names:
+            - ACVO
+            - roAp
+            tags:
+            - class Ap
+            - instability strip
+          tags:
+          - type B8p-A7p
+          - main sequence
+          - chemically peculiar
+        - class: FK Comae Bern
+          other names:
+          - FK Comae Berenices
+          - FKCom
+          - FKCOM
+          tags:
+          - class G/K
+          - binary merger
+          - ellipsoidal
+          - starspots
+          - high-velocity
+        - class: Pulsar
+          other names:
+          - PSR
+          tags:
+          - neutron star
+          - regular period
+        - class: BY Dra
+          other names:
+          - BY
+          - BYDraconis
+          tags:
+          - class G/K/M
+          - dwarf
+          - starspots
+          - quasiperiodic
+      - class: Eruptive
+        subclasses:
+        - class: UV Ceti
+          other names:
+          - UV
+          - Flare star
+          - UV Cet-type
+          tags:
+          - types M/K
+          - dwarf
+          - magnetic reconnection
+        - class: S Doradus
+          other names:
+          - S Dor
+          - SDor
+          - SDOR
+          - Luminous blue variable
+          - LBV
+          tags:
+          - type B
+          - supergiant/hypergiant
+          - S Doradus instability strip
+          - high luminosity
+        - class: Wolf-Rayet
+          other names:
+          - WR
+          tags:
+          - broad lines
+        - class: Gamma Cas
+          other names:
+          - Gamma Cassiopeiae
+          - GCas
+          - GCAS
+          subclasses:
+          - class: Be
+            other names: []
+          - class: Shell
+            other names: []
+          tags:
+          - Be star
+          - accretion disk
+        - class: FU Ori
+          other names:
+          - FU
+          - FUor
+          - FU Ori
+          - FU Orionis
+          tags:
+          - pre-main sequence
+          - accretion disk
+          - T Tauri evolution
+          - possible Orion subtype
+        - class: Orion
+          other names:
+          - IN
+          subclasses:
+          - class: w/Abs
+            other names:
+            - IN(YY)
+          - class: T Tauri
+            other names:
+            - TTS
+            - TT
+            - INT
+            - IT
+            subclasses:
+            - class: TTc
+              other names:
+              - Classical TTS
+              - Classical T Tauri
+            - class: TTw
+              other names:
+              - Weak-line TTS
+              - Weak-line T Tauri
+              tags:
+              - Weak emission lines
+            tags:
+            - types F/G/K/M
+            - pre-main sequence
+            - strong chromospheric lines
+            - Hayashi track
+          tags:
+          - pre-main sequence
+          - diffuse nebulae
+        - class: R Cor Borealis
+          other names:
+          - R Coronae Borealis
+          - RCB
+          - R CrB
+          - R Cor Bor
+          subclasses:
+          - class: DY Per
+            links:
+            - https://en.wikipedia.org/wiki/DY_Persei_variable
+            other names:
+            - DY Persei
+            tags:
+            - AGB
+            - carbon-rich
+          tags:
+          - types F/G
+          - supergiant
+        - class: Herbig AE/BE
+          other names:
+          - HAeBe
+          tags:
+          - types A/B
+          - pre-main sequence
+        - class: FS CMa
+          other names:
+          - FS Canis Majoris
+          tags:
+          - irregular
+        tags:
+        - chromospheric process
+        - corona process
+      - class: Pulsating
+        subclasses:
+        - class: Gamma Doradus
+          other names:
+          - GDOR
+          - GDor
+          tags:
+          - main sequence
+        - class: SX Phe
+          other names:
+          - SX Phoenicis
+          - SXPHE
+          tags:
+          - type A2-F5
+          - subdwarf
+          - instability strip
+          - possible Delta Scuti subtype
+        - class: RR Lyrae
+          other names:
+          - RR Lyr
+          - RR variable
+          - RR
+          - cluster variable
+          subclasses:
+          - class: RRcl
+            other names:
+            - RRCL
+          - class: RRab
+            other names:
+            - RRAB
+          - class: RRc
+            other names:
+            - RRC
+          - class: RRd
+            other names:
+            - RRD
+          - class: RRe
+            other names:
+            - RRE
+          tags:
+          - type A/F
+          - instability strip
+          - standard candle
+        - class: Alpha Cygni
+          other names:
+          - Alpha Cyg
+          - A Cyg
+          - ACYG
+          tags:
+          - types A/B
+          - supergiant
+        - class: Mira
+          other names:
+          - M
+          - Long period variable
+          tags:
+          - red giant
+          - long period
+        - class: Pulsating WD
+          other names:
+          - Pulsating white dwarf
+          subclasses:
+          - class: GW VIr
+            other names:
+            - DOV
+            - Pulsating PG 1159
+            tags:
+            - pre-degenerate
+          - class: ZZ Ceti
+            other names:
+            - DAV
+            - ZZ Cet
+            subclasses:
+            - class: H abs only
+              other names:
+              - DAV
+              - H-WD
+              tags:
+              - type DA
+            - class: He abs only
+              other names:
+              - DBV
+              - DB white dwarf
+              - V777 Her
+              - He-WD
+              tags:
+              - type DB
+            - class: Showing HeII
+              other names: []
+            tags:
+            - ZZ
+          tags:
+          - white dwarf
+        - class: Sun analogue
+          other names:
+          - Sun analog
+          - Solar analogue
+          - Solar analog
+          - Solar-like
+          tags:
+          - main sequence
+        - class: Delta Scuti
+          other names:
+          - Delta Sct
+          - DSct
+          - dwarf cepheid
+          - DST
+          - DSCT
+          subclasses:
+          - class: Low-Amp
+            other names:
+            - LADS
+            - Low-amplitude delta Scuti
+          - class: High-Amp
+            other names:
+            - giant/main sequence
+            - HADS
+            - High-amplitude delta Scuti
+            - Al Velorum
+          - class: PMS Delta Scuti
+            other names:
+            - Pre-main sequence Delta Scuti
+            tags:
+            - pre-main sequence
+          tags:
+          - instability strip
+          - standard candle
+        - class: PV Telescopii
+          other names:
+          - PVTEL
+          - PVTel
+          - PV Tel
+          tags:
+          - type Bp
+          - chemically peculiar
+          - supergiant
+        - class: Beta Cephei
+          other names:
+          - BCep
+          - B Cep
+          - Beta Canis Majoris
+          - "\u03B2 Cephei"
+          - BCEP
+          tags:
+          - type B
+          - main sequence
+          - Z bump
+        - class: Semiregular
+          other names:
+          - SR
+          - SRPV
+          - semi-regular
+          subclasses:
+          - class: SRa/Z-Aquarii
+            other names:
+            - SRA
+          - class: SRb
+            other names:
+            - SRB
+          - class: SRc
+            other names:
+            - SRC
+          - class: SRd
+            other names:
+            - SRD
+          tags:
+          - giant/supergiant
+          - long period
+        - class: RV Tau
+          other names:
+          - RV Tauri
+          - RV
+          subclasses:
+          - class: Const Mean Mag
+            other names:
+            - Constant mean magnitude
+          - class: Var Mean Mag
+            other names:
+            - Variable mean magnitude
+          tags:
+          - post-AGB
+          - possible Population II Cepheid
+          - instability strip
+          - long period
+        - class: Population II Cepheid
+          other names:
+          - Population II Ceph
+          - Type II Ceph
+          - Type II Cepheid
+          - Type-II Ceph
+          - Type-II Cepheid
+          - CW
+          subclasses:
+          - class: BL Her
+            other names:
+            - BL Herculis
+            - CWB
+            tags:
+            - pre-AGB
+          - class: W Vir
+            other names:
+            - W Virginis
+            - CWA
+            tags:
+            - types F6-K2
+            - blue loop
+          tags: []
+        - class: Cepheid
+          other names:
+          - Cep
+          - CEP
+          subclasses:
+          - class: Anomolous
+            other names:
+            - Anomolous Cepheid
+            - BLBOO
+          - class: Mult-mode
+            other names:
+            - Double-mode Cepheid
+            - Multi-mode Cepheid
+            - CEP(B)
+          - class: Classical
+            other names:
+            - Population I Cepheid
+            - Type I Cepheid
+            - DCEP
+            - Delta Cepheid
+            - Classical Cepheid
+            subclasses:
+            - class: Symmetrical
+              other names:
+              - DCEPS
+              - Delta Cep-type Symmetrical
+            tags: []
+          tags:
+          - giant/supergiant
+          - instability strip
+          - standard candle
+        - class: SPB
+          other names:
+          - 53 Persei
+          - Slowly Pulsating B-type
+          - Slowly Pulsating B
+          tags:
+          - type B2-B9
+          - main sequence
+        - class: BLAP
+          other names:
+          - Blue Large-Amplitude Pulsator
+          tags: []
+        tags:
+        - expanding/contracting outer layers
+      - class: microlensing
+        subclasses:
+        - class: binary lens
+          subclass:
+          - class: lens with planet
+        - class: triple-system lens
+        - class: binary source
+        tags:
+        - stellar lensing
+        - gravitational lensing
+  name: Demo taxonomy
+  provenance: https://github.com/profjsb/timedomain-taxonomy
+  version: 0.1.4
+- group_ids:
+  - =program_A
+  - =program_B
+  hierarchy:
+    class: Variable Taxonomy
+    subclasses:
+    - class: phenomenological
+      subclasses:
+      - class: non-variable
+      - class: variable
+      - class: periodic
+        subclasses:
+        - class: sinusoidal
+        - class: sawtooth
+      - class: multi periodic
+      - class: long timescale
+      - class: irregular
+      - class: eclipsing
+        subclasses:
+        - class: EA
+        - class: EB
+        - class: EW
+      - class: flaring
+      - class: dipping
+      - class: bogus
+        subclasses:
+        - class: galaxy
+        - class: blend
+        - class: bright star
+        - class: ccd artifact
+      - class: wrong period
+        subclasses:
+        - class: half period
+        - class: double period
+      - class: nice
+        subclasses:
+        - class: niice
+    - class: intrinsic
+      subclasses:
+      - class: pulsator
+        subclasses:
+        - class: Delta Scu
+        - class: Gamma Dor
+        - class: Cepheid
+          subclasses:
+          - class: F
+          - class: O
+        - class: Cepheid type-II
+          subclasses:
+          - class: BL Her
+          - class: W Virginis
+          - class: RV Tau
+        - class: RR Lyrae
+          subclasses:
+          - class: RR Lyrae ab
+          - class: RR Lyrae c
+          - class: RR Lyrae d
+          - class: RR Lyrae Blazhko
+        - class: WD pulsator
+          subclasses:
+          - class: DAV (ZZ Ceti)
+          - class: DBV
+          - class: ELMV
+        - class: sdB
+          subclasses:
+          - class: sdBV p-mode
+          - class: sdBV g-mode
+          - class: BLAP
+          - class: high-g BLAP
+        - class: LPV
+          subclasses:
+          - class: Mira
+          - class: SRV
+      - class: binary star
+        subclasses:
+        - class: W Uma
+        - class: detached eclipsing MS-MS
+        - class: Beta Lyr
+        - class: RS CVn
+        - class: compact binary
+          subclasses:
+          - class: eclipsing dWD
+          - class: eclipsing WD+dM (NN Ser)
+          - class: eclipsing sdB+dM (HW Vir)
+          - class: Redback pulsar
+      - class: AGN
+        subclasses:
+        - class: Blazar
+      - class: YSO
+      - class: CV
+  name: Variables Taxonomy
+  version: demo
