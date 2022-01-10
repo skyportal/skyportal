@@ -39,6 +39,11 @@ schema_path = basedir + '/schemas/schema_test.avsc'
 taxonomy_dir = basedir + '/../../../data/taxonomy_demo.yaml'
 
 
+def test_fink_registration():
+    fink_registration = ['fink_client_register','-username','test','-password','None','-servers','localhost:9093','-mytopics','test_stream','-group_id','test_group','-maxtimeout','10']
+    test = subprocess.Popen(fink_registration, cwd=basedir, preexec_fn=os.setsid)
+    output = test.communicate()[0]
+    assert test.returncode == 0
 def test_kafka_producer():
     
     test = subprocess.Popen(['docker-compose', 'down'], cwd=basedir, preexec_fn=os.setsid)
@@ -77,11 +82,6 @@ def test_kafka_producer():
     p.flush()
 
 def test_fink_consumer():
-    fink_registration = ['fink_client_register','-username','test','-password','None','-servers','localhost:9093','-mytopics','test_stream','-group_id','test_group','-maxtimeout','10']
-    test = subprocess.Popen(fink_registration, cwd=basedir, preexec_fn=os.setsid)
-    output = test.communicate()[0]
-    assert test.returncode == 0
-    
     
     conf = load_credentials()
     myconfig = {
