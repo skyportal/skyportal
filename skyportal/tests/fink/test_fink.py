@@ -60,6 +60,25 @@ def test_fink_registration():
 @pytest.mark.dependency(depends=['test_fink_registration'])
 def test_kafka_producer():
 
+    fink_registration = [
+        'fink_client_register',
+        '-username',
+        'test',
+        '-password',
+        'None',
+        '-servers',
+        'localhost:9093',
+        '-mytopics',
+        'test_stream',
+        '-group_id',
+        'test_group',
+        '-maxtimeout',
+        '10',
+    ]
+    test = subprocess.Popen(fink_registration, cwd=basedir, preexec_fn=os.setsid)
+    test.communicate()[0]
+    assert test.returncode == 0
+
     test = subprocess.Popen(
         ['docker-compose', 'down'], cwd=basedir, preexec_fn=os.setsid
     )
@@ -100,6 +119,25 @@ def test_kafka_producer():
 @pytest.mark.dependency(depends=['test_kafka_producer'])
 def test_fink_consumer():
 
+    fink_registration = [
+        'fink_client_register',
+        '-username',
+        'test',
+        '-password',
+        'None',
+        '-servers',
+        'localhost:9093',
+        '-mytopics',
+        'test_stream',
+        '-group_id',
+        'test_group',
+        '-maxtimeout',
+        '10',
+    ]
+    test = subprocess.Popen(fink_registration, cwd=basedir, preexec_fn=os.setsid)
+    test.communicate()[0]
+    assert test.returncode == 0
+
     conf = load_credentials()
     myconfig = {
         "username": conf['username'],
@@ -134,6 +172,26 @@ def test_fink_consumer():
 
 @pytest.mark.dependency(depends=['test_fink_consumer'])
 def test_skyportal_api(super_admin_token):
+
+    fink_registration = [
+        'fink_client_register',
+        '-username',
+        'test',
+        '-password',
+        'None',
+        '-servers',
+        'localhost:9093',
+        '-mytopics',
+        'test_stream',
+        '-group_id',
+        'test_group',
+        '-maxtimeout',
+        '10',
+    ]
+    test = subprocess.Popen(fink_registration, cwd=basedir, preexec_fn=os.setsid)
+    test.communicate()[0]
+    assert test.returncode == 0
+
     r = AlertReader(data_path)
     alert = r.to_list()[0]
     topic = load_credentials()['mytopics'][0]
