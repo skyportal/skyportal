@@ -32,9 +32,11 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
             'band': 'NIR',
             'filters': ['f110w'],
             'telescope_id': telescope_id,
+            'api_classname': 'ZTFAPI',
         },
         token=super_admin_token,
     )
+    print(data)
     assert status == 200
     assert data['status'] == 'success'
 
@@ -42,5 +44,16 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
 
     # go to the allocations page
     driver.get("/instruments")
+
+    driver.wait_for_xpath('//*[@id="root_name"]').send_keys('ZTF')
+    driver.click_xpath('//*[@id="root_type"]')
+    driver.click_xpath('//li[contains(text(), "Imager")]')
+    driver.wait_for_xpath('//*[@id="root_band"]').send_keys('Optical')
+    driver.click_xpath('//*[@id="root_api_classname"]')
+    driver.click_xpath('//li[contains(text(), "ZTFAPI")]')
+
+    submit_button_xpath = '//button[@type="submit"]'
+    driver.wait_for_xpath(submit_button_xpath)
+    driver.click_xpath(submit_button_xpath)
 
     driver.wait_for_xpath('//*[text()="f110w"]')

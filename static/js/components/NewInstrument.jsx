@@ -42,6 +42,7 @@ const NewInstrument = () => {
   const uiSchema = {
     filters: {
       "ui:widget": "checkboxes",
+      "ui:column": "is-6",
     },
   };
 
@@ -87,6 +88,7 @@ const NewInstrument = () => {
         type: "string",
         oneOf: api_classnames,
         title: "API Classname",
+        default: "",
       },
     },
     required: ["name", "type", "band", "telescope_id"],
