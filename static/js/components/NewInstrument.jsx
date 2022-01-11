@@ -21,7 +21,7 @@ const NewInstrument = () => {
     dispatch(fetchInstruments());
   };
 
-  const api_classnames = [{ enum: [null], title: "No API" }];
+  const api_classnames = [];
   instrumentList?.forEach((instrument) => {
     if (instrument.api_classname) {
       api_classnames.push({
