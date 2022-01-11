@@ -22,6 +22,13 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const textStyles = makeStyles(() => ({
+  primary: {
+    fontWeight: "bold",
+    fontSize: "110%",
+  },
+}));
+
 export function instrumentTitle(instrument, telescopeList) {
   const telescope_id = instrument?.telescope_id;
   const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
@@ -34,17 +41,34 @@ export function instrumentTitle(instrument, telescopeList) {
     );
   }
 
-  let result = `${instrument?.name}/${telescope?.nickname}`;
+  const result = `${instrument?.name}/${telescope?.nickname}`;
+
+  return result;
+}
+
+export function instrumentInfo(instrument, telescopeList) {
+  const telescope_id = instrument?.telescope_id;
+  const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
+
+  if (!(instrument?.name && telescope?.name)) {
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
+  }
+
+  let result = "";
 
   if (instrument?.filters || instrument?.api_classname) {
-    result += "(";
+    result += "( ";
     if (instrument?.filters) {
       result += `filters: ${instrument.filters}`;
     }
     if (instrument?.api_classname) {
       result += ` / API Classname: ${instrument?.api_classname}`;
     }
-    result += ")";
+    result += " )";
   }
 
   return result;
@@ -52,6 +76,7 @@ export function instrumentTitle(instrument, telescopeList) {
 
 const InstrumentList = ({ instruments }) => {
   const classes = useStyles();
+  const textClasses = textStyles();
   const { telescopeList } = useSelector((state) => state.telescopes);
 
   return (
@@ -61,6 +86,8 @@ const InstrumentList = ({ instruments }) => {
           <ListItem button key={instrument.id}>
             <ListItemText
               primary={instrumentTitle(instrument, telescopeList)}
+              secondary={instrumentInfo(instrument, telescopeList)}
+              classes={textClasses}
             />
           </ListItem>
         ))}

@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Form from "@rjsf/material-ui";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitInstrument } from "../ducks/instrument";
+import { fetchInstruments } from "../ducks/instruments";
 
 const NewInstrument = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
@@ -17,6 +18,7 @@ const NewInstrument = () => {
     if (result.status === "success") {
       dispatch(showNotification("Instrument saved"));
     }
+    dispatch(fetchInstruments());
   };
 
   const api_classnames = [{ enum: [null], title: "No API" }];
