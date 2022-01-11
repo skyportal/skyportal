@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect,useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
@@ -9,24 +9,26 @@ import { makeStyles } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import IconButton from "@material-ui/core/IconButton";
 import GetAppIcon from "@material-ui/icons/GetApp";
-import Typography from "@material-ui/core/Typography";
+
+import * as sourcesActions from "../ducks/sources";
 
 import * as d3 from "d3";
 // eslint-disable-next-line
 import d3GeoZoom from "d3-geo-zoom";
 // eslint-disable-next-line
 import GeoPropTypes from "geojson-prop-types";
-// eslint-disable-next-line
-import { tip as d3tip } from "d3-v6-tip";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import SourceTable from "./SourceTable";
+//import Aladin from "./Aladin";
+import Aladin from './Aladin';
+
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
-import * as sourcesActions from "../ducks/sources";
+import Typography from "@material-ui/core/Typography";
+import SourceTable from "./SourceTable";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -60,6 +62,68 @@ const useStyles = makeStyles((theme) => ({
     background: "#999999!important",
   },
 }));
+
+const DownloadXMLButton = ({ gcn_notice }) => {
+  const blob = new Blob([gcn_notice.content], { type: "text/plain" });
+
+  return (
+    <div>
+      <Chip size="small" label={gcn_notice.ivorn} key={gcn_notice.ivorn} />
+      <IconButton href={URL.createObjectURL(blob)} download={gcn_notice.ivorn}>
+        <GetAppIcon />
+      </IconButton>
+    </div>
+  );
+};
+
+// Create the skymap from Aladin and display the MOC Json
+const CreateSkyMap = ({ loc,sources }) => {
+    console.log('sources ==',sources)
+  // get the localization data to display in the skymap
+  const localization = useSelector((state) => state.localization);
+  const {instrumentList} = useSelector((state)=>state.instruments);
+  console.log('instrumentList ==============================',instrumentList)
+  const dispatch = useDispatch();
+
+  // useEffect to fetch the data of localization
+  useEffect(() => {
+    dispatch(
+      localizationActions.fetchLocalization(loc.dateobs, loc.localization_name)
+    );
+  }, [loc, dispatch]);
+
+  // if you don't have data, display the loading icon
+  if (!localization) {
+    return <CircularProgress />;
+  }
+
+  console.log('localization 9282763 ===========',localization)
+
+  // else return the Aladin Skymap
+  if(instrumentList.length>0){
+      console.log('instrumentList data bizarre ',instrumentList)
+      return(<Aladin
+        ra={13.623}
+        dec={-23.8063}
+        fov={180.0}
+        height={400}
+        width={700}
+        data={instrumentList[0]?.fields[0]?.contour}
+        sources={sources}
+        mode="P/Mellinger/color"/>)
+  }
+  return (
+    <Aladin
+        ra={13.623}
+        dec={-23.8063}
+        fov={180.0}
+        height={400}
+        width={700}
+        data={instrumentList[0]?.fields[0]?.contour}
+        sources={sources}
+        mode="P/Mellinger/color"/>
+  );
+}
 
 const GcnEventSourcesPage = ({ route, sources }) => {
   const classes = useStyles();
@@ -97,8 +161,10 @@ const GcnEventSourcesPage = ({ route, sources }) => {
     dispatch(sourcesActions.fetchGcnEventSources(route.dateobs, data));
   };
 
+  return <p>No Sources</p>
+
   // eslint-disable-next-line
-  if (sources.sources.length === 0) {
+  if (sources?.sources.length === 0) {
     return (
       <div className={classes.source}>
         <Typography variant="h4" gutterBottom align="center">
@@ -131,149 +197,29 @@ const GcnEventSourcesPage = ({ route, sources }) => {
   );
 };
 
-const DownloadXMLButton = ({ gcn_notice }) => {
-  const blob = new Blob([gcn_notice.content], { type: "text/plain" });
-
-  return (
-    <div>
-      <Chip size="small" label={gcn_notice.ivorn} key={gcn_notice.ivorn} />
-      <IconButton href={URL.createObjectURL(blob)} download={gcn_notice.ivorn}>
-        <GetAppIcon />
-      </IconButton>
-    </div>
-  );
-};
-
-const useD3 = (renderChartFn) => {
-  const ref = useRef();
-
-  useEffect(() => {
-    renderChartFn(d3.select(ref.current));
-    return () => {};
-  }, [renderChartFn, ref]);
-  return ref;
-};
-
-const Globe = ({ data, sources }) => {
-  const projRef = useRef(d3.geoOrthographic());
-
-  function renderMap(svg) {
-    const path = d3.geoPath().projection(projRef.current).pointRadius(5);
-    const tip = d3tip()
-      .attr("class", "d3-tip")
-      .offset([-10, 0])
-      .style("background-color", "white")
-      .style("color", "#fff")
-      .style("text-align", "center")
-      .style("padding", "5px")
-      .style("border-radius", "6px")
-      .html((event, d) => d.properties?.name);
-    svg.call(tip);
-
-    function render() {
-      svg.selectAll("path").attr("d", path);
-    }
-
-    d3GeoZoom().projection(projRef.current).onMove(render)(svg.node());
-
-    if (sources) {
-      svg
-        .selectAll("path")
-        .data(sources)
-        .enter()
-        .append("path")
-        .attr("class", (d) => d.properties.name)
-        .attr("d", path)
-        .attr("fill", "#b8b8b8")
-        .style("stroke", "black")
-        .style("opacity", 0.3)
-        .on("mouseover", () => d3.select(this).style("fill", "#111"))
-        .on("mouseout", () => d3.select(this).style("fill", "#b8b8b8"))
-        .on("mouseenter.tip", tip.show)
-        .on("mouseleave.tip", tip.hide);
-    }
-
-    if (data) {
-      svg
-        .selectAll("path")
-        .data(data)
-        .enter()
-        .append("path")
-        .attr("class", (d) => d.properties.name)
-        .attr("d", path)
-        .style("fill", "none")
-        .style("stroke", "black")
-        .style("stroke-width", "0.5px");
-    }
-
-    svg
-      .selectAll("path")
-      .data([{ type: "Feature", geometry: d3.geoGraticule10() }])
-      .enter()
-      .append("path")
-      .attr("class", "graticule")
-      .attr("d", path)
-      .style("fill", "none")
-      .style("stroke", "lightgray")
-      .style("stroke-width", "0.5px");
-  }
-
-  const svgRef = useD3(renderMap);
-
-  useEffect(() => {
-    const height = svgRef.current.clientHeight;
-    const width = svgRef.current.clientWidth;
-    projRef.current.translate([width / 2, height / 2]);
-  }, [data, svgRef]);
-
-  return <svg id="globe" ref={svgRef} />;
-};
-
-const Localization = ({ loc, sources }) => {
-  const localization = useSelector((state) => state.localization);
-  const dispatch = useDispatch();
-
-  useEffect(() => {
-    dispatch(
-      localizationActions.fetchLocalization(loc.dateobs, loc.localization_name)
-    );
-  }, [loc, dispatch]);
-
-  if (!localization) {
-    return <CircularProgress />;
-  }
-
-  return (
-    <>
-      <Chip
-        size="small"
-        label={localization.localization_name}
-        key={localization.localization_name}
-      />
-      <Globe data={localization.contour?.features} sources={sources} />
-    </>
-  );
-};
-
 const GcnEventPage = ({ route }) => {
   const mapRef = useRef();
+  const gcnEvent = useSelector((state) => state?.gcnEvent);
   const dispatch = useDispatch();
   const styles = useStyles();
+  const gcnEventSources = useSelector((state) => state?.sources?.gcnEventSources);
 
-  const gcnEvent = useSelector((state) => state.gcnEvent);
-  const gcnEventSources = useSelector((state) => state.sources.gcnEventSources);
 
   useEffect(() => {
     dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
   }, [route, dispatch]);
 
-  useEffect(() => {
+   useEffect(() => {
     dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
   }, [route, dispatch]);
 
   if (!gcnEvent || !gcnEventSources) {
     return <CircularProgress />;
   }
+
+  console.log('gcnEvent.localizations ====',gcnEvent.localizations)
+  console.log('gcnEventSources == ',gcnEventSources)
+
   return (
     <div>
       <h1 style={{ display: "inline-block" }}>Event Information</h1>
@@ -308,10 +254,7 @@ const GcnEventPage = ({ route }) => {
         {gcnEvent.localizations?.map((localization) => (
           <li key={localization.localization_name}>
             <div id="map" ref={mapRef}>
-              <Localization
-                loc={localization}
-                sources={gcnEventSources.geojson}
-              />
+              <CreateSkyMap loc={localization} sources={gcnEventSources?.geojson}/>
             </div>
           </li>
         ))}
@@ -332,17 +275,11 @@ const GcnEventPage = ({ route }) => {
   );
 };
 
-Localization.propTypes = {
+CreateSkyMap.propTypes = {
   loc: PropTypes.shape({
     dateobs: PropTypes.string,
     localization_name: PropTypes.string,
   }).isRequired,
-  sources: PropTypes.arrayOf(
-    PropTypes.shape({
-      length: PropTypes.number,
-      features: GeoPropTypes.Feature,
-    })
-  ).isRequired,
 };
 
 DownloadXMLButton.propTypes = {
@@ -356,21 +293,6 @@ GcnEventPage.propTypes = {
   route: PropTypes.shape({
     dateobs: PropTypes.string,
   }).isRequired,
-};
-
-Globe.propTypes = {
-  data: PropTypes.arrayOf(
-    PropTypes.shape({
-      length: PropTypes.number,
-      features: GeoPropTypes.Feature,
-    })
-  ).isRequired,
-  sources: PropTypes.arrayOf(
-    PropTypes.shape({
-      length: PropTypes.number,
-      features: GeoPropTypes.Feature,
-    })
-  ).isRequired,
 };
 
 GcnEventSourcesPage.propTypes = {

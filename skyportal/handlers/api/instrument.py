@@ -71,11 +71,13 @@ class InstrumentHandler(BaseHandler):
                 return self.error('`field_region` is required with field_data')
             regions = Regions.parse(field_region, format='ds9')
 
+            add_tiles(instrument.id, instrument.name, regions, field_data)
+
             # run async
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
-            )
+            #IOLoop.current().run_in_executor(
+            #    None,
+            #    lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
+            #)
 
         return self.success(data={"id": instrument.id})
 
@@ -130,6 +132,8 @@ class InstrumentHandler(BaseHandler):
                 mode="read",
                 options=[joinedload(Instrument.fields)],
             )
+            print('instrument.to_dict()=====',instrument.to_dict())
+
             return self.success(data=instrument)
 
         inst_name = self.get_query_argument("name", None)
@@ -271,7 +275,7 @@ InstrumentHandler.post.__doc__ = f"""
 
 def add_tiles(instrument_id, instrument_name, regions, field_data):
     session = Session()
-    try:
+    if True:
         # Loop over the telescope tiles and create fields for each
         skyoffset_frames = coordinates.SkyCoord(
             field_data['RA'], field_data['Dec'], unit=u.deg
@@ -292,6 +296,9 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
         for ii, (field_id, ra, dec, coords) in enumerate(
             zip(field_data['ID'], field_data['RA'], field_data['Dec'], coords_icrs)
         ):
+            log(str(ii))
+            if ii > 10: continue
+
             contour = {
                 'properties': {
                     'instrument': instrument_name,
@@ -301,6 +308,19 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                 },
             }
 
+            geometry = []
+            for coord in coords:
+                tab=[]
+                for i in range(len(coord.ra.deg)):
+                    tab.append([coord.ra.deg[i],coord.dec.deg[i]])
+                tab.append([coord.ra.deg[0],coord.dec.deg[0]])
+                geometry.append(tab)
+            
+            #contour['type'] = 'FeatureCollection'
+            #contour['geometry'] = {'coordinates':coordinates,'type': 'MultiLineString'}
+            contour['type'] = "Feature"
+            contour['geometry'] = {'coordinates':geometry,'type': 'MultiLineString'}
+            contour={'features':[contour],'type':"FeatureCollection"}
             field = InstrumentField(
                 instrument_id=instrument_id, field_id=int(field_id), contour=contour
             )
@@ -319,7 +339,7 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
             session.add_all(tiles)
             session.commit()
         return log(f"Successfully generated fields for instrument {instrument_id}")
-    except Exception as e:
-        return log(f"Unable to generate fields for instrument {instrument_id}: {e}")
-    finally:
-        Session.remove()
+    #except Exception as e:
+    #    return log(f"Unable to generate fields for instrument {instrument_id}: {e}")
+    #finally:
+    #    Session.remove()

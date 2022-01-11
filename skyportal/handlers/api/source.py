@@ -1486,12 +1486,12 @@ class SourceHandler(BaseHandler):
             ]
 
             # useful for testing visualization
-            # import numpy as np
-            # for xx in np.arange(30, 180, 30):
-            #    features.append(Feature(
-            #        geometry=Point([float(xx), float(-30.0)]),
-            #        properties={"name": "tmp"},
-            #    ))
+            import numpy as np
+            for xx in np.arange(30, 180, 30):
+               features.append(Feature(
+                   geometry=Point([float(xx), float(-30.0)]),
+                   properties={"name": "tmp"},
+               ))
 
             for source in query_results["sources"]:
                 point = Point((source["ra"], source["dec"]))
