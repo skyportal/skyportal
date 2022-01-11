@@ -965,9 +965,15 @@ class SourceHandler(BaseHandler):
                     mjd_subquery, Obj.id == mjd_subquery.c.obj_id
                 )
                 # then must also disqualify objects that have detections after the time range
+                # this is really slow and kinda defeats the purpose
                 obj_query = obj_query.filter(
                     Obj.last_detected_at(self.current_user) <= end_date
                 )
+                # other ideas:
+                # 1) cache the "last detected" for each source, regardless of permissions, and use that as a starting
+                #    point from which we can filter by each user's access rights (not guaranteed to help much).
+                # 2) improve that last query using some SQL or SQLA magic that I don't know about
+
         if has_spectrum_after:
             try:
                 has_spectrum_after = arrow.get(has_spectrum_after.strip()).datetime
