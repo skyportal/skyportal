@@ -74,6 +74,8 @@ app:
       component: Filter
     - path: "/runs"
       component: ObservingRunPage
+    - path: "/allocations"
+      component: AllocationPage
     - path: "/group_sources/:id"
       component: GroupSources
     - path: "/user_management"
@@ -118,6 +120,10 @@ app:
     - name: Observing Runs
       icon: LocalCafe
       url: /runs
+
+    - name: Allocations
+      icon: Satellite
+      url: /allocations
 
     - name: GCN Events
       icon: SettingsInputAntenna
