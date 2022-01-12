@@ -1624,13 +1624,13 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             color=color_map[key],
             source=ColumnDataSource(df),
         )
-        renderers.append(model_dict['s' + str(i)])
-        legend_items.append(LegendItem(label=label, renderers=renderers))
+        renderers.append(model_dict[f's{i}'])
 
         # this starts out the same as the previous plot, but can be binned/smoothed later in JS
         model_dict[f'bin{i}'] = plot.step(
             x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(df)
         )
+        renderers.append(model_dict[f'bin{i}'])
 
         # add this line plot to be able to show tooltip at hover
         model_dict['l' + str(i)] = plot.line(
@@ -1640,6 +1640,9 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             source=ColumnDataSource(df),
             line_alpha=0.0,
         )
+        renderers.append(model_dict[f'l{i}'])
+
+        legend_items.append(LegendItem(label=label, renderers=renderers))
 
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
@@ -1664,22 +1667,20 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     hover.renderers = list(model_dict.values())
     plot.add_tools(hover)
 
-    smooth_title = Div(text="Smoothing")
+    smooth_checkbox = CheckboxGroup(
+        labels=["smoothing"],
+        active=[0] if smoothing else [],
+    )
     smooth_slider = Slider(
         start=0.0,
         end=100.0,
         value=0.0,
         step=1.0,
-        # title='Binsize (10s of Å)',
-        title='Smooth window',
+        show_value=False,
         max_width=350,
-        margin=(4, 10, 0, 10),
+        # margin=(4, 10, 0, 10),
     )
     smooth_input = NumericInput(value=smooth_number)
-    smooth_checkbox = CheckboxGroup(
-        labels=["smoothing"],
-        active=[0] if smoothing else [],
-    )
     smooth_callback = CustomJS(
         args=dict(
             model_dict=model_dict,
@@ -1708,10 +1709,9 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         ),
     )
     smooth_column = column(
-        smooth_title,
         smooth_checkbox,
-        smooth_input,
         smooth_slider,
+        smooth_input,
         width=width if "mobile" in device else int(width * 1 / 5) - 20,
         margin=(4, 10, 0, 10),
     )
