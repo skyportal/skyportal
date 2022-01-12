@@ -15,7 +15,7 @@ def test_post_without_origin_fails(annotation_token, public_source, public_group
         token=annotation_token,
     )
 
-    assert status == 400
+    assert status == 401
     assert 'expected string or bytes-like object' in data["message"]
 
     # this should not work, since "origin" is empty
@@ -63,7 +63,7 @@ def test_post_same_origin_fails(annotation_token, public_source, public_group):
         token=annotation_token,
     )
 
-    assert status == 400
+    assert status == 401
     assert 'duplicate key value violates unique constraint' in data["message"]
 
 
@@ -267,7 +267,7 @@ def test_cannot_add_annotation_without_permission(view_only_token, public_source
         },
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 401
     assert data['status'] == 'error'
 
 

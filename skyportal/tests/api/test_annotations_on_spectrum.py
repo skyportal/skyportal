@@ -33,7 +33,7 @@ def test_add_and_retrieve_annotation_group_id(
         },
         token=annotation_token,
     )
-    assert status == 400
+    assert status in [401, 500]
     assert 'expected string or bytes-like object' in data["message"]
 
     # this should not work, since "origin" is empty
@@ -48,7 +48,7 @@ def test_add_and_retrieve_annotation_group_id(
         token=annotation_token,
     )
 
-    assert status == 400
+    assert status == 401
     assert 'Input `origin` must begin with alphanumeric/underscore' in data["message"]
 
     # first time adding an annotation to this object from Kowalski
@@ -79,7 +79,7 @@ def test_add_and_retrieve_annotation_group_id(
         token=annotation_token,
     )
 
-    assert status == 400
+    assert status == 401
     assert 'duplicate key value violates unique constraint' in data["message"]
 
     status, data = api(
@@ -267,7 +267,7 @@ def test_cannot_add_annotation_without_permission(
         data={'origin': 'kowalski', 'data': {'gaia_G': 14.5}},
         token=view_only_token,
     )
-    assert status == 400
+    assert status in [401, 405]
     assert data['status'] == 'error'
 
 
