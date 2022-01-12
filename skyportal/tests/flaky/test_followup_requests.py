@@ -378,6 +378,7 @@ def add_followup_request_using_frontend_and_verify_KAIT(
     )
     driver.wait_for_xpath(
         '''//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "submitted")]'''
+    )
 
 
 def add_followup_request_using_frontend_and_verify_ZTF(
@@ -845,7 +846,7 @@ def test_submit_new_followup_request_UVOT(
 ):
 
     add_followup_request_using_frontend_and_verify_UVOT(
-         driver, super_admin_user, public_source, super_admin_token, public_group
+        driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
 
