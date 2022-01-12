@@ -36,7 +36,6 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
         },
         token=super_admin_token,
     )
-    print(data)
     assert status == 200
     assert data['status'] == 'success'
 
