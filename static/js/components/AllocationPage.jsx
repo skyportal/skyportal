@@ -22,19 +22,19 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export function allocationTitle(
-  allocation,
-  instrumentList,
-  telescopeList,
-  groups
-) {
+const textStyles = makeStyles(() => ({
+  primary: {
+    fontWeight: "bold",
+    fontSize: "110%",
+  },
+}));
+
+export function allocationTitle(allocation, instrumentList, telescopeList) {
   const { instrument_id } = allocation;
   const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
 
   const telescope_id = instrument?.telescope_id;
   const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
-
-  const group = groups?.filter((g) => g.id === allocation.group_id)[0];
 
   if (!(allocation?.start_date && instrument?.name && telescope?.name)) {
     return (
@@ -44,7 +44,15 @@ export function allocationTitle(
     );
   }
 
-  let result = `${allocation?.start_date}-${allocation?.end_date} ${instrument?.name}/${telescope?.nickname}`;
+  const result = `${allocation?.start_date}-${allocation?.end_date} ${instrument?.name}/${telescope?.nickname}`;
+
+  return result;
+}
+
+export function allocationInfo(allocation, groups) {
+  const group = groups?.filter((g) => g.id === allocation.group_id)[0];
+
+  let result = "";
 
   if (allocation?.pi || group?.name) {
     result += " (";
@@ -62,6 +70,7 @@ export function allocationTitle(
 
 const AllocationList = ({ allocations }) => {
   const classes = useStyles();
+  const textClasses = textStyles();
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
@@ -75,9 +84,10 @@ const AllocationList = ({ allocations }) => {
               primary={allocationTitle(
                 allocation,
                 instrumentList,
-                telescopeList,
-                groups
+                telescopeList
               )}
+              secondary={allocationInfo(allocation, groups)}
+              classes={textClasses}
             />
           </ListItem>
         ))}

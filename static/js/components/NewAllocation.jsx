@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import Form from "@rjsf/material-ui";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitAllocation } from "../ducks/allocation";
+import { fetchAllocations } from "../ducks/allocations";
 
 const NewAllocation = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
@@ -17,6 +18,7 @@ const NewAllocation = () => {
     const result = await dispatch(submitAllocation(formData));
     if (result.status === "success") {
       dispatch(showNotification("Allocation saved"));
+      dispatch(fetchAllocations());
     }
   };
 

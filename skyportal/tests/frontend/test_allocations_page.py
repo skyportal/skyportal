@@ -29,4 +29,17 @@ def test_super_user_post_allocation(
     # go to the allocations page
     driver.get("/allocations")
 
+    driver.wait_for_xpath('//*[@id="root_pi"]').send_keys('Shri')
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('01/01/2022')
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('02/01/2022')
+    driver.wait_for_xpath('//*[@id="root_hours_allocated"]').send_keys('100')
+    driver.click_xpath('//*[@id="root_instrument_id"]')
+    driver.click_xpath('//li[contains(text(), "SEDM")]')
+    driver.click_xpath('//*[@id="root_group_id"]')
+    driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
+
+    submit_button_xpath = '//button[@type="submit"]'
+    driver.wait_for_xpath(submit_button_xpath)
+    driver.click_xpath(submit_button_xpath)
+
     driver.wait_for_xpath('//div[contains(text(), "SEDM")]')
