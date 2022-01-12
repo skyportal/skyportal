@@ -77,7 +77,14 @@ class WeatherHandler(BaseHandler):
         weather_prefs = user_prefs.get('weather', {})
         weather_prefs = {**default_prefs, **weather_prefs}
 
-        default_telescope_id = int(weather_prefs["telescopeID"])
+        try:
+            default_telescope_id = int(weather_prefs["telescopeID"])
+        except (TypeError, ValueError):
+            return self.error(
+                f"telescope ID ({weather_prefs['telescopeID']}) "
+                f"given in preferences is not a valid ID (integer)."
+            )
+
         # use the query telecope ID otherwise fall back to preferences id
         telescope_id = self.get_query_argument("telescope_id", default_telescope_id)
 
