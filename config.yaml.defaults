@@ -34,14 +34,14 @@ app:
     host: skipper.caltech.edu
     port: 4000
 
-  kait:
-    protocol: http
-    host: herculesii.astro.berkeley.edu
-
   swift:
     protocol: https
     host: www.swift.psu.edu
     port: 443
+
+  kait:
+    protocol: http
+    host: herculesii.astro.berkeley.edu
 
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
