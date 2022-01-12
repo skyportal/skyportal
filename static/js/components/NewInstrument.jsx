@@ -17,8 +17,8 @@ const NewInstrument = () => {
     const result = await dispatch(submitInstrument(formData));
     if (result.status === "success") {
       dispatch(showNotification("Instrument saved"));
+      dispatch(fetchInstruments());
     }
-    dispatch(fetchInstruments());
   };
 
   const api_classnames = [];
@@ -30,6 +30,7 @@ const NewInstrument = () => {
       });
     }
   });
+  api_classnames.push({ enum: [""], title: "No API" });
 
   const filters = [];
   instrumentList?.forEach((instrument) => {
@@ -86,9 +87,9 @@ const NewInstrument = () => {
       },
       api_classname: {
         type: "string",
-        oneOf: api_classnames,
+        anyOf: api_classnames,
         title: "API Classname",
-        default: "",
+        default: api_classnames[0]?.enum,
       },
     },
     required: ["name", "type", "band", "telescope_id"],
