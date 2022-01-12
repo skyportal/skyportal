@@ -20,6 +20,7 @@ app:
 
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://pharos.caltech.edu/add_fritz
+  sedmv2_endpoint:
 
   lt_host: 161.72.57.3
   lt_port: 8080
@@ -32,6 +33,10 @@ app:
     protocol: http
     host: skipper.caltech.edu
     port: 4000
+
+  kait:
+    protocol: http
+    host: herculesii.astro.berkeley.edu
 
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
