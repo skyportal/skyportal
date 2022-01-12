@@ -109,7 +109,10 @@ class SLACKAPI(FollowUpAPI):
         )
 
         data = json.dumps(
-            {"url": f"{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}", "text": requesttext}
+            {
+                "url": f"{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}",
+                "text": requesttext,
+            }
         )
 
         r = requests.post(
