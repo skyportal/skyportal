@@ -166,7 +166,7 @@ def swift_request_matcher(r1, r2):
     r1_is_swift = is_swift_request(r1_uri)
     r2_is_swift = is_swift_request(r2_uri)
 
-    assert r1_is_swift and r2_is_swift and r1.method == r2.
+    assert r1_is_swift and r2_is_swift and r1.method == r2.method
 
 
 def kait_request_matcher(r1, r2):
