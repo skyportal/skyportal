@@ -394,7 +394,6 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =T80CAM
-    _altdata: '{"slack_workspace": "TFRQJA3CJ", "slack_channel": "B02T7F1C2AW", "slack_token": "ywU01TWA7cD3B376zsGian4z"}'
 
 candidates:
   - id: ZTF21aaqjmps
