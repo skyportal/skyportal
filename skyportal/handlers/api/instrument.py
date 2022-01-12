@@ -77,6 +77,7 @@ class InstrumentHandler(BaseHandler):
                 lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
             )
 
+        self.push_all(action="skyportal/FETCH_INSTRUMENTS")
         return self.success(data={"id": instrument.id})
 
     @auth_or_token
@@ -190,6 +191,7 @@ class InstrumentHandler(BaseHandler):
             )
         self.verify_and_commit()
 
+        self.push_all(action="skyportal/FETCH_INSTRUMENTS")
         return self.success()
 
     @permissions(['System admin'])
@@ -221,6 +223,7 @@ class InstrumentHandler(BaseHandler):
         DBSession().delete(instrument)
         self.verify_and_commit()
 
+        self.push_all(action="skyportal/FETCH_INSTRUMENTS")
         return self.success()
 
 
