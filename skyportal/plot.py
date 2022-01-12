@@ -1626,6 +1626,12 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
         renderers.append(model_dict['s' + str(i)])
         legend_items.append(LegendItem(label=label, renderers=renderers))
+
+        # this starts out the same as the previous plot, but can be binned/smoothed later in JS
+        model_dict[f'bin{i}'] = plot.step(
+            x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(df)
+        )
+
         # add this line plot to be able to show tooltip at hover
         model_dict['l' + str(i)] = plot.line(
             x='wavelength',
@@ -1659,26 +1665,53 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     plot.add_tools(hover)
 
     smooth_title = Div(text="Smoothing")
+    smooth_slider = Slider(
+        start=0.0,
+        end=100.0,
+        value=0.0,
+        step=1.0,
+        # title='Binsize (10s of Å)',
+        title='Smooth window',
+        max_width=350,
+        margin=(4, 10, 0, 10),
+    )
     smooth_input = NumericInput(value=smooth_number)
     smooth_checkbox = CheckboxGroup(
         labels=["smoothing"],
         active=[0] if smoothing else [],
     )
-    spectrum_plots = [v for k, v in model_dict.items()]
-
     smooth_callback = CustomJS(
-        args=dict(plots=spectrum_plots, checkbox=smooth_checkbox, window=smooth_input),
+        args=dict(
+            model_dict=model_dict,
+            n_labels=len(split),
+            checkbox=smooth_checkbox,
+            input=smooth_input,
+            slider=smooth_slider,
+        ),
         code=open(
-            os.path.join(os.path.dirname(__file__), '../static/js/plotjs', 'smooth.js')
+            os.path.join(
+                os.path.dirname(__file__), '../static/js/plotjs', 'smooth_spectra.js'
+            )
         ).read(),
     )
     smooth_checkbox.js_on_click(smooth_callback)
     smooth_input.js_on_change('value', smooth_callback)
-
+    # smooth_slider.js_on_change('value', smooth_callback)
+    smooth_slider.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': smooth_slider, 'input': smooth_input},
+            code="""
+                    input.value = slider.value;
+                    input.change.emit();
+                """,
+        ),
+    )
     smooth_column = column(
         smooth_title,
         smooth_checkbox,
         smooth_input,
+        smooth_slider,
         width=width if "mobile" in device else int(width * 1 / 5) - 20,
         margin=(4, 10, 0, 10),
     )
