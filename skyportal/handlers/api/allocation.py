@@ -119,6 +119,7 @@ class AllocationHandler(BaseHandler):
 
         DBSession().add(allocation)
         self.verify_and_commit()
+        self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
         return self.success(data={"id": allocation.id})
 
     @permissions(['Manage allocations'])
@@ -166,6 +167,7 @@ class AllocationHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
         self.verify_and_commit()
+        self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
         return self.success()
 
     @permissions(['Manage allocations'])
@@ -192,4 +194,5 @@ class AllocationHandler(BaseHandler):
         )
         DBSession().delete(allocation)
         self.verify_and_commit()
+        self.push_all(action='skyportal/REFRESH_ALLOCATIONS')
         return self.success()
