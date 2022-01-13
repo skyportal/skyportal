@@ -87,6 +87,8 @@ jobs:
       - name: Install SkyPortal dependencies
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
+          # do not be so demanding of the npm packaging, needed until we get to mui 5
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
           pip install black
@@ -186,6 +188,9 @@ jobs:
 
       - name: Run migration
         run: |
+          # do not be so demanding of the npm packaging, needed until we get to mui 5
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
+
           # Update to latest dependencies
           make dependencies
           PYTHONPATH=. alembic -x config=config.yaml upgrade head
