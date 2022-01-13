@@ -70,7 +70,7 @@ def test_post_poorly_formatted_sedm_message(
         token=sedm_listener_token,
     )
 
-    assert status == 400
+    assert status == 500
 
 
 def test_post_message_about_unowned_request(
