@@ -1,16 +1,16 @@
-"""Unique user token name
+"""Test migration
 
-Revision ID: 8c018b9bf1c9
-Revises: 89f08da6e93f
-Create Date: 2022-01-13 09:15:30.639260
+Revision ID: f7c1e785d7a4
+Revises: 8c48c49f057f
+Create Date: 2022-01-13 01:58:56.583337
 
 """
 from alembic import op
 
 
 # revision identifiers, used by Alembic.
-revision = '8c018b9bf1c9'
-down_revision = '89f08da6e93f'
+revision = 'f7c1e785d7a4'
+down_revision = '8c48c49f057f'
 branch_labels = None
 depends_on = None
 
