@@ -73,7 +73,7 @@ class ProfileHandler(BaseHandler):
         """
         user = (
             User.query_records_accessible_by(self.current_user)
-            .filter(User.username == self.current_user.username)
+            .filter(User.username == self.associated_user_object.username)
             .first()
         )
         user_roles = sorted([role.id for role in user.roles])
