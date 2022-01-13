@@ -4,6 +4,12 @@ import uuid
 
 
 def test_instrument_frontend(super_admin_token, super_admin_user, driver):
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    # go to the allocations page
+    driver.get("/instruments")
+
     name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -39,12 +45,21 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     assert status == 200
     assert data['status'] == 'success'
 
-    driver.get(f"/become_user/{super_admin_user.id}")
+    driver.refresh()
 
-    # go to the allocations page
-    driver.get("/instruments")
+    # check for API instrument
+    table = driver.wait_for_xpath('//*[contains(@class, "MuiList-root")]')
+    findinst = False
+    for row in table.find_elements_by_xpath(
+        '//*[contains(@class, "MuiTypography-root")]'
+    ):
+        if row.text == f"{instrument_name}/{name}":
+            findinst = True
+    assert findinst
 
-    driver.wait_for_xpath('//*[@id="root_name"]').send_keys('ZTF')
+    # add dropdown instrument
+    instrument_name2 = str(uuid.uuid4())
+    driver.wait_for_xpath('//*[@id="root_name"]').send_keys(instrument_name2)
     driver.click_xpath('//*[@id="root_type"]')
     driver.click_xpath('//li[contains(text(), "Imager")]')
     driver.wait_for_xpath('//*[@id="root_band"]').send_keys('Optical')
@@ -55,4 +70,12 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
-    driver.wait_for_xpath('//*[text()="f110w"]')
+    # check for API instrument
+    table = driver.wait_for_xpath('//*[contains(@class, "MuiList-root")]')
+    findinst = False
+    for row in table.find_elements_by_xpath(
+        '//*[contains(@class, "MuiTypography-root")]'
+    ):
+        if row.text == f"{instrument_name2}/{name}":
+            findinst = True
+    assert findinst

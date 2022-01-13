@@ -47,6 +47,15 @@ const NewInstrument = () => {
     },
   };
 
+  const validate = ({ formData, errors }) => {
+    instrumentList?.forEach((instrument) => {
+      if (formData.name === instrument.name) {
+        errors.name.addError("Instrument name matches another, please change.");
+      }
+    });
+    return errors;
+  };
+
   const instrumentFormSchema = {
     type: "object",
     properties: {
@@ -100,6 +109,7 @@ const NewInstrument = () => {
       schema={instrumentFormSchema}
       uiSchema={uiSchema}
       onSubmit={handleSubmit}
+      validate={validate}
     />
   );
 };
