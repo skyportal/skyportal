@@ -66,7 +66,7 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.refresh()
 
     # check for dropdown instrument
-    driver.wait_for_xpath(f'//span[text()="{instrument_name2}/{name}"]')
+    # driver.wait_for_xpath(f'//span[text()="{instrument_name2}/{name}"]')
 
     # try adding a second time
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(instrument_name2)
