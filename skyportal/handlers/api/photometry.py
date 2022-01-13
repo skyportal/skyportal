@@ -167,9 +167,11 @@ def serialize(phot, outsys, format):
 
 
 class PhotometryHandler(BaseHandler):
-    def standardize_photometry_data(self):
-
-        data = self.get_json()
+    def standardize_photometry_data(self, json=None):
+        if json is not None:
+            data = json
+        else:
+            data = self.get_json()
 
         if not isinstance(data, dict):
             raise ValidationError(
@@ -435,7 +437,7 @@ class PhotometryHandler(BaseHandler):
         return values_table, condition
 
     def insert_new_photometry_data(
-        self, df, instrument_cache, group_ids, stream_ids, validate=True
+        self, df, instrument_cache, group_ids, stream_ids, validate=True, user=None
     ):
         # check for existing photometry and error if any is found
         if validate:
@@ -501,6 +503,11 @@ class PhotometryHandler(BaseHandler):
             if original_user_data == {}:
                 original_user_data = None
 
+            if user is not None:
+                owner_id = user.id
+            else:
+                owner_id = self.associated_user_object.id
+
             utcnow = datetime.datetime.utcnow().isoformat()
             phot = dict(
                 id=packet['id'],
@@ -518,7 +525,7 @@ class PhotometryHandler(BaseHandler):
                 ra=packet['ra'],
                 dec=packet['dec'],
                 origin=packet["origin"],
-                owner_id=self.associated_user_object.id,
+                owner_id=owner_id,
                 created_at=utcnow,
                 modified=utcnow,
             )
@@ -587,11 +594,17 @@ class PhotometryHandler(BaseHandler):
                 ('photometr_id', 'stream_id', 'created_at', 'modified'),
             )
 
-        self.verify_and_commit()
+        if user is not None:
+            DBSession().commit()
+        else:
+            self.verify_and_commit()
         return ids, upload_id
 
-    def get_group_ids(self):
-        data = self.get_json()
+    def get_group_ids(self, json=None, user=None):
+        if json is not None:
+            data = json
+        else:
+            data = self.get_json()
         group_ids = data.pop("group_ids", [])
         if isinstance(group_ids, (list, tuple)):
             for group_id in group_ids:
@@ -623,12 +636,18 @@ class PhotometryHandler(BaseHandler):
             )
 
         # always add the single user group
-        group_ids.append(self.associated_user_object.single_user_group.id)
+        if user is not None:
+            group_ids.append(user.single_user_group.id)
+        else:
+            group_ids.append(self.associated_user_object.single_user_group.id)
         group_ids = list(set(group_ids))
         return group_ids
 
-    def get_stream_ids(self):
-        data = self.get_json()
+    def get_stream_ids(self, json=None):
+        if json is not None:
+            data = json
+        else:
+            data = self.get_json()
         stream_ids = data.pop("stream_ids", [])
         if isinstance(stream_ids, (list, tuple)):
             for stream_id in stream_ids:
@@ -648,6 +667,66 @@ class PhotometryHandler(BaseHandler):
 
         stream_ids = list(set(stream_ids))
         return stream_ids
+
+    def add_external_photometry(self, json, user):
+        """
+        ---
+        description: Upload photometry
+        tags:
+          - photometry
+        requestBody:
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/PhotMagFlexible"
+                  - $ref: "#/components/schemas/PhotFluxFlexible"
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            ids:
+                              type: array
+                              items:
+                                type: integer
+                              description: List of new photometry IDs
+                            upload_id:
+                              type: string
+                              description: |
+                                Upload ID associated with all photometry points
+                                added in request. Can be used to later delete all
+                                points in a single request.
+        """
+
+        group_ids = self.get_group_ids(json=json, user=user)
+        stream_ids = self.get_stream_ids(json=json)
+        df, instrument_cache = self.standardize_photometry_data(json=json)
+
+        # This lock ensures that the Photometry table data are not modified in any way
+        # between when the query for duplicate photometry is first executed and
+        # when the insert statement with the new photometry is performed.
+        # From the psql docs: This mode protects a table against concurrent
+        # data changes, and is self-exclusive so that only one session can
+        # hold it at a time.
+        DBSession().execute(
+            f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+        )
+        try:
+            ids, upload_id = self.insert_new_photometry_data(
+                df, instrument_cache, group_ids, stream_ids, user=user
+            )
+        except ValidationError as e:
+            return self.error(e.args[0])
+
+        return self.success(data={'ids': ids, 'upload_id': upload_id})
 
     @permissions(['Upload data'])
     def post(self):

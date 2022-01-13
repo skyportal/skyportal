@@ -196,14 +196,49 @@ class ATLASAPI(FollowUpAPI):
                     'group_ids': 'all',
                     **df.to_dict(orient='list'),
                 }
-                token_id = "720504e1-f163-478b-b624-a96573a68cbb"
 
-                t = requests.post(
-                    "http://localhost:5000/api/photometry",
-                    json=data_out,
-                    headers={"Authorization": f"token {token_id}"},
+                class FakeApplication(object):
+                    def __init__(
+                        self,
+                    ) -> None:
+                        super().__init__()
+                        self.ui_methods = {}
+                        self.ui_modules = {}
+                        self.settings = {}
+
+                application = FakeApplication()
+
+                from tornado import httputil
+
+                class FakeRequest(httputil.HTTPServerRequest):
+                    def __init__(
+                        self,
+                    ) -> None:
+                        self.test = True
+                        super().__init__()
+
+                        class FakeConnection(object):
+                            def __init__(
+                                self,
+                            ) -> None:
+                                def set_close_callback(self):
+                                    return True
+
+                                self.set_close_callback = set_close_callback
+
+                        self.connection = FakeConnection()
+
+                fake_request = FakeRequest()
+
+                from skyportal.handlers.api.photometry import PhotometryHandler
+
+                photometry_handler = PhotometryHandler(
+                    application=application,
+                    request=fake_request,
                 )
-                t.raise_for_status()
+                photometry_handler.add_external_photometry(
+                    json=data_out, user=request.requester
+                )
 
                 request.status = "Photometry committed to database"
 
