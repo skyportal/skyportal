@@ -13,7 +13,12 @@ from ..utils import http
 
 env, cfg = load_env()
 
-ATLAS_URL = cfg['app.atlas_endpoint']
+if cfg['app.atlas.port'] is None:
+    ATLAS_URL = f"{cfg['app.atlas.protocol']}://{cfg['app.atlas.host']}"
+else:
+    ATLAS_URL = (
+        f"{cfg['app.atlas.protocol']}://{cfg['app.atlas.host']}:{cfg['app.atlas.port']}"
+    )
 
 
 class ATLASRequest:
@@ -284,7 +289,7 @@ class ATLASAPI(FollowUpAPI):
             raise ValueError('Missing allocation information.')
 
         r = requests.post(
-            f"{ATLAS_URL}/queue/",
+            f"{ATLAS_URL}/forcedphot/queue/",
             headers={
                 'Authorization': f"Token {altdata['api_token']}",
                 'Accept': 'application/json',

@@ -19,6 +19,21 @@ except requests.exceptions.ConnectTimeout:
 else:
     sedm_isonline = True
 
+if cfg['app.atlas.port'] is None:
+    ATLAS_URL = f"{cfg['app.atlas.protocol']}://{cfg['app.atlas.host']}"
+else:
+    ATLAS_URL = (
+        f"{cfg['app.atlas.protocol']}://{cfg['app.atlas.host']}:{cfg['app.atlas.port']}"
+    )
+
+atlas_isonline = False
+try:
+    requests.get(ATLAS_URL, timeout=5)
+except requests.exceptions.ConnectTimeout:
+    pass
+else:
+    atlas_isonline = True
+
 url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
 
 lt_isonline = False
@@ -119,6 +134,23 @@ def add_allocation_sedm(instrument_id, group_id, token):
             "instrument_id": instrument_id,
             "hours_allocated": 100,
             "pi": "Ed Hubble",
+        },
+        token=token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+
+def add_allocation_atlas(instrument_id, group_id, token):
+    status, data = api(
+        "POST",
+        "allocation",
+        data={
+            "group_id": group_id,
+            "instrument_id": instrument_id,
+            "hours_allocated": 100,
+            "pi": "Ed Hubble",
+            "_altdata": '{"api_token": "testtoken"}',
         },
         token=token,
     )
@@ -435,6 +467,42 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
     )
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "submitted")]'
+    )
+
+
+def add_followup_request_using_frontend_and_verify_ATLAS(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+
+    idata = add_telescope_and_instrument("ATLAS", super_admin_token)
+    add_allocation_atlas(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "ATLAS")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    driver.click_xpath(submit_button_xpath)
+
+    driver.click_xpath("//div[@data-testid='ATLAS-requests-header']")
+
+    driver.wait_for_xpath(
+        '//div[contains(@data-testid, "ATLAS_followupRequestsTable")]//div[contains(., "submitted")]'
     )
 
 
@@ -858,6 +926,17 @@ def test_submit_new_followup_request_Spectral(
 ):
 
     add_followup_request_using_frontend_and_verify_Spectral(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not atlas_isonline, reason="ATLAS server down")
+def test_submit_new_followup_request_ATLAS(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+
+    add_followup_request_using_frontend_and_verify_ATLAS(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 

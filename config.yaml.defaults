@@ -34,11 +34,13 @@ app:
     host: skipper.caltech.edu
     port: 4000
 
+  atlas:
+    protocol: https
+    host: fallingstar-data.com
+
   kait:
     protocol: http
     host: herculesii.astro.berkeley.edu
-  
-  atlas_endpoint: https://fallingstar-data.com/forcedphot
 
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
