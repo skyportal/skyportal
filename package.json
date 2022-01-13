@@ -34,7 +34,7 @@
     "imports-loader": "1.2.0",
     "material-ui-phone-number": "2.2.6",
     "mathjs": "10.0.2",
-    "mui-datatables": "4.0.0",
+    "mui-datatables": "3.8.2",
     "npm-check": "5.9.2",
     "numeral": "2.0.6",
     "papaparse": "5.3.1",
