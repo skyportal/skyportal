@@ -22,6 +22,16 @@ def upgrade():
         'token_name_userid_unique_constraint', 'tokens', ['created_by_id', 'name']
     )
     # ### end Alembic commands ###
+    op.execute(
+        'ALTER TYPE "public"."followup_apis" RENAME TO "followup_apis__old_version_to_be_dropped"'
+    )
+    op.execute(
+        '''CREATE TYPE "public"."followup_apis" AS ENUM ('KAITAPI', 'SEDMAPI', 'SEDMV2API', 'IOOAPI', 'IOIAPI', 'SPRATAPI', 'SINISTROAPI', 'SPECTRALAPI', 'FLOYDSAPI', 'MUSCATAPI', 'ZTFAPI')'''
+    )
+    op.execute(
+        'ALTER TABLE "public"."instruments" ALTER COLUMN api_classname TYPE "public"."followup_apis" USING api_classname::text::"public"."followup_apis"'
+    )
+    op.execute('DROP TYPE "public"."followup_apis__old_version_to_be_dropped"')
 
 
 def downgrade():
@@ -29,3 +39,13 @@ def downgrade():
     op.drop_constraint('token_name_userid_unique_constraint', 'tokens', type_='unique')
     op.create_unique_constraint('tokens_name_key', 'tokens', ['name'])
     # ### end Alembic commands ###
+    op.execute(
+        'ALTER TYPE "public"."followup_apis" RENAME TO "followup_apis__new_version_to_be_dropped"'
+    )
+    op.execute(
+        '''CREATE TYPE "public"."followup_apis" AS ENUM ('SEDMAPI', 'IOOAPI', 'IOIAPI', 'SPRATAPI', 'SINISTROAPI', 'SPECTRALAPI', 'FLOYDSAPI', 'MUSCATAPI')'''
+    )
+    op.execute(
+        'ALTER TABLE "public"."instruments" ALTER COLUMN api_classname TYPE "public"."followup_apis" USING api_classname::text::"public"."followup_apis"'
+    )
+    op.execute('DROP TYPE "public"."followup_apis__new_version_to_be_dropped"')
