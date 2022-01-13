@@ -48,15 +48,7 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.refresh()
 
     # check for API instrument
-    table = driver.wait_for_xpath('//*[contains(@class, "MuiList-root")]')
-    findinst = False
-    for row in table.find_elements_by_xpath(
-        '//*[contains(@class, "MuiTypography-root")]'
-    ):
-        print(row.text, f"{instrument_name}/{name}")
-        if row.text == f"{instrument_name}/{name}":
-            findinst = True
-    assert findinst
+    driver.wait_for_xpath(f'//span[text()="{instrument_name}/{name}"]')
 
     # add dropdown instrument
     instrument_name2 = str(uuid.uuid4())
@@ -71,15 +63,8 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
-    # check for API instrument
-    table = driver.wait_for_xpath('//*[contains(@class, "MuiList-root")]')
-    findinst = False
-    for row in table.find_elements_by_xpath(
-        '//*[contains(@class, "MuiTypography-root")]'
-    ):
-        if row.text == f"{instrument_name2}/{name}":
-            findinst = True
-    assert findinst
+    # check for dropdown instrument
+    driver.wait_for_xpath(f'//span[text()="{instrument_name2}/{name}"]')
 
     driver.refresh()
 
@@ -95,12 +80,6 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
-    # check for failure
-    table = driver.wait_for_xpath('//*[contains(@class, "MuiTypography-root")]')
-    finderror = False
-    for row in table.find_elements_by_xpath(
-        '//*[contains(@class, "MuiTypography-root")]'
-    ):
-        if row.text == "name: Instrument name matches another, please change.":
-            finderror = True
-    assert finderror
+    driver.wait_for_xpath(
+        '//span[text()="name: Instrument name matches another, please change."]'
+    )
