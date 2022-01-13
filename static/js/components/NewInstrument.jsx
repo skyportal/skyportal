@@ -47,14 +47,14 @@ const NewInstrument = () => {
     },
   };
 
-  const validate = ({ formData, errors }) => {
+  function validate(formData, errors) {
     instrumentList?.forEach((instrument) => {
       if (formData.name === instrument.name) {
         errors.name.addError("Instrument name matches another, please change.");
       }
     });
     return errors;
-  };
+  }
 
   const instrumentFormSchema = {
     type: "object",
@@ -109,6 +109,7 @@ const NewInstrument = () => {
       schema={instrumentFormSchema}
       uiSchema={uiSchema}
       onSubmit={handleSubmit}
+      // eslint-disable-next-line react/jsx-no-bind
       validate={validate}
     />
   );
