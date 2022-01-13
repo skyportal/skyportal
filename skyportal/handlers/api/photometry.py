@@ -674,13 +674,18 @@ class PhotometryHandler(BaseHandler):
         description: Upload photometry
         tags:
           - photometry
-        requestBody:
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: "#/components/schemas/PhotMagFlexible"
-                  - $ref: "#/components/schemas/PhotFluxFlexible"
+        parameters:
+          - in: path
+            name: json
+            required: True
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/PhotMagFlexible"
+                - $ref: "#/components/schemas/PhotFluxFlexible"
+          - in: path
+            name: user
+            required: True
+            schema: SingleUser
         responses:
           200:
             content:
