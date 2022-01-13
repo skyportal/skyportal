@@ -12,9 +12,7 @@ const smoothing_func = (values, window_size) => {
     const idx_high = i + over < values.length ? i + over : values.length - 1;
     let N = 0;
     for (let j = idx_low; j <= idx_high; j += 1) {
-      // check value is not NaN
-      /* eslint no-self-compare: "off" */
-      if (values[j] === values[j]) {
+      if (Number.isNaN(values[j]) === 0) {
         N += 1;
         output[i] += values[j];
       }
