@@ -48,7 +48,7 @@ def test_add_and_retrieve_annotation_group_id(
         token=annotation_token,
     )
 
-    assert status == 401
+    assert status in [400, 401]
     assert 'Input `origin` must begin with alphanumeric/underscore' in data["message"]
 
     # first time adding an annotation to this object from Kowalski

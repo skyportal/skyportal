@@ -48,7 +48,7 @@ def test_cannot_update_filter_group_stream(view_only_token, public_filter):
         data={"stream_id": 0},
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 401
     assert data["status"] == "error"
 
 
