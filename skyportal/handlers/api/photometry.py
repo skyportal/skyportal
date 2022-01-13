@@ -50,6 +50,9 @@ def save_data_using_copy(rows, table, columns):
     # Prepare data
     output = StringIO()
     df = pd.DataFrame.from_records(rows)
+    # Coerce missing non-numbers and numbers, respectively, for SQLAlchemy
+    df.replace("NaN", "null", inplace=True)
+    df.replace(np.nan, "NaN", inplace=True)
     df.to_csv(
         output,
         index=False,
@@ -562,10 +565,7 @@ class PhotometryHandler(BaseHandler):
                 id=packet['id'],
                 original_user_data=json.dumps(original_user_data),
                 upload_id=upload_id,
-                # The psycopg copy_to function cannot automatically
-                # use defaults like SQLAlchemy inserts, so just provide
-                # the NaN value manually here.
-                flux="NaN" if np.isnan(flux) else flux,
+                flux=flux,
                 fluxerr=fluxerr,
                 obj_id=packet['obj_id'],
                 altdata=json.dumps(packet['altdata']),
