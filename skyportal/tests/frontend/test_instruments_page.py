@@ -53,6 +53,7 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     for row in table.find_elements_by_xpath(
         '//*[contains(@class, "MuiTypography-root")]'
     ):
+        print(row.text, f"{instrument_name}/{name}")
         if row.text == f"{instrument_name}/{name}":
             findinst = True
     assert findinst
