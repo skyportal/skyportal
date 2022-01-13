@@ -6,6 +6,7 @@ on:
     paths:
       - "baselayer"
       - "skyportal/models.py"
+      - "skyportal/models/**"
       - "alembic/versions/**"
 
 jobs:
