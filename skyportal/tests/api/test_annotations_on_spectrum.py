@@ -79,7 +79,7 @@ def test_add_and_retrieve_annotation_group_id(
         token=annotation_token,
     )
 
-    assert status == 401
+    assert status in [500, 401]
     assert 'duplicate key value violates unique constraint' in data["message"]
 
     status, data = api(
