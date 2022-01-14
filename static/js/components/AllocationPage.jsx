@@ -36,9 +36,6 @@ export function allocationTitle(allocation, instrumentList, telescopeList) {
   const telescope_id = instrument?.telescope_id;
   const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
 
-  console.log("instrument", instrument);
-  console.log("telescope", telescope);
-
   if (!(allocation?.start_date && instrument?.name && telescope?.name)) {
     return (
       <div>
@@ -110,6 +107,7 @@ const AllocationList = ({ allocations }) => {
 const AllocationPage = () => {
   const { allocationList } = useSelector((state) => state.allocations);
   const classes = useStyles();
+
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
