@@ -10,13 +10,13 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     # go to the allocations page
     driver.get("/instruments")
 
-    name = str(uuid.uuid4())
+    telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',
         'telescope',
         data={
-            'name': name,
-            'nickname': name,
+            'name': telescope_name,
+            'nickname': telescope_name,
             'lat': 0.0,
             'lon': 0.0,
             'elevation': 0.0,
@@ -46,7 +46,9 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     assert data['status'] == 'success'
 
     # check for API instrument
-    driver.wait_for_xpath(f'//span[text()="{instrument_name}/{name}"]', timeout=20)
+    driver.wait_for_xpath(
+        f'//span[text()="{instrument_name}/{telescope_name}"]', timeout=20
+    )
 
     # add dropdown instrument
     instrument_name2 = str(uuid.uuid4())
@@ -60,9 +62,6 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
-
-    # check for dropdown instrument
-    # driver.wait_for_xpath(f'//span[text()="{instrument_name2}/{name}"]')
 
     # try adding a second time
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(instrument_name2)
