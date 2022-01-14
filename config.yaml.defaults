@@ -90,7 +90,8 @@ app:
       component: DBStats
     - path: "/gcn_events"
       component: GcnEvents
-
+    - path: "/telescopes"
+      component: TelescopePage
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -126,6 +127,10 @@ app:
     - name: About
       icon: Info
       url: /about
+
+    - name: Telescopes
+      icon: Toys
+      url: /telescopes
 
   # See https://github.com/STRML/react-grid-layout for more on the grid package
   homepage_grid:
