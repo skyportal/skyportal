@@ -74,10 +74,9 @@ export function instrumentInfo(instrument, telescopeList) {
   return result;
 }
 
-const InstrumentList = ({ instruments }) => {
+const InstrumentList = ({ instruments, telescopes }) => {
   const classes = useStyles();
   const textClasses = textStyles();
-  const { telescopeList } = useSelector((state) => state.telescopes);
 
   return (
     <div className={classes.root}>
@@ -85,8 +84,8 @@ const InstrumentList = ({ instruments }) => {
         {instruments?.map((instrument) => (
           <ListItem button key={instrument.id}>
             <ListItemText
-              primary={instrumentTitle(instrument, telescopeList)}
-              secondary={instrumentInfo(instrument, telescopeList)}
+              primary={instrumentTitle(instrument, telescopes)}
+              secondary={instrumentInfo(instrument, telescopes)}
               classes={textClasses}
             />
           </ListItem>
@@ -98,6 +97,8 @@ const InstrumentList = ({ instruments }) => {
 
 const InstrumentPage = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
+  const { telescopeList } = useSelector((state) => state.telescopes);
+
   const classes = useStyles();
   return (
     <Grid container spacing={3}>
@@ -105,7 +106,10 @@ const InstrumentPage = () => {
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Instruments</Typography>
-            <InstrumentList instruments={instrumentList} />
+            <InstrumentList
+              instruments={instrumentList}
+              telescopes={telescopeList}
+            />
           </div>
         </Paper>
       </Grid>
@@ -123,6 +127,7 @@ const InstrumentPage = () => {
 
 InstrumentList.propTypes = {
   instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
+  telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
 };
 
 export default InstrumentPage;
