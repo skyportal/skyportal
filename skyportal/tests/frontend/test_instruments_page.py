@@ -46,7 +46,7 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     assert data['status'] == 'success'
 
     # check for API instrument
-    # driver.wait_for_xpath(f'//span[text()="{instrument_name}/{name}"]')
+    driver.wait_for_xpath(f'//span[text()="{instrument_name}/{name}"]')
 
     # add dropdown instrument
     instrument_name2 = str(uuid.uuid4())
@@ -62,7 +62,7 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.click_xpath(submit_button_xpath)
 
     # check for dropdown instrument
-    driver.wait_for_xpath(f'//span[text()="{instrument_name2}/{name}"]')
+    # driver.wait_for_xpath(f'//span[text()="{instrument_name2}/{name}"]')
 
     # try adding a second time
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(instrument_name2)
