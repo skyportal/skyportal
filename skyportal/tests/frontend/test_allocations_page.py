@@ -86,7 +86,7 @@ def test_super_user_post_allocation(
     assert data['status'] == 'success'
 
     # check for API instrument
-    driver.wait_for_xpath(f'//span[text()="{instrument_name}/{name}"]', timeout=20)
+    # driver.wait_for_xpath(f'//span[text()="{instrument_name}/{name}"]', timeout=20)
 
     driver.wait_for_xpath('//*[@id="root_pi"]').send_keys('Shri')
     driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('01/01/2022')
@@ -109,10 +109,6 @@ def test_super_user_post_allocation(
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
-
-    import pdb
-
-    pdb.set_trace()
 
     # check for dropdown instrument
     driver.wait_for_xpath(f'//span[text()="{instrument_name2}/{name}"]')
