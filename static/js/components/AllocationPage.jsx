@@ -36,6 +36,9 @@ export function allocationTitle(allocation, instrumentList, telescopeList) {
   const telescope_id = instrument?.telescope_id;
   const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
 
+  console.log("instrument", instrument);
+  console.log("telescope", telescope);
+
   if (!(allocation?.start_date && instrument?.name && telescope?.name)) {
     return (
       <div>
@@ -44,7 +47,7 @@ export function allocationTitle(allocation, instrumentList, telescopeList) {
     );
   }
 
-  const result = `${allocation?.start_date}-${allocation?.end_date} ${instrument?.name}/${telescope?.nickname}`;
+  const result = `${instrument?.name}/${telescope?.nickname}`;
 
   return result;
 }
@@ -52,7 +55,15 @@ export function allocationTitle(allocation, instrumentList, telescopeList) {
 export function allocationInfo(allocation, groups) {
   const group = groups?.filter((g) => g.id === allocation.group_id)[0];
 
-  let result = "";
+  if (!allocation?.start_date) {
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
+  }
+
+  let result = `${allocation?.start_date}-${allocation?.end_date}`;
 
   if (allocation?.pi || group?.name) {
     result += " (";
