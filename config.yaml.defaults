@@ -85,8 +85,6 @@ app:
       component: DBStats
     - path: "/gcn_events"
       component: GcnEvents
-    - path: "/dashboard_grandma"
-      component: DashboardPage
 
 
   sidebar:
