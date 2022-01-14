@@ -111,4 +111,4 @@ def test_super_user_post_allocation(
     driver.click_xpath(submit_button_xpath)
 
     # check for dropdown instrument
-    driver.wait_for_xpath(f'//span[text()="{instrument_name2}/{name}"]')
+    # driver.wait_for_xpath(f'//span[text()="{instrument_name2}/{name}"]')
