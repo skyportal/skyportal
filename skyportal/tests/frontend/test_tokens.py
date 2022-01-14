@@ -50,7 +50,7 @@ def test_add_duplicate_token_error_message(driver, super_admin_user):
 
     driver.wait_for_xpath('//input[@name="name"]').send_keys(token_name)
     driver.wait_for_xpath('//button[contains(.,"Generate Token")]').click()
-    driver.wait_for_xpath('//div[contains(.,"Duplicate token name")]')
+    driver.wait_for_xpath('//div[contains(.,"token name is already taken")]')
 
 
 @pytest.mark.flaky(reruns=2)

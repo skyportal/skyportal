@@ -4,6 +4,7 @@ from ....models import Token, DBSession
 from ....model_util import create_token
 
 import tornado.web
+import sqlalchemy
 
 
 class TokenHandler(BaseHandler):
@@ -47,10 +48,11 @@ class TokenHandler(BaseHandler):
                 "allowed for your account type."
             )
         token_name = data['name']
-        if Token.query.filter(Token.name == token_name).first():
-            return self.error("Duplicate token name.")
         token_id = create_token(ACLs=token_acls, user_id=user.id, name=token_name)
-        self.verify_and_commit()
+        try:
+            self.verify_and_commit()
+        except sqlalchemy.exc.IntegrityError:
+            return self.error('That token name is already taken.')
         self.push(
             action='baselayer/SHOW_NOTIFICATION',
             payload={'note': f'Token "{token_name}" created.', 'type': 'info'},
