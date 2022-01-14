@@ -7,6 +7,7 @@ import pandas as pd
 from io import StringIO
 
 from . import FollowUpAPI
+from . import FakeApplication, FakeRequest
 from baselayer.app.env import load_env
 
 from ..utils import http
@@ -202,40 +203,10 @@ class ATLASAPI(FollowUpAPI):
                     **df.to_dict(orient='list'),
                 }
 
-                class FakeApplication(object):
-                    def __init__(
-                        self,
-                    ) -> None:
-                        super().__init__()
-                        self.ui_methods = {}
-                        self.ui_modules = {}
-                        self.settings = {}
+                from skyportal.handlers.api.photometry import PhotometryHandler
 
                 application = FakeApplication()
-
-                from tornado import httputil
-
-                class FakeRequest(httputil.HTTPServerRequest):
-                    def __init__(
-                        self,
-                    ) -> None:
-                        self.test = True
-                        super().__init__()
-
-                        class FakeConnection(object):
-                            def __init__(
-                                self,
-                            ) -> None:
-                                def set_close_callback(self):
-                                    return True
-
-                                self.set_close_callback = set_close_callback
-
-                        self.connection = FakeConnection()
-
                 fake_request = FakeRequest()
-
-                from skyportal.handlers.api.photometry import PhotometryHandler
 
                 photometry_handler = PhotometryHandler(
                     application=application,

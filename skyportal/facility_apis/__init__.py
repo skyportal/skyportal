@@ -1,4 +1,5 @@
 from .interface import FollowUpAPI, Listener
+from .fake_request import FakeApplication, FakeRequest
 from .atlas import ATLASAPI
 from .kait import KAITAPI
 from .sedm import SEDMAPI, SEDMListener
