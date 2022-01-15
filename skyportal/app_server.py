@@ -303,13 +303,15 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         engine_args={'pool_size': 10, 'max_overflow': 15, 'pool_recycle': 3600},
     )
 
-    # If tables are found in the database, new tables will only be added
-    # in debug mode.  In production, we leave the tables alone, since
-    # migrations might be used.
-    create_tables(add=env.debug)
-    model_util.refresh_enums()
+    if process == 0:
+        # If tables are found in the database, new tables will only be added
+        # in debug mode.  In production, we leave the tables alone, since
+        # migrations might be used.
+        create_tables(add=env.debug)
+        model_util.refresh_enums()
 
-    model_util.setup_permissions()
+        model_util.setup_permissions()
+
     app.cfg = cfg
 
     admin_token = model_util.provision_token()
