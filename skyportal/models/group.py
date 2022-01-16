@@ -17,6 +17,7 @@ from baselayer.app.models import (
     AccessibleIfUserMatches,
     CustomUserAccessControl,
     public,
+    safe_aliased,
 )
 from baselayer.app.env import load_env
 
@@ -26,7 +27,7 @@ _, cfg = load_env()
 
 # group admins can set the admin status of other group members
 def groupuser_update_access_logic(cls, user_or_token):
-    aliased = sa.orm.aliased(cls)
+    aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = DBSession().query(cls).join(aliased, cls.group_id == aliased.group_id)
     if not user_or_token.is_system_admin:
