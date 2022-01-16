@@ -570,10 +570,7 @@ class PhotometryHandler(BaseHandler):
                 id=packet['id'],
                 original_user_data=json.dumps(original_user_data),
                 upload_id=upload_id,
-                # The psycopg copy_to function cannot automatically
-                # use defaults like SQLAlchemy inserts, so just provide
-                # the NaN value manually here.
-                flux="NaN" if np.isnan(flux) else flux,
+                flux=flux,
                 fluxerr=fluxerr,
                 obj_id=packet['obj_id'],
                 altdata=json.dumps(packet['altdata']),
