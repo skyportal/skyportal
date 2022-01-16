@@ -13,7 +13,10 @@ import sncosmo
 from sncosmo.photdata import PhotometricData
 
 import sqlalchemy as sa
-from sqlalchemy.sql import column, Values
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.expression import FromClause
+from sqlalchemy.sql import column
+from sqlalchemy.sql import Values
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
 
@@ -48,14 +51,9 @@ def save_data_using_copy(rows, table, columns):
     # Prepare data
     output = StringIO()
     df = pd.DataFrame.from_records(rows)
-    print("\n\n\n\n\nrows:", rows)
-    print()
-    print("df:", df.head())
-    print()
-    print("table:", table)
-    print()
-    print("columns:", columns)
-    print("\n\n\n\n\n")
+    # Coerce missing non-numbers and numbers, respectively, for SQLAlchemy
+    df.replace("NaN", "null", inplace=True)
+    df.replace(np.nan, "NaN", inplace=True)
     df.to_csv(
         output,
         index=False,
@@ -401,6 +399,27 @@ class PhotometryHandler(BaseHandler):
            `df` against the Photometry table using the deduplication index.
         """
 
+        # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
+        class _photometry_values(FromClause):
+            """Render a postgres VALUES statement (in-memory constant table)."""
+
+            named_with_column = True
+
+            def __init__(self, columns, *args, **kw):
+                self._column_args = columns
+                self.list = args
+                self.alias_name = self.name = kw.pop("alias_name", None)
+
+            def _populate_column_collection(self):
+                for c in self._column_args:
+                    c._make_proxy(self)  # noqa
+
+            @property
+            def _from_objects(self):
+                return [self]
+
+        # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
+        @compiles(_photometry_values)
         def _compile_photometry_values(element, compiler, asfrom=False, **kw):
             columns = element.columns
 
@@ -483,7 +502,6 @@ class PhotometryHandler(BaseHandler):
         self, df, instrument_cache, group_ids, stream_ids, validate=True
     ):
         # check for existing photometry and error if any is found
-        print("GROUP_IDS", group_ids)
         if validate:
             values_table, condition = self.get_values_table_and_condition(df)
 
@@ -642,7 +660,6 @@ class PhotometryHandler(BaseHandler):
     def get_group_ids(self):
         data = self.get_json()
         group_ids = data.pop("group_ids", [])
-        print("inside get_group_ids group_ids:", group_ids)
         if isinstance(group_ids, (list, tuple)):
             for group_id in group_ids:
                 try:
@@ -751,8 +768,6 @@ class PhotometryHandler(BaseHandler):
             df, instrument_cache = self.standardize_photometry_data()
         except (ValidationError, RuntimeError) as e:
             return self.error(e.args[0])
-
-        print("top of post hander GROUP_IDS:", group_ids)
 
         # This lock ensures that the Photometry table data are not modified in any way
         # between when the query for duplicate photometry is first executed and
@@ -917,23 +932,9 @@ class PhotometryHandler(BaseHandler):
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
-        print("self.current_user:", self.current_user)
-        print(
-            "current user's streams:",
-            [g.id for g in self.current_user.created_by.streams],
-        )
-        print(
-            "phot streams:", [g.id for g in Photometry.query.get(photometry_id).streams]
-        )
-        print(
-            "phot groups:", [g.id for g in Photometry.query.get(photometry_id).groups]
-        )
-
         phot = Photometry.get_if_accessible_by(
             photometry_id, self.current_user, raise_if_none=True
         )
-        print("photometry_id:", photometry_id)
-        print("phot:", phot)
 
         # get the desired output format
         format = self.get_query_argument('format', 'mag')
