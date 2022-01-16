@@ -107,8 +107,8 @@ def setup_schema():
     module.
 
     """
-    for class_ in _Base._decl_class_registry.values():
-        if hasattr(class_, '__tablename__'):
+    for class_ in _Base.registry._class_registry.values():
+        if getattr(class_, '__tablename__', None):
             if class_.__name__.endswith('Schema'):
                 raise _ModelConversionError(
                     "For safety, setup_schema can not be used when a"
