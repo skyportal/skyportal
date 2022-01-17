@@ -831,7 +831,7 @@ class PhotometryHandler(BaseHandler):
             f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
         )
 
-        new_photometry_query = (
+        new_photometry_query = DBSession().execute(
             sa.select(values_table.c.pdidx)
             .outerjoin(Photometry, condition)
             .filter(Photometry.id.is_(None))
@@ -841,6 +841,8 @@ class PhotometryHandler(BaseHandler):
 
         id_map = {}
 
+        print(values_table.c.pdidx)
+
         duplicated_photometry = (
             DBSession()
             .execute(
@@ -849,7 +851,7 @@ class PhotometryHandler(BaseHandler):
                 .options(joinedload(Photometry.groups))
                 .options(joinedload(Photometry.streams))
             )
-            .scalars()
+            .unique()
             .all()
         )
 
