@@ -13,9 +13,7 @@ import sncosmo
 from sncosmo.photdata import PhotometricData
 
 import sqlalchemy as sa
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.sql.expression import FromClause
-from sqlalchemy.sql import column
+from sqlalchemy.sql import column, Values
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
 
@@ -53,6 +51,7 @@ def save_data_using_copy(rows, table, columns):
     # Coerce missing non-numbers and numbers, respectively, for SQLAlchemy
     df.replace("NaN", "null", inplace=True)
     df.replace(np.nan, "NaN", inplace=True)
+
     df.to_csv(
         output,
         index=False,
@@ -398,27 +397,6 @@ class PhotometryHandler(BaseHandler):
            `df` against the Photometry table using the deduplication index.
         """
 
-        # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
-        class _photometry_values(FromClause):
-            """Render a postgres VALUES statement (in-memory constant table)."""
-
-            named_with_column = True
-
-            def __init__(self, columns, *args, **kw):
-                self._column_args = columns
-                self.list = args
-                self.alias_name = self.name = kw.pop("alias_name", None)
-
-            def _populate_column_collection(self):
-                for c in self._column_args:
-                    c._make_proxy(self)  # noqa
-
-            @property
-            def _from_objects(self):
-                return [self]
-
-        # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
-        @compiles(_photometry_values)
         def _compile_photometry_values(element, compiler, asfrom=False, **kw):
             columns = element.columns
 
@@ -458,8 +436,8 @@ class PhotometryHandler(BaseHandler):
                     v = "(%s)" % v
             return v
 
-        values_table = _photometry_values(
-            (
+        values_table = (
+            Values(
                 column("pdidx", sa.Integer),
                 column("obj_id", sa.String),
                 column("instrument_id", sa.Integer),
@@ -467,20 +445,22 @@ class PhotometryHandler(BaseHandler):
                 column("mjd", sa.Float),
                 column("fluxerr", sa.Float),
                 column("flux", sa.Float),
-            ),
-            *[
-                (
-                    row.Index,
-                    row.obj_id,
-                    row.instrument_id,
-                    row.origin,
-                    float(row.mjd),
-                    float(row.standardized_fluxerr),
-                    float(row.standardized_flux),
-                )
-                for row in df.itertuples()
-            ],
-            alias_name="values_table",
+            )
+            .data(
+                [
+                    (
+                        row.Index,
+                        row.obj_id,
+                        row.instrument_id,
+                        row.origin,
+                        float(row.mjd),
+                        float(row.standardized_fluxerr),
+                        float(row.standardized_flux),
+                    )
+                    for row in df.itertuples()
+                ]
+            )
+            .alias("values_table")
         )
 
         # make sure no duplicate data are posted using the index
@@ -499,12 +479,15 @@ class PhotometryHandler(BaseHandler):
         self, df, instrument_cache, group_ids, stream_ids, validate=True
     ):
         # check for existing photometry and error if any is found
-
+        print("GROUP_IDS", group_ids)
         if validate:
             values_table, condition = self.get_values_table_and_condition(df)
 
             duplicated_photometry = (
-                DBSession().query(Photometry).join(values_table, condition)
+                DBSession()
+                .execute(sa.select(Photometry).join(values_table, condition))
+                .scalars()
+                .all()
             )
 
             dict_rep = [d.to_dict() for d in duplicated_photometry]
@@ -652,6 +635,7 @@ class PhotometryHandler(BaseHandler):
     def get_group_ids(self):
         data = self.get_json()
         group_ids = data.pop("group_ids", [])
+        print("inside get_group_ids group_ids:", group_ids)
         if isinstance(group_ids, (list, tuple)):
             for group_id in group_ids:
                 try:
@@ -666,8 +650,12 @@ class PhotometryHandler(BaseHandler):
         elif group_ids == 'all':
             public_group = (
                 DBSession()
-                .query(Group)
-                .filter(Group.name == cfg["misc"]["public_group_name"])
+                .execute(
+                    sa.select(Group).filter(
+                        Group.name == cfg["misc"]["public_group_name"]
+                    )
+                )
+                .scalars()
                 .first()
             )
             group_ids = [public_group.id]
@@ -757,6 +745,8 @@ class PhotometryHandler(BaseHandler):
         except (ValidationError, RuntimeError) as e:
             return self.error(e.args[0])
 
+        print("top of post hander GROUP_IDS:", group_ids)
+
         # This lock ensures that the Photometry table data are not modified in any way
         # between when the query for duplicate photometry is first executed and
         # when the insert statement with the new photometry is performed.
@@ -842,8 +832,7 @@ class PhotometryHandler(BaseHandler):
         )
 
         new_photometry_query = (
-            DBSession()
-            .query(values_table.c.pdidx)
+            sa.select(values_table.c.pdidx)
             .outerjoin(Photometry, condition)
             .filter(Photometry.id.is_(None))
         )
@@ -854,10 +843,14 @@ class PhotometryHandler(BaseHandler):
 
         duplicated_photometry = (
             DBSession()
-            .query(values_table.c.pdidx, Photometry)
-            .join(Photometry, condition)
-            .options(joinedload(Photometry.groups))
-            .options(joinedload(Photometry.streams))
+            .execute(
+                sa.select(values_table.c.pdidx, Photometry)
+                .join(Photometry, condition)
+                .options(joinedload(Photometry.groups))
+                .options(joinedload(Photometry.streams))
+            )
+            .scalars()
+            .all()
         )
 
         for df_index, duplicate in duplicated_photometry:
@@ -871,8 +864,8 @@ class PhotometryHandler(BaseHandler):
                 group_ids_update = set(group_ids).union(duplicate_group_ids)
                 groups = (
                     DBSession()
-                    .query(Group)
-                    .filter(Group.id.in_(group_ids_update))
+                    .execute(sa.select(Group).filter(Group.id.in_(group_ids_update)))
+                    .sclars()
                     .all()
                 )
                 # update the corresponding photometry entry in the db
@@ -917,9 +910,23 @@ class PhotometryHandler(BaseHandler):
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
+        print("self.current_user:", self.current_user)
+        print(
+            "current user's streams:",
+            [g.id for g in self.current_user.created_by.streams],
+        )
+        print(
+            "phot streams:", [g.id for g in Photometry.query.get(photometry_id).streams]
+        )
+        print(
+            "phot groups:", [g.id for g in Photometry.query.get(photometry_id).groups]
+        )
+
         phot = Photometry.get_if_accessible_by(
             photometry_id, self.current_user, raise_if_none=True
         )
+        print("photometry_id:", photometry_id)
+        print("phot:", phot)
 
         # get the desired output format
         format = self.get_query_argument('format', 'mag')
