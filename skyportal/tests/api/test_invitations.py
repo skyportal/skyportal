@@ -30,7 +30,7 @@ def test_invite_new_user_forbidden(view_only_token, public_stream, public_group)
         token=view_only_token,
     )
 
-    assert status == 400
+    assert status == 401
     assert "Unauthorized" in data["message"]
 
 

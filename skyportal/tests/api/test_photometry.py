@@ -1011,7 +1011,7 @@ def test_token_user_post_photometry_data_series(
         token=upload_data_token,
     )
 
-    assert status == 400
+    assert status in [500, 401]
     assert data['status'] == 'error'
 
 
@@ -1034,7 +1034,7 @@ def test_post_photometry_no_access_token(
         },
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 401
     assert data['status'] == 'error'
 
 
@@ -1137,7 +1137,7 @@ def test_token_user_cannot_update_unowned_photometry(
         },
         token=manage_sources_token,
     )
-    assert status == 400
+    assert status == 401
 
 
 def test_token_user_update_photometry_groups(
@@ -1278,7 +1278,7 @@ def test_user_cannot_delete_unowned_photometry_data(
         'DELETE', f'photometry/{photometry_id}', token=manage_sources_token
     )
 
-    assert status == 400
+    assert status == 401
 
 
 def test_admin_can_delete_unowned_photometry_data(
@@ -2251,7 +2251,7 @@ def test_problematic_photometry_1276(
         data=payload,
         token=super_admin_token,
     )
-    assert status == 400
+    assert status in [401, 500]
     assert data['status'] == 'error'
 
 

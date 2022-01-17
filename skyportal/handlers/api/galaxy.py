@@ -60,6 +60,7 @@ class GalaxyCatalogHandler(BaseHandler):
             'redshift_error',
             'sfr_fuv',
             'mstar',
+            'magk',
             'magb',
             'a',
             'b2a',
@@ -145,6 +146,7 @@ def add_galaxies(catalog_name, catalog_data):
                 redshift_error=redshift_error,
                 sfr_fuv=sfr_fuv,
                 mstar=mstar,
+                magk=magk,
                 magb=magb,
                 a=a,
                 b2a=b2a,
@@ -152,7 +154,7 @@ def add_galaxies(catalog_name, catalog_data):
                 btc=btc,
                 healpix=ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg),
             )
-            for ra, dec, name, alt_name, distmpc, distmpc_unc, redshift, redshift_error, sfr_fuv, mstar, magb, a, b2a, pa, btc in zip(
+            for ra, dec, name, alt_name, distmpc, distmpc_unc, redshift, redshift_error, sfr_fuv, mstar, magb, magk, a, b2a, pa, btc in zip(
                 catalog_data['ra'],
                 catalog_data['dec'],
                 catalog_data['name'],
@@ -164,6 +166,7 @@ def add_galaxies(catalog_name, catalog_data):
                 catalog_data['sfr_fuv'],
                 catalog_data['mstar'],
                 catalog_data['magb'],
+                catalog_data['magk'],
                 catalog_data['a'],
                 catalog_data['b2a'],
                 catalog_data['pa'],

@@ -318,7 +318,7 @@ def test_cannot_update_source_without_permission(view_only_token, public_source)
         },
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 401
     assert data["status"] == "error"
 
 
@@ -476,7 +476,7 @@ def test_source_notifications_unauthorized(
         },
         token=source_notification_user_token,
     )
-    assert status == 400
+    assert status == 401
     assert "Unauthorized" in data["message"]
 
 

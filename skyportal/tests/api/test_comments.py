@@ -180,7 +180,7 @@ def test_cannot_add_comment_without_permission(view_only_token, public_source):
         data={'text': 'Comment text'},
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 401
     assert data['status'] == 'error'
 
 
