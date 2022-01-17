@@ -1,9 +1,9 @@
 from marshmallow.exceptions import ValidationError
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from ...models import DBSession, GenericPassband
 
-from ...enum_types import ALLOWED_BANDPASSES
+from ...enum_types import ALLOWED_BANDPASSES, add_passband
 
 
 class GenericPassbandHandler(BaseHandler):
@@ -31,12 +31,36 @@ class GenericPassbandHandler(BaseHandler):
         if existing_passband is None:
             DBSession().add(generic_passband)
             DBSession().commit()
+            add_passband(
+                data.get('name'), data.get('min_wavelength'), data.get('max_wavelength')
+            )
         else:
             generic_passband = existing_passband
 
         return self.success(data={"id": generic_passband.id})
 
     @auth_or_token
-    def get(self):
+    def get(self, generic_passband_id=None):
+        if generic_passband_id is not None:
+            generic_passband = GenericPassband.get_if_accessible_by(
+                int(generic_passband_id),
+                self.current_user,
+                raise_if_none=True,
+                mode="read",
+            )
+            return self.success(data=generic_passband)
         generic_passbands = DBSession().query(GenericPassband).all()
         return self.success(data=generic_passbands)
+
+    @permissions(['System admin'])
+    def delete(self, generic_passband_id):
+        instrument = GenericPassband.get_if_accessible_by(
+            int(generic_passband_id),
+            self.current_user,
+            raise_if_none=True,
+            mode='update',
+        )
+        DBSession().delete(instrument)
+        self.verify_and_commit()
+
+        return self.success()

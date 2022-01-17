@@ -2,18 +2,16 @@ import sqlalchemy as sa
 from enum import Enum
 import inspect
 
-# import numpy as np
-# import astropy.units as u
+import numpy as np
+import astropy.units as u
 
 from baselayer.app.env import load_env
 
 from . import facility_apis
 
-# import sncosmo
+import sncosmo
 from sncosmo.bandpasses import _BANDPASSES
 from sncosmo.magsystems import _MAGSYSTEMS
-
-from models import DBSession, GenericPassband
 
 _, cfg = load_env()
 
@@ -27,9 +25,18 @@ ALLOWED_SPECTRUM_TYPES = tuple(
 )
 ALLOWED_MAGSYSTEMS = tuple(val['name'] for val in _MAGSYSTEMS.get_loaders_metadata())
 ALLOWED_BANDPASSES = tuple(val['name'] for val in _BANDPASSES.get_loaders_metadata())
-ALLOWED_BANDPASSES += tuple(
-    val['name'] for val in DBSession().query(GenericPassband).all()
-)
+
+
+def add_passband(name, min_wavelength, max_wavelength):
+    global ALLOWED_BANDPASSES
+    wavelength, transmission = np.array([min_wavelength, max_wavelength]), np.array(
+        [1, 1]
+    )
+    band = sncosmo.Bandpass(wavelength, transmission, wave_unit=u.AA)
+    sncosmo.registry.register(band, name)
+    ALLOWED_BANDPASSES += (name,)
+
+
 # ATLAS filters
 # wavelength, transmission = np.array([4157, 6556]), np.array([1, 1])
 # band = sncosmo.Bandpass(wavelength, transmission, wave_unit=u.AA)
