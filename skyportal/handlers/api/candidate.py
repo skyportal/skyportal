@@ -1,5 +1,4 @@
 import datetime
-import math
 from copy import copy
 import re
 import json
@@ -1094,40 +1093,6 @@ def get_obj_id_values(obj_ids):
     values_table: `sqlalchemy.sql.expression.FromClause`
         The VALUES representation of the Obj IDs list.
     """
-
-    def _compile_obj_id_values(element, compiler, asfrom=False, **kw):
-        columns = element.columns
-
-        value_types = {
-            'id': 'CHARACTER VARYING',
-            'ordering': 'INTEGER',
-        }
-
-        def coerced_value(elem, column):
-            literal_value = compiler.render_literal_value(elem, column.type)
-            cast_value = value_types[column.name]
-            return f'{literal_value}::{cast_value}'
-
-        v = "VALUES %s" % ", ".join(
-            "(%s)"
-            % ", ".join(
-                coerced_value(elem, column)
-                if not (isinstance(elem, float) and math.isnan(elem))
-                else "'NaN'::numeric"
-                for elem, column in zip(tup, columns)
-            )
-            for tup in element.list
-        )
-        if asfrom:
-            if element.alias_name:
-                v = "(%s) AS %s (%s)" % (
-                    v,
-                    element.alias_name,
-                    (", ".join(c.name for c in element.columns)),
-                )
-            else:
-                v = "(%s)" % v
-        return v
 
     values_table = (
         Values(

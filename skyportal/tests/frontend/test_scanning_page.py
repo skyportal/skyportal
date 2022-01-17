@@ -709,7 +709,9 @@ def test_add_scanning_profile(
     )
 
     # Submit and check it shows up in table of profiles
-    driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
+    driver.click_xpath(
+        '//button[@data-testid="saveScanningProfileButton"]', scroll_parent=True
+    )
     driver.wait_for_xpath(f'//div[text()="{saved_status_option}"]')
 
     # Navigate back to scanning page and check that form is populated properly

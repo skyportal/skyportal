@@ -1,5 +1,5 @@
 from collections import defaultdict
-from sqlalchemy import func, literal
+from sqlalchemy import literal
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql import functions
 from sqlalchemy.sql.elements import ColumnClause
@@ -64,7 +64,8 @@ class ColumnFunction(functions.FunctionElement):
 
     def _populate_column_collection(self):
         for name in self.column_names:
-            self._columns[name] = FunctionColumn(self, name)
+            # self._columns[name] = FunctionColumn(self, name)
+            self.add(FunctionColumn(self, name), key=name)
 
 
 class jsonb_each_func(ColumnFunction):
@@ -112,10 +113,7 @@ class AnnotationsInfoHandler(BaseHandler):
         # Instead, just check for annotation group membership
         q = (
             Annotation.query_records_accessible_by(
-                self.current_user, columns=[Annotation.origin]
-            )
-            .add_columns(
-                annotations.c.key, func.jsonb_typeof(annotations.c.value).label("type")
+                self.current_user,
             )
             .outerjoin(annotations, literal(True))
             .distinct()
@@ -127,9 +125,10 @@ class AnnotationsInfoHandler(BaseHandler):
         grouped = defaultdict(list)
         keys_seen = defaultdict(set)
         for annotation in results:
-            if annotation.key not in keys_seen[annotation.origin]:
-                grouped[annotation.origin].append({annotation.key: annotation.type})
+            for key, value in annotation.data.items():
+                if key not in keys_seen[annotation.origin]:
+                    grouped[annotation.origin].append({key: type(value)})
 
-            keys_seen[annotation.origin].add(annotation.key)
+            keys_seen[annotation.origin].add(key)
 
         return self.success(data=grouped)
