@@ -823,15 +823,16 @@ class CandidateHandler(BaseHandler):
             if "Page number out of range" in str(e):
                 return self.error("Page number out of range.")
             raise
+
         matching_source_ids = (
             Source.query_records_accessible_by(
                 self.current_user, columns=[Source.obj_id]
             )
-            .filter(Source.obj_id.in_([obj.id for obj in query_results["candidates"]]))
+            .filter(Source.obj_id.in_([obj.id for obj, in query_results["candidates"]]))
             .all()
         )
         candidate_list = []
-        for obj in query_results["candidates"]:
+        for (obj,) in query_results["candidates"]:
             with DBSession().no_autoflush:
                 obj.is_source = (obj.id,) in matching_source_ids
                 if obj.is_source:
