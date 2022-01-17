@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { Link, useParams } from "react-router-dom";
@@ -112,6 +112,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
   let omega;
   let wi;
 
+  // eslint-disable-next-line react/destructuring-assignment
   const goodi = t_data_uf
     ?.map((e, ind) =>
       !(
@@ -512,9 +513,12 @@ const Periodogram = () => {
     return `${value}×`;
   }
 
-  const handleMultiplierChange = (e, val) => {
-    setPeriodmultiplier(val);
-  };
+  const handleMultiplierChange = useCallback(
+    (e, val) => {
+      setPeriodmultiplier(val);
+    },
+    [setPeriodmultiplier]
+  );
 
   return (
     <>
@@ -548,7 +552,10 @@ const Periodogram = () => {
                         <span>Showing selected filter</span>
                       </TextLoop>{" "}
                       <br /> <br />
-                      <CircularProgress color="primary" className={classes.spinner}/>
+                      <CircularProgress
+                        color="primary"
+                        className={classes.spinner}
+                      />
                     </div>
                   )}
                 </div>
@@ -677,6 +684,7 @@ const Periodogram = () => {
                             </Typography>
                             <Slider
                               value={periodmultiplier}
+                              // eslint-disable-next-line react/jsx-no-bind
                               getAriaValueText={valuetext}
                               aria-labelledby="period-slider"
                               step={null}
@@ -684,6 +692,7 @@ const Periodogram = () => {
                               min={0.5}
                               marks={marks}
                               valueLabelDisplay="auto"
+                              // eslint-disable-next-line react/jsx-no-bind
                               onChange={handleMultiplierChange}
                             />
                           </Grid>
