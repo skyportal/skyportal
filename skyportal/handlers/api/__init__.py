@@ -24,6 +24,7 @@ from .group import (
 from .user_obj_list import UserObjListHandler
 from .group_admission_request import GroupAdmissionRequestHandler
 from .instrument import InstrumentHandler
+from .generic_passbands import GenericPassbandHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
