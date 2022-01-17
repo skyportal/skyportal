@@ -1,7 +1,10 @@
+import os
 import uuid
 
 import pytest
 from selenium.common.exceptions import TimeoutException
+from io import BytesIO
+from PIL import Image, ImageChops
 
 from skyportal.tests import api
 
@@ -129,3 +132,48 @@ def test_annotations(
 
     driver.wait_for_xpath('//div[text()="2021-11-02.5"]')
     driver.wait_for_xpath(f'//div[text()="{annotation_data}"]')
+
+
+def test_spectrum_plot(driver, public_source, lris, upload_data_token):
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': str(public_source.id),
+            'observed_at': '2020-01-10T00:00:00',
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.2, 232.1, 235.3],
+            'group_ids': [],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    driver.get(f"/source/{public_source.id}")
+    driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
+
+    spectrum_plot_div = driver.wait_for_xpath(
+        "//div[contains(@data-testid, 'spectrum_bokeh_plot')]"
+    )
+    generated_plot_data = spectrum_plot_div.screenshot_as_png
+    generated_plot = Image.open(BytesIO(generated_plot_data))
+
+    expected_plot_path = os.path.abspath(
+        "skyportal/tests/data/spectrum_plot_expected.png"
+    )
+
+    # Use this commented line to save a new version of the expected plot
+    # if changes have been made to the component:
+    # temporarily generate the plot we will test against
+    # generated_plot.save(expected_plot_path)
+
+    if not os.path.exists(expected_plot_path):
+        pytest.fail("Missing spectrum bokeh baseline image for comparison")
+    expected_plot = Image.open(expected_plot_path)
+
+    difference = ImageChops.difference(
+        generated_plot.convert('RGB'), expected_plot.convert('RGB')
+    )
+    assert difference.getbbox() is None

@@ -424,7 +424,10 @@ const SourceDesktop = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <div className={classes.photometryContainer}>
+              <div
+                className={classes.photometryContainer}
+                data-testid="spectrum_bokeh_plot"
+              >
                 <Suspense
                   fallback={
                     <div>
