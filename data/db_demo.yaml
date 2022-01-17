@@ -195,6 +195,14 @@ telescope:
     skycam_link: null
     =id: ATLAS-0p5m
 
+generic_passband:
+  - name: 'atlasc'
+    min_wavelength: 4157
+    max_wavelength: 6556
+  - name: 'atlaso'
+    min_wavelength: 5582
+    max_wavelength: 8249
+
 instrument:
   - name: ZTF
     type: imager
