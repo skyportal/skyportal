@@ -479,7 +479,6 @@ class PhotometryHandler(BaseHandler):
         self, df, instrument_cache, group_ids, stream_ids, validate=True
     ):
         # check for existing photometry and error if any is found
-        print("GROUP_IDS", group_ids)
         if validate:
             values_table, condition = self.get_values_table_and_condition(df)
 
@@ -635,7 +634,6 @@ class PhotometryHandler(BaseHandler):
     def get_group_ids(self):
         data = self.get_json()
         group_ids = data.pop("group_ids", [])
-        print("inside get_group_ids group_ids:", group_ids)
         if isinstance(group_ids, (list, tuple)):
             for group_id in group_ids:
                 try:
@@ -745,8 +743,6 @@ class PhotometryHandler(BaseHandler):
         except (ValidationError, RuntimeError) as e:
             return self.error(e.args[0])
 
-        print("top of post hander GROUP_IDS:", group_ids)
-
         # This lock ensures that the Photometry table data are not modified in any way
         # between when the query for duplicate photometry is first executed and
         # when the insert statement with the new photometry is performed.
@@ -831,7 +827,7 @@ class PhotometryHandler(BaseHandler):
             f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
         )
 
-        new_photometry_query = (
+        new_photometry_query = DBSession().execute(
             sa.select(values_table.c.pdidx)
             .outerjoin(Photometry, condition)
             .filter(Photometry.id.is_(None))
@@ -849,7 +845,7 @@ class PhotometryHandler(BaseHandler):
                 .options(joinedload(Photometry.groups))
                 .options(joinedload(Photometry.streams))
             )
-            .scalars()
+            .unique()
             .all()
         )
 
@@ -865,7 +861,7 @@ class PhotometryHandler(BaseHandler):
                 groups = (
                     DBSession()
                     .execute(sa.select(Group).filter(Group.id.in_(group_ids_update)))
-                    .sclars()
+                    .scalars()
                     .all()
                 )
                 # update the corresponding photometry entry in the db
@@ -910,23 +906,9 @@ class PhotometryHandler(BaseHandler):
     def get(self, photometry_id):
         # The full docstring/API spec is below as an f-string
 
-        print("self.current_user:", self.current_user)
-        print(
-            "current user's streams:",
-            [g.id for g in self.current_user.created_by.streams],
-        )
-        print(
-            "phot streams:", [g.id for g in Photometry.query.get(photometry_id).streams]
-        )
-        print(
-            "phot groups:", [g.id for g in Photometry.query.get(photometry_id).groups]
-        )
-
         phot = Photometry.get_if_accessible_by(
             photometry_id, self.current_user, raise_if_none=True
         )
-        print("photometry_id:", photometry_id)
-        print("phot:", phot)
 
         # get the desired output format
         format = self.get_query_argument('format', 'mag')
