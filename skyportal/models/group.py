@@ -111,13 +111,9 @@ class AccessibleIfGroupUserMatches(AccessibleIfUserMatches):
 
         # return only selected columns if requested
         if columns is not None:
-            print("columns is not None:", columns)
             query = DBSession().query(*columns).select_from(cls)
         else:
-            print("columns is None")
             query = DBSession().query(cls).select_from(cls)
-
-        print("query in group.py::query_accessible_rows", str(query))
 
         # traverse the relationship chain via sequential JOINs
         for relationship_name in self.relationship_names:
@@ -138,7 +134,6 @@ class AccessibleIfGroupUserMatches(AccessibleIfUserMatches):
         # filter for records with at least one matching user
         user_id = self.user_id_from_user_or_token(user_or_token)
         query = query.filter(GroupUser.user_id == user_id)
-        print("query at END OF group.py::query_accessible_rows", str(query))
         return query
 
 

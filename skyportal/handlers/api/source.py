@@ -919,18 +919,18 @@ class SourceHandler(BaseHandler):
             other = ca.Point(ra=ra, dec=dec)
             obj_query = obj_query.filter(Obj.within(other, radius))
         if start_date:
-            start_date = arrow.get(start_date.strip()).datetime
+            start_date = str(arrow.get(start_date.strip()).datetime)
             obj_query = obj_query.filter(
                 Obj.last_detected_at(self.current_user) >= start_date
             )
         if end_date:
-            end_date = arrow.get(end_date.strip()).datetime
+            end_date = str(arrow.get(end_date.strip()).datetime)
             obj_query = obj_query.filter(
                 Obj.last_detected_at(self.current_user) <= end_date
             )
         if has_spectrum_after:
             try:
-                has_spectrum_after = arrow.get(has_spectrum_after.strip()).datetime
+                has_spectrum_after = str(arrow.get(has_spectrum_after.strip()).datetime)
             except arrow.ParserError:
                 return self.error(
                     f"Invalid input for parameter hasSpectrumAfter:{has_spectrum_after}"
@@ -945,7 +945,9 @@ class SourceHandler(BaseHandler):
             )
         if has_spectrum_before:
             try:
-                has_spectrum_before = arrow.get(has_spectrum_before.strip()).datetime
+                has_spectrum_before = str(
+                    arrow.get(has_spectrum_before.strip()).datetime
+                )
             except arrow.ParserError:
                 return self.error(
                     f"Invalid input for parameter hasSpectrumBefore:{has_spectrum_before}"
@@ -964,9 +966,9 @@ class SourceHandler(BaseHandler):
             source_query = source_query.filter(Source.saved_at >= saved_after)
         if created_or_modified_after:
             try:
-                created_or_modified_date = arrow.get(
-                    created_or_modified_after.strip()
-                ).datetime
+                created_or_modified_date = str(
+                    arrow.get(created_or_modified_after.strip()).datetime
+                )
             except arrow.ParserError:
                 return self.error("Invalid value provided for createdOrModifiedAfter")
             obj_query = obj_query.filter(
@@ -1256,7 +1258,7 @@ class SourceHandler(BaseHandler):
                         peak_detected_mag,
                     ) = result
                 else:
-                    obj = result
+                    (obj,) = result
                 obj_list.append(obj.to_dict())
 
                 if include_comments:
