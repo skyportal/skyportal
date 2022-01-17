@@ -16,7 +16,7 @@ from .gcn import *
 from .group import *
 from .group_joins import *
 from .instrument import *
-from .generic_passbands import *
+from .generic_passband import *
 from .invitation import *
 from .listing import *
 from .localization import *
