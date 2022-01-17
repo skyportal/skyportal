@@ -145,6 +145,14 @@ const ProfileDropdown = () => {
           >
             <MenuItem className={classes.centerContent}>Profile</MenuItem>
           </Link>
+          <Link
+            to="/my_shifts"
+            role="link"
+            className={classes.nodecor}
+            onClick={handleClose}
+          >
+            <MenuItem className={classes.centerContent}>Next Shifts</MenuItem>
+          </Link>
         </MenuList>
 
         <Box

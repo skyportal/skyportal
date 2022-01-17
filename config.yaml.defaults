@@ -85,6 +85,10 @@ app:
       component: DBStats
     - path: "/gcn_events"
       component: GcnEvents
+    - path: "/list_shifts"
+      component: ListOfShifts
+    - path: "/my_shifts"
+      component: MyShifts
 
 
   sidebar:
