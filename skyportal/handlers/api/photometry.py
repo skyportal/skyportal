@@ -861,7 +861,7 @@ class PhotometryHandler(BaseHandler):
                 groups = (
                     DBSession()
                     .execute(sa.select(Group).filter(Group.id.in_(group_ids_update)))
-                    .sclars()
+                    .scalars()
                     .all()
                 )
                 # update the corresponding photometry entry in the db
