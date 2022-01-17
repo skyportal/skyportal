@@ -19,7 +19,6 @@ from .instrument import *
 from .invitation import *
 from .listing import *
 from .localization import *
-from .logbook import *
 from .obj import *
 from .observing_run import *
 from .photometry import *
