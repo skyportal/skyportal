@@ -478,10 +478,9 @@ def test_retrieve_photometry_error_group_membership_posted_by_other(
         },
         token=upload_data_token,
     )
-    print(
-        "upload_data_token user's single user group id:",
-        Token.query.get(upload_data_token).created_by.single_user_group.id,
-    )
+    # the upload_data_token user's single user group id is =
+    # Token.query.get(upload_data_token).created_by.single_user_group.id
+
     assert status == 200
     assert data['status'] == 'success'
 
@@ -489,10 +488,10 @@ def test_retrieve_photometry_error_group_membership_posted_by_other(
     status, data = api(
         'GET', f'photometry/{photometry_id}?format=flux', token=view_only_token
     )
-    print(
-        "view only token group ids:",
-        [g.id for g in Token.query.get(view_only_token).created_by.groups],
-    )
+
+    # the view-only token group ids =
+    # [g.id for g in Token.query.get(view_only_token).created_by.groups]
+
     # `view_only_token only` belongs to `public_group`, not `public_group2`
     assert status == 400
     assert data['status'] == 'error'
