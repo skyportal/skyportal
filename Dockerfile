@@ -26,6 +26,8 @@ ADD . /skyportal
 WORKDIR /skyportal
 
 RUN bash -c "\
+    cp docker.yaml config.yaml && \
+    \
     source /skyportal_env/bin/activate && \
     make system_setup && \
     \
@@ -36,9 +38,7 @@ RUN bash -c "\
     chown -R skyportal.skyportal /skyportal && \
     \
     mkdir -p /skyportal/static/thumbnails && \
-    chown -R skyportal.skyportal /skyportal/static/thumbnails && \
-    \
-    cp docker.yaml config.yaml"
+    chown -R skyportal.skyportal /skyportal/static/thumbnails"
 
 USER skyportal
 

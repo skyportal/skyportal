@@ -245,12 +245,8 @@ def test_sources_sorting(
     driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
 
     # Now sort by date saved desc by clicking the header twice
-    driver.click_xpath(
-        "//span[contains(@data-testid, 'headcol-')]//div[text()='Date Saved']"
-    )
-    driver.click_xpath(
-        "//span[contains(@data-testid, 'headcol-')]//div[text()='Date Saved']"
-    )
+    driver.click_xpath("//*[text()='Date Saved']")
+    driver.click_xpath("//*[text()='Date Saved']")
 
     # Now, the first one posted should be the second row
     # Col 0, Row 0 should be the second sources's id (MuiDataTableBodyCell-0-0)
@@ -263,9 +259,7 @@ def test_sources_sorting(
     )
 
     # Now sort by redshift ascending, which would put obj_id first
-    driver.click_xpath(
-        "//span[contains(@data-testid, 'headcol-')]//div[text()='Redshift']"
-    )
+    driver.click_xpath("//*[text()='Redshift']")
 
     # Now, the first one posted should be the second row
     # Col 0, Row 0 should be the second sources's id (MuiDataTableBodyCell-0-0)

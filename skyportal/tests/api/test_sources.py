@@ -320,7 +320,7 @@ def test_cannot_update_source_without_permission(view_only_token, public_source)
         },
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 401
     assert data["status"] == "error"
 
 
@@ -440,6 +440,7 @@ def test_starlist(upload_data_token, public_source):
     assert isinstance(data["data"]["starlist_info"][2]["dec"], float)
 
     ztf_star_position = data["data"]["starlist_info"][2]["dec"]
+    ztf_requested_position_used_ztfref = data["data"]["used_ztfref"]
 
     # use DR2 for offsets ... it should not be identical position as DR2
     status, data = api(
@@ -452,8 +453,15 @@ def test_starlist(upload_data_token, public_source):
     assert data["status"] == "success"
     assert isinstance(data["data"]["starlist_info"][2]["dec"], float)
     gaiadr2_star_position = data["data"]["starlist_info"][2]["dec"]
-    with pytest.raises(AssertionError):
-        npt.assert_almost_equal(gaiadr2_star_position, ztf_star_position, decimal=10)
+    dr2_requested_position_used_ztfref = data["data"]["used_ztfref"]
+
+    # if we indeed did not use the same catalog for the position of the
+    # offset star, test to make sure we got back a different star position
+    if dr2_requested_position_used_ztfref != ztf_requested_position_used_ztfref:
+        with pytest.raises(AssertionError):
+            npt.assert_almost_equal(
+                gaiadr2_star_position, ztf_star_position, decimal=10
+            )
 
 
 def test_source_notifications_unauthorized(
@@ -470,7 +478,7 @@ def test_source_notifications_unauthorized(
         },
         token=source_notification_user_token,
     )
-    assert status == 400
+    assert status == 401
     assert "Unauthorized" in data["message"]
 
 
