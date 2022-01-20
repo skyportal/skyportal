@@ -41,6 +41,8 @@ class CommentMixin:
             return "comments"
         if cls.__name__ == 'CommentOnSpectrum':
             return 'comments_on_spectra'
+        if cls.__name__ == 'CommentOnGCN':
+            return 'comments_on_gcn'
 
     @declared_attr
     def author(cls):
@@ -70,13 +72,13 @@ class CommentMixin:
             doc="ID of the Comment's Obj.",
         )
 
-    @declared_attr
-    def obj(cls):
-        return relationship(
-            'Obj',
-            back_populates=cls.backref_name(),
-            doc="The Comment's Obj.",
-        )
+    # @declared_attr
+    # def obj(cls):
+    #     return relationship(
+    #         'Obj',
+    #         back_populates=cls.backref_name(),
+    #         doc="The Comment's Obj.",
+    #     )
 
     @declared_attr
     def groups(cls):
@@ -106,6 +108,12 @@ class Comment(Base, CommentMixin):
 
     update = delete = AccessibleIfUserMatches('author')
 
+    obj = relationship(
+        'Obj',
+        back_populates='comments',
+        doc="The Comment's Obj.",
+    )
+
 
 class CommentOnSpectrum(Base, CommentMixin):
 
@@ -120,6 +128,12 @@ class CommentOnSpectrum(Base, CommentMixin):
 
     update = delete = AccessibleIfUserMatches('author')
 
+    obj = relationship(
+        'Obj',
+        back_populates='comments_on_spectra',
+        doc="The Comment's Obj.",
+    )
+
     spectrum_id = sa.Column(
         sa.ForeignKey('spectra.id', ondelete='CASCADE'),
         nullable=False,
@@ -130,4 +144,29 @@ class CommentOnSpectrum(Base, CommentMixin):
         'Spectrum',
         back_populates='comments',
         doc="The Spectrum referred to by this comment.",
+    )
+
+
+class CommentOnGCN(Base, CommentMixin):
+
+    __tablename__ = 'comments_on_gcn'
+
+    create = AccessibleIfRelatedRowsAreAccessible(gcn='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        spectrum='read',
+    )
+
+    update = delete = AccessibleIfUserMatches('author')
+
+    gcn_id = sa.Column(
+        sa.ForeignKey('gcnevents.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Comment's GCN.",
+    )
+    gcn = relationship(
+        'GcnEvent',
+        back_populates='comments',
+        doc="The GcnEvent referred to by this comment.",
     )
