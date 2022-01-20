@@ -22,7 +22,7 @@ jobs:
       # (e.g., to get access to a newer data loader or dependencies).
       # Pick any commit known to have passed the migration tests on
       # CI, or which has deployed successfully.
-      MIGRATION_REFERENCE: 880cd56716015e33df22af1d256717ce98d7eb84
+      MIGRATION_REFERENCE: 88b66a5a4aaaff761315dc4c79251fc3cfec46d7
 
     services:
       postgres:
@@ -138,6 +138,7 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
           pip list --format=columns
@@ -148,6 +149,7 @@ jobs:
 
       - name: Test loading demo data
         run: |
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make run &
           sleep 10 && make load_demo_data
           kill %1
@@ -226,7 +228,7 @@ jobs:
 
           createdb -h localhost -U skyportal skyportal2
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal2 TO skyportal;" skyportal2
-
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
           make run &
