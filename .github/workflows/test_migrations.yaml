@@ -138,6 +138,7 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
           pip list --format=columns
@@ -148,6 +149,7 @@ jobs:
 
       - name: Test loading demo data
         run: |
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make run &
           sleep 10 && make load_demo_data
           kill %1
@@ -226,7 +228,7 @@ jobs:
 
           createdb -h localhost -U skyportal skyportal2
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal2 TO skyportal;" skyportal2
-
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
           make run &
