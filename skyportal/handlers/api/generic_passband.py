@@ -147,13 +147,13 @@ class GenericPassbandHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        instrument = GenericPassband.get_if_accessible_by(
+        generic_passband = GenericPassband.get_if_accessible_by(
             int(generic_passband_id),
             self.current_user,
             raise_if_none=True,
             mode='update',
         )
-        DBSession().delete(instrument)
+        DBSession().delete(generic_passband)
         self.verify_and_commit()
 
         return self.success()
