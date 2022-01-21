@@ -123,12 +123,6 @@ class GalaxyCatalogHandler(BaseHandler):
               description: |
                 Name of localization / skymap to use
             - in: query
-              name: localizationName
-              schema:
-                type: string
-              description: |
-                Name of localization / skymap to use
-            - in: query
               name: localizationCumprob
               schema:
                 type: number
