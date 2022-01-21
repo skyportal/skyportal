@@ -540,6 +540,38 @@ class SourceHandler(BaseHandler):
             description: |
               Arrow-parseable date-time string (e.g. 2020-01-01 or 2020-01-01T00:00:00 or 2020-01-01T00:00:00+00:00).
               If provided, filter by created_at or modified > createdOrModifiedAfter
+          - in: query
+            name: localizationDateobs
+            schema:
+              type: string
+            description: |
+              Event time in isot format
+          - in: query
+            name: localizationName
+            schema:
+              type: string
+            description: |
+              Name of localization / skymap to use
+          - in: query
+            name: localizationName
+            schema:
+              type: string
+            description: |
+              Name of localization / skymap to use
+          - in: query
+            name: localizationCumprob
+            schema:
+              type: number
+            description: |
+              Cumulative probability up to which to include galaxies
+          - in: query
+            name: includeGeojson
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated geojson. Defaults to
+              false.
           responses:
             200:
               content:

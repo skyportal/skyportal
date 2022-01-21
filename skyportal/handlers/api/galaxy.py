@@ -1,13 +1,12 @@
-from baselayer.app.access import permissions, auth_or_token
-from baselayer.log import make_log
 from tornado.ioloop import IOLoop
 from geojson import Point, Feature
-
 import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
-
 import astropy.units as u
 import healpix_alchemy as ha
+
+from baselayer.app.access import permissions, auth_or_token
+from baselayer.log import make_log
 
 from ..base import BaseHandler
 from ...models import DBSession, Galaxy, Localization, LocalizationTile
@@ -106,11 +105,43 @@ class GalaxyCatalogHandler(BaseHandler):
           tags:
             - galaxies
           parameters:
-            - in: catalog_query
-              name: name
+            - in: query
+              name: catalog_name
               schema:
                 type: string
               description: Filter by catalog name (exact match)
+            - in: query
+              name: localizationDateobs
+              schema:
+                type: string
+              description: |
+                Event time in isot format
+            - in: query
+              name: localizationName
+              schema:
+                type: string
+              description: |
+                Name of localization / skymap to use
+            - in: query
+              name: localizationName
+              schema:
+                type: string
+              description: |
+                Name of localization / skymap to use
+            - in: query
+              name: localizationCumprob
+              schema:
+                type: number
+              description: |
+                Cumulative probability up to which to include galaxies
+            - in: query
+              name: includeGeojson
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated geojson. Defaults to
+                false.
           responses:
             200:
               content:
@@ -133,6 +164,7 @@ class GalaxyCatalogHandler(BaseHandler):
             query = query.filter(Galaxy.catalog_name == catalog_name)
 
         if localization_dateobs is not None:
+
             if localization_name is not None:
                 localization = (
                     Localization.query_records_accessible_by(self.current_user)
