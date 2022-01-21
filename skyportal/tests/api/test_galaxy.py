@@ -22,7 +22,7 @@ def test_galaxy(super_admin_token, view_only_token):
 
     status, data = api('GET', 'galaxy_catalog', token=view_only_token)
     assert status == 200
-    data = data["data"]
+    data = data["data"]["sources"]
     assert len(data) == 10
     assert any(
         [
