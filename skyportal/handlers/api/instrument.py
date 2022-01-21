@@ -130,7 +130,6 @@ class InstrumentHandler(BaseHandler):
                 mode="read",
                 options=[joinedload(Instrument.fields)],
             )
-            print('instrument.to_dict()=====', instrument.to_dict())
 
             return self.success(data=instrument)
 
