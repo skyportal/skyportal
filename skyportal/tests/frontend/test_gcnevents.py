@@ -60,4 +60,4 @@ def test_gcnevents(
     driver.wait_for_xpath('//*[text()="Fermi"]')
     driver.wait_for_xpath('//*[text()="GRB"]')
 
-    driver.wait_for_xpath(f'//*[text()="{obj_id}"]')
+    driver.wait_for_xpath(f'//*[text()="{obj_id}"]', timeout=30)
