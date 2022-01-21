@@ -1727,9 +1727,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         show_value=False,
         format="0[.]0000",
     )
-    # z_textinput = TextInput(
-    #     value=str(obj.redshift if obj.redshift is not None else 0.0)
-    # )
     z_input = NumericInput(
         value=obj.redshift if obj.redshift is not None else 0.0,
         mode='float',
