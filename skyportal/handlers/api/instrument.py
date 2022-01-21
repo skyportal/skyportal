@@ -272,7 +272,6 @@ InstrumentHandler.post.__doc__ = f"""
 
 def add_tiles(instrument_id, instrument_name, regions, field_data):
     session = Session()
-    # if True:
     try:
         # Loop over the telescope tiles and create fields for each
         skyoffset_frames = coordinates.SkyCoord(
