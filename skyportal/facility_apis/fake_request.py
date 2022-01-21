@@ -1,7 +1,7 @@
 from tornado import httputil
 
 
-class FakeApplication(object):
+class FakeApplication:
     def __init__(
         self,
     ) -> None:
