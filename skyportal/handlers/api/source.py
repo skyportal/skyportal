@@ -1,11 +1,14 @@
 import datetime
 from json.decoder import JSONDecodeError
 from dateutil.tz import UTC
+import astropy.units as u
+from geojson import Point, Feature
 import python_http_client.exceptions
 from twilio.base.exceptions import TwilioException
 from tornado.ioloop import IOLoop
 import io
 from dateutil.parser import isoparse
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
 import arrow
@@ -13,6 +16,7 @@ from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 import functools
 import conesearch_alchemy as ca
+import healpix_alchemy as ha
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -41,6 +45,8 @@ from ...models import (
     SourceNotification,
     Classification,
     Taxonomy,
+    Localization,
+    LocalizationTile,
     Listing,
     Spectrum,
     SourceView,
@@ -608,6 +614,11 @@ class SourceHandler(BaseHandler):
             "createdOrModifiedAfter", None
         )
 
+        localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        localization_name = self.get_query_argument("localizationName", None)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        includeGeojson = self.get_query_argument("includeGeojson", False)
+
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
             """
@@ -918,6 +929,7 @@ class SourceHandler(BaseHandler):
                 )
             other = ca.Point(ra=ra, dec=dec)
             obj_query = obj_query.filter(Obj.within(other, radius))
+
         if start_date:
             start_date = str(arrow.get(start_date.strip()).datetime)
             obj_query = obj_query.filter(
@@ -1129,6 +1141,65 @@ class SourceHandler(BaseHandler):
                     Obj.id == classification_subquery.c.obj_id,
                     isouter=True,
                 )
+
+        if localization_dateobs is not None:
+            if localization_name is not None:
+                localization = (
+                    Localization.query_records_accessible_by(self.current_user)
+                    .filter(Localization.dateobs == localization_dateobs)
+                    .filter(Localization.localization_name == localization_name)
+                    .first()
+                )
+            else:
+                localization = (
+                    Localization.query_records_accessible_by(self.current_user)
+                    .filter(Localization.dateobs == localization_dateobs)
+                    .first()
+                )
+            if localization is None:
+                if localization_name is not None:
+                    return self.error(
+                        f"Localization {localization_dateobs} with name {localization_name} not found",
+                        status=404,
+                    )
+                else:
+                    return self.error(
+                        f"Localization {localization_dateobs} not found", status=404
+                    )
+
+            cum_prob = (
+                sa.func.sum(
+                    LocalizationTile.probdensity * LocalizationTile.healpix.area
+                )
+                .over(order_by=LocalizationTile.probdensity.desc())
+                .label('cum_prob')
+            )
+            subquery1 = (
+                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                    LocalizationTile.localization_id == localization.id
+                )
+            ).subquery()
+
+            min_probdensity = (
+                sa.select(sa.func.min(subquery1.columns.probdensity)).filter(
+                    subquery1.columns.cum_prob <= localization_cumprob
+                )
+            ).scalar_subquery()
+
+            tiles_subquery = (
+                sa.select(Obj.id)
+                .filter(
+                    LocalizationTile.localization_id == localization.id,
+                    LocalizationTile.healpix.contains(Obj.healpix),
+                    LocalizationTile.probdensity >= min_probdensity,
+                )
+                .subquery()
+            )
+
+            obj_query = obj_query.join(
+                tiles_subquery,
+                Obj.id == tiles_subquery.c.id,
+            )
 
         source_query = apply_active_or_requested_filtering(
             source_query, include_requested, requested_only
@@ -1402,6 +1473,34 @@ class SourceHandler(BaseHandler):
             query_results["sources"] = obj_list
 
         query_results = recursive_to_dict(query_results)
+        if includeGeojson:
+            # features are JSON representations that the d3 stuff understands.
+            # We use these to render the contours of the sky localization and
+            # locations of the transients.
+
+            features = []
+
+            # useful for testing visualization
+            # import numpy as np
+            # for xx in np.arange(30, 180, 30):
+            #   features.append(Feature(
+            #       geometry=Point([float(xx), float(-30.0)]),
+            #       properties={"name": "tmp"},
+            #   ))
+
+            for source in query_results["sources"]:
+                point = Point((source["ra"], source["dec"]))
+                if source["alias"] is not None:
+                    source_name = ",".join(source["alias"])
+                else:
+                    source_name = f'{source["ra"]},{source["dec"]}'
+
+                features.append(
+                    Feature(geometry=point, properties={"name": source_name})
+                )
+
+            query_results["geojson"] = features
+
         self.verify_and_commit()
         return self.success(data=query_results)
 
@@ -1484,12 +1583,17 @@ class SourceHandler(BaseHandler):
                 "Invalid group_ids field. Please specify at least "
                 "one valid group ID that you belong to."
             )
+
         try:
             obj = schema.load(data)
         except ValidationError as e:
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
+
+        if (ra is not None) and (dec is not None):
+            # This adds a healpix index for a new object being created
+            obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
         groups = (
             Group.query_records_accessible_by(self.current_user)

@@ -1,7 +1,6 @@
-# Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
+# inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import os
-import functools
 import gcn
 import lxml
 import xmlschema
@@ -10,6 +9,7 @@ from tornado.ioloop import IOLoop
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import sessionmaker, scoped_session
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -20,10 +20,14 @@ from ...models import (
     GcnNotice,
     GcnTag,
     Localization,
+    LocalizationTile,
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
 log = make_log('api/gcn_event')
+
+
+Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 
 class GcnEventHandler(BaseHandler):
@@ -107,9 +111,9 @@ class GcnEventHandler(BaseHandler):
                 Localization.query_records_accessible_by(
                     self.current_user,
                 )
-                .filter(
-                    Localization.dateobs == dateobs,
-                    Localization.localization_name == skymap["localization_name"],
+                .filter_by(
+                    dateobs=dateobs,
+                    localization_name=skymap["localization_name"],
                 )
                 .one()
             )
@@ -118,14 +122,8 @@ class GcnEventHandler(BaseHandler):
             DBSession().add(localization)
             DBSession().commit()
 
-            contour_func = functools.partial(
-                add_contour,
-                localization.id,
-                self,
-            )
-            IOLoop.current().run_in_executor(None, contour_func)
-
-        self.verify_and_commit()
+            IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
+            IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
         return self.success()
 
@@ -155,7 +153,7 @@ class GcnEventHandler(BaseHandler):
                         joinedload(GcnEvent.gcn_notices),
                     ],
                 )
-                .filter(GcnEvent.dateobs == dateobs)
+                .filter_by(dateobs=dateobs)
                 .first()
             )
             if event is None:
@@ -221,24 +219,44 @@ class GcnEventHandler(BaseHandler):
         return self.success()
 
 
-def add_contour(localization_id, request_handler):
+def add_tiles(localization_id):
+    session = Session()
     try:
-        localization = (
-            Localization.query_records_accessible_by(request_handler.current_user)
-            .filter(
-                Localization.id == localization_id,
+        localization = session.query(Localization).get(localization_id)
+
+        tiles = [
+            LocalizationTile(
+                localization_id=localization.id, healpix=uniq, probdensity=probdensity
             )
-            .first()
-        )
-        localization = get_contour(localization)
-        DBSession().add(localization)
-        DBSession().commit()
+            for uniq, probdensity in zip(localization.uniq, localization.probdensity)
+        ]
+
+        session.add(localization)
+        session.add_all(tiles)
+        session.commit()
+        return log(f"Generated tiles for localization {localization_id}")
     except Exception as e:
         return log(
             f"Unable to generate contour for localization {localization_id}: {e}"
         )
     finally:
-        DBSession.remove()
+        Session.remove()
+
+
+def add_contour(localization_id):
+    session = Session()
+    try:
+        localization = session.query(Localization).get(localization_id)
+        localization = get_contour(localization)
+        session.add(localization)
+        session.commit()
+        return log(f"Generated contour for localization {localization_id}")
+    except Exception as e:
+        return log(
+            f"Unable to generate contour for localization {localization_id}: {e}"
+        )
+    finally:
+        Session.remove()
 
 
 class LocalizationHandler(BaseHandler):

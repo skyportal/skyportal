@@ -130,6 +130,8 @@ class InstrumentHandler(BaseHandler):
                 mode="read",
                 options=[joinedload(Instrument.fields)],
             )
+            print('instrument.to_dict()=====', instrument.to_dict())
+
             return self.success(data=instrument)
 
         inst_name = self.get_query_argument("name", None)
@@ -271,6 +273,7 @@ InstrumentHandler.post.__doc__ = f"""
 
 def add_tiles(instrument_id, instrument_name, regions, field_data):
     session = Session()
+    # if True:
     try:
         # Loop over the telescope tiles and create fields for each
         skyoffset_frames = coordinates.SkyCoord(
@@ -301,6 +304,19 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                 },
             }
 
+            geometry = []
+            for coord in coords:
+                tab = []
+                for i in range(len(coord.ra.deg)):
+                    tab.append([coord.ra.deg[i], coord.dec.deg[i]])
+                tab.append([coord.ra.deg[0], coord.dec.deg[0]])
+                geometry.append(tab)
+
+            # contour['type'] = 'FeatureCollection'
+            # contour['geometry'] = {'coordinates':coordinates,'type': 'MultiLineString'}
+            contour['type'] = "Feature"
+            contour['geometry'] = {'coordinates': geometry, 'type': 'MultiLineString'}
+            contour = {'features': [contour], 'type': "FeatureCollection"}
             field = InstrumentField(
                 instrument_id=instrument_id, field_id=int(field_id), contour=contour
             )
