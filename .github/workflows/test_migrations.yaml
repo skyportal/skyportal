@@ -228,6 +228,9 @@ jobs:
 
           createdb -h localhost -U skyportal skyportal2
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal2 TO skyportal;" skyportal2
+          createdb -h localhost -U skyportal skyportal2_test
+          psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal2_test TO skyportal;" skyportal2_test
+
           export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
