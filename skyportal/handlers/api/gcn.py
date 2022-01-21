@@ -122,6 +122,8 @@ class GcnEventHandler(BaseHandler):
             DBSession().add(localization)
             DBSession().commit()
 
+            log(f"Generating tiles/contours for localization {localization.id}")
+
             IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
             IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
