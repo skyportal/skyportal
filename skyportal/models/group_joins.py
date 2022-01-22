@@ -86,7 +86,7 @@ GroupAnnotationOnSpectrum.delete = GroupAnnotationOnSpectrum.update = (
     accessible_by_group_admins & GroupAnnotationOnSpectrum.read
 )
 
-GroupCommentOnGCN = join_model("group_comments_on_gcn", Group, CommentOnGCN)
+GroupCommentOnGCN = join_model("group_comments_on_gcns", Group, CommentOnGCN)
 GroupCommentOnGCN.__doc__ = "Join table mapping Groups to CommentOnGCN."
 GroupCommentOnGCN.delete = GroupCommentOnGCN.update = (
     accessible_by_group_admins & GroupCommentOnGCN.read
