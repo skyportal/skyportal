@@ -13,6 +13,22 @@ from baselayer.app.models import (
 from .group import accessible_by_groups_members
 
 
+"""
+NOTE ON ADDING NEW COMMENT TYPES:
+To add a new comment on <something> you need to
+- Inherit from CommentMixin (as well as Base).
+- Add the name of the table to backref_name on CommentMixin
+- Add any additional columns, like references to a model the comment is on.
+- Add the comment as a relationship with back_populates (etc.) on the model you are commenting on.
+  (e.g., for CommentOnSpectrum you need to add "comments" to models/spectrum.py)
+- Add a join to models/group_joins.py so comments will have groups associated with them.
+- Add a join to models/user_token.py so comments will have a user associated with them.
+- Update the API endpoints for comments, and the reducers to listen for changes in the comments.
+- Update the app_server.py paths to accept the new type of comment upon API calls.
+
+"""
+
+
 class CommentMixin:
     text = sa.Column(sa.String, nullable=False, doc="Comment body.")
 
@@ -42,7 +58,7 @@ class CommentMixin:
         if cls.__name__ == 'CommentOnSpectrum':
             return 'comments_on_spectra'
         if cls.__name__ == 'CommentOnGCN':
-            return 'comments_on_gcn'
+            return 'comments_on_gcns'
 
     @declared_attr
     def author(cls):
@@ -71,14 +87,6 @@ class CommentMixin:
             index=True,
             doc="ID of the Comment's Obj.",
         )
-
-    # @declared_attr
-    # def obj(cls):
-    #     return relationship(
-    #         'Obj',
-    #         back_populates=cls.backref_name(),
-    #         doc="The Comment's Obj.",
-    #     )
 
     @declared_attr
     def groups(cls):
@@ -149,7 +157,7 @@ class CommentOnSpectrum(Base, CommentMixin):
 
 class CommentOnGCN(Base, CommentMixin):
 
-    __tablename__ = 'comments_on_gcn'
+    __tablename__ = 'comments_on_gcns'
 
     create = AccessibleIfRelatedRowsAreAccessible(gcn='read')
 
