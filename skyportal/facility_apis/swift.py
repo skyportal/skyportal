@@ -63,7 +63,7 @@ class UVOTRequest:
         too.immediate_objective = request.payload["immediate_objective"]
 
         if request.payload["urgency"] not in ["1", "2", "3", "4"]:
-            raise ValueError('urgency outside of allowed bounds.')
+            raise ValueError('urgency not in ["1", "2", "3", "4"].')
         too.urgency = int(request.payload["urgency"])
 
         if request.payload["obs_type"] not in [
