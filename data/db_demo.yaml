@@ -286,7 +286,7 @@ instrument:
     #   file: ../data/DECam_Region.reg
   - band: optical
     name: UVOTXRT
-    api_classname: UVOT_XRTAPI
+    api_classname: UVOTXRTAPI
     =id: UVOTXRT
     telescope_id: =Swift
     type: imager
