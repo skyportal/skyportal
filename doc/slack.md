@@ -64,3 +64,8 @@ Unlike a fault-tolerant pub-sub mechanism like XMPP Jabber, Slack notifications 
 The Slack Admin is trusted to verify that the SkyPortal user they send a Webhook URL to is the same person (or entity) represented in their Slack Workspace.  For most use cases this is a reasonable measure to keep SkyPortal data secure. In addition, while the names and URLs of sources are shown in Slack, no other information (such as comments or classification results) is transmitted. So even if identities are mismatched or channels are compromised, a Slack user with unauthorized access will not be able to access substantive information in SkyPortal.
 
 The Slack admin may delete the Slack App for their workspace at any time, invalidating all webhooks.
+
+
+## Use as an instrument triggering API
+
+We have enabled the use of Slack for instrument "triggering," enabling a push of a transient follow-up request similar to done for other instruments. To enable this, an instrument needs SLACKAPI added as its triggering API, and in the instrument allocation, _altdata should look like {"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"} with the appropriate values.

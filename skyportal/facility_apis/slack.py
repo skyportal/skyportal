@@ -14,10 +14,7 @@ from ..utils import http
 env, cfg = load_env()
 
 
-if cfg['app.slackapi.port'] is None:
-    SLACK_URL = f"{cfg['app.slackapi.protocol']}://{cfg['app.slackapi.host']}/services"
-else:
-    SLACK_URL = f"{cfg['app.slackapi.protocol']}://{cfg['app.slackapi.host']}:{cfg['app.slackapi.port']}/services"
+SLACK_URL = f"{cfg['slack.expected_url_preamble']}/services"
 
 
 class SLACKRequest:
@@ -36,15 +33,28 @@ class SLACKRequest:
         Returns
         ----------
         payload: json
-            payload for requests.
+            payload for requests. payload includes
+              name: object name
+              instrument_request: instrument name
+              ra: right ascension in decimal degrees
+              dec: declination in decimal degrees
+              filters: comma delimited list of filters
+              exposure_time: exposure time requested in seconds
+              exposure_counts: number of exposures requested
+              username: SkyPortal username of requester
         """
 
         for filt in request.payload["observation_choices"]:
-            if filt not in ["g", "r", "i", "z"]:
+            if filt not in request.instrument.to_dict()["filters"]:
                 raise ValueError(f"Improper observation_choice {filt}")
 
-        if request.payload["exposure_time"] <= 0:
-            raise ValueError("Exposure time must be greater than 0")
+        if (
+            request.payload["exposure_time"] <= 0
+            or request.payload["exposure_time"] >= 7200
+        ):
+            raise ValueError(
+                "Exposure time must be greater than 0 or less than 2 hours"
+            )
 
         if request.payload["exposure_counts"] <= 0:
             raise ValueError("Number of exposures must be greater than 0")
@@ -136,36 +146,40 @@ class SLACKAPI(FollowUpAPI):
 
         DBSession().add(transaction)
 
-    form_json_schema = {
-        "type": "object",
-        "properties": {
-            "observation_choices": {
-                "type": "array",
-                "title": "Desired Observations",
-                "items": {
-                    "type": "string",
-                    "enum": ["g", "r", "i", "z"],
+    def custom_json_schema(instrument):
+
+        form_json_schema = {
+            "type": "object",
+            "properties": {
+                "observation_choices": {
+                    "type": "array",
+                    "title": "Desired Observations",
+                    "items": {
+                        "type": "string",
+                        "enum": instrument.to_dict()["filters"],
+                    },
+                    "uniqueItems": True,
+                    "minItems": 1,
                 },
-                "uniqueItems": True,
-                "minItems": 1,
+                "exposure_time": {
+                    "title": "Exposure Time [s]",
+                    "type": "number",
+                    "default": 300.0,
+                },
+                "exposure_counts": {
+                    "title": "Exposure Counts",
+                    "type": "number",
+                    "default": 1,
+                },
             },
-            "exposure_time": {
-                "title": "Exposure Time [s]",
-                "type": "number",
-                "default": 300.0,
-            },
-            "exposure_counts": {
-                "title": "Exposure Counts",
-                "type": "number",
-                "default": 1,
-            },
-        },
-        "required": [
-            "observation_choices",
-            "exposure_time",
-            "exposure_counts",
-        ],
-    }
+            "required": [
+                "observation_choices",
+                "exposure_time",
+                "exposure_counts",
+            ],
+        }
+
+        return form_json_schema
 
     ui_json_schema = {"observation_choices": {"ui:widget": "checkboxes"}}
 

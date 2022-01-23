@@ -38,10 +38,6 @@ app:
     protocol: http
     host: herculesii.astro.berkeley.edu
 
-  slackapi:
-    protocol: https
-    host: hooks.slack.com
-
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
@@ -420,6 +416,8 @@ image_grayscale_params:
 slack:
   microservice_port: 64100
   expected_url_preamble: "https://hooks.slack.com/"
+  slack_followup_requests:
+    enabled: true
 
 spectrum_types:
   types:
