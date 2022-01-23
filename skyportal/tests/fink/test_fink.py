@@ -14,7 +14,7 @@ from fink_client.consumer import AlertConsumer
 from fink_client.configuration import load_credentials
 
 from astropy.time import Time
-import skyportal.utils.fink.post_fink_alerts as sa
+import skyportal.utils.fink.post_fink_alerts as post_fink_alerts
 
 # sys.path.insert(1, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))+ '/utils/fink/')
 
@@ -196,25 +196,25 @@ def test_skyportal_api(super_admin_token):
     alert = r.to_list()[0]
     topic = load_credentials()['mytopics'][0]
 
-    status, id = sa.post_telescopes('ztf', 'ztf', 10, super_admin_token)
+    status, id = post_fink_alerts.post_telescopes('ztf', 'ztf', 10, super_admin_token)
     assert status == 200
-    status, id = sa.post_instruments(
+    status, id = post_fink_alerts.post_instruments(
         'ztf', 'imager', 1, ['ztfr', 'ztfg', 'ztfi'], super_admin_token
     )
     assert status == 200
-    status, id_stream = sa.post_streams('test_stream', super_admin_token)
+    status, id_stream = post_fink_alerts.post_streams('test_stream', super_admin_token)
     assert status == 200
-    status, id_filter = sa.post_filters('test_filter', id_stream, 1, super_admin_token)
+    status, id_filter = post_fink_alerts.post_filters('test_filter', id_stream, 1, super_admin_token)
     assert status == 200
 
-    status, instruments = sa.get_all_instruments(super_admin_token)
+    status, instruments = post_fink_alerts.get_all_instruments(super_admin_token)
     assert status == 200
-    status, groups_dict = sa.get_group_ids_and_name(super_admin_token)
+    status, groups_dict = post_fink_alerts.get_group_ids_and_name(super_admin_token)
     assert status == 200
     group_ids = list(groups_dict.values())
     if topic not in list(groups_dict.keys()):
         classification = topic_to_classification(topic)
-        status, id_fink = sa.post_fink_group(classification, super_admin_token)
+        status, id_fink = post_fink_alerts.post_fink_group(classification, super_admin_token)
         assert status == 200
         groups_dict[topic] = max(group_ids) + 1
 
@@ -233,25 +233,24 @@ def test_skyportal_api(super_admin_token):
         classification = topic_to_classification(topic)
         probability = topic_to_probability(topic)
 
-        status, source_ids = sa.get_all_source_ids(token=super_admin_token)
+        status, source_ids = post_fink_alerts.get_all_source_ids(token=super_admin_token)
         if ztf_id not in source_ids:
             print('this source doesnt exist yet')
-            status, id = sa.post_source(
+            status, id = post_fink_alerts.post_source(
                 ztf_id, ra, dec, [id_fink], token=super_admin_token
             )
             assert status == 200
-        status, candidate_ids = sa.get_all_candidate_ids(token=super_admin_token)
+        status, candidate_ids = post_fink_alerts.get_all_candidate_ids(token=super_admin_token)
         if ztf_id not in candidate_ids:
             print('this candidate doesnt exist yet')
             passed_at = Time(mjd, format='mjd').isot
-            print(id_filter)
-            status, ids = sa.post_candidate(
+            status, ids = post_fink_alerts.post_candidate(
                 ztf_id, ra, dec, [id_filter], passed_at, token=super_admin_token
             )
             assert status == 200
         instrument_id = instruments[instrument]
         time.sleep(2)
-        status, id = sa.post_photometry(
+        status, id = post_fink_alerts.post_photometry(
             ztf_id,
             mjd,
             instrument_id,
@@ -270,7 +269,7 @@ def test_skyportal_api(super_admin_token):
 
         with open(taxonomy_dir) as file:
             tax = yaml.load(file, Loader=yaml.FullLoader)
-        status, taxonomy_id = sa.post_taxonomy(
+        status, taxonomy_id = post_fink_alerts.post_taxonomy(
             name='demo_taxonomy',
             hierarchy=tax[0]['hierarchy'],
             version='1.0.0',
@@ -278,8 +277,8 @@ def test_skyportal_api(super_admin_token):
         )
         assert status == 200
 
-        if sa.classification_exists_for_objs(ztf_id, token=super_admin_token):
-            status = sa.update_classification(
+        if post_fink_alerts.classification_exists_for_objs(ztf_id, token=super_admin_token):
+            status = post_fink_alerts.update_classification(
                 ztf_id,
                 topic,
                 probability,
@@ -289,7 +288,7 @@ def test_skyportal_api(super_admin_token):
             )
         else:
             print('this classification doesnt exist yet')
-            status, classification_id = sa.post_classification(
+            status, classification_id = post_fink_alerts.post_classification(
                 ztf_id,
                 topic,
                 probability,

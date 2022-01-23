@@ -41,7 +41,7 @@ def topic_to_probability(topic):
     return switcher.get(topic)
 
 
-def poll_alerts() -> None:
+def poll_alerts():
     """Connect to and poll fink servers once.
 
     Parameters
@@ -93,7 +93,6 @@ def poll_alerts() -> None:
                     magsys = 'ab'  # seems like it is the good magsys
                     ra = alert['candidate']['ra']
                     dec = alert['candidate']['dec']
-                    print(topic_to_classification(topic))
                     post_fink_alerts.from_fink_to_skyportal(
                         topic_to_classification(topic),
                         topic_to_probability(topic),

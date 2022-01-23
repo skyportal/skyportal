@@ -69,13 +69,6 @@ def get_all_candidate_ids(token):
         candidate['id'] for candidate in candidates.json()['data']['candidates']
     ]
 
-    data = []
-    if candidates.status_code == 200:
-        data = [
-            candidate['id'] for candidate in candidates.json()['data']['candidates']
-        ]
-    return candidates.status_code, data
-
 
 def get_all_streams(token):
     streams = api(
@@ -84,10 +77,6 @@ def get_all_streams(token):
 
     return streams.status_code, streams['data']
 
-    if streams.status_code == 200:
-        data = [stream['id'] for stream in streams.json()['data']['streams']]
-    return streams.status_code, data
-
 
 def classification_exists_for_objs(object_id, token):
     classifications = api(
@@ -95,9 +84,6 @@ def classification_exists_for_objs(object_id, token):
         f"http://localhost:{cfg['ports.app']}/api/sources/classifications/{object_id}",
         token=token,
     )
-    print("///////")
-    print(classifications.json())
-    print("///////")
     return classifications.json()['data'] != {}
 
 
@@ -107,11 +93,6 @@ def classification_id_for_objs(object_id, token):
         f"http://localhost:{cfg['ports.app']}/api/sources/classifications/{object_id}",
         token=token,
     )
-
-    print("________")
-    print(classifications.json())
-    print("________")
-
     data = {}
     if classifications.status_code == 200:
         data = {
@@ -237,7 +218,6 @@ def post_photometry(
     )
 
     print(f'HTTP code: {response.status_code}, {response.reason}')
-    # if response.status_code in (200, 400): print(f'JSON response: {response.json()}')
     return (
         response.status_code,
         response.json()['data']['ids'] if response.json()['data'] != {} else {},
@@ -263,7 +243,6 @@ def post_classification(
     )
 
     print(f'HTTP code: {response.status_code}, {response.reason}')
-    # return response.status_code, response.json()['data']['classification_id'] if response.json()['data'] != {} else {}
     return response.status_code, response.json()
 
 

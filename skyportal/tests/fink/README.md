@@ -3,7 +3,7 @@
 Requirements:
 
 - Docker & docker compose installed on your machine
-- fink-client version 2.7+ cloned somewhere
+- fink-client cloned somewhere
 
 If your current user has not been added as a docker user, you need to run :
 
