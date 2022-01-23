@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 import numpy.testing as npt
 import requests
-from requests.exceptions import HTTPError, Timeout, ConnectionError
+from requests.exceptions import HTTPError, Timeout, ConnectionError, MissingSchema
 
 from skyportal.tests import api
 from skyportal.utils.offset import (
@@ -13,7 +13,6 @@ from skyportal.utils.offset import (
     get_ztfref_url,
     _calculate_best_position_for_offset_stars,
 )
-from skyportal.utils.offset import irsa
 from skyportal.models import Photometry
 
 
@@ -187,12 +186,17 @@ def test_calculate_best_position_with_photometry(
         npt.assert_almost_equal(dec_calc_snr, dec_calc_err, decimal=10)
 
 
-ztfref_url = irsa['url_search']
+# use a bona fide URL to test to see if the ZTF search facility is working
+ztfref_url = get_ztfref_url(123.0, 33.3, 2)
+# if it's a valid URL, then we can assume that the ZTF search facility is working
 run_ztfref_test = True
 try:
-    r = requests.get(ztfref_url)
-    r.raise_for_status()
-except (HTTPError, TimeoutError, ConnectionError) as e:
+    if ztfref_url != "":
+        r = requests.get(ztfref_url)
+        r.raise_for_status()
+    else:
+        run_ztfref_test = False
+except (HTTPError, TimeoutError, ConnectionError, MissingSchema) as e:
     run_ztfref_test = False
     print(e)
 
