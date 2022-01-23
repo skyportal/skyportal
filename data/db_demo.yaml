@@ -298,6 +298,12 @@ instrument:
     filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: SEDMV2API
     =id: SEDMv2
+  - band: optical
+    name: ATLAS
+    telescope_id: =ATLAS-0p5m
+    type: imager
+    =id: ATLAS
+    filters: ["atlasc", "atlaso"]
 
 allocation:
   - pi: Michael Coughlin
@@ -424,12 +430,6 @@ candidates:
       simbad:
         class: EB
     passed_at: "2020-10-30 11:23:06.475748"
-  - band: optical
-    name: ATLAS
-    telescope_id: =ATLAS-0p5m
-    type: imager
-    =id: ATLAS
-    filters: ["atlasc", "atlaso"]
 
 sources:
   - id: ZTF21aaqjmps
