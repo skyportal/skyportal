@@ -13,12 +13,12 @@ env, cfg = load_env()
 API_URL = f"{cfg['app.swift.protocol']}://{cfg['app.swift.host']}:{cfg['app.swift.port']}/toop/submit_json.php"
 
 
-class UVOTRequest:
+class UVOTXRTRequest:
 
-    """A JSON structure for Swift UVOT requests."""
+    """A JSON structure for Swift UVOT/XRT requests."""
 
     def __init__(self, request):
-        """Initialize UVOT request.
+        """Initialize UVOT/XRT request.
 
         Parameters
         ----------
@@ -30,7 +30,7 @@ class UVOTRequest:
         self.requestgroup = self._build_payload(request)
 
     def _build_payload(self, request):
-        """Payload json for Swift UVOT TOO requests.
+        """Payload json for Swift UVOT/XRT TOO requests.
 
         Parameters
         ----------
@@ -81,7 +81,7 @@ class UVOTRequest:
         return too
 
 
-class UVOTAPI(FollowUpAPI):
+class UVOTXRTAPI(FollowUpAPI):
 
     """An interface to Swift operations."""
 
@@ -89,7 +89,7 @@ class UVOTAPI(FollowUpAPI):
     @staticmethod
     def submit(request):
 
-        """Submit a follow-up request to Swift's UVOT
+        """Submit a follow-up request to Swift's UVOT/XRT
 
         Parameters
         ----------
@@ -103,7 +103,7 @@ class UVOTAPI(FollowUpAPI):
         if not altdata:
             raise ValueError('Missing allocation information.')
 
-        swiftreq = UVOTRequest(request)
+        swiftreq = UVOTXRTRequest(request)
 
         swiftreq.requestgroup.validate()
 

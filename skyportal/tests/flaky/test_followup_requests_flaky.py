@@ -202,7 +202,7 @@ def add_allocation_sedmv2(instrument_id, group_id, token):
     assert data["status"] == "success"
 
 
-def add_allocation_uvot(instrument_id, group_id, token):
+def add_allocation_uvotxrt(instrument_id, group_id, token):
     status, data = api(
         "POST",
         "allocation",
@@ -333,12 +333,12 @@ def add_followup_request_using_frontend_and_verify_KAIT(
     )
 
 
-def add_followup_request_using_frontend_and_verify_UVOT(
+def add_followup_request_using_frontend_and_verify_UVOTXRT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
     """Adds a new followup request and makes sure it renders properly."""
-    idata = add_telescope_and_instrument("UVOT", super_admin_token)
-    add_allocation_uvot(idata['id'], public_group.id, super_admin_token)
+    idata = add_telescope_and_instrument("UVOTXRT", super_admin_token)
+    add_allocation_uvotxrt(idata['id'], public_group.id, super_admin_token)
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
@@ -355,7 +355,7 @@ def add_followup_request_using_frontend_and_verify_UVOT(
     select_box.click()
 
     driver.click_xpath(
-        f'//li[contains(text(), "UVOT")][contains(text(), "{public_group.name}")]',
+        f'//li[contains(text(), "UVOTXRT")][contains(text(), "{public_group.name}")]',
         scroll_parent=True,
     )
 
@@ -364,19 +364,19 @@ def add_followup_request_using_frontend_and_verify_UVOT(
 
     driver.click_xpath(submit_button_xpath)
 
-    driver.click_xpath("//div[@data-testid='UVOT-requests-header']")
+    driver.click_xpath("//div[@data-testid='UVOTXRT-requests-header']")
 
     driver.wait_for_xpath(
-        '//div[contains(@data-testid, "UVOT_followupRequestsTable")]//div[contains(., "Light Curve")]'
+        '//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "Light Curve")]'
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "UVOT_followupRequestsTable")]//div[contains(., "4000")]'''
+        '''//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "4000")]'''
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "UVOT_followupRequestsTable")]//div[contains(., "Optical fast transient")]'''
+        '''//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "Optical fast transient")]'''
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "UVOT_followupRequestsTable")]//div[contains(., "Cannot submit TOOs from anonymous user.")]'''
+        '''//div[contains(@data-testid, "UVOTXRT_followupRequestsTable")]//div[contains(., "Cannot submit TOOs from anonymous user.")]'''
     )
 
 
@@ -839,12 +839,12 @@ def add_followup_request_using_frontend_and_verify_IOO(
 
 
 @pytest.mark.flaky(reruns=2)
-@pytest.mark.skipif(not swift_isonline, reason="UVOT server down")
-def test_submit_new_followup_request_UVOT(
+@pytest.mark.skipif(not swift_isonline, reason="UVOT/XRT server down")
+def test_submit_new_followup_request_UVOTXRT(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
 
-    add_followup_request_using_frontend_and_verify_UVOT(
+    add_followup_request_using_frontend_and_verify_UVOTXRT(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
