@@ -70,6 +70,7 @@ test_server:
     /node_agent2/node_agent: http://161.72.57.3:8080 # LT
     /api/requestgroups/: https://observe.lco.global # LCO
     /api/triggers/ztf: http://skipper.caltech.edu:4000 # ZTF
+    /cgi-bin/internal/process_kait_ztf_request.py: http://herculesii.astro.berkeley.edu # KAIT
 
 app:
   lt_host: localhost
@@ -78,6 +79,10 @@ app:
   lco_host: localhost
   lco_port: 64502
   ztf:
+    protocol: http
+    host: localhost
+    port: 64502
+  kait:
     protocol: http
     host: localhost
     port: 64502

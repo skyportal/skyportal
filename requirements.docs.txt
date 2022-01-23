@@ -1,7 +1,8 @@
-sphinx==4.2.0
+sphinx==4.3.1
 recommonmark
 numpydoc
 sphinx-rtd-theme
 notedown
 jsx-lexer
-eralchemy==1.2.10
+# need a fix for SQLA1.4
+git+https://github.com/sturzaam/eralchemy@Sturzaam-patch-1#egg=eralchemy

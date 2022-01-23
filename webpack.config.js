@@ -1,4 +1,5 @@
 const path = require("path");
+const webpack = require("webpack");
 
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 
@@ -13,7 +14,7 @@ const config = {
     path: path.resolve(__dirname, "static/build"),
     publicPath: "/static/build/",
     filename: "[name].bundle.js",
-    chunkFilename: "[name].[chunkHash].bundle.js",
+    chunkFilename: "[name].[contenthash].bundle.js",
   },
   module: {
     rules: [
@@ -85,6 +86,13 @@ const config = {
   plugins: [
     // Uncomment the following line to enable bundle size analysis
     //    new BundleAnalyzerPlugin()
+    // Needed for non-polyfilled node modules; we aim to remove this when possible
+    new webpack.ProvidePlugin({
+      process: path.resolve(__dirname, "node_modules/process/browser.js"),
+    }),
+    new webpack.ProvidePlugin({
+      Buffer: ["buffer", "Buffer"],
+    }),
   ],
   resolve: {
     alias: {
@@ -103,7 +111,13 @@ const config = {
       ),
     },
     extensions: [".js", ".jsx", ".json"],
+    // Needed for non-polyfilled node modules; we aim to remove this when possible
+    fallback: {
+      path: path.resolve(__dirname, "node_modules/path-browserify"),
+      buffer: path.resolve(__dirname, "node_modules/buffer"),
+    },
   },
+
   watchOptions: {
     ignored: /node_modules/,
     // Set to true if you have trouble with JS change monitoring
