@@ -51,8 +51,6 @@ except requests.exceptions.ConnectTimeout:
 else:
     ztf_isonline = True
 
-
-<<<<<<< HEAD:skyportal/tests/flaky/test_followup_requests_flaky.py
 if cfg['app.kait.port'] is None:
     KAIT_URL = f"{cfg['app.kait.protocol']}://{cfg['app.kait.host']}"
 else:
@@ -68,10 +66,7 @@ except requests.exceptions.ConnectTimeout:
 else:
     kait_isonline = True
 
-url = "https://www.swift.psu.edu/toop/submit_json.php"
-=======
 swift_url = "https://www.swift.psu.edu/toop/submit_json.php"
->>>>>>> 3e3f7e6e (Update skyportal/tests/frontend/sources_and_followup_etc/test_followup_requests.py):skyportal/tests/flaky/test_followup_requests.py
 swift_isonline = False
 try:
     requests.get(swift_url, timeout=5)
@@ -224,6 +219,7 @@ def add_allocation_uvot(instrument_id, group_id, token):
     assert data["status"] == "success"
     return data["data"]
 
+
 def add_allocation_kait(instrument_id, group_id, token):
     status, data = api(
         "POST",
@@ -239,6 +235,7 @@ def add_allocation_kait(instrument_id, group_id, token):
     assert status == 200
     assert data["status"] == "success"
     return data["data"]
+
 
 def add_followup_request_using_frontend_and_verify_SEDMv2(
     driver, super_admin_user, public_source, super_admin_token, public_group

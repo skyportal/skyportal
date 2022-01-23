@@ -192,7 +192,6 @@ def kait_request_matcher(r1, r2):
     assert r1_is_kait and r2_is_kait and r1.method == r2.method
 
 
-
 class TestRouteHandler(tornado.web.RequestHandler):
     """
     This handler intercepts calls coming from SkyPortal API handlers which make
@@ -447,8 +446,15 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
     def post(self):
 
-        cached_urls = [".*/api/requestgroups/.*", ".*/toop/submit_json.php$", ".*/cgi-bin/internal/process_kait_ztf_request.py$", ".*/api/triggers/ztf/.*", ".*/node_agent2/node_agent/.*"]
+        cached_urls = [
+            ".*/api/requestgroups/.*",
+            ".*/toop/submit_json.php$",
+            ".*/cgi-bin/internal/process_kait_ztf_request.py$",
+            ".*/api/triggers/ztf/.*",
+            ".*/node_agent2/node_agent/.*",
+        ]
 
+        is_soap_action = "Soapaction" in self.request.headers
         if any(re.match(pat, self.request.uri) for pat in cached_urls):
             cache = get_cache_file_static()
         else:
