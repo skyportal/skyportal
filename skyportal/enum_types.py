@@ -1,15 +1,37 @@
-import sqlalchemy as sa
-from enum import Enum
+import astropy.units as u
 import inspect
-
-from baselayer.app.env import load_env
-
-from . import facility_apis
-
+import numpy as np
+import sncosmo
 from sncosmo.bandpasses import _BANDPASSES
 from sncosmo.magsystems import _MAGSYSTEMS
+import sqlalchemy as sa
+
+from enum import Enum
+from baselayer.app.env import load_env
+from baselayer.log import make_log
+from . import facility_apis
+
+log = make_log('enum_types')
 
 _, cfg = load_env()
+
+# load additional bandpasses into the SN comso registry
+additional_bandpasses_names = []
+for additional_bandpasses in cfg.get('additional_bandpasses', []):
+    name = additional_bandpasses.get("name")
+    if not name:
+        continue
+    try:
+        wavelength = np.array(additional_bandpasses.get("wavelength"))
+        transmission = np.array(additional_bandpasses.get("transmission"))
+    except Exception as e:
+        log(f"Could not make bandpass for {name}")
+        log(f"(Original exception: {e})")
+
+    band = sncosmo.Bandpass(wavelength, transmission, name=name, wave_unit=u.AA)
+    sncosmo.registry.register(band)
+    additional_bandpasses_names.append(name)
+    log(f"addeed custom bandpass '{name}'")
 
 
 def force_render_enum_markdown(values):
@@ -20,7 +42,12 @@ ALLOWED_SPECTRUM_TYPES = tuple(
     cfg.get('spectrum_types.types', ['source', 'host', 'host_center'])
 )
 ALLOWED_MAGSYSTEMS = tuple(val['name'] for val in _MAGSYSTEMS.get_loaders_metadata())
-ALLOWED_BANDPASSES = tuple(val['name'] for val in _BANDPASSES.get_loaders_metadata())
+# though in the registry, the additional bandpass names are not in the _BANDPASSES list
+ALLOWED_BANDPASSES = tuple(
+    [val['name'] for val in _BANDPASSES.get_loaders_metadata()]
+    + additional_bandpasses_names
+)
+
 THUMBNAIL_TYPES = (
     'new',
     'ref',

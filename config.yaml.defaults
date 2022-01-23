@@ -428,3 +428,21 @@ spectrum_types:
    - host
    - host_center
   default: source
+
+# define the additional passbands that are not in SNCosmo
+# the names must be unique. The wavelength array should
+# describe the full extent of the bandpass in Angstrom
+# and the transmission should be a vector of the same
+# length that defines the full QE at each wavelength.
+# must have at least two elements in the arrays
+additional_bandpasses:
+  - name: 'atlasc'
+    filterset: 'atlas'
+    wavelength: [4150, 4157, 6556, 6560]
+    transmission: [0, 1, 1, 0]
+    description: "basic ATLAS C filter - tophat transmission"
+  - name: 'atlaso'
+    filterset: 'atlas'
+    wavelength: [5580, 5582, 8249, 8250]
+    transmission: [0, 1, 1, 0]
+    description: "basic ATLAS O filter - tophat transmission"
