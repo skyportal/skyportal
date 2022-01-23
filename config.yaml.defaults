@@ -38,9 +38,10 @@ app:
     protocol: http
     host: herculesii.astro.berkeley.edu
 
-  swift_protocol: https
-  swift_host: www.swift.psu.edu
-  swift_port: 443
+  swift:
+    protocol: https
+    host: www.swift.psu.edu
+    port: 443
 
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
