@@ -171,7 +171,7 @@ def test_token_user_update_instrument(
         },
         token=manage_sources_token,
     )
-    assert status == 400
+    assert status == 401
     assert data['status'] == 'error'
 
     status, data = api(

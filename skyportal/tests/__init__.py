@@ -58,10 +58,8 @@ def api(
     if raw_response:
         return response
     else:
-        if response.status_code in (200, 400):
-            if method == "HEAD":
-                return response.status_code, None
-            else:
-                return response.status_code, response.json()
-        else:
-            return response.status_code, None
+        try:
+            data = response.json()
+        except requests.exceptions.JSONDecodeError:
+            data = None
+        return response.status_code, data

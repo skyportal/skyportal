@@ -14,6 +14,7 @@ from baselayer.app.flow import Flow
 
 from ..app_utils import get_app_base_url
 from .classification import Classification
+from .gcn import GcnNotice
 from .spectrum import Spectrum
 from .comment import Comment
 from .listing import Listing
@@ -85,15 +86,16 @@ def send_slack_notification(mapper, connection, target):
     )
 
     is_mention = target.text.find("mentioned you") != -1
+    is_gcnnotice = target.text.find("GcnEvent") != -1
 
-    if (
-        is_mention
-        and not target.user.preferences['slack_integration'].get("mentions", False)
-    ) or (
-        not is_mention
-        and not target.user.preferences['slack_integration'].get(
-            "favorite_sources", False
-        )
+    if is_mention:
+        if not target.user.preferences['slack_integration'].get("mentions", False):
+            return
+    elif is_gcnnotice:
+        if not target.user.preferences['slack_integration'].get("gcnnotices", False):
+            return
+    elif not target.user.preferences['slack_integration'].get(
+        "favorite_sources", False
     ):
         return
 
@@ -109,36 +111,56 @@ def send_slack_notification(mapper, connection, target):
 @event.listens_for(Classification, 'after_insert')
 @event.listens_for(Spectrum, 'after_insert')
 @event.listens_for(Comment, 'after_insert')
+@event.listens_for(GcnNotice, 'after_insert')
 def add_user_notifications(mapper, connection, target):
     # Add front-end user notifications
     @event.listens_for(DBSession(), "after_flush", once=True)
     def receive_after_flush(session, context):
-        listing_subquery = (
-            Listing.query.filter(Listing.list_name == "favorites")
-            .filter(Listing.obj_id == target.obj_id)
-            .distinct(Listing.user_id)
-            .subquery()
-        )
-        users = (
-            User.query.join(listing_subquery, User.id == listing_subquery.c.user_id)
-            .filter(
-                User.preferences["favorite_sources_activity_notifications"][
-                    target.__tablename__
-                ]
+
+        is_gcnnotice = "dateobs" in target.to_dict()
+
+        if is_gcnnotice:
+            users = User.query.filter(
+                User.preferences["slack_integration"]["gcnnotices"]
                 .astext.cast(sa.Boolean)
                 .is_(True)
+            ).all()
+        else:
+            listing_subquery = (
+                Listing.query.filter(Listing.list_name == "favorites")
+                .filter(Listing.obj_id == target.obj_id)
+                .distinct(Listing.user_id)
+                .subquery()
             )
-            .all()
-        )
+            users = (
+                User.query.join(listing_subquery, User.id == listing_subquery.c.user_id)
+                .filter(
+                    User.preferences["favorite_sources_activity_notifications"][
+                        target.__tablename__
+                    ]
+                    .astext.cast(sa.Boolean)
+                    .is_(True)
+                )
+                .all()
+            )
         ws_flow = Flow()
         for user in users:
             # Only notify users who have read access to the new record in question
             if target.__class__.get_if_accessible_by(target.id, user) is not None:
-                session.add(
-                    UserNotification(
-                        user=user,
-                        text=f"New {target.__class__.__name__.lower()} on your favorite source *{target.obj_id}*",
-                        url=f"/source/{target.obj_id}",
+                if is_gcnnotice:
+                    session.add(
+                        UserNotification(
+                            user=user,
+                            text=f"New {target.__class__.__name__.lower()} on GcnEvent *{target.dateobs}*",
+                            url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                        )
                     )
-                )
+                else:
+                    session.add(
+                        UserNotification(
+                            user=user,
+                            text=f"New {target.__class__.__name__.lower()} on your favorite source *{target.obj_id}*",
+                            url=f"/source/{target.obj_id}",
+                        )
+                    )
                 ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")
