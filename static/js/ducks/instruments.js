@@ -1,5 +1,9 @@
+import messageHandler from "baselayer/MessageHandler";
+
 import * as API from "../API";
 import store from "../store";
+
+const REFRESH_INSTRUMENTS = "skyportal/REFRESH_INSTRUMENTS";
 
 const FETCH_INSTRUMENTS = "skyportal/FETCH_INSTRUMENTS";
 const FETCH_INSTRUMENTS_OK = "skyportal/FETCH_INSTRUMENTS_OK";
@@ -12,6 +16,13 @@ export const fetchInstruments = () =>
 
 export const fetchInstrumentForms = () =>
   API.GET(`/api/internal/instrument_forms`, FETCH_INSTRUMENT_FORMS);
+
+// Websocket message handler
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType === REFRESH_INSTRUMENTS) {
+    dispatch(fetchInstruments());
+  }
+});
 
 const reducer = (
   state = { instrumentList: [], instrumentFormParams: {} },
