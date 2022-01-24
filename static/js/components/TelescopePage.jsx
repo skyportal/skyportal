@@ -39,7 +39,6 @@ export function telescopeTitle(telescope) {
   }
 
   const result = `${telescope?.nickname}`;
-
   return result;
 }
 
@@ -52,21 +51,14 @@ export function telescopeInfo(telescope) {
     );
   }
 
-  let result = "";
+  const array = [
+    ...(telescope?.lat ? [`Latitude: ${telescope.lat}`] : []),
+    ...(telescope?.lat ? [`Longitude: ${telescope.lon}`] : []),
+    ...(telescope?.lat ? [`Elevation: ${telescope.elevation}`] : []),
+  ];
 
-  if (telescope?.lat) {
-    result += "( ";
-    if (telescope?.lat) {
-      result += `/ Latitude: ${telescope.lat}`;
-    }
-    if (telescope?.lon) {
-      result += `/ Longitude: ${telescope.lon}`;
-    }
-    if (telescope?.elevation) {
-      result += `/ Elevation: ${telescope.elevation}`;
-    }
-    result += " )";
-  }
+  // eslint-disable-next-line prefer-template
+  const result = "( " + array.join(" / ") + " )";
 
   return result;
 }
