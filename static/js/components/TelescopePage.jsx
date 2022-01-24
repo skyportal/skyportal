@@ -53,8 +53,8 @@ export function telescopeInfo(telescope) {
 
   const array = [
     ...(telescope?.lat ? [`Latitude: ${telescope.lat}`] : []),
-    ...(telescope?.lat ? [`Longitude: ${telescope.lon}`] : []),
-    ...(telescope?.lat ? [`Elevation: ${telescope.elevation}`] : []),
+    ...(telescope?.lon ? [`Longitude: ${telescope.lon}`] : []),
+    ...(telescope?.elevation ? [`Elevation: ${telescope.elevation}`] : []),
   ];
 
   // eslint-disable-next-line prefer-template
