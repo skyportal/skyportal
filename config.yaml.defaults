@@ -124,10 +124,6 @@ app:
       icon: LocalCafe
       url: /runs
 
-    - name: Allocations
-      icon: PunchClock
-      url: /allocations
-
     - name: GCN Events
       icon: SettingsInputAntenna
       url: /gcn_events
@@ -139,6 +135,10 @@ app:
     - name: Instruments
       icon: Wifi
       url: /instruments
+
+    - name: Allocations
+      icon: HourglassEmptyOutlined
+      url: /allocations
 
     - name: About
       icon: Info

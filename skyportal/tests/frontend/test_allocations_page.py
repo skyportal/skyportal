@@ -1,9 +1,11 @@
 from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
 
+import pytest
 import uuid
 
 
+@pytest.mark.flaky(reruns=2)
 def test_super_user_post_allocation(
     public_group, super_admin_token, super_admin_user, driver
 ):
