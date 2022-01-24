@@ -16,6 +16,7 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     maxWidth: "22.5rem",
     backgroundColor: theme.palette.background.paper,
+    whiteSpace: "pre-line",
   },
   paperContent: {
     padding: "1rem",
@@ -63,7 +64,7 @@ export function allocationInfo(allocation, groups) {
   let result = `${allocation?.start_date}-${allocation?.end_date}`;
 
   if (allocation?.pi || group?.name) {
-    result += " (";
+    result += "\r\n(";
     if (allocation?.pi) {
       result += `PI: ${allocation.pi}`;
     }
