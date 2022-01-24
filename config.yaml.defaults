@@ -122,7 +122,7 @@ app:
       url: /runs
 
     - name: Allocations
-      icon: Satellite
+      icon: PunchClock
       url: /allocations
 
     - name: GCN Events

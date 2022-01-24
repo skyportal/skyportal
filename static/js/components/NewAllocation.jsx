@@ -11,6 +11,13 @@ const NewAllocation = () => {
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
 
+  function validate(formData, errors) {
+    if (formData.start_date > formData.end_date) {
+      errors.name.addError("Start date must be before end date, please fix.");
+    }
+    return errors;
+  }
+
   const handleSubmit = async ({ formData }) => {
     if (formData.group_id === -1) {
       delete formData.group_id;
@@ -69,10 +76,23 @@ const NewAllocation = () => {
         title: "Alternative json data (i.e. {'slack_token': 'testtoken'}",
       },
     },
-    required: ["pi", "start_date", "end_date", "instrument_id"],
+    required: [
+      "pi",
+      "start_date",
+      "end_date",
+      "instrument_id",
+      "hours_allocated",
+    ],
   };
 
-  return <Form schema={allocationFormSchema} onSubmit={handleSubmit} />;
+  return (
+    <Form
+      schema={allocationFormSchema}
+      onSubmit={handleSubmit}
+      // eslint-disable-next-line react/jsx-no-bind
+      validate={validate}
+    />
+  );
 };
 
 export default NewAllocation;
