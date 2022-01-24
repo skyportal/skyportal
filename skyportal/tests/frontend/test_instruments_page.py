@@ -49,7 +49,7 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
 
     # check for API instrument
     driver.wait_for_xpath(
-        f'//span[text()="{instrument_name}/{telescope_name}"]', timeout=20
+        f'//span[text()[contains(.,"{instrument_name}/{telescope_name}")]]', timeout=20
     )
 
     # add dropdown instrument
