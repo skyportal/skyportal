@@ -60,7 +60,7 @@ export function telescopeInfo(telescope) {
       result += `/ Latitude: ${telescope.lat}`;
     }
     if (telescope?.lon) {
-      result += `/ Latitude: ${telescope.lon}`;
+      result += `/ Longitude: ${telescope.lon}`;
     }
     if (telescope?.elevation) {
       result += `/ Elevation: ${telescope.elevation}`;

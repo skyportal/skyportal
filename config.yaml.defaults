@@ -126,6 +126,10 @@ app:
       icon: SettingsInputAntenna
       url: /gcn_events
 
+    - name: Telescopes
+      icon: MyLocation
+      url: /telescopes
+
     - name: Instruments
       icon: Wifi
       url: /instruments
@@ -133,10 +137,6 @@ app:
     - name: About
       icon: Info
       url: /about
-
-    - name: Telescopes
-      icon: Toys
-      url: /telescopes
 
   # See https://github.com/STRML/react-grid-layout for more on the grid package
   homepage_grid:
