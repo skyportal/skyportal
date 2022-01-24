@@ -90,6 +90,8 @@ app:
       component: DBStats
     - path: "/gcn_events"
       component: GcnEvents
+    - path: "/telescopes"
+      component: TelescopePage
     - path: "/instruments"
       component: InstrumentPage
 
@@ -123,6 +125,10 @@ app:
     - name: GCN Events
       icon: SettingsInputAntenna
       url: /gcn_events
+
+    - name: Telescopes
+      icon: MyLocation
+      url: /telescopes
 
     - name: Instruments
       icon: Wifi
