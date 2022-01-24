@@ -15,10 +15,6 @@ depends_on = None
 
 
 def upgrade():
-
-    op.execute(
-        'alter type "public"."bandpasses" rename to "bandpasses__old_version_to_be_dropped"'
-    )
     # add atlasc and atlaco
     with op.get_context().autocommit_block():
         op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'atlasc'")
