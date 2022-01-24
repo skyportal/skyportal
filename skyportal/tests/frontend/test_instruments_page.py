@@ -4,7 +4,7 @@ import uuid
 import pytest
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=5)
 def test_instrument_frontend(super_admin_token, super_admin_user, driver):
 
     driver.get(f"/become_user/{super_admin_user.id}")
