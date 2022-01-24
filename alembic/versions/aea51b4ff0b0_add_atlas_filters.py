@@ -19,7 +19,6 @@ def upgrade():
     op.execute(
         'alter type "public"."bandpasses" rename to "bandpasses__old_version_to_be_dropped"'
     )
-
     # add atlasc and atlaco
     op.execute(
         """create type "public"."bandpasses" as enum """
@@ -43,7 +42,10 @@ def upgrade():
         """'uvot::b', 'uvot::u', 'uvot::uvm2', 'uvot::uvw1', 'uvot::uvw2', 'uvot::v', """
         """'uvot::white', 'atlasc', 'atlaso')"""
     )
-
+    op.execute(
+        'alter table "public"."instruments" alter column filter type "public"."bandpasses" '
+        ' using filter::text::"public"."bandpasses"'
+    )
     op.execute(
         'alter table "public"."photometry" alter column filter type "public"."bandpasses" '
         ' using filter::text::"public"."bandpasses"'
@@ -55,7 +57,6 @@ def downgrade():
     op.execute(
         'alter type "public"."bandpasses" rename to "bandpasses__new_version_to_be_dropped"'
     )
-
     op.execute(
         """create type "public"."bandpasses" as enum """
         """('bessellux', 'bessellb', 'bessellv', 'bessellr', """
@@ -78,10 +79,12 @@ def downgrade():
         """'uvot::b', 'uvot::u', 'uvot::uvm2', 'uvot::uvw1', 'uvot::uvw2', 'uvot::v', """
         """'uvot::white')"""
     )
-
     op.execute(
         'alter table "public"."photometry" alter column filter type "public"."bandpasses" '
         ' using filter::text::"public"."bandpasses"'
     )
-
+    op.execute(
+        'alter table "public"."instruments" alter column filter type "public"."bandpasses" '
+        ' using filter::text::"public"."bandpasses"'
+    )
     op.execute('drop type "public"."bandpasses__new_version_to_be_dropped"')
