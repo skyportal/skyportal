@@ -43,8 +43,8 @@ def upgrade():
         """'uvot::white', 'atlasc', 'atlaso')"""
     )
     op.execute(
-        'alter table "public"."instruments" alter column filter type "public"."bandpasses" '
-        ' using filter::text::"public"."bandpasses"'
+        'alter table "public"."instruments" alter column filters type "public"."bandpasses" '
+        ' using filters::text::"public"."bandpasses"'
     )
     op.execute(
         'alter table "public"."photometry" alter column filter type "public"."bandpasses" '
@@ -84,7 +84,7 @@ def downgrade():
         ' using filter::text::"public"."bandpasses"'
     )
     op.execute(
-        'alter table "public"."instruments" alter column filter type "public"."bandpasses" '
-        ' using filter::text::"public"."bandpasses"'
+        'alter table "public"."instruments" alter column filters type "public"."bandpasses" '
+        ' using filters::text::"public"."bandpasses"'
     )
     op.execute('drop type "public"."bandpasses__new_version_to_be_dropped"')
