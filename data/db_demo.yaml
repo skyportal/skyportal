@@ -162,6 +162,30 @@ telescope:
     skycam_link: null
     robotic: true
     =id: LCOGT2m
+  - diameter: 4.0
+    elevation: 2207.0
+    lat: -30.169661
+    lon: -70.806525
+    name: CTIO Victor M. Blanco 4-meter Telescope
+    nickname: CTIO-4m
+    skycam_link: null
+    =id: CTIO-4m
+  - diameter: 0.3
+    elevation: 1283.0
+    lat: 37.341033
+    lon: -121.642932
+    name: Katzman Automatic Imaging Telescope
+    nickname: KAIT
+    skycam_link: null
+    =id: KAIT
+  - diameter: 2.1
+    elevation: 2096.0
+    lat: 31.9599
+    lon: -111.5997
+    name: Kitt Peak 2.1m Telescope
+    nickname: KPNO2m
+    skycam_link: null
+    =id: KPNO2m
 
 instrument:
   - name: ZTF
@@ -171,6 +195,10 @@ instrument:
     filters: ["ztfg", "ztfr", "ztfi"]
     =id: ZTF
     api_classname: ZTFAPI
+    # field_data:
+    #   file: ../data/ZTF_Fields.csv
+    # field_region:
+    #   file: ../data/ZTF_Region.reg
   - name: ALFOSC
     type: imaging spectrograph
     band: V
@@ -239,6 +267,29 @@ instrument:
     filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: MUSCATAPI
     =id: MUSCAT
+  - band: optical
+    name: DECam
+    telescope_id: =CTIO-4m
+    type: imager
+    filters: ['sdssu', 'desg', 'desr', 'desi', 'desz', 'desy']
+    # field_data:
+    #   file: ../data/DECam_Fields.csv
+    # field_region:
+    #   file: ../data/DECam_Region.reg
+  - band: optical
+    name: KAIT
+    telescope_id: =KAIT
+    type: imager
+    filters: ['bessellux', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'bessellb', 'bessellv', 'bessellr', 'besselli']
+    api_classname: KAITAPI
+    =id: KAIT
+  - name: SEDMv2
+    type: imaging spectrograph
+    band: V
+    telescope_id: =KPNO2m
+    filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
+    api_classname: SEDMV2API
+    =id: SEDMv2
 
 allocation:
   - pi: Michael Coughlin
@@ -307,6 +358,20 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =ZTF
+  - pi: Michael Coughlin
+    proposal_id: SEDMv2-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =SEDMv2
+  - pi: Michael Coughlin
+    proposal_id: KAIT-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =KAIT
 
 candidates:
   - id: ZTF21aaqjmps
@@ -425,6 +490,7 @@ sources/ZTF18aabcvnq/annotations:
       some_boolean: false
       class: "varstar"
 
+
 sources/ZTFe028h94k/annotations:
   - obj_id: ZTFe028h94k
     origin: "Program B"
@@ -449,6 +515,16 @@ sources/ZTFrlh6cyjh/annotations:
 
 taxonomy:
   file: taxonomy_demo.yaml
+
+classification:
+  - taxonomy_id: 1
+    obj_id: ZTF18aabcvnq
+    probability: 0.9
+    classification: "Time-domain Source"
+  - taxonomy_id: 2
+    obj_id: ZTF18aabcvnq
+    probability: 0.02
+    classification: "variable"
 
 observing_run:
   - pi: Danny Goldstein
@@ -518,13 +594,55 @@ photometry:
       - =ztf_partnership
 
 spectrum:
+  - obj_id: ZTFrlh6cyjh
+    file: spec1.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-10-24T05:23:14"
+    origin: "demo_data"
+    assignment_id: 1
+    group_ids:
+      - =program_A
+      - =program_B
+    =id: "spectrum1"
+  - obj_id: ZTFe028h94k
+    file: spec2.csv
+    instrument_id: =ALFOSC
+    observed_at: "2019-08-24T06:18:53"
+    origin: "demo_data"
+    assignment_id: 2
+    altdata:
+      some_value: 1
+      some_other_value: 2
+    group_ids:
+      - =program_A
+      - =program_B
+    =id: "spectrum2"
   - obj_id: ZTF21aaqjmps
     file: ZTF21aaqjmps_spec.csv
     instrument_id: =SPRAT
     observed_at: "2021-04-03T02:28:19.921"
     assignment_id: 1
+
+spectra/=spectrum1/annotations:
+  - origin: "Kowalski"
+    data:
+      ACAI_score: 0.98765
+      transient_type: "TDE"
     group_ids:
       - =program_A
+  - origin: "SEDM"
+    data:
+      numeric_field: 0.98765
+      boolean_field: false
+    group_ids:
+      - =program_B
+
+spectra/=spectrum2/annotations:
+  - origin: "Super Fit"
+    data:
+      match_prob: 0.8765
+      classification: "Type Ia SN"
+    group_ids:
       - =program_B
 
 thumbnail:
@@ -567,3 +685,8 @@ gcn_event:
       file: ../skyportal/tests/data/GW190425_initial.xml
   - xml:
       file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
+
+galaxy_catalog:
+  - catalog_name: CLU_mini
+    catalog_data:
+      file: ../data/CLU_mini.hdf5

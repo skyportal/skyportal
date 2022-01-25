@@ -1,4 +1,6 @@
-import React, { useRef, useState, useEffect, useCallback } from "react";
+/* eslint-disable react/destructuring-assignment */
+
+import React, { useRef, useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { Link, useParams } from "react-router-dom";
@@ -513,13 +515,9 @@ const Periodogram = () => {
     return `${value}×`;
   }
 
-  const handleMultiplierChange = useCallback(
-    (e, val) => {
-      setPeriodmultiplier(val);
-    },
-    [setPeriodmultiplier]
-  );
-
+  const handleMultiplierChange = (e, val) => {
+    setPeriodmultiplier(val);
+  };
   return (
     <>
       <div>

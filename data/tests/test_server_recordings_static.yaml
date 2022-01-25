@@ -240,4 +240,49 @@ interactions:
     status:
       code: 200
       message: OK
+- request:
+    body: '{"name": "d74a126b2614455bb21763ad3f7a3f1c", "ra": 0.0, "dec": 0.0, "filters":
+      "U", "exposure": "long"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Authorization:
+      - Basic testtoken
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '103'
+      Content-Type:
+      - application/json
+      Host:
+      - localhost:64502
+      User-Agent:
+      - python-requests/2.26.0
+    method: POST
+    uri: http://herculesii.astro.berkeley.edu/cgi-bin/internal/process_kait_ztf_request.py
+  response:
+    body:
+      string: '
+
+        {"success": "true", "message": "The Command Completed Successfully"}
+
+        '
+    headers:
+      Connection:
+      - Keep-Alive
+      Content-Type:
+      - application/json
+      Date:
+      - Wed, 05 Jan 2022 11:07:44 GMT
+      Keep-Alive:
+      - timeout=5, max=100
+      Server:
+      - Apache/2.4.18 (Ubuntu)
+      Transfer-Encoding:
+      - chunked
+    status:
+      code: 200
+      message: OK
 version: 1

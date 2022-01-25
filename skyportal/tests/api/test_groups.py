@@ -541,7 +541,7 @@ def test_cannot_add_self_to_group(public_group2, view_only_token, user):
         data={"userID": user.id, "admin": False},
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 401
     assert "Unauthorized" in data["message"]
 
 

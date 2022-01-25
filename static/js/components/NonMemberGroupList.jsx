@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Button from "@material-ui/core/Button";
 import MUIDataTable from "mui-datatables";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -14,7 +15,11 @@ const NonMemberGroupList = ({ groups }) => {
     (state) => state.profile
   );
   if (currentUserID === null) {
-    return <>Loading...</>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
   const pendingRequestGroupIDs = groupAdmissionRequests
     ?.filter((request) => request.status === "pending")

@@ -1011,7 +1011,7 @@ def test_token_user_post_photometry_data_series(
         token=upload_data_token,
     )
 
-    assert status == 400
+    assert status in [500, 401]
     assert data['status'] == 'error'
 
 
@@ -1034,7 +1034,7 @@ def test_post_photometry_no_access_token(
         },
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 401
     assert data['status'] == 'error'
 
 
@@ -1137,7 +1137,7 @@ def test_token_user_cannot_update_unowned_photometry(
         },
         token=manage_sources_token,
     )
-    assert status == 400
+    assert status == 401
 
 
 def test_token_user_update_photometry_groups(
@@ -1278,7 +1278,7 @@ def test_user_cannot_delete_unowned_photometry_data(
         'DELETE', f'photometry/{photometry_id}', token=manage_sources_token
     )
 
-    assert status == 400
+    assert status == 401
 
 
 def test_admin_can_delete_unowned_photometry_data(
@@ -1436,29 +1436,6 @@ def test_token_user_retrieve_null_photometry(
     assert data['status'] == 'success'
     assert data['data']['mag'] is None
     assert data['data']['magerr'] is None
-
-
-def test_token_user_big_post(
-    upload_data_token, public_source, ztf_camera, public_group
-):
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': str(public_source.id),
-            'mjd': [58000 + i for i in range(30000)],
-            'instrument_id': ztf_camera.id,
-            'mag': np.random.uniform(low=18, high=22, size=30000).tolist(),
-            'magerr': np.random.uniform(low=0.1, high=0.3, size=30000).tolist(),
-            'limiting_mag': 22.3,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-            'group_ids': [public_group.id],
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
 
 
 def test_token_user_get_range_photometry(
@@ -2274,7 +2251,7 @@ def test_problematic_photometry_1276(
         data=payload,
         token=super_admin_token,
     )
-    assert status == 400
+    assert status in [401, 500]
     assert data['status'] == 'error'
 
 

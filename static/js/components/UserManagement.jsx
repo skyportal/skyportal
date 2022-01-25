@@ -21,7 +21,7 @@ import Tooltip from "@material-ui/core/Tooltip";
 import { DatePicker } from "@material-ui/pickers";
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
@@ -73,7 +73,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const dataTableStyles = (theme) =>
-  createMuiTheme({
+  createTheme({
     overrides: {
       MuiPaper: {
         elevation4: {

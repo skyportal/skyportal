@@ -6,7 +6,7 @@ import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
@@ -138,7 +138,7 @@ const useStyles = makeStyles((theme) => ({
 
 // Tweak responsive column widths
 const getMuiTheme = (theme) =>
-  createMuiTheme({
+  createTheme({
     palette: theme.palette,
     overrides: {
       MUIDataTableBodyCell: {
@@ -238,7 +238,7 @@ const getMostRecentClassification = (classifications) => {
 };
 
 const getMuiPopoverTheme = () =>
-  createMuiTheme({
+  createTheme({
     overrides: {
       MuiPopover: {
         paper: {
@@ -764,7 +764,7 @@ const CandidateList = () => {
   const renderPhotometry = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
     return (
-      <Suspense fallback={<CircularProgress className={classes.spinner}/>}>
+      <Suspense fallback={<CircularProgress className={classes.spinner} />}>
         <VegaPlot dataUrl={`/api/sources/${candidateObj.id}/photometry`} />
       </Suspense>
     );
@@ -1108,7 +1108,7 @@ const CandidateList = () => {
           display={queryInProgress ? "block" : "none"}
           className={classes.spinnerDiv}
         >
-          <CircularProgress className={classes.spinner}/>
+          <CircularProgress className={classes.spinner} />
         </Box>
         <Box display={queryInProgress ? "none" : "block"}>
           <MuiThemeProvider theme={getMuiTheme(theme)}>

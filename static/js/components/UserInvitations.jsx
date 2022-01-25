@@ -25,7 +25,7 @@ import Tooltip from "@material-ui/core/Tooltip";
 import HelpIcon from "@material-ui/icons/Help";
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
@@ -69,11 +69,11 @@ const useStyles = makeStyles(() => ({
     top: "50%",
     left: "50%",
     position: "fixed",
-  }
+  },
 }));
 
 const dataTableStyles = (theme) =>
-  createMuiTheme({
+  createTheme({
     overrides: {
       MuiPaper: {
         elevation4: {
@@ -138,7 +138,7 @@ const UserInvitations = () => {
         display={queryInProgress ? "block" : "none"}
         className={classes.spinnerDiv}
       >
-        <CircularProgress className={classes.spinner}/>
+        <CircularProgress className={classes.spinner} />
       </Box>
     );
   }

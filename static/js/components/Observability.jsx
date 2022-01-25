@@ -6,6 +6,7 @@ import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
 import { Link } from "react-router-dom";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -50,13 +51,25 @@ const ObservabilityPage = ({ route }) => {
               <Paper>
                 <div className={classes.inner}>
                   <Typography variant="h6">{telescope.name}</Typography>
-                  <Suspense fallback={<div>Loading plot...</div>}>
+                  <Suspense
+                    fallback={
+                      <div>
+                        <CircularProgress color="secondary" />
+                      </div>
+                    }
+                  >
                     <AirMassPlotWithEphemURL
                       dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
                       ephemerisUrl={`/api/internal/ephemeris/${telescope.id}`}
                     />
                   </Suspense>
-                  <Suspense fallback={<div>Loading plot...</div>}>
+                  <Suspense
+                    fallback={
+                      <div>
+                        <CircularProgress color="secondary" />
+                      </div>
+                    }
+                  >
                     <HoursBelowAirmassPlot
                       dataUrl={`/api/internal/plot/airmass/hours_below/${route.id}/${telescope.id}`}
                     />

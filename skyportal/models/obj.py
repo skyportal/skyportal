@@ -485,7 +485,7 @@ class Obj(Base, conesearch_alchemy.Point):
         )
         response = requests.get(ps_query_url)
         match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
-        return match.group().replace('src="', 'http:').replace('"', '')
+        return match.group().replace('src="', 'https:').replace('"', '')
 
     @property
     def target(self):

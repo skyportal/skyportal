@@ -158,7 +158,9 @@ def setup_schema():
 
             schema_class_name = class_.__name__
             add_schema(
-                schema_class_name, exclude=['created_at', 'modified'], add_to_model=True
+                schema_class_name,
+                exclude=['healpix', 'created_at', 'modified'],
+                add_to_model=True,
             )
             add_schema(
                 f'{schema_class_name}NoID',
@@ -168,6 +170,7 @@ def setup_schema():
                     'modified',
                     'owner_id',
                     'last_modified_by_id',
+                    'healpix',
                 ],
             )
             if schema_class_name == "Obj":
@@ -1195,6 +1198,11 @@ class SpectrumPost(_Schema):
 class GroupIDList(_Schema):
 
     group_ids = fields.List(fields.Integer, required=True)
+
+
+class GalaxyHandlerPost(_Schema):
+    catalog_name = fields.String(description='Galaxy catalog name.')
+    catalog_data = fields.List(fields.Field(), description='Galaxy catalog data')
 
 
 def register_components(spec):

@@ -20,7 +20,14 @@ from bokeh.models import (
     Legend,
     LegendItem,
 )
-from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
+from bokeh.models.widgets import (
+    CheckboxGroup,
+    TextInput,
+    NumericInput,
+    Panel,
+    Tabs,
+    Div,
+)
 from bokeh.plotting import figure, ColumnDataSource
 
 import bokeh.embed as bokeh_embed
@@ -37,6 +44,7 @@ from skyportal.models import (
     DBSession,
     Obj,
     Annotation,
+    AnnotationOnSpectrum,
     Photometry,
     Instrument,
     Telescope,
@@ -1332,7 +1340,15 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     return bokeh_embed.json_item(tabs)
 
 
-def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
+def spectroscopy_plot(
+    obj_id,
+    user,
+    spec_id=None,
+    width=600,
+    device="browser",
+    smoothing=False,
+    smooth_number=10,
+):
     """
     Create object spectroscopy line plot.
 
@@ -1360,6 +1376,13 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         - "mobile_landscape"
         - "tablet_portrait"
         - "tablet_landscape"
+    smoothing: bool
+        choose if to start the display with the smoothed plot or the full resolution spectrum.
+        default is no smoothing.
+    smooth_number: int
+        number of data points to use in the moving average when displaying the smoothed spectrum.
+        default is 10 points.
+
     Returns
     -------
     dict
@@ -1404,7 +1427,15 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     layouts = []
     for spec_type in spectra_by_type:
         layouts.append(
-            make_spectrum_layout(obj, spectra_by_type[spec_type], user, device, width)
+            make_spectrum_layout(
+                obj,
+                spectra_by_type[spec_type],
+                user,
+                device,
+                width,
+                smoothing,
+                smooth_number,
+            )
         )
 
     if len(layouts) > 1:
@@ -1420,7 +1451,7 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     return bokeh_embed.json_item(layouts[0])
 
 
-def make_spectrum_layout(obj, spectra, user, device, width):
+def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_number):
     """
     Helper function that takes the object, spectra and user info,
     as well as the total width of the figure,
@@ -1441,6 +1472,10 @@ def make_spectrum_layout(obj, spectra, user, device, width):
         name of the device used ("browser", "mobile", "mobile_portrait", "tablet", etc).
     width: int
         width of the external frame of the plot, including the buttons/sliders.
+    smoothing: bool
+        choose if to start the display with the smoothed plot or the full resolution spectrum.
+    smooth_number: int
+        number of data points to use in the moving average when displaying the smoothed spectrum.
 
     Returns
     -------
@@ -1458,10 +1493,22 @@ def make_spectrum_layout(obj, spectra, user, device, width):
         normfac = np.nanmedian(np.abs(s.fluxes))
         normfac = normfac if normfac != 0.0 else 1e-20
         altdata = json.dumps(s.altdata) if s.altdata is not None else ""
+        annotations = (
+            AnnotationOnSpectrum.query_records_accessible_by(user)
+            .filter(AnnotationOnSpectrum.spectrum_id == s.id)
+            .all()
+        )
+        annotations = (
+            json.dumps([{a.origin: a.data} for a in annotations])
+            if len(annotations)
+            else ""
+        )
+
         df = pd.DataFrame(
             {
                 'wavelength': s.wavelengths,
                 'flux': s.fluxes / normfac,
+                'flux_original': s.fluxes / normfac,
                 'id': s.id,
                 'telescope': s.instrument.telescope.name,
                 'instrument': s.instrument.name,
@@ -1477,25 +1524,13 @@ def make_spectrum_layout(obj, spectra, user, device, width):
                 ),
                 'origin': s.origin,
                 'altdata': altdata[:20] + "..." if len(altdata) > 20 else altdata,
+                'annotations': annotations,
             }
         )
         data.append(df)
+
     data = pd.concat(data)
-
     data.sort_values(by=['date_observed', 'wavelength'], inplace=True)
-
-    dfs = []
-    for i, s in enumerate(spectra):
-        # Smooth the spectrum by using a rolling average
-        df = (
-            pd.DataFrame({'wavelength': s.wavelengths, 'flux': s.fluxes})
-            .rolling(2)
-            .mean(numeric_only=True)
-            .dropna()
-        )
-        dfs.append(df)
-
-    smoothed_data = pd.concat(dfs)
 
     split = data.groupby('id', sort=False)
 
@@ -1542,12 +1577,14 @@ def make_spectrum_layout(obj, spectra, user, device, width):
             ('PI', '@pi'),
             ('origin', '@origin'),
             ('altdata', '@altdata{safe}'),
-        ]
+            ('annotations', '@annotations{safe}'),
+        ],
     )
-    smoothed_max = np.max(smoothed_data['flux'])
-    smoothed_min = np.min(smoothed_data['flux'])
-    ymax = smoothed_max * 1.05
-    ymin = smoothed_min - 0.05 * (smoothed_max - smoothed_min)
+
+    flux_max = np.max(data['flux'])
+    flux_min = np.min(data['flux'])
+    ymax = flux_max * 1.05
+    ymin = flux_min - 0.05 * (flux_max - flux_min)
     xmin = np.min(data['wavelength']) - 100
     xmax = np.max(data['wavelength']) + 100
     if obj.redshift is not None and obj.redshift > 0:
@@ -1570,13 +1607,13 @@ def make_spectrum_layout(obj, spectra, user, device, width):
         toolbar_location="above",
         active_drag=active_drag,
     )
-    plot.add_tools(hover)
 
     model_dict = {}
     legend_items = []
     for i, (key, df) in enumerate(split):
+
         renderers = []
-        s = Spectrum.get_if_accessible_by(key, user)
+        s = next(spec for spec in spectra if spec.id == key)
         if s.label is not None and len(s.label) > 0:
             label = s.label
         else:
@@ -1587,8 +1624,15 @@ def make_spectrum_layout(obj, spectra, user, device, width):
             color=color_map[key],
             source=ColumnDataSource(df),
         )
-        renderers.append(model_dict['s' + str(i)])
-        legend_items.append(LegendItem(label=label, renderers=renderers))
+        renderers.append(model_dict[f's{i}'])
+
+        # this starts out the same as the previous plot, but can be binned/smoothed later in JS
+        model_dict[f'bin{i}'] = plot.step(
+            x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(df)
+        )
+        renderers.append(model_dict[f'bin{i}'])
+
+        # add this line plot to be able to show tooltip at hover
         model_dict['l' + str(i)] = plot.line(
             x='wavelength',
             y='flux',
@@ -1596,6 +1640,10 @@ def make_spectrum_layout(obj, spectra, user, device, width):
             source=ColumnDataSource(df),
             line_alpha=0.0,
         )
+        renderers.append(model_dict[f'l{i}'])
+
+        legend_items.append(LegendItem(label=label, renderers=renderers))
+
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
@@ -1615,9 +1663,61 @@ def make_spectrum_layout(obj, spectra, user, device, width):
     )
 
     add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
+    # only show this tooltip for spectra, not elemental lines
+    hover.renderers = list(model_dict.values())
+    plot.add_tools(hover)
+
+    smooth_checkbox = CheckboxGroup(
+        labels=["smoothing"],
+        active=[0] if smoothing else [],
+    )
+    smooth_slider = Slider(
+        start=0.0,
+        end=100.0,
+        value=0.0,
+        step=1.0,
+        show_value=False,
+        max_width=350,
+        # margin=(4, 10, 0, 10),
+    )
+    smooth_input = NumericInput(value=smooth_number)
+    smooth_callback = CustomJS(
+        args=dict(
+            model_dict=model_dict,
+            n_labels=len(split),
+            checkbox=smooth_checkbox,
+            input=smooth_input,
+            slider=smooth_slider,
+        ),
+        code=open(
+            os.path.join(
+                os.path.dirname(__file__), '../static/js/plotjs', 'smooth_spectra.js'
+            )
+        ).read(),
+    )
+    smooth_checkbox.js_on_click(smooth_callback)
+    smooth_input.js_on_change('value', smooth_callback)
+    # smooth_slider.js_on_change('value', smooth_callback)
+    smooth_slider.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': smooth_slider, 'input': smooth_input},
+            code="""
+                    input.value = slider.value;
+                    input.change.emit();
+                """,
+        ),
+    )
+    smooth_column = column(
+        smooth_checkbox,
+        smooth_slider,
+        smooth_input,
+        width=width if "mobile" in device else int(width * 1 / 5) - 20,
+        margin=(4, 10, 0, 10),
+    )
 
     # 20 is for padding
-    slider_width = width if "mobile" in device else int(width / 2) - 20
+    slider_width = width if "mobile" in device else int(width * 2 / 5) - 20
     z_title = Div(text="Redshift (<i>z</i>): ")
     z_slider = Slider(
         value=obj.redshift if obj.redshift is not None else 0.0,
@@ -1677,56 +1777,66 @@ def make_spectrum_layout(obj, spectra, user, device, width):
 
     # Track elements that need to be shifted with change in z / v
     shifting_elements = []
-
+    renderers = []
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
 
-        el_data = pd.DataFrame({'wavelength': wavelengths})
-
-        if name == 'Sky Lines':  # No redshift correction of skylines
-            el_data['x'] = el_data['wavelength']
-            segment = plot.segment(
-                x0='x',
-                x1='x',
-                y0=0,
-                y1=1e4,
+        if name in ('Tellurics-1', 'Tellurics-2'):
+            el_data = pd.DataFrame(
+                {
+                    'name': name,
+                    'wavelength': [(wavelengths[0] + wavelengths[1]) / 2],
+                    'bandwidth': [wavelengths[1] - wavelengths[0]],
+                }
+            )
+            new_line = plot.vbar(
+                x='wavelength',
+                width='bandwidth',
+                top=ymax,
                 color=color,
                 source=ColumnDataSource(el_data),
-            )
-            segment.visible = False
-            model_dict[f'element_{i}'] = segment
-
-        elif name in ('Tellurics-1', 'Tellurics-2'):
-            el_data['x'] = el_data['wavelength']
-            midtel1 = (el_data['x'][0] + el_data['x'][1]) / 2
-            widtel1 = el_data['x'][1] - el_data['x'][0]
-
-            vbar = plot.vbar(
-                x=midtel1,
-                width=widtel1,
-                # TODO change limits
-                top=1e4,
-                color=color,
                 alpha=0.3,
             )
-            vbar.visible = False
-            model_dict[f'element_{i}'] = vbar
 
         else:
-            obj_redshift = 0 if obj.redshift is None else obj.redshift
-            el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
-
-            segment = plot.segment(
-                x0='x',
-                x1='x',
-                # TODO change limits
-                y0=0,
-                y1=1e4,
+            flux_values = list(np.linspace(ymin, ymax, 100))
+            flux_values[-1] = np.nan
+            wavelength_values = [
+                w for w in wavelengths for _ in flux_values
+            ]  # repeat each wavelength 100 times
+            el_data = pd.DataFrame(
+                {
+                    'name': name,
+                    'x': wavelength_values,
+                    'wavelength': wavelength_values,
+                    'flux': [f for _ in wavelengths for f in flux_values],
+                }
+            )
+            new_line = plot.line(
+                x='x',
+                y='flux',
                 color=color,
+                line_alpha=0.3,
                 source=ColumnDataSource(el_data),
             )
-            segment.visible = False
-            model_dict[f'element_{i}'] = segment
-            shifting_elements.append(segment)
+
+        new_line.visible = False
+        model_dict[f'element_{i}'] = new_line
+        renderers.append(new_line)
+
+        if name not in ('Sky Lines', 'Tellurics-1', 'Tellurics-2'):
+            shifting_elements.append(new_line)
+            new_line.glyph.line_alpha = 1.0
+
+    # add the elemental lines to hover tool
+    hover_lines = HoverTool(
+        tooltips=[
+            ('name', '@name'),
+            ('wavelength', '@wavelength{0,0}'),
+        ],
+        renderers=renderers,
+    )
+
+    plot.add_tools(hover_lines)
 
     # Split spectral line legend into columns
     if device == "mobile_portrait":
@@ -1815,7 +1925,11 @@ def make_spectrum_layout(obj, spectra, user, device, width):
     )
 
     row2 = row(all_column_checkboxes)
-    row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
+    row3 = (
+        column(z, v_exp, smooth_column)
+        if "mobile" in device
+        else row(z, v_exp, smooth_column)
+    )
     return column(
         plot,
         row2,

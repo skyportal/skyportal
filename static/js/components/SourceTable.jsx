@@ -13,7 +13,7 @@ import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 import MUIDataTable from "mui-datatables";
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
@@ -180,7 +180,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const getMuiTheme = (theme) =>
-  createMuiTheme({
+  createTheme({
     palette: theme.palette,
     overrides: {
       MUIDataTableHeadCell: {
@@ -434,7 +434,13 @@ const SourceTable = ({
             />
             <Grid item>
               {source.photometry_exists && (
-                <Suspense fallback={<div>Loading plot...</div>}>
+                <Suspense
+                  fallback={
+                    <div>
+                      <CircularProgress color="secondary" />
+                    </div>
+                  }
+                >
                   <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
                 </Suspense>
               )}
@@ -443,7 +449,13 @@ const SourceTable = ({
             <Grid item>
               {source.color_magnitude.length ? (
                 <div data-testid={`hr_diagram_${source.id}`}>
-                  <Suspense fallback={<div>Loading HR diagram...</div>}>
+                  <Suspense
+                    fallback={
+                      <div>
+                        <CircularProgress color="secondary" />
+                      </div>
+                    }
+                  >
                     <VegaHR
                       data={source.color_magnitude}
                       width={200}
@@ -455,7 +467,13 @@ const SourceTable = ({
             </Grid>
             <Grid item>
               {source.spectrum_exists && (
-                <Suspense fallback={<div>Loading spectra...</div>}>
+                <Suspense
+                  fallback={
+                    <div>
+                      <CircularProgress color="secondary" />
+                    </div>
+                  }
+                >
                   <VegaSpectrum
                     dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
                     width={plotWidth}
@@ -620,7 +638,13 @@ const SourceTable = ({
     const source = sources[dataIndex];
 
     return (
-      <Suspense fallback={<div>Loading classifications</div>}>
+      <Suspense
+        fallback={
+          <div>
+            <CircularProgress color="secondary" />
+          </div>
+        }
+      >
         <ShowClassification
           classifications={source.classifications}
           taxonomyList={taxonomyList}

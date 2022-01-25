@@ -12,7 +12,7 @@ import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
@@ -67,7 +67,7 @@ const useStyles = makeStyles((theme) => ({
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
-  createMuiTheme({
+  createTheme({
     palette: theme.palette,
     overrides: {
       MUIDataTablePagination: {

@@ -10,6 +10,11 @@ IS_CI_BUILD = "TRAVIS" in os.environ or "GITHUB_ACTIONS" in os.environ
 
 patch_requests()
 
+session = requests.Session()
+session.trust_env = (
+    False  # Otherwise pre-existing netrc config will override auth headers
+)
+
 
 def api(
     method, endpoint, data=None, params=None, host=None, token=None, raw_response=False
@@ -48,15 +53,13 @@ def api(
         host = f'http://localhost:{cfg["ports.app"]}'
     url = urllib.parse.urljoin(host, f'/api/{endpoint}')
     headers = {'Authorization': f'token {token}'} if token else None
-    response = requests.request(method, url, json=data, params=params, headers=headers)
+    response = session.request(method, url, json=data, params=params, headers=headers)
 
     if raw_response:
         return response
     else:
-        if response.status_code in (200, 400):
-            if method == "HEAD":
-                return response.status_code, None
-            else:
-                return response.status_code, response.json()
-        else:
-            return response.status_code, None
+        try:
+            data = response.json()
+        except requests.exceptions.JSONDecodeError:
+            data = None
+        return response.status_code, data

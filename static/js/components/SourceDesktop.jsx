@@ -14,6 +14,7 @@ import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
 import { log10, abs, ceil } from "mathjs";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import CommentList from "./CommentList";
 import ClassificationList from "./ClassificationList";
@@ -32,7 +33,7 @@ import SourceNotification from "./SourceNotification";
 import EditSourceGroups from "./EditSourceGroups";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
-import ObjPageAnnotations from "./ObjPageAnnotations";
+import AnnotationsTable from "./AnnotationsTable";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
@@ -162,6 +163,15 @@ const SourceDesktop = ({ source }) => {
   );
 
   const spectra = useSelector((state) => state.spectra)[source.id];
+  const spectrumAnnotations = [];
+  if (spectra) {
+    spectra.forEach((spec) => {
+      spec.annotations.forEach((annotation) => {
+        annotation.spectrum_observed_at = spec.observed_at;
+        spectrumAnnotations.push(annotation);
+      });
+    });
+  }
   const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
 
   useEffect(() => {
@@ -363,7 +373,13 @@ const SourceDesktop = ({ source }) => {
             </AccordionSummary>
             <AccordionDetails>
               <div className={classes.photometryContainer}>
-                <Suspense fallback={<div>Loading photometry plot...</div>}>
+                <Suspense
+                  fallback={
+                    <div>
+                      <CircularProgress color="secondary" />
+                    </div>
+                  }
+                >
                   <Plot
                     url={`/api/internal/plot/photometry/${source.id}?width=800&height=500`}
                   />
@@ -409,7 +425,13 @@ const SourceDesktop = ({ source }) => {
             </AccordionSummary>
             <AccordionDetails>
               <div className={classes.photometryContainer}>
-                <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
+                <Suspense
+                  fallback={
+                    <div>
+                      <CircularProgress color="secondary" />
+                    </div>
+                  }
+                >
                   <Plot
                     url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&cacheID=${specIDs}`}
                   />
@@ -484,7 +506,10 @@ const SourceDesktop = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <ObjPageAnnotations annotations={source.annotations} />
+              <AnnotationsTable
+                annotations={source.annotations}
+                spectrumAnnotations={spectrumAnnotations}
+              />
             </AccordionDetails>
           </Accordion>
         </div>
@@ -548,7 +573,13 @@ const SourceDesktop = ({ source }) => {
                   className={classes.hr_diagram}
                   data-testid={`hr_diagram_${source.id}`}
                 >
-                  <Suspense fallback={<div>Loading HR diagram...</div>}>
+                  <Suspense
+                    fallback={
+                      <div>
+                        <CircularProgress color="secondary" />
+                      </div>
+                    }
+                  >
                     <VegaHR
                       data={source.color_magnitude}
                       width={300}
@@ -572,7 +603,13 @@ const SourceDesktop = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <Suspense fallback={<div>Loading centroid plot...</div>}>
+              <Suspense
+                fallback={
+                  <div>
+                    <CircularProgress color="secondary" />
+                  </div>
+                }
+              >
                 <CentroidPlot
                   className={classes.smallPlot}
                   sourceId={source.id}
