@@ -79,7 +79,7 @@ const ObservationPlanRequestForm = ({ gcnevent_id }) => {
     // Don't want to reset everytime the component rerenders and
     // the defaultStartDate is updated, so ignore ESLint here
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedAllocationId, allocationList, setSelectedGroupIds]);
+  }, [dispatch, setSelectedAllocationId, setSelectedGroupIds]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
