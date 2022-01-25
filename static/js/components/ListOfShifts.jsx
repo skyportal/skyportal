@@ -60,7 +60,8 @@ const ListOfShifts = () => {
     const classes = useStyles();
     const theme = useTheme();
     //const shifts = useSelector((state) => state.shifts);
-    const shifts = [];
+    var shifts = [];
+    shifts = useSelector((state) => state.shifts.all);
     const current_time = new Date().toLocaleString();
     // shifts = require("./myshifts.json");
     

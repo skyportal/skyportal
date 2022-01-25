@@ -785,6 +785,28 @@ class ObservingRunPost(_Schema):
         description='The local calendar date of the run.', required=True
     )
 
+class ShiftPost(_Schema):
+    user_id = fields.Integer(
+        required=True, description='The ID of the user to do ' 'this shift.'
+    )
+
+    shift_start = fields.DateTime(
+        required=False,
+        description='Query for shift starting at '
+        'this UT `DateTime`. For an '
+        'open-ended interval use `None`.',
+        missing=None,
+        default=None,
+    )
+    shift_end = fields.DateTime(
+        required=False,
+        description='Query for shift ending at '
+        'this UT `DateTime`. For an '
+        'open-ended interval use `None`.',
+        missing=None,
+        default=None,
+    )
+
 
 class GcnHandlerPut(_Schema):
     xml = fields.String(description='VOEvent XML content.')
@@ -852,6 +874,14 @@ class ObservingRunGet(ObservingRunPost):
 class ObservingRunGetWithAssignments(ObservingRunGet):
     assignments = fields.List(fields.Field())
     instrument = fields.Field()
+
+class ShiftsGet(ShiftPost):
+    user_id = fields.Integer(description='The User ID on this shift.')
+    id = fields.Integer(description='Unique identifier for the shift.')
+
+
+class ShiftsGetWithAssignments(ShiftsGet):
+    assignments = fields.List(fields.Field())
 
 
 class PhotometryRangeQuery(_Schema):

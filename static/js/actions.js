@@ -14,6 +14,7 @@ import * as telescopesActions from "./ducks/telescopes";
 import * as taxonomyActions from "./ducks/taxonomies";
 import * as favoritesActions from "./ducks/favorites";
 import * as rejectedActions from "./ducks/rejected_candidates";
+import * as shifts from "./ducks/shifts";
 
 export default function hydrate() {
   return (dispatch) => {
@@ -34,5 +35,6 @@ export default function hydrate() {
     dispatch(taxonomyActions.fetchTaxonomies());
     dispatch(favoritesActions.fetchFavorites());
     dispatch(rejectedActions.fetchRejected());
+    dispatch(shifts.fetchShifts());
   };
 }
