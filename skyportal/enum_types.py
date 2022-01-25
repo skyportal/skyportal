@@ -16,22 +16,28 @@ log = make_log('enum_types')
 _, cfg = load_env()
 
 # load additional bandpasses into the SN comso registry
+existing_bandpasses_names = [val['name'] for val in _BANDPASSES.get_loaders_metadata()]
 additional_bandpasses_names = []
 for additional_bandpasses in cfg.get('additional_bandpasses', []):
     name = additional_bandpasses.get("name")
     if not name:
         continue
+    if name in existing_bandpasses_names:
+        log(
+            f"Additional Bandpass name={name} is already in the sncosmo registry. Skipping."
+        )
     try:
         wavelength = np.array(additional_bandpasses.get("wavelength"))
         transmission = np.array(additional_bandpasses.get("transmission"))
+        band = sncosmo.Bandpass(wavelength, transmission, name=name, wave_unit=u.AA)
     except Exception as e:
         log(f"Could not make bandpass for {name}")
         log(f"(Original exception: {e})")
+        continue
 
-    band = sncosmo.Bandpass(wavelength, transmission, name=name, wave_unit=u.AA)
     sncosmo.registry.register(band)
     additional_bandpasses_names.append(name)
-    log(f"addeed custom bandpass '{name}'")
+    log(f"added custom bandpass '{name}'")
 
 
 def force_render_enum_markdown(values):
@@ -43,10 +49,7 @@ ALLOWED_SPECTRUM_TYPES = tuple(
 )
 ALLOWED_MAGSYSTEMS = tuple(val['name'] for val in _MAGSYSTEMS.get_loaders_metadata())
 # though in the registry, the additional bandpass names are not in the _BANDPASSES list
-ALLOWED_BANDPASSES = tuple(
-    [val['name'] for val in _BANDPASSES.get_loaders_metadata()]
-    + additional_bandpasses_names
-)
+ALLOWED_BANDPASSES = tuple(existing_bandpasses_names + additional_bandpasses_names)
 
 THUMBNAIL_TYPES = (
     'new',
