@@ -9,9 +9,12 @@ const FETCH_ALLOCATIONS_OK = "skyportal/FETCH_ALLOCATIONS_OK";
 const REFRESH_ALLOCATIONS = "skyportal/REFRESH_ALLOCATIONS";
 
 // eslint-disable-next-line import/prefer-default-export
-export function fetchAllocations() {
-  return API.GET("/api/allocation", FETCH_ALLOCATIONS);
-}
+export const fetchAllocations = (params = {}) => {
+  if (!Object.keys(params).includes("apitype")) {
+    params.apitype = "api_classname";
+  }
+  return API.GET("/api/allocation", FETCH_ALLOCATIONS, params);
+};
 
 messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === REFRESH_ALLOCATIONS) {
