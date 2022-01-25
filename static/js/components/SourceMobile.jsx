@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
 import useMediaQuery from "@material-ui/core/useMediaQuery";
+import Grid from "@material-ui/core/Grid";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
 import Tooltip from "@material-ui/core/Tooltip";
@@ -506,18 +507,20 @@ const SourceMobile = WidthProvider(
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <div className={classes.photometryContainer}>
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
-                    <Plot
-                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
-                    />
-                  </Suspense>
+                <Grid container>
+                  <div className={classes.photometryContainer}>
+                    <Suspense
+                      fallback={
+                        <div>
+                          <CircularProgress color="secondary" />
+                        </div>
+                      }
+                    >
+                      <Plot
+                        url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
+                      />
+                    </Suspense>
+                  </div>
                   <div className={classes.plotButtons}>
                     {isBrowser && (
                       <Link to={`/upload_spectrum/${source.id}`} role="link">
@@ -530,7 +533,7 @@ const SourceMobile = WidthProvider(
                       <Button variant="contained">Manage data</Button>
                     </Link>
                   </div>
-                </div>
+                </Grid>
               </AccordionDetails>
             </Accordion>
           </div>
