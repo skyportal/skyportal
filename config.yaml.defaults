@@ -74,6 +74,8 @@ app:
       component: Filter
     - path: "/runs"
       component: ObservingRunPage
+    - path: "/allocations"
+      component: AllocationPage
     - path: "/group_sources/:id"
       component: GroupSources
     - path: "/user_management"
@@ -133,6 +135,10 @@ app:
     - name: Instruments
       icon: Wifi
       url: /instruments
+
+    - name: Allocations
+      icon: HourglassEmptyOutlined
+      url: /allocations
 
     - name: About
       icon: Info
