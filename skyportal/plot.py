@@ -1726,27 +1726,28 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         value=obj.redshift if obj.redshift is not None else 0.0,
         start=0.0,
         end=3.0,
-        step=0.001,
+        step=0.00001,
         show_value=False,
-        format="0[.]000",
+        format="0[.]0000",
     )
-    z_textinput = TextInput(
-        value=str(obj.redshift if obj.redshift is not None else 0.0)
+    z_input = NumericInput(
+        value=obj.redshift if obj.redshift is not None else 0.0,
+        mode='float',
     )
     z_slider.js_on_change(
         'value',
         CustomJS(
-            args={'slider': z_slider, 'textinput': z_textinput},
+            args={'slider': z_slider, 'input': z_input},
             code="""
-                    textinput.value = parseFloat(slider.value).toFixed(3);
-                    textinput.change.emit();
+                    input.value = slider.value;
+                    input.change.emit();
                 """,
         ),
     )
     z = column(
         z_title,
         z_slider,
-        z_textinput,
+        z_input,
         width=slider_width,
         margin=(4, 10, 0, 10),
     )
@@ -1759,21 +1760,21 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         step=10.0,
         show_value=False,
     )
-    v_exp_textinput = TextInput(value='0')
+    v_exp_input = NumericInput(value=0, mode='int')
     v_exp_slider.js_on_change(
         'value',
         CustomJS(
-            args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
+            args={'slider': v_exp_slider, 'input': v_exp_input},
             code="""
-                    textinput.value = parseFloat(slider.value).toFixed(0);
-                    textinput.change.emit();
+                    input.value = slider.value;
+                    input.change.emit();
                 """,
         ),
     )
     v_exp = column(
         v_title,
         v_exp_slider,
-        v_exp_textinput,
+        v_exp_input,
         width=slider_width,
         margin=(0, 10, 0, 10),
     )
@@ -1887,14 +1888,14 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     # Move spectral lines when redshift or velocity changes
     speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
     callback_zvs = CustomJS(
-        args={'z': z_textinput, 'v_exp': v_exp_textinput, **speclines},
+        args={'z': z_input, 'v_exp': v_exp_input, **speclines},
         code=f"""
                 const c = 299792.458; // speed of light in km / s
                 for (let i = 0; i < {len(speclines)}; i = i + 1) {{
                     let el = eval("specline_" + i);
                     el.data_source.data.x = el.data_source.data.wavelength.map(
-                        x_i => (x_i * (1 + parseFloat(z.value)) /
-                                        (1 + parseFloat(v_exp.value) / c))
+                        x_i => ( x_i * (1 + z.value) /
+                                        (1 + v_exp.value / c) )
                     );
                     el.data_source.change.emit();
                 }}
@@ -1902,27 +1903,27 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     )
 
     # Hook up callback that shifts spectral lines when z or v changes
-    z_textinput.js_on_change('value', callback_zvs)
-    v_exp_textinput.js_on_change('value', callback_zvs)
+    z_input.js_on_change('value', callback_zvs)
+    v_exp_input.js_on_change('value', callback_zvs)
 
-    z_textinput.js_on_change(
+    z_input.js_on_change(
         'value',
         CustomJS(
-            args={'z': z_textinput, 'slider': z_slider},
+            args={'z': z_input, 'slider': z_slider},
             code="""
                     // Update slider value to match text input
-                    slider.value = parseFloat(z.value).toFixed(3);
+                    slider.value = z.value;
                 """,
         ),
     )
 
-    v_exp_textinput.js_on_change(
+    v_exp_input.js_on_change(
         'value',
         CustomJS(
-            args={'slider': v_exp_slider, 'v_exp': v_exp_textinput},
+            args={'slider': v_exp_slider, 'v_exp': v_exp_input},
             code="""
                     // Update slider value to match text input
-                    slider.value = parseFloat(v_exp.value).toFixed(3);
+                    slider.value = v_exp.value;
                 """,
         ),
     )
