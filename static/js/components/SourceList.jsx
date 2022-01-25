@@ -102,9 +102,8 @@ const SourceList = () => {
     return <UninitializedDBMessage />;
   }
   if (!sourcesState.sources) {
-    return <CircularProgress className={classes.spinner}/>;
+    return <CircularProgress className={classes.spinner} />;
   }
-
 
   return (
     <Paper elevation={1} className={classes.paper}>
