@@ -65,7 +65,7 @@ const ObservationPlanRequestForm = ({ gcnevent_id }) => {
 
       const { data } = result;
       setSelectedAllocationId(data[0]?.id);
-      setSelectedGroupIds([data?.group_id]);
+      setSelectedGroupIds([data[0]?.group_id]);
     };
 
     getAllocations();

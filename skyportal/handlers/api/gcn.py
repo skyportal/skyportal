@@ -16,10 +16,12 @@ from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    Allocation,
     GcnEvent,
     GcnNotice,
     GcnTag,
     Localization,
+    ObservationPlanRequest,
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
@@ -153,6 +155,15 @@ class GcnEventHandler(BaseHandler):
                     options=[
                         joinedload(GcnEvent.localizations),
                         joinedload(GcnEvent.gcn_notices),
+                        joinedload(GcnEvent.observationplan_requests)
+                        .joinedload(ObservationPlanRequest.allocation)
+                        .joinedload(Allocation.instrument),
+                        joinedload(GcnEvent.observationplan_requests)
+                        .joinedload(ObservationPlanRequest.allocation)
+                        .joinedload(Allocation.group),
+                        joinedload(GcnEvent.observationplan_requests).joinedload(
+                            ObservationPlanRequest.requester
+                        ),
                     ],
                 )
                 .filter(GcnEvent.dateobs == dateobs)
@@ -174,6 +185,7 @@ class GcnEventHandler(BaseHandler):
             options=[
                 joinedload(GcnEvent.localizations),
                 joinedload(GcnEvent.gcn_notices),
+                joinedload(GcnEvent.observationplan_requests),
             ],
         )
 

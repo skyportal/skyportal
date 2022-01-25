@@ -29,6 +29,5 @@ class RoboticInstrumentsHandler(BaseHandler):
                 return self.error(
                     f"apitype can only be api_classname or api_observationplan_classname, not {apitype}"
                 )
-        print(retval, apitype)
         self.verify_and_commit()
         return self.success(data=retval)

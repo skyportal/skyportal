@@ -31,6 +31,7 @@ import * as sourcesActions from "../ducks/sources";
 
 import SourceTable from "./SourceTable";
 import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
+import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -67,7 +68,7 @@ const useStyles = makeStyles((theme) => ({
     fontSize: "1.25rem",
     fontWeight: theme.typography.fontWeightRegular,
   },
-  followupContainer: {
+  observationplanContainer: {
     display: "flex",
     overflow: "hidden",
     flexDirection: "column",
@@ -265,13 +266,15 @@ const GcnEventPage = ({ route }) => {
     return <CircularProgress />;
   }
 
+  console.log("gcnEvent", gcnEvent);
+
   return (
     <div>
       <div className={styles.columnItem}>
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="followup-content"
+            aria-controls="observationplan-content"
             id="info-header"
           >
             <Typography className={styles.accordionHeading}>
@@ -279,7 +282,7 @@ const GcnEventPage = ({ route }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.followupContainer}>
+            <div className={styles.observationplanContainer}>
               <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
                 <Button color="primary">
                   {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
@@ -294,7 +297,7 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="followup-content"
+            aria-controls="observationplan-content"
             id="lightcurve-header"
           >
             <Typography className={styles.accordionHeading}>
@@ -302,7 +305,7 @@ const GcnEventPage = ({ route }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.followupContainer}>
+            <div className={styles.observationplanContainer}>
               {gcnEvent.lightcurve && (
                 <div>
                   {" "}
@@ -317,7 +320,7 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="followup-content"
+            aria-controls="observationplan-content"
             id="eventtags-header"
           >
             <Typography className={styles.accordionHeading}>
@@ -342,13 +345,13 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="followup-content"
+            aria-controls="observationplan-content"
             id="skymap-header"
           >
             <Typography className={styles.accordionHeading}>Skymaps</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.followupContainer}>
+            <div className={styles.observationplanContainer}>
               {gcnEvent.localizations?.map((localization) => (
                 <li key={localization.localization_name}>
                   <div id="map" ref={mapRef}>
@@ -364,7 +367,7 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="followup-content"
+            aria-controls="observationplan-content"
             id="gcnnotices-header"
           >
             <Typography className={styles.accordionHeading}>
@@ -372,7 +375,7 @@ const GcnEventPage = ({ route }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.followupContainer}>
+            <div className={styles.observationplanContainer}>
               {gcnEvent.gcn_notices?.map((gcn_notice) => (
                 <li key={gcn_notice.ivorn}>
                   <DownloadXMLButton gcn_notice={gcn_notice} />
@@ -386,7 +389,7 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="followup-content"
+            aria-controls="observationplan-content"
             id="sources-header"
           >
             <Typography className={styles.accordionHeading}>
@@ -394,7 +397,7 @@ const GcnEventPage = ({ route }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.followupContainer}>
+            <div className={styles.observationplanContainer}>
               <GcnEventSourcesPage route={route} sources={gcnEventSources} />
             </div>
           </AccordionDetails>
@@ -404,18 +407,21 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="followup-content"
-            id="followup-header"
+            aria-controls="observationplan-content"
+            id="observationplan-header"
           >
             <Typography className={styles.accordionHeading}>
-              Follow-up
+              Observation Plans
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.followupContainer}>
+            <div className={styles.observationPlanContainer}>
               <ObservationPlanRequestForm
                 gcnevent_id={gcnEvent.id}
                 action="createNew"
+              />
+              <ObservationPlanRequestLists
+                observationplanRequests={gcnEvent.observationplan_requests}
               />
             </div>
           </AccordionDetails>
