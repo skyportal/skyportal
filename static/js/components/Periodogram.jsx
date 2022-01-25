@@ -518,6 +518,7 @@ const Periodogram = () => {
   const handleMultiplierChange = (e, val) => {
     setPeriodmultiplier(val);
   };
+
   return (
     <>
       <div>
