@@ -115,7 +115,7 @@ class GalaxyCatalogHandler(BaseHandler):
               schema:
                 type: string
               description: |
-                Event time in isot format
+                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
             - in: query
               name: localizationName
               schema:
