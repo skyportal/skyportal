@@ -134,7 +134,7 @@ class GalaxyCatalogHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson. Defaults to
+                Boolean indicating whether to include associated GeoJSON. Defaults to
                 false.
           responses:
             200:
