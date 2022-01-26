@@ -56,6 +56,9 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
+        if 'xml' not in data:
+            return self.error("xml must be present in data to parse GcnEvent")
+
         payload = data['xml']
 
         schema = f'{os.path.dirname(__file__)}/../../utils/schema/VOEvent-v2.0.xsd'
@@ -63,7 +66,7 @@ class GcnEventHandler(BaseHandler):
         if voevent_schema.is_valid(payload):
             root = lxml.etree.fromstring(payload.encode('ascii'))
         else:
-            raise Exception("xml file is not valid VOEvent")
+            self.error("xml file is not valid VOEvent")
 
         dateobs = get_dateobs(root)
 
