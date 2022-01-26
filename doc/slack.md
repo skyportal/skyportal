@@ -68,4 +68,4 @@ The Slack admin may delete the Slack App for their workspace at any time, invali
 
 ## Use as an instrument triggering API
 
-We have enabled the use of Slack for instrument "triggering," enabling a push of a transient follow-up request similar to done for other instruments. To enable this, an instrument needs SLACKAPI added as its triggering API, and in the instrument allocation, _altdata should look like {"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"} with the appropriate values.
+We have enabled the use of Slack for instrument "triggering," enabling a push of a transient follow-up request similar to done for other instruments. To enable this, an instrument needs `SLACKAPI` added as its triggering API, and in the instrument allocation, `_altdata` should look like `{"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}` with the appropriate values. The Slack endpoint will be POSTed to `{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}`
