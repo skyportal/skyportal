@@ -121,7 +121,7 @@ class GalaxyCatalogHandler(BaseHandler):
               schema:
                 type: string
               description: |
-                Name of localization / skymap to use. Can be found in Localization.localization_name
+                Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endopoint or skymap name in GcnEvent page table.
             - in: query
               name: localizationCumprob
               schema:
