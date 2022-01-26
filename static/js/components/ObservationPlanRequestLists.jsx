@@ -94,8 +94,6 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
     (state) => state.instruments
   );
 
-  console.log("observationplanRequests", observationplanRequests);
-
   if (
     instrumentList.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
