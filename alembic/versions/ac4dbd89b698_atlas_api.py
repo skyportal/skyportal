@@ -197,6 +197,7 @@ drop type "public"."followup_apis__old_version_to_be_dropped" cascade;
                 )
             ),
             nullable=False,
+            default=[],
         ),
     )
     # ### end Alembic commands ###
