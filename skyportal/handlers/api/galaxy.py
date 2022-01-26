@@ -129,7 +129,7 @@ class GalaxyCatalogHandler(BaseHandler):
               description: |
                 Cumulative probability up to which to include galaxies
             - in: query
-              name: includeGeojson
+              name: includeGeoJSON
               nullable: true
               schema:
                 type: boolean
