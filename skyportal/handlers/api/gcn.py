@@ -1,4 +1,4 @@
-# inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
+# Inspired by https://github.com/growth-astro/growth-too-marshal/blob/main/growth/too/gcn.py
 
 import os
 import gcn
