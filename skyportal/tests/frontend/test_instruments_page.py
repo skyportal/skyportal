@@ -1,8 +1,10 @@
 from skyportal.tests import api
 
 import uuid
+import pytest
 
 
+@pytest.mark.flaky(reruns=5)
 def test_instrument_frontend(super_admin_token, super_admin_user, driver):
 
     driver.get(f"/become_user/{super_admin_user.id}")
@@ -47,7 +49,7 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
 
     # check for API instrument
     driver.wait_for_xpath(
-        f'//span[text()="{instrument_name}/{telescope_name}"]', timeout=20
+        f'//span[text()[contains(.,"{instrument_name}/{telescope_name}")]]', timeout=20
     )
 
     # add dropdown instrument
