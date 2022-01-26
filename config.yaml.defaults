@@ -442,11 +442,13 @@ spectrum_types:
   default: source
 
 # define the additional passbands that are not in SNCosmo
+# (https://sncosmo.readthedocs.io/en/stable/bandpass-list.html)
 # the names must be unique. The wavelength array should
 # describe the full extent of the bandpass in Angstrom
 # and the transmission should be a vector of the same
-# length that defines the full QE at each wavelength.
+# length that defines the full Quantum Efficiency at each wavelength.
 # must have at least two elements in the arrays
+# `wavelength` and `transmission`.
 additional_bandpasses:
   - name: 'atlasc'
     filterset: 'atlas'
