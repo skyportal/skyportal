@@ -290,7 +290,7 @@ instrument:
     type: imager
     api_classname: ATLASAPI
     =id: ATLAS
-    filters: ["sdssg", "sdssr"]
+    filters: ["atlasc", "atlaso"]
   - band: optical
     name: KAIT
     telescope_id: =KAIT

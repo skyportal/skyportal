@@ -168,8 +168,8 @@ class ATLASAPI(FollowUpAPI):
 
                 snr = df['uJy'] / df['duJy'] < 5
 
-                df['filter'].loc[cyan] = 'sdssg'
-                df['filter'].loc[orange] = 'sdssr'
+                df['filter'].loc[cyan] = 'atlasc'
+                df['filter'].loc[orange] = 'atlaso'
                 df['mag'].loc[snr] = None
                 df['magerr'].loc[snr] = None
 
