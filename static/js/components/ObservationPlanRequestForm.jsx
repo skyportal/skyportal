@@ -230,7 +230,7 @@ const ObservationPlanRequestForm = ({ gcnevent_id }) => {
 };
 
 ObservationPlanRequestForm.propTypes = {
-  gcnevent_id: PropTypes.string.isRequired,
+  gcnevent_id: PropTypes.number.isRequired,
   instrumentFormParams: PropTypes.shape({
     formSchema: PropTypes.objectOf(PropTypes.any),
     uiSchema: PropTypes.objectOf(PropTypes.any),
