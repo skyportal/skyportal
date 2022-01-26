@@ -293,6 +293,13 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
         for ii, (field_id, ra, dec, coords) in enumerate(
             zip(field_data['ID'], field_data['RA'], field_data['Dec'], coords_icrs)
         ):
+            geometry = []
+            for coord in coords:
+                tab = zip(
+                    (*coord.ra.deg, coord.ra.deg[0]), (*coord.dec.deg, coord.dec.deg[0])
+                )
+                geometry.append(tab)
+
             contour = {
                 'properties': {
                     'instrument': instrument_name,
@@ -300,19 +307,18 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     'ra': ra,
                     'dec': dec,
                 },
+                'type': 'FeatureCollection',
+                'features': [
+                    {
+                        'type': 'Feature',
+                        'geometry': {
+                            'type': 'MultiLineString',
+                            'coordinates': geometry,
+                        },
+                    },
+                ],
             }
 
-            geometry = []
-            for coord in coords:
-                tab = []
-                for i in range(len(coord.ra.deg)):
-                    tab.append([coord.ra.deg[i], coord.dec.deg[i]])
-                tab.append([coord.ra.deg[0], coord.dec.deg[0]])
-                geometry.append(tab)
-
-            contour['type'] = "Feature"
-            contour['geometry'] = {'coordinates': geometry, 'type': 'MultiLineString'}
-            contour = {'features': [contour], 'type': "FeatureCollection"}
             field = InstrumentField(
                 instrument_id=instrument_id, field_id=int(field_id), contour=contour
             )

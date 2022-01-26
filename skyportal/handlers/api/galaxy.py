@@ -121,7 +121,7 @@ class GalaxyCatalogHandler(BaseHandler):
               schema:
                 type: string
               description: |
-                Name of localization / skymap to use
+                Name of localization / skymap to use. Can be found in Localization.localization_name
             - in: query
               name: localizationCumprob
               schema:
@@ -190,15 +190,17 @@ class GalaxyCatalogHandler(BaseHandler):
                 .over(order_by=LocalizationTile.probdensity.desc())
                 .label('cum_prob')
             )
-            subquery1 = (
+            localizationtile_subquery = (
                 sa.select(LocalizationTile.probdensity, cum_prob).filter(
                     LocalizationTile.localization_id == localization.id
                 )
             ).subquery()
 
             min_probdensity = (
-                sa.select(sa.func.min(subquery1.columns.probdensity)).filter(
-                    subquery1.columns.cum_prob <= localization_cumprob
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob <= localization_cumprob
                 )
             ).scalar_subquery()
 
