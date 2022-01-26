@@ -158,441 +158,440 @@ class SourceHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id=None):
         """
-                ---
-                single:
-                  description: Retrieve a source
-                  tags:
-                    - sources
-                  parameters:
-                    - in: path
-                      name: obj_id
-                      required: false
-                      schema:
-                        type: string
-                    - in: query
-                      name: includePhotometry
-                      nullable: true
-                      schema:
-                        type: boolean
-                      description: |
-                        Boolean indicating whether to include associated photometry. Defaults to
-                        false.
-                    - in: query
-                      name: includeComments
-                      nullable: true
-                      schema:
-                        type: boolean
-                      description: |
-                        Boolean indicating whether to include comment metadata in response.
-                        Defaults to false.
-                    - in: query
-                      name: includePhotometryExists
-                      nullable: true
-                      schema:
-                        type: boolean
-                      description: |
-                        Boolean indicating whether to return if a source has any photometry points. Defaults to false.
-                    - in: query
-                      name: includeSpectrumExists
-                      nullable: true
-                      schema:
-                        type: boolean
-                      description: |
-                        Boolean indicating whether to return if a source has a spectra. Defaults to false.
-                    - in: query
-                      name: includeThumbnails
-                      nullable: true
-                      schema:
-                        type: boolean
-                      description: |
-                        Boolean indicating whether to include associated thumbnails. Defaults to false.
-                  responses:
-                    200:
-                      content:
-                        application/json:
-                          schema: SingleObj
-                    400:
-                      content:
-                        application/json:
-                          schema: Error
-                multiple:
-                  description: Retrieve all sources
-                  tags:
-                    - sources
-                  parameters:
-                  - in: query
-                    name: ra
-                    nullable: true
-                    schema:
-                      type: number
-                    description: RA for spatial filtering (in decimal degrees)
-                  - in: query
-                    name: dec
-                    nullable: true
-                    schema:
-                      type: number
-                    description: Declination for spatial filtering (in decimal degrees)
-                  - in: query
-                    name: radius
-                    nullable: true
-                    schema:
-                      type: number
-                    description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
-                  - in: query
-                    name: sourceID
-                    nullable: true
-                    schema:
-                      type: string
-                    description: Portion of ID to filter on
-                  - in: query
-                    name: simbadClass
-                    nullable: true
-                    schema:
-                      type: string
-                    description: Simbad class to filter on
-                  - in: query
-                    name: alias
-                    nullable: true
-                    schema:
-                      type: array
-                      items:
-                        types: string
-                    description: additional name for the same object
-                  - in: query
-                    name: origin
-                    nullable: true
-                    schema:
-                      type: string
-                    description: who posted/discovered this source
-                  - in: query
-                    name: hasTNSname
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: If true, return only those matches with TNS names
-                  - in: query
-                    name: numPerPage
-                    nullable: true
-                    schema:
-                      type: integer
-                    description: |
-                      Number of sources to return per paginated request. Defaults to 100. Max 500.
-                  - in: query
-                    name: pageNumber
-                    nullable: true
-                    schema:
-                      type: integer
-                    description: Page number for paginated query results. Defaults to 1
-                  - in: query
-                    name: totalMatches
-                    nullable: true
-                    schema:
-                      type: integer
-                    description: |
-                      Used only in the case of paginating query results - if provided, this
-                      allows for avoiding a potentially expensive query.count() call.
-                  - in: query
-                    name: startDate
-                    nullable: true
-                    schema:
-                      type: string
-                    description: |
-                      Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                      last_detected_at >= startDate
-                  - in: query
-                    name: endDate
-                    nullable: true
-                    schema:
-                      type: string
-                    description: |
-                      Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-                      last_detected_at <= endDate
-                  - in: query
-                    name: listName
-                    nullable: true
-                    schema:
-                      type: string
-                    description: |
-                      Get only sources saved to the querying user's list, e.g., "favorites".
-                  - in: query
-                    name: group_ids
-                    nullable: true
-                    schema:
-                      type: list
-                      items:
-                        type: integer
-                    description: |
-                       If provided, filter only sources saved to one of these group IDs.
-                  - in: query
-                    name: includePhotometry
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: |
-                      Boolean indicating whether to include associated photometry. Defaults to
-                      false.
-                  - in: query
-                    name: includeColorMagnitude
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: |
-                      Boolean indicating whether to include the color-magnitude data from Gaia.
-                      This will only include data for objects that have an annotation
-                      with the appropriate format: a key named Gaia that contains a dictionary
-                      with keys named Mag_G, Mag_Bp, Mag_Rp, and Plx
-                      (underscores and case are ignored when matching all the above keys).
-                      The result is saved in a field named 'color_magnitude'.
-                      If no data is available, returns an empty array.
-                      Defaults to false (do not search for nor include this info).
-                  - in: query
-                    name: includeRequested
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: |
-                      Boolean indicating whether to include requested saves. Defaults to
-                      false.
-                  - in: query
-                    name: pendingOnly
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: |
-                      Boolean indicating whether to only include requested/pending saves.
-                      Defaults to false.
-                  - in: query
-                    name: savedBefore
-                    nullable: true
-                    schema:
-                      type: string
-                    description: |
-                      Only return sources that were saved before this UTC datetime.
-                  - in: query
-                    name: savedAfter
-                    nullable: true
-                    schema:
-                      type: string
-                    description: |
-                      Only return sources that were saved after this UTC datetime.
-                  - in: query
-                    name: hasSpectrumAfter
-                    nullable: true
-                    schema:
-                      type: string
-                    description: |
-                      Only return sources with a spectrum saved after this UTC datetime
-                  - in: query
-                    name: hasSpectrumBefore
-                    nullable: true
-                    schema:
-                      type: string
-                    description: |
-                      Only return sources with a spectrum saved before this UTC
-                      datetime
-                  - in: query
-                    name: saveSummary
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: |
-                      Boolean indicating whether to only return the source save
-                      information in the response (defaults to false). If true,
-                      the response will contain a list of dicts with the following
-                      schema under `response['data']['sources']`:
-                      ```
-                          {
-                            "group_id": 2,
-                            "created_at": "2020-11-13T22:11:25.910271",
-                            "saved_by_id": 1,
-                            "saved_at": "2020-11-13T22:11:25.910271",
-                            "requested": false,
-                            "unsaved_at": null,
-                            "modified": "2020-11-13T22:11:25.910271",
-                            "obj_id": "16fil",
-                            "active": true,
-                            "unsaved_by_id": null
-                          }
-                      ```
-                  - in: query
-                    name: sortBy
-                    nullable: true
-                    schema:
-                      type: string
-                    description: |
-                      The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"]
-                  - in: query
-                    name: sortOrder
-                    nullable: true
-                    schema:
-                      type: string
-                    description: |
-                      The sort order - either "asc" or "desc". Defaults to "asc"
-                  - in: query
-                    name: includeComments
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: |
-                      Boolean indicating whether to include comment metadata in response.
-                      Defaults to false.
-                  - in: query
-                    name: includePhotometryExists
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: |
-                      Boolean indicating whether to return if a source has any photometry points. Defaults to false.
-                  - in: query
-                    name: includeSpectrumExists
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: |
-                      Boolean indicating whether to return if a source has a spectra. Defaults to false.
-                  - in: query
-                    name: removeNested
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: |
-                      Boolean indicating whether to remove nested output. Defaults to false.
-                  - in: query
-                    name: includeThumbnails
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: |
-                      Boolean indicating whether to include associated thumbnails. Defaults to false.
-                  - in: query
-                    name: includeDetectionStats
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: |
-                      Boolean indicating whether to include photometry detection statistics for each source
-                      (last detection and peak detection). Defaults to false.
-                  - in: query
-                    name: classifications
-                    nullable: true
-                    schema:
-                      type: array
-                      items:
-                        type: string
-                    explode: false
-                    style: simple
-                    description: |
-                      Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching
-                      that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
-                  - in: query
-                    name: minRedshift
-                    nullable: true
-                    schema:
-                      type: number
-                    description: |
-                      If provided, return only sources with a redshift of at least this value
-                  - in: query
-                    name: maxRedshift
-                    nullable: true
-                    schema:
-                      type: number
-                    description: |
-                      If provided, return only sources with a redshift of at most this value
-                  - in: query
-                    name: minPeakMagnitude
-                    nullable: true
-                    schema:
-                      type: number
-                    description: |
-                      If provided, return only sources with a peak photometry magnitude of at least this value
-                  - in: query
-                    name: maxPeakMagnitude
-                    nullable: true
-                    schema:
-                      type: number
-                    description: |
-                      If provided, return only sources with a peak photometry magnitude of at most this value
-                  - in: query
-                    name: minLatestMagnitude
-                    nullable: true
-                    schema:
-                      type: number
-                    description: |
-                      If provided, return only sources whose latest photometry magnitude is at least this value
-                  - in: query
-                    name: maxLatestMagnitude
-                    nullable: true
-                    schema:
-                      type: number
-                    description: |
-                      If provided, return only sources whose latest photometry magnitude is at most this value
-                  - in: query
-                    name: hasSpectrum
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: If true, return only those matches with at least one associated spectrum
-                  - in: query
-                    name: createdOrModifiedAfter
-                    nullable: true
-                    schema:
-                      type: string
-                    description: |
-                      Arrow-parseable date-time string (e.g. 2020-01-01 or 2020-01-01T00:00:00 or 2020-01-01T00:00:00+00:00).
-                      If provided, filter by created_at or modified > createdOrModifiedAfter
-                  - in: query
-                    name: localizationDateobs
-                    schema:
-                      type: string
-                    description: |
-                      Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                  - in: query
-                    name: localizationName
-                    schema:
-                      type: string
-                    description: |
-                      Name of localization / skymap to use. Can be found in Localizati
-        on.localization_name
-                  - in: query
-                    name: localizationCumprob
-                    schema:
-                      type: number
-                    description: |
-                      Cumulative probability up to which to include sources
-                  - in: query
-                    name: includeGeojson
-                    nullable: true
-                    schema:
-                      type: boolean
-                    description: |
-                      Boolean indicating whether to include associated geojson. Defaults to
-                      false.
-                  responses:
-                    200:
-                      content:
-                        application/json:
-                          schema:
-                            allOf:
-                              - $ref: '#/components/schemas/Success'
-                              - type: object
-                                properties:
-                                  data:
-                                    type: object
-                                    properties:
-                                      sources:
-                                        type: array
-                                        items:
-                                          $ref: '#/components/schemas/Obj'
-                                      totalMatches:
-                                        type: integer
-                                      pageNumber:
-                                        type: integer
-                                      numPerPage:
-                                        type: integer
-                    400:
-                      content:
-                        application/json:
-                          schema: Error
+        ---
+        single:
+          description: Retrieve a source
+          tags:
+            - sources
+          parameters:
+            - in: path
+              name: obj_id
+              required: false
+              schema:
+                type: string
+            - in: query
+              name: includePhotometry
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated photometry. Defaults to
+                false.
+            - in: query
+              name: includeComments
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include comment metadata in response.
+                Defaults to false.
+            - in: query
+              name: includePhotometryExists
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to return if a source has any photometry points. Defaults to false.
+            - in: query
+              name: includeSpectrumExists
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to return if a source has a spectra. Defaults to false.
+            - in: query
+              name: includeThumbnails
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated thumbnails. Defaults to false.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleObj
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all sources
+          tags:
+            - sources
+          parameters:
+          - in: query
+            name: ra
+            nullable: true
+            schema:
+              type: number
+            description: RA for spatial filtering (in decimal degrees)
+          - in: query
+            name: dec
+            nullable: true
+            schema:
+              type: number
+            description: Declination for spatial filtering (in decimal degrees)
+          - in: query
+            name: radius
+            nullable: true
+            schema:
+              type: number
+            description: Radius for spatial filtering if ra & dec are provided (in decimal degrees)
+          - in: query
+            name: sourceID
+            nullable: true
+            schema:
+              type: string
+            description: Portion of ID to filter on
+          - in: query
+            name: simbadClass
+            nullable: true
+            schema:
+              type: string
+            description: Simbad class to filter on
+          - in: query
+            name: alias
+            nullable: true
+            schema:
+              type: array
+              items:
+                types: string
+            description: additional name for the same object
+          - in: query
+            name: origin
+            nullable: true
+            schema:
+              type: string
+            description: who posted/discovered this source
+          - in: query
+            name: hasTNSname
+            nullable: true
+            schema:
+              type: boolean
+            description: If true, return only those matches with TNS names
+          - in: query
+            name: numPerPage
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Number of sources to return per paginated request. Defaults to 100. Max 500.
+          - in: query
+            name: pageNumber
+            nullable: true
+            schema:
+              type: integer
+            description: Page number for paginated query results. Defaults to 1
+          - in: query
+            name: totalMatches
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Used only in the case of paginating query results - if provided, this
+              allows for avoiding a potentially expensive query.count() call.
+          - in: query
+            name: startDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              last_detected_at >= startDate
+          - in: query
+            name: endDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              last_detected_at <= endDate
+          - in: query
+            name: listName
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Get only sources saved to the querying user's list, e.g., "favorites".
+          - in: query
+            name: group_ids
+            nullable: true
+            schema:
+              type: list
+              items:
+                type: integer
+            description: |
+               If provided, filter only sources saved to one of these group IDs.
+          - in: query
+            name: includePhotometry
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated photometry. Defaults to
+              false.
+          - in: query
+            name: includeColorMagnitude
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include the color-magnitude data from Gaia.
+              This will only include data for objects that have an annotation
+              with the appropriate format: a key named Gaia that contains a dictionary
+              with keys named Mag_G, Mag_Bp, Mag_Rp, and Plx
+              (underscores and case are ignored when matching all the above keys).
+              The result is saved in a field named 'color_magnitude'.
+              If no data is available, returns an empty array.
+              Defaults to false (do not search for nor include this info).
+          - in: query
+            name: includeRequested
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include requested saves. Defaults to
+              false.
+          - in: query
+            name: pendingOnly
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to only include requested/pending saves.
+              Defaults to false.
+          - in: query
+            name: savedBefore
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources that were saved before this UTC datetime.
+          - in: query
+            name: savedAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources that were saved after this UTC datetime.
+          - in: query
+            name: hasSpectrumAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources with a spectrum saved after this UTC datetime
+          - in: query
+            name: hasSpectrumBefore
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources with a spectrum saved before this UTC
+              datetime
+          - in: query
+            name: saveSummary
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to only return the source save
+              information in the response (defaults to false). If true,
+              the response will contain a list of dicts with the following
+              schema under `response['data']['sources']`:
+              ```
+                  {
+                    "group_id": 2,
+                    "created_at": "2020-11-13T22:11:25.910271",
+                    "saved_by_id": 1,
+                    "saved_at": "2020-11-13T22:11:25.910271",
+                    "requested": false,
+                    "unsaved_at": null,
+                    "modified": "2020-11-13T22:11:25.910271",
+                    "obj_id": "16fil",
+                    "active": true,
+                    "unsaved_by_id": null
+                  }
+              ```
+          - in: query
+            name: sortBy
+            nullable: true
+            schema:
+              type: string
+            description: |
+              The field to sort by. Currently allowed options are ["id", "ra", "dec", "redshift", "saved_at"]
+          - in: query
+            name: sortOrder
+            nullable: true
+            schema:
+              type: string
+            description: |
+              The sort order - either "asc" or "desc". Defaults to "asc"
+          - in: query
+            name: includeComments
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include comment metadata in response.
+              Defaults to false.
+          - in: query
+            name: includePhotometryExists
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return if a source has any photometry points. Defaults to false.
+          - in: query
+            name: includeSpectrumExists
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to return if a source has a spectra. Defaults to false.
+          - in: query
+            name: removeNested
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to remove nested output. Defaults to false.
+          - in: query
+            name: includeThumbnails
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated thumbnails. Defaults to false.
+          - in: query
+            name: includeDetectionStats
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include photometry detection statistics for each source
+              (last detection and peak detection). Defaults to false.
+          - in: query
+            name: classifications
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: string
+            explode: false
+            style: simple
+            description: |
+              Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching
+              that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
+          - in: query
+            name: minRedshift
+            nullable: true
+            schema:
+              type: number
+            description: |
+              If provided, return only sources with a redshift of at least this value
+          - in: query
+            name: maxRedshift
+            nullable: true
+            schema:
+              type: number
+            description: |
+              If provided, return only sources with a redshift of at most this value
+          - in: query
+            name: minPeakMagnitude
+            nullable: true
+            schema:
+              type: number
+            description: |
+              If provided, return only sources with a peak photometry magnitude of at least this value
+          - in: query
+            name: maxPeakMagnitude
+            nullable: true
+            schema:
+              type: number
+            description: |
+              If provided, return only sources with a peak photometry magnitude of at most this value
+          - in: query
+            name: minLatestMagnitude
+            nullable: true
+            schema:
+              type: number
+            description: |
+              If provided, return only sources whose latest photometry magnitude is at least this value
+          - in: query
+            name: maxLatestMagnitude
+            nullable: true
+            schema:
+              type: number
+            description: |
+              If provided, return only sources whose latest photometry magnitude is at most this value
+          - in: query
+            name: hasSpectrum
+            nullable: true
+            schema:
+              type: boolean
+            description: If true, return only those matches with at least one associated spectrum
+          - in: query
+            name: createdOrModifiedAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date-time string (e.g. 2020-01-01 or 2020-01-01T00:00:00 or 2020-01-01T00:00:00+00:00).
+              If provided, filter by created_at or modified > createdOrModifiedAfter
+          - in: query
+            name: localizationDateobs
+            schema:
+              type: string
+            description: |
+              Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+          - in: query
+            name: localizationName
+            schema:
+              type: string
+            description: |
+              Name of localization / skymap to use. Can be found in Localization.localization_name
+          - in: query
+            name: localizationCumprob
+            schema:
+              type: number
+            description: |
+              Cumulative probability up to which to include sources
+          - in: query
+            name: includeGeojson
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated geojson. Defaults to
+              false.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              sources:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Obj'
+                              totalMatches:
+                                type: integer
+                              pageNumber:
+                                type: integer
+                              numPerPage:
+                                type: integer
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
         page_number = self.get_query_argument('pageNumber', 1)
         num_per_page = min(
