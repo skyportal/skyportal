@@ -31,7 +31,7 @@ for additional_bandpasses in cfg.get('additional_bandpasses', []):
         transmission = np.array(additional_bandpasses.get("transmission"))
         band = sncosmo.Bandpass(wavelength, transmission, name=name, wave_unit=u.AA)
     except Exception as e:
-        log(f"Could not make bandpass for {name}")
+        log(f"Could not make bandpass for {name}: {e}")
         log(f"(Original exception: {e})")
         continue
 
