@@ -32,7 +32,6 @@ for additional_bandpasses in cfg.get('additional_bandpasses', []):
         band = sncosmo.Bandpass(wavelength, transmission, name=name, wave_unit=u.AA)
     except Exception as e:
         log(f"Could not make bandpass for {name}: {e}")
-        log(f"(Original exception: {e})")
         continue
 
     sncosmo.registry.register(band)
@@ -49,7 +48,7 @@ ALLOWED_SPECTRUM_TYPES = tuple(
 )
 ALLOWED_MAGSYSTEMS = tuple(val['name'] for val in _MAGSYSTEMS.get_loaders_metadata())
 # though in the registry, the additional bandpass names are not in the _BANDPASSES list
-ALLOWED_BANDPASSES = tuple(existing_bandpasses_names + additional_bandpasses_names)
+ALLOWED_BANDPASSES = tuple(set(existing_bandpasses_names + additional_bandpasses_names))
 
 THUMBNAIL_TYPES = (
     'new',
