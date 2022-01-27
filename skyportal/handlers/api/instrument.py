@@ -77,6 +77,7 @@ class InstrumentHandler(BaseHandler):
                 lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
             )
 
+        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success(data={"id": instrument.id})
 
     @auth_or_token
@@ -130,6 +131,7 @@ class InstrumentHandler(BaseHandler):
                 mode="read",
                 options=[joinedload(Instrument.fields)],
             )
+
             return self.success(data=instrument)
 
         inst_name = self.get_query_argument("name", None)
@@ -190,6 +192,7 @@ class InstrumentHandler(BaseHandler):
             )
         self.verify_and_commit()
 
+        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success()
 
     @permissions(['System admin'])
@@ -221,6 +224,7 @@ class InstrumentHandler(BaseHandler):
         DBSession().delete(instrument)
         self.verify_and_commit()
 
+        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success()
 
 
@@ -292,6 +296,16 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
         for ii, (field_id, ra, dec, coords) in enumerate(
             zip(field_data['ID'], field_data['RA'], field_data['Dec'], coords_icrs)
         ):
+            geometry = []
+            for coord in coords:
+                tab = list(
+                    zip(
+                        (*coord.ra.deg, coord.ra.deg[0]),
+                        (*coord.dec.deg, coord.dec.deg[0]),
+                    )
+                )
+                geometry.append(tab)
+
             contour = {
                 'properties': {
                     'instrument': instrument_name,
@@ -299,6 +313,16 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     'ra': ra,
                     'dec': dec,
                 },
+                'type': 'FeatureCollection',
+                'features': [
+                    {
+                        'type': 'Feature',
+                        'geometry': {
+                            'type': 'MultiLineString',
+                            'coordinates': geometry,
+                        },
+                    },
+                ],
             }
 
             field = InstrumentField(
