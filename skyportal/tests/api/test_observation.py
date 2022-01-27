@@ -73,6 +73,9 @@ def test_observation(super_admin_token, view_only_token):
     assert status == 200
     assert data['status'] == 'success'
 
+    # wait for the executed observations to populate
+    time.sleep(15)
+
     data = {
         'telescope_name': name,
         'instrument_name': instrument_name,

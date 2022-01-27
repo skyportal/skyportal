@@ -162,7 +162,7 @@ class ObservationHandler(BaseHandler):
         end_date = data.get('end_date')
         localization_dateobs = data.get('localizationDateobs', None)
         localization_name = data.get('localizationName', None)
-        localization_cumprob = data.get("localization_cumprob", 0.95)
+        localization_cumprob = data.get("localizationCumprob", 0.95)
         return_probability = data.get("return_probability", False)
 
         telescope = (
