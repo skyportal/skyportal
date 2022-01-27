@@ -144,7 +144,7 @@ class ObservationHandler(BaseHandler):
             200:
               content:
                 application/json:
-                  schema: ArrayOfObservation
+                  schema: ArrayOfObservations
             400:
               content:
                 application/json:
