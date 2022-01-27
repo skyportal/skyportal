@@ -89,7 +89,6 @@ class SLACKRequest:
 
 
 class SLACKAPI(FollowUpAPI):
-
     """An interface to SLACK operations."""
 
     # subclasses *must* implement the method below
