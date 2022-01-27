@@ -259,6 +259,13 @@ jobs:
             echo "Migrated database and fresh database match."
           fi
 
+      - name: Upload logs
+        uses: actions/upload-artifact@v2
+        if: ${{ always() }}
+        with:
+          name: logs
+          path: log
+
       - name: Upload the Alembic diff
         uses: actions/upload-artifact@v2
         if: ${{ always() }}
