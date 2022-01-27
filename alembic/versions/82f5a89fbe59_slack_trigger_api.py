@@ -16,7 +16,7 @@ depends_on = None
 
 
 def upgrade():
-    # add atlasc and atlaso to bandpasses, ATLASAPI to followup_apis
+    # add SLACKAPI to followup_apis
     with op.get_context().autocommit_block():
         op.execute("ALTER TYPE followup_apis ADD VALUE IF NOT EXISTS 'SLACKAPI'")
 
