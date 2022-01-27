@@ -1,7 +1,7 @@
 """Test migration
 
 Revision ID: ac4dbd89b698
-Revises: f9611048498a
+Revises: d61a8bea7313
 Create Date: 2022-01-26 21:23:15.248440
 
 """
