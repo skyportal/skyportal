@@ -1,5 +1,4 @@
 import uuid
-import pytest
 import healpix_alchemy as ha
 import numpy.testing as npt
 import numpy as np
@@ -439,9 +438,6 @@ def test_starlist(upload_data_token, public_source):
     assert "starlist_str" in data["data"]
     assert isinstance(data["data"]["starlist_info"][2]["dec"], float)
 
-    ztf_star_position = data["data"]["starlist_info"][2]["dec"]
-    ztf_requested_position_used_ztfref = data["data"]["used_ztfref"]
-
     # use DR2 for offsets ... it should not be identical position as DR2
     status, data = api(
         "GET",
@@ -452,16 +448,6 @@ def test_starlist(upload_data_token, public_source):
     assert status == 200
     assert data["status"] == "success"
     assert isinstance(data["data"]["starlist_info"][2]["dec"], float)
-    gaiadr2_star_position = data["data"]["starlist_info"][2]["dec"]
-    dr2_requested_position_used_ztfref = data["data"]["used_ztfref"]
-
-    # if we indeed did not use the same catalog for the position of the
-    # offset star, test to make sure we got back a different star position
-    if dr2_requested_position_used_ztfref != ztf_requested_position_used_ztfref:
-        with pytest.raises(AssertionError):
-            npt.assert_almost_equal(
-                gaiadr2_star_position, ztf_star_position, decimal=10
-            )
 
 
 def test_source_notifications_unauthorized(
