@@ -8,6 +8,7 @@ on:
       - "skyportal/models.py"
       - "skyportal/models/**"
       - "alembic/versions/**"
+      - "skyportal/enum_types.py"
       - "skyportal/facility_apis/__init__.py"
 
 jobs:
