@@ -1,7 +1,7 @@
 """executed observation table
 
 Revision ID: 1514ec8ecf34
-Revises: d61a8bea7313
+Revises: 82f5a89fbe59
 Create Date: 2022-01-26 20:52:50.921815
 
 """
