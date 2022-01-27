@@ -78,9 +78,9 @@ def test_observation(super_admin_token, view_only_token):
         'instrument_name': instrument_name,
         'start_date': "2019-04-25 08:18:05",
         'end_date': "2019-04-28 08:18:05",
-        'dateobs': "2019-04-25T08:18:05",
-        'localization_name': "bayestar.fits.gz",
-        'localization_cumprob': 1.01,
+        'localizationDateobs': "2019-04-25T08:18:05",
+        'localizationName': "bayestar.fits.gz",
+        'localizationCumprob': 1.01,
         'return_probability': True,
     }
 
