@@ -24,8 +24,10 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
 import * as sourcesActions from "../ducks/sources";
+import * as galaxiesActions from "../ducks/galaxies";
 
 import SourceTable from "./SourceTable";
+import GalaxyTable from "./GalaxyTable";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -235,6 +237,9 @@ const GcnEventPage = ({ route }) => {
   const gcnEventSources = useSelector(
     (state) => state?.sources?.gcnEventSources
   );
+  const gcnEventGalaxies = useSelector(
+    (state) => state?.galaxies?.gcnEventGalaxies
+  );
 
   useEffect(() => {
     dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
@@ -244,7 +249,11 @@ const GcnEventPage = ({ route }) => {
     dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
   }, [route, dispatch]);
 
-  if (!gcnEvent || !gcnEventSources) {
+  useEffect(() => {
+    dispatch(galaxiesActions.fetchGcnEventGalaxies(route.dateobs));
+  }, [route, dispatch]);
+
+  if (!gcnEvent || !gcnEventSources || !gcnEventGalaxies) {
     return <CircularProgress />;
   }
 
@@ -298,6 +307,9 @@ const GcnEventPage = ({ route }) => {
       </div>
       <div>
         <GcnEventSourcesPage route={route} sources={gcnEventSources} />
+      </div>
+      <div>
+        <GalaxyTable galaxies={gcnEventGalaxies.sources} />
       </div>
     </div>
   );
