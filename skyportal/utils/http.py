@@ -1,6 +1,9 @@
 def serialize_requests_request(request):
     if request.body is not None:
-        body = request.body.decode()
+        if isinstance(request.body, bytes):
+            body = request.body.decode()
+        else:
+            body = request.body
     else:
         body = ''
 
