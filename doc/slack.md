@@ -57,6 +57,10 @@ If the `@ mentions` toggle is activated, then all mentions of this user on SkyPo
 For the SkyPortal user to stop Slack notifications, they only need to toggle off the Slack Integration button in the **Profile** page.
 
 
+## Use as an instrument triggering API
+
+We have enabled the use of Slack for instrument "triggering," enabling a push of a transient follow-up request similar to done for other instruments. To enable this, an instrument needs `SLACKAPI` added as its triggering API, and in the instrument allocation, `_altdata` should look like `{"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}` with the appropriate values. The Slack endpoint will be POSTed to `{SLACK_URL}/{altdata['slack_workspace']}/{altdata['slack_channel']}/{altdata['slack_token']}`
+
 ## Notes on Reliability and Security
 
 Unlike a fault-tolerant pub-sub mechanism like XMPP Jabber, Slack notifications are not guaranteed to be delivered. If any part of the communication fails (e.g., Slack downtime or SkyPortal errors), the Slack messaging will not work. Users should not rely upon receiving Slack messages to perform mission critical work.
