@@ -424,18 +424,20 @@ const SourceDesktop = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <div className={classes.photometryContainer}>
-                <Suspense
-                  fallback={
-                    <div>
-                      <CircularProgress color="secondary" />
-                    </div>
-                  }
-                >
-                  <Plot
-                    url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&cacheID=${specIDs}`}
-                  />
-                </Suspense>
+              <Grid container>
+                <div className={classes.photometryContainer}>
+                  <Suspense
+                    fallback={
+                      <div>
+                        <CircularProgress color="secondary" />
+                      </div>
+                    }
+                  >
+                    <Plot
+                      url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&cacheID=${specIDs}`}
+                    />
+                  </Suspense>
+                </div>
                 <div>
                   <Link to={`/upload_spectrum/${source.id}`} role="link">
                     <Button variant="contained">
@@ -446,7 +448,7 @@ const SourceDesktop = ({ source }) => {
                     <Button variant="contained">Manage data</Button>
                   </Link>
                 </div>
-              </div>
+              </Grid>
             </AccordionDetails>
           </Accordion>
         </div>

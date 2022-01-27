@@ -399,6 +399,9 @@ const GcnEventPage = ({ route }) => {
           </AccordionDetails>
         </Accordion>
       </div>
+      <div>
+        <GcnEventSourcesPage route={route} sources={gcnEventSources} />
+      </div>
     </div>
   );
 };
