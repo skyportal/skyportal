@@ -88,6 +88,10 @@ class Instrument(Base):
         doc='List of filters on the instrument (if any).',
     )
 
+    mag = sa.Column(sa.Float, nullable=True, doc="Characteristic limiting magnitude")
+
+    exposure_time = sa.Column(sa.Float, nullable=True, doc="Exposure time in seconds")
+
     allocations = relationship(
         'Allocation',
         back_populates="instrument",
