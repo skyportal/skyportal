@@ -20,6 +20,7 @@ marshmallow==3.14.1
 marshmallow-sqlalchemy==0.24.3
 marshmallow-enum==1.5.1
 Pillow>=8.4.0
+sncosmo==2.5.0
 tdtax==0.1.4
 healpix-alchemy==1.0.0
 mocpy==0.10.0
@@ -51,4 +52,3 @@ xmlschema==1.9.0
 requests==2.27
 geojson==2.5.0
 typing-extensions>=4.0.1  # astropy v5.0 needs this, but does not correctly specify as much in its install config
-sncosmo @ git+https://github.com/sncosmo/sncosmo@f2933b269bd6d6e767ab93a23f3ab14ee90398f0#egg=sncosmo
