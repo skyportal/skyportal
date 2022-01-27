@@ -266,8 +266,6 @@ const GcnEventPage = ({ route }) => {
     return <CircularProgress />;
   }
 
-  console.log("gcnEvent", gcnEvent);
-
   return (
     <div>
       <div className={styles.columnItem}>
@@ -426,6 +424,9 @@ const GcnEventPage = ({ route }) => {
             </div>
           </AccordionDetails>
         </Accordion>
+      </div>
+      <div>
+        <GcnEventSourcesPage route={route} sources={gcnEventSources} />
       </div>
     </div>
   );
