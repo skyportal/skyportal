@@ -38,7 +38,7 @@ def test_observation(super_admin_token, view_only_token):
     telescope_id = data['data']['id']
 
     fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
-    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF.reg'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
 
     instrument_name = str(uuid.uuid4())
     status, data = api(
