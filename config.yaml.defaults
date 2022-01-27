@@ -433,8 +433,6 @@ image_grayscale_params:
 slack:
   microservice_port: 64100
   expected_url_preamble: "https://hooks.slack.com/"
-  followup_requests:
-    enabled: true
 
 spectrum_types:
   types:
