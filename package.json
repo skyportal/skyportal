@@ -12,7 +12,6 @@
     "@material-ui/icons": "4.11.2",
     "@material-ui/lab": "4.0.0-alpha.60",
     "@material-ui/pickers": "3.3.10",
-    "@material-ui/styles": "4.11.4",
     "@rjsf/core": "2.5.1",
     "@rjsf/material-ui": "2.4.0",
     "autosuggest-highlight": "3.1.1",
