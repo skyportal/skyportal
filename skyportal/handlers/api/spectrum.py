@@ -277,6 +277,20 @@ class SpectrumHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
 
+        group_ids = data.pop("group_ids", None)
+        groups = None
+        if group_ids is not None:
+            if group_ids == "all":
+                groups = Group.query.filter(
+                    Group.name == cfg['misc.public_group_name']
+                ).all()
+            else:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+
+        if groups is not None:
+            spectrum.groups = spectrum.groups + groups
         for k in data:
             setattr(spectrum, k, data[k])
 
