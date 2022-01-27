@@ -143,6 +143,23 @@ def add_allocation_lt(instrument_id, group_id, token):
     assert data["status"] == "success"
 
 
+def add_allocation_slack(instrument_id, group_id, token):
+    status, data = api(
+        "POST",
+        "allocation",
+        data={
+            "group_id": group_id,
+            "instrument_id": instrument_id,
+            "hours_allocated": 100,
+            "pi": "Ed Hubble",
+            '_altdata': '{"slack_workspace": "test_workspace", "slack_channel": "test_channel", "slack_token": "test_token"}',
+        },
+        token=token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+
 def add_allocation_lco(instrument_id, group_id, token):
     status, data = api(
         "POST",
@@ -706,6 +723,41 @@ def add_followup_request_using_frontend_and_verify_IOI(
     )
 
 
+def add_followup_request_using_frontend_and_verify_SLACK(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+    idata = add_telescope_and_instrument("SLACK", super_admin_token)
+    add_allocation_slack(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "SLACK")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    # ZTF g-band option
+    driver.click_xpath(
+        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+    )
+
+
 def add_followup_request_using_frontend_and_verify_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -836,6 +888,15 @@ def test_submit_new_followup_request_SPRAT(
 ):
 
     add_followup_request_using_frontend_and_verify_SPRAT(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+def test_submit_new_followup_request_SLACK(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    add_followup_request_using_frontend_and_verify_SLACK(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 

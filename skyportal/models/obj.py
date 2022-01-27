@@ -15,6 +15,7 @@ from astropy import coordinates as ap_coord
 from astropy import units as u
 import astroplan
 import conesearch_alchemy
+import healpix_alchemy
 import numpy as np
 
 from baselayer.app.env import load_env
@@ -214,6 +215,8 @@ class Obj(Base, conesearch_alchemy.Point):
     alias = sa.Column(
         sa.ARRAY(sa.String), nullable=True, doc="Alternative names for this object."
     )
+
+    healpix = sa.Column(healpix_alchemy.Point, index=True)
 
     internal_key = sa.Column(
         sa.String,

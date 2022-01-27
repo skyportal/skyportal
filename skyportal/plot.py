@@ -52,9 +52,12 @@ from skyportal.models import (
     Spectrum,
 )
 
-import sncosmo
-
 from .enum_types import ALLOWED_SPECTRUM_TYPES
+
+# use the full registry from the enum_types import of sykportal
+# which may have custom bandpasses
+from .enum_types import sncosmo as snc
+
 
 _, cfg = load_env()
 # The minimum signal-to-noise ratio to consider a photometry point as detected
@@ -324,7 +327,7 @@ phot_markers = [
 
 def get_effective_wavelength(bandpass_name):
     try:
-        bandpass = sncosmo.get_bandpass(bandpass_name)
+        bandpass = snc.get_bandpass(bandpass_name)
     except ValueError as e:
         raise ValueError(
             f"Could not get bandpass for {bandpass_name} due to sncosmo error: {e}"
@@ -1779,6 +1782,8 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     # Track elements that need to be shifted with change in z / v
     shifting_elements = []
     renderers = []
+    obj_redshift = 0 if obj.redshift is None else obj.redshift
+
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
 
         if name in ('Tellurics-1', 'Tellurics-2'):
@@ -1812,6 +1817,8 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
                     'flux': [f for _ in wavelengths for f in flux_values],
                 }
             )
+            if name != 'Sky Lines':
+                el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
             new_line = plot.line(
                 x='x',
                 y='flux',
