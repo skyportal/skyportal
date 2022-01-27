@@ -1,7 +1,11 @@
 name: Test Skyportal Migrations
 
 on:
-  # Run only if potential changes in database schema
+  # Run only if potential changes in database schema, or if made on
+  # master
+  push:
+    branches:
+      - master
   pull_request:
     paths:
       - "baselayer"
