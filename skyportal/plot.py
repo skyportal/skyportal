@@ -52,9 +52,12 @@ from skyportal.models import (
     Spectrum,
 )
 
-import sncosmo
-
 from .enum_types import ALLOWED_SPECTRUM_TYPES
+
+# use the full registry from the enum_types import of sykportal
+# which may have custom bandpasses
+from .enum_types import sncosmo as snc
+
 
 _, cfg = load_env()
 # The minimum signal-to-noise ratio to consider a photometry point as detected
@@ -324,7 +327,7 @@ phot_markers = [
 
 def get_effective_wavelength(bandpass_name):
     try:
-        bandpass = sncosmo.get_bandpass(bandpass_name)
+        bandpass = snc.get_bandpass(bandpass_name)
     except ValueError as e:
         raise ValueError(
             f"Could not get bandpass for {bandpass_name} due to sncosmo error: {e}"

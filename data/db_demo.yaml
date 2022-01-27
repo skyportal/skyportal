@@ -194,6 +194,14 @@ telescope:
     nickname: JAST
     skycam_link: null
     =id: JAST
+  - diameter: 0.5
+    elevation: 3055.0
+    lat: 20.7204
+    lon: -156.1552
+    name: Asteroid Terrestrial-impact Last Alert System
+    nickname: ATLAS-0.5m
+    skycam_link: null
+    =id: ATLAS-0p5m
 
 instrument:
   - name: ZTF
@@ -305,6 +313,13 @@ instrument:
     filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz']
     api_classname: SLACKAPI
     =id: T80CAM
+  - band: optical
+    name: ATLAS
+    telescope_id: =ATLAS-0p5m
+    type: imager
+    =id: ATLAS
+    filters: ["atlasc", "atlaso"]
+
 
 allocation:
   - pi: Michael Coughlin
