@@ -186,6 +186,14 @@ telescope:
     nickname: KPNO2m
     skycam_link: null
     =id: KPNO2m
+  - diameter: 0.8
+    elevation: 1957.0
+    lat: 40.0420111
+    lon: -1.0161911
+    name: Javalambre Auxiliary Survey Telescope
+    nickname: JAST
+    skycam_link: null
+    =id: JAST
   - diameter: 0.5
     elevation: 3055.0
     lat: 20.7204
@@ -299,11 +307,19 @@ instrument:
     api_classname: SEDMV2API
     =id: SEDMv2
   - band: optical
+    name: T80CAM
+    telescope_id: =JAST
+    type: imager
+    filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz']
+    api_classname: SLACKAPI
+    =id: T80CAM
+  - band: optical
     name: ATLAS
     telescope_id: =ATLAS-0p5m
     type: imager
     =id: ATLAS
     filters: ["atlasc", "atlaso"]
+
 
 allocation:
   - pi: Michael Coughlin
@@ -386,6 +402,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =KAIT
+  - pi: Michael Coughlin
+    proposal_id: T80CAM-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =T80CAM
 
 candidates:
   - id: ZTF21aaqjmps
