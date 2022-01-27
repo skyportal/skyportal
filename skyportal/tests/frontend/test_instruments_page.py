@@ -58,18 +58,25 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.click_xpath('//*[@id="root_type"]')
     driver.click_xpath('//li[contains(text(), "Imager")]')
     driver.wait_for_xpath('//*[@id="root_band"]').send_keys('Optical')
+    driver.click_xpath('//*[@id="root_telescope_id"]')
+    driver.click_xpath(f'//li[contains(text(), "{telescope_name}")]')
     driver.click_xpath('//*[@id="root_api_classname"]')
     driver.click_xpath('//li[contains(text(), "ZTFAPI")]')
 
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
-
+    # check for new API instrument
+    driver.wait_for_xpath(
+        f'//span[text()[contains(.,"{instrument_name2}/{telescope_name}")]]', timeout=20
+    )
     # try adding a second time
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(instrument_name2)
     driver.click_xpath('//*[@id="root_type"]')
     driver.click_xpath('//li[contains(text(), "Imager")]')
     driver.wait_for_xpath('//*[@id="root_band"]').send_keys('Optical')
+    driver.click_xpath('//*[@id="root_telescope_id"]')
+    driver.click_xpath(f'//li[contains(text(), "{telescope_name}")]')
     driver.click_xpath('//*[@id="root_api_classname"]')
     driver.click_xpath('//li[contains(text(), "ZTFAPI")]')
 
@@ -77,6 +84,4 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
-    driver.wait_for_xpath(
-        '//span[text()="name: Instrument name matches another, please change."]'
-    )
+    driver.wait_for_xpath('//span[contains(text(), "Instrument name matches another")]')
