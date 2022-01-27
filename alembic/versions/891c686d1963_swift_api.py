@@ -16,9 +16,9 @@ depends_on = None
 
 
 def upgrade():
-    # add SWIFTAPI to followup_apis
+    # add UVOTXRTAPI to followup_apis
     with op.get_context().autocommit_block():
-        op.execute("ALTER TYPE followup_apis ADD VALUE IF NOT EXISTS 'SWIFTAPI'")
+        op.execute("ALTER TYPE followup_apis ADD VALUE IF NOT EXISTS 'UVOTXRTAPI'")
 
 
 def downgrade():
