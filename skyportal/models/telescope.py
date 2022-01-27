@@ -73,6 +73,7 @@ class Telescope(Base):
                 elevation=self.elevation * u.m,
                 timezone=local_tz,
             )
+
         return self._observer
 
     def next_sunset(self, time=None):
