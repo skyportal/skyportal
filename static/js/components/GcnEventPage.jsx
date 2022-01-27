@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
@@ -9,6 +9,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import IconButton from "@material-ui/core/IconButton";
 import GetAppIcon from "@material-ui/icons/GetApp";
+import Typography from "@material-ui/core/Typography";
 
 import * as d3 from "d3";
 // eslint-disable-next-line
@@ -22,6 +23,9 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
+import * as sourcesActions from "../ducks/sources";
+
+import SourceTable from "./SourceTable";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -153,17 +157,94 @@ const Localization = ({ loc }) => {
   );
 };
 
+const GcnEventSourcesPage = ({ route, sources }) => {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+  const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
+
+  const handleSourcesTableSorting = (sortData, filterData) => {
+    dispatch(
+      sourcesActions.fetchGcnEventSources(route.dateobs, {
+        ...filterData,
+        pageNumber: 1,
+        numPerPage: sourcesRowsPerPage,
+        sortBy: sortData.name,
+        sortOrder: sortData.direction,
+      })
+    );
+  };
+
+  const handleSourcesTablePagination = (
+    pageNumber,
+    numPerPage,
+    sortData,
+    filterData
+  ) => {
+    setSourcesRowsPerPage(numPerPage);
+    const data = {
+      ...filterData,
+      pageNumber,
+      numPerPage,
+    };
+    if (sortData && Object.keys(sortData).length > 0) {
+      data.sortBy = sortData.name;
+      data.sortOrder = sortData.direction;
+    }
+    dispatch(sourcesActions.fetchGcnEventSources(route.dateobs, data));
+  };
+
+  // eslint-disable-next-line
+  if (sources?.sources.length === 0) {
+    return (
+      <div className={classes.source}>
+        <Typography variant="h4" gutterBottom align="center">
+          Event sources
+        </Typography>
+        <br />
+        <Typography variant="h5" align="center">
+          No sources within localization.
+        </Typography>
+      </div>
+    );
+  }
+
+  return (
+    <div className={classes.source}>
+      <Typography variant="h4" gutterBottom align="center">
+        Event sources
+      </Typography>
+      <SourceTable
+        sources={sources.sources}
+        title="Event Sources"
+        paginateCallback={handleSourcesTablePagination}
+        pageNumber={sources.pageNumber}
+        totalMatches={sources.totalMatches}
+        numPerPage={sources.numPerPage}
+        sortingCallback={handleSourcesTableSorting}
+        favoritesRemoveButton
+      />
+    </div>
+  );
+};
+
 const GcnEventPage = ({ route }) => {
   const mapRef = useRef();
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const dispatch = useDispatch();
   const styles = useStyles();
+  const gcnEventSources = useSelector(
+    (state) => state?.sources?.gcnEventSources
+  );
 
   useEffect(() => {
     dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
   }, [route, dispatch]);
 
-  if (!gcnEvent) {
+  useEffect(() => {
+    dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
+  }, [route, dispatch]);
+
+  if (!gcnEvent || !gcnEventSources) {
     return <CircularProgress />;
   }
 
@@ -215,6 +296,9 @@ const GcnEventPage = ({ route }) => {
           </li>
         ))}
       </div>
+      <div>
+        <GcnEventSourcesPage route={route} sources={gcnEventSources} />
+      </div>
     </div>
   );
 };
@@ -244,6 +328,65 @@ Globe.propTypes = {
     length: PropTypes.number,
     features: GeoPropTypes.FeatureCollection,
   }).isRequired,
+};
+
+GcnEventSourcesPage.propTypes = {
+  route: PropTypes.shape({
+    dateobs: PropTypes.string,
+  }).isRequired,
+  sources: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      origin: PropTypes.string,
+      alias: PropTypes.arrayOf(PropTypes.string),
+      redshift: PropTypes.number,
+      classifications: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          classification: PropTypes.string,
+          created_at: PropTypes.string,
+          groups: PropTypes.arrayOf(
+            PropTypes.shape({
+              id: PropTypes.number,
+              name: PropTypes.string,
+            })
+          ),
+        })
+      ),
+      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
+      altdata: PropTypes.shape({
+        tns: PropTypes.shape({
+          name: PropTypes.string,
+        }),
+      }),
+      spectrum_exists: PropTypes.bool,
+      last_detected_at: PropTypes.string,
+      last_detected_mag: PropTypes.number,
+      peak_detected_at: PropTypes.string,
+      peak_detected_mag: PropTypes.number,
+      groups: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          name: PropTypes.string,
+        })
+      ),
+    })
+  ).isRequired,
+  pageNumber: PropTypes.number,
+  totalMatches: PropTypes.number,
+  numPerPage: PropTypes.number,
+  data: PropTypes.shape({
+    length: PropTypes.number,
+    features: GeoPropTypes.FeatureCollection,
+  }).isRequired,
+};
+
+GcnEventSourcesPage.defaultProps = {
+  pageNumber: 1,
+  totalMatches: 0,
+  numPerPage: 10,
 };
 
 export default GcnEventPage;
