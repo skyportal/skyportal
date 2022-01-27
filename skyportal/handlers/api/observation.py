@@ -105,41 +105,44 @@ class ObservationHandler(BaseHandler):
           tags:
             - observations
           parameters:
-            - in: telescope_name
-              name: name
+            - in: query
+              name: telescope_name
               schema:
                 type: string
               description: Filter by telescope name
-            - in: instrument_name
-              name: name
+            - in: query
+              name: instrument_name
               schema:
                 type: string
               description: Filter by instrument name
-            - in: start_date
-              name: name
+            - in: query
+              name: start_date
               schema:
                 type: string
               description: Filter by start date
-            - in: end_date
-              name: name
+            - in: query
+              name: end_date
               schema:
                 type: string
               description: Filter by end date
-            - in: dateobs
-              name: name
+            - in: query
+              name: localizationDateobs
               schema:
                 type: string
-              description: Filter by GcnEvent event
-            - in: localization_name
-              name: name
+              description: |
+                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+            - in: query
+              name: localizationName
               schema:
                 type: string
-              description: Filter by GcnEvent localization
-            - in: localization_cumprob
-              name: name
+              description: |
+                Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endopoint or skymap name in GcnEvent page table.
+            - in: query
+              name: localizationCumprob
               schema:
-                type: string
-              description: Filter by GcnEvent localization cumulative probability
+                type: number
+              description: |
+                Cumulative probability up to which to include fields
           responses:
             200:
               content:
@@ -157,8 +160,8 @@ class ObservationHandler(BaseHandler):
         instrument_name = data.get('instrument_name')
         start_date = data.get('start_date')
         end_date = data.get('end_date')
-        dateobs = data.get('dateobs')
-        localization_name = data.get('localization_name')
+        localization_dateobs = data.get('localizationDateobs', None)
+        localization_name = data.get('localizationName', None)
         localization_cumprob = data.get("localization_cumprob", 0.95)
         return_probability = data.get("return_probability", False)
 
@@ -208,12 +211,12 @@ class ObservationHandler(BaseHandler):
         obs_query = obs_query.filter(ExecutedObservation.obstime <= end_date)
 
         # optional: slice by GcnEvent localization
-        if dateobs is not None:
+        if localization_dateobs is not None:
             if localization_name is not None:
                 localization = (
                     Localization.query_records_accessible_by(self.current_user)
                     .filter(
-                        Localization.dateobs == dateobs,
+                        Localization.dateobs == localization_dateobs,
                         Localization.localization_name == localization_name,
                     )
                     .first()
@@ -228,7 +231,7 @@ class ObservationHandler(BaseHandler):
                             joinedload(GcnEvent.localizations),
                         ],
                     )
-                    .filter(GcnEvent.dateobs == dateobs)
+                    .filter(GcnEvent.dateobs == localization_dateobs)
                     .first()
                 )
                 if event is None:
@@ -242,15 +245,17 @@ class ObservationHandler(BaseHandler):
                 .over(order_by=LocalizationTile.probdensity.desc())
                 .label('cum_prob')
             )
-            subquery1 = (
+            localizationtile_subquery = (
                 sa.select(LocalizationTile.probdensity, cum_prob).filter(
                     LocalizationTile.localization_id == localization.id
                 )
             ).subquery()
 
             min_probdensity = (
-                sa.select(sa.func.min(subquery1.columns.probdensity)).filter(
-                    subquery1.columns.cum_prob <= localization_cumprob
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob <= localization_cumprob
                 )
             ).scalar_subquery()
 
