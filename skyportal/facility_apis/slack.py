@@ -32,7 +32,7 @@ class SLACKRequest:
 
         Returns
         ----------
-        payload: json
+        payload : dict
             payload for requests. payload includes
               name: object name
               instrument_request: instrument name
