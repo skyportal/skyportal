@@ -61,8 +61,8 @@ def test_token_user_post_get_instrument(super_admin_token):
     assert any(
         [
             d['field_id'] == 1
-            and d['contour']['properties']['ra'] == 0.0
-            and d['contour']['properties']['dec'] == -89.05
+            and d['contour']['features'][0]['geometry']['coordinates'][0][0]
+            == [110.84784299030288, -87.01522509948724]
             for d in data['data']['fields']
         ]
     )
