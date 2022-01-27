@@ -1782,6 +1782,8 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     # Track elements that need to be shifted with change in z / v
     shifting_elements = []
     renderers = []
+    obj_redshift = 0 if obj.redshift is None else obj.redshift
+
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
 
         if name in ('Tellurics-1', 'Tellurics-2'):
@@ -1815,6 +1817,8 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
                     'flux': [f for _ in wavelengths for f in flux_values],
                 }
             )
+            if name != 'Sky Lines':
+                el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
             new_line = plot.line(
                 x='x',
                 y='flux',
