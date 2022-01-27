@@ -5,7 +5,7 @@ import pytest
 import uuid
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3)
 def test_super_user_post_allocation(
     public_group, super_admin_token, super_admin_user, driver
 ):
