@@ -94,6 +94,10 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
     (state) => state.instruments
   );
 
+  if (!instrumentList) {
+    return <CircularProgress />;
+  }
+
   if (
     instrumentList.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
