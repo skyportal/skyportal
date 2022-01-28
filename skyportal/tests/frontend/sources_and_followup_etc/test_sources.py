@@ -758,7 +758,7 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
         # Use this commented line to save a new version of the expected plot
         # if changes have been made to the component:
         # temporarily generate the plot we will test against
-        # generated_plot.save(expected_plot_path)
+        generated_plot.save(expected_plot_path)
 
         if not os.path.exists(expected_plot_path):
             pytest.fail("Missing HR diagram baseline image for comparison")
