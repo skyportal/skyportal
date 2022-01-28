@@ -68,7 +68,7 @@ const useStyles = makeStyles((theme) => ({
     fontSize: "1.25rem",
     fontWeight: theme.typography.fontWeightRegular,
   },
-  observationplanContainer: {
+  gcnEventContainer: {
     display: "flex",
     overflow: "hidden",
     flexDirection: "column",
@@ -272,7 +272,7 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="observationplan-content"
+            aria-controls="gcnEvent-content"
             id="info-header"
           >
             <Typography className={styles.accordionHeading}>
@@ -280,7 +280,7 @@ const GcnEventPage = ({ route }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.observationplanContainer}>
+            <div className={styles.gcnEventContainer}>
               <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
                 <Button color="primary">
                   {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
@@ -295,7 +295,7 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="observationplan-content"
+            aria-controls="gcnEvent-content"
             id="lightcurve-header"
           >
             <Typography className={styles.accordionHeading}>
@@ -303,7 +303,7 @@ const GcnEventPage = ({ route }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.observationplanContainer}>
+            <div className={styles.gcnEventContainer}>
               {gcnEvent.lightcurve && (
                 <div>
                   {" "}
@@ -318,7 +318,7 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="observationplan-content"
+            aria-controls="gcnEvent-content"
             id="eventtags-header"
           >
             <Typography className={styles.accordionHeading}>
@@ -343,13 +343,13 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="observationplan-content"
+            aria-controls="gcnEvent-content"
             id="skymap-header"
           >
             <Typography className={styles.accordionHeading}>Skymaps</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.observationplanContainer}>
+            <div className={styles.gcnEventContainer}>
               {gcnEvent.localizations?.map((localization) => (
                 <li key={localization.localization_name}>
                   <div id="map" ref={mapRef}>
@@ -365,7 +365,7 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="observationplan-content"
+            aria-controls="gcnEvent-content"
             id="gcnnotices-header"
           >
             <Typography className={styles.accordionHeading}>
@@ -373,7 +373,7 @@ const GcnEventPage = ({ route }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.observationplanContainer}>
+            <div className={styles.gcnEventContainer}>
               {gcnEvent.gcn_notices?.map((gcn_notice) => (
                 <li key={gcn_notice.ivorn}>
                   <DownloadXMLButton gcn_notice={gcn_notice} />
@@ -387,7 +387,7 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
-            aria-controls="observationplan-content"
+            aria-controls="gcnEvent-content"
             id="sources-header"
           >
             <Typography className={styles.accordionHeading}>
@@ -395,7 +395,7 @@ const GcnEventPage = ({ route }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.observationplanContainer}>
+            <div className={styles.gcnEventContainer}>
               <GcnEventSourcesPage route={route} sources={gcnEventSources} />
             </div>
           </AccordionDetails>
@@ -413,7 +413,7 @@ const GcnEventPage = ({ route }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.observationPlanContainer}>
+            <div className={styles.gcnEventContainer}>
               <ObservationPlanRequestForm
                 gcnevent_id={gcnEvent.id}
                 action="createNew"
