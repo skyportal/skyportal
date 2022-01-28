@@ -100,7 +100,8 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
 
   if (
     instrumentList.length === 0 ||
-    Object.keys(instrumentFormParams).length === 0
+    Object.keys(instrumentFormParams).length === 0 ||
+    observationplanRequests.length === 0
   ) {
     return <p>No observation plan requests for this source...</p>;
   }
