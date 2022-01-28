@@ -131,7 +131,7 @@ def upgrade():
         """
 alter type "public"."followup_apis" rename to "followup_apis__old_version_to_be_dropped";
 
-create type "public"."followup_apis" as enum ('KAITAPI', 'SEDMAPI', 'SEDMV2API', 'IOOAPI', 'IOIAPI', 'SPRATAPI', 'SINISTROAPI', 'SPECTRALAPI', 'FLOYDSAPI', 'MUSCATAPI', 'ZTFAPI', 'ZTFMMAAPI', 'SLACKAPI');
+create type "public"."followup_apis" as enum ('KAITAPI', 'SEDMAPI', 'SEDMV2API', 'IOOAPI', 'IOIAPI', 'SPRATAPI', 'SINISTROAPI', 'SPECTRALAPI', 'FLOYDSAPI', 'MUSCATAPI', 'SLACKAPI', 'ZTFAPI', 'ZTFMMAAPI');
 
 alter table "public"."instruments" alter column api_classname type "public"."followup_apis" using api_classname::text::"public"."followup_apis";
 

@@ -14,7 +14,9 @@ class RoboticInstrumentsHandler(BaseHandler):
                     .filter(Instrument.api_classname.isnot(None))
                     .all()
                 )
-                retval = {i.id: i.api_class.frontend_render_info() for i in instruments}
+                retval = {
+                    i.id: i.api_class.frontend_render_info(i) for i in instruments
+                }
             elif apitype == "api_observationplan_classname":
                 instruments = (
                     Instrument.query_records_accessible_by(self.current_user)
