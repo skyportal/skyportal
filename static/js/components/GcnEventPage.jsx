@@ -215,9 +215,7 @@ const GcnEventSourcesPage = ({ route, sources }) => {
   if (sources?.sources.length === 0) {
     return (
       <div className={classes.source}>
-        <Typography variant="h4" gutterBottom align="center">
-          Event sources
-        </Typography>
+        <Typography variant="h5">Event sources</Typography>
         <br />
         <Typography variant="h5" align="center">
           No sources within localization.
@@ -396,11 +394,7 @@ const GcnEventPage = ({ route }) => {
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
             id="sources-header"
-          >
-            <Typography className={styles.accordionHeading}>
-              Event Sources
-            </Typography>
-          </AccordionSummary>
+          />
           <AccordionDetails>
             <div className={styles.gcnEventContainer}>
               <GcnEventSourcesPage route={route} sources={gcnEventSources} />
@@ -408,11 +402,19 @@ const GcnEventPage = ({ route }) => {
           </AccordionDetails>
         </Accordion>
       </div>
-      <div>
-        <GcnEventSourcesPage route={route} sources={gcnEventSources} />
-      </div>
-      <div>
-        <GalaxyTable galaxies={gcnEventGalaxies.sources} />
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="galaxies-header"
+          />
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              <GalaxyTable galaxies={gcnEventGalaxies.sources} />
+            </div>
+          </AccordionDetails>
+        </Accordion>
       </div>
     </div>
   );
