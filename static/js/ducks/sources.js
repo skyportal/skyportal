@@ -79,7 +79,6 @@ export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
       .format("YYYY-MM-DD HH:mm:ss");
   }
 
-
   // filterParams.startDate = null;
   // filterParams.endDate = null;
   // filterParams.localizationCumprob = 1.00;
