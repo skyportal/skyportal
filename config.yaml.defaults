@@ -128,18 +128,6 @@ app:
       icon: SettingsInputAntenna
       url: /gcn_events
 
-    - name: Telescopes
-      icon: MyLocation
-      url: /telescopes
-
-    - name: Instruments
-      icon: Wifi
-      url: /instruments
-
-    - name: Allocations
-      icon: HourglassEmptyOutlined
-      url: /allocations
-
     - name: About
       icon: Info
       url: /about

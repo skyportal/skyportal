@@ -19,6 +19,9 @@ import { makeStyles } from "@material-ui/core/styles";
 import {{ item.icon }}Icon from "@material-ui/icons/{{ item.icon }}";
 {% endfor %}
 import MenuIcon from "@material-ui/icons/Menu";
+import MyLocationIcon from "@material-ui/icons/MyLocation";
+import WifiIcon from "@material-ui/icons/Wifi";
+import HourglassEmptyOutlinedIcon from "@material-ui/icons/HourglassEmptyOutlined";
 import { isMobile } from "react-device-detect";
 
 import QuickSearchBar from "./QuickSearchBar";
@@ -238,7 +241,45 @@ const SidebarAndHeader = () => {
               </ListItem>
             </Link>
           )}
-
+          {currentUser.permissions?.includes("System admin") && (
+            <Link to="/telescopes" className={classes.link}>
+              <ListItem button name="sidebarTelescopesButton">
+                <ListItemIcon>
+                  <MyLocationIcon className={classes.icon} />
+                </ListItemIcon>
+                <SidebarLinkText
+                  route="/telescopes"
+                  title="Telescopes"
+                />
+              </ListItem>
+            </Link>
+          )}
+          {currentUser.permissions?.includes("System admin") && (
+            <Link to="/instruments" className={classes.link}>
+              <ListItem button name="sidebarInstrumentsButton">
+                <ListItemIcon>
+                  <WifiIcon className={classes.icon} />
+                </ListItemIcon>
+                <SidebarLinkText
+                  route="/instruments"
+                  title="Instruments"
+                />
+              </ListItem>
+            </Link>
+          )}
+          {currentUser.permissions?.includes("System admin") && (
+            <Link to="/allocations" className={classes.link}>
+              <ListItem button name="sidebarAllocationsButton">
+                <ListItemIcon>
+                  <HourglassEmptyOutlinedIcon className={classes.icon} />
+                </ListItemIcon>
+                <SidebarLinkText
+                  route="/allocations"
+                  title="Allocations"
+                />
+              </ListItem>
+            </Link>
+          )}
         </List>
 
         <QuickSearchBar id="search" />
