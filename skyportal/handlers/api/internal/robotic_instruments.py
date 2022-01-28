@@ -31,12 +31,6 @@ class RoboticInstrumentsHandler(BaseHandler):
                 return self.error(
                     f"apitype can only be api_classname or api_observationplan_classname, not {apitype}"
                 )
-        instruments = (
-            Instrument.query_records_accessible_by(self.current_user)
-            .filter(Instrument.api_classname.isnot(None))
-            .all()
-        )
-        retval = {i.id: i.api_class.frontend_render_info(i) for i in instruments}
 
         self.verify_and_commit()
         return self.success(data=retval)
