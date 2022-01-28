@@ -1,0 +1,18 @@
+CREATE TABLE shifts(
+   id INT GENERATED ALWAYS AS IDENTITY,
+   shift_start TIMESTAMP,
+   shift_end TIMESTAMP,
+   user_id INT,
+   weekly_user_id VARCHAR(20),
+   PRIMARY KEY(id),
+   CONSTRAINT fk_user
+	FOREIGN KEY(user_id)
+	REFERENCES users(id)
+	ON DELETE SET NULL
+);
+
+INSERT INTO shifts(shift_start, shift_end, user_id) 
+VALUES ('2022-01-24', '2022-01-25', 1),
+	('2022-01-24', '2022-01-25', 2),
+	('2022-01-26', '2022-01-28', 1),
+	('2021-12-27', '2021-12-28', 1);
