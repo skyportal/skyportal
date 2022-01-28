@@ -106,6 +106,11 @@ class GcnEventHandler(BaseHandler):
         DBSession().add(gcn_notice)
 
         skymap = get_skymap(root, gcn_notice)
+        if skymap is None:
+            return self.success(
+                f"Event {event.dateobs} does not have skymap. Returning."
+            )
+
         skymap["dateobs"] = event.dateobs
         skymap["sent_by_id"] = self.associated_user_object.id
 
