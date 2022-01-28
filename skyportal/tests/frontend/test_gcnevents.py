@@ -3,8 +3,6 @@ import uuid
 import pytest
 from skyportal.tests import api
 
-import uuid
-
 
 @pytest.mark.flaky(reruns=2)
 def test_gcnevents(

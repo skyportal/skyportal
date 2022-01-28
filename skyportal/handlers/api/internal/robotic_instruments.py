@@ -35,6 +35,6 @@ class RoboticInstrumentsHandler(BaseHandler):
             .all()
         )
         retval = {i.id: i.api_class.frontend_render_info(i) for i in instruments}
-        
+
         self.verify_and_commit()
         return self.success(data=retval)
