@@ -22,7 +22,7 @@ class RoboticInstrumentsHandler(BaseHandler):
                     .all()
                 )
                 retval = {
-                    i.id: i.api_observationplan_class.frontend_render_info()
+                    i.id: i.api_observationplan_class.frontend_render_info(i)
                     for i in instruments
                 }
             else:
