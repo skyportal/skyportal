@@ -1086,9 +1086,70 @@ const SourceTable = ({
     onFilterChange: handleTableFilterChipChange,
     onFilterDialogOpen: () => setFilterFormSubmitted(false),
     search: false,
+    download: true,
     rowsExpanded: openedRows,
     onRowExpansionChange: (_, allRowsExpanded) => {
       setOpenedRows(allRowsExpanded.map((i) => i.dataIndex));
+    },
+    onDownload: (buildHead, buildBody, columnsDownload, data) => {
+      const renderDownloadClassification = (dataIndex) => {
+        const source = sources[dataIndex];
+        const classifications = [];
+        source?.classifications.forEach((x) => {
+          classifications.push(x.classification);
+        });
+        return classifications.join(";");
+      };
+      const renderDownloadGroups = (dataIndex) => {
+        const source = sources[dataIndex];
+        const groups = [];
+        source?.groups.forEach((x) => {
+          groups.push(x.name);
+        });
+        return groups.join(";");
+      };
+
+      return (
+        buildHead([
+          {
+            name: "id",
+            download: true,
+          },
+          {
+            name: "ra",
+            download: true,
+          },
+          {
+            name: "dec",
+            download: true,
+          },
+          {
+            name: "redshift",
+            download: true,
+          },
+          {
+            name: "classification",
+            download: true,
+          },
+          {
+            name: "groups",
+            download: true,
+          },
+        ]) +
+        buildBody(
+          data.map((x) => ({
+            ...x,
+            data: [
+              x.data[0],
+              x.data[4],
+              x.data[5],
+              x.data[8],
+              renderDownloadClassification(x.index),
+              renderDownloadGroups(x.index),
+            ],
+          }))
+        )
+      );
     },
   };
 
