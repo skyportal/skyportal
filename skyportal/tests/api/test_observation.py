@@ -47,8 +47,8 @@ def test_observation(super_admin_token, view_only_token):
         data={
             'name': instrument_name,
             'type': 'imager',
-            'band': 'NIR',
-            'filters': ['f110w'],
+            'band': 'Optical',
+            'filters': ['ztfr'],
             'telescope_id': telescope_id,
             'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
             'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
@@ -84,16 +84,49 @@ def test_observation(super_admin_token, view_only_token):
         'localizationDateobs': "2019-04-25T08:18:05",
         'localizationName': "bayestar.fits.gz",
         'localizationCumprob': 1.01,
-        'return_probability': True,
+        'returnProbability': True,
     }
 
     status, data = api('GET', 'observation', data=data, token=super_admin_token)
     assert status == 200
     data = data["data"]
     assert len(data['observations']) == 10
-    print(data['probability'])
     assert np.isclose(data['probability'], 2.927898964006069e-05)
     assert any(
+        [
+            d['obstime'] == '2019-04-25T08:18:18.002909'
+            and d['observation_id'] == 84434604
+            for d in data['observations']
+        ]
+    )
+
+    for d in data['observations']:
+        if d['observation_id'] == 84434604:
+            observation_id = d['id']
+            break
+
+    status, data = api(
+        'DELETE', f'observation/{observation_id}', token=super_admin_token
+    )
+    assert status == 200
+
+    data = {
+        'telescope_name': name,
+        'instrument_name': instrument_name,
+        'start_date': "2019-04-25 08:18:05",
+        'end_date': "2019-04-28 08:18:05",
+        'localizationDateobs': "2019-04-25T08:18:05",
+        'localizationName': "bayestar.fits.gz",
+        'localizationCumprob': 1.01,
+        'returnProbability': True,
+    }
+
+    status, data = api('GET', 'observation', data=data, token=super_admin_token)
+    assert status == 200
+    data = data["data"]
+
+    assert len(data['observations']) == 9
+    assert not any(
         [
             d['obstime'] == '2019-04-25T08:18:18.002909'
             and d['observation_id'] == 84434604

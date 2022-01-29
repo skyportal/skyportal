@@ -28,8 +28,49 @@ log = make_log('api/observation')
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 
+def add_observations(instrument_id, obstable):
+    """Post executed observations for a given instrument."""
+
+    session = Session()
+    try:
+        observations = []
+        for index, row in obstable.iterrows():
+            field_id = int(row["field_id"])
+            field = (
+                session.query(InstrumentField)
+                .filter_by(instrument_id=instrument_id, field_id=field_id)
+                .first()
+            )
+            if field is None:
+                return log(
+                    f"Unable to add observations for instrument {instrument_id}: Missing field {field_id}"
+                )
+
+            observations.append(
+                ExecutedObservation(
+                    instrument_id=instrument_id,
+                    observation_id=row["observation_id"],
+                    instrument_field_id=field.id,
+                    obstime=Time(row["obstime"], format='jd').datetime,
+                    seeing=row["seeing"],
+                    limmag=row["limmag"],
+                    exposure_time=row["exposure_time"],
+                    filt=row["filter"],
+                    processed_fraction=row["processed_fraction"],
+                )
+            )
+        session.add_all(observations)
+        session.commit()
+
+        return log(f"Successfully added observations for instrument {instrument_id}")
+    except Exception as e:
+        return log(f"Unable to add observations for instrument {instrument_id}: {e}")
+    finally:
+        Session.remove()
+
+
 class ObservationHandler(BaseHandler):
-    @permissions(['System admin'])
+    @permissions(['Upload data'])
     def post(self):
         """
         ---
@@ -87,12 +128,46 @@ class ObservationHandler(BaseHandler):
         if instrument is None:
             return self.error(message=f"Missing instrument {instrument_name}")
 
+        if not all(
+            k in observation_data
+            for k in [
+                'observation_id',
+                'field_id',
+                'obstime',
+                'filter',
+                'exposure_time',
+            ]
+        ):
+            return self.error(
+                "observation_id, field_id, obstime, filter, and exposure_time required in observation_data."
+            )
+
+        print(observation_data["filter"], instrument.filters)
+        for filt in observation_data["filter"]:
+            if filt not in instrument.filters:
+                return self.error(f"Filter {filt} not present in {instrument.filters}")
+
+        # fill in any missing optional parameters
+        optional_parameters = [
+            'airmass',
+            'seeing',
+            'limmag',
+        ]
+        for key in optional_parameters:
+            if key not in observation_data:
+                observation_data[key] = [None] * len(observation_data['observation_id'])
+
+        if "processed_fraction" not in observation_data:
+            observation_data["processed_fraction"] = [1] * len(
+                observation_data['observation_id']
+            )
+
         obstable = pd.DataFrame.from_dict(observation_data)
 
         # run async
         IOLoop.current().run_in_executor(
             None,
-            lambda: add_tiles(instrument.id, instrument.name, obstable),
+            lambda: add_observations(instrument.id, obstable),
         )
 
         return self.success()
@@ -107,21 +182,25 @@ class ObservationHandler(BaseHandler):
           parameters:
             - in: query
               name: telescope_name
+              required: true
               schema:
                 type: string
               description: Filter by telescope name
             - in: query
               name: instrument_name
+              required: true
               schema:
                 type: string
               description: Filter by instrument name
             - in: query
               name: start_date
+              required: true
               schema:
                 type: string
               description: Filter by start date
             - in: query
               name: end_date
+              required: true
               schema:
                 type: string
               description: Filter by end date
@@ -130,19 +209,31 @@ class ObservationHandler(BaseHandler):
               schema:
                 type: string
               description: |
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). |
+                Taken from Localization.dateobs queried from /api/localization |
+                endpoint or dateobs in GcnEvent page table.
             - in: query
               name: localizationName
               schema:
                 type: string
               description: |
-                Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endopoint or skymap name in GcnEvent page table.
+                Name of localization / skymap to use. |
+                Can be found in Localization.localization_name queried from |
+                /api/localization endpoint or skymap name in GcnEvent page |
+                table.
             - in: query
               name: localizationCumprob
               schema:
                 type: number
               description: |
                 Cumulative probability up to which to include fields
+            - in: query
+              name: returnProbability
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include integrated probability. Defaults to false.
           responses:
             200:
               content:
@@ -163,7 +254,7 @@ class ObservationHandler(BaseHandler):
         localization_dateobs = data.get('localizationDateobs', None)
         localization_name = data.get('localizationName', None)
         localization_cumprob = data.get("localizationCumprob", 0.95)
-        return_probability = data.get("return_probability", False)
+        return_probability = data.get("returnProbability", False)
 
         telescope = (
             Telescope.query_records_accessible_by(
@@ -312,49 +403,41 @@ class ObservationHandler(BaseHandler):
 
         return self.success(data=data)
 
+    @auth_or_token
+    def delete(self, observation_id):
+        """
+        ---
+        description: Delete an observation
+        tags:
+          - observations
+        parameters:
+          - in: path
+            name: observation_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
 
-def add_tiles(instrument_id, instrument_name, obstable):
-    session = Session()
-    try:
-        bands = {1: 'g', 2: 'r', 3: 'i', 4: 'z', 5: 'J'}
+        observation = ExecutedObservation.query.filter_by(id=observation_id).first()
 
-        observations = []
-        obs_grouped_by_exp = obstable.groupby('expid')
-        for group_name, df_group in obs_grouped_by_exp:
-            field_id = int(df_group["field"].median())
-            field = (
-                session.query(InstrumentField)
-                .filter_by(instrument_id=instrument_id, field_id=field_id)
-                .first()
+        if observation is None:
+            return self.error("ExecutedObservation not found", status=404)
+
+        if not observation.is_accessible_by(self.current_user, mode="delete"):
+            return self.error(
+                "Insufficient permissions: ExecutedObservation can only be deleted by original poster"
             )
-            if field is None:
-                return log(
-                    f"Unable to add observations for instrument {instrument_id}: Missing field {field_id}"
-                )
 
-            if instrument_name == "ZTF":
-                processed_fraction = len(df_group["field"]) / 64.0
-            else:
-                processed_fraction = 1
+        DBSession().delete(observation)
+        self.verify_and_commit()
 
-            observations.append(
-                ExecutedObservation(
-                    instrument_id=instrument_id,
-                    observation_id=int(df_group["expid"].median()),
-                    instrument_field_id=field.id,
-                    obstime=Time(df_group["jd"].median(), format='jd').datetime,
-                    seeing=df_group["sciinpseeing"].median(),
-                    limmag=df_group["diffmaglim"].median(),
-                    exposure_time=df_group["exptime"].median(),
-                    filt=bands[int(df_group["fid"].median())],
-                    processed_fraction=processed_fraction,
-                )
-            )
-        session.add_all(observations)
-        session.commit()
-
-        return log(f"Successfully add observations for instrument {instrument_id}")
-    except Exception as e:
-        return log(f"Unable to add observations for instrument {instrument_id}: {e}")
-    finally:
-        Session.remove()
+        return self.success()
