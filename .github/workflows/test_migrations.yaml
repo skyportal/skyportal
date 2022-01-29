@@ -1,12 +1,19 @@
 name: Test Skyportal Migrations
 
 on:
-  # Run only if potential changes in database schema
+  # Run only if potential changes in database schema, or if made on
+  # master
+  push:
+    branches:
+      - master
   pull_request:
     paths:
       - "baselayer"
       - "skyportal/models.py"
+      - "skyportal/models/**"
       - "alembic/versions/**"
+      - "skyportal/enum_types.py"
+      - "skyportal/facility_apis/__init__.py"
 
 jobs:
   test:
@@ -21,7 +28,7 @@ jobs:
       # (e.g., to get access to a newer data loader or dependencies).
       # Pick any commit known to have passed the migration tests on
       # CI, or which has deployed successfully.
-      MIGRATION_REFERENCE: 880cd56716015e33df22af1d256717ce98d7eb84
+      MIGRATION_REFERENCE: 5c6a907c4bc5b33ad045c78733ebd3787f49d458
 
     services:
       postgres:
@@ -87,6 +94,8 @@ jobs:
       - name: Install SkyPortal dependencies
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
+          # do not be so demanding of the npm packaging, needed until we get to mui 5
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
           pip install black
@@ -135,6 +144,7 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
           pip list --format=columns
@@ -145,6 +155,7 @@ jobs:
 
       - name: Test loading demo data
         run: |
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make run &
           sleep 10 && make load_demo_data
           kill %1
@@ -186,6 +197,8 @@ jobs:
 
       - name: Run migration
         run: |
+          # do not be so demanding of the npm packaging, needed until we get to mui 5
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           # Update to latest dependencies
           make dependencies
           PYTHONPATH=. alembic -x config=config.yaml upgrade head
@@ -221,7 +234,10 @@ jobs:
 
           createdb -h localhost -U skyportal skyportal2
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal2 TO skyportal;" skyportal2
+          createdb -h localhost -U skyportal skyportal2_test
+          psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal2_test TO skyportal;" skyportal2_test
 
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
           make run &
@@ -242,6 +258,13 @@ jobs:
           else
             echo "Migrated database and fresh database match."
           fi
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v2
+        if: ${{ always() }}
+        with:
+          name: logs
+          path: log
 
       - name: Upload the Alembic diff
         uses: actions/upload-artifact@v2

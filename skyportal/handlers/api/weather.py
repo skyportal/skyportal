@@ -2,10 +2,11 @@ import datetime
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
+
 from ...utils.offset import get_url
 
 from ..base import BaseHandler
-from ...models import DBSession, Telescope, Weather
+from ...models import DBSession, Telescope, Weather, User
 
 _, cfg = load_env()
 weather_refresh = cfg["weather"].get("refresh_time") if cfg.get("weather") else None
@@ -22,9 +23,16 @@ class WeatherHandler(BaseHandler):
         """
         ---
         description: Retrieve weather info at the telescope site saved by user
+                     or telescope specified by `telescope_id` parameter
         tags:
           - weather
           - telescopes
+        parameters:
+            - in: query
+              name: telescope_id
+              required: false
+              schema:
+                type: integer
         responses:
           200:
             content:
@@ -60,11 +68,26 @@ class WeatherHandler(BaseHandler):
                               type: string
                               description: Weather fetching error message
         """
-        user_prefs = getattr(self.current_user, 'preferences', None) or {}
+        user = (
+            User.query_records_accessible_by(self.current_user)
+            .filter(User.username == self.associated_user_object.username)
+            .first()
+        )
+        user_prefs = getattr(user, 'preferences', None) or {}
         weather_prefs = user_prefs.get('weather', {})
         weather_prefs = {**default_prefs, **weather_prefs}
 
-        telescope_id = int(weather_prefs["telescopeID"])
+        try:
+            default_telescope_id = int(weather_prefs["telescopeID"])
+        except (TypeError, ValueError):
+            return self.error(
+                f"telescope ID ({weather_prefs['telescopeID']}) "
+                f"given in preferences is not a valid ID (integer)."
+            )
+
+        # use the query telecope ID otherwise fall back to preferences id
+        telescope_id = self.get_query_argument("telescope_id", default_telescope_id)
+
         telescope = Telescope.get_if_accessible_by(telescope_id, self.current_user)
         if telescope is None:
             return self.error(

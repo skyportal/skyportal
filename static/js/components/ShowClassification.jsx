@@ -70,7 +70,11 @@ function ShowClassification({ classifications, taxonomyList, shortened }) {
               }
             >
               <Chip
-                label={cls.classification}
+                label={
+                  cls.probability < 0.1
+                    ? `${cls.classification}?`
+                    : cls.classification
+                }
                 key={`${cls.modified}tb`}
                 size="small"
                 className={classes.chip}
