@@ -46,6 +46,18 @@ def add_observations(instrument_id, obstable):
                     f"Unable to add observations for instrument {instrument_id}: Missing field {field_id}"
                 )
 
+            observation = (
+                session.query(ExecutedObservation)
+                .filter_by(
+                    instrument_id=instrument_id, observation_id=row["observation_id"]
+                )
+                .first()
+            )
+            if observation is not None:
+                log(
+                    f"Observation {row['observation_id']} for instrument {instrument_id} already exists... continuing."
+                )
+
             observations.append(
                 ExecutedObservation(
                     instrument_id=instrument_id,
