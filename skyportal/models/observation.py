@@ -22,7 +22,9 @@ class ExecutedObservation(Base):
         doc='Field ID',
     )
 
-    observation_id = sa.Column(sa.Integer, primary_key=True, doc='Observation ID')
+    observation_id = sa.Column(
+        sa.Integer, primary_key=True, doc='Observation ID supplied by instrument'
+    )
 
     obstime = sa.Column(sa.DateTime, doc='Exposure timestamp')
 

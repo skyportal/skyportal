@@ -29,7 +29,23 @@ Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"])
 
 
 def add_observations(instrument_id, obstable):
-    """Post executed observations for a given instrument."""
+    """Post executed observations for a given instrument.
+    obstable is a pandas DataFrame of the form:
+
+   observation_id  field_id       obstime   seeing    limmag  exposure_time  \
+0        84434604         1  2.458599e+06  1.57415  20.40705             30
+1        84434651         1  2.458599e+06  1.58120  20.49405             30
+2        84434696         1  2.458599e+06  1.64995  20.56030             30
+3        84434741         1  2.458599e+06  1.54945  20.57400             30
+4        84434788         1  2.458599e+06  1.62870  20.60385             30
+
+  filter  processed_fraction airmass
+0   ztfr                 1.0    None
+1   ztfr                 1.0    None
+2   ztfr                 1.0    None
+3   ztfr                 1.0    None
+4   ztfr                 1.0    None
+     """
 
     session = Session()
     try:
@@ -154,7 +170,6 @@ class ObservationHandler(BaseHandler):
                 "observation_id, field_id, obstime, filter, and exposure_time required in observation_data."
             )
 
-        print(observation_data["filter"], instrument.filters)
         for filt in observation_data["filter"]:
             if filt not in instrument.filters:
                 return self.error(f"Filter {filt} not present in {instrument.filters}")
@@ -175,7 +190,6 @@ class ObservationHandler(BaseHandler):
             )
 
         obstable = pd.DataFrame.from_dict(observation_data)
-
         # run async
         IOLoop.current().run_in_executor(
             None,
@@ -221,17 +235,17 @@ class ObservationHandler(BaseHandler):
               schema:
                 type: string
               description: |
-                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`). |
-                Taken from Localization.dateobs queried from /api/localization |
+                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                Taken from Localization.dateobs queried from /api/localization
                 endpoint or dateobs in GcnEvent page table.
             - in: query
               name: localizationName
               schema:
                 type: string
               description: |
-                Name of localization / skymap to use. |
-                Can be found in Localization.localization_name queried from |
-                /api/localization endpoint or skymap name in GcnEvent page |
+                Name of localization / skymap to use.
+                Can be found in Localization.localization_name queried from
+                /api/localization endpoint or skymap name in GcnEvent page
                 table.
             - in: query
               name: localizationCumprob
