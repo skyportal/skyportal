@@ -984,6 +984,11 @@ class ObservationPlanPost(_Schema):
         metadata={'description': "Followup request allocation ID."},
     )
 
+    localization_id = fields.Integer(
+        required=True,
+        metadata={'description': "Localization ID."},
+    )
+
     target_group_ids = fields.List(
         fields.Integer,
         required=False,

@@ -5,6 +5,7 @@ import urllib
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 from ..utils import http
 
@@ -15,6 +16,9 @@ if cfg['app.ztf.port'] is None:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}"
 else:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
+
+
+log = make_log('api/observation_plan/ZTF')
 
 
 class ZTFRequest:
@@ -236,5 +240,49 @@ class ZTFMMAAPI(FollowUpAPI):
     """An interface to ZTF MMA operations."""
 
     from .observation_plan import mma_interface
+
+    # subclasses *must* implement the method below
+    @staticmethod
+    def submit(request):
+
+        """Generate a ZTF observation plan.
+
+        Parameters
+        ----------
+        request: skyportal.models.ObservationPlanRequest
+            The request to generate the observation plan and the SkyPortal database.
+        """
+
+        from tornado.ioloop import IOLoop
+        from ..models import DBSession, EventObservationPlan
+        from .observation_plan import generate_plan
+
+        plan = EventObservationPlan.query.filter_by(
+            plan_name=request.payload["queue_name"]
+        ).first()
+        if plan is None:
+            start_time = Time(request.payload["start_date"], format='iso', scale='utc')
+            end_time = Time(request.payload["end_date"], format='iso', scale='utc')
+
+            plan = EventObservationPlan(
+                observation_plan_request_id=request.id,
+                dateobs=request.gcnevent.dateobs,
+                plan_name=request.payload['queue_name'],
+                instrument_id=request.instrument.id,
+                validity_window_start=start_time.datetime,
+                validity_window_end=end_time.datetime,
+            )
+
+            DBSession().add(plan)
+            DBSession().commit()
+
+            log(f"Generating schedule for observation plan {plan.id}")
+            IOLoop.current().run_in_executor(
+                None, lambda: generate_plan(plan.id, request.id)
+            )
+        else:
+            raise ValueError(
+                f'plan_name {request.payload["queue_name"]} already exists.'
+            )
 
     form_json_schema, ui_json_schema = mma_interface()

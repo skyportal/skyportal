@@ -143,6 +143,7 @@ class Instrument(Base):
 
     fields = relationship("InstrumentField")
     tiles = relationship("InstrumentFieldTile")
+    plans = relationship("EventObservationPlan")
 
 
 class InstrumentField(Base):

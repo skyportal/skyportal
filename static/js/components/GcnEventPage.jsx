@@ -415,7 +415,7 @@ const GcnEventPage = ({ route }) => {
           <AccordionDetails>
             <div className={styles.gcnEventContainer}>
               <ObservationPlanRequestForm
-                gcnevent_id={gcnEvent.id}
+                gcnevent={gcnEvent}
                 action="createNew"
               />
               <ObservationPlanRequestLists
@@ -427,13 +427,6 @@ const GcnEventPage = ({ route }) => {
       </div>
     </div>
   );
-};
-
-Localization.propTypes = {
-  loc: PropTypes.shape({
-    dateobs: PropTypes.string,
-    localization_name: PropTypes.string,
-  }).isRequired,
 };
 
 Localization.propTypes = {

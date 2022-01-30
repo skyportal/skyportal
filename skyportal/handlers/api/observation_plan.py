@@ -1,7 +1,6 @@
 import jsonschema
 from marshmallow.exceptions import ValidationError
 
-
 from baselayer.app.access import permissions
 from ..base import BaseHandler
 from ...models import (
@@ -54,10 +53,14 @@ class ObservationPlanRequestHandler(BaseHandler):
         data["requester_id"] = self.associated_user_object.id
         data["last_modified_by_id"] = self.associated_user_object.id
         data['allocation_id'] = int(data['allocation_id'])
+        data['localization_id'] = int(data['localization_id'])
 
         allocation = Allocation.get_if_accessible_by(
-            data['allocation_id'], self.current_user, raise_if_none=True
+            data['allocation_id'],
+            self.current_user,
+            raise_if_none=True,
         )
+
         instrument = allocation.instrument
         if instrument.api_observationplan_classname is None:
             return self.error('Instrument has no remote API.')
@@ -102,3 +105,38 @@ class ObservationPlanRequestHandler(BaseHandler):
             )
 
         return self.success(data={"id": observationplan_request.id})
+
+    @permissions(["Upload data"])
+    def delete(self, observation_plan_id):
+        """
+        ---
+        description: Delete observation plan.
+        tags:
+          - observationplan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        observationplan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_id, self.current_user, mode="delete", raise_if_none=True
+        )
+
+        dateobs = observationplan_request.gcnevent.dateobs
+        DBSession.delete(observationplan_request)
+
+        self.verify_and_commit()
+
+        self.push_all(
+            action="skyportal/REFRESH_GCNEVENT",
+            payload={"gcnEvent_dateobs": dateobs},
+        )
+
+        return self.success()
