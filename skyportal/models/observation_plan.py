@@ -16,7 +16,6 @@ import numpy as np
 from baselayer.app.models import (
     Base,
     DBSession,
-    Localization,
     join_model,
     User,
     public,
@@ -28,6 +27,7 @@ from baselayer.app.models import (
 from .group import Group
 from .instrument import Instrument
 from .allocation import Allocation
+from .localization import Localization
 
 
 def updatable_by_token_with_listener_acl(cls, user_or_token):
