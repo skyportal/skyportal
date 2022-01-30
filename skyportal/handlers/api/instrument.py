@@ -71,6 +71,7 @@ class InstrumentHandler(BaseHandler):
                 return self.error('`field_region` is required with field_data')
             regions = Regions.parse(field_region, format='ds9')
 
+            log(f"Started generating fields for instrument {instrument.id}")
             # run async
             IOLoop.current().run_in_executor(
                 None,

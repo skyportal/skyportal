@@ -28,7 +28,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   if (actionType === REFRESH_GCNEVENT) {
     const loaded_gcnevent_key = gcnEvent?.dateobs;
 
-    if (loaded_gcnevent_key === payload.gcnevent_key) {
+    if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
       dispatch(fetchGcnEvent(gcnEvent.dateobs));
     }
   }

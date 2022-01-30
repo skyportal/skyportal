@@ -99,10 +99,10 @@ class ObservationPlanRequestHandler(BaseHandler):
             raise
         finally:
             self.verify_and_commit()
-            self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
-                payload={"gcnEvent_dateobs": observationplan_request.gcnevent.dateobs},
-            )
+        self.push_all(
+            action="skyportal/REFRESH_GCNEVENT",
+            payload={"gcnEvent_dateobs": observationplan_request.gcnevent.dateobs},
+        )
 
         return self.success(data={"id": observationplan_request.id})
 
