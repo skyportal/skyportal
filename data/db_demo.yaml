@@ -211,11 +211,11 @@ instrument:
     filters: ["ztfg", "ztfr", "ztfi"]
     =id: ZTF
     api_classname: ZTFAPI
-    api_observationplan_classname: ZTFMMAAPI
+    api_observationplan_classname: MMAAPI
     # field_data:
-    #   file: ../data/ZTF_Fields.csv
+    #  file: ../data/ZTF_Fields.csv
     # field_region:
-    #   file: ../data/ZTF_Region.reg
+    #  file: ../data/ZTF_Region.reg
   - name: ALFOSC
     type: imaging spectrograph
     band: V
