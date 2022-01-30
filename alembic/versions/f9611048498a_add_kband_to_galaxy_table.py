@@ -1,4 +1,4 @@
-"""Test migration
+"""Add magk column to galaxys
 
 Revision ID: f9611048498a
 Revises: f7c1e785d7a4
