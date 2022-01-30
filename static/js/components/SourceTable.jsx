@@ -1109,6 +1109,30 @@ const SourceTable = ({
         return groups.join(";");
       };
 
+      const renderDownloadDateSaved = (dataIndex) => {
+        const source = sources[dataIndex];
+        return getDate(source)?.substring(0, 19);
+      };
+
+      const renderDownloadAlias = (dataIndex) => {
+        const { alias } = sources[dataIndex];
+        let alias_str = "";
+        if (alias) {
+          alias_str = Array.isArray(alias) ? alias.join(";") : alias;
+        }
+        return alias_str;
+      };
+      const renderDownloadOrigin = (dataIndex) => {
+        const { origin } = sources[dataIndex];
+        return origin;
+      };
+      const renderDownloadTNSName = (dataIndex) => {
+        const source = sources[dataIndex];
+        return source.altdata && source.altdata.tns
+          ? source.altdata.tns.name
+          : "";
+      };
+
       return (
         buildHead([
           {
@@ -1116,11 +1140,11 @@ const SourceTable = ({
             download: true,
           },
           {
-            name: "ra",
+            name: "ra [deg]",
             download: true,
           },
           {
-            name: "dec",
+            name: "dec [deg]",
             download: true,
           },
           {
@@ -1135,6 +1159,22 @@ const SourceTable = ({
             name: "groups",
             download: true,
           },
+          {
+            name: "Date saved",
+            download: true,
+          },
+          {
+            name: "Alias",
+            download: true,
+          },
+          {
+            name: "Origin",
+            download: true,
+          },
+          {
+            name: "TNS Name",
+            download: true,
+          },
         ]) +
         buildBody(
           data.map((x) => ({
@@ -1146,6 +1186,10 @@ const SourceTable = ({
               x.data[8],
               renderDownloadClassification(x.index),
               renderDownloadGroups(x.index),
+              renderDownloadDateSaved(x.index),
+              renderDownloadAlias(x.index),
+              renderDownloadOrigin(x.index),
+              renderDownloadTNSName(x.index),
             ],
           }))
         )
