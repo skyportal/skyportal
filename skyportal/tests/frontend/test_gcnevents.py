@@ -1,6 +1,10 @@
 import os
+import time
+import pandas as pd
 import uuid
 import pytest
+from regions import Regions
+
 from skyportal.tests import api
 
 
@@ -91,6 +95,9 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     assert data['status'] == 'success'
     telescope_id = data['data']['id']
 
+    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+
     instrument_name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -102,12 +109,17 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
             'filters': ['f110w'],
             'telescope_id': telescope_id,
             "api_observationplan_classname": "ZTFMMAAPI",
+            'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
+            'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
         },
         token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
     instrument_id = data['data']['id']
+
+    # wait for the fields to populate
+    time.sleep(15)
 
     status, data = api(
         "POST",
@@ -148,3 +160,11 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     driver.click_xpath("//header")
 
     driver.click_xpath(submit_button_xpath)
+
+    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
+    driver.wait_for_xpath(
+        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]'
+    )
+    driver.wait_for_xpath(
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]'''
+    )
