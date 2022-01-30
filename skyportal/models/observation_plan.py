@@ -142,6 +142,12 @@ class ObservationPlanRequest(Base):
     )
     allocation = relationship('Allocation', back_populates='observation_plans')
 
+    observation_plans = relationship(
+        'EventObservationPlan',
+        passive_deletes=True,
+        doc='Observation plans associated with this request.',
+    )
+
     target_groups = relationship(
         'Group',
         secondary='observationplan_groups',
@@ -224,7 +230,11 @@ class EventObservationPlan(Base):
         doc="The status of the observing plan.",
     )
 
-    planned_observations = relationship("PlannedObservation")
+    planned_observations = relationship(
+        "PlannedObservation",
+        passive_deletes=True,
+        doc='Planned observations associated with this plan.',
+    )
 
     @property
     def start_observation(self):

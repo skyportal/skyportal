@@ -107,7 +107,7 @@ class ObservationPlanRequestHandler(BaseHandler):
         return self.success(data={"id": observationplan_request.id})
 
     @permissions(["Upload data"])
-    def delete(self, observation_plan_id):
+    def delete(self, observation_plan_request_id):
         """
         ---
         description: Delete observation plan.
@@ -125,12 +125,20 @@ class ObservationPlanRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        observationplan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_id, self.current_user, mode="delete", raise_if_none=True
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="delete",
+            raise_if_none=True,
         )
+        dateobs = observation_plan_request.gcnevent.dateobs
 
-        dateobs = observationplan_request.gcnevent.dateobs
-        DBSession.delete(observationplan_request)
+        api = observation_plan_request.instrument.api_observationplan_class
+        if not api.implements()['delete']:
+            return self.error('Cannot delete observation plans on this instrument.')
+
+        observation_plan_request.last_modified_by_id = self.associated_user_object.id
+        api.delete(observation_plan_request)
 
         self.verify_and_commit()
 

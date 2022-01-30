@@ -108,7 +108,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
             'band': 'NIR',
             'filters': ['f110w'],
             'telescope_id': telescope_id,
-            "api_observationplan_classname": "ZTFMMAAPI",
+            "api_observationplan_classname": "MMAAPI",
             'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
             'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
         },
@@ -166,5 +166,16 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
         f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]'
     )
     driver.wait_for_xpath(
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]'''
+    )
+
+    driver.click_xpath(
+        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
+    )
+
+    driver.wait_for_xpath_to_disappear(
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]'''
+    )
+    driver.wait_for_xpath_to_disappear(
         f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]'''
     )

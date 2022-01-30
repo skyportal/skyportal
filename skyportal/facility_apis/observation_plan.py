@@ -2,13 +2,17 @@ from astropy.time import Time
 from datetime import datetime, timedelta
 import numpy as np
 
+import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import joinedload
 
 import gwemopt.utils
 import gwemopt.segments
 import gwemopt.skyportal
 from baselayer.log import make_log
+from baselayer.app.flow import Flow
 
+from . import FollowUpAPI
 from ..models import DBSession
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
@@ -156,6 +160,13 @@ def generate_plan(observation_plan_id, request_id):
         session.merge(plan)
         session.commit()
 
+        flow = Flow()
+        flow.push(
+            '*',
+            "skyportal/REFRESH_GCNEVENT",
+            payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
+        )
+
         return log(f"Generated plan for observation plan {observation_plan_id}")
 
     except Exception as e:
@@ -166,9 +177,97 @@ def generate_plan(observation_plan_id, request_id):
         Session.remove()
 
 
-def mma_interface():
+class MMAAPI(FollowUpAPI):
 
-    """A generic interface to MMA operations."""
+    """An interface to MMA operations."""
+
+    # subclasses *must* implement the method below
+    @staticmethod
+    def submit(request):
+
+        """Generate an observation plan.
+
+        Parameters
+        ----------
+        request: skyportal.models.ObservationPlanRequest
+            The request to generate the observation plan and the SkyPortal database.
+        """
+
+        from tornado.ioloop import IOLoop
+        from ..models import DBSession, EventObservationPlan
+
+        plan = EventObservationPlan.query.filter_by(
+            plan_name=request.payload["queue_name"]
+        ).first()
+        if plan is None:
+            start_time = Time(request.payload["start_date"], format='iso', scale='utc')
+            end_time = Time(request.payload["end_date"], format='iso', scale='utc')
+
+            plan = EventObservationPlan(
+                observation_plan_request_id=request.id,
+                dateobs=request.gcnevent.dateobs,
+                plan_name=request.payload['queue_name'],
+                instrument_id=request.instrument.id,
+                validity_window_start=start_time.datetime,
+                validity_window_end=end_time.datetime,
+            )
+
+            DBSession().add(plan)
+            DBSession().commit()
+
+            request.status = 'running'
+            DBSession().merge(request)
+            DBSession().commit()
+
+            flow = Flow()
+            flow.push(
+                '*',
+                "skyportal/REFRESH_GCNEVENT",
+                payload={"gcnEvent_dateobs": request.gcnevent.dateobs},
+            )
+
+            log(f"Generating schedule for observation plan {plan.id}")
+            IOLoop.current().run_in_executor(
+                None, lambda: generate_plan(plan.id, request.id)
+            )
+        else:
+            raise ValueError(
+                f'plan_name {request.payload["queue_name"]} already exists.'
+            )
+
+    @staticmethod
+    def delete(request):
+        """Delete an observation plan from list.
+
+        Parameters
+        ----------
+        request: skyportal.models.ObservationPlanRequest
+            The request to delete from the queue and the SkyPortal database.
+        """
+
+        from ..models import DBSession, ObservationPlanRequest
+
+        req = (
+            DBSession.execute(
+                sa.select(ObservationPlanRequest)
+                .filter(ObservationPlanRequest.id == request.id)
+                .options(joinedload(ObservationPlanRequest.observation_plans))
+            )
+            .unique()
+            .one()
+        )
+        req = req[0]
+
+        if len(req.observation_plans) > 1:
+            raise ValueError(
+                'Should only be one observation plan associated to this request'
+            )
+
+        observation_plan = req.observation_plans[0]
+        DBSession().delete(observation_plan)
+
+        DBSession().delete(req)
+        DBSession().commit()
 
     form_json_schema = {
         "type": "object",
@@ -245,5 +344,3 @@ def mma_interface():
     }
 
     ui_json_schema = {}
-
-    return form_json_schema, ui_json_schema
