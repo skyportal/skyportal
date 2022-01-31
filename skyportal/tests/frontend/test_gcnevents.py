@@ -1,6 +1,8 @@
 import os
 import uuid
 import pytest
+import time
+
 from skyportal.tests import api
 
 
@@ -53,9 +55,27 @@ def test_gcnevents(
     status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
     assert status == 200
 
+    galaxy_name = str(uuid.uuid4())
+    data = {
+        'catalog_name': 'galaxy_in_Fermi',
+        'catalog_data': {'name': [galaxy_name], 'ra': [228.5], 'dec': [35.5]},
+    }
+
+    status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # wait for galaxies to load
+    time.sleep(15)
+
     driver.get(f'/become_user/{user.id}')
     driver.get('/gcn_events/2018-01-16T00:36:53')
 
     driver.wait_for_xpath('//*[text()="180116 00:36:53"]')
     driver.wait_for_xpath('//*[text()="Fermi"]')
     driver.wait_for_xpath('//*[text()="GRB"]')
+
+    # check for object
+    driver.wait_for_xpath(f'//*[text()[contains(.,"{obj_id}")]]')
+    # check for galaxy
+    driver.wait_for_xpath(f'//*[text()[contains(.,"{galaxy_name}")]]')
