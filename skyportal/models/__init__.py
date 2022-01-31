@@ -22,6 +22,7 @@ from .localization import *
 from .obj import *
 from .observing_run import *
 from .photometry import *
+from .shift import *
 from .source import *
 from .source_view import *
 from .source_notification import *
