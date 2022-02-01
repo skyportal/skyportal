@@ -98,6 +98,7 @@ const InstrumentList = ({ instruments, telescopes }) => {
 const InstrumentPage = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
+  const currentUser = useSelector((state) => state.profile);
 
   const classes = useStyles();
   return (
@@ -113,14 +114,16 @@ const InstrumentPage = () => {
           </div>
         </Paper>
       </Grid>
-      <Grid item md={6} sm={12}>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">Add a New Instrument</Typography>
-            <NewInstrument />
-          </div>
-        </Paper>
-      </Grid>
+      {currentUser.permissions?.includes("System admin") && (
+        <Grid item md={6} sm={12}>
+          <Paper>
+            <div className={classes.paperContent}>
+              <Typography variant="h6">Add a New Instrument</Typography>
+              <NewInstrument />
+            </div>
+          </Paper>
+        </Grid>
+      )}
     </Grid>
   );
 };
