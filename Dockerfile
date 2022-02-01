@@ -8,8 +8,8 @@ RUN apt-get update && \
     apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y python3 python3-venv python3-dev \
-                       libpq-dev supervisor \
-                       git nginx nodejs postgresql-client vim htop && \
+    libpq-dev supervisor \
+    git nginx nodejs postgresql-client vim htop && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     useradd --create-home --shell /bin/bash skyportal
@@ -26,24 +26,24 @@ ADD . /skyportal
 WORKDIR /skyportal
 
 RUN bash -c "\
+    cp docker.yaml config.yaml && \
+    \
     source /skyportal_env/bin/activate && \
     make system_setup && \
     \
-    ./node_modules/.bin/webpack --mode=production --devtool none && \
+    ./node_modules/.bin/webpack --mode=production && \
     rm -rf node_modules && \
     \
     chown -R skyportal.skyportal /skyportal_env && \
     chown -R skyportal.skyportal /skyportal && \
     \
     mkdir -p /skyportal/static/thumbnails && \
-    chown -R skyportal.skyportal /skyportal/static/thumbnails && \
-    \
-    cp docker.yaml config.yaml"
+    chown -R skyportal.skyportal /skyportal/static/thumbnails"
 
 USER skyportal
 
 EXPOSE 5000
 
 CMD bash -c "source /skyportal_env/bin/activate && \
-             (make log &) && \
-             make run_production"
+    (make log &) && \
+    make run_production"

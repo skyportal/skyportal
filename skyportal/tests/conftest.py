@@ -8,16 +8,16 @@ from pathlib import Path
 import astroplan
 import numpy as np
 import pytest
+import sqlalchemy as sa
 
 from baselayer.app import models
 from baselayer.app.test_util import driver  # noqa: F401
 from skyportal.model_util import create_token, delete_token
 from skyportal.models import (
     DBSession,
+    User,
     Source,
     Candidate,
-    Role,
-    User,
     GroupStream,
     StreamUser,
     GroupUser,
@@ -57,7 +57,11 @@ from skyportal.models import Obj
 # Add a "test factory" User so that all factory-generated comments have a
 # proper author, if it doesn't already exist (the user may already be in
 # there if running the test server and running tests individually)
-if not DBSession.query(User).filter(User.username == "test factory").scalar():
+if (
+    not DBSession()
+    .execute(sa.select(User).filter(User.username == "test factory"))
+    .scalar()
+):
     DBSession.add(User(username="test factory"))
     DBSession.commit()
 
@@ -66,7 +70,11 @@ if not DBSession.query(User).filter(User.username == "test factory").scalar():
 # With invitations enabled on the test configs, the driver fails to login properly
 # without this user because the authenticator looks for the user or an
 # invitation token when neither exists initially on fresh test databases.
-if not DBSession.query(User).filter(User.username == "testuser-cesium-ml-org").scalar():
+if (
+    not DBSession()
+    .execute(sa.select(User).filter(User.username == "testuser-cesium-ml-org"))
+    .scalar()
+):
     DBSession.add(
         User(username="testuser-cesium-ml-org", oauth_uid="testuser@cesium-ml.org")
     )
@@ -104,8 +112,8 @@ def test_driver_user(request):
     if 'driver' in request.node.funcargs:
         testuser = (
             DBSession()
-            .query(User)
-            .filter(User.username == "testuser-cesium-ml-org")
+            .execute(sa.select(User).filter(User.username == "testuser-cesium-ml-org"))
+            .scalars()
             .first()
         )
         webdriver = request.node.funcargs['driver']
@@ -272,11 +280,13 @@ def group_with_stream_with_users(
 def public_groupstream(public_group):
     return (
         DBSession()
-        .query(GroupStream)
-        .filter(
-            GroupStream.group_id == public_group.id,
-            GroupStream.stream_id == public_group.streams[0].id,
+        .execute(
+            sa.select(GroupStream).filter(
+                GroupStream.group_id == public_group.id,
+                GroupStream.stream_id == public_group.streams[0].id,
+            )
         )
+        .scalars()
         .first()
     )
 
@@ -285,8 +295,12 @@ def public_groupstream(public_group):
 def public_streamuser(public_stream, user):
     return (
         DBSession()
-        .query(StreamUser)
-        .filter(StreamUser.user_id == user.id, StreamUser.stream_id == public_stream.id)
+        .execute(
+            sa.select(StreamUser).filter(
+                StreamUser.user_id == user.id, StreamUser.stream_id == public_stream.id
+            )
+        )
+        .scalars()
         .first()
     )
 
@@ -295,11 +309,13 @@ def public_streamuser(public_stream, user):
 def public_streamuser_no_groups(public_stream, user_no_groups):
     return (
         DBSession()
-        .query(StreamUser)
-        .filter(
-            StreamUser.user_id == user_no_groups.id,
-            StreamUser.stream_id == public_stream.id,
+        .execute(
+            sa.select(StreamUser).filter(
+                StreamUser.user_id == user_no_groups.id,
+                StreamUser.stream_id == public_stream.id,
+            )
         )
+        .scalars()
         .first()
     )
 
@@ -389,7 +405,7 @@ def public_source_no_data(public_group):
     yield obj
     # If the obj wasn't deleted by the test using it, clean up
     DBSession().expire(obj)
-    if DBSession().query(Obj).filter(Obj.id == obj_id).first():
+    if DBSession().execute(sa.select(Obj).filter(Obj.id == obj_id)).scalars().first():
         DBSession().delete(obj)
         DBSession().commit()
 
@@ -649,7 +665,12 @@ def private_source():
 def user(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
-        roles=[models.Role.query.get("Full user")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream],
     )
     user_id = user.id
@@ -661,7 +682,12 @@ def user(public_group, public_stream):
 def user_stream2_only(public_group, public_stream2):
     user = UserFactory(
         groups=[public_group],
-        roles=[models.Role.query.get("Full user")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream2],
     )
     user_id = user.id
@@ -673,7 +699,12 @@ def user_stream2_only(public_group, public_stream2):
 def user_group2(public_group2, public_stream):
     user = UserFactory(
         groups=[public_group2],
-        roles=[models.Role.query.get("Full user")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream],
     )
     user_id = user.id
@@ -687,8 +718,12 @@ def public_groupuser(public_group, user):
     DBSession().commit()
     return (
         DBSession()
-        .query(GroupUser)
-        .filter(GroupUser.group_id == public_group.id, GroupUser.user_id == user.id)
+        .execute(
+            sa.select(GroupUser).filter(
+                GroupUser.group_id == public_group.id, GroupUser.user_id == user.id
+            )
+        )
+        .scalars()
         .first()
     )
 
@@ -697,7 +732,12 @@ def public_groupuser(public_group, user):
 def user2(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
-        roles=[models.Role.query.get("Full user")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream],
     )
     user_id = user.id
@@ -708,7 +748,13 @@ def user2(public_group, public_stream):
 @pytest.fixture()
 def user_no_groups(public_stream):
     user = UserFactory(
-        roles=[models.Role.query.get("Full user")], streams=[public_stream]
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
+            .scalars()
+            .first()
+        ],
+        streams=[public_stream],
     )
     user_id = user.id
     yield user
@@ -718,7 +764,12 @@ def user_no_groups(public_stream):
 @pytest.fixture()
 def user_no_groups_two_streams(public_stream, public_stream2):
     user = UserFactory(
-        roles=[models.Role.query.get("Full user")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream, public_stream2],
     )
     user_id = user.id
@@ -728,7 +779,15 @@ def user_no_groups_two_streams(public_stream, public_stream2):
 
 @pytest.fixture()
 def user_no_groups_no_streams():
-    user = UserFactory(roles=[models.Role.query.get("Full user")], streams=[])
+    user = UserFactory(
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
+            .scalars()
+            .first()
+        ],
+        streams=[],
+    )
     user_id = user.id
     yield user
     UserFactory.teardown(user_id)
@@ -794,7 +853,12 @@ def upload_data_token_no_groups_no_streams(user_no_groups_no_streams):
 def user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
         groups=[public_group, public_group2],
-        roles=[models.Role.query.get("Full user")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream],
     )
     user_id = user.id
@@ -806,7 +870,12 @@ def user_two_groups(public_group, public_group2, public_stream):
 def view_only_user(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
-        roles=[models.Role.query.get("View only")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "View only"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream],
     )
     user_id = user.id
@@ -818,7 +887,12 @@ def view_only_user(public_group, public_stream):
 def view_only_user2(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
-        roles=[models.Role.query.get("View only")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "View only"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream],
     )
     user_id = user.id
@@ -830,14 +904,23 @@ def view_only_user2(public_group, public_stream):
 def group_admin_user(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
-        roles=[models.Role.query.get("Group admin")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Group admin"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream],
     )
     user_id = user.id
     group_user = (
         DBSession()
-        .query(GroupUser)
-        .filter(GroupUser.group_id == public_group.id, GroupUser.user_id == user.id)
+        .execute(
+            sa.select(GroupUser).filter(
+                GroupUser.group_id == public_group.id, GroupUser.user_id == user.id
+            )
+        )
+        .scalars()
         .first()
     )
     group_user.admin = True
@@ -850,7 +933,12 @@ def group_admin_user(public_group, public_stream):
 def group_admin_user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
         groups=[public_group, public_group2],
-        roles=[models.Role.query.get("Group admin")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Group admin"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream],
     )
     user_id = user.id
@@ -862,7 +950,12 @@ def group_admin_user_two_groups(public_group, public_group2, public_stream):
 def super_admin_user(public_group, public_stream):
     user = UserFactory(
         groups=[public_group],
-        roles=[models.Role.query.get("Super admin")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Super admin"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream],
     )
     user_id = user.id
@@ -874,7 +967,12 @@ def super_admin_user(public_group, public_stream):
 def super_admin_user_group2(public_group2, public_stream):
     user = UserFactory(
         groups=[public_group2],
-        roles=[models.Role.query.get("Super admin")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Super admin"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream],
     )
     user_id = user.id
@@ -886,7 +984,12 @@ def super_admin_user_group2(public_group2, public_stream):
 def super_admin_user_two_groups(public_group, public_group2, public_stream):
     user = UserFactory(
         groups=[public_group, public_group2],
-        roles=[models.Role.query.get("Super admin")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Super admin"))
+            .scalars()
+            .first()
+        ],
         streams=[public_stream],
     )
     user_id = user.id
@@ -1017,7 +1120,12 @@ def manage_users_token_group2(super_admin_user_group2):
 
 @pytest.fixture()
 def super_admin_token(super_admin_user):
-    role = Role.query.get("Super admin")
+    role = (
+        DBSession()
+        .execute(sa.select(models.Role).filter(models.Role.id == "Super admin"))
+        .scalars()
+        .first()
+    )
     token_id = create_token(
         ACLs=[a.id for a in role.acls],
         user_id=super_admin_user.id,
@@ -1029,7 +1137,12 @@ def super_admin_token(super_admin_user):
 
 @pytest.fixture()
 def super_admin_token_two_groups(super_admin_user_two_groups):
-    role = Role.query.get("Super admin")
+    role = (
+        DBSession()
+        .execute(sa.select(models.Role).filter(models.Role.id == "Super admin"))
+        .scalars()
+        .first()
+    )
     token_id = create_token(
         ACLs=[a.id for a in role.acls],
         user_id=super_admin_user_two_groups.id,
@@ -1192,7 +1305,12 @@ def source_notification_user(public_group):
         contact_email="test_email@gmail.com",
         contact_phone="+12345678910",
         groups=[public_group],
-        roles=[models.Role.query.get("Full user")],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Full user"))
+            .scalars()
+            .first()
+        ],
         preferences={"allowEmailNotifications": True, "allowSMSNotifications": True},
     )
     user_id = user.id
@@ -1223,11 +1341,13 @@ def public_taxonomy(public_group):
 def public_group_taxonomy(public_taxonomy):
     return (
         DBSession()
-        .query(GroupTaxonomy)
-        .filter(
-            GroupTaxonomy.group_id == public_taxonomy.groups[0].id,
-            GroupTaxonomy.taxonomie_id == public_taxonomy.id,
+        .execute(
+            sa.select(GroupTaxonomy).filter(
+                GroupTaxonomy.group_id == public_taxonomy.groups[0].id,
+                GroupTaxonomy.taxonomie_id == public_taxonomy.id,
+            )
         )
+        .scalars()
         .first()
     )
 
@@ -1245,11 +1365,13 @@ def public_comment(user_no_groups, public_source, public_group):
 def public_groupcomment(public_comment):
     return (
         DBSession()
-        .query(GroupComment)
-        .filter(
-            GroupComment.group_id == public_comment.groups[0].id,
-            GroupComment.comment_id == public_comment.id,
+        .execute(
+            sa.select(GroupComment).filter(
+                GroupComment.group_id == public_comment.groups[0].id,
+                GroupComment.comment_id == public_comment.id,
+            )
         )
+        .scalars()
         .first()
     )
 
@@ -1267,11 +1389,13 @@ def public_annotation(user_no_groups, public_source, public_group):
 def public_groupannotation(public_annotation):
     return (
         DBSession()
-        .query(GroupAnnotation)
-        .filter(
-            GroupAnnotation.group_id == public_annotation.groups[0].id,
-            GroupAnnotation.annotation_id == public_annotation.id,
+        .execute(
+            sa.select(GroupAnnotation).filter(
+                GroupAnnotation.group_id == public_annotation.groups[0].id,
+                GroupAnnotation.annotation_id == public_annotation.id,
+            )
         )
+        .scalars()
         .first()
     )
 
@@ -1294,11 +1418,13 @@ def public_classification(
 def public_groupclassification(public_classification):
     return (
         DBSession()
-        .query(GroupClassification)
-        .filter(
-            GroupClassification.group_id == public_classification.groups[0].id,
-            GroupClassification.classification_id == public_classification.id,
+        .execute(
+            sa.select(GroupClassification).filter(
+                GroupClassification.group_id == public_classification.groups[0].id,
+                GroupClassification.classification_id == public_classification.id,
+            )
         )
+        .scalars()
         .first()
     )
 
@@ -1317,11 +1443,13 @@ def public_source_spectrum(public_source):
 def public_source_groupphotometry(public_source_photometry_point):
     return (
         DBSession()
-        .query(GroupPhotometry)
-        .filter(
-            GroupPhotometry.group_id == public_source_photometry_point.groups[0].id,
-            GroupPhotometry.photometr_id == public_source_photometry_point.id,
+        .execute(
+            sa.select(GroupPhotometry).filter(
+                GroupPhotometry.group_id == public_source_photometry_point.groups[0].id,
+                GroupPhotometry.photometr_id == public_source_photometry_point.id,
+            )
         )
+        .scalars()
         .first()
     )
 
@@ -1330,11 +1458,13 @@ def public_source_groupphotometry(public_source_photometry_point):
 def public_source_groupspectrum(public_source_spectrum):
     return (
         DBSession()
-        .query(GroupSpectrum)
-        .filter(
-            GroupSpectrum.group_id == public_source_spectrum.groups[0].id,
-            GroupSpectrum.spectr_id == public_source_spectrum.id,
+        .execute(
+            sa.select(GroupSpectrum).filter(
+                GroupSpectrum.group_id == public_source_spectrum.groups[0].id,
+                GroupSpectrum.spectr_id == public_source_spectrum.id,
+            )
         )
+        .scalars()
         .first()
     )
 
@@ -1343,13 +1473,15 @@ def public_source_groupspectrum(public_source_spectrum):
 def public_source_followup_request_target_group(public_source_followup_request):
     return (
         DBSession()
-        .query(FollowupRequestTargetGroup)
-        .filter(
-            FollowupRequestTargetGroup.followuprequest_id
-            == public_source_followup_request.id,
-            FollowupRequestTargetGroup.group_id
-            == public_source_followup_request.target_groups[0].id,
+        .execute(
+            sa.select(FollowupRequestTargetGroup).filter(
+                FollowupRequestTargetGroup.followuprequest_id
+                == public_source_followup_request.id,
+                FollowupRequestTargetGroup.group_id
+                == public_source_followup_request.target_groups[0].id,
+            )
         )
+        .scalars()
         .first()
     )
 
@@ -1358,9 +1490,12 @@ def public_source_followup_request_target_group(public_source_followup_request):
 def public_thumbnail(public_source):
     return (
         DBSession()
-        .query(Thumbnail)
-        .filter(Thumbnail.obj_id == public_source.id)
-        .order_by(Thumbnail.id.desc())
+        .execute(
+            sa.select(Thumbnail)
+            .filter(Thumbnail.obj_id == public_source.id)
+            .order_by(Thumbnail.id.desc())
+        )
+        .scalars()
         .first()
     )
 

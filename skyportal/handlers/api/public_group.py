@@ -1,7 +1,8 @@
+import sqlalchemy as sa
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from ..base import BaseHandler
-from ...models import Group
+from ...models import Group, DBSession
 
 
 env, cfg = load_env()
@@ -22,7 +23,13 @@ class PublicGroupHandler(BaseHandler):
                 application/json:
                   schema: SingleGroup
         """
-        pg = Group.query.filter(Group.name == cfg['misc.public_group_name']).first()
+        pg = (
+            DBSession.execute(
+                sa.select(Group).filter(Group.name == cfg['misc.public_group_name'])
+            )
+            .scalars()
+            .first()
+        )
         if pg is None:
             return self.error('Public group does not exist')
         self.verify_and_commit()

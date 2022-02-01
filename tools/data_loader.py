@@ -11,6 +11,8 @@ import requests
 import pandas as pd
 import yaml
 from yaml import Loader
+from regions import Regions
+from astropy.table import Table
 
 from baselayer.app.env import load_env, parser
 
@@ -94,21 +96,22 @@ if __name__ == "__main__":
 
         try:
             token = yaml.load(open('.tokens.yaml'), Loader=yaml.Loader)['INITIAL_ADMIN']
-            print('Token loaded from `.tokens.yaml`')
             return token
         except (FileNotFoundError, TypeError, KeyError):
-            print(
-                'Error: no token specified, and no suitable token found in .tokens.yaml'
-            )
             return None
 
     print('Testing connection...', end='')
 
-    RETRIES = 10
+    RETRIES = 15
     timeout = 3
+    admin_token = None
+    status = None
     for i in range(RETRIES):
         try:
+            previous_admin_token = admin_token
             admin_token = get_token()
+            if admin_token != previous_admin_token:
+                print('Loaded token from SkyPortal provisioned .tokens.yaml')
 
             def get(endpoint, token=admin_token):
                 response_status, data = api("GET", endpoint, token=token, host=env.host)
@@ -128,7 +131,13 @@ if __name__ == "__main__":
                     )
                 return data
 
-            status, data = get('sysinfo')
+            if admin_token:
+                status, data = get('sysinfo')
+            else:
+                print('No token specified; reading from ', end='')
+                print('SkyPortal generated .tokens.yaml')
+                time.sleep(timeout)
+                continue
 
             if status == 200:
                 break
@@ -137,21 +146,22 @@ if __name__ == "__main__":
                     print('FAIL')
                 else:
                     time.sleep(timeout)
-                    print('Reloading auth tokens and trying again...', end='')
+                    print(f'Expected HTTP 200, received {status}. Trying again.')
                 continue
         except requests.exceptions.ConnectionError:
+            host = env.host or f'http://localhost:{cfg["ports.app"]}'
             if i == RETRIES - 1:
                 print('FAIL')
                 print()
                 print('Error: Could not connect to SkyPortal instance; please ensure ')
-                print('       it is running at the given host/port')
+                print(f'       it is running at the given host/port [{host}]')
                 sys.exit(-1)
             else:
                 time.sleep(timeout)
-                print('Retrying connection...')
+                print(f'Could not connect to {host}. Trying again.')
 
     if status not in (200, 400):
-        print(f'Error: could not connect to server (HTTP status {status})')
+        print(f'Fatal: could not connect to server (HTTP status {status})')
         sys.exit(-1)
 
     if data['status'] != 'success':
@@ -184,9 +194,14 @@ if __name__ == "__main__":
                     with open(filename, 'rb') as fid:
                         payload = fid.read()
                     return payload
+                elif filename.endswith('reg'):
+                    return Regions.read(filename).serialize(format='ds9')
+                elif filename.endswith('h5') or filename.endswith('hdf5'):
+                    payload = Table.read(filename).to_pandas().to_dict(orient='list')
+                    return payload
                 else:
                     raise NotImplementedError(
-                        f'{filename}: Only CSV files currently supported for extending individual objects'
+                        f'{filename}: Only CSV, PNG, xml, reg, and hdf5 files currently supported for extending individual objects'
                     )
 
             for k, v in obj.items():

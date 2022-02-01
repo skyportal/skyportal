@@ -69,14 +69,14 @@ const SaveCandidateButton = ({ candidate, userGroups, filterGroups }) => {
 
   const validateGroups = () => {
     const formState = getValues({ nest: true });
-    return formState.group_ids.filter((value) => Boolean(value)).length >= 1;
+    return formState.group_ids?.filter((value) => Boolean(value)).length >= 1;
   };
 
   const onSubmitGroupSelectSave = async (data) => {
     setIsSubmitting(true);
     data.id = candidate.id;
     const groupIDs = userGroups.map((g) => g.id);
-    const selectedGroupIDs = groupIDs.filter((ID, idx) => data.group_ids[idx]);
+    const selectedGroupIDs = groupIDs?.filter((ID, idx) => data.group_ids[idx]);
     data.group_ids = selectedGroupIDs;
     const result = await dispatch(sourceActions.saveSource(data));
     if (result.status === "success") {

@@ -36,7 +36,7 @@ const useStyles = makeStyles((theme) => ({
 
 const SlackPreferences = () => {
   const classes = useStyles();
-  const slack_preamble = useSelector((state) => state.sysInfo.slack_preamble);
+  const slack_preamble = useSelector((state) => state.config.slackPreamble);
   const profile = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -154,6 +154,17 @@ const SlackPreferences = () => {
                   />
                 }
                 label="@ mentions"
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={profile.slack_integration?.gcnnotices === true}
+                    name="gcnnotices"
+                    onChange={prefToggled}
+                    data-testid="slack_gcnnotices"
+                  />
+                }
+                label="GCN Notices"
               />
             </FormGroup>
           </div>

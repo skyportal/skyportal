@@ -8,6 +8,7 @@ from tempfile import mkdtemp
 
 import factory
 import numpy as np
+import sqlalchemy as sa
 from sqlalchemy import inspect
 from sqlalchemy.orm.exc import ObjectDeletedError
 
@@ -15,6 +16,7 @@ from baselayer.app.config import load_config
 from baselayer.app.env import load_env
 from baselayer.app.test_util import set_server_url
 from skyportal.models import (
+    init_db,
     DBSession,
     User,
     Group,
@@ -32,7 +34,6 @@ from skyportal.models import (
     ClassicalAssignment,
     Taxonomy,
     Classification,
-    init_db,
     FollowupRequest,
     Allocation,
     Invitation,
@@ -68,7 +69,11 @@ def is_already_deleted(instance, table):
     ):
         try:
             return (
-                DBSession().query(table).filter(table.id == instance.id).first() is None
+                DBSession()
+                .execute(sa.select(table).filter(table.id == instance.id))
+                .scalars()
+                .first()
+                is None
             )
         except ObjectDeletedError:
             # If instance was deleted by the test, it would have taken place in
@@ -100,7 +105,10 @@ class TelescopeFactory(factory.alchemy.SQLAlchemyModelFactory):
     @staticmethod
     def teardown(telescope_id):
         telescope = (
-            DBSession().query(Telescope).filter(Telescope.id == telescope_id).first()
+            DBSession()
+            .execute(sa.select(Telescope).filter(Telescope.id == telescope_id))
+            .scalars()
+            .first()
         )
         if telescope is not None:
             DBSession().delete(telescope)
@@ -140,8 +148,10 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
         # always add the sitewide group
         sitewide_group = (
             DBSession()
-            .query(Group)
-            .filter(Group.name == cfg['misc']['public_group_name'])
+            .execute(
+                sa.select(Group).filter(Group.name == cfg['misc']['public_group_name'])
+            )
+            .scalars()
             .first()
         )
 
@@ -150,7 +160,12 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     @staticmethod
     def teardown(user_id):
-        user = DBSession().query(User).filter(User.id == user_id).first()
+        user = (
+            DBSession()
+            .execute(sa.select(User).filter(User.id == user_id))
+            .scalars()
+            .first()
+        )
         if user is not None:
             # If it is, delete it
             DBSession().delete(user)
@@ -275,7 +290,12 @@ class StreamFactory(factory.alchemy.SQLAlchemyModelFactory):
     @staticmethod
     def teardown(stream_id):
         # Fetch fresh instance of stream
-        stream = DBSession().query(Stream).filter(Stream.id == stream_id).first()
+        stream = (
+            DBSession()
+            .execute(sa.select(Stream).filter(Stream.id == stream_id))
+            .scalars()
+            .first()
+        )
         if stream is not None:
             # If it is, delete it
             DBSession().delete(stream)
@@ -304,7 +324,12 @@ class GroupFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     @staticmethod
     def teardown(group_id):
-        group = DBSession().query(Group).filter(Group.id == group_id).first()
+        group = (
+            DBSession()
+            .execute(sa.select(Group).filter(Group.id == group_id))
+            .scalars()
+            .first()
+        )
         if group is not None:
             # If it is, delete it
             DBSession().delete(group)
@@ -319,7 +344,12 @@ class FilterFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     @staticmethod
     def teardown(filter_id):
-        filter_ = DBSession().query(Filter).filter(Filter.id == filter_id).first()
+        filter_ = (
+            DBSession()
+            .execute(sa.select(Filter).filter(Filter.id == filter_id))
+            .scalars()
+            .first()
+        )
         if filter_ is not None:
             # If it is, delete it
             DBSession().delete(filter_)
@@ -416,7 +446,12 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         comment_authors = list(map(lambda x: x.author.id, obj.comments))
         for author in comment_authors:
             UserFactory.teardown(author)
-        spectra = DBSession().query(Spectrum).filter(Spectrum.obj_id == obj.id).all()
+        spectra = (
+            DBSession()
+            .execute(sa.select(Spectrum).filter(Spectrum.obj_id == obj.id))
+            .scalars()
+            .all()
+        )
         for spectrum in spectra:
             SpectrumFactory.teardown(spectrum)
         DBSession().delete(obj)
@@ -517,7 +552,10 @@ class TaxonomyFactory(factory.alchemy.SQLAlchemyModelFactory):
     @staticmethod
     def teardown(taxonomy_id):
         taxonomy = (
-            DBSession().query(Taxonomy).filter(Taxonomy.id == taxonomy_id).first()
+            DBSession()
+            .execute(sa.select(Taxonomy).filter(Taxonomy.id == taxonomy_id))
+            .scalars()
+            .first()
         )
         if taxonomy is not None:
             DBSession().delete(taxonomy)

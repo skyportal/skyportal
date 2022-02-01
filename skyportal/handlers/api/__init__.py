@@ -3,11 +3,12 @@ from .allocation import AllocationHandler
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
-from .annotation import AnnotationHandler, ObjAnnotationHandler
+from .annotation import AnnotationHandler
 from .db_stats import StatsHandler
 from .filter import FilterHandler
 from .followup_request import FollowupRequestHandler, AssignmentHandler
 from .facility_listener import FacilityMessageHandler
+from .galaxy import GalaxyCatalogHandler
 from .gcn import (
     GcnEventHandler,
     LocalizationHandler,
@@ -55,8 +56,10 @@ from .spectrum import (
 )
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler
+from .config_handler import ConfigHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
 from .thumbnail import ThumbnailHandler
 from .user import UserHandler
+from .unsourced_finder import UnsourcedFinderHandler
 from .weather import WeatherHandler

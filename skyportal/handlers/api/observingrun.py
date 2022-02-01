@@ -12,7 +12,7 @@ from ...models import (
     Instrument,
     Source,
 )
-from ...schema import ObservingRunPost, ObservingRunGetWithAssignments
+from ...models.schema import ObservingRunPost, ObservingRunGetWithAssignments
 
 
 class ObservingRunHandler(BaseHandler):

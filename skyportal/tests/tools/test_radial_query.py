@@ -4,7 +4,7 @@ from uuid import uuid4
 from astropy import coordinates as ap_coord
 from astropy import units as u
 from skyportal import models as sp_models
-import healpix_alchemy as ha
+import conesearch_alchemy as ca
 
 
 @pytest.mark.parametrize('n', [100, 1000, 10000])
@@ -42,7 +42,7 @@ def test_radial_query(n):
         .query(sp_models.Obj.id)
         .filter(
             sp_models.Obj.within(
-                ha.Point(ra=coord[0].ra.deg, dec=coord[0].dec.deg), 1.0
+                ca.Point(ra=coord[0].ra.deg, dec=coord[0].dec.deg), 1.0
             )
         )
     )

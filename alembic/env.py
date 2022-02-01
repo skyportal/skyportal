@@ -6,13 +6,14 @@ from baselayer.app.config import load_config
 from baselayer.app.models import init_db
 
 # These imports need to happen for their side-effects of registering models
-from baselayer.app import models as BaselayerModels  # noqa
+from baselayer.app import models as baselayer_models  # noqa
 from baselayer.app import psa  # noqa
 from skyportal import models  # noqa
 
 
-skyportal_config = context.get_x_argument(as_dictionary=True).get('config')
-cfg = load_config(config_files=[skyportal_config] if skyportal_config else [])
+config_arg = context.get_x_argument(as_dictionary=True).get('config')
+skyportal_configs = config_arg.split(':') if config_arg else []
+cfg = load_config(config_files=skyportal_configs)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -24,7 +25,7 @@ fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-target_metadata = models.Base.metadata
+target_metadata = baselayer_models.Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

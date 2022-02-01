@@ -6,6 +6,7 @@ import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
 import { Link } from "react-router-dom";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -38,25 +39,37 @@ const ObservabilityPage = ({ route }) => {
       </Paper>
       <Grid container spacing={3}>
         {telescopeList
-          .filter((telescope) => telescope.fixed_location)
+          ?.filter((telescope) => telescope.fixed_location)
           // If telescope preferences exist, filter only for those
-          .filter((telescope) =>
+          ?.filter((telescope) =>
             preferences && preferences.length > 0
               ? preferences.indexOf(telescope.id) !== -1
               : true
           )
-          .map((telescope) => (
+          ?.map((telescope) => (
             <Grid item key={telescope.id}>
               <Paper>
                 <div className={classes.inner}>
                   <Typography variant="h6">{telescope.name}</Typography>
-                  <Suspense fallback={<div>Loading plot...</div>}>
+                  <Suspense
+                    fallback={
+                      <div>
+                        <CircularProgress color="secondary" />
+                      </div>
+                    }
+                  >
                     <AirMassPlotWithEphemURL
                       dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
                       ephemerisUrl={`/api/internal/ephemeris/${telescope.id}`}
                     />
                   </Suspense>
-                  <Suspense fallback={<div>Loading plot...</div>}>
+                  <Suspense
+                    fallback={
+                      <div>
+                        <CircularProgress color="secondary" />
+                      </div>
+                    }
+                  >
                     <HoursBelowAirmassPlot
                       dataUrl={`/api/internal/plot/airmass/hours_below/${route.id}/${telescope.id}`}
                     />

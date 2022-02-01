@@ -137,7 +137,8 @@ FLAGS="--config=myconfig.yaml" make run
 By default, the server allows anyone to log in (even if it presents a
 login screen).  If you are running a public-facing instance of
 SkyPortal, you should enable multi-user login by adding Google
-credentials to the `server:auth` section of the configuration file.
+credentials to the `server:auth` section of the configuration file and
+setting `debug_login` to `False`.
 
 ### Creating an administrative user
 

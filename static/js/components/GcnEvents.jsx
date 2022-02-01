@@ -5,7 +5,7 @@ import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
@@ -34,7 +34,7 @@ const useStyles = makeStyles((theme) => ({
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
-  createMuiTheme({
+  createTheme({
     palette: theme.palette,
     overrides: {
       MUIDataTablePagination: {
@@ -74,7 +74,7 @@ const GcnEvents = () => {
   }, [dispatch]);
 
   const renderTags = (tags) =>
-    tags.map((tag) => (
+    tags?.map((tag) => (
       <Chip size="small" key={tag} label={tag} className={classes.eventTags} />
     ));
 

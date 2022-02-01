@@ -99,10 +99,7 @@ def test_add_new_source_renders_on_group_sources_page(
     )
     assert status == 200
 
-    # need to reload the page to see changes!
-    driver.get(f"/group_sources/{public_group.id}")
-
-    # check the classification does show up after a refresh
+    # check the classification does show up
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
 
     status, data = api(
@@ -118,11 +115,10 @@ def test_add_new_source_renders_on_group_sources_page(
         token=classification_token_two_groups,
     )
     assert status == 200
+    # ensure new classification is displayed
+    driver.wait_for_xpath(f"//*[text()[contains(., '{'RS CVn'}')]]")
 
-    # need to reload the page to see changes!
-    driver.get(f"/group_sources/{public_group.id}")
-
-    # make sure the new classification, made to group 2, does NOT show up!
+    # ensure other classification is still displayed
     driver.wait_for_xpath(f"//*[text()[contains(., '{'Algol'}')]]")
 
 
@@ -249,12 +245,8 @@ def test_sources_sorting(
     driver.wait_for_xpath(f"//*[text()[contains(., '{public_group.name}')]]")
 
     # Now sort by date saved desc by clicking the header twice
-    driver.click_xpath(
-        "//span[contains(@data-testid, 'headcol-')]//div[text()='Date Saved']"
-    )
-    driver.click_xpath(
-        "//span[contains(@data-testid, 'headcol-')]//div[text()='Date Saved']"
-    )
+    driver.click_xpath("//*[text()='Date Saved']")
+    driver.click_xpath("//*[text()='Date Saved']")
 
     # Now, the first one posted should be the second row
     # Col 0, Row 0 should be the second sources's id (MuiDataTableBodyCell-0-0)
@@ -267,9 +259,7 @@ def test_sources_sorting(
     )
 
     # Now sort by redshift ascending, which would put obj_id first
-    driver.click_xpath(
-        "//span[contains(@data-testid, 'headcol-')]//div[text()='Redshift']"
-    )
+    driver.click_xpath("//*[text()='Redshift']")
 
     # Now, the first one posted should be the second row
     # Col 0, Row 0 should be the second sources's id (MuiDataTableBodyCell-0-0)

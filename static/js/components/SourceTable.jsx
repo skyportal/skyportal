@@ -13,23 +13,27 @@ import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
 import MUIDataTable from "mui-datatables";
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
-import Tooltip from "@material-ui/core/Tooltip";
-import GroupIcon from "@material-ui/icons/Group";
 import CheckIcon from "@material-ui/icons/Check";
 import ClearIcon from "@material-ui/icons/Clear";
 import InfoIcon from "@material-ui/icons/Info";
 import CircularProgress from "@material-ui/core/CircularProgress";
+import Divider from "@material-ui/core/Divider";
+import ListItem from "@material-ui/core/ListItem";
+import ListItemText from "@material-ui/core/ListItemText";
+import ExpandLess from "@material-ui/icons/ExpandLess";
+import ExpandMore from "@material-ui/icons/ExpandMore";
+import Collapse from "@material-ui/core/Collapse";
+import List from "@material-ui/core/List";
+import Typography from "@material-ui/core/Typography";
 
-import dayjs from "dayjs";
 import { isMobileOnly } from "react-device-detect";
 
 import { ra_to_hours, dec_to_dms } from "../units";
 import ThumbnailList from "./ThumbnailList";
-import UserAvatar from "./UserAvatar";
 import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
 import FavoritesButton from "./FavoritesButton";
@@ -37,6 +41,7 @@ import MultipleClassificationsForm from "./MultipleClassificationsForm";
 import * as sourceActions from "../ducks/source";
 import * as sourcesActions from "../ducks/sources";
 import { filterOutEmptyValues } from "../API";
+import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
@@ -155,10 +160,27 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
     fontSize: "1rem",
   },
+  annotations: (props) => ({
+    minWidth: props.annotationsMinWidth,
+    maxWidth: props.annotationsMaxWidth,
+    overflowWrap: "break-word",
+  }),
+  root: {
+    width: "100%",
+    background: theme.palette.background.paper,
+    padding: theme.spacing(1),
+    maxHeight: "15rem",
+    overflowY: "scroll",
+  },
+  nested: {
+    paddingLeft: theme.spacing(4),
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
 }));
 
 const getMuiTheme = (theme) =>
-  createMuiTheme({
+  createTheme({
     palette: theme.palette,
     overrides: {
       MUIDataTableHeadCell: {
@@ -277,7 +299,7 @@ const SourceTable = ({
   const theme = useTheme();
 
   if (favoritesRemoveButton) {
-    defaultDisplayedColumns = defaultDisplayedColumns.filter(
+    defaultDisplayedColumns = defaultDisplayedColumns?.filter(
       (c) => c !== "Favorites"
     );
   }
@@ -285,6 +307,7 @@ const SourceTable = ({
   const [displayedColumns, setDisplayedColumns] = useState(
     defaultDisplayedColumns
   );
+  const [openedRows, setOpenedRows] = useState([]);
 
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
 
@@ -298,13 +321,6 @@ const SourceTable = ({
       setQueryInProgress(false);
     }
   }, [sources]);
-
-  // Color styling
-  const userColorTheme = useSelector(
-    (state) => state.profile.preferences.theme
-  );
-  const commentStyle =
-    userColorTheme === "dark" ? classes.commentDark : classes.comment;
 
   const handleTableChange = (action, tableState) => {
     switch (action) {
@@ -323,8 +339,8 @@ const SourceTable = ({
         // Save displayed column labels
         setDisplayedColumns(
           tableState.columns
-            .filter((column) => column.display === "true")
-            .map((column) => column.label)
+            ?.filter((column) => column.display === "true")
+            ?.map((column) => column.label)
         );
         break;
       case "sort":
@@ -375,22 +391,23 @@ const SourceTable = ({
     }
   };
 
-  // helper function to get the classifications
-  const getClassifications = (source) => {
-    if (groupID !== undefined) {
-      return source.classifications.filter((cls) =>
-        cls.groups.find((g) => g.id === groupID)
-      );
-    }
-    return source.classifications;
-  };
+  const [openedOrigins, setOpenedOrigins] = useState({});
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderPullOutRow = (rowData, rowMeta) => {
     const colSpan = rowData.length + 1;
     const source = sources[rowMeta.dataIndex];
 
-    const comments = source.comments || [];
+    const annotations = source.annotations || [];
+
+    const initState = {};
+    annotations?.forEach((annotation) => {
+      initState[annotation.origin] = true;
+    });
+
+    const handleClick = (origin) => {
+      setOpenedOrigins({ ...openedOrigins, [origin]: !openedOrigins[origin] });
+    };
 
     const plotWidth = isMobileOnly ? 200 : 400;
     const specPlotHeight = isMobileOnly ? 150 : 200;
@@ -417,7 +434,13 @@ const SourceTable = ({
             />
             <Grid item>
               {source.photometry_exists && (
-                <Suspense fallback={<div>Loading plot...</div>}>
+                <Suspense
+                  fallback={
+                    <div>
+                      <CircularProgress color="secondary" />
+                    </div>
+                  }
+                >
                   <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
                 </Suspense>
               )}
@@ -426,7 +449,13 @@ const SourceTable = ({
             <Grid item>
               {source.color_magnitude.length ? (
                 <div data-testid={`hr_diagram_${source.id}`}>
-                  <Suspense fallback={<div>Loading HR diagram...</div>}>
+                  <Suspense
+                    fallback={
+                      <div>
+                        <CircularProgress color="secondary" />
+                      </div>
+                    }
+                  >
                     <VegaHR
                       data={source.color_magnitude}
                       width={200}
@@ -438,7 +467,13 @@ const SourceTable = ({
             </Grid>
             <Grid item>
               {source.spectrum_exists && (
-                <Suspense fallback={<div>Loading spectra...</div>}>
+                <Suspense
+                  fallback={
+                    <div>
+                      <CircularProgress color="secondary" />
+                    </div>
+                  }
+                >
                   <VegaSpectrum
                     dataUrl={`/api/sources/${source.id}/spectra?normalization=median`}
                     width={plotWidth}
@@ -450,66 +485,61 @@ const SourceTable = ({
               {!source.spectrum_exists && <div> no spectra exist </div>}
             </Grid>
             <Grid item>
-              <div className={classes.commentListContainer}>
-                {comments.map(
-                  ({
-                    id,
-                    author,
-                    author_info,
-                    created_at,
-                    text,
-                    attachment_name,
-                    groups: comment_groups,
-                  }) => (
-                    <span key={id} className={commentStyle}>
-                      <div className={classes.commentUserAvatar}>
-                        <UserAvatar
-                          size={24}
-                          firstName={author_info.first_name}
-                          lastName={author_info.last_name}
-                          username={author_info.username}
-                          gravatarUrl={author_info.gravatar_url}
-                        />
-                      </div>
-                      <div className={classes.commentContent}>
-                        <div className={classes.commentHeader}>
-                          <span>
-                            <span className={classes.commentUserName}>
-                              {author.username}
-                            </span>
-                          </span>
-                          <span className={classes.commentTime}>
-                            {dayjs().to(dayjs.utc(`${created_at}Z`))}
-                          </span>
-                          <div className={classes.commentUserGroup}>
-                            <Tooltip
-                              title={comment_groups
-                                .map((group) => group.name)
-                                .join(", ")}
-                            >
-                              <GroupIcon
-                                fontSize="small"
-                                viewBox="0 -2 24 24"
-                              />
-                            </Tooltip>
-                          </div>
+              <div className={classes.annotations}>
+                {!!annotations && annotations.length && (
+                  <>
+                    <Typography variant="subtitle2">Annotations:</Typography>
+                    <List
+                      component="nav"
+                      aria-labelledby="nested-list-subheader"
+                      className={classes.root}
+                      dense
+                    >
+                      {annotations.map((annotation) => (
+                        <div key={`annotation_${annotation.origin}`}>
+                          <Divider />
+                          <ListItem
+                            button
+                            onClick={() => handleClick(annotation.origin)}
+                          >
+                            <ListItemText
+                              primary={`${annotation.origin}`}
+                              primaryTypographyProps={{ variant: "button" }}
+                            />
+                            {openedOrigins[annotation.origin] ? (
+                              <ExpandLess />
+                            ) : (
+                              <ExpandMore />
+                            )}
+                          </ListItem>
+                          <Collapse
+                            in={openedOrigins[annotation.origin]}
+                            timeout="auto"
+                            unmountOnExit
+                          >
+                            <List component="div" dense disablePadding>
+                              {Object.entries(annotation.data).map(
+                                ([key, value]) => (
+                                  <ListItem
+                                    key={`key_${annotation.origin}_${key}`}
+                                    button
+                                    className={classes.nested}
+                                  >
+                                    <ListItemText
+                                      secondary={`${key}: ${getAnnotationValueString(
+                                        value
+                                      )}`}
+                                    />
+                                  </ListItem>
+                                )
+                              )}
+                            </List>
+                          </Collapse>
+                          <Divider />
                         </div>
-                        <div className={classes.wrap} name={`commentDiv${id}`}>
-                          <div className={classes.commentMessage}>{text}</div>
-                        </div>
-                        <span>
-                          {attachment_name && (
-                            <div>
-                              Attachment:&nbsp;
-                              <a href={`/api/comment/${id}/attachment`}>
-                                {attachment_name}
-                              </a>
-                            </div>
-                          )}
-                        </span>
-                      </div>
-                    </span>
-                  )
+                      ))}
+                    </List>
+                  </>
                 )}
               </div>
             </Grid>
@@ -518,7 +548,7 @@ const SourceTable = ({
                 objId={source.id}
                 taxonomyList={taxonomyList}
                 groupId={groupID}
-                currentClassifications={getClassifications(source)}
+                currentClassifications={source.classifications}
               />
             </Grid>
             {favoritesRemoveButton ? (
@@ -608,9 +638,15 @@ const SourceTable = ({
     const source = sources[dataIndex];
 
     return (
-      <Suspense fallback={<div>Loading classifications</div>}>
+      <Suspense
+        fallback={
+          <div>
+            <CircularProgress color="secondary" />
+          </div>
+        }
+      >
         <ShowClassification
-          classifications={getClassifications(source)}
+          classifications={source.classifications}
           taxonomyList={taxonomyList}
           shortened
         />
@@ -619,7 +655,7 @@ const SourceTable = ({
   };
 
   // helper function to get the source groups
-  const getGroups = (source) => source.groups.filter((group) => group.active);
+  const getGroups = (source) => source.groups?.filter((group) => group.active);
   const history = useHistory();
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
@@ -813,7 +849,7 @@ const SourceTable = ({
       const sourceFilterList = filterList[0];
       // Convert chip filter list to filter form data
       const data = {};
-      sourceFilterList.forEach((filterChip) => {
+      sourceFilterList?.forEach((filterChip) => {
         const [key, value] = filterChip.split(": ");
         if (key === "position") {
           const fields = value.split(/\s*\(\D*\),*\s*/);
@@ -1050,6 +1086,115 @@ const SourceTable = ({
     onFilterChange: handleTableFilterChipChange,
     onFilterDialogOpen: () => setFilterFormSubmitted(false),
     search: false,
+    download: true,
+    rowsExpanded: openedRows,
+    onRowExpansionChange: (_, allRowsExpanded) => {
+      setOpenedRows(allRowsExpanded.map((i) => i.dataIndex));
+    },
+    onDownload: (buildHead, buildBody, columnsDownload, data) => {
+      const renderDownloadClassification = (dataIndex) => {
+        const source = sources[dataIndex];
+        const classifications = [];
+        source?.classifications.forEach((x) => {
+          classifications.push(x.classification);
+        });
+        return classifications.join(";");
+      };
+      const renderDownloadGroups = (dataIndex) => {
+        const source = sources[dataIndex];
+        const groups = [];
+        source?.groups.forEach((x) => {
+          groups.push(x.name);
+        });
+        return groups.join(";");
+      };
+
+      const renderDownloadDateSaved = (dataIndex) => {
+        const source = sources[dataIndex];
+        return getDate(source)?.substring(0, 19);
+      };
+
+      const renderDownloadAlias = (dataIndex) => {
+        const { alias } = sources[dataIndex];
+        let alias_str = "";
+        if (alias) {
+          alias_str = Array.isArray(alias) ? alias.join(";") : alias;
+        }
+        return alias_str;
+      };
+      const renderDownloadOrigin = (dataIndex) => {
+        const { origin } = sources[dataIndex];
+        return origin;
+      };
+      const renderDownloadTNSName = (dataIndex) => {
+        const source = sources[dataIndex];
+        return source.altdata && source.altdata.tns
+          ? source.altdata.tns.name
+          : "";
+      };
+
+      return (
+        buildHead([
+          {
+            name: "id",
+            download: true,
+          },
+          {
+            name: "ra [deg]",
+            download: true,
+          },
+          {
+            name: "dec [deg]",
+            download: true,
+          },
+          {
+            name: "redshift",
+            download: true,
+          },
+          {
+            name: "classification",
+            download: true,
+          },
+          {
+            name: "groups",
+            download: true,
+          },
+          {
+            name: "Date saved",
+            download: true,
+          },
+          {
+            name: "Alias",
+            download: true,
+          },
+          {
+            name: "Origin",
+            download: true,
+          },
+          {
+            name: "TNS Name",
+            download: true,
+          },
+        ]) +
+        buildBody(
+          data.map((x) => ({
+            ...x,
+            data: [
+              x.data[0],
+              x.data[4],
+              x.data[5],
+              x.data[8],
+              renderDownloadClassification(x.index),
+              renderDownloadGroups(x.index),
+              renderDownloadDateSaved(x.index),
+              renderDownloadAlias(x.index),
+              renderDownloadOrigin(x.index),
+              renderDownloadTNSName(x.index),
+            ],
+          }))
+        )
+      );
+    },
   };
 
   if (sourceStatus === "requested") {
@@ -1116,7 +1261,6 @@ SourceTable.propTypes = {
           ),
         })
       ),
-      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
       altdata: PropTypes.shape({
         tns: PropTypes.shape({
           name: PropTypes.string,

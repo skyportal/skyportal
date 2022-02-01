@@ -1,6 +1,7 @@
 import itertools
 import math
 import json
+import collections
 
 import numpy as np
 import pandas as pd
@@ -19,7 +20,14 @@ from bokeh.models import (
     Legend,
     LegendItem,
 )
-from bokeh.models.widgets import CheckboxGroup, TextInput, Panel, Tabs, Div
+from bokeh.models.widgets import (
+    CheckboxGroup,
+    TextInput,
+    NumericInput,
+    Panel,
+    Tabs,
+    Div,
+)
 from bokeh.plotting import figure, ColumnDataSource
 
 import bokeh.embed as bokeh_embed
@@ -36,6 +44,7 @@ from skyportal.models import (
     DBSession,
     Obj,
     Annotation,
+    AnnotationOnSpectrum,
     Photometry,
     Instrument,
     Telescope,
@@ -43,7 +52,12 @@ from skyportal.models import (
     Spectrum,
 )
 
-import sncosmo
+from .enum_types import ALLOWED_SPECTRUM_TYPES
+
+# use the full registry from the enum_types import of sykportal
+# which may have custom bandpasses
+from .enum_types import sncosmo as snc
+
 
 _, cfg = load_env()
 # The minimum signal-to-noise ratio to consider a photometry point as detected
@@ -313,7 +327,7 @@ phot_markers = [
 
 def get_effective_wavelength(bandpass_name):
     try:
-        bandpass = sncosmo.get_bandpass(bandpass_name)
+        bandpass = snc.get_bandpass(bandpass_name)
     except ValueError as e:
         raise ValueError(
             f"Could not get bandpass for {bandpass_name} due to sncosmo error: {e}"
@@ -599,27 +613,13 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     #
     # For the frame width, by default we take the desired plot width minus 64 for the y-axis/label taking
     # up horizontal space
-    frame_width = width - 64
-    if device == "mobile_portrait":
-        legend_items_per_row = 1
-        legend_row_height = 24
-        aspect_ratio = 1
-    elif device == "mobile_landscape":
-        legend_items_per_row = 4
-        legend_row_height = 50
-        aspect_ratio = 1.8
-    elif device == "tablet_portrait":
-        legend_items_per_row = 5
-        legend_row_height = 50
-        aspect_ratio = 1.5
-    elif device == "tablet_landscape":
-        legend_items_per_row = 7
-        legend_row_height = 50
-        aspect_ratio = 1.8
-    elif device == "browser":
-        # Width minus some base width for the legend, which is only a column to the right
-        # for browser mode
-        frame_width = width - 200
+
+    (
+        frame_width,
+        aspect_ratio,
+        legend_row_height,
+        legend_items_per_row,
+    ) = get_dimensions_by_device(device, width)
 
     height = (
         500
@@ -1343,7 +1343,56 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     return bokeh_embed.json_item(tabs)
 
 
-def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
+def spectroscopy_plot(
+    obj_id,
+    user,
+    spec_id=None,
+    width=600,
+    device="browser",
+    smoothing=False,
+    smooth_number=10,
+):
+    """
+    Create object spectroscopy line plot.
+
+    Parameters
+    ----------
+    obj_id : str
+        ID of Obj to be plotted.
+    user :
+        The user object that is requesting the plot.
+    spec_id : str or None
+        A string with a single spectrum ID or a
+        comma-separated list of IDs.
+        Only the spectra with matching IDs
+        are plotted.
+        If None (default), will plot all
+        spectra associated with the object
+        and accessible to the user.
+    width : int
+        Size of the plot in pixels. Default=600.
+    device : str
+        Choose one of the following options to describe
+        the device on which the plot will be displayed:
+        - "browser" (default)
+        - "mobile_portrait"
+        - "mobile_landscape"
+        - "tablet_portrait"
+        - "tablet_landscape"
+    smoothing: bool
+        choose if to start the display with the smoothed plot or the full resolution spectrum.
+        default is no smoothing.
+    smooth_number: int
+        number of data points to use in the moving average when displaying the smoothed spectrum.
+        default is 10 points.
+
+    Returns
+    -------
+    dict
+        Bokeh JSON embedding of the plot.
+
+    """
+
     obj = Obj.get_if_accessible_by(obj_id, user)
     spectra = (
         Spectrum.query_records_accessible_by(user)
@@ -1351,26 +1400,118 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         .all()
     )
 
-    if spec_id is not None:
-        spectra = [spec for spec in spectra if spec.id == int(spec_id)]
+    # Accept a string with a single spectrum ID
+    # or a comma separated list of IDs.
+    # If no IDs are given, choose all Object's spectra.
+    if spec_id is not None and len(spec_id) > 0:
+        spec_id = spec_id.split(',')
+        filtered_spectra = []
+        # choose any of the object's spectra that match one of the IDs given
+        for sid in spec_id:
+            filtered_spectra.extend([spec for spec in spectra if spec.id == int(sid)])
+        spectra = filtered_spectra
     if len(spectra) == 0:
         return None, None, None
 
+    # sort out the size of the plot
+
+    spectra_by_type = collections.defaultdict(list)
+
+    for s in spectra:
+        spectra_by_type[s.type].append(s)
+
+    # sort the dictionary to be ordered according to the given list
+    def sorted_dict(d, key_list):
+        return {key: d[key] for key in key_list if key in d}
+
+    # we want the tabs to appear in the order they're defined in the config:
+    spectra_by_type = sorted_dict(spectra_by_type, ALLOWED_SPECTRUM_TYPES)
+
+    layouts = []
+    for spec_type in spectra_by_type:
+        layouts.append(
+            make_spectrum_layout(
+                obj,
+                spectra_by_type[spec_type],
+                user,
+                device,
+                width,
+                smoothing,
+                smooth_number,
+            )
+        )
+
+    if len(layouts) > 1:
+        panels = []
+        spectrum_types = [s for s in spectra_by_type]
+        for i, layout in enumerate(layouts):
+            panels.append(Panel(child=layout, title=spectrum_types[i]))
+        tabs = Tabs(
+            tabs=panels, width=width, height=layouts[0].height + 60, sizing_mode='fixed'
+        )
+        return bokeh_embed.json_item(tabs)
+
+    return bokeh_embed.json_item(layouts[0])
+
+
+def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_number):
+    """
+    Helper function that takes the object, spectra and user info,
+    as well as the total width of the figure,
+    and produces one layout for a spectrum plot.
+    This can be used once for each tab on the spectrum plot,
+    if using different spectrum types.
+
+    Parameters
+    ----------
+    obj : dict
+        The underlying object that is associated with all these spectra.
+    spectra : dict
+        The different spectra to be plotted. This can be a subset of
+        e.g., all the spectra of one type.
+    user : dict
+        info about the user, used to get the individual user plot preferences.
+    device: string
+        name of the device used ("browser", "mobile", "mobile_portrait", "tablet", etc).
+    width: int
+        width of the external frame of the plot, including the buttons/sliders.
+    smoothing: bool
+        choose if to start the display with the smoothed plot or the full resolution spectrum.
+    smooth_number: int
+        number of data points to use in the moving average when displaying the smoothed spectrum.
+
+    Returns
+    -------
+    dict
+        Bokeh JSON embedding of one layout that can be tabbed or
+        used as the plot specifications on its own.
+    """
     rainbow = cm.get_cmap('rainbow', len(spectra))
     palette = list(map(rgb2hex, rainbow(range(len(spectra)))))
     color_map = dict(zip([s.id for s in spectra], palette))
 
     data = []
     for i, s in enumerate(spectra):
-
         # normalize spectra to a median flux of 1 for easy comparison
         normfac = np.nanmedian(np.abs(s.fluxes))
         normfac = normfac if normfac != 0.0 else 1e-20
         altdata = json.dumps(s.altdata) if s.altdata is not None else ""
+        annotations = (
+            AnnotationOnSpectrum.query_records_accessible_by(user)
+            .filter(AnnotationOnSpectrum.spectrum_id == s.id)
+            .all()
+        )
+        annotations = (
+            json.dumps([{a.origin: a.data} for a in annotations])
+            if len(annotations)
+            else ""
+        )
+
         df = pd.DataFrame(
             {
                 'wavelength': s.wavelengths,
                 'flux': s.fluxes / normfac,
+                'flux_original': s.fluxes / normfac,
                 'id': s.id,
                 'telescope': s.instrument.telescope.name,
                 'instrument': s.instrument.name,
@@ -1386,27 +1527,48 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
                 ),
                 'origin': s.origin,
                 'altdata': altdata[:20] + "..." if len(altdata) > 20 else altdata,
+                'annotations': annotations,
             }
         )
         data.append(df)
-    data = pd.concat(data)
 
+    data = pd.concat(data)
     data.sort_values(by=['date_observed', 'wavelength'], inplace=True)
 
-    dfs = []
-    for i, s in enumerate(spectra):
-        # Smooth the spectrum by using a rolling average
-        df = (
-            pd.DataFrame({'wavelength': s.wavelengths, 'flux': s.fluxes})
-            .rolling(2)
-            .mean(numeric_only=True)
-            .dropna()
-        )
-        dfs.append(df)
-
-    smoothed_data = pd.concat(dfs)
-
     split = data.groupby('id', sort=False)
+
+    (
+        frame_width,
+        aspect_ratio,
+        legend_row_height,
+        legend_items_per_row,
+    ) = get_dimensions_by_device(device, width)
+
+    plot_height = (
+        math.floor(width / aspect_ratio)
+        if device == "browser"
+        else math.floor(width / aspect_ratio)
+        + legend_row_height * int(len(split) / legend_items_per_row)
+        + 30  # 30 is the height of the toolbar
+    )
+
+    # Add some height for the checkboxes and sliders
+    if device == "mobile_portrait":
+        height = plot_height + 440
+    elif device == "mobile_landscape":
+        height = plot_height + 370
+    else:
+        height = plot_height + 220
+
+    # check browser plot_height for legend overflow
+    if device == "browser":
+        plot_height_of_legend = (
+            legend_row_height * int(len(split) / legend_items_per_row)
+            + 90  # 90 is height of toolbar plus legend offset
+        )
+
+        if plot_height_of_legend > plot_height:
+            plot_height = plot_height_of_legend
 
     hover = HoverTool(
         tooltips=[
@@ -1418,12 +1580,14 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
             ('PI', '@pi'),
             ('origin', '@origin'),
             ('altdata', '@altdata{safe}'),
-        ]
+            ('annotations', '@annotations{safe}'),
+        ],
     )
-    smoothed_max = np.max(smoothed_data['flux'])
-    smoothed_min = np.min(smoothed_data['flux'])
-    ymax = smoothed_max * 1.05
-    ymin = smoothed_min - 0.05 * (smoothed_max - smoothed_min)
+
+    flux_max = np.max(data['flux'])
+    flux_min = np.min(data['flux'])
+    ymax = flux_max * 1.05
+    ymin = flux_min - 0.05 * (flux_max - flux_min)
     xmin = np.min(data['wavelength']) - 100
     xmax = np.max(data['wavelength']) + 100
     if obj.redshift is not None and obj.redshift > 0:
@@ -1437,50 +1601,6 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         else "box_zoom,wheel_zoom,pan,reset"
     )
 
-    # These values are equivalent from the photometry plot values
-    frame_width = width - 64
-    aspect_ratio = 2.0
-    legend_row_height = 25
-    legend_items_per_row = 1
-    if device == "mobile_portrait":
-        legend_items_per_row = 1
-        legend_row_height = 24
-        aspect_ratio = 1
-    elif device == "mobile_landscape":
-        legend_items_per_row = 4
-        legend_row_height = 50
-        aspect_ratio = 1.8
-    elif device == "tablet_portrait":
-        legend_items_per_row = 5
-        legend_row_height = 50
-        aspect_ratio = 1.5
-    elif device == "tablet_landscape":
-        legend_items_per_row = 7
-        legend_row_height = 50
-        aspect_ratio = 1.8
-    elif device == "browser":
-        frame_width = width - 200
-        aspect_ratio = 2.0
-        legend_row_height = 25
-        legend_items_per_row = 1
-    plot_height = (
-        math.floor(width / aspect_ratio)
-        if device == "browser"
-        else math.floor(width / aspect_ratio)
-        + legend_row_height * int(len(split) / legend_items_per_row)
-        + 30  # 30 is the height of the toolbar
-    )
-
-    # check browser plot_height for legend overflow
-    if device == "browser":
-        plot_height_of_legend = (
-            legend_row_height * int(len(split) / legend_items_per_row)
-            + 90  # 90 is height of toolbar plus legend offset
-        )
-
-        if plot_height_of_legend > plot_height:
-            plot_height = plot_height_of_legend
-
     plot = figure(
         frame_width=frame_width,
         height=plot_height,
@@ -1490,22 +1610,32 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         toolbar_location="above",
         active_drag=active_drag,
     )
-    plot.add_tools(hover)
 
     model_dict = {}
     legend_items = []
     for i, (key, df) in enumerate(split):
+
         renderers = []
-        s = Spectrum.get_if_accessible_by(key, user)
-        label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
+        s = next(spec for spec in spectra if spec.id == key)
+        if s.label is not None and len(s.label) > 0:
+            label = s.label
+        else:
+            label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
         model_dict['s' + str(i)] = plot.step(
             x='wavelength',
             y='flux',
             color=color_map[key],
             source=ColumnDataSource(df),
         )
-        renderers.append(model_dict['s' + str(i)])
-        legend_items.append(LegendItem(label=label, renderers=renderers))
+        renderers.append(model_dict[f's{i}'])
+
+        # this starts out the same as the previous plot, but can be binned/smoothed later in JS
+        model_dict[f'bin{i}'] = plot.step(
+            x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(df)
+        )
+        renderers.append(model_dict[f'bin{i}'])
+
+        # add this line plot to be able to show tooltip at hover
         model_dict['l' + str(i)] = plot.line(
             x='wavelength',
             y='flux',
@@ -1513,6 +1643,10 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
             source=ColumnDataSource(df),
             line_alpha=0.0,
         )
+        renderers.append(model_dict[f'l{i}'])
+
+        legend_items.append(LegendItem(label=label, renderers=renderers))
+
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
@@ -1532,35 +1666,88 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
     )
 
     add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
+    # only show this tooltip for spectra, not elemental lines
+    hover.renderers = list(model_dict.values())
+    plot.add_tools(hover)
+
+    smooth_checkbox = CheckboxGroup(
+        labels=["smoothing"],
+        active=[0] if smoothing else [],
+    )
+    smooth_slider = Slider(
+        start=0.0,
+        end=100.0,
+        value=0.0,
+        step=1.0,
+        show_value=False,
+        max_width=350,
+        # margin=(4, 10, 0, 10),
+    )
+    smooth_input = NumericInput(value=smooth_number)
+    smooth_callback = CustomJS(
+        args=dict(
+            model_dict=model_dict,
+            n_labels=len(split),
+            checkbox=smooth_checkbox,
+            input=smooth_input,
+            slider=smooth_slider,
+        ),
+        code=open(
+            os.path.join(
+                os.path.dirname(__file__), '../static/js/plotjs', 'smooth_spectra.js'
+            )
+        ).read(),
+    )
+    smooth_checkbox.js_on_click(smooth_callback)
+    smooth_input.js_on_change('value', smooth_callback)
+    # smooth_slider.js_on_change('value', smooth_callback)
+    smooth_slider.js_on_change(
+        'value',
+        CustomJS(
+            args={'slider': smooth_slider, 'input': smooth_input},
+            code="""
+                    input.value = slider.value;
+                    input.change.emit();
+                """,
+        ),
+    )
+    smooth_column = column(
+        smooth_checkbox,
+        smooth_slider,
+        smooth_input,
+        width=width if "mobile" in device else int(width * 1 / 5) - 20,
+        margin=(4, 10, 0, 10),
+    )
 
     # 20 is for padding
-    slider_width = width if "mobile" in device else int(width / 2) - 20
+    slider_width = width if "mobile" in device else int(width * 2 / 5) - 20
     z_title = Div(text="Redshift (<i>z</i>): ")
     z_slider = Slider(
         value=obj.redshift if obj.redshift is not None else 0.0,
         start=0.0,
         end=3.0,
-        step=0.001,
+        step=0.00001,
         show_value=False,
-        format="0[.]000",
+        format="0[.]0000",
     )
-    z_textinput = TextInput(
-        value=str(obj.redshift if obj.redshift is not None else 0.0)
+    z_input = NumericInput(
+        value=obj.redshift if obj.redshift is not None else 0.0,
+        mode='float',
     )
     z_slider.js_on_change(
         'value',
         CustomJS(
-            args={'slider': z_slider, 'textinput': z_textinput},
+            args={'slider': z_slider, 'input': z_input},
             code="""
-            textinput.value = parseFloat(slider.value).toFixed(3);
-            textinput.change.emit();
-        """,
+                    input.value = slider.value;
+                    input.change.emit();
+                """,
         ),
     )
     z = column(
         z_title,
         z_slider,
-        z_textinput,
+        z_input,
         width=slider_width,
         margin=(4, 10, 0, 10),
     )
@@ -1573,77 +1760,91 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         step=10.0,
         show_value=False,
     )
-    v_exp_textinput = TextInput(value='0')
+    v_exp_input = NumericInput(value=0, mode='int')
     v_exp_slider.js_on_change(
         'value',
         CustomJS(
-            args={'slider': v_exp_slider, 'textinput': v_exp_textinput},
+            args={'slider': v_exp_slider, 'input': v_exp_input},
             code="""
-            textinput.value = parseFloat(slider.value).toFixed(0);
-            textinput.change.emit();
-        """,
+                    input.value = slider.value;
+                    input.change.emit();
+                """,
         ),
     )
     v_exp = column(
         v_title,
         v_exp_slider,
-        v_exp_textinput,
+        v_exp_input,
         width=slider_width,
         margin=(0, 10, 0, 10),
     )
 
     # Track elements that need to be shifted with change in z / v
     shifting_elements = []
+    renderers = []
+    obj_redshift = 0 if obj.redshift is None else obj.redshift
 
     for i, (name, (wavelengths, color)) in enumerate(SPEC_LINES.items()):
 
-        el_data = pd.DataFrame({'wavelength': wavelengths})
-
-        if name == 'Sky Lines':  # No redshift correction of skylines
-            el_data['x'] = el_data['wavelength']
-            segment = plot.segment(
-                x0='x',
-                x1='x',
-                y0=0,
-                y1=1e4,
+        if name in ('Tellurics-1', 'Tellurics-2'):
+            el_data = pd.DataFrame(
+                {
+                    'name': name,
+                    'wavelength': [(wavelengths[0] + wavelengths[1]) / 2],
+                    'bandwidth': [wavelengths[1] - wavelengths[0]],
+                }
+            )
+            new_line = plot.vbar(
+                x='wavelength',
+                width='bandwidth',
+                top=ymax,
                 color=color,
                 source=ColumnDataSource(el_data),
-            )
-            segment.visible = False
-            model_dict[f'element_{i}'] = segment
-
-        elif name in ('Tellurics-1', 'Tellurics-2'):
-            el_data['x'] = el_data['wavelength']
-            midtel1 = (el_data['x'][0] + el_data['x'][1]) / 2
-            widtel1 = el_data['x'][1] - el_data['x'][0]
-
-            vbar = plot.vbar(
-                x=midtel1,
-                width=widtel1,
-                # TODO change limits
-                top=1e4,
-                color=color,
                 alpha=0.3,
             )
-            vbar.visible = False
-            model_dict[f'element_{i}'] = vbar
 
         else:
-            obj_redshift = 0 if obj.redshift is None else obj.redshift
-            el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
-
-            segment = plot.segment(
-                x0='x',
-                x1='x',
-                # TODO change limits
-                y0=0,
-                y1=1e4,
+            flux_values = list(np.linspace(ymin, ymax, 100))
+            flux_values[-1] = np.nan
+            wavelength_values = [
+                w for w in wavelengths for _ in flux_values
+            ]  # repeat each wavelength 100 times
+            el_data = pd.DataFrame(
+                {
+                    'name': name,
+                    'x': wavelength_values,
+                    'wavelength': wavelength_values,
+                    'flux': [f for _ in wavelengths for f in flux_values],
+                }
+            )
+            if name != 'Sky Lines':
+                el_data['x'] = el_data['wavelength'] * (1.0 + obj_redshift)
+            new_line = plot.line(
+                x='x',
+                y='flux',
                 color=color,
+                line_alpha=0.3,
                 source=ColumnDataSource(el_data),
             )
-            segment.visible = False
-            model_dict[f'element_{i}'] = segment
-            shifting_elements.append(segment)
+
+        new_line.visible = False
+        model_dict[f'element_{i}'] = new_line
+        renderers.append(new_line)
+
+        if name not in ('Sky Lines', 'Tellurics-1', 'Tellurics-2'):
+            shifting_elements.append(new_line)
+            new_line.glyph.line_alpha = 1.0
+
+    # add the elemental lines to hover tool
+    hover_lines = HoverTool(
+        tooltips=[
+            ('name', '@name'),
+            ('wavelength', '@wavelength{0,0}'),
+        ],
+        renderers=renderers,
+    )
+
+    plot.add_tools(hover_lines)
 
     # Split spectral line legend into columns
     if device == "mobile_portrait":
@@ -1679,69 +1880,65 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         callback_toggle_lines = CustomJS(
             args={'column_checkboxes': column_checkboxes, **model_dict},
             code=f"""
-            for (let i = 0; i < {len(labels)}; i = i + 1) {{
-                let el_idx = i * {columns} + {column_idx};
-                let el = eval("element_" + el_idx);
-                el.visible = (column_checkboxes.active.includes(i))
-            }}
-        """,
+                    for (let i = 0; i < {len(labels)}; i = i + 1) {{
+                        let el_idx = i * {columns} + {column_idx};
+                        let el = eval("element_" + el_idx);
+                        el.visible = (column_checkboxes.active.includes(i))
+                    }}
+                """,
         )
         column_checkboxes.js_on_click(callback_toggle_lines)
 
     # Move spectral lines when redshift or velocity changes
     speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
     callback_zvs = CustomJS(
-        args={'z': z_textinput, 'v_exp': v_exp_textinput, **speclines},
+        args={'z': z_input, 'v_exp': v_exp_input, **speclines},
         code=f"""
-        const c = 299792.458; // speed of light in km / s
-        for (let i = 0; i < {len(speclines)}; i = i + 1) {{
-            let el = eval("specline_" + i);
-            el.data_source.data.x = el.data_source.data.wavelength.map(
-                x_i => (x_i * (1 + parseFloat(z.value)) /
-                                (1 + parseFloat(v_exp.value) / c))
-            );
-            el.data_source.change.emit();
-        }}
-    """,
+                const c = 299792.458; // speed of light in km / s
+                for (let i = 0; i < {len(speclines)}; i = i + 1) {{
+                    let el = eval("specline_" + i);
+                    el.data_source.data.x = el.data_source.data.wavelength.map(
+                        x_i => ( x_i * (1 + z.value) /
+                                        (1 + v_exp.value / c) )
+                    );
+                    el.data_source.change.emit();
+                }}
+            """,
     )
 
     # Hook up callback that shifts spectral lines when z or v changes
-    z_textinput.js_on_change('value', callback_zvs)
-    v_exp_textinput.js_on_change('value', callback_zvs)
+    z_input.js_on_change('value', callback_zvs)
+    v_exp_input.js_on_change('value', callback_zvs)
 
-    z_textinput.js_on_change(
+    z_input.js_on_change(
         'value',
         CustomJS(
-            args={'z': z_textinput, 'slider': z_slider},
+            args={'z': z_input, 'slider': z_slider},
             code="""
-            // Update slider value to match text input
-            slider.value = parseFloat(z.value).toFixed(3);
-        """,
+                    // Update slider value to match text input
+                    slider.value = z.value;
+                """,
         ),
     )
 
-    v_exp_textinput.js_on_change(
+    v_exp_input.js_on_change(
         'value',
         CustomJS(
-            args={'slider': v_exp_slider, 'v_exp': v_exp_textinput},
+            args={'slider': v_exp_slider, 'v_exp': v_exp_input},
             code="""
-            // Update slider value to match text input
-            slider.value = parseFloat(v_exp.value).toFixed(3);
-        """,
+                    // Update slider value to match text input
+                    slider.value = v_exp.value;
+                """,
         ),
     )
-
-    # Add some height for the checkboxes and sliders
-    if device == "mobile_portrait":
-        height = plot_height + 440
-    elif device == "mobile_landscape":
-        height = plot_height + 370
-    else:
-        height = plot_height + 220
 
     row2 = row(all_column_checkboxes)
-    row3 = column(z, v_exp) if "mobile" in device else row(z, v_exp)
-    layout = column(
+    row3 = (
+        column(z, v_exp, smooth_column)
+        if "mobile" in device
+        else row(z, v_exp, smooth_column)
+    )
+    return column(
         plot,
         row2,
         row3,
@@ -1749,4 +1946,33 @@ def spectroscopy_plot(obj_id, user, spec_id=None, width=600, device="browser"):
         width=width,
         height=height,
     )
-    return bokeh_embed.json_item(layout)
+
+
+def get_dimensions_by_device(device, width):
+    frame_width = width - 64
+    aspect_ratio = 2.0
+    legend_row_height = 25
+    legend_items_per_row = 1
+    if device == "mobile_portrait":
+        legend_items_per_row = 1
+        legend_row_height = 24
+        aspect_ratio = 1
+    elif device == "mobile_landscape":
+        legend_items_per_row = 4
+        legend_row_height = 50
+        aspect_ratio = 1.8
+    elif device == "tablet_portrait":
+        legend_items_per_row = 5
+        legend_row_height = 50
+        aspect_ratio = 1.5
+    elif device == "tablet_landscape":
+        legend_items_per_row = 7
+        legend_row_height = 50
+        aspect_ratio = 1.8
+    elif device == "browser":
+        frame_width = width - 200
+        aspect_ratio = 2.0
+        legend_row_height = 25
+        legend_items_per_row = 1
+
+    return frame_width, aspect_ratio, legend_row_height, legend_items_per_row

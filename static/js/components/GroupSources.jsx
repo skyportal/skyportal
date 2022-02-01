@@ -65,7 +65,7 @@ const GroupSources = ({ route }) => {
   }
   const groupID = parseInt(route.id, 10);
 
-  const groupName = groups.filter((g) => g.id === groupID)[0]?.name || "";
+  const groupName = groups?.filter((g) => g.id === groupID)[0]?.name || "";
 
   const handleSavedSourcesTableSorting = (sortData, filterData) => {
     dispatch(

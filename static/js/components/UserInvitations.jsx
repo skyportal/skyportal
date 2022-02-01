@@ -25,7 +25,7 @@ import Tooltip from "@material-ui/core/Tooltip";
 import HelpIcon from "@material-ui/icons/Help";
 import {
   makeStyles,
-  createMuiTheme,
+  createTheme,
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
@@ -64,7 +64,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const dataTableStyles = (theme) =>
-  createMuiTheme({
+  createTheme({
     overrides: {
       MuiPaper: {
         elevation4: {
@@ -142,7 +142,7 @@ const UserInvitations = () => {
   ) {
     return <div>Access denied: Insufficient permissions.</div>;
   }
-  allGroups = allGroups.filter((group) => !group.single_user_group);
+  allGroups = allGroups?.filter((group) => !group.single_user_group);
 
   const validateInvitationGroups = () => {
     const formState = getValues({ nest: true });
@@ -156,8 +156,8 @@ const UserInvitations = () => {
 
   const handleClickDeleteInvitationGroup = async (invitation, groupID) => {
     const groupIDs = invitation.groups
-      .filter((group) => group.id !== groupID)
-      .map((g) => g.id);
+      ?.filter((group) => group.id !== groupID)
+      ?.map((g) => g.id);
     const result = await dispatch(
       invitationsActions.updateInvitation(invitation.id, { groupIDs })
     );
@@ -169,8 +169,8 @@ const UserInvitations = () => {
 
   const handleClickDeleteInvitationStream = async (invitation, streamID) => {
     const streamIDs = invitation.streams
-      .filter((stream) => stream.id !== streamID)
-      .map((s) => s.id);
+      ?.filter((stream) => stream.id !== streamID)
+      ?.map((s) => s.id);
     const result = await dispatch(
       invitationsActions.updateInvitation(invitation.id, { streamIDs })
     );
@@ -182,8 +182,8 @@ const UserInvitations = () => {
 
   const handleAddInvitationGroups = async (formData) => {
     const groupIDs = new Set([
-      ...clickedInvitation.groups.map((g) => g.id),
-      ...formData.invitationGroups.map((g) => g.id),
+      ...clickedInvitation.groups?.map((g) => g.id),
+      ...formData.invitationGroups?.map((g) => g.id),
     ]);
 
     const result = await dispatch(
@@ -202,8 +202,8 @@ const UserInvitations = () => {
 
   const handleAddInvitationStreams = async (formData) => {
     const streamIDs = new Set([
-      ...clickedInvitation.streams.map((s) => s.id),
-      ...formData.invitationStreams.map((s) => s.id),
+      ...clickedInvitation.streams?.map((s) => s.id),
+      ...formData.invitationStreams?.map((s) => s.id),
     ]);
 
     const result = await dispatch(
@@ -347,7 +347,7 @@ const UserInvitations = () => {
         >
           <AddCircleIcon color="disabled" />
         </IconButton>
-        {invitation.groups.map((group) => (
+        {invitation.groups?.map((group) => (
           <Chip
             label={group.name}
             onDelete={() => {
@@ -376,7 +376,7 @@ const UserInvitations = () => {
         >
           <AddCircleIcon color="disabled" />
         </IconButton>
-        {invitation.streams.map((stream) => (
+        {invitation.streams?.map((stream) => (
           <Chip
             label={stream.name}
             onDelete={() => {
@@ -494,12 +494,12 @@ const UserInvitations = () => {
         group: {
           title: "Group",
           type: "string",
-          enum: allGroups.map((group) => group.name),
+          enum: allGroups?.map((group) => group.name),
         },
         stream: {
           title: "Stream",
           type: "string",
-          enum: streams.map((stream) => stream.name),
+          enum: streams?.map((stream) => stream.name),
         },
         invitedBy: {
           type: "string",

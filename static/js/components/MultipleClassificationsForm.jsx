@@ -7,6 +7,8 @@ import Select from "@material-ui/core/Select";
 import Slider from "@material-ui/core/Slider";
 import InputLabel from "@material-ui/core/InputLabel";
 import FormControl from "@material-ui/core/FormControl";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import Switch from "@material-ui/core/Switch";
 import Accordion from "@material-ui/core/Accordion";
 import AccordionSummary from "@material-ui/core/AccordionSummary";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
@@ -95,23 +97,39 @@ const MultipleClassificationsForm = ({
   const [submissionRequestInProcess, setSubmissionRequestInProcess] =
     useState(false);
 
-  const latestTaxonomyList = taxonomyList.filter((t) => t.isLatest);
+  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
 
   useEffect(() => {
     setSelectedTaxonomy(stateTaxonomy);
   }, [stateTaxonomy]);
 
   const initialFormState = {};
-  latestTaxonomyList.forEach((taxonomy) => {
-    initialFormState[taxonomy.id] = {};
+  latestTaxonomyList?.forEach((taxonomy) => {
+    initialFormState[taxonomy?.id] = {};
   });
   const sortedClassifications = getSortedClasses(currentClassifications);
 
+  const normalizeProbabilities = useSelector(
+    (state) => state.classifications.normalizeProbabilities
+  );
+
+  const [normalizeProbabilitiesChecked, setNormalizeProbabilitiesChecked] =
+    useState(normalizeProbabilities);
+
+  const handleNormalizeProbabilitiesSwitchChange = (event) => {
+    setNormalizeProbabilitiesChecked(event.target.checked);
+    dispatch(
+      ClassificationsActions.setNormalizeProbabilities(event.target.checked)
+    );
+  };
+
   // For each existing taxonomy/classification, update initial sliders
-  sortedClassifications.forEach((classifications) => {
-    classifications.forEach((classification) => {
+  sortedClassifications?.forEach((classifications) => {
+    classifications?.forEach((classification) => {
       // Take just the latest values for each field
       if (
+        classification.taxonomy_id &&
+        classification.taxonomy_id in initialFormState &&
         !initialFormState[classification.taxonomy_id][
           classification.classification
         ]
@@ -190,35 +208,75 @@ const MultipleClassificationsForm = ({
       probability: newValue,
     };
 
-    // Update higher-level classification probabilities to be
-    // the sum of the subclasses' probabilities.
-    path.forEach((ancestor, i) => {
-      const subpath = path.slice(i + 1);
-      const probabilityOfSubclasses = Math.min(
-        sumChildren(getNode(ancestor, subpath), newFormState),
-        1
-      );
-      newFormState[selectedTaxonomy.id][ancestor] = {
-        depth: subpath.length,
-        probability: probabilityOfSubclasses,
-      };
+    // Probability normalization
+    if (normalizeProbabilitiesChecked) {
+      // Update higher-level classification probabilities to be
+      // the sum of the subclasses' probabilities.
+      path?.forEach((ancestor, i) => {
+        const subpath = path.slice(i + 1);
+        const probabilityOfSubclasses = Math.min(
+          sumChildren(getNode(ancestor, subpath), newFormState),
+          1
+        );
+        newFormState[selectedTaxonomy.id][ancestor] = {
+          depth: subpath.length,
+          probability: probabilityOfSubclasses,
+        };
 
-      // Update siblings of the ancestor to respect cap of parent
-      if (subpath.length > 0) {
-        const parent = getNode(subpath[0], subpath);
+        // Update siblings of the ancestor to respect cap of parent
+        if (subpath.length > 0) {
+          const parent = getNode(subpath[0], subpath);
+          const remainingProbability =
+            newFormState[selectedTaxonomy.id][parent.class]?.probability -
+            newFormState[selectedTaxonomy.id][ancestor].probability;
+
+          const siblings = parent.subclasses?.filter(
+            (sibling) => sibling.class !== ancestor
+          );
+          let currentTotalOfSiblings = 0;
+          siblings?.forEach((sibling) => {
+            currentTotalOfSiblings +=
+              newFormState[selectedTaxonomy.id][sibling.class]?.probability ||
+              0;
+          });
+          siblings?.forEach((sibling) => {
+            const currentProbability =
+              newFormState[selectedTaxonomy.id][sibling.class]?.probability ||
+              0;
+            // Scale the siblings' probabilities based on the proportion they had
+            // previously of the parent's probability.
+            // Note: "|| 0" used to handle cases where currentTotalOfSiblings === 0
+            const newProbability =
+              parseFloat(
+                (
+                  remainingProbability *
+                  (currentProbability / currentTotalOfSiblings)
+                ).toFixed(3)
+              ) || 0;
+            newFormState[selectedTaxonomy.id][sibling.class] = {
+              depth: subpath.length,
+              probability: newProbability,
+            };
+          });
+        }
+      });
+
+      // Update siblings of actual node to respect cap of parent
+      if (path.length > 0) {
+        const parent = getNode(path[0], path.slice(1));
         const remainingProbability =
           newFormState[selectedTaxonomy.id][parent.class]?.probability -
-          newFormState[selectedTaxonomy.id][ancestor].probability;
+          newValue;
 
-        const siblings = parent.subclasses.filter(
-          (sibling) => sibling.class !== ancestor
+        const siblings = parent.subclasses?.filter(
+          (sibling) => sibling.class !== classification
         );
         let currentTotalOfSiblings = 0;
         siblings?.forEach((sibling) => {
           currentTotalOfSiblings +=
             newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
         });
-        siblings.forEach((sibling) => {
+        siblings?.forEach((sibling) => {
           const currentProbability =
             newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
           // Scale the siblings' probabilities based on the proportion they had
@@ -232,53 +290,26 @@ const MultipleClassificationsForm = ({
               ).toFixed(3)
             ) || 0;
           newFormState[selectedTaxonomy.id][sibling.class] = {
-            depth: subpath.length,
+            depth: path.length,
+            // Scale the siblings' probabilities based on the proportion they had
+            // previously of the parent's probability.
             probability: newProbability,
           };
+          updateChildren(
+            sibling,
+            newProbability,
+            newFormState,
+            path.length + 1
+          );
         });
       }
-    });
-
-    // Update siblings of actual node to respect cap of parent
-    if (path.length > 0) {
-      const parent = getNode(path[0], path.slice(1));
-      const remainingProbability =
-        newFormState[selectedTaxonomy.id][parent.class]?.probability - newValue;
-
-      const siblings = parent.subclasses.filter(
-        (sibling) => sibling.class !== classification
-      );
-      let currentTotalOfSiblings = 0;
-      siblings?.forEach((sibling) => {
-        currentTotalOfSiblings +=
-          newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
-      });
-      siblings.forEach((sibling) => {
-        const currentProbability =
-          newFormState[selectedTaxonomy.id][sibling.class]?.probability || 0;
-        // Scale the siblings' probabilities based on the proportion they had
-        // previously of the parent's probability.
-        // Note: "|| 0" used to handle cases where currentTotalOfSiblings === 0
-        const newProbability =
-          parseFloat(
-            (
-              remainingProbability *
-              (currentProbability / currentTotalOfSiblings)
-            ).toFixed(3)
-          ) || 0;
-        newFormState[selectedTaxonomy.id][sibling.class] = {
-          depth: path.length,
-          // Scale the siblings' probabilities based on the proportion they had
-          // previously of the parent's probability.
-          probability: newProbability,
-        };
-        updateChildren(sibling, newProbability, newFormState, path.length + 1);
-      });
     }
 
     // Update subclasses' probabilities
-    const node = getNode(classification, path);
-    updateChildren(node, newValue, newFormState, path.length + 1);
+    if (normalizeProbabilitiesChecked) {
+      const node = getNode(classification, path);
+      updateChildren(node, newValue, newFormState, path.length + 1);
+    }
     setFormState(newFormState);
   };
 
@@ -413,7 +444,7 @@ const MultipleClassificationsForm = ({
     // Reset the depths for the posted classifications so that they
     // are not reposted upon further edits
     const newFormState = { ...formState };
-    toPost.forEach(([classification, { probability }]) => {
+    toPost?.forEach(([classification, { probability }]) => {
       newFormState[selectedTaxonomy.id][classification] = {
         depth: -1,
         probability,
@@ -454,13 +485,25 @@ const MultipleClassificationsForm = ({
           value={selectedTaxonomy || ""}
           onChange={handleSelectTaxonomy}
         >
-          {latestTaxonomyList.map((taxonomy) => (
+          {latestTaxonomyList?.map((taxonomy) => (
             <MenuItem key={taxonomy.name} value={taxonomy}>
               {taxonomy.name}
             </MenuItem>
           ))}
         </Select>
       </FormControl>
+      <div>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={normalizeProbabilities || false}
+              onChange={handleNormalizeProbabilitiesSwitchChange}
+              inputProps={{ "aria-label": "controlled" }}
+            />
+          }
+          label="Normalize probabilities"
+        />
+      </div>
       {selectedTaxonomy?.hierarchy?.subclasses?.map((category) => (
         <Accordion
           className={classes.classifications}

@@ -35,7 +35,7 @@ pytest skyportal/tests/frontend/test_user.py::test_user_profile_fetching  # run 
 
 On Linux, the tests can be run in "headless" mode (no browser display):
 
-- Install xfvb (`sudo apt-get install xfvb`)
+- Install xvfb (`sudo apt-get install xvfb`)
 - `make test_headless`
 
 Or, as described above, launch the test server with `make run_testing`, and then call

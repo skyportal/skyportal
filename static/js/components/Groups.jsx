@@ -2,6 +2,7 @@ import React from "react";
 import { useSelector } from "react-redux";
 
 import { makeStyles } from "@material-ui/core/styles";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import GroupManagement from "./GroupManagement";
 import GroupList from "./GroupList";
@@ -30,10 +31,14 @@ const Groups = () => {
   );
 
   if (userGroups.length === 0 || allGroups === null) {
-    return <h3>Loading...</h3>;
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
   }
 
-  const nonMemberGroups = allGroups.filter(
+  const nonMemberGroups = allGroups?.filter(
     (g) => !g.single_user_group && !userGroups.map((ug) => ug.id).includes(g.id)
   );
 

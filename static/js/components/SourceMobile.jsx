@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "@material-ui/core/styles";
 import useMediaQuery from "@material-ui/core/useMediaQuery";
+import Grid from "@material-ui/core/Grid";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
 import Tooltip from "@material-ui/core/Tooltip";
@@ -14,6 +15,7 @@ import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 import {
   isBrowser,
@@ -41,7 +43,7 @@ import EditSourceGroups from "./EditSourceGroups";
 import SourceNotification from "./SourceNotification";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
-import ObjPageAnnotations from "./ObjPageAnnotations";
+import AnnotationsTable from "./AnnotationsTable";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
@@ -205,6 +207,18 @@ const SourceMobile = WidthProvider(
       (g) => !g.single_user_group
     );
 
+    const spectra = useSelector((state) => state.spectra)[source.id];
+    const spectrumAnnotations = [];
+    if (spectra) {
+      spectra.forEach((spec) => {
+        spec.annotations.forEach((annotation) => {
+          annotation.spectrum_observed_at = spec.observed_at;
+          spectrumAnnotations.push(annotation);
+        });
+      });
+    }
+    const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
+
     useEffect(() => {
       dispatch(spectraActions.fetchSourceSpectra(source.id));
     }, [source.id, dispatch]);
@@ -352,7 +366,7 @@ const SourceMobile = WidthProvider(
                 </div>
                 <br />
                 {showStarList && <StarList sourceId={source.id} />}
-                {source.groups.map((group) => (
+                {source.groups?.map((group) => (
                   <Tooltip
                     title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
                     key={group.id}
@@ -371,7 +385,7 @@ const SourceMobile = WidthProvider(
                 <EditSourceGroups
                   source={{
                     id: source.id,
-                    currentGroupIds: source.groups.map((g) => g.id),
+                    currentGroupIds: source.groups?.map((g) => g.id),
                   }}
                   groups={groups}
                   icon
@@ -426,7 +440,10 @@ const SourceMobile = WidthProvider(
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <ObjPageAnnotations annotations={source.annotations} />
+                <AnnotationsTable
+                  annotations={source.annotations}
+                  spectrumAnnotations={spectrumAnnotations}
+                />
               </AccordionDetails>
             </Accordion>
           </div>
@@ -443,7 +460,13 @@ const SourceMobile = WidthProvider(
               </AccordionSummary>
               <AccordionDetails>
                 <div className={classes.photometryContainer}>
-                  <Suspense fallback={<div>Loading photometry plot...</div>}>
+                  <Suspense
+                    fallback={
+                      <div>
+                        <CircularProgress color="secondary" />
+                      </div>
+                    }
+                  >
                     <Plot
                       url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
                     />
@@ -484,12 +507,20 @@ const SourceMobile = WidthProvider(
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <div className={classes.photometryContainer}>
-                  <Suspense fallback={<div>Loading spectroscopy plot...</div>}>
-                    <Plot
-                      url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}`}
-                    />
-                  </Suspense>
+                <Grid container>
+                  <div className={classes.photometryContainer}>
+                    <Suspense
+                      fallback={
+                        <div>
+                          <CircularProgress color="secondary" />
+                        </div>
+                      }
+                    >
+                      <Plot
+                        url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
+                      />
+                    </Suspense>
+                  </div>
                   <div className={classes.plotButtons}>
                     {isBrowser && (
                       <Link to={`/upload_spectrum/${source.id}`} role="link">
@@ -502,7 +533,7 @@ const SourceMobile = WidthProvider(
                       <Button variant="contained">Manage data</Button>
                     </Link>
                   </div>
-                </div>
+                </Grid>
               </AccordionDetails>
             </Accordion>
           </div>
@@ -521,7 +552,13 @@ const SourceMobile = WidthProvider(
                 </AccordionSummary>
                 <AccordionDetails>
                   <div className={classes.HRDiagramContainer}>
-                    <Suspense fallback={<div>Loading HR diagram...</div>}>
+                    <Suspense
+                      fallback={
+                        <div>
+                          <CircularProgress color="secondary" />
+                        </div>
+                      }
+                    >
                       <VegaHR
                         data={source.color_magnitude}
                         width={hrDiagramSize}
@@ -616,7 +653,13 @@ const SourceMobile = WidthProvider(
             </AccordionSummary>
             <AccordionDetails>
               <div className={classes.centroidPlot}>
-                <Suspense fallback={<div>Loading centroid plot...</div>}>
+                <Suspense
+                  fallback={
+                    <div>
+                      <CircularProgress color="secondary" />
+                    </div>
+                  }
+                >
                   <CentroidPlot
                     className={classes.smallPlot}
                     sourceId={source.id}

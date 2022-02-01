@@ -73,7 +73,7 @@ class ProfileHandler(BaseHandler):
         """
         user = (
             User.query_records_accessible_by(self.current_user)
-            .filter(User.username == self.current_user.username)
+            .filter(User.username == self.associated_user_object.username)
             .first()
         )
         user_roles = sorted([role.id for role in user.roles])
@@ -181,10 +181,9 @@ class ProfileHandler(BaseHandler):
             if email not in [None, ""]:
                 if not validate_email(
                     email_address=email,
-                    check_regex=True,
-                    check_mx=False,
-                    use_blacklist=True,
-                    debug=False,
+                    check_blacklist=False,
+                    check_dns=False,
+                    check_smtp=False,
                 ):
                     return self.error("Email does not appear to be valid")
                 user.contact_email = email

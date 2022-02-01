@@ -49,6 +49,7 @@ class TelescopeHandler(BaseHandler):
         DBSession().add(telescope)
         self.verify_and_commit()
 
+        self.push_all(action="skyportal/REFRESH_TELESCOPES")
         return self.success(data={"id": telescope.id})
 
     @auth_or_token
@@ -150,6 +151,7 @@ class TelescopeHandler(BaseHandler):
             )
         self.verify_and_commit()
 
+        self.push_all(action="skyportal/REFRESH_TELESCOPES")
         return self.success()
 
     @permissions(['Manage sources'])
@@ -182,4 +184,5 @@ class TelescopeHandler(BaseHandler):
         DBSession().query(Telescope).filter(Telescope.id == int(telescope_id)).delete()
         self.verify_and_commit()
 
+        self.push_all(action="skyportal/REFRESH_TELESCOPES")
         return self.success()

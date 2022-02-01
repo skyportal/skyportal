@@ -39,7 +39,7 @@ def test_cannot_update_filter_group_stream(view_only_token, public_filter):
         data={"group_id": 0},
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 401
     assert data["status"] == "error"
 
     status, data = api(
@@ -48,7 +48,7 @@ def test_cannot_update_filter_group_stream(view_only_token, public_filter):
         data={"stream_id": 0},
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 401
     assert data["status"] == "error"
 
 
@@ -94,4 +94,4 @@ def test_post_filter_with_unauthorized_stream(
         },
         token=manage_groups_token,
     )
-    assert status == 400
+    assert status in [401, 500]
