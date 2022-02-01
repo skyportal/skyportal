@@ -36,7 +36,7 @@ _, cfg = load_env()
 
 
 class SpectrumHandler(BaseHandler):
-    def get_groups(group_ids, self):
+    def get_groups(self, group_ids):
         groups = None
         if group_ids:
             if group_ids == "all":
@@ -93,7 +93,7 @@ class SpectrumHandler(BaseHandler):
         single_user_group = self.associated_user_object.single_user_group
 
         group_ids = data.pop("group_ids", None)
-        if group_ids is None:
+        if group_ids == [] or group_ids is None:
             groups = [single_user_group]
         else:
             groups = self.get_groups(group_ids)
