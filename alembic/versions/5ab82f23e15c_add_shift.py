@@ -26,6 +26,7 @@ def upgrade():
         sa.Column('group_id', sa.Integer(), nullable=False),
         sa.Column('start_date', sa.DateTime(), nullable=False),
         sa.Column('end_date', sa.DateTime(), nullable=False),
+        sa.Column('name', sa.String(), nullable=True),
         sa.ForeignKeyConstraint(['group_id'], ['groups.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
     )
@@ -37,6 +38,7 @@ def upgrade():
     op.create_index(
         op.f('ix_shifts_start_date'), 'shifts', ['start_date'], unique=False
     )
+    op.create_index(op.f('ix_shifts_name'), 'shifts', ['name'], unique=False)
     # ### end Alembic commands ###
 
 
@@ -46,5 +48,6 @@ def downgrade():
     op.drop_index(op.f('ix_shifts_group_id'), table_name='shifts')
     op.drop_index(op.f('ix_shifts_end_date'), table_name='shifts')
     op.drop_index(op.f('ix_shifts_created_at'), table_name='shifts')
+    op.drop_index(op.f('ix_shifts_name'), table_name='shifts')
     op.drop_table('shifts')
     # ### end Alembic commands ###
