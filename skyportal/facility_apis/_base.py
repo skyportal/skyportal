@@ -68,7 +68,6 @@ class _Base:
     @classmethod
     def frontend_render_info(cls, instrument):
 
-        formSchema = cls.custom_json_schema(instrument)
         try:
             formSchema = cls.custom_json_schema(instrument)
         except AttributeError:

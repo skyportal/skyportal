@@ -107,6 +107,7 @@ const AllocationList = ({ allocations }) => {
 
 const AllocationPage = () => {
   const { allocationList } = useSelector((state) => state.allocations);
+  const currentUser = useSelector((state) => state.profile);
   const classes = useStyles();
 
   return (
@@ -119,14 +120,16 @@ const AllocationPage = () => {
           </div>
         </Paper>
       </Grid>
-      <Grid item md={6} sm={12}>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">Add a New Allocation</Typography>
-            <NewAllocation />
-          </div>
-        </Paper>
-      </Grid>
+      {currentUser.permissions?.includes("System admin") && (
+        <Grid item md={6} sm={12}>
+          <Paper>
+            <div className={classes.paperContent}>
+              <Typography variant="h6">Add a New Allocation</Typography>
+              <NewAllocation />
+            </div>
+          </Paper>
+        </Grid>
+      )}
     </Grid>
   );
 };

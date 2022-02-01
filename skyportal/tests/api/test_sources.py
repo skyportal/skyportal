@@ -53,6 +53,29 @@ def test_token_user_retrieving_source_with_phot(view_only_token, public_source):
     )
 
 
+def test_token_user_retrieving_source_with_phot_exists(view_only_token, public_source):
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}",
+        params={"includePhotometryExists": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert all(
+        k in data["data"]
+        for k in [
+            "ra",
+            "dec",
+            "redshift",
+            "dm",
+            "created_at",
+            "id",
+            "photometry_exists",
+        ]
+    )
+
+
 def test_token_user_retrieving_source_with_thumbnails(view_only_token, public_source):
     status, data = api(
         "GET",
