@@ -38,7 +38,7 @@ const NewShift = () => {
       start_date: {
         type: "string",
         format: "date-time",
-        title: "Start Date",
+        title: "Start Date UTC",
       },
       end_date: {
         type: "string",
