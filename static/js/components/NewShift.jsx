@@ -43,7 +43,7 @@ const NewShift = () => {
       end_date: {
         type: "string",
         format: "date-time",
-        title: "End Date",
+        title: "End Date UTC",
       },
     },
     required: ["group_id", "start_date", "end_date"],
