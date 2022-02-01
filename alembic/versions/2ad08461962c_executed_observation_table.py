@@ -1,8 +1,8 @@
-"""executed observation table
+"""executed_observation_table
 
-Revision ID: 1514ec8ecf34
+Revision ID: 2ad08461962c
 Revises: 82f5a89fbe59
-Create Date: 2022-01-26 20:52:50.921815
+Create Date: 2022-02-01 09:17:55.010487
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '1514ec8ecf34'
+revision = '2ad08461962c'
 down_revision = '82f5a89fbe59'
 branch_labels = None
 depends_on = None
