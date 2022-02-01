@@ -159,7 +159,9 @@ class GcnEventHandler(BaseHandler):
                 GcnEvent.query_records_accessible_by(
                     self.current_user,
                     options=[
-                        joinedload(GcnEvent.localizations),
+                        joinedload(GcnEvent.localizations).undefer(
+                            Localization.contour
+                        ),
                         joinedload(GcnEvent.gcn_notices),
                     ],
                 )
@@ -180,7 +182,7 @@ class GcnEventHandler(BaseHandler):
         q = GcnEvent.query_records_accessible_by(
             self.current_user,
             options=[
-                joinedload(GcnEvent.localizations),
+                joinedload(GcnEvent.localizations).undefer(Localization.contour),
                 joinedload(GcnEvent.gcn_notices),
             ],
         )

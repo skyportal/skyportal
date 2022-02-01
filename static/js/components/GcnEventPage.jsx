@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
@@ -33,6 +33,10 @@ import SourceTable from "./SourceTable";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
+
+const SkymapPlot = React.lazy(() =>
+  import(/* webpackChunkName: "SkymapPlot" */ "./SkymapPlot")
+);
 
 const useStyles = makeStyles((theme) => ({
   header: {},
@@ -244,7 +248,6 @@ const GcnEventSourcesPage = ({ route, sources }) => {
 };
 
 const GcnEventPage = ({ route }) => {
-  const mapRef = useRef();
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const dispatch = useDispatch();
   const styles = useStyles();
@@ -347,15 +350,9 @@ const GcnEventPage = ({ route }) => {
             <Typography className={styles.accordionHeading}>Skymaps</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.gcnEventContainer}>
-              {gcnEvent.localizations?.map((localization) => (
-                <li key={localization.localization_name}>
-                  <div id="map" ref={mapRef}>
-                    <Localization loc={localization} />
-                  </div>
-                </li>
-              ))}
-            </div>
+            <Suspense fallback={<div>Loading skymap plot...</div>}>
+              <SkymapPlot plotData={gcnEvent.localizations[0].contour} />
+            </Suspense>
           </AccordionDetails>
         </Accordion>
       </div>
