@@ -259,6 +259,7 @@ def test_token_user_update_spectrum(
             'fluxes': [222.2, 232.1, 235.3],
             'observed_at': str(datetime.datetime.now()),
             'wavelengths': [664, 665, 666],
+            'group_ids': 'all',
         },
         token=upload_data_token,
     )
@@ -270,6 +271,8 @@ def test_token_user_update_spectrum(
     assert status == 200
     assert data['status'] == 'success'
     assert data['data']['fluxes'][0] == 222.2
+    # test that length of groups is greater than 1 after adding all groups to the spectrum
+    assert len(data['data']['groups']) > 1
 
 
 def test_token_user_cannot_update_unowned_spectrum(
@@ -357,26 +360,6 @@ def test_admin_can_update_unowned_spectrum_data(
     assert data['data']['fluxes'][0] == 222.2
     # check if length of groups is 4 after adding permission to two groups (groups with id 2 and 3) because two groups already have permission to this spectrum (groups with id 1405 and 1406)
     assert len(data['data']['groups']) == 4
-
-    status, data = api(
-        'PUT',
-        f'spectrum/{spectrum_id}',
-        data={
-            'fluxes': [222.2, 232.1, 235.3],
-            'observed_at': str(datetime.datetime.now()),
-            'wavelengths': [664, 665, 666],
-            'group_ids': 'all',
-        },
-        token=super_admin_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-
-    status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
-    assert status == 200
-    assert data['status'] == 'success'
-    print(data['data']['groups'])
-    assert len(data['data']['groups']) > 4
 
 
 def test_spectrum_owner_id_is_unmodifiable(
