@@ -62,13 +62,13 @@ const NewShift = () => {
       start_date: {
         type: "string",
         format: "date-time",
-        title: "Start Date",
+        title: "Start Date UTC",
         default: dayjs.utc(defaultStartDate).format("YYYY-MM-DDTHH:mm:ssZ"),
       },
       end_date: {
         type: "string",
         format: "date-time",
-        title: "End Date",
+        title: "End Date UTC",
         default: dayjs.utc(defaultEndDate).format("YYYY-MM-DDTHH:mm:ssZ"),
       },
       name: {
