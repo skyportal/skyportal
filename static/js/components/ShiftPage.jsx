@@ -38,7 +38,11 @@ export function shiftTitle(shift) {
     );
   }
 
-  const result = `${shift?.group.name}`;
+  let result = `${shift?.group.name}`;
+  if (shift?.name) {
+    result += `: ${shift?.name}`;
+  }
+
   return result;
 }
 

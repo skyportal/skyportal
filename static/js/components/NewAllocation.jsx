@@ -2,14 +2,25 @@ import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Form from "@rjsf/material-ui";
 import { showNotification } from "baselayer/components/Notifications";
+
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
 import { submitAllocation } from "../ducks/allocation";
 import { fetchAllocations } from "../ducks/allocations";
+
+dayjs.extend(utc);
 
 const NewAllocation = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
+
+  const nowDate = new Date();
+  const defaultStartDate = new Date();
+  const defaultEndDate = new Date();
+  defaultEndDate.setDate(defaultStartDate.getDate() + 365);
 
   const handleSubmit = async ({ formData }) => {
     const result = await dispatch(submitAllocation(formData));
@@ -20,6 +31,11 @@ const NewAllocation = () => {
   };
 
   function validate(formData, errors) {
+    if (nowDate > formData.end_date) {
+      errors.end_date.addError(
+        "End date must be after current time, please fix."
+      );
+    }
     if (formData.start_date > formData.end_date) {
       errors.start_date.addError(
         "Start date must be before end date, please fix."
@@ -39,11 +55,13 @@ const NewAllocation = () => {
         type: "string",
         format: "date-time",
         title: "Start Date",
+        default: dayjs.utc(defaultStartDate).format("YYYY-MM-DDTHH:mm:ssZ"),
       },
       end_date: {
         type: "string",
         format: "date-time",
         title: "End Date",
+        default: dayjs.utc(defaultEndDate).format("YYYY-MM-DDTHH:mm:ssZ"),
       },
       hours_allocated: {
         type: "number",

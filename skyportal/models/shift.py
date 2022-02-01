@@ -36,3 +36,5 @@ class Shift(Base):
     end_date = sa.Column(
         sa.DateTime, nullable=False, index=True, doc="The end time of this shift."
     )
+
+    name = sa.Column(sa.String, nullable=True, index=True, doc='Name of the shift.')
