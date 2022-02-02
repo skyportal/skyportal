@@ -1,4 +1,4 @@
-sphinx==4.3.1
+sphinx==4.4.0
 recommonmark
 numpydoc
 sphinx-rtd-theme
