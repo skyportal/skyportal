@@ -1,4 +1,4 @@
-"""Test migration
+"""Modify token unique constraint to (created_by_id, name); also include leftover enum migration
 
 Revision ID: f7c1e785d7a4
 Revises: 8c48c49f057f

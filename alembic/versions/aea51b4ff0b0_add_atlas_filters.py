@@ -1,4 +1,4 @@
-"""Test migration
+"""Add atlasc and atlaso bandpasses
 
 Revision ID: aea51b4ff0b0
 Revises: f9611048498a
