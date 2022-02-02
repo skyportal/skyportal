@@ -14,7 +14,7 @@ avro-python3==1.10.2
 fastavro==1.4.7
 tqdm>=4.27,<4.63
 matplotlib==3.5.1
-astroquery==0.4.3
+astroquery==0.4.5
 apispec==4.0.0
 marshmallow==3.14.1
 marshmallow-sqlalchemy==0.24.3
