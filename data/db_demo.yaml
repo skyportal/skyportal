@@ -211,7 +211,7 @@ instrument:
     filters: ["ztfg", "ztfr", "ztfi"]
     =id: ZTF
     api_classname: ZTFAPI
-    api_observationplan_classname: MMAAPI
+    api_observationplan_classname: ZTFMMAAPI
     # field_data:
     #  file: ../data/ZTF_Fields.csv
     # field_region:

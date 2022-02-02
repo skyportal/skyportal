@@ -120,19 +120,6 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     );
   }
 
-  if (
-    !allGroups ||
-    allGroups.length === 0 ||
-    telescopeList.length === 0 ||
-    instrumentList.length === 0
-  ) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
   const groupLookUp = {};
   // eslint-disable-next-line no-unused-expressions
   allGroups?.forEach((group) => {

@@ -211,14 +211,14 @@ class EventObservationPlan(Base):
     validity_window_start = sa.Column(
         sa.DateTime,
         nullable=False,
-        default=lambda: datetime.now(),
+        default=datetime.utcnow,
         doc='Start of validity window',
     )
 
     validity_window_end = sa.Column(
         sa.DateTime,
         nullable=False,
-        default=lambda: datetime.now() + timedelta(1),
+        default=datetime.now() + timedelta(1),
         doc='End of validity window',
     )
 

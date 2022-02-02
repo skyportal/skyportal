@@ -157,7 +157,7 @@ def generate_plan(observation_plan_id, request_id):
         session.commit()
 
         request.status = 'complete'
-        session.merge(plan)
+        session.merge(request)
         session.commit()
 
         flow = Flow()
@@ -274,23 +274,13 @@ class MMAAPI(FollowUpAPI):
         "properties": {
             "start_date": {
                 "type": "string",
-                "default": str(datetime.utcnow()).replace("T", ""),
+                "default": str(datetime.utcnow()),
                 "title": "Start Date (UT)",
             },
             "end_date": {
                 "type": "string",
                 "title": "End Date (UT)",
-                "default": str(datetime.utcnow() + timedelta(days=1)).replace("T", ""),
-            },
-            "program_id": {
-                "type": "string",
-                "enum": ["Partnership", "Caltech"],
-                "default": "Partnership",
-            },
-            "subprogram_name": {
-                "type": "string",
-                "enum": ["GW", "GRB", "Neutrino", "SolarSystem", "Other"],
-                "default": "GRB",
+                "default": str(datetime.utcnow() + timedelta(days=1)),
             },
             "scheduling_type": {
                 "type": "string",
@@ -325,15 +315,16 @@ class MMAAPI(FollowUpAPI):
                 "minimum": 0,
                 "maximum": 180,
             },
-            "queue_name": {"type": "string", "default": f"ToO_{datetime.utcnow()}"},
+            "queue_name": {
+                "type": "string",
+                "default": f"ToO_{str(datetime.utcnow()).replace(' ','T')}",
+            },
         },
         "required": [
             "start_date",
             "end_date",
-            "program_id",
             "filters",
             "queue_name",
-            "subprogram_name",
             "scheduling_type",
             "scheduling_strategy",
             "exposure_time",

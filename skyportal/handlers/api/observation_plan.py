@@ -1,7 +1,7 @@
 import jsonschema
 from marshmallow.exceptions import ValidationError
 
-from baselayer.app.access import permissions
+from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -14,7 +14,7 @@ from ...models.schema import ObservationPlanPost
 
 
 class ObservationPlanRequestHandler(BaseHandler):
-    @permissions(["Upload data"])
+    @auth_or_token
     def post(self):
         """
         ---
@@ -94,9 +94,9 @@ class ObservationPlanRequestHandler(BaseHandler):
 
         try:
             instrument.api_observationplan_class.submit(observationplan_request)
-        except Exception:
+        except Exception as e:
             observationplan_request.status = 'failed to submit'
-            raise
+            return self.error(f'Error submitting observation plan: {e.args[0]}')
         finally:
             self.verify_and_commit()
         self.push_all(
@@ -106,7 +106,7 @@ class ObservationPlanRequestHandler(BaseHandler):
 
         return self.success(data={"id": observationplan_request.id})
 
-    @permissions(["Upload data"])
+    @auth_or_token
     def delete(self, observation_plan_request_id):
         """
         ---
