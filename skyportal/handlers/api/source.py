@@ -828,6 +828,16 @@ class SourceHandler(BaseHandler):
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
+            if include_photometry_exists:
+                source_info["photometry_exists"] = (
+                    len(
+                        Photometry.query_records_accessible_by(self.current_user)
+                        .filter(Photometry.obj_id == obj_id)
+                        .all()
+                    )
+                    > 0
+                )
+
             source_info["annotations"] = sorted(
                 Annotation.query_records_accessible_by(
                     self.current_user, options=[joinedload(Annotation.author)]
