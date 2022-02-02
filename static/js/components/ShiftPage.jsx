@@ -90,6 +90,7 @@ const ShiftList = ({ shifts }) => {
 const ShiftPage = () => {
   const classes = useStyles();
   const { shiftList } = useSelector((state) => state.shifts);
+  const currentUser = useSelector((state) => state.profile);
 
   if (!shiftList) {
     return <CircularProgress />;
@@ -105,14 +106,18 @@ const ShiftPage = () => {
           </div>
         </Paper>
       </Grid>
-      <Grid item md={6} sm={12}>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">Add a New Shift</Typography>
-            <NewShift />
-          </div>
-        </Paper>
-      </Grid>
+      {(currentUser.permissions?.includes("System admin") ||
+        currentUser.permissions?.includes("Manage groups") ||
+        currentUser.permissions?.includes("Manage shifts")) && (
+        <Grid item md={6} sm={12}>
+          <Paper>
+            <div className={classes.paperContent}>
+              <Typography variant="h6">Add a New Shift</Typography>
+              <NewShift />
+            </div>
+          </Paper>
+        </Grid>
+      )}
     </Grid>
   );
 };

@@ -5,7 +5,7 @@ from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base
 
-from .group import accessible_by_group_members
+from .group import accessible_by_group_admins, accessible_by_group_members
 
 
 class Shift(Base):
@@ -14,7 +14,8 @@ class Shift(Base):
     """
 
     # TODO: Track shift ownership and allow owners to update, delete shifts
-    create = read = update = delete = accessible_by_group_members
+    create = update = delete = accessible_by_group_admins
+    read = accessible_by_group_members
 
     group_id = sa.Column(
         sa.ForeignKey("groups.id", ondelete="CASCADE"),
