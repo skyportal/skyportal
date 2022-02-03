@@ -16,6 +16,12 @@ class ExecutedObservation(Base):
         doc='Instrument ID',
     )
 
+    instrument = relationship(
+        'Instrument',
+        back_populates='observations',
+        doc="The Instrument that executed the observation.",
+    )
+
     instrument_field_id = sa.Column(
         sa.ForeignKey("instrumentfields.id", ondelete="CASCADE"),
         primary_key=True,

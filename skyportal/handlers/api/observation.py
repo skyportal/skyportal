@@ -208,24 +208,22 @@ class ObservationHandler(BaseHandler):
           parameters:
             - in: query
               name: telescope_name
-              required: true
               schema:
                 type: string
               description: Filter by telescope name
             - in: query
               name: instrument_name
-              required: true
               schema:
                 type: string
               description: Filter by instrument name
             - in: query
-              name: start_date
+              name: startDate
               required: true
               schema:
                 type: string
               description: Filter by start date
             - in: query
-              name: end_date
+              name: endDate
               required: true
               schema:
                 type: string
@@ -271,44 +269,14 @@ class ObservationHandler(BaseHandler):
                   schema: Error
         """
 
-        data = self.get_json()
-
-        telescope_name = data.get('telescope_name')
-        instrument_name = data.get('instrument_name')
-        start_date = data.get('start_date')
-        end_date = data.get('end_date')
-        localization_dateobs = data.get('localizationDateobs', None)
-        localization_name = data.get('localizationName', None)
-        localization_cumprob = data.get("localizationCumprob", 0.95)
-        return_probability = data.get("returnProbability", False)
-
-        telescope = (
-            Telescope.query_records_accessible_by(
-                self.current_user,
-            )
-            .filter(
-                Telescope.name == telescope_name,
-            )
-            .first()
-        )
-        if telescope is None:
-            return self.error(message=f"Missing telescope {telescope_name}")
-
-        instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(Instrument.fields),
-                ],
-            )
-            .filter(
-                Instrument.telescope == telescope,
-                Instrument.name == instrument_name,
-            )
-            .first()
-        )
-        if instrument is None:
-            return self.error(message=f"Missing instrument {instrument_name}")
+        telescope_name = self.get_query_argument('telescope_name', None)
+        instrument_name = self.get_query_argument('instrument_name', None)
+        start_date = self.get_query_argument('startDate')
+        end_date = self.get_query_argument('endDate')
+        localization_dateobs = self.get_query_argument('localizationDateobs', None)
+        localization_name = self.get_query_argument('localizationName', None)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        return_probability = self.get_query_argument("returnProbability", False)
 
         if start_date is None:
             return self.error(message="Missing start_date")
@@ -317,15 +285,54 @@ class ObservationHandler(BaseHandler):
             return self.error(message="Missing end_date")
 
         obs_query = ExecutedObservation.query_records_accessible_by(
-            self.current_user, mode="read"
+            self.current_user,
+            mode="read",
+            options=[
+                joinedload(ExecutedObservation.instrument).joinedload(
+                    Instrument.telescope
+                )
+            ],
         )
 
         start_date = arrow.get(start_date.strip()).datetime
         end_date = arrow.get(end_date.strip()).datetime
 
-        obs_query = obs_query.filter(ExecutedObservation.instrument_id == instrument.id)
         obs_query = obs_query.filter(ExecutedObservation.obstime >= start_date)
         obs_query = obs_query.filter(ExecutedObservation.obstime <= end_date)
+
+        # optional: slice by Instrument
+        if telescope_name is not None and instrument_name is not None:
+            telescope = (
+                Telescope.query_records_accessible_by(
+                    self.current_user,
+                )
+                .filter(
+                    Telescope.name == telescope_name,
+                )
+                .first()
+            )
+            if telescope is None:
+                return self.error(message=f"Missing telescope {telescope_name}")
+
+            instrument = (
+                Instrument.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(Instrument.fields),
+                    ],
+                )
+                .filter(
+                    Instrument.telescope == telescope,
+                    Instrument.name == instrument_name,
+                )
+                .first()
+            )
+            if instrument is None:
+                return self.error(message=f"Missing instrument {instrument_name}")
+
+            obs_query = obs_query.filter(
+                ExecutedObservation.instrument_id == instrument.id
+            )
 
         # optional: slice by GcnEvent localization
         if localization_dateobs is not None:
@@ -376,17 +383,29 @@ class ObservationHandler(BaseHandler):
                 )
             ).scalar_subquery()
 
-            tiles_subquery = (
-                sa.select(InstrumentField.id)
-                .filter(
-                    LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
-                    InstrumentFieldTile.instrument_id == instrument.id,
-                    InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                    InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+            if telescope_name is not None and instrument_name is not None:
+                tiles_subquery = (
+                    sa.select(InstrumentField.id)
+                    .filter(
+                        LocalizationTile.localization_id == localization.id,
+                        LocalizationTile.probdensity >= min_probdensity,
+                        InstrumentFieldTile.instrument_id == instrument.id,
+                        InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                        InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+                    )
+                    .subquery()
                 )
-                .subquery()
-            )
+            else:
+                tiles_subquery = (
+                    sa.select(InstrumentField.id)
+                    .filter(
+                        LocalizationTile.localization_id == localization.id,
+                        LocalizationTile.probdensity >= min_probdensity,
+                        InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                        InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
+                    )
+                    .subquery()
+                )
 
             obs_query = obs_query.join(
                 tiles_subquery,

@@ -28,8 +28,10 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
 import * as sourcesActions from "../ducks/sources";
+import * as observationsActions from "../ducks/observations";
 
 import SourceTable from "./SourceTable";
+import ExecutedObservationsTable from "./ExecutedObservationsTable";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -248,8 +250,13 @@ const GcnEventPage = ({ route }) => {
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const dispatch = useDispatch();
   const styles = useStyles();
+
   const gcnEventSources = useSelector(
     (state) => state?.sources?.gcnEventSources
+  );
+
+  const gcnEventObservations = useSelector(
+    (state) => state?.observations?.gcnEventObservations
   );
 
   useEffect(() => {
@@ -260,7 +267,11 @@ const GcnEventPage = ({ route }) => {
     dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
   }, [route, dispatch]);
 
-  if (!gcnEvent || !gcnEventSources) {
+  useEffect(() => {
+    dispatch(observationsActions.fetchGcnEventObservations(route.dateobs));
+  }, [route, dispatch]);
+
+  if (!gcnEvent || !gcnEventSources || !gcnEventObservations) {
     return <CircularProgress />;
   }
 
@@ -399,8 +410,23 @@ const GcnEventPage = ({ route }) => {
           </AccordionDetails>
         </Accordion>
       </div>
-      <div>
-        <GcnEventSourcesPage route={route} sources={gcnEventSources} />
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="sources-header"
+          >
+            <Typography className={styles.accordionHeading}>
+              Observations
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              <ExecutedObservationsTable observations={gcnEventObservations} />
+            </div>
+          </AccordionDetails>
+        </Accordion>
       </div>
     </div>
   );
