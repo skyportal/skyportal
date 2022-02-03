@@ -33,6 +33,8 @@ targets = [
     'problematic_assignment',
     'invitation',
     'user_notification',
+    'gcn',
+    'public_comment_on_gcn',
 ]
 
 

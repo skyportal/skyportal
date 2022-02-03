@@ -30,10 +30,8 @@ def upgrade():
         sa.Column('bot', sa.Boolean(), server_default='false', nullable=False),
         sa.Column('gcn_id', sa.Integer(), nullable=False),
         sa.Column('author_id', sa.Integer(), nullable=False),
-        sa.Column('obj_id', sa.String(), nullable=False),
         sa.ForeignKeyConstraint(['author_id'], ['users.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['gcn_id'], ['gcnevents.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['obj_id'], ['objs.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
     )
     op.create_index(

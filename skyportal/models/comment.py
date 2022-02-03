@@ -1,4 +1,4 @@
-__all__ = ['Comment', 'CommentOnSpectrum']
+__all__ = ['Comment', 'CommentOnSpectrum', 'CommentOnGCN']
 
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
@@ -80,15 +80,6 @@ class CommentMixin:
         )
 
     @declared_attr
-    def obj_id(cls):
-        return sa.Column(
-            sa.ForeignKey('objs.id', ondelete='CASCADE'),
-            nullable=False,
-            index=True,
-            doc="ID of the Comment's Obj.",
-        )
-
-    @declared_attr
     def groups(cls):
         return relationship(
             "Group",
@@ -116,6 +107,13 @@ class Comment(Base, CommentMixin):
 
     update = delete = AccessibleIfUserMatches('author')
 
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Comment's Obj.",
+    )
+
     obj = relationship(
         'Obj',
         back_populates='comments',
@@ -135,6 +133,13 @@ class CommentOnSpectrum(Base, CommentMixin):
     )
 
     update = delete = AccessibleIfUserMatches('author')
+
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Comment's Obj.",
+    )
 
     obj = relationship(
         'Obj',
