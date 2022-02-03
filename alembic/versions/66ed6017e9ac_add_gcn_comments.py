@@ -49,9 +49,6 @@ def upgrade():
     op.create_index(
         op.f('ix_comments_on_gcns_gcn_id'), 'comments_on_gcns', ['gcn_id'], unique=False
     )
-    op.create_index(
-        op.f('ix_comments_on_gcns_obj_id'), 'comments_on_gcns', ['obj_id'], unique=False
-    )
     op.create_table(
         'group_comments_on_gcns',
         sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -99,7 +96,6 @@ def downgrade():
         'group_comments_on_gcns_forward_ind', table_name='group_comments_on_gcns'
     )
     op.drop_table('group_comments_on_gcns')
-    op.drop_index(op.f('ix_comments_on_gcns_obj_id'), table_name='comments_on_gcns')
     op.drop_index(op.f('ix_comments_on_gcns_gcn_id'), table_name='comments_on_gcns')
     op.drop_index(op.f('ix_comments_on_gcns_created_at'), table_name='comments_on_gcns')
     op.drop_index(op.f('ix_comments_on_gcns_author_id'), table_name='comments_on_gcns')
