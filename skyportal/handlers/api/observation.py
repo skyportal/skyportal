@@ -73,6 +73,7 @@ def add_observations(instrument_id, obstable):
                 log(
                     f"Observation {row['observation_id']} for instrument {instrument_id} already exists... continuing."
                 )
+                continue
 
             observations.append(
                 ExecutedObservation(
@@ -121,9 +122,9 @@ class ObservationHandler(BaseHandler):
         """
 
         data = self.get_json()
-        telescope_name = data.get('telescope_name')
-        instrument_name = data.get('instrument_name')
-        observation_data = data.get('observation_data')
+        telescope_name = data.get('telescopeName')
+        instrument_name = data.get('instrumentName')
+        observation_data = data.get('observationData')
 
         if observation_data is None:
             return self.error(message="Missing observation_data")
@@ -207,12 +208,12 @@ class ObservationHandler(BaseHandler):
             - observations
           parameters:
             - in: query
-              name: telescope_name
+              name: telescopeName
               schema:
                 type: string
               description: Filter by telescope name
             - in: query
-              name: instrument_name
+              name: instrumentName
               schema:
                 type: string
               description: Filter by instrument name
@@ -234,8 +235,11 @@ class ObservationHandler(BaseHandler):
                 type: string
               description: |
                 Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Taken from Localization.dateobs queried from /api/localization
-                endpoint or dateobs in GcnEvent page table.
+                Each localization is associated with a specific GCNEvent by
+                the date the event happened, and this date is used as a unique
+                identifier. It can be therefore found as Localization.dateobs,
+                queried from the /api/localization endpoint or dateobs in the
+                GcnEvent page table.
             - in: query
               name: localizationName
               schema:
@@ -269,8 +273,8 @@ class ObservationHandler(BaseHandler):
                   schema: Error
         """
 
-        telescope_name = self.get_query_argument('telescope_name', None)
-        instrument_name = self.get_query_argument('instrument_name', None)
+        telescope_name = self.get_query_argument('telescopeName', None)
+        instrument_name = self.get_query_argument('instrumentName', None)
         start_date = self.get_query_argument('startDate')
         end_date = self.get_query_argument('endDate')
         localization_dateobs = self.get_query_argument('localizationDateobs', None)

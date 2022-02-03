@@ -546,8 +546,11 @@ class SourceHandler(BaseHandler):
               type: string
             description: |
                 Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
-                Taken from Localization.dateobs queried from /api/localization
-                endpoint or dateobs in GcnEvent page table.
+                Each localization is associated with a specific GCNEvent by
+                the date the event happened, and this date is used as a unique
+                identifier. It can be therefore found as Localization.dateobs,
+                queried from the /api/localization endpoint or dateobs in the
+                GcnEvent page table.
           - in: query
             name: localizationName
             schema:
