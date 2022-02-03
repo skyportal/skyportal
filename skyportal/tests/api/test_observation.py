@@ -79,15 +79,15 @@ def test_observation(super_admin_token, view_only_token):
     data = {
         'telescope_name': name,
         'instrument_name': instrument_name,
-        'start_date': "2019-04-25 08:18:05",
-        'end_date': "2019-04-28 08:18:05",
+        'startDate': "2019-04-25 08:18:05",
+        'endDate': "2019-04-28 08:18:05",
         'localizationDateobs': "2019-04-25T08:18:05",
         'localizationName': "bayestar.fits.gz",
         'localizationCumprob': 1.01,
         'returnProbability': True,
     }
 
-    status, data = api('GET', 'observation', data=data, token=super_admin_token)
+    status, data = api('GET', 'observation', params=data, token=super_admin_token)
     assert status == 200
     data = data["data"]
     assert len(data['observations']) == 10
@@ -113,15 +113,15 @@ def test_observation(super_admin_token, view_only_token):
     data = {
         'telescope_name': name,
         'instrument_name': instrument_name,
-        'start_date': "2019-04-25 08:18:05",
-        'end_date': "2019-04-28 08:18:05",
+        'startDate': "2019-04-25 08:18:05",
+        'endDate': "2019-04-28 08:18:05",
         'localizationDateobs': "2019-04-25T08:18:05",
         'localizationName': "bayestar.fits.gz",
         'localizationCumprob': 1.01,
         'returnProbability': True,
     }
 
-    status, data = api('GET', 'observation', data=data, token=super_admin_token)
+    status, data = api('GET', 'observation', params=data, token=super_admin_token)
     assert status == 200
     data = data["data"]
 

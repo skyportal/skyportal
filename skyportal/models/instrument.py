@@ -111,6 +111,14 @@ class Instrument(Base):
         doc="Name of the instrument's listener class.",
     )
 
+    observations = relationship(
+        'ExecutedObservation',
+        back_populates='instrument',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc="The ExecutedObservations by this instrument.",
+    )
+
     @property
     def does_spectroscopy(self):
         """Return a boolean indicating whether the instrument is capable of
