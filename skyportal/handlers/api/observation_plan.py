@@ -107,6 +107,35 @@ class ObservationPlanRequestHandler(BaseHandler):
         return self.success(data={"id": observationplan_request.id})
 
     @auth_or_token
+    def get(self, observation_plan_request_id):
+        """
+        ---
+        description: Get an observation plan.
+        tags:
+          - observationplan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleObservationPlanRequest
+        """
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="read",
+            raise_if_none=True,
+        )
+        self.verify_and_commit()
+
+        return self.success(data=observation_plan_request)
+
+    @auth_or_token
     def delete(self, observation_plan_request_id):
         """
         ---
