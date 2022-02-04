@@ -15,8 +15,8 @@ export const fetchInstruments = () =>
   API.GET("/api/instrument", FETCH_INSTRUMENTS);
 
 export const fetchInstrumentForms = (params = {}) => {
-  if (!Object.keys(params).includes("apitype")) {
-    params.apitype = "api_classname";
+  if (!Object.keys(params).includes("apiType")) {
+    params.apiType = "api_classname";
   }
   return API.GET(
     "/api/internal/instrument_forms",

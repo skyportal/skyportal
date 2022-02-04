@@ -58,7 +58,7 @@ const FollowupRequestForm = ({
       // update
       const result = await dispatch(
         allocationActions.fetchAllocations({
-          apitype: "api_classname",
+          apiType: "api_classname",
         })
       );
 
@@ -71,7 +71,7 @@ const FollowupRequestForm = ({
 
     dispatch(
       instrumentActions.fetchInstrumentForms({
-        apitype: "api_classname",
+        apiType: "api_classname",
       })
     );
   }, [setSelectedAllocationId, setSelectedGroupIds]);

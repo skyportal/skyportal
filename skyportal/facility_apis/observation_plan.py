@@ -190,7 +190,7 @@ class MMAAPI(FollowUpAPI):
         Parameters
         ----------
         request: skyportal.models.ObservationPlanRequest
-            The request to generate the observation plan and the SkyPortal database.
+            The request to generate the observation plan.
         """
 
         from tornado.ioloop import IOLoop

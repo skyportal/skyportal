@@ -994,7 +994,7 @@ class ObservationPlanPost(_Schema):
         required=False,
         metadata={
             'description': (
-                'IDs of groups to share the results of the f' 'ollowup request with.'
+                'IDs of groups to share the results of the followup request with.'
             )
         },
     )

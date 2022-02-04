@@ -61,7 +61,7 @@ def updatable_by_token_with_listener_acl(cls, user_or_token):
 
 
 class ObservationPlanRequest(Base):
-    """A request for an observation plan."""
+    """A request for an EventObservationPlan."""
 
     # TODO: Make read-accessible via target groups
     create = read = AccessibleIfRelatedRowsAreAccessible(
@@ -289,7 +289,8 @@ class EventObservationPlan(Base):
 
 
 class PlannedObservation(Base):
-    """Tile information, including the event time, localization ID, field IDs,
+    """A single planned exposure as part of an EventObservationPlan.
+    Tile information, including the event time, localization ID, field IDs,
     tiling name, and tile probabilities."""
 
     observation_plan_id = sa.Column(
