@@ -34,7 +34,6 @@ from .user_notification import *
 from .user_token import *
 from .weather import *
 
-
 # Cosmology
 from .cosmo import cosmo
 

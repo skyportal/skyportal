@@ -1,4 +1,4 @@
-__all__ = ['Comment', 'CommentOnSpectrum'] #, 'CommentOnGCN']
+__all__ = ['Comment', 'CommentOnSpectrum']
 
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
@@ -131,29 +131,3 @@ class CommentOnSpectrum(Base, CommentMixin):
         back_populates='comments',
         doc="The Spectrum referred to by this comment.",
     )
-
-
-#class CommentOnGCN(Base, CommentMixin):
-
-#    __tablename__ = 'comments_on_gcn'
-
-#    create = AccessibleIfRelatedRowsAreAccessible(obj='read', spectrum='read')
-
-#    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-#        obj='read',
-#        spectrum='read',
-#    )
-
-#    update = delete = AccessibleIfUserMatches('author')
-
-#    gcn_id = sa.Column(
-#        sa.ForeignKey('gcn.id', ondelete='CASCADE'),
-#        nullable=False,
-#        index=True,
-#        doc="ID of the Comment's GCN.",
-#    )
-#    gcn = relationship(
-#        'GCN',
-#        back_populates='comments',
-#        doc="The GCN referred to by this comment.",
-#    )
