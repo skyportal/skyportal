@@ -1,3 +1,4 @@
+import copy
 import itertools
 import math
 import json
@@ -1343,6 +1344,34 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     return bokeh_embed.json_item(tabs)
 
 
+def smoothing_function(values, window_size):
+    """
+    Smooth the input "values" using a rolling average
+    where "window_size" is the number of points to use
+    for averaging.
+    This should be the same logic as static/js/plotjs/smooth_spectra.js
+    """
+
+    if values is None or not hasattr(values, '__len__') or len(values) == 0:
+        return values
+
+    output = np.zeros(values.shape)
+    under = int((window_size + 1) // 2) - 1
+    over = int(window_size // 2)
+
+    for i, v in enumerate(values):
+        idx_low = i - under if i - under >= 0 else 0
+        idx_high = i + over if i + over < len(values) else len(values) - 1
+        N = 0
+        for j in range(idx_low, idx_high):
+            if np.isnan(values[j]) is False:
+                N += 1
+                output[i] += values[j]
+        output[i] /= N
+
+    return output
+
+
 def spectroscopy_plot(
     obj_id,
     user,
@@ -1630,8 +1659,11 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         renderers.append(model_dict[f's{i}'])
 
         # this starts out the same as the previous plot, but can be binned/smoothed later in JS
+        dfs = copy.deepcopy(df)
+        if smoothing:
+            dfs['flux'] = smoothing_function(dfs['flux_original'], smooth_number)
         model_dict[f'bin{i}'] = plot.step(
-            x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(df)
+            x='wavelength', y='flux', color=color_map[key], source=ColumnDataSource(dfs)
         )
         renderers.append(model_dict[f'bin{i}'])
 
@@ -1700,7 +1732,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     )
     smooth_checkbox.js_on_click(smooth_callback)
     smooth_input.js_on_change('value', smooth_callback)
-    # smooth_slider.js_on_change('value', smooth_callback)
     smooth_slider.js_on_change(
         'value',
         CustomJS(
