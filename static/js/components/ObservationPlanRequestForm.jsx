@@ -67,7 +67,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       // update
       const result = await dispatch(
         allocationActions.fetchAllocations({
-          apiType: "api_observationplan_classname",
+          apitype: "api_observationplan_classname",
         })
       );
 
@@ -81,7 +81,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
     dispatch(
       instrumentActions.fetchInstrumentForms({
-        apiType: "api_observationplan_classname",
+        apitype: "api_observationplan_classname",
       })
     );
 

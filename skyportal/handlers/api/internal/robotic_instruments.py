@@ -7,6 +7,7 @@ class RoboticInstrumentsHandler(BaseHandler):
     @auth_or_token
     def get(self):
         apitype = self.get_query_argument('apiType', 'api_classname')
+        print(apitype)
         if apitype is not None:
             if apitype == "api_classname":
                 instruments = (
