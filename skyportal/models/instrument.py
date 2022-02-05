@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy import cast
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import deferred
 
 from baselayer.app.models import Base, restricted
 
@@ -168,7 +169,7 @@ class InstrumentField(Base):
         nullable=False,
     )
 
-    contour = sa.Column(JSONB, nullable=False, doc='GeoJSON contours')
+    contour = deferred(sa.Column(JSONB, nullable=False, doc='GeoJSON contours'))
 
     tiles = relationship("InstrumentFieldTile")
 

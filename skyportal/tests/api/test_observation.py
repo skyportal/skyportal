@@ -84,7 +84,7 @@ def test_observation(super_admin_token, view_only_token):
         'localizationDateobs': "2019-04-25T08:18:05",
         'localizationName': "bayestar.fits.gz",
         'localizationCumprob': 1.01,
-        'returnProbability': True,
+        'returnStatistics': True,
     }
 
     status, data = api('GET', 'observation', params=data, token=super_admin_token)
@@ -118,7 +118,7 @@ def test_observation(super_admin_token, view_only_token):
         'localizationDateobs': "2019-04-25T08:18:05",
         'localizationName': "bayestar.fits.gz",
         'localizationCumprob': 1.01,
-        'returnProbability': True,
+        'returnStatistics': True,
     }
 
     status, data = api('GET', 'observation', params=data, token=super_admin_token)
