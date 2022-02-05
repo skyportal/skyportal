@@ -71,6 +71,7 @@ export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.localizationDateobs = dateobs;
   filterParams.localizationCumprob = 0.95;
+  filterParams.includeDetectionStats = false;
 
   if (dateobs) {
     filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
@@ -79,10 +80,9 @@ export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
       .format("YYYY-MM-DD HH:mm:ss");
   }
 
-  // filterParams.startDate = null;
-  // filterParams.endDate = null;
-  // filterParams.localizationCumprob = 1.00;
-
+  filterParams.startDate = null;
+  filterParams.endDate = null;
+  filterParams.localizationCumprob = 1.01;
   filterParams.includeGeojson = true;
   return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);
 }

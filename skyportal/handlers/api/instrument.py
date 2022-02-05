@@ -140,6 +140,7 @@ class InstrumentHandler(BaseHandler):
             mode="read",
             options=[
                 joinedload(Instrument.fields),
+                joinedload(Instrument.telescope),
             ],
         )
         if inst_name is not None:

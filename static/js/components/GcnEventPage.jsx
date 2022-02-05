@@ -91,6 +91,116 @@ const DownloadXMLButton = ({ gcn_notice }) => {
   );
 };
 
+const DownloadGCNButton = ({ gcn_event, sources, instrument }) => {
+  const dispatch = useDispatch();
+  const gcn_notice = gcn_event.gcn_notices[0];
+  const gcnEventObservations = useSelector(
+    (state) => state?.observations?.gcnEventObservations
+  );
+  const [observationList, setObservationList] = useState(null);
+
+  useEffect(() => {
+    const getObservations = async () => {
+      // Wait for the observations to update before setting
+      // the new default form fields, so that the allocations list can
+      // update
+      const params = {};
+      params.telescopeName = instrument.telescope.name;
+      params.instrumentName = instrument.name;
+      params.returnStatistics = true;
+
+      const values = await dispatch(
+        observationsActions.fetchGcnEventObservations(gcn_event.dateobs, params)
+      );
+
+      setObservationList(values);
+    };
+
+    getObservations();
+
+    // Don't want to reset everytime the component rerenders and
+    // the defaultStartDate is updated, so ignore ESLint here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
+
+  if (!observationList || !gcnEventObservations) {
+    return <CircularProgress />;
+  }
+
+  const filters = [];
+  const dates = [];
+  // eslint-disable-next-line no-unused-expressions
+  gcnEventObservations.observations?.forEach((observation) => {
+    filters.push(observation.filt);
+    dates.push(observation.obstime);
+  });
+  const filtersUnique = [...new Set(filters)];
+  const minDate = dates.reduce((a, b) => (a < b ? a : b));
+  const dt = dayjs(minDate).diff(gcn_event.dateobs, "day", true);
+  const probability_percent = 100 * gcnEventObservations.probability;
+
+  const content = [
+    "SUBJECT: Follow-up of ",
+    gcn_notice.stream,
+    " trigger ",
+    gcn_event.dateobs,
+    " with ",
+    instrument.name,
+    "\nWe observed the localization region of ",
+    gcn_notice.stream,
+    " trigger ",
+    gcn_event.dateobs,
+    " UTC with ",
+    instrument.name,
+    " on the ",
+    instrument.telescope.name,
+    ". We obtained a series of ",
+    filtersUnique.join(","),
+    " band images covering ",
+    gcnEventObservations.area,
+    " square degrees beginning at ",
+    minDate,
+    " (",
+    dt,
+    " days after the burst trigger time) corresponding to ~",
+    probability_percent,
+    "% of the probability enclosed in the localization region.\n\n",
+  ];
+  content.push("-----------------------------------------\n");
+  content.push(
+    "|       ID       |   TNS  |     RA     |    Dec    |  Gal. Lat.  |    Notes   |\n"
+  );
+
+  if (sources) {
+    sources?.forEach((source) => {
+      const source_content = [];
+      source_content.push(source.id);
+      source_content.push(
+        source.altdata && source.altdata.tns ? source.altdata.tns.name : ""
+      );
+      source_content.push(source.ra);
+      source_content.push(source.dec);
+      source_content.push(source.gal_lat);
+      const source_const_str = source_content.join("   |   ");
+      content.push(source_const_str);
+      content.push("|\n");
+    });
+  }
+
+  const content_str = content.join(" ");
+
+  const blob = new Blob([content_str], { type: "text/plain" });
+
+  return (
+    <div>
+      <Chip size="small" label={instrument.name} key={instrument.name} />
+      <IconButton href={URL.createObjectURL(blob)} download={instrument.name}>
+        <GetAppIcon />
+      </IconButton>
+    </div>
+  );
+};
+
 const useD3 = (renderChartFn) => {
   const ref = useRef();
 
@@ -275,6 +385,22 @@ const GcnEventPage = ({ route }) => {
     return <CircularProgress />;
   }
 
+  const instWithObservations = [];
+  const instWithObservationsKeys = {};
+
+  // eslint-disable-next-line no-unused-expressions
+  gcnEventObservations?.observations.forEach((observation) => {
+    if (
+      !Object.keys(instWithObservationsKeys).includes(
+        String(observation.instrument.id)
+      )
+    ) {
+      instWithObservationsKeys[observation.instrument.id] =
+        observation.instrument;
+      instWithObservations.push(observation.instrument);
+    }
+  });
+
   return (
     <div>
       <div className={styles.columnItem}>
@@ -397,6 +523,33 @@ const GcnEventPage = ({ route }) => {
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
+            id="gcnnotices-header"
+          >
+            <Typography className={styles.accordionHeading}>
+              GCN Production
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              {instWithObservations?.map((instrument) => (
+                <li key={instrument.name}>
+                  <DownloadGCNButton
+                    gcn_event={gcnEvent}
+                    sources={gcnEventSources.sources}
+                    observations={gcnEventObservations}
+                    instrument={instrument}
+                  />
+                </li>
+              ))}
+            </div>
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
             id="sources-header"
           >
             <Typography className={styles.accordionHeading}>
@@ -423,7 +576,9 @@ const GcnEventPage = ({ route }) => {
           </AccordionSummary>
           <AccordionDetails>
             <div className={styles.gcnEventContainer}>
-              <ExecutedObservationsTable observations={gcnEventObservations} />
+              <ExecutedObservationsTable
+                observations={gcnEventObservations.observations}
+              />
             </div>
           </AccordionDetails>
         </Accordion>
@@ -522,6 +677,59 @@ DownloadXMLButton.propTypes = {
   gcn_notice: PropTypes.shape({
     content: PropTypes.string,
     ivorn: PropTypes.string,
+  }).isRequired,
+};
+
+DownloadGCNButton.propTypes = {
+  instrument: PropTypes.shape({
+    name: PropTypes.string,
+    telescope: PropTypes.shape({
+      name: PropTypes.string,
+    }),
+  }).isRequired,
+  sources: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      origin: PropTypes.string,
+      alias: PropTypes.arrayOf(PropTypes.string),
+      redshift: PropTypes.number,
+      classifications: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          classification: PropTypes.string,
+          created_at: PropTypes.string,
+          groups: PropTypes.arrayOf(
+            PropTypes.shape({
+              id: PropTypes.number,
+              name: PropTypes.string,
+            })
+          ),
+        })
+      ),
+      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
+      altdata: PropTypes.shape({
+        tns: PropTypes.shape({
+          name: PropTypes.string,
+        }),
+      }),
+      spectrum_exists: PropTypes.bool,
+      last_detected_at: PropTypes.string,
+      last_detected_mag: PropTypes.number,
+      peak_detected_at: PropTypes.string,
+      peak_detected_mag: PropTypes.number,
+      groups: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          name: PropTypes.string,
+        })
+      ),
+    })
+  ).isRequired,
+  gcn_event: PropTypes.shape({
+    dateobs: PropTypes.string,
+    gcn_notices: PropTypes.arrayOf(PropTypes.any),
   }).isRequired,
 };
 

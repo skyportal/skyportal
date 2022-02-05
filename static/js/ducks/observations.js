@@ -21,9 +21,11 @@ export function fetchObservations(filterParams = {}) {
 
 export function fetchGcnEventObservations(dateobs = null, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
-  filterParams.localizationCumprob = 0.95;
+  filterParams.localizationCumprob = 1.01;
   filterParams.includeGeojson = true;
-
+  if (!Object.keys(filterParams).includes("returnStatistics")) {
+    filterParams.returnStatistics = true;
+  }
   if (dateobs) {
     filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
     filterParams.endDate = dayjs(dateobs)
