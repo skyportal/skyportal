@@ -1833,3 +1833,100 @@ def test_filter_sources_by_modified(upload_data_token, view_only_token, public_g
     )
     assert status == 200
     assert len(data["data"]["sources"]) == 0
+
+
+def test_sources_include_detection_stats(
+    upload_data_token,
+    view_only_token,
+    public_source,
+    ztf_camera,
+    public_group,
+    upload_data_token_two_groups,
+    public_group2,
+):
+    # Some very high mjd to make this the latest point
+    # This is not a detection though
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 99999.0,
+            'instrument_id': ztf_camera.id,
+            'mag': None,
+            'magerr': None,
+            'limiting_mag': 22.3,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # Another high mjd, but this time a photometry point not visible to the user
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 99900.0,
+            'instrument_id': ztf_camera.id,
+            'mag': None,
+            'magerr': None,
+            'limiting_mag': 22.3,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group2.id],
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # A high mjd, but lower than the first point
+    # Since this is a detection, it should be returned as "last_detected"
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'mjd': 90000.0,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"includeDetectionStats": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    assert (
+        data["data"]["sources"][0]["last_detected_at"]
+        == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
+    )
+    assert (
+        data["data"]["sources"][0]["peak_detected_at"]
+        == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
+    )
+
+    assert np.isclose(
+        data["data"]["sources"][0]["last_detected_mag"], 22.280546455476145
+    )
+    assert np.isclose(
+        data["data"]["sources"][0]["peak_detected_mag"], 22.280546455476145
+    )

@@ -1122,6 +1122,8 @@ def grab_query_results(
     include_thumbnails=True,
     query_id=None,
     use_cache=False,
+    include_detection_stats=False,
+    current_user=None,
 ):
     """
     Returns a SQLAlchemy Query object (which is iterable) for the sorted Obj IDs desired.
@@ -1222,34 +1224,78 @@ def grab_query_results(
         ):
             raise ValueError("Page number out of range.")
 
+    if include_detection_stats:
+        # Load in all last_detected_at values at once
+        last_detected_at = Obj.last_detected_at(current_user)
+        # Load in all last_detected_mag values at once
+        last_detected_mag = Obj.last_detected_mag(current_user)
+        # Load in all peak_detected_at values at once
+        peak_detected_at = Obj.peak_detected_at(current_user)
+        # Load in all peak_detected_mag values at once
+        peak_detected_mag = Obj.peak_detected_mag(current_user)
+
     items = []
     if len(obj_ids_in_page) > 0:
         # If there are no values, the VALUES statement above will cause a syntax error,
         # so only filter on the values if they exist
         obj_ids_values = get_obj_id_values(obj_ids_in_page)
-        if include_thumbnails:
-            items = (
-                DBSession()
-                .execute(
-                    sa.select(Obj)
-                    .options(joinedload(Obj.thumbnails))
-                    .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                    .order_by(obj_ids_values.c.ordering)
+
+        if include_detection_stats:
+            if include_thumbnails:
+                items = (
+                    DBSession()
+                    .execute(
+                        sa.select(Obj)
+                        .options(joinedload(Obj.thumbnails))
+                        .add_columns(last_detected_at)
+                        .add_columns(last_detected_mag)
+                        .add_columns(peak_detected_at)
+                        .add_columns(peak_detected_mag)
+                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+                        .order_by(obj_ids_values.c.ordering)
+                    )
+                    .unique()
+                    .all()
                 )
-                .unique()
-                .all()
-            )
+            else:
+                items = (
+                    DBSession()
+                    .execute(
+                        sa.select(Obj)
+                        .add_columns(last_detected_at)
+                        .add_columns(last_detected_mag)
+                        .add_columns(peak_detected_at)
+                        .add_columns(peak_detected_mag)
+                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+                        .order_by(obj_ids_values.c.ordering)
+                    )
+                    .unique()
+                    .all()
+                )
         else:
-            items = (
-                DBSession()
-                .execute(
-                    sa.select(Obj)
-                    .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-                    .order_by(obj_ids_values.c.ordering)
+            if include_thumbnails:
+                items = (
+                    DBSession()
+                    .execute(
+                        sa.select(Obj)
+                        .options(joinedload(Obj.thumbnails))
+                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+                        .order_by(obj_ids_values.c.ordering)
+                    )
+                    .unique()
+                    .all()
                 )
-                .unique()
-                .all()
-            )
+            else:
+                items = (
+                    DBSession()
+                    .execute(
+                        sa.select(Obj)
+                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+                        .order_by(obj_ids_values.c.ordering)
+                    )
+                    .unique()
+                    .all()
+                )
 
     info[items_name] = items
     return info
