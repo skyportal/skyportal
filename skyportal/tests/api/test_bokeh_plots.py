@@ -164,7 +164,9 @@ def test_spectrum_smooth_nan(upload_data_token, public_source, public_group, lri
     spectra = get_plot_data(data)
     spectra = [s for s in spectra if s['id'] == spectrum_id]
     smooth_spectrum = [
-        s for s in spectra if not np.array_equal(s['flux'], s['flux_original'])
+        s
+        for s in spectra
+        if not np.array_equal(s['flux'], s['flux_original'], equal_nan=True)
     ]
 
     assert len(smooth_spectrum) == 1

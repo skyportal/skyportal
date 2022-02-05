@@ -1364,7 +1364,7 @@ def smoothing_function(values, window_size):
         idx_high = i + over if i + over < len(values) else len(values) - 1
         N = 0
         for j in range(idx_low, idx_high):
-            if np.isnan(values[j]) is False:
+            if np.isnan(values[j]) == 0:
                 N += 1
                 output[i] += values[j]
         output[i] /= N
@@ -1660,6 +1660,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
 
         # this starts out the same as the previous plot, but can be binned/smoothed later in JS
         dfs = copy.deepcopy(df)
+
         if smoothing:
             dfs['flux'] = smoothing_function(dfs['flux_original'], smooth_number)
         model_dict[f'bin{i}'] = plot.step(
