@@ -1128,6 +1128,7 @@ def grab_query_results(
     """
     Returns a SQLAlchemy Query object (which is iterable) for the sorted Obj IDs desired.
     If there are no matching Objs, an empty list [] is returned instead.
+    include_detection_stats is added to the pagination query directly here.
     """
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
