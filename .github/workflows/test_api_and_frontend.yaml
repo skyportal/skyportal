@@ -155,6 +155,10 @@ jobs:
           pip install pre-commit
           pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}
 
+      - name: Run API & utils tests
+        run: |
+          py.test skyportal/tests/api/test_sources.py::test_sources_include_detection_stats
+
       - name: Run front-end tests part 1
         if: ${{ matrix.test_subset == 'frontend_pt1' }}
         run: |
