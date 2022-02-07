@@ -16,7 +16,7 @@ const NewShift = () => {
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
 
-  const nowDate = new Date();
+  const nowDate = dayjs.utc(new Date()).format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultStartDate = new Date();
   const defaultEndDate = new Date();
   defaultEndDate.setDate(defaultStartDate.getDate() + 1);
