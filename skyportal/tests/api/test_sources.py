@@ -1915,6 +1915,8 @@ def test_sources_include_detection_stats(
     assert status == 200
     assert data["status"] == "success"
 
+    print(data["data"]["sources"][0])
+
     assert (
         data["data"]["sources"][0]["last_detected_at"]
         == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
