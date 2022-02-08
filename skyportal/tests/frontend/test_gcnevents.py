@@ -20,6 +20,9 @@ def test_gcnevents(
     assert status == 200
     assert data['status'] == 'success'
 
+    # wait for event to load
+    time.sleep(15)
+
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -60,13 +63,21 @@ def test_gcnevents(
         'catalog_name': 'galaxy_in_Fermi',
         'catalog_data': {'name': [galaxy_name], 'ra': [228.5], 'dec': [35.5]},
     }
-
     status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
 
     # wait for galaxies to load
-    time.sleep(15)
+    nretries = 0
+    galaxies_loaded = False
+    while not galaxies_loaded and nretries < 5:
+        try:
+            status, data = api('GET', 'galaxy_catalog', token=view_only_token)
+            assert status == 200
+            galaxies_loaded = True
+        except AssertionError:
+            nretries = nretries + 1
+            time.sleep(3)
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/gcn_events/2018-01-16T00:36:53')
