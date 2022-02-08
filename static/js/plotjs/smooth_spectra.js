@@ -12,8 +12,10 @@ const smoothing_func = (values, window_size) => {
     const idx_high = i + over < values.length ? i + over : values.length - 1;
     let N = 0;
     for (let j = idx_low; j <= idx_high; j += 1) {
-      N += 1;
-      output[i] += values[j];
+      if (Number.isNaN(values[j]) === false) {
+        N += 1;
+        output[i] += values[j];
+      }
     }
     output[i] /= N;
   }
