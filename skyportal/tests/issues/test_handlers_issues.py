@@ -154,6 +154,10 @@ def candidate_handler_get(super_admin_user):
 
 def test_photometry_handler_get(super_admin_user):
     #PHOTOMETRY 
+
+    # this test is not finished yet from what we understood we cant just 'get' all the photometries, we have to specify and ID.
+    # but as the data doesnt get posted, we do not have one. A good option would be to memorize the value of the posted photometry in the _write_buffer of photolmetry_handler of the above test
+    # and then use it here to see if we can get a photometry that has this ID.
     photometry_handler = PhotometryHandler(
         application=application,
         request=fake_request,
@@ -164,6 +168,7 @@ def test_photometry_handler_get(super_admin_user):
     try:
         photometry_handler.get()
     except: None
+    
     assert photometry_handler.get_status() == 200
 
     print(photometry_handler._write_buffer)

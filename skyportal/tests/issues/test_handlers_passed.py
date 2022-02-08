@@ -13,6 +13,11 @@ import pytest
 stream_id = None
 filter_id = None
 
+
+# For the FakeApplication and FakeRequest, we took inspiration from Michael Coughlin's code on  Atlas.py
+# https://github.com/mcoughlin/skyportal/blob/atlas/skyportal/facility_apis/fake_request.py
+# used here : https://github.com/mcoughlin/skyportal/blob/atlas/skyportal/facility_apis/atlas.py
+
 class FakeApplication:
     """Mimics the Application class of tornado.web.
     Subclasses were minimum required to import the class.
@@ -79,6 +84,7 @@ def test_telescope_handler(super_admin_user):
     except: None
 
     assert telescope_handler.get_status() == 200
+    # We know it works (we can see it on the frontend, and never had issues with this one) but we should use telescope_handler.get() to verify that data was posted
     #============================================================================
 
 
@@ -107,6 +113,7 @@ def test_instrument_handler(super_admin_user):
     except: None
 
     assert instrument_handler.get_status() == 200
+    # We know it works (we can see it on the frontend, and never had issues with this one) but we should use instrument_handler.get() to verify that data was posted
     #============================================================================
 
 
@@ -134,6 +141,8 @@ def test_stream_handler(super_admin_user):
 
     stream_id = ast.literal_eval(stream_handler._write_buffer[0].decode('utf-8'))['data']['id']
     assert stream_id is not None
+
+    
     #============================================================================
 
 @pytest.mark.run(after='test_stream_handler')
@@ -185,6 +194,8 @@ def test_filter_handler(super_admin_user):
         filter_handler.post()
     except: None
     assert filter_handler.get_status() == 200
+    # We know it works (we can see it on the frontend, and never had issues with this one) but we should use filter_handler.get() to verify that data was posted
+    # /!\ HOWEVER, after re running make db_clear && make db_init && make run_testing, sometimes, the filter DOESNT get added to the db, so adding a call to the get function here would show any error
     
     #============================================================================
 
@@ -212,4 +223,5 @@ def test_source_handler(super_admin_user):
     except: None
 
     assert source_handler.get_status() == 200
+    # We know it works (we can see it on the frontend, and never had issues with this one) but we should use source_handler.get() to verify that data was posted
     #============================================================================
