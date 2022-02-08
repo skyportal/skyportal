@@ -1,22 +1,20 @@
-import React from "react";
+import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import { PropTypes } from "prop-types";
 import Form from "@rjsf/material-ui";
-import { showNotification } from "baselayer/components/Notifications";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import { fetchGcnEventSources } from "../ducks/sources";
 
-const GCNSourceSelection = ({ gcnEvent }) => {
+const GcnSourceSelection = ({ gcnEvent }) => {
   const dispatch = useDispatch();
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const handleSubmit = async ({ formData }) => {
-    const result = await dispatch(
-      fetchGcnEventSources(formData.localizationDateobs, formData)
-    );
-    if (result.status === "success" && result.data.totalMatches === 0) {
-      dispatch(showNotification("No sources found"));
-    } else if (result.status === "success") {
-      dispatch(showNotification("Event sources modified"));
-    }
+    setIsSubmitting(true);
+    await dispatch(fetchGcnEventSources(gcnEvent.dateobs, formData));
+    setIsSubmitting(false);
   };
+
   function validate(formData, errors) {
     if (formData.start_date > formData.end_date) {
       errors.start_date.addError(
@@ -31,7 +29,7 @@ const GCNSourceSelection = ({ gcnEvent }) => {
     return errors;
   }
 
-  const GCNSourceSelectionFormSchema = {
+  const GcnSourceSelectionFormSchema = {
     type: "object",
     properties: {
       startDate: {
@@ -49,12 +47,12 @@ const GCNSourceSelection = ({ gcnEvent }) => {
         title: "Cumulative",
         default: 0.95,
       },
-      localizationDateobs: {
+      localizationName: {
         type: "string",
         title: "Localization Date Obs.",
         oneOf: gcnEvent.localizations?.map((localization) => ({
-          enum: [localization?.dateobs],
-          title: `${localization.localization_name} / ${localization?.dateobs}`,
+          enum: [localization?.localization_name],
+          title: `${localization.localization_name}`,
         })),
       },
     },
@@ -62,21 +60,29 @@ const GCNSourceSelection = ({ gcnEvent }) => {
       "startDate",
       "endDate",
       "localizationCumprob",
-      "localizationDateobs",
+      "localizationName",
     ],
   };
 
   return (
-    <Form
-      schema={GCNSourceSelectionFormSchema}
-      onSubmit={handleSubmit}
-      // eslint-disable-next-line react/jsx-no-bind
-      validate={validate}
-    />
+    <div data-testid="gcnsource-request-form">
+      <Form
+        schema={GcnSourceSelectionFormSchema}
+        onSubmit={handleSubmit}
+        // eslint-disable-next-line react/jsx-no-bind
+        validate={validate}
+        disabled={isSubmitting}
+      />
+      {isSubmitting && (
+        <div>
+          <CircularProgress />
+        </div>
+      )}
+    </div>
   );
 };
 
-GCNSourceSelection.propTypes = {
+GcnSourceSelection.propTypes = {
   gcnEvent: PropTypes.shape({
     dateobs: PropTypes.string,
     localizations: PropTypes.arrayOf(
@@ -88,4 +94,4 @@ GCNSourceSelection.propTypes = {
     id: PropTypes.number,
   }).isRequired,
 };
-export default GCNSourceSelection;
+export default GcnSourceSelection;

@@ -70,13 +70,23 @@ export function fetchFavoriteSources(filterParams = {}) {
 export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.localizationDateobs = dateobs;
-  filterParams.localizationCumprob = 0.95;
 
-  if (dateobs) {
-    filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
-    filterParams.endDate = dayjs(dateobs)
-      .add(7, "day")
-      .format("YYYY-MM-DD HH:mm:ss");
+  if (!Object.keys(filterParams).includes("localizationCumprob")) {
+    filterParams.localizationCumprob = 0.95;
+  }
+
+  if (!Object.keys(filterParams).includes("startDate")) {
+    if (dateobs) {
+      filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+    }
+  }
+
+  if (!Object.keys(filterParams).includes("endDate")) {
+    if (dateobs) {
+      filterParams.endDate = dayjs(dateobs)
+        .add(7, "day")
+        .format("YYYY-MM-DD HH:mm:ss");
+    }
   }
 
   // filterParams.startDate = null;
