@@ -906,13 +906,6 @@ def test_sources_include_detection_stats(
 
     assert any(
         [
-            d['name'] == '6dFgs gJ0001313-055904' and d['mstar'] == 336.60756522868667
-            for d in data
-        ]
-    )
-
-    assert any(
-        [
             s["last_detected_at"] == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
             for s in data["data"]["sources"]
         ]
