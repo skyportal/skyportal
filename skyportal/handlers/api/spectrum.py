@@ -37,16 +37,15 @@ _, cfg = load_env()
 
 class SpectrumHandler(BaseHandler):
     def get_groups(self, group_ids):
-        groups = None
-        if group_ids:
-            if group_ids == "all":
-                groups = Group.query.filter(
-                    Group.name == cfg['misc.public_group_name']
-                ).all()
-            else:
-                groups = Group.get_if_accessible_by(
-                    group_ids, self.current_user, raise_if_none=True
-                )
+        groups = []
+        if group_ids == "all":
+            groups = Group.query.filter(
+                Group.name == cfg['misc.public_group_name']
+            ).all()
+        else:
+            groups = Group.get_if_accessible_by(
+                group_ids, self.current_user, raise_if_none=True
+            )
         return groups
 
     @permissions(['Upload data'])
