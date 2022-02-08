@@ -904,20 +904,37 @@ def test_sources_include_detection_stats(
     assert status == 200
     assert data["status"] == "success"
 
-    assert (
-        data["data"]["sources"][0]["last_detected_at"]
-        == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
-    )
-    assert (
-        data["data"]["sources"][0]["peak_detected_at"]
-        == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
+    assert any(
+        [
+            d['name'] == '6dFgs gJ0001313-055904' and d['mstar'] == 336.60756522868667
+            for d in data
+        ]
     )
 
-    assert np.isclose(
-        data["data"]["sources"][0]["last_detected_mag"], 22.280546455476145
+    assert any(
+        [
+            s["last_detected_at"] == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
+            for s in data["data"]["sources"]
+        ]
     )
-    assert np.isclose(
-        data["data"]["sources"][0]["peak_detected_mag"], 22.280546455476145
+    assert any(
+        [
+            s["peak_detected_at"] == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
+            for s in data["data"]["sources"]
+        ]
+    )
+
+    assert any(
+        [
+            np.isclose(s["last_detected_mag"], 22.280546455476145)
+            for s in data["data"]["sources"]
+        ]
+    )
+    assert any(
+        [
+            np.isclose(s["peak_detected_mag"], 22.280546455476145)
+            for s in data["data"]["sources"]
+        ]
     )
 
 
