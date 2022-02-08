@@ -194,8 +194,8 @@ def test_filter_handler(super_admin_user):
         filter_handler.post()
     except: None
     assert filter_handler.get_status() == 200
-    # We know it works (we can see it on the frontend, and never had issues with this one) but we should use filter_handler.get() to verify that data was posted
-    # /!\ HOWEVER, after re running make db_clear && make db_init && make run_testing, sometimes, the filter DOESNT get added to the db, so adding a call to the get function here would show any error
+    # We know it works (we can see it on the frontend) but we should use filter_handler.get() to verify that data was posted
+    # /!\ HOWEVER, after re running make db_clear && make db_init && make run_testing, sometimes, the filter DOESNT get added to the db, so adding a call to the get function here would show if there is any error
     
     #============================================================================
 
