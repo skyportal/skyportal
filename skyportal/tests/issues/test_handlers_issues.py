@@ -54,6 +54,7 @@ fake_request = FakeRequest()
 
 # In this test, we post a new Candidate using the CandidateHandler
 def test_candidate_handler(super_admin_user):
+    #FILTER
     filter_handler = FilterHandler(
         application=application,
         request=fake_request,
@@ -63,7 +64,7 @@ def test_candidate_handler(super_admin_user):
         filter_handler.get()
     except: None
     filter_id = json.loads(filter_handler._write_buffer[0].decode('utf-8'))['data'][0]['id']
-
+    assert filter_id is not None
     #CANDIDATE   
     candidate_handler = CandidateHandler(
         application=application,
@@ -152,7 +153,7 @@ def candidate_handler_get(super_admin_user):
 
 
 def test_photometry_handler_get(super_admin_user):
-    #CANDIDATE   
+    #PHOTOMETRY 
     photometry_handler = PhotometryHandler(
         application=application,
         request=fake_request,
