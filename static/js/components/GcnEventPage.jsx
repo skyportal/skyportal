@@ -30,6 +30,7 @@ import * as localizationActions from "../ducks/localization";
 import * as sourcesActions from "../ducks/sources";
 
 import SourceTable from "./SourceTable";
+import GCNSourceSelection from "./GCNSourceSelection";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -395,6 +396,20 @@ const GcnEventPage = ({ route }) => {
           <AccordionDetails>
             <div className={styles.gcnEventContainer}>
               <GcnEventSourcesPage route={route} sources={gcnEventSources} />
+            </div>
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary>
+            <Typography className={styles.accordionHeading}>
+              Modify Source Selection
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              <GCNSourceSelection gcnEvent={gcnEvent} />
             </div>
           </AccordionDetails>
         </Accordion>
