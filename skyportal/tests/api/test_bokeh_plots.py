@@ -9,11 +9,17 @@ def black_body(la, temp):
     """
     get the amount of radiation expected from a black body
     of the given temperature "temp", at the given wavelengths "la".
-    :param la: float array or scalar
+
+    Parameters
+    ----------
+    la: float array or scalar
         wavelength(s) where the radiation should be calculated.
-    :param temp: float scalar
+    temp: float scalar
         temperature of the black body.
-    :return:
+
+    Returns
+    -------
+        float array
         return the radiation (in units of Watts per steradian per m^2 per nm)
     """
     const = (
@@ -31,21 +37,35 @@ def get_plot_data(data):
     to api/internal/plot/spectroscopy/<obj_id> and recover
     the underlying data for all spectra in the plot.
 
-    Returns a list of dictionaries with the flux, wavelength, etc.
+    Parameters
+    ----------
+    data: dict
+       A dictionary loaded from the JSON file sent by the plotting API call.
+
+    Returns
+    -------
+    list
+        Returns a list of dictionaries with the flux, wavelength, etc.
+        Each dictionary for a different spectra.
+        Note that the plot outputs several repeated versions of each spectrum,
+        i.e., one for the step plot, one for the line plot with the tooltip,
+        one for the smoothed spectrum. Each one is a separate dictionary.
     """
     objects = []
     for doc in data['data']['bokehJSON']['doc']['roots']['references']:
         if 'data' in doc['attributes']:
             new_obj = {}
-            for field_name in ['wavelength', 'flux', 'flux_original', 'x', 'y']:
-                if field_name in doc['attributes']['data']:
-                    array = doc['attributes']['data'][field_name]
+            # go over each attribute with data and look for these keys
+            for key in ['wavelength', 'flux', 'flux_original', 'x', 'y']:
+                if key in doc['attributes']['data']:
+                    array = doc['attributes']['data'][key]
                     if type(array) == list:
-                        new_obj[field_name] = np.array(array)
+                        new_obj[key] = np.array(array)
                     else:
-                        new_obj[field_name] = serialization.decode_base64_dict(array)
+                        new_obj[key] = serialization.decode_base64_dict(array)
+
             # tooltip data that's duplicated so we only need to get the first item in each array
-            for field_name in [
+            for key in [
                 'id',
                 'telescope',
                 'instrument',
@@ -55,11 +75,10 @@ def get_plot_data(data):
                 'annotations',
                 'altdata',
             ]:
-                if field_name in doc['attributes']['data']:
-                    new_obj[field_name] = doc['attributes']['data'][field_name][0]
+                if key in doc['attributes']['data']:
+                    new_obj[key] = doc['attributes']['data'][key][0]
 
             if 'telescope' in new_obj:
-                # new_obj['bokeh_data'] = doc
                 objects.append(new_obj)
 
     return objects
