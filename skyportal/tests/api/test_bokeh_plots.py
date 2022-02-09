@@ -59,7 +59,6 @@ def get_plot_data(data):
     for doc in data['data']['bokehJSON']['doc']['roots']['references']:
         if 'data' in doc['attributes']:
             new_obj = {}
-<<<<<<< HEAD
             # go over each attribute with data and look for these keys
             for key in ['wavelength', 'flux', 'flux_original', 'x', 'y']:
                 if key in doc['attributes']['data']:
@@ -71,17 +70,6 @@ def get_plot_data(data):
 
             # tooltip data that's duplicated so we only need to get the first item in each array
             for key in [
-=======
-            for field_name in ['wavelength', 'flux', 'flux_original', 'x', 'y']:
-                if field_name in doc['attributes']['data']:
-                    array = doc['attributes']['data'][field_name]
-                    if type(array) == list:
-                        new_obj[field_name] = np.array(array)
-                    else:
-                        new_obj[field_name] = serialization.decode_base64_dict(array)
-            # tooltip data that's duplicated so we only need to get the first item in each array
-            for field_name in [
->>>>>>> Bokeh plot tests (#2640)
                 'id',
                 'telescope',
                 'instrument',
@@ -91,18 +79,10 @@ def get_plot_data(data):
                 'annotations',
                 'altdata',
             ]:
-<<<<<<< HEAD
                 if key in doc['attributes']['data']:
                     new_obj[key] = doc['attributes']['data'][key][0]
 
             if 'telescope' in new_obj:
-=======
-                if field_name in doc['attributes']['data']:
-                    new_obj[field_name] = doc['attributes']['data'][field_name][0]
-
-            if 'telescope' in new_obj:
-                # new_obj['bokeh_data'] = doc
->>>>>>> Bokeh plot tests (#2640)
                 objects.append(new_obj)
 
     return objects
