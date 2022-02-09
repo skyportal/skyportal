@@ -20,7 +20,7 @@ import * as shiftActions from "../ducks/shift";
 const useStyles = makeStyles((theme) => ({
   root: {
     width: "100%",
-    maxWidth: "22.5rem",
+    maxWidth: "23.5rem",
     backgroundColor: theme.palette.background.paper,
   },
   paperContent: {
@@ -28,9 +28,9 @@ const useStyles = makeStyles((theme) => ({
   },
   shiftDelete: {
     cursor:'pointer',
-    font_weight: 'bolder',
-    font_size: '5em',
+    fontSize: '2em',
     position:'absolute',
+    padding: 0,
     right: 0,
     top: 0
   },
@@ -39,7 +39,7 @@ const useStyles = makeStyles((theme) => ({
 const textStyles = makeStyles(() => ({
   primary: {
     fontWeight: "bold",
-    fontSize: "110%",
+    fontSize: "120%",
   },
 }));
 

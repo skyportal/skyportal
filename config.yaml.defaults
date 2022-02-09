@@ -122,6 +122,10 @@ app:
       icon: GroupWork
       url: /groups
 
+    - name: Shifts
+      icon: AccessTime
+      url: /shifts
+
     - name: Observing Runs
       icon: LocalCafe
       url: /runs
@@ -299,7 +303,7 @@ server:
   #
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   host: localhost
-  port: 5000  # This is the public-facing port
+  port: 32500  # This is the public-facing port
 
   # Whether the base URL is http or https
   ssl: False
