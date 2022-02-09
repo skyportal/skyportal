@@ -9,14 +9,13 @@ import Grid from "@material-ui/core/Grid";
 import { makeStyles } from "@material-ui/core/styles";
 import PropTypes from "prop-types";
 import CircularProgress from "@material-ui/core/CircularProgress";
+import { showNotification } from "baselayer/components/Notifications";
 import NewShift from "./NewShift";
+
 
 import { Button } from "@material-ui/core";
 
 import * as shiftActions from "../ducks/shift";
-
-import * as shiftsActions from "../ducks/shifts";
-
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -26,6 +25,14 @@ const useStyles = makeStyles((theme) => ({
   },
   paperContent: {
     padding: "1rem",
+  },
+  shiftDelete: {
+    cursor:'pointer',
+    font_weight: 'bolder',
+    font_size: '5em',
+    position:'absolute',
+    right: 0,
+    top: 0
   },
 }));
 
@@ -78,13 +85,15 @@ export function shiftInfo(shift) {
 const ShiftList = ({ shifts }) => {
   const dispatch = useDispatch();
   const deleteShift = (shift) => {
-    dispatch(shiftActions.deleteShift(shift.id));
-
+    dispatch(shiftActions.deleteShift(shift.id)).then((result) => {
+      if (result.status === "success") {
+        dispatch(showNotification("Shift deleted", 'warning'));
+      }
+    });
   };
 
   const classes = useStyles();
   const textClasses = textStyles();
-
   return (
     
     <div className={classes.root}>
@@ -96,7 +105,11 @@ const ShiftList = ({ shifts }) => {
               secondary={shiftInfo(shift)}
               classes={textClasses}
             />
-            <Button key={shift.id} onClick = { () => deleteShift(shift) }></Button>
+            <Button
+              key={shift.id}
+              className={classes.shiftDelete}
+              onClick = { () => deleteShift(shift) }>          
+            &times;</Button >
           </ListItem>
         ))}
       </List>
