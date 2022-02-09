@@ -1545,6 +1545,34 @@ def smoothing_function(values, window_size):
     return output
 
 
+def smoothing_function(values, window_size):
+    """
+    Smooth the input "values" using a rolling average
+    where "window_size" is the number of points to use
+    for averaging.
+    This should be the same logic as static/js/plotjs/smooth_spectra.js
+    """
+
+    if values is None or not hasattr(values, '__len__') or len(values) == 0:
+        return values
+
+    output = np.zeros(values.shape)
+    under = int((window_size + 1) // 2) - 1
+    over = int(window_size // 2)
+
+    for i, v in enumerate(values):
+        idx_low = i - under if i - under >= 0 else 0
+        idx_high = i + over if i + over < len(values) else len(values) - 1
+        N = 0
+        for j in range(idx_low, idx_high):
+            if np.isnan(values[j]) == 0:
+                N += 1
+                output[i] += values[j]
+        output[i] /= N
+
+    return output
+
+
 def spectroscopy_plot(
     obj_id,
     user,
