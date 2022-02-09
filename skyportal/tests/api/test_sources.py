@@ -826,22 +826,72 @@ def test_source_photometry_summary_info(
 
 def test_sources_include_detection_stats(
     upload_data_token,
-    view_only_token,
-    public_source,
-    ztf_camera,
+    super_admin_token,
     public_group,
-    upload_data_token_two_groups,
     public_group2,
+    upload_data_token_two_groups,
+    view_only_token,
 ):
+
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'telescope',
+        data={
+            'name': name,
+            'nickname': name,
+            'lat': 0.0,
+            'lon': 0.0,
+            'elevation': 0.0,
+            'diameter': 10.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    telescope_id = data['data']['id']
+
+    instrument_name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'instrument',
+        data={
+            'name': instrument_name,
+            'type': 'imager',
+            'band': 'NIR',
+            'filters': ['ztfg'],
+            'telescope_id': telescope_id,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    instrument_id = data['data']['id']
+
     # Some very high mjd to make this the latest point
     # This is not a detection though
     status, data = api(
         'POST',
         'photometry',
         data={
-            'obj_id': str(public_source.id),
+            'obj_id': obj_id,
             'mjd': 99999.0,
-            'instrument_id': ztf_camera.id,
+            'instrument_id': instrument_id,
             'mag': None,
             'magerr': None,
             'limiting_mag': 22.3,
@@ -859,9 +909,9 @@ def test_sources_include_detection_stats(
         'POST',
         'photometry',
         data={
-            'obj_id': str(public_source.id),
+            'obj_id': obj_id,
             'mjd': 99900.0,
-            'instrument_id': ztf_camera.id,
+            'instrument_id': instrument_id,
             'mag': None,
             'magerr': None,
             'limiting_mag': 22.3,
@@ -880,9 +930,9 @@ def test_sources_include_detection_stats(
         'POST',
         'photometry',
         data={
-            'obj_id': str(public_source.id),
+            'obj_id': obj_id,
             'mjd': 90000.0,
-            'instrument_id': ztf_camera.id,
+            'instrument_id': instrument_id,
             'flux': 12.24,
             'fluxerr': 0.031,
             'zp': 25.0,
@@ -917,8 +967,18 @@ def test_sources_include_detection_stats(
         ]
     )
 
-    assert any([s["last_detected_mag"] is not None for s in data["data"]["sources"]])
-    assert any([s["peak_detected_mag"] is not None for s in data["data"]["sources"]])
+    assert any(
+        [
+            np.isclose(s["last_detected_mag"], 22.280546455476145)
+            for s in data["data"]["sources"]
+        ]
+    )
+    assert any(
+        [
+            np.isclose(s["peak_detected_mag"], 22.280546455476145) is not None
+            for s in data["data"]["sources"]
+        ]
+    )
 
 
 # Sources filtering tests
