@@ -35,7 +35,7 @@ py3-validate-email==1.0.5
 alembic==1.7.6
 marshmallow-jsonschema==0.13.0
 requests_toolbelt==0.9.1
-sendgrid==6.9.3
+sendgrid==6.9.5
 twilio==7.5.1
 jsonschema-to-openapi==0.2.1
 responses==0.16.0
