@@ -147,9 +147,8 @@ class ATLASAPI(FollowUpAPI):
                     raise ValueError(f'Format of response not understood: {e.message}')
 
                 desired_columns = ['MJD', 'RA', 'Dec', 'm', 'dm', 'mag5sig', 'F']
-                for col in desired_columns:
-                    if col not in list(set(df.columns.values)):
-                        raise ValueError(f'Missing expected column: {col}')
+                if not desired_columns.issubset(df.columns):
+                    raise ValueError(f'Missing expected column: {col}')
 
                 df.rename(
                     columns={
