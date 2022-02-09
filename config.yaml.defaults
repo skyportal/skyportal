@@ -449,4 +449,4 @@ spectrum_types:
 # length that defines the full Quantum Efficiency at each wavelength.
 # must have at least two elements in the arrays
 # `wavelength` and `transmission`.
-additional_bandpasses:
+# additional_bandpasses:
