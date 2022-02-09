@@ -37,7 +37,7 @@ class ATLASRequest:
 
         Returns
         ----------
-        payload: json
+        payload : dict
             payload for requests.
         """
 
