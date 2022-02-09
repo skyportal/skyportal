@@ -9,6 +9,7 @@ def black_body(la, temp):
     """
     get the amount of radiation expected from a black body
     of the given temperature "temp", at the given wavelengths "la".
+<<<<<<< HEAD
 
     Parameters
     ----------
@@ -20,6 +21,13 @@ def black_body(la, temp):
     Returns
     -------
     float array
+=======
+    :param la: float array or scalar
+        wavelength(s) where the radiation should be calculated.
+    :param temp: float scalar
+        temperature of the black body.
+    :return:
+>>>>>>> Bokeh plot tests (#2640)
         return the radiation (in units of Watts per steradian per m^2 per nm)
     """
     const = (
@@ -37,7 +45,6 @@ def get_plot_data(data):
     to api/internal/plot/spectroscopy/<obj_id> and recover
     the underlying data for all spectra in the plot.
 
-<<<<<<< HEAD
     Parameters
     ----------
     data : dict
@@ -51,9 +58,6 @@ def get_plot_data(data):
         Note that the plot outputs several repeated versions of each spectrum,
         i.e., one for the step plot, one for the line plot with the tooltip,
         one for the smoothed spectrum. Each one is a separate dictionary.
-=======
-    Returns a list of dictionaries with the flux, wavelength, etc.
->>>>>>> Bokeh plot tests (#2640)
     """
     objects = []
     for doc in data['data']['bokehJSON']['doc']['roots']['references']:
@@ -152,8 +156,12 @@ def test_spectrum_smooth_nan(upload_data_token, public_source, public_group, lri
     observed_at = str(datetime.datetime.now())
     filename = f'{os.path.dirname(__file__)}/../data/spectrum_with_nan.txt'
 <<<<<<< HEAD
+<<<<<<< HEAD
 
     with open(filename) as f:
+=======
+    with open(filename, 'r') as f:
+>>>>>>> Bokeh plot tests (#2640)
 =======
     with open(filename, 'r') as f:
 >>>>>>> Bokeh plot tests (#2640)
