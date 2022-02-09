@@ -967,16 +967,19 @@ def test_sources_include_detection_stats(
         ]
     )
 
-    print(data["data"]["sources"])
     assert any(
         [
             np.isclose(s["last_detected_mag"], 22.280546455476145)
+            if s["last_detected_mag"] is not None
+            else False
             for s in data["data"]["sources"]
         ]
     )
     assert any(
         [
             np.isclose(s["peak_detected_mag"], 22.280546455476145)
+            if s["last_detected_mag"] is not None
+            else False
             for s in data["data"]["sources"]
         ]
     )
