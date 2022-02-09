@@ -62,10 +62,10 @@ class ObservationPlanRequestHandler(BaseHandler):
         )
 
         instrument = allocation.instrument
-        if instrument.api_observationplan_classname is None:
+        if instrument.api_classname_obsplan is None:
             return self.error('Instrument has no remote API.')
 
-        if not instrument.api_observationplan_class.implements()['submit']:
+        if not instrument.api_class_obsplan.implements()['submit']:
             return self.error(
                 'Cannot submit observation plan requests for this Instrument.'
             )
@@ -79,7 +79,7 @@ class ObservationPlanRequestHandler(BaseHandler):
 
         # validate the payload
         jsonschema.validate(
-            data['payload'], instrument.api_observationplan_class.form_json_schema
+            data['payload'], instrument.api_class_obsplan.form_json_schema
         )
 
         observationplan_request = ObservationPlanRequest.__schema__().load(data)
@@ -93,7 +93,7 @@ class ObservationPlanRequestHandler(BaseHandler):
         )
 
         try:
-            instrument.api_observationplan_class.submit(observationplan_request)
+            instrument.api_class_obsplan.submit(observationplan_request)
         except Exception as e:
             observationplan_request.status = 'failed to submit'
             return self.error(f'Error submitting observation plan: {e.args[0]}')
@@ -162,7 +162,7 @@ class ObservationPlanRequestHandler(BaseHandler):
         )
         dateobs = observation_plan_request.gcnevent.dateobs
 
-        api = observation_plan_request.instrument.api_observationplan_class
+        api = observation_plan_request.instrument.api_classname_obsplan
         if not api.implements()['delete']:
             return self.error('Cannot delete observation plans on this instrument.')
 

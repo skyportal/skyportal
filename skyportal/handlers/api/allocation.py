@@ -79,9 +79,9 @@ class AllocationHandler(BaseHandler):
                     instruments_subquery,
                     Allocation.instrument_id == instruments_subquery.c.id,
                 )
-            elif apitype == "api_observationplan_classname":
+            elif apitype == "api_classname_obsplan":
                 instruments_subquery = sa.select(Instrument.id).filter(
-                    Instrument.api_observationplan_classname.isnot(None)
+                    Instrument.api_classname_obsplan.isnot(None)
                 )
 
                 allocations = allocations.join(
@@ -90,7 +90,7 @@ class AllocationHandler(BaseHandler):
                 )
             else:
                 return self.error(
-                    f"apitype can only be api_classname or api_observationplan_classname, not {apitype}"
+                    f"apitype can only be api_classname or api_classname_obsplan, not {apitype}"
                 )
 
         allocations = allocations.all()

@@ -105,7 +105,7 @@ class Instrument(Base):
         api_classnames, nullable=True, doc="Name of the instrument's API class."
     )
 
-    api_observationplan_classname = sa.Column(
+    api_classname_obsplan = sa.Column(
         api_classnames,
         nullable=True,
         doc="Name of the instrument's ObservationPlan API class.",
