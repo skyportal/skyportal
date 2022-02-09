@@ -39,8 +39,12 @@ const useStyles = makeStyles((theme) => ({
 const textStyles = makeStyles(() => ({
   primary: {
     fontWeight: "bold",
-    fontSize: "120%",
+    fontSize: "130%",
   },
+  secondary: {
+    fontSize: '120%',
+    whiteSpace: 'pre-wrap'
+  }
 }));
 
 export function shiftTitle(shift) {
@@ -75,7 +79,7 @@ export function shiftInfo(shift) {
   ];
 
   // eslint-disable-next-line prefer-template
-  const result = "( " + array.join(" / ") + " )";
+  const result = array.join("\n");
 
   return result;
 }
