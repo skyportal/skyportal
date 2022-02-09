@@ -142,5 +142,5 @@ class ShiftHandler(BaseHandler):
         DBSession().delete(shift)
         self.verify_and_commit()
 
-        self.push_all(action="skyportal/FETCH_SHIFTS")
+        self.push_all(action="skyportal/REFRESH_SHIFTS")
         return self.success()
