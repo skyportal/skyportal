@@ -64,6 +64,15 @@ class PlotSpectroscopyHandler(BaseHandler):
         except Exception as e:
             return self.error(f'Exception in photometry plot: {e}')
 
+        json = plot.spectroscopy_plot(
+            obj_id,
+            self.associated_user_object,
+            spec_id,
+            width=int(width),
+            device=device,
+            smoothing=smoothing,
+            smooth_number=smooth_number,
+        )
         self.verify_and_commit()
         self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
