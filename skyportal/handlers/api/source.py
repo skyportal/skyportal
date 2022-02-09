@@ -1259,6 +1259,7 @@ class SourceHandler(BaseHandler):
 
         source_subquery = source_query.subquery()
         query = obj_query.join(source_subquery, Obj.id == source_subquery.c.obj_id)
+
         order_by = None
         if sort_by is not None:
             if sort_by == "id":
@@ -1329,6 +1330,9 @@ class SourceHandler(BaseHandler):
                     # We'll join thumbnails in manually, as they lead to duplicate
                     # results downstream with the detection stats being added in
                     include_thumbnails=False,
+                    # include detection stats here as it is a query column,
+                    include_detection_stats=include_detection_stats,
+                    current_user=self.current_user,
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
@@ -1337,33 +1341,6 @@ class SourceHandler(BaseHandler):
 
             # Records are Objs, not Sources
             obj_list = []
-
-            # The query_results could be an empty list instead of a SQLAlchemy
-            # Query object if there are no matching sources
-            if query_results["sources"] != [] and include_detection_stats:
-                # Load in all last_detected_at values at once
-                last_detected_at = Obj.last_detected_at(self.current_user)
-                query_results["sources"] = query_results["sources"].add_columns(
-                    last_detected_at
-                )
-
-                # Load in all last_detected_mag values at once
-                last_detected_mag = Obj.last_detected_mag(self.current_user)
-                query_results["sources"] = query_results["sources"].add_columns(
-                    last_detected_mag
-                )
-
-                # Load in all peak_detected_at values at once
-                peak_detected_at = Obj.peak_detected_at(self.current_user)
-                query_results["sources"] = query_results["sources"].add_columns(
-                    peak_detected_at
-                )
-
-                # Load in all peak_detected_mag values at once
-                peak_detected_mag = Obj.peak_detected_mag(self.current_user)
-                query_results["sources"] = query_results["sources"].add_columns(
-                    peak_detected_mag
-                )
 
             for result in query_results["sources"]:
                 if include_detection_stats:
