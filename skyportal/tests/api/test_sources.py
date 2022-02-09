@@ -954,6 +954,13 @@ def test_sources_include_detection_stats(
     assert status == 200
     assert data["status"] == "success"
 
+    # Note: 40_587 is the MJD of UNIX time 1970-01-01
+    # Because arrow.get views dates as seconds since UNIX time,
+    # s["peak_detected_at"]` is the MJD of 90000 in isodate format.
+
+    # In summary: arrow.get("1970-01-01") - datetime.timedelta(40587) =>
+    # <Arrow [1858-11-17T00:00:00+00:00]>
+
     assert any(
         [
             s["last_detected_at"] == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
