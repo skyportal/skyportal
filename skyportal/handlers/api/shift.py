@@ -10,7 +10,7 @@ from ...models import (
 
 
 class ShiftHandler(BaseHandler):
-    @permissions(["Upload data"])
+    @permissions(["Manage shifts"])
     def post(self):
         """
         ---
@@ -105,7 +105,7 @@ class ShiftHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(data=shifts)
 
-    @permissions(["Upload data"])
+    @permissions(["Manage shifts"])
     def delete(self, shift_id):
         """
         ---
