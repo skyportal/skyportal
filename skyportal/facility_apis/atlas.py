@@ -7,7 +7,6 @@ import pandas as pd
 from io import StringIO
 
 from . import FollowUpAPI
-from . import FakeApplication, FakeRequest
 from baselayer.app.env import load_env
 
 from ..utils import http
@@ -141,18 +140,17 @@ class ATLASAPI(FollowUpAPI):
 
                 try:
                     df = pd.read_csv(
-                        StringIO(s.text.replace("###", "")), delim_whitespace=True
+                        StringIO(s.text.replace("###MJD", "mjd")), delim_whitespace=True
                     )
                 except Exception as e:
                     raise ValueError(f'Format of response not understood: {e.message}')
 
-                desired_columns = ['MJD', 'RA', 'Dec', 'm', 'dm', 'mag5sig', 'F']
-                if not desired_columns.issubset(df.columns):
-                    raise ValueError(f'Missing expected column: {col}')
+                desired_columns = ['mjd', 'RA', 'Dec', 'm', 'dm', 'mag5sig', 'F']
+                if not set(desired_columns).issubset(set(df.columns)):
+                    raise ValueError('Missing expected column')
 
                 df.rename(
                     columns={
-                        'MJD': 'mjd',
                         'RA': 'ra',
                         'Dec': 'dec',
                         'm': 'mag',
@@ -202,18 +200,9 @@ class ATLASAPI(FollowUpAPI):
                     **df.to_dict(orient='list'),
                 }
 
-                from skyportal.handlers.api.photometry import PhotometryHandler
+                from skyportal.handlers.api.photometry import add_external_photometry
 
-                application = FakeApplication()
-                fake_request = FakeRequest()
-
-                photometry_handler = PhotometryHandler(
-                    application=application,
-                    request=fake_request,
-                )
-                photometry_handler.add_external_photometry(
-                    json=data_out, user=request.requester
-                )
+                add_external_photometry(data_out, request.requester)
 
                 request.status = "Photometry committed to database"
 
