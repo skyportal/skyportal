@@ -24,7 +24,7 @@ create type "public"."bandpasses" as enum ('bessellux', 'bessellb', 'bessellv', 
 
 alter table "public"."photometry" alter column filter type "public"."bandpasses" using filter::text::"public"."bandpasses";
 
-drop type "public"."bandpasses__old_version_to_be_dropped";
+drop type "public"."bandpasses__old_version_to_be_dropped" cascade;
 """
     )
     # ### end Alembic commands ###
