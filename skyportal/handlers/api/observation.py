@@ -125,7 +125,7 @@ class ObservationHandler(BaseHandler):
         data = self.get_json()
         telescope_name = data.get('telescopeName')
         instrument_name = data.get('instrumentName')
-        observation_data = data.get('observationData')
+        observation_data = data.get('observationData', {})
 
         if observation_data is None:
             return self.error(message="Missing observation_data")
