@@ -32,6 +32,9 @@ def upgrade():
         op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::y'")
         op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::open'")
         op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::w'")
+        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS '2massj'")
+        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS '2massh'")
+        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS '2massks'")
 
 
 def downgrade():
