@@ -6,6 +6,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm import joinedload
 
+import gwemopt
 import gwemopt.utils
 import gwemopt.segments
 import gwemopt.skyportal
