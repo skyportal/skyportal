@@ -255,7 +255,7 @@ class ObservationHandler(BaseHandler):
               schema:
                 type: number
               description: |
-                Cumulative probability up to which to include fields
+                Cumulative probability up to which to include fields. Defaults to 0.95
             - in: query
               name: returnStatistics
               nullable: true
