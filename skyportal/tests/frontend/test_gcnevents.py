@@ -60,6 +60,7 @@ def test_gcnevents(
     driver.wait_for_xpath('//*[text()="180116 00:36:53"]')
     driver.wait_for_xpath('//*[text()="Fermi"]')
     driver.wait_for_xpath('//*[text()="GRB"]')
+    # test modify sources form
     driver.wait_for_xpath('//*[@id="root_startDate"]').send_keys('01/01/2022')
     driver.wait_for_xpath('//*[@id="root_startDate"]').send_keys(Keys.TAB)
     driver.wait_for_xpath('//*[@id="root_startDate"]').send_keys('01:01')
@@ -68,14 +69,10 @@ def test_gcnevents(
     driver.wait_for_xpath('//*[@id="root_endDate"]').send_keys(Keys.TAB)
     driver.wait_for_xpath('//*[@id="root_endDate"]').send_keys('01:01')
     driver.wait_for_xpath('//*[@id="root_endDate"]').send_keys('P')
-    driver.wait_for_xpath('//*[@id="root_localizationDateobs"]')
-    driver.click_xpath('//*[@id="root_localizationDateobs"]')
-    driver.wait_for_xpath(
-        '//li[contains(text(), "214.74000_28.14000_11.19000 / 2018-01-16T00:36:53")]'
-    )
-    driver.click_xpath(
-        '//li[contains(text(), "214.74000_28.14000_11.19000 / 2018-01-16T00:36:53")]'
-    )
+    driver.wait_for_xpath('//*[@id="root_localizationName"]')
+    driver.click_xpath('//*[@id="root_localizationName"]')
+    driver.wait_for_xpath('//li[contains(text(), "214.74000_28.14000_11.19000")]')
+    driver.click_xpath('//li[contains(text(), "214.74000_28.14000_11.19000")]')
 
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
