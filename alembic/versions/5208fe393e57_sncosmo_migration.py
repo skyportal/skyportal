@@ -6,7 +6,6 @@ Create Date: 2022-02-09 18:40:38.616257
 
 """
 from alembic import op
-from enum import Enum
 import sqlalchemy as sa
 from skyportal.models.instrument import ArrayOfEnum
 
@@ -36,7 +35,7 @@ drop type "public"."bandpasses__old_version_to_be_dropped" cascade;
         sa.Column(
             'filters',
             ArrayOfEnum(
-                Enum(
+                sa.Enum(
                     'bessellux',
                     'bessellb',
                     'bessellv',
