@@ -17,21 +17,21 @@ depends_on = None
 def upgrade():
     # add bandpasses added between 2.5 and 2.7
     with op.get_context().autocommit_block():
-        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::w'")
-        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'f213'")
-        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::z'")
         op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'f062'")
-        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::open'")
-        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::r'")
-        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::y'")
-        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::i'")
         op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'f087'")
         op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'f106'")
+        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'f129'")
         op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'f146'")
         op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'f158'")
-        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'f129'")
         op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'f184'")
+        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'f213'")
         op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::g'")
+        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::r'")
+        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::i'")
+        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::z'")
+        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::y'")
+        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::open'")
+        op.execute("ALTER TYPE bandpasses ADD VALUE IF NOT EXISTS 'ps1::w'")
 
 
 def downgrade():
