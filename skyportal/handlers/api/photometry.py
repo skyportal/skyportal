@@ -18,8 +18,8 @@ from sqlalchemy import and_
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 from baselayer.app.access import permissions, auth_or_token
-from baselayer.log import make_log
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -43,6 +43,7 @@ from ...models.schema import (
 from ...enum_types import ALLOWED_MAGSYSTEMS
 
 _, cfg = load_env()
+
 
 log = make_log('api/photometry')
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
@@ -172,6 +173,7 @@ def serialize(phot, outsys, format):
 
 
 def standardize_photometry_data(data):
+
     if not isinstance(data, dict):
         raise ValidationError(
             'Top level JSON must be an instance of `dict`, got ' f'{type(data)}.'
@@ -496,8 +498,6 @@ def insert_new_photometry_data(
         if original_user_data == {}:
             original_user_data = None
 
-        owner_id = user.id
-
         utcnow = datetime.datetime.utcnow().isoformat()
         phot = dict(
             id=packet['id'],
@@ -515,7 +515,7 @@ def insert_new_photometry_data(
             ra=packet['ra'],
             dec=packet['dec'],
             origin=packet["origin"],
-            owner_id=owner_id,
+            owner_id=user.id,
             created_at=utcnow,
             modified=utcnow,
         )
@@ -584,7 +584,7 @@ def insert_new_photometry_data(
             ('photometr_id', 'stream_id', 'created_at', 'modified'),
         )
 
-    DBSession().commit()
+    DBSession.commit()
     return ids, upload_id
 
 
@@ -909,7 +909,7 @@ class PhotometryHandler(BaseHandler):
                     instrument_cache,
                     group_ids,
                     stream_ids,
-                    self.current_user,
+                    self.associated_user_object,
                     validate=False,
                 )
             except ValidationError as e:
