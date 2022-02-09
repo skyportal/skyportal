@@ -5,7 +5,7 @@ import datetime
 from bokeh.util import serialization
 
 
-def black_body(la, temp):  # black body radiation
+def black_body(la, temp):
     """
     get the amount of radiation expected from a black body
     of the given temperature "temp", at the given wavelengths "la".
