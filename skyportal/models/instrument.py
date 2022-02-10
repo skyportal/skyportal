@@ -14,7 +14,6 @@ from skyportal import facility_apis
 
 from ..enum_types import (
     instrument_types,
-    allowed_bandpasses,
     listener_classnames,
     api_classnames,
 )
@@ -80,17 +79,11 @@ class Instrument(Base):
         doc="The Spectra produced by this instrument.",
     )
 
-    # can be [] if an instrument is spec only
-    filters = sa.Column(
-        ArrayOfEnum(allowed_bandpasses),
+    sensitivity_data = sa.Column(
+        JSONB,
         nullable=False,
-        default=[],
-        doc='List of filters on the instrument (if any).',
+        doc="JSON describing the filters on the instrument and the filter's corresponding limiting magnitude and exposure time.",
     )
-
-    mag = sa.Column(sa.Float, nullable=True, doc="Characteristic limiting magnitude")
-
-    exposure_time = sa.Column(sa.Float, nullable=True, doc="Exposure time in seconds")
 
     allocations = relationship(
         'Allocation',

@@ -241,15 +241,18 @@ InstrumentHandler.post.__doc__ = f"""
                 - $ref: "#/components/schemas/InstrumentNoID"
                 - type: object
                   properties:
-                    filters:
+                    sensitivity_data:
                       type: array
                       items:
-                        type: string
-                        enum: {list(ALLOWED_BANDPASSES)}
-                      description: >-
-                        List of filters on the instrument. If the instrument
-                        has no filters (e.g., because it is a spectrograph),
-                        leave blank or pass the empty list.
+                        type: object
+                        properties:
+                          filter_name:
+                            type: string
+                            enum:{list(ALLOWED_BANDPASSES)}
+                          limiting_magnitude:
+                            type: float
+                          exposure_time: float
+                      required: true
                       default: []
         responses:
           200:
