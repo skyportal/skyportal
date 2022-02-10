@@ -882,7 +882,6 @@ class AssignmentSchema(_Schema):
 
 
 class ObservationHandlerPost(_Schema):
-
     telescopeName = fields.String(
         required=True,
         metadata={"description": ('The telescope name associated with the fields')},
