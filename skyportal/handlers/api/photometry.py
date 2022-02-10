@@ -867,8 +867,6 @@ class PhotometryHandler(BaseHandler):
 
                 new_photometry_df_idxs = [g[0] for g in new_photometry_query]
 
-                id_map = {}
-
                 duplicated_photometry = (
                     session.execute(
                         sa.select(values_table.c.pdidx, Photometry)
@@ -879,59 +877,62 @@ class PhotometryHandler(BaseHandler):
                     .unique()
                     .all()
                 )
+
+                id_map = {}
+
+                for df_index, duplicate in duplicated_photometry:
+                    id_map[df_index] = duplicate.id
+                    duplicate_group_ids = set([g.id for g in duplicate.groups])
+                    duplicate_stream_ids = set([s.id for s in duplicate.streams])
+
+                    # posting to new groups?
+                    if len(set(group_ids) - duplicate_group_ids) > 0:
+                        # select old + new groups
+                        group_ids_update = set(group_ids).union(duplicate_group_ids)
+                        groups = (
+                            session.execute(
+                                sa.select(Group).filter(Group.id.in_(group_ids_update))
+                            )
+                            .scalars()
+                            .all()
+                        )
+                        # update the corresponding photometry entry in the db
+                        duplicate.groups = groups
+
+                    # posting to new streams?
+                    if stream_ids:
+                        # Add new stream_photometry rows if not already present
+                        stream_ids_update = set(stream_ids) - duplicate_stream_ids
+                        if len(stream_ids_update) > 0:
+                            for id in stream_ids_update:
+                                session.add(
+                                    StreamPhotometry(
+                                        photometr_id=duplicate.id, stream_id=id
+                                    )
+                                )
+
+                # now safely drop the duplicates:
+                new_photometry = df.loc[new_photometry_df_idxs]
+
+                if len(new_photometry) > 0:
+                    ids, _ = insert_new_photometry_data(
+                        new_photometry,
+                        instrument_cache,
+                        group_ids,
+                        stream_ids,
+                        self.associated_user_object,
+                        validate=False,
+                    )
+
+                    for (df_index, _), id in zip(new_photometry.iterrows(), ids):
+                        id_map[df_index] = id
+
+                # release the lock
+                self.verify_and_commit()
+
             except Exception as e:
                 session.rollback()
                 return self.error(e.args[0])
-
-        for df_index, duplicate in duplicated_photometry:
-            id_map[df_index] = duplicate.id
-            duplicate_group_ids = set([g.id for g in duplicate.groups])
-            duplicate_stream_ids = set([s.id for s in duplicate.streams])
-
-            # posting to new groups?
-            if len(set(group_ids) - duplicate_group_ids) > 0:
-                # select old + new groups
-                group_ids_update = set(group_ids).union(duplicate_group_ids)
-                groups = (
-                    DBSession()
-                    .execute(sa.select(Group).filter(Group.id.in_(group_ids_update)))
-                    .scalars()
-                    .all()
-                )
-                # update the corresponding photometry entry in the db
-                duplicate.groups = groups
-
-            # posting to new streams?
-            if stream_ids:
-                # Add new stream_photometry rows if not already present
-                stream_ids_update = set(stream_ids) - duplicate_stream_ids
-                if len(stream_ids_update) > 0:
-                    for id in stream_ids_update:
-                        DBSession().add(
-                            StreamPhotometry(photometr_id=duplicate.id, stream_id=id)
-                        )
-
-        # now safely drop the duplicates:
-        new_photometry = df.loc[new_photometry_df_idxs]
-
-        if len(new_photometry) > 0:
-            try:
-                ids, _ = insert_new_photometry_data(
-                    new_photometry,
-                    instrument_cache,
-                    group_ids,
-                    stream_ids,
-                    self.associated_user_object,
-                    validate=False,
-                )
-            except ValidationError as e:
-                return self.error(e.args[0])
-
-            for (df_index, _), id in zip(new_photometry.iterrows(), ids):
-                id_map[df_index] = id
-
-        # release the lock
-        self.verify_and_commit()
 
         # get ids in the correct order
         ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]
