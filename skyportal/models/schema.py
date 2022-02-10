@@ -892,7 +892,7 @@ class ObservationHandlerPost(_Schema):
         metadata={"description": ('The instrument name associated with the fields')},
     )
     observationData = fields.Field(
-         metadata={'description': 'Observation data dictionary list'}
+        metadata={'description': 'Observation data dictionary list'}
     )
 
 
