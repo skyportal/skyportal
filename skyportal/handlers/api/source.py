@@ -545,13 +545,21 @@ class SourceHandler(BaseHandler):
             schema:
               type: string
             description: |
-              Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                Each localization is associated with a specific GCNEvent by
+                the date the event happened, and this date is used as a unique
+                identifier. It can be therefore found as Localization.dateobs,
+                queried from the /api/localization endpoint or dateobs in the
+                GcnEvent page table.
           - in: query
             name: localizationName
             schema:
               type: string
             description: |
-              Name of localization / skymap to use. Can be found in Localization.localization_name queried from /api/localization endopoint or skymap name in GcnEvent page table.
+                Name of localization / skymap to use.
+                Can be found in Localization.localization_name queried from
+                /api/localization endpoint or skymap name in GcnEvent page
+                table.
           - in: query
             name: localizationCumprob
             schema:
