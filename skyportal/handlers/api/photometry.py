@@ -647,45 +647,20 @@ def get_stream_ids(data, user):
 
 def add_external_photometry(json, user):
     """
-    ---
-    description: Upload photometry
-    tags:
-      - photometry
-    parameters:
-      - in: path
-        name: json
-        required: True
-        schema:
-          oneOf:
-            - $ref: "#/components/schemas/PhotMagFlexible"
-            - $ref: "#/components/schemas/PhotFluxFlexible"
-      - in: path
-        name: user
-        required: True
-        schema: SingleUser
-    responses:
-      200:
-        content:
-          application/json:
-            schema:
-              allOf:
-                - $ref: '#/components/schemas/Success'
-                - type: object
-                  properties:
-                    data:
-                      type: object
-                      properties:
-                        ids:
-                          type: array
-                          items:
-                            type: integer
-                          description: List of new photometry IDs
-                        upload_id:
-                          type: string
-                          description: |
-                            Upload ID associated with all photometry points
-                            added in request. Can be used to later delete all
-                            points in a single request.
+    Posts external photometry to the database (as from
+    another API)
+
+    Parameters
+    ----------
+    json : dict
+        Photometry to be posted. Schema follows that of
+        schemas/PhotMagFlexible or schemas/PhotFluxFlexible.
+    user : SingleUser
+        User posting the photometry
+
+    Returns
+    -------
+    Baselayer log message
     """
 
     group_ids = get_group_ids(json, user)
