@@ -1366,12 +1366,11 @@ def smoothing_function(values, window_size):
 
     if values is None or not hasattr(values, '__len__') or len(values) == 0:
         return values
-
     output = np.zeros(values.shape)
     under = int((window_size + 1) // 2) - 1
     over = int(window_size // 2)
 
-    for i in range(values):
+    for i in range(len(values)):
         idx_low = i - under if i - under >= 0 else 0
         idx_high = i + over if i + over < len(values) else len(values) - 1
         N = 0
