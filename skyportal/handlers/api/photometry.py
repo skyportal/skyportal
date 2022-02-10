@@ -679,7 +679,7 @@ def add_external_photometry(json, user):
             )
         except Exception as e:
             session.rollback()
-            return log(f"Unable to post photometry: {e}")
+            log(f"Unable to post photometry: {e}")
 
     log("Successfully posted photometry")
 
