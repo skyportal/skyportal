@@ -681,7 +681,7 @@ def add_external_photometry(json, user):
             session.rollback()
             return log(f"Unable to post photometry: {e}")
 
-    return log("Successfully posted photometry")
+    log("Successfully posted photometry")
 
 
 class PhotometryHandler(BaseHandler):
