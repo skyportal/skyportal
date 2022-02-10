@@ -698,15 +698,17 @@ def add_external_photometry(json, user):
     # From the psql docs: This mode protects a table against concurrent
     # data changes, and is self-exclusive so that only one session can
     # hold it at a time.
-    DBSession().execute(
-        f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
-    )
-    try:
-        ids, upload_id = insert_new_photometry_data(
-            df, instrument_cache, group_ids, stream_ids, user
-        )
-    except ValidationError as e:
-        return log(f"Unable to post photometry: {e}")
+    with DBSession() as session:
+        try:
+            session.execute(
+                f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+            )
+            ids, upload_id = insert_new_photometry_data(
+                df, instrument_cache, group_ids, stream_ids, user
+            )
+        except Exception as e:
+            session.rollback()
+            return log(f"Unable to post photometry: {e}")
 
     return log("Successfully posted photometry")
 
@@ -771,15 +773,21 @@ class PhotometryHandler(BaseHandler):
         # From the psql docs: This mode protects a table against concurrent
         # data changes, and is self-exclusive so that only one session can
         # hold it at a time.
-        DBSession().execute(
-            f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
-        )
-        try:
-            ids, upload_id = insert_new_photometry_data(
-                df, instrument_cache, group_ids, stream_ids, self.associated_user_object
-            )
-        except ValidationError as e:
-            return self.error(e.args[0])
+        with DBSession() as session:
+            try:
+                session.execute(
+                    f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                )
+                ids, upload_id = insert_new_photometry_data(
+                    df,
+                    instrument_cache,
+                    group_ids,
+                    stream_ids,
+                    self.associated_user_object,
+                )
+            except Exception as e:
+                session.rollback()
+                return self.error(e.args[0])
 
         return self.success(data={'ids': ids, 'upload_id': upload_id})
 
@@ -845,31 +853,35 @@ class PhotometryHandler(BaseHandler):
         # performed. From the psql docs: This mode protects a table against
         # concurrent data changes, and is self-exclusive so that only one
         # session can hold it at a time.
-        DBSession().execute(
-            f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
-        )
 
-        new_photometry_query = DBSession().execute(
-            sa.select(values_table.c.pdidx)
-            .outerjoin(Photometry, condition)
-            .filter(Photometry.id.is_(None))
-        )
+        with DBSession() as session:
+            try:
+                session.execute(
+                    f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
+                )
+                new_photometry_query = session.execute(
+                    sa.select(values_table.c.pdidx)
+                    .outerjoin(Photometry, condition)
+                    .filter(Photometry.id.is_(None))
+                )
 
-        new_photometry_df_idxs = [g[0] for g in new_photometry_query]
+                new_photometry_df_idxs = [g[0] for g in new_photometry_query]
 
-        id_map = {}
+                id_map = {}
 
-        duplicated_photometry = (
-            DBSession()
-            .execute(
-                sa.select(values_table.c.pdidx, Photometry)
-                .join(Photometry, condition)
-                .options(joinedload(Photometry.groups))
-                .options(joinedload(Photometry.streams))
-            )
-            .unique()
-            .all()
-        )
+                duplicated_photometry = (
+                    session.execute(
+                        sa.select(values_table.c.pdidx, Photometry)
+                        .join(Photometry, condition)
+                        .options(joinedload(Photometry.groups))
+                        .options(joinedload(Photometry.streams))
+                    )
+                    .unique()
+                    .all()
+                )
+            except Exception as e:
+                session.rollback()
+                return self.error(e.args[0])
 
         for df_index, duplicate in duplicated_photometry:
             id_map[df_index] = duplicate.id
