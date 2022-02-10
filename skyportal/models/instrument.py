@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy import cast
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import deferred
 
 from baselayer.app.models import Base, restricted
 
@@ -108,6 +109,14 @@ class Instrument(Base):
         doc="Name of the instrument's listener class.",
     )
 
+    observations = relationship(
+        'ExecutedObservation',
+        back_populates='instrument',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc="The ExecutedObservations by this instrument.",
+    )
+
     @property
     def does_spectroscopy(self):
         """Return a boolean indicating whether the instrument is capable of
@@ -157,7 +166,7 @@ class InstrumentField(Base):
         nullable=False,
     )
 
-    contour = sa.Column(JSONB, nullable=False, doc='GeoJSON contours')
+    contour = deferred(sa.Column(JSONB, nullable=False, doc='GeoJSON contours'))
 
     tiles = relationship("InstrumentFieldTile")
 
