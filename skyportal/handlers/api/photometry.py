@@ -657,10 +657,6 @@ def add_external_photometry(json, user):
         schemas/PhotMagFlexible or schemas/PhotFluxFlexible.
     user : SingleUser
         User posting the photometry
-
-    Returns
-    -------
-    Baselayer log message
     """
 
     group_ids = get_group_ids(json, user)
