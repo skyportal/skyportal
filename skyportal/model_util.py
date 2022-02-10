@@ -25,6 +25,7 @@ role_acls = {
     'Group admin': [
         'Annotate',
         'Comment',
+        'Manage shifts',
         'Manage sources',
         'Upload data',
         'Post taxonomy',
