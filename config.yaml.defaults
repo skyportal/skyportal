@@ -282,7 +282,7 @@ app:
         xs: [0, 10, 4, 2]
 
 database:
-  database: skyportal2
+  database: skyportal
   host: localhost
   port: 5432
   user: skyportal
