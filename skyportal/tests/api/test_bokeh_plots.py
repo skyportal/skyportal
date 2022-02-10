@@ -12,14 +12,14 @@ def black_body(la, temp):
 
     Parameters
     ----------
-    la: float array or scalar
+    la : float array or scalar
         wavelength(s) where the radiation should be calculated.
-    temp: float scalar
+    temp : float scalar
         temperature of the black body.
 
     Returns
     -------
-        float array
+    float array
         return the radiation (in units of Watts per steradian per m^2 per nm)
     """
     const = (
@@ -39,14 +39,14 @@ def get_plot_data(data):
 
     Parameters
     ----------
-    data: dict
+    data : dict
        A dictionary loaded from the JSON file sent by the plotting API call.
 
     Returns
     -------
     list
-        Returns a list of dictionaries with the flux, wavelength, etc.
-        Each dictionary for a different spectra.
+        Returns a list of dictionaries with the flux, wavelength, etc.,
+        one dictionary per spectrum.
         Note that the plot outputs several repeated versions of each spectrum,
         i.e., one for the step plot, one for the line plot with the tooltip,
         one for the smoothed spectrum. Each one is a separate dictionary.

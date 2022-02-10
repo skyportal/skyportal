@@ -45,9 +45,8 @@ class PlotSpectroscopyHandler(BaseHandler):
     def get(self, obj_id):
         width = self.get_query_argument("width", 600)
         device = self.get_query_argument("device", None)
-        smoothing = self.get_query_argument("smoothing", False)
-        if isinstance(smoothing, str):
-            smoothing = True if smoothing.lower() == "true" else False
+        smoothing = self.get_query_argument("smoothing", "false")
+        smoothing = True if smoothing.lower() == "true" else False
         smooth_number = self.get_query_argument("smoothNumber", 10)
         # Just return browser by default if not one of accepted types
         if device not in device_types:

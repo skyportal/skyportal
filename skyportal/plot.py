@@ -1350,6 +1350,18 @@ def smoothing_function(values, window_size):
     where "window_size" is the number of points to use
     for averaging.
     This should be the same logic as static/js/plotjs/smooth_spectra.js
+
+    Parameters
+    ----------
+    values : float array or list of floats
+        array of flux values to be smoothed.
+    window_size : integer scalar
+        the number of points to be used as the smoothing window.
+
+    Returns
+    -------
+    float array
+        the flux values after smoothing. Same size as "values".
     """
 
     if values is None or not hasattr(values, '__len__') or len(values) == 0:
@@ -1359,7 +1371,7 @@ def smoothing_function(values, window_size):
     under = int((window_size + 1) // 2) - 1
     over = int(window_size // 2)
 
-    for i, v in enumerate(values):
+    for i in range(values):
         idx_low = i - under if i - under >= 0 else 0
         idx_high = i + over if i + over < len(values) else len(values) - 1
         N = 0
