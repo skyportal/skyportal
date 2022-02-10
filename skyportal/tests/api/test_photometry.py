@@ -2263,7 +2263,7 @@ def test_problematic_photometry_1276(
         data=payload,
         token=super_admin_token,
     )
-    assert status in [401, 500]
+    assert status in [400, 500]
     assert data['status'] == 'error'
 
 
