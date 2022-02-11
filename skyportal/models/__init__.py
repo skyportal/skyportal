@@ -20,6 +20,7 @@ from .invitation import *
 from .listing import *
 from .localization import *
 from .obj import *
+from .observation import *
 from .observing_run import *
 from .photometry import *
 from .source import *
