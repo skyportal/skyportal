@@ -1,7 +1,7 @@
 """add shift
 
 Revision ID: 5ab82f23e15c
-Revises: 9167685a2710
+Revises: 66ed6017e9ac
 Create Date: 2022-02-01 05:24:23.927168
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '5ab82f23e15c'
-down_revision = '9167685a2710'
+down_revision = '66ed6017e9ac'
 branch_labels = None
 depends_on = None
 
