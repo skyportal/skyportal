@@ -69,6 +69,21 @@ class ATLASRequest:
 
 
 def commit_photometry(json_response, altdata, request_id, instrument_id):
+    """
+    Commits ATLAS photometry to the database
+
+    Parameters
+    ----------
+    json_response : dict
+        response.json() from call to ATLAS photometry service.
+    altdata: dict
+        Contains ATLAS photometry api_token for the user
+    request_id : int
+        FollowupRequest SkyPortal ID
+    instrument_id : int
+        Instrument SkyPortal ID
+    """
+
     from ..models import (
         DBSession,
         FollowupRequest,
