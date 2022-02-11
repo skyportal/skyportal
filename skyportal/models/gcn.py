@@ -158,6 +158,15 @@ class GcnEvent(Base):
 
     localizations = relationship("Localization")
 
+    comments = relationship(
+        'CommentOnGCN',
+        back_populates='gcn',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="CommentOnGCN.created_at",
+        doc="Comments posted about this GCN event.",
+    )
+
     @hybrid_property
     def tags(self):
         """List of tags."""

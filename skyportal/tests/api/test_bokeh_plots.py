@@ -79,6 +79,7 @@ def get_plot_data(data):
                     new_obj[key] = doc['attributes']['data'][key][0]
 
             if 'telescope' in new_obj:
+
                 objects.append(new_obj)
 
     return objects
