@@ -184,6 +184,3 @@ def test_gcnevents_observations(
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
-
-    # check for observation ID
-    driver.wait_for_xpath('//*[text()[contains(.,"84434604")]]')
