@@ -46,6 +46,11 @@ class ATLASRequest:
             payload for requests.
         """
 
+        if "start_date" not in request.payload:
+            raise ValueError('start_date is a required parameter')
+        if "end_date" not in request.payload:
+            raise ValueError('end_date is a required parameter')
+
         mjd_min = Time(request.payload["start_date"], format='iso').mjd
         mjd_max = Time(request.payload["end_date"], format='iso').mjd
 
@@ -106,8 +111,8 @@ def commit_photometry(json_response, altdata, request_id, instrument_id):
         except Exception as e:
             raise ValueError(f'Format of response not understood: {e.message}')
 
-        desired_columns = ['mjd', 'RA', 'Dec', 'm', 'dm', 'mag5sig', 'F']
-        if not set(desired_columns).issubset(set(df.columns)):
+        desired_columns = {'mjd', 'RA', 'Dec', 'm', 'dm', 'mag5sig', 'F'}
+        if not desired_columns.issubset(set(df.columns)):
             raise ValueError('Missing expected column')
 
         df.rename(
@@ -240,7 +245,11 @@ class ATLASAPI(FollowUpAPI):
         r.raise_for_status()
 
         if r.status_code == 200:
-            json_response = r.json()
+            try:
+                json_response = r.json()
+            except Exception:
+                raise ('No JSON data returned in request')
+
             if json_response['finishtimestamp']:
                 IOLoop.current().run_in_executor(
                     None,
