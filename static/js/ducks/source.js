@@ -132,7 +132,6 @@ export function deleteCommentOnSpectrum(spectrumID, commentID) {
   );
 }
 
-
 export function getCommentAttachment(sourceID, commentID) {
   return API.GET(
     `/api/sources/${sourceID}/comments/${commentID}/attachment`,
