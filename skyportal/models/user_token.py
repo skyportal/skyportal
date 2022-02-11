@@ -17,6 +17,7 @@ from baselayer.app.models import (
 
 from .group import Group, GroupUser
 from .followup_request import FollowupRequest
+from .observation_plan import ObservationPlanRequest
 from .stream import Stream
 from .invitation import Invitation
 
@@ -144,6 +145,13 @@ User.followup_requests = relationship(
     passive_deletes=True,
     doc="The follow-up requests this User has made.",
     foreign_keys=[FollowupRequest.requester_id],
+)
+User.observationplan_requests = relationship(
+    'ObservationPlanRequest',
+    back_populates='requester',
+    passive_deletes=True,
+    doc="The observation plan requests this User has made.",
+    foreign_keys=[ObservationPlanRequest.requester_id],
 )
 User.transactions = relationship(
     'FacilityTransaction',
