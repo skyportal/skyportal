@@ -72,10 +72,12 @@ export function shiftInfo(shift) {
       </div>
     );
   }
+  const startDate = new Date(shift.start_date).toLocaleString('en-US',{ hour12: false });
+  const endDate = new Date(shift.end_date).toLocaleString('en-US',{ hour12: false })
 
   const array = [
-    ...(shift?.start_date ? [`Start Date: ${shift.start_date}`] : []),
-    ...(shift?.end_date ? [`End Date: ${shift.end_date}`] : []),
+    ...(shift?.start_date ? [`Start Date: ${startDate}`] : []),
+    ...(shift?.end_date ? [`End Date: ${endDate}`] : []),
   ];
 
   // eslint-disable-next-line prefer-template

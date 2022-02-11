@@ -15,17 +15,19 @@ dayjs.extend(utc);
 const NewShift = () => {
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
-
-  const nowDate = dayjs.utc(new Date()).format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultStartDate = new Date();
-  const defaultEndDate = new Date();
-  defaultEndDate.setDate(defaultStartDate.getDate() + 1);
+  const offset = new Date().getTimezoneOffset()
+  const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultEndDate = dayjs().add(1, 'day').utc().format("YYYY-MM-DDTHH:mm:ssZ");
 
   if (!groups) {
     return <CircularProgress />;
   }
 
   const handleSubmit = async ({ formData }) => {
+    console.log(formData);
+    let test= new Date(formData.start_date).setMinutes();
+    console.log(test);
     const result = await dispatch(submitShift(formData));
     if (result.status === "success") {
       dispatch(showNotification("Shift saved"));
@@ -34,6 +36,10 @@ const NewShift = () => {
   };
 
   function validate(formData, errors) {
+    console.log(formData.start_date);
+    console.log(formData.end_date);
+
+
     if (nowDate > formData.end_date) {
       errors.end_date.addError(
         "End date must be after current date, please fix."
@@ -62,14 +68,14 @@ const NewShift = () => {
       start_date: {
         type: "string",
         format: "date-time",
-        title: "Start Date UTC",
-        default: dayjs.utc(defaultStartDate).format("YYYY-MM-DDTHH:mm:ssZ"),
+        title: "Start Date (Local Time)",
+        default: defaultStartDate,
       },
       end_date: {
         type: "string",
         format: "date-time",
-        title: "End Date UTC",
-        default: dayjs.utc(defaultEndDate).format("YYYY-MM-DDTHH:mm:ssZ"),
+        title: "End Date (Local Time)",
+        default: defaultEndDate,
       },
       name: {
         type: "string",
