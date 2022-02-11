@@ -95,6 +95,14 @@ class InstrumentHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: includeGeojson
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated geojson. Defaults to
+                false.
           responses:
             200:
               content:
@@ -114,6 +122,14 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: string
               description: Filter by name (exact match)
+            - in: query
+              name: includeGeojson
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated geojson. Defaults to
+                false.
           responses:
             200:
               content:
@@ -124,24 +140,26 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        includeGeojson = self.get_query_argument("includeGeojson", False)
+        if includeGeojson:
+            options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
+        else:
+            options = [joinedload(Instrument.fields)]
+
         if instrument_id is not None:
             instrument = Instrument.get_if_accessible_by(
                 int(instrument_id),
                 self.current_user,
                 raise_if_none=True,
                 mode="read",
-                options=[joinedload(Instrument.fields)],
+                options=options,
             )
 
             return self.success(data=instrument)
 
         inst_name = self.get_query_argument("name", None)
         query = Instrument.query_records_accessible_by(
-            self.current_user,
-            mode="read",
-            options=[
-                joinedload(Instrument.fields),
-            ],
+            self.current_user, mode="read", options=options
         )
         if inst_name is not None:
             query = query.filter(Instrument.name == inst_name)

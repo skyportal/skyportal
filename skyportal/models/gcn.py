@@ -165,6 +165,15 @@ class GcnEvent(Base):
         passive_deletes=True,
         doc="Observation plan requests of the event.",
     )
+      
+    comments = relationship(
+        'CommentOnGCN',
+        back_populates='gcn',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        passive_deletes=True,
+        order_by="CommentOnGCN.created_at",
+        doc="Comments posted about this GCN event.",
+    )
 
     @hybrid_property
     def tags(self):
