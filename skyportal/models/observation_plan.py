@@ -203,7 +203,7 @@ class EventObservationPlan(Base):
         sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
         nullable=False,
         index=True,
-        doc='UTC event timestamp',
+        doc='GCN Event timestamp that this observation plan belongs to',
     )
 
     plan_name = sa.Column(sa.String, unique=True, doc='Plan name')
@@ -262,11 +262,11 @@ class EventObservationPlan(Base):
     @property
     def total_time(self):
         """Total observation time (seconds)."""
-        return sum(_.exposure_time for _ in self.planned_observations)
+        return sum(obs.exposure_time for obs in self.planned_observations)
 
     @property
     def tot_time_with_overheads(self):
-        overhead = sum(_.overhead_per_exposure for _ in self.planned_observations)
+        overhead = sum(obs.overhead_per_exposure for obs in self.planned_observations)
         return overhead + self.total_time
 
     @property
@@ -315,7 +315,7 @@ class PlannedObservation(Base):
         sa.ForeignKey('gcnevents.dateobs', ondelete="CASCADE"),
         nullable=False,
         index=True,
-        doc='UTC event timestamp',
+        doc='GCN Event timestamp that this observation plan belongs to',
     )
 
     field_id = sa.Column(
