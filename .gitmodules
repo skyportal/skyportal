@@ -1,4 +1,4 @@
 [submodule "baselayer"]
 	path = baselayer
-	url = https://github.com/cesium-ml/baselayer.git
-	branch = master
+	url = https://github.com/mcoughlin/baselayer.git
+	branch = selenium_requests
