@@ -143,4 +143,5 @@ class ShiftHandler(BaseHandler):
         self.verify_and_commit()
 
         self.push_all(action="skyportal/REFRESH_SHIFTS")
+
         return self.success()
