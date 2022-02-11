@@ -20,8 +20,10 @@ from .invitation import *
 from .listing import *
 from .localization import *
 from .obj import *
+from .observation import *
 from .observing_run import *
 from .photometry import *
+from .shift import *
 from .source import *
 from .source_view import *
 from .source_notification import *

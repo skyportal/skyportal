@@ -881,6 +881,20 @@ class AssignmentSchema(_Schema):
     )
 
 
+class ObservationHandlerPost(_Schema):
+    telescopeName = fields.String(
+        required=True,
+        metadata={"description": ('The telescope name associated with the fields')},
+    )
+    instrumentName = fields.String(
+        required=True,
+        metadata={"description": ('The instrument name associated with the fields')},
+    )
+    observationData = fields.Field(
+        metadata={'description': 'Observation data dictionary list'}
+    )
+
+
 class ObservingRunPost(_Schema):
     instrument_id = fields.Integer(
         required=True,

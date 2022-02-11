@@ -26,7 +26,10 @@ from skyportal.models import (
     Instrument,
     Telescope,
     Obj,
+    GcnEvent,
     Comment,
+    CommentOnSpectrum,
+    CommentOnGCN,
     Annotation,
     Thumbnail,
     Filter,
@@ -385,6 +388,64 @@ class CommentFactory(factory.alchemy.SQLAlchemyModelFactory):
         UserFactory.teardown(author)
 
 
+class CommentOnSpectrumFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = CommentOnSpectrum
+
+    text = f'Test comment {uuid.uuid4().hex}'
+
+    author = factory.SubFactory(UserFactory)
+
+    @factory.post_generation
+    def groups(obj, create, extracted, **kwargs):
+        if not create:
+            return
+        if extracted:
+            for group in extracted:
+                obj.groups.append(group)
+                DBSession().add(obj)
+                DBSession().commit()
+
+    @staticmethod
+    def teardown(comment):
+        if is_already_deleted(comment, CommentOnSpectrum):
+            return
+
+        author = comment.author.id
+        DBSession().delete(comment)
+        DBSession().commit()
+        UserFactory.teardown(author)
+
+
+class CommentOnGCNFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = CommentOnGCN
+
+    text = f'Test GCN comment {uuid.uuid4().hex}'
+
+    author = factory.SubFactory(UserFactory)
+
+    @factory.post_generation
+    def groups(obj, create, extracted, **kwargs):
+        if not create:
+            return
+        if extracted:
+            for group in extracted:
+                obj.groups.append(group)
+                DBSession().add(obj)
+                DBSession().commit()
+
+    @staticmethod
+    def teardown(comment):
+        if is_already_deleted(comment, CommentOnGCN):
+            return
+
+        author = comment.author.id
+        DBSession().delete(comment)
+        DBSession().commit()
+        UserFactory.teardown(author)
+
+
 class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta(BaseMeta):
         model = Obj
@@ -458,6 +519,25 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().commit()
         for instrument in instruments:
             InstrumentFactory.teardown(instrument)
+
+
+class GcnFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = GcnEvent
+
+    sent_by = factory.SubFactory(UserFactory)
+
+    dateobs = datetime.datetime.now()
+
+    @staticmethod
+    def teardown(gcn):
+        if is_already_deleted(gcn, GcnEvent):
+            return
+
+        sent_by = gcn.sent_by.id
+        DBSession().delete(gcn)
+        DBSession().commit()
+        UserFactory.teardown(sent_by)
 
 
 class ObservingRunFactory(factory.alchemy.SQLAlchemyModelFactory):

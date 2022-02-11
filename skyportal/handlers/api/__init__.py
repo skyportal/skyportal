@@ -27,6 +27,7 @@ from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
+from .observation import ObservationHandler
 from .observingrun import ObservingRunHandler
 from .photometry import (
     PhotometryHandler,
@@ -40,6 +41,7 @@ from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
 from .sharing import SharingHandler
+from .shift import ShiftHandler
 from .source import (
     SourceHandler,
     SourceOffsetsHandler,
