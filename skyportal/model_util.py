@@ -10,6 +10,7 @@ all_acl_ids = [
     'Manage users',
     'Manage sources',
     'Manage groups',
+    'Manage shifts',
     'Manage allocations',
     'Upload data',
     'System admin',
@@ -24,6 +25,7 @@ role_acls = {
     'Group admin': [
         'Annotate',
         'Comment',
+        'Manage shifts',
         'Manage sources',
         'Upload data',
         'Post taxonomy',
