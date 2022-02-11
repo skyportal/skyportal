@@ -1,7 +1,7 @@
 """plan migration
 
 Revision ID: 46a40b35cdbb
-Revises: 66ed6017e9ac
+Revises: 5ab82f23e15c
 Create Date: 2022-02-10 21:47:07.254934
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '46a40b35cdbb'
-down_revision = '66ed6017e9ac'
+down_revision = '5ab82f23e15c'
 branch_labels = None
 depends_on = None
 
