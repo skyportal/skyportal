@@ -21,17 +21,24 @@ export function fetchObservations(filterParams = {}) {
 
 export function fetchGcnEventObservations(dateobs = null, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
-  filterParams.localizationCumprob = 0.95;
   filterParams.includeGeojson = true;
 
-  if (dateobs) {
-    filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
-    filterParams.endDate = dayjs(dateobs)
-      .add(7, "day")
-      .format("YYYY-MM-DD HH:mm:ss");
-  } else {
-    filterParams.startDate = dayjs().format("YYYY-MM-DD HH:mm:ss");
-    filterParams.endDate = dayjs().add(7, "day").format("YYYY-MM-DD HH:mm:ss");
+  if (!Object.keys(filterParams).includes("localizationCumprob")) {
+    filterParams.localizationCumprob = 0.95;
+  }
+
+  if (!Object.keys(filterParams).includes("startDate")) {
+    if (dateobs) {
+      filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+    }
+  }
+
+  if (!Object.keys(filterParams).includes("endDate")) {
+    if (dateobs) {
+      filterParams.endDate = dayjs(dateobs)
+        .add(7, "day")
+        .format("YYYY-MM-DD HH:mm:ss");
+    }
   }
 
   return API.GET("/api/observation", FETCH_GCNEVENT_OBSERVATIONS, filterParams);

@@ -32,6 +32,7 @@ import * as observationsActions from "../ducks/observations";
 
 import SourceTable from "./SourceTable";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
+import GcnSelectionForm from "./GcnSelectionForm";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -388,6 +389,20 @@ const GcnEventPage = ({ route }) => {
                   <DownloadXMLButton gcn_notice={gcn_notice} />
                 </li>
               ))}
+            </div>
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary>
+            <Typography className={styles.accordionHeading}>
+              Modify Source Selection
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              <GcnSelectionForm gcnEvent={gcnEvent} />
             </div>
           </AccordionDetails>
         </Accordion>

@@ -140,7 +140,7 @@ class ObservationHandler(BaseHandler):
             .first()
         )
         if telescope is None:
-            return self.error(message="Missing telescope {telescope_name}")
+            return self.error(message=f"Missing telescope {telescope_name}")
 
         instrument = (
             Instrument.query_records_accessible_by(
