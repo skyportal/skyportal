@@ -1,9 +1,10 @@
 import uuid
-import pytest
+import healpix_alchemy as ha
 import numpy.testing as npt
 import numpy as np
 import arrow
 from tdtax import taxonomy, __version__
+import astropy.units as u
 
 from skyportal.tests import api
 from skyportal.models import cosmo
@@ -49,6 +50,29 @@ def test_token_user_retrieving_source_with_phot(view_only_token, public_source):
     assert all(
         k in data["data"]
         for k in ["ra", "dec", "redshift", "dm", "created_at", "id", "photometry"]
+    )
+
+
+def test_token_user_retrieving_source_with_phot_exists(view_only_token, public_source):
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}",
+        params={"includePhotometryExists": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert all(
+        k in data["data"]
+        for k in [
+            "ra",
+            "dec",
+            "redshift",
+            "dm",
+            "created_at",
+            "id",
+            "photometry_exists",
+        ]
     )
 
 
@@ -437,9 +461,6 @@ def test_starlist(upload_data_token, public_source):
     assert "starlist_str" in data["data"]
     assert isinstance(data["data"]["starlist_info"][2]["dec"], float)
 
-    ztf_star_position = data["data"]["starlist_info"][2]["dec"]
-    ztf_requested_position_used_ztfref = data["data"]["used_ztfref"]
-
     # use DR2 for offsets ... it should not be identical position as DR2
     status, data = api(
         "GET",
@@ -450,16 +471,6 @@ def test_starlist(upload_data_token, public_source):
     assert status == 200
     assert data["status"] == "success"
     assert isinstance(data["data"]["starlist_info"][2]["dec"], float)
-    gaiadr2_star_position = data["data"]["starlist_info"][2]["dec"]
-    dr2_requested_position_used_ztfref = data["data"]["used_ztfref"]
-
-    # if we indeed did not use the same catalog for the position of the
-    # offset star, test to make sure we got back a different star position
-    if dr2_requested_position_used_ztfref != ztf_requested_position_used_ztfref:
-        with pytest.raises(AssertionError):
-            npt.assert_almost_equal(
-                gaiadr2_star_position, ztf_star_position, decimal=10
-            )
 
 
 def test_source_notifications_unauthorized(
@@ -811,6 +822,174 @@ def test_source_photometry_summary_info(
     assert data["data"]["last_detected_mag"] == mag2_ab
     assert data["data"]["peak_detected_at"] == iso1
     assert data["data"]["peak_detected_mag"] == mag1_ab
+
+
+def test_sources_include_detection_stats(
+    upload_data_token,
+    super_admin_token,
+    public_group,
+    public_group2,
+    upload_data_token_two_groups,
+    view_only_token,
+):
+
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'telescope',
+        data={
+            'name': name,
+            'nickname': name,
+            'lat': 0.0,
+            'lon': 0.0,
+            'elevation': 0.0,
+            'diameter': 10.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    telescope_id = data['data']['id']
+
+    instrument_name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'instrument',
+        data={
+            'name': instrument_name,
+            'type': 'imager',
+            'band': 'NIR',
+            'filters': ['ztfg'],
+            'telescope_id': telescope_id,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    instrument_id = data['data']['id']
+
+    # Some very high mjd to make this the latest point
+    # This is not a detection though
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 99999.0,
+            'instrument_id': instrument_id,
+            'mag': None,
+            'magerr': None,
+            'limiting_mag': 22.3,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # Another high mjd, but this time a photometry point not visible to the user
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 99900.0,
+            'instrument_id': instrument_id,
+            'mag': None,
+            'magerr': None,
+            'limiting_mag': 22.3,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group2.id],
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # A high mjd, but lower than the first point
+    # Since this is a detection, it should be returned as "last_detected"
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 90000.0,
+            'instrument_id': instrument_id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"includeDetectionStats": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    # Note: 40_587 is the MJD of UNIX time 1970-01-01
+    # Because arrow.get views dates as seconds since UNIX time,
+    # s["peak_detected_at"]` is the MJD of 90000 in isodate format.
+
+    # In summary: arrow.get("1970-01-01") - datetime.timedelta(40587) =>
+    # <Arrow [1858-11-17T00:00:00+00:00]>
+
+    assert any(
+        [
+            s["last_detected_at"] == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
+            for s in data["data"]["sources"]
+        ]
+    )
+    assert any(
+        [
+            s["peak_detected_at"] == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
+            for s in data["data"]["sources"]
+        ]
+    )
+
+    assert any(
+        [
+            np.isclose(s["last_detected_mag"], 22.280546455476145)
+            if s["last_detected_mag"] is not None
+            else False
+            for s in data["data"]["sources"]
+        ]
+    )
+    assert any(
+        [
+            np.isclose(s["peak_detected_mag"], 22.280546455476145)
+            if s["last_detected_mag"] is not None
+            else False
+            for s in data["data"]["sources"]
+        ]
+    )
 
 
 # Sources filtering tests
@@ -1627,6 +1806,30 @@ def test_sources_hidden_photometry_not_leaked(
     assert data["data"]["id"] == obj_id
     assert len(public_source.photometry) - 1 == len(data["data"]["photometry"])
     assert photometry_id not in map(lambda x: x["id"], data["data"]["photometry"])
+
+
+def test_source_healpix(upload_data_token, view_only_token, public_group):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 229.9620403,
+            "dec": 34.8442757,
+            "redshift": 3,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    healpix = ha.constants.HPX.lonlat_to_healpix(
+        229.9620403 * u.deg, 34.8442757 * u.deg
+    )
+    assert data["data"]["healpix"] == healpix
 
 
 def test_filter_sources_by_created_at(upload_data_token, view_only_token, public_group):
