@@ -328,17 +328,17 @@ class LocalizationHandler(BaseHandler):
             name: dateobs
             required: true
             schema:
-              type: dateobs
+              type: string
           - in: path
             name: localization_name
             required: true
             schema:
-              type: localization_name
+              type: string
         responses:
           200:
             content:
               application/json:
-                schema: LocalizationHandlerGet
+                schema: Success
           400:
             content:
               application/json:
