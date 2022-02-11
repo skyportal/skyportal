@@ -65,6 +65,56 @@ const GalaxyTable = ({ galaxies }) => {
   const classes = useStyles();
   const theme = useTheme();
 
+  const renderRA = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.ra.toFixed(6);
+  };
+
+  const renderDec = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.dec.toFixed(6);
+  };
+
+  const renderDistance = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.distmpc ? galaxy.distmpc.toFixed(2) : "";
+  };
+
+  const renderDistanceUncertainty = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.distmpc_unc ? galaxy.distmpc_unc.toFixed(6) : "";
+  };
+
+  const renderMstar = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.mstar ? Math.log10(galaxy.mstar).toFixed(2) : "";
+  };
+
+  const renderRedshift = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.redshift ? galaxy.redshift.toFixed(6) : "";
+  };
+
+  const renderRedshiftUncertainty = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.redshift_error ? galaxy.redshift_error.toFixed(6) : "";
+  };
+
+  const renderSFR = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.sfr_fuv ? galaxy.sfr_fuv.toFixed(6) : "";
+  };
+
+  const renderMagB = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.magb ? galaxy.magb.toFixed(2) : "";
+  };
+
+  const renderMagK = (dataIndex) => {
+    const galaxy = galaxies[dataIndex];
+    return galaxy.magk ? galaxy.magk.toFixed(2) : "";
+  };
+
   const columns = [
     {
       name: "name",
@@ -77,42 +127,102 @@ const GalaxyTable = ({ galaxies }) => {
     {
       name: "ra",
       label: "Right Ascension",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderRA,
+      },
     },
     {
       name: "dec",
       label: "Declination",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderDec,
+      },
     },
     {
       name: "distmpc",
       label: "Distance [mpc]",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderDistance,
+      },
     },
     {
       name: "distmpc_unc",
       label: "Distance uncertainty [mpc]",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderDistanceUncertainty,
+      },
     },
     {
       name: "redshift",
       label: "Redshift",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderRedshift,
+      },
     },
     {
       name: "redshift_error",
       label: "Redshift error",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderRedshiftUncertainty,
+      },
     },
     {
       name: "sfr_fuv",
       label: "SFR based on FUV [Msol/yr]",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderSFR,
+      },
     },
     {
       name: "mstar",
-      label: "Stellar mass [log(Msol)]",
+      label: "log10 (Stellar mass [Msol])",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderMstar,
+      },
     },
     {
       name: "magb",
       label: "B band magnitude [mag]",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderMagB,
+      },
     },
     {
       name: "magk",
       label: "K band magnitude [mag]",
+      options: {
+        filter: false,
+        sort: true,
+        sortThirdClickReset: true,
+        customBodyRenderLite: renderMagK,
+      },
     },
   ];
 
@@ -151,6 +261,7 @@ GalaxyTable.propTypes = {
       redshift: PropTypes.number,
       redshift_error: PropTypes.number,
       sfr_fuv: PropTypes.number,
+      mstar: PropTypes.number,
       magb: PropTypes.number,
       magk: PropTypes.number,
       a: PropTypes.number,

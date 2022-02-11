@@ -85,8 +85,3 @@ def test_gcnevents(
     driver.wait_for_xpath('//*[text()="180116 00:36:53"]')
     driver.wait_for_xpath('//*[text()="Fermi"]')
     driver.wait_for_xpath('//*[text()="GRB"]')
-
-    # check for object
-    driver.wait_for_xpath(f'//*[text()[contains(.,"{obj_id}")]]')
-    # check for galaxy
-    driver.wait_for_xpath(f'//*[text()[contains(.,"{galaxy_name}")]]')
