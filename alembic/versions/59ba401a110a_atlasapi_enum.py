@@ -1,7 +1,7 @@
 """atlasapi enum
 
 Revision ID: 59ba401a110a
-Revises: 82f5a89fbe59
+Revises: 46a40b35cdbb
 Create Date: 2022-01-27 13:24:35.958075
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '59ba401a110a'
-down_revision = '82f5a89fbe59'
+down_revision = '46a40b35cdbb'
 branch_labels = None
 depends_on = None
 
