@@ -5,7 +5,6 @@ import pandas as pd
 import time
 from regions import Regions
 from selenium.webdriver.common.keys import Keys
-import time
 
 from skyportal.tests import api
 
@@ -85,7 +84,7 @@ def test_gcnevents_object(
         except AssertionError:
             nretries = nretries + 1
             time.sleep(3)
-            
+
     driver.get(f'/become_user/{user.id}')
     driver.get('/gcn_events/2018-01-16T00:36:53')
 
