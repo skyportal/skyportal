@@ -21,6 +21,7 @@ from .listing import *
 from .localization import *
 from .obj import *
 from .observation import *
+from .observation_plan import *
 from .observing_run import *
 from .photometry import *
 from .shift import *

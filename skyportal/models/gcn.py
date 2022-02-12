@@ -158,6 +158,14 @@ class GcnEvent(Base):
 
     localizations = relationship("Localization")
 
+    observationplan_requests = relationship(
+        'ObservationPlanRequest',
+        back_populates='gcnevent',
+        cascade='delete',
+        passive_deletes=True,
+        doc="Observation plan requests of the event.",
+    )
+
     comments = relationship(
         'CommentOnGCN',
         back_populates='gcn',
