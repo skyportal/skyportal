@@ -364,6 +364,9 @@ class FollowupRequestHandler(BaseHandler):
             data['allocation_id'], self.current_user, raise_if_none=True
         )
         instrument = allocation.instrument
+
+        print(instrument)
+
         if instrument.api_classname is None:
             return self.error('Instrument has no remote API.')
 

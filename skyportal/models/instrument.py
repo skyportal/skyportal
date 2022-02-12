@@ -143,8 +143,8 @@ class Instrument(Base):
         return getattr(facility_apis, self.api_classname)
 
     @property
-    def api_observationplan_class(self):
-        return getattr(facility_apis, self.api_observationplan_classname)
+    def api_class_obsplan(self):
+        return getattr(facility_apis, self.api_classname_obsplan)
 
     @property
     def listener_class(self):

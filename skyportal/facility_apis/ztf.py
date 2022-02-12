@@ -3,8 +3,9 @@ from datetime import datetime, timedelta
 from astropy.time import Time
 import urllib
 
-from . import FollowUpAPI
+from . import FollowUpAPI, MMAAPI
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 from ..utils import http
 
@@ -15,6 +16,8 @@ if cfg['app.ztf.port'] is None:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}"
 else:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
+
+log = make_log('api/observation_plan/ZTF')
 
 
 class ZTFRequest:
@@ -230,3 +233,28 @@ class ZTFAPI(FollowUpAPI):
     }
 
     ui_json_schema = {}
+
+
+class ZTFMMAAPI(MMAAPI):
+
+    """An interface to ZTF MMA operations."""
+
+    form_json_schema = MMAAPI.form_json_schema
+
+    form_json_schema["properties"] = {
+        **form_json_schema["properties"],
+        "program_id": {
+            "type": "string",
+            "enum": ["Partnership", "Caltech"],
+            "default": "Partnership",
+        },
+        "subprogram_name": {
+            "type": "string",
+            "enum": ["GW", "GRB", "Neutrino", "SolarSystem", "Other"],
+            "default": "GRB",
+        },
+    }
+    form_json_schema["required"] = form_json_schema["required"] + [
+        "subprogram_name",
+        "program_id",
+    ]
