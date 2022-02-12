@@ -25,7 +25,7 @@ create type "public"."followup_apis" as enum ('ATLASAPI', 'KAITAPI', 'SEDMAPI', 
 
 alter table "public"."instruments" alter column api_classname type "public"."followup_apis" using api_classname::text::"public"."followup_apis";
 
-drop type "public"."followup_apis__old_version_to_be_dropped";
+drop type "public"."followup_apis__old_version_to_be_dropped" cascade;
 """
     )
     # ### end Alembic commands ###
