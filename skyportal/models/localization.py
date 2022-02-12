@@ -86,6 +86,14 @@ class Localization(Base):
 
     contour = deferred(sa.Column(JSONB, doc='GeoJSON contours'))
 
+    observationplan_requests = relationship(
+        'ObservationPlanRequest',
+        back_populates='localization',
+        cascade='delete',
+        passive_deletes=True,
+        doc="Observation plan requests of the localization.",
+    )
+
     @hybrid_property
     def is_3d(self):
         return (
