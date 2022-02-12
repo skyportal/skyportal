@@ -165,7 +165,7 @@ class GcnEvent(Base):
         passive_deletes=True,
         doc="Observation plan requests of the event.",
     )
-      
+
     comments = relationship(
         'CommentOnGCN',
         back_populates='gcn',
