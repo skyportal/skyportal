@@ -5,7 +5,6 @@ import urllib
 
 from . import FollowUpAPI, MMAAPI
 from baselayer.app.env import load_env
-from baselayer.log import make_log
 
 from ..utils import http
 
@@ -16,8 +15,6 @@ if cfg['app.ztf.port'] is None:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}"
 else:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
-
-log = make_log('api/observation_plan/ZTF')
 
 
 class ZTFRequest:
