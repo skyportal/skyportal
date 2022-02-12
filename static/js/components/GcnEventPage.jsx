@@ -279,7 +279,12 @@ const GcnEventPage = ({ route }) => {
     dispatch(galaxiesActions.fetchGcnEventGalaxies(route.dateobs));
   }, [route, dispatch]);
 
-  if (!gcnEvent || !gcnEventSources || !gcnEventObservations || !gcnEventGalaxies) {
+  if (
+    !gcnEvent ||
+    !gcnEventSources ||
+    !gcnEventObservations ||
+    !gcnEventGalaxies
+  ) {
     return <CircularProgress />;
   }
 
@@ -404,7 +409,7 @@ const GcnEventPage = ({ route }) => {
         <Accordion defaultExpanded>
           <AccordionSummary>
             <Typography className={styles.accordionHeading}>
-              Modify Source Selection
+              Modify Skymap Selection
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
@@ -433,17 +438,13 @@ const GcnEventPage = ({ route }) => {
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
-            id="sources-header"
-          >
-            <Typography className={styles.accordionHeading}>
-              Observations
-            </Typography>
-          </AccordionSummary>
+            id="observations-header"
+          />
           <AccordionDetails>
             <div className={styles.gcnEventContainer}>
               <ExecutedObservationsTable observations={gcnEventObservations} />
-            id="galaxies-header"
-          />
+            </div>
+          </AccordionDetails>
         </Accordion>
       </div>
       <div className={styles.columnItem}>
@@ -451,19 +452,15 @@ const GcnEventPage = ({ route }) => {
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
-            id="sources-header"
-          >
-            <Typography className={styles.accordionHeading}>
-              Galaxies
-            </Typography>
-          </AccordionSummary>
+            id="galaxies-header"
+          />
           <AccordionDetails>
             <div className={styles.gcnEventContainer}>
               <GalaxyTable galaxies={gcnEventGalaxies.sources} />
             </div>
           </AccordionDetails>
         </Accordion>
-      </div> 
+      </div>
     </div>
   );
 };

@@ -5,6 +5,7 @@ import Form from "@rjsf/material-ui";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { fetchGcnEventSources } from "../ducks/sources";
 import { fetchGcnEventObservations } from "../ducks/observations";
+import { fetchGcnEventGalaxies } from "../ducks/galaxies";
 
 const GcnSelectionForm = ({ gcnEvent }) => {
   const dispatch = useDispatch();
@@ -14,6 +15,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
     setIsSubmitting(true);
     await dispatch(fetchGcnEventSources(gcnEvent.dateobs, formData));
     await dispatch(fetchGcnEventObservations(gcnEvent.dateobs, formData));
+    await dispatch(fetchGcnEventGalaxies(gcnEvent.dateobs, formData));
     setIsSubmitting(false);
   };
 
