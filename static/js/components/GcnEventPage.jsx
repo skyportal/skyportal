@@ -3,10 +3,14 @@ import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
+import Accordion from "@material-ui/core/Accordion";
+import AccordionSummary from "@material-ui/core/AccordionSummary";
+import AccordionDetails from "@material-ui/core/AccordionDetails";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
 import { makeStyles } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
+import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import IconButton from "@material-ui/core/IconButton";
 import GetAppIcon from "@material-ui/icons/GetApp";
 import Typography from "@material-ui/core/Typography";
@@ -24,8 +28,10 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
 import * as sourcesActions from "../ducks/sources";
+import * as galaxiesActions from "../ducks/galaxies";
 
 import SourceTable from "./SourceTable";
+import GalaxyTable from "./GalaxyTable";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -57,6 +63,18 @@ const useStyles = makeStyles((theme) => ({
   },
   Terrestrial: {
     background: "#999999!important",
+  },
+  accordionHeading: {
+    fontSize: "1.25rem",
+    fontWeight: theme.typography.fontWeightRegular,
+  },
+  gcnEventContainer: {
+    display: "flex",
+    overflow: "hidden",
+    flexDirection: "column",
+  },
+  columnItem: {
+    marginBottom: theme.spacing(2),
   },
 }));
 
@@ -197,9 +215,7 @@ const GcnEventSourcesPage = ({ route, sources }) => {
   if (sources?.sources.length === 0) {
     return (
       <div className={classes.source}>
-        <Typography variant="h4" gutterBottom align="center">
-          Event sources
-        </Typography>
+        <Typography variant="h5">Event sources</Typography>
         <br />
         <Typography variant="h5" align="center">
           No sources within localization.
@@ -235,6 +251,9 @@ const GcnEventPage = ({ route }) => {
   const gcnEventSources = useSelector(
     (state) => state?.sources?.gcnEventSources
   );
+  const gcnEventGalaxies = useSelector(
+    (state) => state?.galaxies?.gcnEventGalaxies
+  );
 
   useEffect(() => {
     dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
@@ -244,60 +263,158 @@ const GcnEventPage = ({ route }) => {
     dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
   }, [route, dispatch]);
 
-  if (!gcnEvent || !gcnEventSources) {
+  useEffect(() => {
+    dispatch(galaxiesActions.fetchGcnEventGalaxies(route.dateobs));
+  }, [route, dispatch]);
+
+  if (!gcnEvent || !gcnEventSources || !gcnEventGalaxies) {
     return <CircularProgress />;
   }
 
   return (
     <div>
-      <h1 style={{ display: "inline-block" }}>Event Information</h1>
-      <div>
-        &nbsp; -&nbsp;
-        <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-          <Button color="primary">
-            {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
-          </Button>
-        </Link>
-        ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
-      </div>
-      {gcnEvent.lightcurve && (
-        <div>
-          {" "}
-          <h3 style={{ display: "inline-block" }}>Light Curve</h3> &nbsp;
-          -&nbsp; <img src={gcnEvent.lightcurve} alt="loading..." />{" "}
-        </div>
-      )}
-      <h3 style={{ display: "inline-block" }}>Tags</h3>
-      <div>
-        &nbsp; -&nbsp;
-        <div className={styles.eventTags}>
-          {gcnEvent.tags?.map((tag) => (
-            <Chip className={styles[tag]} size="small" label={tag} key={tag} />
-          ))}
-        </div>
-      </div>
-      <h3>Skymaps</h3>
-      <div>
-        &nbsp; -&nbsp;
-        {gcnEvent.localizations?.map((localization) => (
-          <li key={localization.localization_name}>
-            <div id="map" ref={mapRef}>
-              <Localization loc={localization} />
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="info-header"
+          >
+            <Typography className={styles.accordionHeading}>
+              Event Information
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
+                <Button color="primary">
+                  {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
+                </Button>
+              </Link>
+              ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
             </div>
-          </li>
-        ))}
+          </AccordionDetails>
+        </Accordion>
       </div>
-      <h3 style={{ display: "inline-block" }}>GCN Notices</h3>
-      <div>
-        &nbsp; -&nbsp;
-        {gcnEvent.gcn_notices?.map((gcn_notice) => (
-          <li key={gcn_notice.ivorn}>
-            <DownloadXMLButton gcn_notice={gcn_notice} />
-          </li>
-        ))}
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="lightcurve-header"
+          >
+            <Typography className={styles.accordionHeading}>
+              Light curve
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              {gcnEvent.lightcurve && (
+                <div>
+                  {" "}
+                  <img src={gcnEvent.lightcurve} alt="loading..." />{" "}
+                </div>
+              )}
+            </div>
+          </AccordionDetails>
+        </Accordion>
       </div>
-      <div>
-        <GcnEventSourcesPage route={route} sources={gcnEventSources} />
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="eventtags-header"
+          >
+            <Typography className={styles.accordionHeading}>
+              Event Tags
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={styles.eventTags}>
+              {gcnEvent.tags?.map((tag) => (
+                <Chip
+                  className={styles[tag]}
+                  size="small"
+                  label={tag}
+                  key={tag}
+                />
+              ))}
+            </div>
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="skymap-header"
+          >
+            <Typography className={styles.accordionHeading}>Skymaps</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              {gcnEvent.localizations?.map((localization) => (
+                <li key={localization.localization_name}>
+                  <div id="map" ref={mapRef}>
+                    <Localization loc={localization} />
+                  </div>
+                </li>
+              ))}
+            </div>
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="gcnnotices-header"
+          >
+            <Typography className={styles.accordionHeading}>
+              GCN Notices
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              {gcnEvent.gcn_notices?.map((gcn_notice) => (
+                <li key={gcn_notice.ivorn}>
+                  <DownloadXMLButton gcn_notice={gcn_notice} />
+                </li>
+              ))}
+            </div>
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="sources-header"
+          />
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              <GcnEventSourcesPage route={route} sources={gcnEventSources} />
+            </div>
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="galaxies-header"
+          />
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              <GalaxyTable galaxies={gcnEventGalaxies.sources} />
+            </div>
+          </AccordionDetails>
+        </Accordion>
       </div>
     </div>
   );
@@ -310,10 +427,10 @@ Localization.propTypes = {
   }).isRequired,
 };
 
-DownloadXMLButton.propTypes = {
-  gcn_notice: PropTypes.shape({
-    content: PropTypes.string,
-    ivorn: PropTypes.string,
+Localization.propTypes = {
+  loc: PropTypes.shape({
+    dateobs: PropTypes.string,
+    localization_name: PropTypes.string,
   }).isRequired,
 };
 
@@ -387,6 +504,13 @@ GcnEventSourcesPage.defaultProps = {
   pageNumber: 1,
   totalMatches: 0,
   numPerPage: 10,
+};
+
+DownloadXMLButton.propTypes = {
+  gcn_notice: PropTypes.shape({
+    content: PropTypes.string,
+    ivorn: PropTypes.string,
+  }).isRequired,
 };
 
 export default GcnEventPage;
