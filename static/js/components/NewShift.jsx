@@ -17,15 +17,18 @@ const NewShift = () => {
   const dispatch = useDispatch();
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs().add(1, 'day').utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultEndDate = dayjs()
+    .add(1, "day")
+    .utc()
+    .format("YYYY-MM-DDTHH:mm:ssZ");
 
   if (!groups) {
     return <CircularProgress />;
   }
 
   const handleSubmit = async ({ formData }) => {
-    formData.start_date = formData.start_date.replace('+00:00','');
-    formData.end_date = formData.end_date.replace('+00:00','');
+    formData.start_date = formData.start_date.replace("+00:00", "");
+    formData.end_date = formData.end_date.replace("+00:00", "");
     const result = await dispatch(submitShift(formData));
     if (result.status === "success") {
       dispatch(showNotification("Shift saved"));

@@ -253,24 +253,21 @@ def test_super_user_post_shift(
     driver.get(f"/become_user/{super_admin_user.id}")
 
     # go to the shift page
-    
 
     name = str(uuid.uuid4())
     status, data = api(
         'POST',
         'shift',
-        data = {
-        'name': name,
-        'group_id': public_group.id,
-        'start_date': '3021-02-27T00:00:00',
-        'end_date': '3021-07-20T00:00:00',
+        data={
+            'name': name,
+            'group_id': public_group.id,
+            'start_date': '3021-02-27T00:00:00',
+            'end_date': '3021-07-20T00:00:00',
         },
         token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
-    shift_id = data['data']['id']
-
 
     driver.get("/shifts")
 
@@ -301,14 +298,8 @@ def test_super_user_post_shift(
     # check for dropdown shift
     driver.wait_for_xpath(f'//span[text()[contains(.,"{form_name}")]]')
 
-
     # check for delete shift button
     delete_button_xpath = '//button[@id="delete_button"]'
     driver.wait_for_xpath(delete_button_xpath)
     driver.click_xpath(delete_button_xpath)
     driver.wait_for_xpath_to_disappear(f'//*[text()[contains(.,"{form_name}")]]')
-
-    
-
-
-    

@@ -16,14 +16,9 @@ export const fetchShift = (id) => API.GET(`/api/shift/${id}`, FETCH_SHIFT);
 
 export const submitShift = (run) => API.POST(`/api/shift`, SUBMIT_SHIFT, run);
 
-
 export function deleteShift(shiftID) {
-  return API.DELETE(
-    `/api/shift/${shiftID}`,
-    DELETE_SHIFT
-  );
+  return API.DELETE(`/api/shift/${shiftID}`, DELETE_SHIFT);
 }
-
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
@@ -49,6 +44,5 @@ const reducer = (state = null, action) => {
       return state;
   }
 };
-
 
 store.injectReducer("shift", reducer);
