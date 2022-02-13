@@ -73,7 +73,7 @@ export function shiftInfo(shift) {
     );
   }
   const startDate = new Date(shift.start_date+'Z').toLocaleString('en-US',{ hour12: false });
-  const endDate = new Date(shift.end_date+'Z').toLocaleString('en-US',{ hour12: false })
+  const endDate = new Date(shift.end_date+'Z').toLocaleString('en-US',{ hour12: false });
 
   const array = [
     ...(shift?.start_date ? [`Start Date: ${startDate}`] : []),
@@ -113,6 +113,7 @@ const ShiftList = ({ shifts }) => {
             />
             <Button
               key={shift.id}
+              id='delete_button'
               className={classes.shiftDelete}
               onClick = { () => deleteShift(shift) }>          
             &times;</Button >
