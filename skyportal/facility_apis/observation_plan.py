@@ -10,15 +10,16 @@ from baselayer.log import make_log
 from baselayer.app.flow import Flow
 
 from . import FollowUpAPI
-from ..models import DBSession
-
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 log = make_log('api/observation_plan')
 
 
 def generate_plan(observation_plan_id, request_id):
     """Use gwemopt to construct observing plan."""
+
+    from ..models import DBSession
+
+    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
     import gwemopt
     import gwemopt.utils
