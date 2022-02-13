@@ -25,9 +25,8 @@ const NewShift = () => {
   }
 
   const handleSubmit = async ({ formData }) => {
-    console.log(formData);
-    let test= new Date(formData.start_date).setMinutes();
-    console.log(test);
+    formData.start_date = formData.start_date.replace('+00:00','');
+    formData.end_date = formData.end_date.replace('+00:00','');
     const result = await dispatch(submitShift(formData));
     if (result.status === "success") {
       dispatch(showNotification("Shift saved"));

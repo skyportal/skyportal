@@ -31,11 +31,11 @@ class Shift(Base):
     )
 
     start_date = sa.Column(
-        sa.DateTime(timezone= True), nullable=False, index=True, doc="The start time of this shift."
+        sa.DateTime(), nullable=False, index=True, doc="The start time of this shift."
     )
 
     end_date = sa.Column(
-        sa.DateTime(timezone= True), nullable=False, index=True, doc="The end time of this shift."
+        sa.DateTime(), nullable=False, index=True, doc="The end time of this shift."
     )
 
     name = sa.Column(sa.String, nullable=True, index=True, doc='Name of the shift.')
