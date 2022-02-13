@@ -12,7 +12,7 @@ const REFRESH_SHIFTS = "skyportal/REFRESH_SHIFTS";
 export const fetchShifts = () => API.GET("/api/shift", FETCH_SHIFTS);
 
 // Websocket message handler
-messageHandler.add((actionType, dispatch) => {
+messageHandler.add((actionType, payload, dispatch) => {
   if (actionType === REFRESH_SHIFTS) {
     dispatch(fetchShifts());
   }
