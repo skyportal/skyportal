@@ -6,10 +6,6 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm import joinedload
 
-import gwemopt
-import gwemopt.utils
-import gwemopt.segments
-import gwemopt.skyportal
 from baselayer.log import make_log
 from baselayer.app.flow import Flow
 
@@ -23,6 +19,11 @@ log = make_log('api/observation_plan')
 
 def generate_plan(observation_plan_id, request_id):
     """Use gwemopt to construct observing plan."""
+
+    import gwemopt
+    import gwemopt.utils
+    import gwemopt.segments
+    import gwemopt.skyportal
 
     from ..models import (
         EventObservationPlan,
