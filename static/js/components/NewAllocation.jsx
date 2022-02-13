@@ -17,12 +17,13 @@ const NewAllocation = () => {
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
 
-  const nowDate = dayjs.utc(new Date()).format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultStartDate = new Date();
-  const defaultEndDate = new Date();
-  defaultEndDate.setDate(defaultStartDate.getDate() + 365);
+  const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultEndDate = dayjs().add(365, 'day').utc().format("YYYY-MM-DDTHH:mm:ssZ");
 
   const handleSubmit = async ({ formData }) => {
+    formData.start_date = formData.start_date.replace('+00:00','');
+    formData.end_date = formData.end_date.replace('+00:00','');
     const result = await dispatch(submitAllocation(formData));
     if (result.status === "success") {
       dispatch(showNotification("Allocation saved"));
@@ -55,13 +56,13 @@ const NewAllocation = () => {
         type: "string",
         format: "date-time",
         title: "Start Date",
-        default: dayjs.utc(defaultStartDate).format("YYYY-MM-DDTHH:mm:ssZ"),
+        default: defaultStartDate,
       },
       end_date: {
         type: "string",
         format: "date-time",
         title: "End Date",
-        default: dayjs.utc(defaultEndDate).format("YYYY-MM-DDTHH:mm:ssZ"),
+        default: defaultEndDate,
       },
       hours_allocated: {
         type: "number",

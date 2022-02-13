@@ -72,7 +72,6 @@ export function shiftInfo(shift) {
       </div>
     );
   }
-  const localDate = new Date();
   const startDate = new Date(shift.start_date+'Z').toLocaleString('en-US',{ hour12: false });
   const endDate = new Date(shift.end_date+'Z').toLocaleString('en-US',{ hour12: false })
 

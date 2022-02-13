@@ -15,7 +15,6 @@ dayjs.extend(utc);
 const NewShift = () => {
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
-  const offset = new Date().getTimezoneOffset()
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultEndDate = dayjs().add(1, 'day').utc().format("YYYY-MM-DDTHH:mm:ssZ");
@@ -35,10 +34,6 @@ const NewShift = () => {
   };
 
   function validate(formData, errors) {
-    console.log(formData.start_date);
-    console.log(formData.end_date);
-
-
     if (nowDate > formData.end_date) {
       errors.end_date.addError(
         "End date must be after current date, please fix."
