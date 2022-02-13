@@ -19,11 +19,14 @@ const NewAllocation = () => {
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs().add(365, 'day').utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultEndDate = dayjs()
+    .add(365, "day")
+    .utc()
+    .format("YYYY-MM-DDTHH:mm:ssZ");
 
   const handleSubmit = async ({ formData }) => {
-    formData.start_date = formData.start_date.replace('+00:00','');
-    formData.end_date = formData.end_date.replace('+00:00','');
+    formData.start_date = formData.start_date.replace("+00:00", "");
+    formData.end_date = formData.end_date.replace("+00:00", "");
     const result = await dispatch(submitAllocation(formData));
     if (result.status === "success") {
       dispatch(showNotification("Allocation saved"));
