@@ -67,7 +67,7 @@ export function allocationInfo(allocation, groups) {
   const endDate = new Date(`${allocation.end_date}Z`).toLocaleString("en-US", {
     hour12: false,
   });
-  let result = `${startDate}-${endDate}`;
+  let result = `From ${startDate} to ${endDate}`;
 
   if (allocation?.pi || group?.name) {
     result += "\r\n(";
