@@ -28,8 +28,10 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
 import * as sourcesActions from "../ducks/sources";
+import * as galaxiesActions from "../ducks/galaxies";
 
 import SourceTable from "./SourceTable";
+import GalaxyTable from "./GalaxyTable";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -213,9 +215,7 @@ const GcnEventSourcesPage = ({ route, sources }) => {
   if (sources?.sources.length === 0) {
     return (
       <div className={classes.source}>
-        <Typography variant="h4" gutterBottom align="center">
-          Event sources
-        </Typography>
+        <Typography variant="h5">Event sources</Typography>
         <br />
         <Typography variant="h5" align="center">
           No sources within localization.
@@ -251,6 +251,9 @@ const GcnEventPage = ({ route }) => {
   const gcnEventSources = useSelector(
     (state) => state?.sources?.gcnEventSources
   );
+  const gcnEventGalaxies = useSelector(
+    (state) => state?.galaxies?.gcnEventGalaxies
+  );
 
   useEffect(() => {
     dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
@@ -260,7 +263,11 @@ const GcnEventPage = ({ route }) => {
     dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
   }, [route, dispatch]);
 
-  if (!gcnEvent || !gcnEventSources) {
+  useEffect(() => {
+    dispatch(galaxiesActions.fetchGcnEventGalaxies(route.dateobs));
+  }, [route, dispatch]);
+
+  if (!gcnEvent || !gcnEventSources || !gcnEventGalaxies) {
     return <CircularProgress />;
   }
 
@@ -387,11 +394,7 @@ const GcnEventPage = ({ route }) => {
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
             id="sources-header"
-          >
-            <Typography className={styles.accordionHeading}>
-              Event Sources
-            </Typography>
-          </AccordionSummary>
+          />
           <AccordionDetails>
             <div className={styles.gcnEventContainer}>
               <GcnEventSourcesPage route={route} sources={gcnEventSources} />
@@ -399,8 +402,19 @@ const GcnEventPage = ({ route }) => {
           </AccordionDetails>
         </Accordion>
       </div>
-      <div>
-        <GcnEventSourcesPage route={route} sources={gcnEventSources} />
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="galaxies-header"
+          />
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              <GalaxyTable galaxies={gcnEventGalaxies.sources} />
+            </div>
+          </AccordionDetails>
+        </Accordion>
       </div>
     </div>
   );
