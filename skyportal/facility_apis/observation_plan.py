@@ -45,16 +45,25 @@ def generate_plan(observation_plan_id, request_id):
         params = {
             'config': {
                 request.instrument.name: {
+                    # field list from skyportal
                     'tesselation': request.instrument.fields,
+                    # telescope longitude [deg]
                     'longitude': request.instrument.telescope.lon,
+                    # telescope latitude [deg]
                     'latitude': request.instrument.telescope.lat,
+                    # telescope elevation [m]
                     'elevation': request.instrument.telescope.elevation,
+                    # telescope name
                     'telescope': request.instrument.name,
+                    # telescope horizon
                     'horizon': -12.0,
-                    # consider adding to instrument model?
+                    # time in seconds to change the filter
                     'filt_change_time': 0.0,
+                    # extra overhead in seconds
                     'overhead_per_exposure': 0.0,
+                    # slew rate for the telescope [deg/s]
                     'slew_rate': 2.6,
+                    # camera readout time
                     'readout': 0.0,
                     # does not change anything
                     'FOV': 0.0,
@@ -62,18 +71,32 @@ def generate_plan(observation_plan_id, request_id):
                     'magnitude': 0.0,
                 },
             },
+            # gwemopt filter strategy
+            # options: block (blocks of single filters), integrated (series of alternating filters)
             'doAlternativeFilters': request.payload["filter_strategy"] == "block",
+            # flag to indicate fields come from DB
             'doDatabase': True,
+            # only keep tiles within powerlaw_cl
             'doMinimalTiling': True,
+            # single set of scheduled observations
             'doSingleExposure': True,
+            # gwemopt scheduling algorithms
+            # options: greedy, greedy_slew, sear, airmass_weighted
             'scheduleType': request.payload["schedule_type"],
+            # list of filters to use for observations
             'filters': request.payload["filters"].split(","),
+            # GPS time for event
             'gpstime': event_time.gps,
+            # Healpix nside for the skymap
             'nside': 512,
+            # maximum integrated probability of the skymap to consider
             'powerlaw_cl': request.payload["integrated_probability"],
             'telescopes': [request.instrument.name],
+            # minimum difference between observations of the same field
             'mindiff': request.payload["minimum_time_difference"],
+            # maximum airmass with which to observae
             'airmass': request.payload["maximum_airmass"],
+            # array of exposure times (same length as filter array)
             'exposuretimes': np.array(
                 [int(request.payload["exposure_time"])]
                 * len(request.payload["filters"].split(","))
@@ -214,7 +237,6 @@ class MMAAPI(FollowUpAPI):
                 'schedule_type',
                 'schedule_strategy',
                 'filter_strategy',
-                'schedule_type',
                 'exposure_time',
                 'filters',
                 'maximum_airmass',
@@ -280,13 +302,13 @@ class MMAAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def delete(request):
+    def delete(request_id):
         """Delete an observation plan from list.
 
         Parameters
         ----------
-        request: skyportal.models.ObservationPlanRequest
-            The request to delete from the queue and the SkyPortal database.
+        request_id: integer
+            The id of the skyportal.models.ObservationPlanRequest to delete from the queue and the SkyPortal database.
         """
 
         from ..models import DBSession, ObservationPlanRequest
@@ -294,7 +316,7 @@ class MMAAPI(FollowUpAPI):
         req = (
             DBSession.execute(
                 sa.select(ObservationPlanRequest)
-                .filter(ObservationPlanRequest.id == request.id)
+                .filter(ObservationPlanRequest.id == request_id)
                 .options(joinedload(ObservationPlanRequest.observation_plans))
             )
             .unique()

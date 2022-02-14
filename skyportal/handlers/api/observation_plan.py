@@ -190,7 +190,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             return self.error('Cannot delete observation plans on this instrument.')
 
         observation_plan_request.last_modified_by_id = self.associated_user_object.id
-        api.delete(observation_plan_request)
+        api.delete(observation_plan_request.id)
 
         self.verify_and_commit()
 
