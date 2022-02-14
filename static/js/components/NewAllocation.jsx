@@ -58,13 +58,13 @@ const NewAllocation = () => {
       start_date: {
         type: "string",
         format: "date-time",
-        title: "Start Date",
+        title: "Start Date (Local Time)",
         default: defaultStartDate,
       },
       end_date: {
         type: "string",
         format: "date-time",
-        title: "End Date",
+        title: "End Date (Local Time)",
         default: defaultEndDate,
       },
       hours_allocated: {
