@@ -1,10 +1,12 @@
 import jsonschema
 from marshmallow.exceptions import ValidationError
+from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    EventObservationPlan,
     ObservationPlanRequest,
     Group,
     Allocation,
@@ -119,6 +121,13 @@ class ObservationPlanRequestHandler(BaseHandler):
             required: true
             schema:
               type: string
+          - in: query
+            name: includePlannedObservations
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated planned observations. Defaults to false.
         responses:
           200:
             content:
@@ -130,6 +139,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             self.current_user,
             mode="read",
             raise_if_none=True,
+            options=options,
         )
         self.verify_and_commit()
 
@@ -167,7 +177,7 @@ class ObservationPlanRequestHandler(BaseHandler):
             return self.error('Cannot delete observation plans on this instrument.')
 
         observation_plan_request.last_modified_by_id = self.associated_user_object.id
-        api.delete(observation_plan_request)
+        api.delete(observation_plan_request.id)
 
         self.verify_and_commit()
 

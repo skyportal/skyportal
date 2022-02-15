@@ -6,17 +6,10 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm import joinedload
 
-import gwemopt
-import gwemopt.utils
-import gwemopt.segments
-import gwemopt.skyportal
 from baselayer.log import make_log
 from baselayer.app.flow import Flow
 
 from . import FollowUpAPI
-from ..models import DBSession
-
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 log = make_log('api/observation_plan')
 
@@ -43,39 +36,67 @@ def generate_plan(observation_plan_id, request_id):
         params = {
             'config': {
                 request.instrument.name: {
+                    # field list from skyportal
                     'tesselation': request.instrument.fields,
+                    # telescope longitude [deg]
                     'longitude': request.instrument.telescope.lon,
+                    # telescope latitude [deg]
                     'latitude': request.instrument.telescope.lat,
+                    # telescope elevation [m]
                     'elevation': request.instrument.telescope.elevation,
+                    # telescope name
                     'telescope': request.instrument.name,
+                    # telescope horizon
                     'horizon': -12.0,
-                    # consider adding to instrument model?
+                    # time in seconds to change the filter
                     'filt_change_time': 0.0,
+                    # extra overhead in seconds
                     'overhead_per_exposure': 0.0,
-                    # does not change anything
+                    # slew rate for the telescope [deg/s]
+                    'slew_rate': 2.6,
+                    # camera readout time
+                    'readout': 0.0,
+                    # telescope field of view
                     'FOV': 0.0,
+                    # exposure time for the given limiting magnitude
                     'exposuretime': 1.0,
+                    # limiting magnitude given telescope time
                     'magnitude': 0.0,
                 },
             },
-            'doAlternativeFilters': request.payload["scheduling_type"] == "block",
+            # gwemopt filter strategy
+            # options: block (blocks of single filters), integrated (series of alternating filters)
+            'doAlternativeFilters': request.payload["filter_strategy"] == "block",
+            # flag to indicate fields come from DB
             'doDatabase': True,
+            # only keep tiles within powerlaw_cl
             'doMinimalTiling': True,
+            # single set of scheduled observations
             'doSingleExposure': True,
+            # gwemopt scheduling algorithms
+            # options: greedy, greedy_slew, sear, airmass_weighted
+            'scheduleType': request.payload["schedule_type"],
+            # list of filters to use for observations
             'filters': request.payload["filters"].split(","),
+            # GPS time for event
             'gpstime': event_time.gps,
+            # Healpix nside for the skymap
             'nside': 512,
+            # maximum integrated probability of the skymap to consider
             'powerlaw_cl': request.payload["integrated_probability"],
             'telescopes': [request.instrument.name],
+            # minimum difference between observations of the same field
             'mindiff': request.payload["minimum_time_difference"],
+            # maximum airmass with which to observae
             'airmass': request.payload["maximum_airmass"],
+            # array of exposure times (same length as filter array)
             'exposuretimes': np.array(
                 [int(request.payload["exposure_time"])]
                 * len(request.payload["filters"].split(","))
             ),
         }
 
-        if request.payload["scheduling_strategy"] == "catalog":
+        if request.payload["schedule_strategy"] == "catalog":
             params = {
                 **params,
                 'tilesType': 'galaxy',
@@ -133,7 +154,7 @@ def generate_plan(observation_plan_id, request_id):
 
             field = InstrumentField.query.filter(
                 InstrumentField.instrument_id == request.instrument.id,
-                InstrumentField.id == field_id,
+                InstrumentField.field_id == field_id,
             ).first()
             if field is None:
                 return log(f"Missing field {field_id} from list")
@@ -237,13 +258,13 @@ class MMAAPI(FollowUpAPI):
             )
 
     @staticmethod
-    def delete(request):
+    def delete(request_id):
         """Delete an observation plan from list.
 
         Parameters
         ----------
-        request: skyportal.models.ObservationPlanRequest
-            The request to delete from the queue and the SkyPortal database.
+        request_id: integer
+            The id of the skyportal.models.ObservationPlanRequest to delete from the queue and the SkyPortal database.
         """
 
         from ..models import DBSession, ObservationPlanRequest
@@ -251,7 +272,7 @@ class MMAAPI(FollowUpAPI):
         req = (
             DBSession.execute(
                 sa.select(ObservationPlanRequest)
-                .filter(ObservationPlanRequest.id == request.id)
+                .filter(ObservationPlanRequest.id == request_id)
                 .options(joinedload(ObservationPlanRequest.observation_plans))
             )
             .unique()
@@ -283,12 +304,17 @@ class MMAAPI(FollowUpAPI):
                 "title": "End Date (UT)",
                 "default": str(datetime.utcnow() + timedelta(days=1)),
             },
-            "scheduling_type": {
+            "filter_strategy": {
                 "type": "string",
                 "enum": ["block", "integrated"],
                 "default": "block",
             },
-            "scheduling_strategy": {
+            "schedule_type": {
+                "type": "string",
+                "enum": ["greedy", "greedy_slew", "sear", "airmass_weighted"],
+                "default": "greedy_slew",
+            },
+            "schedule_strategy": {
                 "type": "string",
                 "enum": ["tiling", "catalog"],
                 "default": "tiling",
@@ -326,8 +352,9 @@ class MMAAPI(FollowUpAPI):
             "end_date",
             "filters",
             "queue_name",
-            "scheduling_type",
-            "scheduling_strategy",
+            "filter_strategy",
+            "schedule_type",
+            "schedule_strategy",
             "exposure_time",
             "maximum_airmass",
             "integrated_probability",

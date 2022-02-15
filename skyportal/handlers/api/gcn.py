@@ -52,6 +52,13 @@ class GcnEventHandler(BaseHandler):
             content:
               application/json:
                 schema: Success
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      gcnevent_id:
+                        type: integer
+                        description: New GcnEvent ID
           400:
             content:
               application/json:
@@ -137,7 +144,7 @@ class GcnEventHandler(BaseHandler):
             IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
             IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
-        return self.success()
+        return self.success(data={'gcnevent_id': event.id})
 
     @auth_or_token
     def get(self, dateobs=None):
