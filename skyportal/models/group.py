@@ -297,6 +297,13 @@ class Group(Base):
         doc='All filters (not just active) associated with a group.',
     )
 
+    shifts = relationship(
+        "Shift",
+        back_populates="group",
+        passive_deletes=True,
+        doc='All shifts associated with a group.',
+    )
+
     users = relationship(
         'User',
         secondary='group_users',

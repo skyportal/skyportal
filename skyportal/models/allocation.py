@@ -41,7 +41,12 @@ class Allocation(Base):
         doc='The requests made against this allocation.',
         passive_deletes=True,
     )
-
+    observation_plans = relationship(
+        'ObservationPlanRequest',
+        back_populates='allocation',
+        doc='The observing plan requests for this allocation.',
+        passive_deletes=True,
+    )
     group_id = sa.Column(
         sa.ForeignKey('groups.id', ondelete='CASCADE'),
         index=True,

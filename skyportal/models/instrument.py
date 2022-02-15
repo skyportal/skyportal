@@ -111,6 +111,12 @@ class Instrument(Base):
         api_classnames, nullable=True, doc="Name of the instrument's API class."
     )
 
+    api_classname_obsplan = sa.Column(
+        api_classnames,
+        nullable=True,
+        doc="Name of the instrument's ObservationPlan API class.",
+    )
+
     listener_classname = sa.Column(
         listener_classnames,
         nullable=True,
@@ -142,11 +148,16 @@ class Instrument(Base):
         return getattr(facility_apis, self.api_classname)
 
     @property
+    def api_observationplan_class(self):
+        return getattr(facility_apis, self.api_observationplan_classname)
+
+    @property
     def listener_class(self):
         return getattr(facility_apis, self.listener_classname)
 
     fields = relationship("InstrumentField")
     tiles = relationship("InstrumentFieldTile")
+    plans = relationship("EventObservationPlan")
 
 
 class InstrumentField(Base):
