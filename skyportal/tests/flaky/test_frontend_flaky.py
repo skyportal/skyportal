@@ -252,8 +252,6 @@ def test_super_user_post_shift(
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
-    # go to the shift page
-
     name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -269,6 +267,7 @@ def test_super_user_post_shift(
     assert status == 200
     assert data['status'] == 'success'
 
+    # go to the shift page
     driver.get("/shifts")
 
     # check for API shift
@@ -286,8 +285,6 @@ def test_super_user_post_shift(
     driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('01:01')
     driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('P')
 
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('02/01/2022 01:01:10')
-
     driver.click_xpath('//*[@id="root_group_id"]')
     driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
 
@@ -299,7 +296,10 @@ def test_super_user_post_shift(
     driver.wait_for_xpath(f'//span[text()[contains(.,"{form_name}")]]')
 
     # check for delete shift button
-    delete_button_xpath = '//button[@id="delete_button"]'
+    primary_text = f'Sitewide Group: {form_name}'
+    delete_button_xpath = (
+        f'//*[contains(text(), "{primary_text}")]/../../button[@id="delete_button"]'
+    )
     driver.wait_for_xpath(delete_button_xpath)
     driver.click_xpath(delete_button_xpath)
     driver.wait_for_xpath_to_disappear(f'//*[text()[contains(.,"{form_name}")]]')
