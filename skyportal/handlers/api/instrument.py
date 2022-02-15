@@ -293,7 +293,7 @@ InstrumentHandler.post.__doc__ = f"""
                         properties:
                           filter_name:
                             type: string
-                            enum:{list(ALLOWED_BANDPASSES)}
+                            enum: {list(ALLOWED_BANDPASSES)}
                           limiting_magnitude:
                             type: float
                           exposure_time:
