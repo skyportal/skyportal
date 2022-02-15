@@ -65,9 +65,11 @@ def generate_plan(observation_plan_id, request_id):
                     'slew_rate': 2.6,
                     # camera readout time
                     'readout': 0.0,
-                    # does not change anything
+                    # telescope field of view
                     'FOV': 0.0,
+                    # exposure time for the given limiting magnitude
                     'exposuretime': 1.0,
+                    # limiting magnitude given telescope time
                     'magnitude': 0.0,
                 },
             },
