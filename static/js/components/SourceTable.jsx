@@ -46,6 +46,7 @@ import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 const VegaHR = React.lazy(() => import("./VegaHR"));
+const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
 
 const useStyles = makeStyles((theme) => ({
   comment: {
@@ -442,6 +443,22 @@ const SourceTable = ({
                   }
                 >
                   <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
+                </Suspense>
+              )}
+              {!source.photometry_exists && <div> no photometry exists </div>}
+            </Grid>
+            <Grid item>
+              {source.photometry_exists && (
+                <Suspense
+                  fallback={
+                    <div>
+                      <CircularProgress color="secondary" />
+                    </div>
+                  }
+                >
+                  <VegaFoldedPlot
+                    dataUrl={`/api/sources/${source.id}/photometry?phaseFoldData=True`}
+                  />
                 </Suspense>
               )}
               {!source.photometry_exists && <div> no photometry exists </div>}

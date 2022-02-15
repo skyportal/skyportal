@@ -23,6 +23,7 @@ from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    Annotation,
     Group,
     Stream,
     Photometry,
@@ -1062,16 +1063,37 @@ class PhotometryHandler(BaseHandler):
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
+        phase_fold_data = self.get_query_argument("phaseFoldData", False)
+
         Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
         photometry = Photometry.query_records_accessible_by(self.current_user).filter(
             Photometry.obj_id == obj_id
         )
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
+
         self.verify_and_commit()
-        return self.success(
-            data=[serialize(phot, outsys, format) for phot in photometry]
-        )
+        data = [serialize(phot, outsys, format) for phot in photometry]
+
+        if phase_fold_data:
+            period = None
+            annotations = (
+                Annotation.query_records_accessible_by(self.current_user)
+                .filter(Annotation.obj_id == obj_id)
+                .all()
+            )
+            for an in annotations:
+                if not isinstance(an.data, dict):
+                    continue
+                if 'period' in an.data:
+                    period = an.data['period']
+                    break
+            if period is None:
+                self.error(f'No period for object {obj_id}')
+            for ii in range(len(data)):
+                data[ii]['phase'] = np.mod(data[ii]['mjd'], period) / period
+
+        return self.success(data=data)
 
 
 class BulkDeletePhotometryHandler(BaseHandler):
@@ -1245,7 +1267,13 @@ ObjPhotometryHandler.get.__doc__ = f"""
             schema:
               type: string
               enum: {list(ALLOWED_MAGSYSTEMS)}
-
+          - in: query
+            name: phaseFoldData
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to phase fold the light curve. Defaults to false.
         responses:
           200:
             content:
