@@ -114,7 +114,8 @@ const NewAllocation = () => {
       schema={allocationFormSchema}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
-      liveValidate={validate}
+      validate={validate}
+      liveValidate
     />
   );
 };

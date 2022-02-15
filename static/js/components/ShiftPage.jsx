@@ -32,6 +32,15 @@ const useStyles = makeStyles((theme) => ({
     right: 0,
     top: 0,
   },
+  shiftDeleteDisabled: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+    opacity: 0,
+  },
 }));
 
 const textStyles = makeStyles(() => ({
@@ -88,7 +97,7 @@ export function shiftInfo(shift) {
   return result;
 }
 
-const ShiftList = ({ shifts }) => {
+const ShiftList = ({ shifts, deletePermission }) => {
   const dispatch = useDispatch();
   const deleteShift = (shift) => {
     dispatch(shiftActions.deleteShift(shift.id)).then((result) => {
@@ -113,8 +122,12 @@ const ShiftList = ({ shifts }) => {
             <Button
               key={shift.id}
               id="delete_button"
-              className={classes.shiftDelete}
+              classes={{
+                root: classes.shiftDelete,
+                disabled: classes.shiftDeleteDisabled,
+              }}
               onClick={() => deleteShift(shift)}
+              disabled={!deletePermission}
             >
               &times;
             </Button>
@@ -134,19 +147,22 @@ const ShiftPage = () => {
     return <CircularProgress />;
   }
 
+  const permission =
+    currentUser.permissions?.includes("System admin") ||
+    currentUser.permissions?.includes("Manage groups") ||
+    currentUser.permissions?.includes("Manage shifts");
+
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Shifts</Typography>
-            <ShiftList shifts={shiftList} />
+            <ShiftList shifts={shiftList} deletePermission={permission} />
           </div>
         </Paper>
       </Grid>
-      {(currentUser.permissions?.includes("System admin") ||
-        currentUser.permissions?.includes("Manage groups") ||
-        currentUser.permissions?.includes("Manage shifts")) && (
+      {permission && (
         <Grid item md={6} sm={12}>
           <Paper>
             <div className={classes.paperContent}>
@@ -162,6 +178,7 @@ const ShiftPage = () => {
 
 ShiftList.propTypes = {
   shifts: PropTypes.arrayOf(PropTypes.any).isRequired,
+  deletePermission: PropTypes.bool.isRequired,
 };
 
 export default ShiftPage;
