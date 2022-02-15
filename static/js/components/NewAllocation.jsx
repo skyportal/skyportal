@@ -39,6 +39,8 @@ const NewAllocation = () => {
       errors.end_date.addError(
         "End date must be after current time, please fix."
       );
+    } else {
+      errors = [];
     }
     if (formData.start_date > formData.end_date) {
       errors.start_date.addError(
@@ -112,7 +114,7 @@ const NewAllocation = () => {
       schema={allocationFormSchema}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
-      validate={validate}
+      liveValidate={validate}
     />
   );
 };

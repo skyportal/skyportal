@@ -87,7 +87,7 @@ const NewShift = () => {
       schema={shiftFormSchema}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
-      validate={validate}
+      liveValidate={validate}
     />
   );
 };
