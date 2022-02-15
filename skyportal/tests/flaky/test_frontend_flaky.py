@@ -230,7 +230,6 @@ def test_super_user_post_allocation(
     driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('01:01')
     driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('P')
 
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('02/01/2022 01:01:10')
     driver.wait_for_xpath('//*[@id="root_hours_allocated"]').send_keys('100')
     driver.click_xpath('//*[@id="root_instrument_id"]')
     driver.click_xpath(f'//li[contains(text(), "{instrument_name2}")]')
