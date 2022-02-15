@@ -283,9 +283,12 @@ def test_super_user_post_shift(
     driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
     driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('01:01')
     driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('P')
-
-    driver.click_xpath('//*[@id="root_group_id"]')
-    driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
+    try:
+        driver.click_xpath('//*[@id="root_group_id"]')
+        driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
+    except (TimeoutError):
+        driver.click_xpath('//*[@id="root_group_id"]')
+        driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
 
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)

@@ -102,7 +102,7 @@ const ShiftList = ({ shifts, deletePermission }) => {
   const deleteShift = (shift) => {
     dispatch(shiftActions.deleteShift(shift.id)).then((result) => {
       if (result.status === "success") {
-        dispatch(showNotification("Shift deleted", "warning"));
+        dispatch(showNotification("Shift deleted"));
       }
     });
   };
