@@ -1504,3 +1504,48 @@ def test_candidate_list_pagination(
     )
     assert status == 400
     assert "Page number out of range" in data["message"]
+
+
+def test_candidate_repitition(
+    upload_data_token,
+    view_only_token,
+    public_filter,
+):
+    obj_id = str(uuid.uuid4())
+    passed_at = str(datetime.datetime.utcnow())
+
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": passed_at,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    # post the same candidate again
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "transient": False,
+            "ra_dis": 2.3,
+            "filter_ids": [public_filter.id],
+            "passed_at": passed_at,
+        },
+        token=upload_data_token,
+    )
+    # this time fails
+    assert status == 400
