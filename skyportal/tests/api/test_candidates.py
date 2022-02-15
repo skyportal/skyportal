@@ -1505,3 +1505,4 @@ def test_candidate_list_pagination(
         token=view_only_token,
     )
     assert status == 400
+    assert "Page number out of range" in data["message"]
