@@ -49,6 +49,15 @@ class InstrumentHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
             )
 
+        sensitivity_data = data.pop("sensitivity_data", None)
+        if sensitivity_data:
+            filters = data.get("filters")
+            for data in sensitivity_data:
+                if data.filter_name not in filters:
+                    return self.error(
+                        'Filter names must be present in both sensitivity_data property and filters property'
+                    )
+
         existing_instrument = (
             Instrument.query_records_accessible_by(
                 self.current_user,
@@ -197,9 +206,17 @@ class InstrumentHandler(BaseHandler):
         data['id'] = int(instrument_id)
 
         # permission check
-        _ = Instrument.get_if_accessible_by(
+        instrument = Instrument.get_if_accessible_by(
             int(instrument_id), self.current_user, raise_if_none=True, mode='update'
         )
+        filters = instrument.filters
+        sensitivity_data = data.pop('sensitivity_data', None)
+        if sensitivity_data:
+            for data in sensitivity_data:
+                if data.filter_name not in filters:
+                    return self.error(
+                        'Filter names must be present in both sensitivity_data property and filters property'
+                    )
 
         schema = Instrument.__schema__()
         try:
@@ -259,6 +276,16 @@ InstrumentHandler.post.__doc__ = f"""
                 - $ref: "#/components/schemas/InstrumentNoID"
                 - type: object
                   properties:
+                    filters:
+                      type: array
+                      items:
+                        type: string
+                        enum: {list(ALLOWED_BANDPASSES)}
+                      description: >-
+                        List of filters on the instrument. If the instrument
+                        has no filters (e.g., because it is a spectrograph),
+                        leave blank or pass the empty list.
+                      default: []
                     sensitivity_data:
                       type: array
                       items:
@@ -269,8 +296,8 @@ InstrumentHandler.post.__doc__ = f"""
                             enum:{list(ALLOWED_BANDPASSES)}
                           limiting_magnitude:
                             type: float
-                          exposure_time: float
-                      required: true
+                          exposure_time:
+                            type: float
                       default: []
         responses:
           200:
