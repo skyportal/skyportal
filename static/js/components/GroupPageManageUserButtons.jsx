@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 
 import { useDispatch } from "react-redux";
+import { useHistory } from "react-router-dom";
 import Button from "@material-ui/core/Button";
 import DeleteIcon from "@material-ui/icons/Delete";
 import IconButton from "@material-ui/core/IconButton";
@@ -12,8 +13,9 @@ import { showNotification } from "baselayer/components/Notifications";
 import * as groupActions from "../ducks/group";
 import * as groupsActions from "../ducks/groups";
 
-const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
+const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
   const dispatch = useDispatch();
+  const history = useHistory();
 
   let numAdmins = 0;
   group?.users?.forEach((groupUser) => {
@@ -63,49 +65,61 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin }) => {
     }
   };
 
+  const handleDelete = () => {
+    dispatch(
+      groupsActions.deleteGroupUser({
+        userID: user.id,
+        group_id: group.id,
+      })
+    );
+    history.goBack();
+  };
+
   return (
     <div>
-      <Button
-        size="small"
-        onClick={() => {
-          toggleUserAdmin(user);
-        }}
-        disabled={isAdmin(user) && numAdmins === 1}
-      >
-        <span style={{ whiteSpace: "nowrap" }}>
-          {isAdmin(user) ? "Revoke admin status" : "Grant admin status"}
-        </span>
-      </Button>
-      &nbsp;|&nbsp;
-      <Tooltip title="Manage whether user can save sources to this group.">
-        <Button
-          size="small"
-          onClick={() => {
-            toggleUserCanSave(user);
-          }}
-        >
-          <span style={{ whiteSpace: "nowrap" }}>
-            {canSave(user) ? "Revoke save access" : "Grant save access"}
-          </span>
-        </Button>
-      </Tooltip>
-      &nbsp;|&nbsp;
-      <IconButton
-        edge="end"
-        aria-label="delete"
-        data-testid={`delete-${user.username}`}
-        onClick={() =>
-          dispatch(
-            groupsActions.deleteGroupUser({
-              userID: user.id,
-              group_id: group.id,
-            })
-          )
-        }
-        disabled={isAdmin(user) && numAdmins === 1}
-      >
-        <DeleteIcon />
-      </IconButton>
+      {isAdmin(currentUser) && (
+        <div>
+          <Button
+            size="small"
+            onClick={() => {
+              toggleUserAdmin(user);
+            }}
+            disabled={isAdmin(user) && numAdmins === 1}
+          >
+            <span style={{ whiteSpace: "nowrap" }}>
+              {isAdmin(user) ? "Revoke admin status" : "Grant admin status"}
+            </span>
+          </Button>
+          &nbsp;|&nbsp;
+          <Tooltip title="Manage whether user can save sources to this group.">
+            <Button
+              size="small"
+              onClick={() => {
+                toggleUserCanSave(user);
+              }}
+            >
+              <span style={{ whiteSpace: "nowrap" }}>
+                {canSave(user) ? "Revoke save access" : "Grant save access"}
+              </span>
+            </Button>
+          </Tooltip>
+          &nbsp;|&nbsp;
+        </div>
+      )}
+      {isAdmin(currentUser) ||
+        (user.username === currentUser.username && (
+          <div>
+            <IconButton
+              edge="end"
+              aria-label="delete"
+              data-testid={`delete-${user.username}`}
+              onClick={handleDelete}
+              disabled={isAdmin(user) && numAdmins === 1}
+            >
+              <DeleteIcon />
+            </IconButton>
+          </div>
+        ))}
     </div>
   );
 };
@@ -122,6 +136,10 @@ ManageUserButtons.propTypes = {
     users: PropTypes.arrayOf(
       PropTypes.shape({ admin: PropTypes.bool.isRequired })
     ),
+  }).isRequired,
+  currentUser: PropTypes.shape({
+    id: PropTypes.number,
+    username: PropTypes.string,
   }).isRequired,
 };
 

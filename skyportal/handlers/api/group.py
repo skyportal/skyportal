@@ -2,6 +2,7 @@ from sqlalchemy import or_
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions, AccessError
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -29,6 +30,9 @@ def has_admin_access_for_group(user, group_id):
             set(user.permissions)
         )
     ) > 0 or (groupuser is not None and groupuser.admin)
+
+
+log = make_log('api/group')
 
 
 class GroupHandler(BaseHandler):
@@ -172,10 +176,15 @@ class GroupHandler(BaseHandler):
 
             # grab streams:
             group['streams'] = streams
-            # grab filters:
-            group['filters'] = filters
 
-            self.verify_and_commit()
+            try:
+                # grab filters:
+                # this is in a try-except in case of deletions
+                self.verify_and_commit()
+                group['filters'] = filters
+            except AccessError as e:
+                log(f'Filter access failed: {e}')
+
             return self.success(data=group)
 
         group_name = self.get_query_argument("name", None)
