@@ -95,7 +95,7 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: integer
             - in: query
-              name: includeGeojson
+              name: includeGeoJSON
               nullable: true
               schema:
                 type: boolean
@@ -122,7 +122,7 @@ class InstrumentHandler(BaseHandler):
                 type: string
               description: Filter by name (exact match)
             - in: query
-              name: includeGeojson
+              name: includeGeoJSON
               nullable: true
               schema:
                 type: boolean
@@ -139,8 +139,8 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        includeGeojson = self.get_query_argument("includeGeojson", False)
-        if includeGeojson:
+        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+        if includeGeoJSON:
             options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
         else:
             options = [joinedload(Instrument.fields)]

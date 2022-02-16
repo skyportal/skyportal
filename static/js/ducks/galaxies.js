@@ -20,7 +20,7 @@ export function fetchGalaxies(filterParams = {}) {
 
 export function fetchGcnEventGalaxies(dateobs = null, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
-  filterParams.includeGeojson = true;
+  filterParams.includeGeoJSON = true;
 
   if (!Object.keys(filterParams).includes("localizationCumprob")) {
     filterParams.localizationCumprob = 0.95;
