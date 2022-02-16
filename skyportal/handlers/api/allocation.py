@@ -94,7 +94,6 @@ class AllocationHandler(BaseHandler):
                 )
 
         allocations = allocations.all()
-        print(allocations)
         self.verify_and_commit()
         return self.success(data=allocations)
 
