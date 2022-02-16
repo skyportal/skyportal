@@ -101,10 +101,6 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     setSelectedLocalizationId,
   ]);
 
-  console.log("allocationList", allocationList);
-  console.log("selectedAllocationId", selectedAllocationId);
-  console.log("instrumentFormParams", instrumentFormParams);
-
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationList is not

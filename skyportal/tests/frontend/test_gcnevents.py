@@ -89,7 +89,6 @@ def test_gcnevents(
     driver.wait_for_xpath('//*[text()="GRB"]')
 
 
-@pytest.mark.flaky(reruns=2)
 def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
@@ -101,13 +100,13 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     assert status == 200
     assert data['status'] == 'success'
 
-    name = str(uuid.uuid4())
+    telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',
         'telescope',
         data={
-            'name': name,
-            'nickname': name,
+            'name': telescope_name,
+            'nickname': telescope_name,
             'lat': 0.0,
             'lon': 0.0,
             'elevation': 0.0,
