@@ -38,13 +38,11 @@ def test_token_user_post_bad_sensitivity_data(super_admin_token):
             'type': 'imager',
             'band': 'NIR',
             'filters': ['f110w'],
-            'sensitivity_data': [
-                {
-                    'filter_name': 'wrong_filter_name',
-                    'limiting_magnitude': 20.5,
-                    'exposure_time': 30,
-                }
-            ],
+            'sensitivity_data': {
+                'filter_name': 'wrong_filter_name',
+                'limiting_magnitude': 20.5,
+                'exposure_time': 30,
+            },
             'telescope_id': telescope_id,
             'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
             'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
@@ -86,13 +84,11 @@ def test_token_user_post_get_instrument(super_admin_token):
             'type': 'imager',
             'band': 'NIR',
             'filters': ['f110w'],
-            'sensitivity_data': [
-                {
-                    'filter_name': 'f110w',
-                    'limiting_magnitude': 20.5,
-                    'exposure_time': 30,
-                }
-            ],
+            'sensitivity_data': {
+                'filter_name': 'f110w',
+                'limiting_magnitude': 20.5,
+                'exposure_time': 30,
+            },
             'telescope_id': telescope_id,
             'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
             'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
@@ -207,6 +203,7 @@ def test_token_user_update_instrument(
         },
         token=super_admin_token,
     )
+    print(data)
     assert status == 200
     assert data['status'] == 'success'
 
@@ -250,6 +247,7 @@ def test_token_user_update_instrument(
         },
         token=super_admin_token,
     )
+    print(data)
     assert status == 200
     assert data['status'] == 'success'
 

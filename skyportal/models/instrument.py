@@ -89,7 +89,7 @@ class Instrument(Base):
     )
 
     sensitivity_data = sa.Column(
-        JSONB,
+        ARRAY(JSONB),
         nullable=True,
         doc="JSON describing the filters on the instrument and the filter's corresponding limiting magnitude and exposure time.",
     )
