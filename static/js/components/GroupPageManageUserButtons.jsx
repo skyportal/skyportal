@@ -106,20 +106,19 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
           &nbsp;|&nbsp;
         </div>
       )}
-      {isAdmin(currentUser) ||
-        (user.username === currentUser.username && (
-          <div>
-            <IconButton
-              edge="end"
-              aria-label="delete"
-              data-testid={`delete-${user.username}`}
-              onClick={handleDelete}
-              disabled={isAdmin(user) && numAdmins === 1}
-            >
-              <DeleteIcon />
-            </IconButton>
-          </div>
-        ))}
+      {(isAdmin(currentUser) || user.username === currentUser.username) && (
+        <div>
+          <IconButton
+            edge="end"
+            aria-label="delete"
+            data-testid={`delete-${user.username}`}
+            onClick={handleDelete}
+            disabled={isAdmin(user) && numAdmins === 1}
+          >
+            <DeleteIcon />
+          </IconButton>
+        </div>
+      )}
     </div>
   );
 };
