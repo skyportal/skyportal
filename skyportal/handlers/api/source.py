@@ -200,6 +200,13 @@ class SourceHandler(BaseHandler):
               description: |
                 Boolean indicating whether to return if a source has a spectra. Defaults to false.
             - in: query
+              name: includePeriodExists
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to return if a source has a period set. Defaults to false.
+            - in: query
               name: includeThumbnails
               nullable: true
               schema:
@@ -630,6 +637,7 @@ class SourceHandler(BaseHandler):
         include_spectrum_exists = self.get_query_argument(
             "includeSpectrumExists", False
         )
+        include_period_exists = self.get_query_argument("includePeriodExists", False)
         remove_nested = self.get_query_argument("removeNested", False)
         include_detection_stats = self.get_query_argument(
             "includeDetectionStats", False
@@ -831,14 +839,17 @@ class SourceHandler(BaseHandler):
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
-            if include_photometry_exists:
-                source_info["photometry_exists"] = (
-                    len(
-                        Photometry.query_records_accessible_by(self.current_user)
-                        .filter(Photometry.obj_id == obj_id)
-                        .all()
-                    )
-                    > 0
+            if include_period_exists:
+                annotations = (
+                    Annotation.query_records_accessible_by(self.current_user)
+                    .filter(Annotation.obj_id == obj_id)
+                    .all()
+                )
+                source_info["period_exists"] = any(
+                    [
+                        isinstance(an.data, dict) and 'period' in an.data
+                        for an in annotations
+                    ]
                 )
 
             source_info["annotations"] = sorted(
@@ -1454,7 +1465,18 @@ class SourceHandler(BaseHandler):
                         )
                         > 0
                     )
-
+                if include_period_exists:
+                    annotations = (
+                        Annotation.query_records_accessible_by(self.current_user)
+                        .filter(Annotation.obj_id == obj.id)
+                        .all()
+                    )
+                    obj_list[-1]["period_exists"] = any(
+                        [
+                            isinstance(an.data, dict) and 'period' in an.data
+                            for an in annotations
+                        ]
+                    )
                 if not remove_nested:
                     source_query = Source.query_records_accessible_by(
                         self.current_user

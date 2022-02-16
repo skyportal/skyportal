@@ -448,7 +448,7 @@ const SourceTable = ({
               {!source.photometry_exists && <div> no photometry exists </div>}
             </Grid>
             <Grid item>
-              {source.photometry_exists && (
+              {source.photometry_exists && source.period_exists && (
                 <Suspense
                   fallback={
                     <div>

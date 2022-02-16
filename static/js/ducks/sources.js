@@ -39,6 +39,7 @@ const addFilterParamDefaults = (filterParams) => {
     filterParams.numPerPage = 10;
   }
   filterParams.includePhotometryExists = true;
+  filterParams.includePeriodExists = true;
   filterParams.includeSpectrumExists = true;
   filterParams.includeColorMagnitude = true;
   filterParams.includeThumbnails = true;
