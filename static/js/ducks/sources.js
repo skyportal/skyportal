@@ -71,10 +71,6 @@ export function fetchGcnEventSources(dateobs, filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.localizationDateobs = dateobs;
 
-  if (!Object.keys(filterParams).includes("localizationCumprob")) {
-    filterParams.localizationCumprob = 0.95;
-  }
-
   if (!Object.keys(filterParams).includes("startDate")) {
     if (dateobs) {
       filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");

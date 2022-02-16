@@ -4,6 +4,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import sessionmaker, scoped_session
 import astropy.units as u
 import healpix_alchemy as ha
+from distutils.util import strtobool
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
@@ -151,7 +152,9 @@ class GalaxyCatalogHandler(BaseHandler):
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-        includeGeoJSON = bool(self.get_query_argument("includeGeoJSON", False))
+        includeGeoJSON = bool(
+            strtobool(self.get_query_argument("includeGeoJSON", 'False'))
+        )
 
         query = Galaxy.query_records_accessible_by(self.current_user, mode="read")
         if catalog_name is not None:

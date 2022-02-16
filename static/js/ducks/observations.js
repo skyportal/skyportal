@@ -23,10 +23,6 @@ export function fetchGcnEventObservations(dateobs, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
   filterParams.includeGeoJSON = true;
 
-  if (!Object.keys(filterParams).includes("localizationCumprob")) {
-    filterParams.localizationCumprob = 0.95;
-  }
-
   if (!Object.keys(filterParams).includes("startDate")) {
     if (dateobs) {
       filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");

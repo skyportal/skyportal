@@ -17,6 +17,7 @@ from marshmallow.exceptions import ValidationError
 import functools
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
+from distutils.util import strtobool
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -651,7 +652,9 @@ class SourceHandler(BaseHandler):
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-        includeGeoJSON = bool(self.get_query_argument("includeGeoJSON", False))
+        includeGeoJSON = bool(
+            strtobool(self.get_query_argument("includeGeoJSON", 'False'))
+        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):

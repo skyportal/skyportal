@@ -22,10 +22,6 @@ export function fetchGcnEventGalaxies(dateobs, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
   filterParams.includeGeoJSON = true;
 
-  if (!Object.keys(filterParams).includes("localizationCumprob")) {
-    filterParams.localizationCumprob = 0.95;
-  }
-
   return API.GET("/api/galaxy_catalog", FETCH_GCNEVENT_GALAXIES, filterParams);
 }
 
