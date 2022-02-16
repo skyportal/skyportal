@@ -33,6 +33,9 @@ import * as galaxiesActions from "../ducks/galaxies";
 import SourceTable from "./SourceTable";
 import GalaxyTable from "./GalaxyTable";
 
+import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
+import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
+
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
@@ -412,6 +415,30 @@ const GcnEventPage = ({ route }) => {
           <AccordionDetails>
             <div className={styles.gcnEventContainer}>
               <GalaxyTable galaxies={gcnEventGalaxies.sources} />
+            </div>
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="observationplan-header"
+          >
+            <Typography className={styles.accordionHeading}>
+              Observation Plans
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              <ObservationPlanRequestForm
+                gcnevent={gcnEvent}
+                action="createNew"
+              />
+              <ObservationPlanRequestLists
+                observationplanRequests={gcnEvent.observationplan_requests}
+              />
             </div>
           </AccordionDetails>
         </Accordion>

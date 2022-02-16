@@ -24,13 +24,15 @@ class RoboticInstrumentsHandler(BaseHandler):
                     .all()
                 )
                 retval = {
-                    i.id: i.api_classname_obsplan.frontend_render_info(i)
+                    i.id: i.api_class_obsplan.frontend_render_info(i)
                     for i in instruments
                 }
             else:
                 return self.error(
                     f"apitype can only be api_classname or api_classname_obsplan, not {apitype}"
                 )
+
+        print(apitype, instruments)
 
         self.verify_and_commit()
         return self.success(data=retval)

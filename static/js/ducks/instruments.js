@@ -14,8 +14,16 @@ const FETCH_INSTRUMENT_FORMS_OK = "skyportal/FETCH_INSTRUMENT_FORMS_OK";
 export const fetchInstruments = () =>
   API.GET("/api/instrument", FETCH_INSTRUMENTS);
 
-export const fetchInstrumentForms = () =>
-  API.GET(`/api/internal/instrument_forms`, FETCH_INSTRUMENT_FORMS);
+export const fetchInstrumentForms = (params = {}) => {
+  if (!Object.keys(params).includes("apiType")) {
+    params.apiType = "api_classname";
+  }
+  return API.GET(
+    "/api/internal/instrument_forms",
+    FETCH_INSTRUMENT_FORMS,
+    params
+  );
+};
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {
