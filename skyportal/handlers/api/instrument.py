@@ -299,6 +299,8 @@ InstrumentHandler.post.__doc__ = f"""
                             type: float
                           exposure_time:
                             type: float
+                      description: >-
+                        List of filters and associated limiting magnitude and exposure time. Filters must be the same as in the filters property.
                       default: []
         responses:
           200:
