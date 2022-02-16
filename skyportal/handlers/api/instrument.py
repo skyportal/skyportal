@@ -53,7 +53,7 @@ class InstrumentHandler(BaseHandler):
         if sensitivity_data:
             filters = data.get("filters")
             for data in sensitivity_data:
-                if data.filter_name not in filters:
+                if data['filter_name'] not in filters:
                     return self.error(
                         'Filter names must be present in both sensitivity_data property and filters property'
                     )
@@ -214,7 +214,7 @@ class InstrumentHandler(BaseHandler):
         sensitivity_data = data.pop('sensitivity_data', None)
         if sensitivity_data:
             for data in sensitivity_data:
-                if data.filter_name not in filters:
+                if data['filter_name'] not in filters:
                     return self.error(
                         'Filter names must be present in both sensitivity_data property and filters property'
                     )
