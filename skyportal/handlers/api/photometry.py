@@ -289,7 +289,7 @@ def standardize_photometry_data(data):
         for field in PhotMagFlexible.required_keys:
             missing = df[field].isna()
             if any(missing):
-                first_offender = np.argwhere(missing)[0, 0]
+                first_offender = np.argwhere(missing.values)[0, 0]
                 packet = df.iloc[first_offender].to_dict()
 
                 # coerce nans to nones

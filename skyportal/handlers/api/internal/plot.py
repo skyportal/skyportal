@@ -52,15 +52,19 @@ class PlotSpectroscopyHandler(BaseHandler):
         if device not in device_types:
             device = "browser"
         spec_id = self.get_query_argument("spectrumID", None)
-        json = plot.spectroscopy_plot(
-            obj_id,
-            self.associated_user_object,
-            spec_id,
-            width=int(width),
-            device=device,
-            smoothing=smoothing,
-            smooth_number=smooth_number,
-        )
+        try:
+            json = plot.spectroscopy_plot(
+                obj_id,
+                self.associated_user_object,
+                spec_id,
+                width=int(width),
+                device=device,
+                smoothing=smoothing,
+                smooth_number=smooth_number,
+            )
+        except ValueError as e:
+            return self.error(f'Exception in photometry plot: {e}')
+
         self.verify_and_commit()
         self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
