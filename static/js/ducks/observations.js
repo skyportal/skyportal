@@ -19,7 +19,7 @@ export function fetchObservations(filterParams = {}) {
   return API.GET("/api/observation", FETCH_OBSERVATIONS, filterParams);
 }
 
-export function fetchGcnEventObservations(dateobs = null, filterParams = {}) {
+export function fetchGcnEventObservations(dateobs, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
   filterParams.includeGeoJSON = true;
 

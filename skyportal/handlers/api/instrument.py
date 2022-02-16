@@ -139,7 +139,7 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+        includeGeoJSON = bool(self.get_query_argument("includeGeoJSON", False))
         if includeGeoJSON:
             options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
         else:

@@ -67,7 +67,7 @@ export function fetchFavoriteSources(filterParams = {}) {
   return API.GET("/api/sources", FETCH_FAVORITE_SOURCES, filterParams);
 }
 
-export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
+export function fetchGcnEventSources(dateobs, filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.localizationDateobs = dateobs;
 
@@ -88,10 +88,6 @@ export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
         .format("YYYY-MM-DD HH:mm:ss");
     }
   }
-
-  // filterParams.startDate = null;
-  // filterParams.endDate = null;
-  // filterParams.localizationCumprob = 1.00;
 
   filterParams.includeGeoJSON = true;
   return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);

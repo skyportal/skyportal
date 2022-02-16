@@ -18,7 +18,7 @@ export function fetchGalaxies(filterParams = {}) {
   return API.GET("/api/galaxy_catalog", FETCH_GALAXIES, filterParams);
 }
 
-export function fetchGcnEventGalaxies(dateobs = null, filterParams = {}) {
+export function fetchGcnEventGalaxies(dateobs, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
   filterParams.includeGeoJSON = true;
 

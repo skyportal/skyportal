@@ -114,7 +114,7 @@ def test_gcnevents_object(
     driver.wait_for_xpath(f'//*[text()[contains(.,"{obj_id}")]]')
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_gcnevents_observations(
     driver, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
 ):
@@ -128,13 +128,13 @@ def test_gcnevents_observations(
     assert status == 200
     assert data['status'] == 'success'
 
-    name = str(uuid.uuid4())
+    telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',
         'telescope',
         data={
-            'name': name,
-            'nickname': name,
+            'name': telescope_name,
+            'nickname': telescope_name,
             'lat': 0.0,
             'lon': 0.0,
             'elevation': 0.0,
@@ -172,7 +172,7 @@ def test_gcnevents_observations(
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/sample_observation_data.csv'
     data = {
-        'telescopeName': name,
+        'telescopeName': telescope_name,
         'instrumentName': instrument_name,
         'observationData': pd.read_csv(datafile).to_dict(orient='list'),
     }
@@ -211,3 +211,9 @@ def test_gcnevents_observations(
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
+
+    # check that the executed observation table appears
+    driver.wait_for_xpath('//*[text()="84434604"]')
+    driver.wait_for_xpath('//*[text()="ztfr"]')
+    driver.wait_for_xpath('//*[text()="1.57415"]')
+    driver.wait_for_xpath('//*[text()="20.40705"]')

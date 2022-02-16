@@ -151,7 +151,7 @@ class GalaxyCatalogHandler(BaseHandler):
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+        includeGeoJSON = bool(self.get_query_argument("includeGeoJSON", False))
 
         query = Galaxy.query_records_accessible_by(self.current_user, mode="read")
         if catalog_name is not None:

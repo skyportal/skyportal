@@ -79,6 +79,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
         // eslint-disable-next-line react/jsx-no-bind
         validate={validate}
         disabled={isSubmitting}
+        liveValidate
       />
       {isSubmitting && (
         <div>
