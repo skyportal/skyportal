@@ -132,7 +132,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
             'band': 'NIR',
             'filters': ['f110w'],
             'telescope_id': telescope_id,
-            "api_observationplan_classname": "MMAAPI",
+            "api_classname_obsplan": "ZTFMMAAPI",
             'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
             'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
         },

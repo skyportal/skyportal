@@ -74,6 +74,11 @@ const FollowupRequestForm = ({
         apiType: "api_classname",
       })
     );
+    dispatch(
+      allocationActions.fetchAllocations({
+        apiType: "api_classname",
+      })
+    );
   }, [setSelectedAllocationId, setSelectedGroupIds]);
 
   // need to check both of these conditions as selectedAllocationId is
