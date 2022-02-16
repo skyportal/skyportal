@@ -15,6 +15,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.sql.expression import case, func
 from sqlalchemy.sql import column, Values
 from sqlalchemy.types import Float, Boolean, String, Integer
+from sqlalchemy.exc import IntegrityError
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -1026,7 +1027,13 @@ class CandidateHandler(BaseHandler):
             for filter in filters
         ]
         DBSession().add_all(candidates)
-        self.verify_and_commit()
+        try:
+            self.verify_and_commit()
+        except IntegrityError as e:
+            DBSession().rollback()
+            return self.error(
+                f"Failed to post candidate for object {obj.id}: {e.args[0]}"
+            )
 
         if not obj_already_exists:
             IOLoop.current().run_in_executor(
