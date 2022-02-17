@@ -183,10 +183,6 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     return errors;
   };
 
-  console.log("instrumentFormParams", instrumentFormParams);
-  console.log("allocationLookUp", allocationLookUp);
-  console.log("selectedAllocationId", selectedAllocationId);
-
   return (
     <div className={classes.container}>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
@@ -218,7 +214,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         labelId="localizationSelectLabel"
         value={selectedLocalizationId}
         onChange={handleSelectedLocalizationChange}
-        name="followupRequestLocalizationSelect"
+        name="observationPlanRequestLocalizationSelect"
         className={classes.localizationSelect}
       >
         {gcnevent.localizations?.map((localization) => (
@@ -237,7 +233,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         setGroupIDs={setSelectedGroupIds}
         groupIDs={selectedGroupIds}
       />
-      <div data-testid="followup-request-form">
+      <div data-testid="observationplan-request-form">
         <Form
           schema={
             instrumentFormParams[

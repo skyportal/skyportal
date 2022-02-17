@@ -208,7 +208,9 @@ def test_gcnevents_observations(
     driver.wait_for_xpath('//li[contains(text(), "bayestar.fits.gz")]')
     driver.click_xpath('//li[contains(text(), "bayestar.fits.gz")]')
 
-    submit_button_xpath = '//button[@type="submit"]'
+    submit_button_xpath = (
+        '//div[@data-testid="gcnsource-selection-form"]//button[@type="submit"]'
+    )
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
@@ -295,7 +297,9 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     driver.wait_for_xpath('//*[text()="Fermi"]')
     driver.wait_for_xpath('//*[text()="GRB"]')
 
-    submit_button_xpath = '//button[@type="submit"]'
+    submit_button_xpath = (
+        '//div[@data-testid="observationplan-request-form"]//button[@type="submit"]'
+    )
     driver.wait_for_xpath(submit_button_xpath)
 
     select_box = driver.find_element_by_id(
