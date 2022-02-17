@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDispatch } from "react-redux";
+
 import * as d3 from "d3";
+import d3GeoZoom from "d3-geo-zoom";
 
 import { GET } from "../API";
 
@@ -34,22 +36,51 @@ const GeoJSONPlot = () => {
 
   const render = (svg) => {
     if (geoJSON) {
-      svg
-        .attr("width", 300)
-        .attr("height", 200)
-        .append("line")
-        .attr("x1", 100)
-        .attr("y1", 100)
-        .attr("x2", 200)
-        .attr("y2", 200)
-        .style("stroke", "rgb(255,0,0)")
-        .style("stroke-width", 2);
+      const projection = d3.geoOrthographic().translate([200, 200]).scale(190);
+      const geoGenerator = d3.geoPath().projection(projection);
+      const graticule = d3.geoGraticule();
+
+      const renderSVG = () => {
+        svg.selectAll("*").remove();
+
+        svg
+          .selectAll(".label")
+          .data(geoJSON.features)
+          .enter()
+          .append("text")
+          .attr("transform", (d) => `translate(${geoGenerator.centroid(d)})`)
+          .style("stroke", "blue")
+          .style("text-anchor", "middle")
+          .text((d) => d.properties.name);
+
+        svg
+          .selectAll("path")
+          .data([graticule()])
+          .enter()
+          .append("path")
+          .attr("d", geoGenerator)
+          .style("fill", "none")
+          .style("stroke", "darkgray")
+          .style("stroke-width", "0.5px");
+
+        svg
+          .selectAll("path")
+          .data(geoJSON.features)
+          .enter()
+          .append("path")
+          .attr("d", geoGenerator)
+          .style("fill", "red");
+      };
+
+      renderSVG();
+
+      d3GeoZoom().projection(projection).onMove(renderSVG)(svg.node());
     }
   };
   const svgRef = useD3(render);
 
   if (geoJSON) {
-    return <svg ref={svgRef} />;
+    return <svg ref={svgRef} height="400" width="400" />;
   }
 
   return <div>Fetching GeoJSON...</div>;
