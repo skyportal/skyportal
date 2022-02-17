@@ -147,7 +147,11 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
               <Button autoFocus onClick={() => setConfirmDeleteOpen(false)}>
                 Dismiss
               </Button>
-              <Button color="primary" onClick={handleDelete}>
+              <Button
+                color="primary"
+                onClick={handleDelete}
+                data-testid={`confirm-delete-${user.username}`}
+              >
                 Confirm
               </Button>
             </DialogActions>
