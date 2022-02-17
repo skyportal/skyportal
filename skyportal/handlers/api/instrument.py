@@ -51,7 +51,7 @@ class InstrumentHandler(BaseHandler):
 
         sensitivity_data = data.pop("sensitivity_data", None)
         if sensitivity_data:
-            filters = data.get("filters")
+            filters = data.get("filters", [])
             for data in sensitivity_data:
                 if data['filter_name'] not in filters:
                     return self.error(
