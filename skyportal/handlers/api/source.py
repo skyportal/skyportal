@@ -17,6 +17,7 @@ from marshmallow.exceptions import ValidationError
 import functools
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
+from distutils.util import strtobool
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -567,7 +568,7 @@ class SourceHandler(BaseHandler):
             description: |
               Cumulative probability up to which to include sources
           - in: query
-            name: includeGeojson
+            name: includeGeoJSON
             nullable: true
             schema:
               type: boolean
@@ -651,7 +652,9 @@ class SourceHandler(BaseHandler):
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-        includeGeojson = self.get_query_argument("includeGeojson", False)
+        includeGeoJSON = bool(
+            strtobool(self.get_query_argument("includeGeoJSON", 'False'))
+        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -1496,7 +1499,7 @@ class SourceHandler(BaseHandler):
             query_results["sources"] = obj_list
 
         query_results = recursive_to_dict(query_results)
-        if includeGeojson:
+        if includeGeoJSON:
             # features are JSON representations that the d3 stuff understands.
             # We use these to render the contours of the sky localization and
             # locations of the transients.
