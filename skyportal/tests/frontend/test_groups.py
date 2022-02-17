@@ -43,9 +43,14 @@ def test_add_new_group(driver, super_admin_user, user, super_admin_token):
         "groups",
         token=super_admin_token,
     )
-    id = data["data"]["all_groups"][0]["id"]
+    user_groups = data["data"]["user_groups"]
+    for group in user_groups:
+        if group["description"] == group_description:
+            id = group["id"]
+            break
     driver.get(f'/group/{id}')
     driver.wait_for_xpath('//h6[@data-testid="description"]')
+    driver.wait_for_xpath(f'//*[contains(text(), "{group_description}")]')
 
 
 @pytest.mark.flaky(reruns=2)
