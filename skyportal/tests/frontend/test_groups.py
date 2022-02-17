@@ -43,6 +43,8 @@ def test_add_new_group(driver, super_admin_user, user, super_admin_token):
         "groups",
         token=super_admin_token,
     )
+    assert status == 200
+    assert data["status"] == "success"
     user_groups = data["data"]["user_groups"]
     for group in user_groups:
         if group["description"] == group_description:
