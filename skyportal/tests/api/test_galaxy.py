@@ -66,13 +66,13 @@ def test_galaxy(super_admin_token, view_only_token):
 
     # The GeoJSON takes the form of
     """
-    [{"geometry": {"coordinates": [0.60321, -54.76653], "type": "Point"}, "properties": {"name": "2MASX J00022478-5445592"}, "type": "Feature"}, {"geometry": {"coordinates": [0.948375, -54.574083], "type": "Point"}, "properties": {"name": "IRAS F00012-5451 ID"}, "type": "Feature"}]
+    {"type": "FeatureCollection", "features": [{"geometry": {"coordinates": [0.60321, -54.76653], "type": "Point"}, "properties": {"name": "2MASX J00022478-5445592"}, "type": "Feature"}, {"geometry": {"coordinates": [0.948375, -54.574083], "type": "Point"}, "properties": {"name": "IRAS F00012-5451 ID"}, "type": "Feature"}]}
     """
 
     assert any(
         [
-            d['geometry']['coordinates'] == [0.60321, -54.76653]
-            and d['properties']['name'] == '2MASX J00022478-5445592'
-            for d in geojson
+            f['geometry']['coordinates'] == [0.60321, -54.76653]
+            and f['properties']['name'] == '2MASX J00022478-5445592'
+            for f in geojson['features']
         ]
     )
