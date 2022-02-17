@@ -9,12 +9,13 @@ import numpy as np
 
 from tornado.ioloop import IOLoop
 
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.sql.expression import case, func, FromClause
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.sql import column
+from sqlalchemy.sql.expression import case, func
+from sqlalchemy.sql import column, Values
 from sqlalchemy.types import Float, Boolean, String, Integer
+from sqlalchemy.exc import IntegrityError
 from marshmallow.exceptions import ValidationError
 
 from baselayer.app.access import auth_or_token, permissions
@@ -822,15 +823,16 @@ class CandidateHandler(BaseHandler):
             if "Page number out of range" in str(e):
                 return self.error("Page number out of range.")
             raise
+
         matching_source_ids = (
             Source.query_records_accessible_by(
                 self.current_user, columns=[Source.obj_id]
             )
-            .filter(Source.obj_id.in_([obj.id for obj in query_results["candidates"]]))
+            .filter(Source.obj_id.in_([obj.id for obj, in query_results["candidates"]]))
             .all()
         )
         candidate_list = []
-        for obj in query_results["candidates"]:
+        for (obj,) in query_results["candidates"]:
             with DBSession().no_autoflush:
                 obj.is_source = (obj.id,) in matching_source_ids
                 if obj.is_source:
@@ -1025,7 +1027,13 @@ class CandidateHandler(BaseHandler):
             for filter in filters
         ]
         DBSession().add_all(candidates)
-        self.verify_and_commit()
+        try:
+            self.verify_and_commit()
+        except IntegrityError as e:
+            DBSession().rollback()
+            return self.error(
+                f"Failed to post candidate for object {obj.id}: {e.args[0]}"
+            )
 
         if not obj_already_exists:
             IOLoop.current().run_in_executor(
@@ -1092,52 +1100,22 @@ def get_obj_id_values(obj_ids):
     values_table: `sqlalchemy.sql.expression.FromClause`
         The VALUES representation of the Obj IDs list.
     """
-    # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
-    class _obj_id_values(FromClause):
-        named_with_column = True
-
-        def __init__(self, columns, *args, **kw):
-            self._column_args = columns
-            self.list = args
-            self.alias_name = self.name = kw.pop("alias_name", None)
-
-        def _populate_column_collection(self):
-            for c in self._column_args:
-                c._make_proxy(self)
-
-        @property
-        def _from_objects(self):
-            return [self]
-
-    # https://github.com/sqlalchemy/sqlalchemy/wiki/PGValues
-    @compiles(_obj_id_values)
-    def compile_values(element, compiler, asfrom=False, **kw):
-        columns = element.columns
-        v = "VALUES %s" % ", ".join(
-            "(%s)"
-            % ", ".join(
-                compiler.render_literal_value(elem, column.type)
-                for elem, column in zip(tup, columns)
-            )
-            for tup in element.list
+    values_table = (
+        Values(
+            column("id", String),
+            column("ordering", Integer),
         )
-        if asfrom:
-            if element.alias_name:
-                v = "(%s) AS %s (%s)" % (
-                    v,
-                    element.alias_name,
-                    (", ".join(c.name for c in element.columns)),
+        .data(
+            [
+                (
+                    obj_id,
+                    idx,
                 )
-            else:
-                v = "(%s)" % v
-        return v
-
-    values_table = _obj_id_values(
-        (column("id", String), column("ordering", Integer)),
-        *[(obj_id, idx) for idx, obj_id in enumerate(obj_ids)],
-        alias_name="values_table",
+                for idx, obj_id in enumerate(obj_ids)
+            ]
+        )
+        .alias("values_table")
     )
-
     return values_table
 
 
@@ -1151,10 +1129,13 @@ def grab_query_results(
     include_thumbnails=True,
     query_id=None,
     use_cache=False,
+    include_detection_stats=False,
+    current_user=None,
 ):
     """
     Returns a SQLAlchemy Query object (which is iterable) for the sorted Obj IDs desired.
     If there are no matching Objs, an empty list [] is returned instead.
+    include_detection_stats is added to the pagination query directly here.
     """
     # The query will return multiple rows per candidate object if it has multiple
     # annotations associated with it, with rows appearing at the end of the query
@@ -1251,20 +1232,78 @@ def grab_query_results(
         ):
             raise ValueError("Page number out of range.")
 
-    items = []
-    query_options = [joinedload(Obj.thumbnails)] if include_thumbnails else []
+    if include_detection_stats:
+        # Load in all last_detected_at values at once
+        last_detected_at = Obj.last_detected_at(current_user)
+        # Load in all last_detected_mag values at once
+        last_detected_mag = Obj.last_detected_mag(current_user)
+        # Load in all peak_detected_at values at once
+        peak_detected_at = Obj.peak_detected_at(current_user)
+        # Load in all peak_detected_mag values at once
+        peak_detected_mag = Obj.peak_detected_mag(current_user)
 
+    items = []
     if len(obj_ids_in_page) > 0:
         # If there are no values, the VALUES statement above will cause a syntax error,
         # so only filter on the values if they exist
         obj_ids_values = get_obj_id_values(obj_ids_in_page)
-        items = (
-            DBSession()
-            .query(Obj)
-            .options(query_options)
-            .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
-            .order_by(obj_ids_values.c.ordering)
-        )
+
+        if include_detection_stats:
+            if include_thumbnails:
+                items = (
+                    DBSession()
+                    .execute(
+                        sa.select(Obj)
+                        .options(joinedload(Obj.thumbnails))
+                        .add_columns(last_detected_at)
+                        .add_columns(last_detected_mag)
+                        .add_columns(peak_detected_at)
+                        .add_columns(peak_detected_mag)
+                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+                        .order_by(obj_ids_values.c.ordering)
+                    )
+                    .unique()
+                    .all()
+                )
+            else:
+                items = (
+                    DBSession()
+                    .execute(
+                        sa.select(Obj)
+                        .add_columns(last_detected_at)
+                        .add_columns(last_detected_mag)
+                        .add_columns(peak_detected_at)
+                        .add_columns(peak_detected_mag)
+                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+                        .order_by(obj_ids_values.c.ordering)
+                    )
+                    .unique()
+                    .all()
+                )
+        else:
+            if include_thumbnails:
+                items = (
+                    DBSession()
+                    .execute(
+                        sa.select(Obj)
+                        .options(joinedload(Obj.thumbnails))
+                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+                        .order_by(obj_ids_values.c.ordering)
+                    )
+                    .unique()
+                    .all()
+                )
+            else:
+                items = (
+                    DBSession()
+                    .execute(
+                        sa.select(Obj)
+                        .join(obj_ids_values, obj_ids_values.c.id == Obj.id)
+                        .order_by(obj_ids_values.c.ordering)
+                    )
+                    .unique()
+                    .all()
+                )
 
     info[items_name] = items
     return info

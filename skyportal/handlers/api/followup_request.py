@@ -364,6 +364,7 @@ class FollowupRequestHandler(BaseHandler):
             data['allocation_id'], self.current_user, raise_if_none=True
         )
         instrument = allocation.instrument
+
         if instrument.api_classname is None:
             return self.error('Instrument has no remote API.')
 
@@ -377,8 +378,13 @@ class FollowupRequestHandler(BaseHandler):
             )
             target_groups.append(g)
 
+        try:
+            formSchema = instrument.api_class.custom_json_schema(instrument)
+        except AttributeError:
+            formSchema = instrument.api_class.form_json_schema
+
         # validate the payload
-        jsonschema.validate(data['payload'], instrument.api_class.form_json_schema)
+        jsonschema.validate(data['payload'], formSchema)
 
         followup_request = FollowupRequest.__schema__().load(data)
         followup_request.target_groups = target_groups

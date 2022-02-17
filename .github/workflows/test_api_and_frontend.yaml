@@ -85,7 +85,7 @@ jobs:
 
           sudo apt install -y wget nodejs unzip firefox nginx
 
-          pip install --upgrade pip
+          pip install pip==21.3.1
           pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
@@ -189,3 +189,10 @@ jobs:
         with:
           name: test-results
           path: test-results
+
+      - name: Upload generated plots
+        uses: actions/upload-artifact@v2
+        if: ${{ always() }}
+        with:
+          name: generated-plots
+          path: skyportal/tests/data/*_expected.png

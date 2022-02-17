@@ -35,7 +35,7 @@ class _ListenerBase:
     @classmethod
     def get_acl_id(cls):
         """Return the ID of the ACL that a User must have in order to use
-        this API. """
+        this API."""
         return f'Post from {cls.__name__}'
 
 
@@ -66,10 +66,15 @@ class _Base:
 
     # subclasses should not modify this
     @classmethod
-    def frontend_render_info(cls):
+    def frontend_render_info(cls, instrument):
+
+        try:
+            formSchema = cls.custom_json_schema(instrument)
+        except AttributeError:
+            formSchema = cls.form_json_schema
         return {
             'methodsImplemented': cls.implements(),
-            'formSchema': cls.form_json_schema,
+            'formSchema': formSchema,
             'uiSchema': cls.ui_json_schema,
             'aliasLookup': cls.alias_lookup,
         }

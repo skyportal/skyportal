@@ -17,6 +17,7 @@ from baselayer.app.models import (
     AccessibleIfUserMatches,
     CustomUserAccessControl,
     public,
+    safe_aliased,
 )
 from baselayer.app.env import load_env
 
@@ -26,7 +27,7 @@ _, cfg = load_env()
 
 # group admins can set the admin status of other group members
 def groupuser_update_access_logic(cls, user_or_token):
-    aliased = sa.orm.aliased(cls)
+    aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = DBSession().query(cls).join(aliased, cls.group_id == aliased.group_id)
     if not user_or_token.is_system_admin:
@@ -112,7 +113,7 @@ class AccessibleIfGroupUserMatches(AccessibleIfUserMatches):
         if columns is not None:
             query = DBSession().query(*columns).select_from(cls)
         else:
-            query = DBSession().query(cls)
+            query = DBSession().query(cls).select_from(cls)
 
         # traverse the relationship chain via sequential JOINs
         for relationship_name in self.relationship_names:
@@ -294,6 +295,13 @@ class Group(Base):
         back_populates="group",
         passive_deletes=True,
         doc='All filters (not just active) associated with a group.',
+    )
+
+    shifts = relationship(
+        "Shift",
+        back_populates="group",
+        passive_deletes=True,
+        doc='All shifts associated with a group.',
     )
 
     users = relationship(

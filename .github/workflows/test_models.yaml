@@ -80,7 +80,7 @@ jobs:
 
           sudo apt install -y wget nodejs unzip firefox nginx
 
-          pip install --upgrade pip
+          pip install pip==21.3.1
           pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"

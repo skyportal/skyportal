@@ -11,8 +11,9 @@ from baselayer.app import psa  # noqa
 from skyportal import models  # noqa
 
 
-skyportal_config = context.get_x_argument(as_dictionary=True).get('config')
-cfg = load_config(config_files=[skyportal_config] if skyportal_config else [])
+config_arg = context.get_x_argument(as_dictionary=True).get('config')
+skyportal_configs = config_arg.split(':') if config_arg else []
+cfg = load_config(config_files=skyportal_configs)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -1,11 +1,14 @@
 import datetime
 from json.decoder import JSONDecodeError
 from dateutil.tz import UTC
+import astropy.units as u
+from geojson import Point, Feature
 import python_http_client.exceptions
 from twilio.base.exceptions import TwilioException
 from tornado.ioloop import IOLoop
 import io
 from dateutil.parser import isoparse
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, distinct
 import arrow
@@ -14,6 +17,7 @@ from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
 import functools
 import conesearch_alchemy as ca
+import healpix_alchemy as ha
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -42,6 +46,8 @@ from ...models import (
     SourceNotification,
     Classification,
     Taxonomy,
+    Localization,
+    LocalizationTile,
     Listing,
     Spectrum,
     SourceView,
@@ -537,6 +543,40 @@ class SourceHandler(BaseHandler):
             description: |
               Arrow-parseable date-time string (e.g. 2020-01-01 or 2020-01-01T00:00:00 or 2020-01-01T00:00:00+00:00).
               If provided, filter by created_at or modified > createdOrModifiedAfter
+          - in: query
+            name: localizationDateobs
+            schema:
+              type: string
+            description: |
+                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                Each localization is associated with a specific GCNEvent by
+                the date the event happened, and this date is used as a unique
+                identifier. It can be therefore found as Localization.dateobs,
+                queried from the /api/localization endpoint or dateobs in the
+                GcnEvent page table.
+          - in: query
+            name: localizationName
+            schema:
+              type: string
+            description: |
+                Name of localization / skymap to use.
+                Can be found in Localization.localization_name queried from
+                /api/localization endpoint or skymap name in GcnEvent page
+                table.
+          - in: query
+            name: localizationCumprob
+            schema:
+              type: number
+            description: |
+              Cumulative probability up to which to include sources
+          - in: query
+            name: includeGeojson
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include associated geojson. Defaults to
+              false.
           responses:
             200:
               content:
@@ -612,6 +652,11 @@ class SourceHandler(BaseHandler):
         created_or_modified_after = self.get_query_argument(
             "createdOrModifiedAfter", None
         )
+
+        localization_dateobs = self.get_query_argument("localizationDateobs", None)
+        localization_name = self.get_query_argument("localizationName", None)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+        includeGeojson = self.get_query_argument("includeGeojson", False)
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -791,6 +836,16 @@ class SourceHandler(BaseHandler):
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
+            if include_photometry_exists:
+                source_info["photometry_exists"] = (
+                    len(
+                        Photometry.query_records_accessible_by(self.current_user)
+                        .filter(Photometry.obj_id == obj_id)
+                        .all()
+                    )
+                    > 0
+                )
+
             source_info["annotations"] = sorted(
                 Annotation.query_records_accessible_by(
                     self.current_user, options=[joinedload(Annotation.author)]
@@ -951,24 +1006,36 @@ class SourceHandler(BaseHandler):
                 obj_query = obj_query.filter(
                     Obj.last_detected_at(self.current_user) <= end_date
                 )
-            elif (
-                query_mode == 'new'
-            ):  # new method, to become the only one after validation
-                # first get only the objects within that have any detections within the time range
-                mjd_subquery = (
+                # new method, to become the only one after validation
+            elif query_mode == 'new':
+                # first get only the objects that have any detections within the time range
+                in_range_subquery = (
                     Photometry.query_records_accessible_by(self.current_user)
                     .filter(Photometry.mjd >= mjd_start, Photometry.mjd <= mjd_end)
                     .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-                    .subquery()
+                    .scalar_subquery()
                 )
+
                 obj_query = obj_query.join(
-                    mjd_subquery, Obj.id == mjd_subquery.c.obj_id
+                    in_range_subquery, Obj.id == in_range_subquery.c.obj_id
                 )
                 # then must also disqualify objects that have detections after the time range
-                # this is really slow and kinda defeats the purpose
-                obj_query = obj_query.filter(
-                    Obj.last_detected_at(self.current_user) <= end_date
+                after_range_subquery = (
+                    Photometry.query_records_accessible_by(self.current_user)
+                    .filter(Obj.id == Photometry.obj_id)
+                    .filter(Photometry.mjd >= mjd_end)
+                    .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+                    .scalar_subquery()
                 )
+
+                obj_query = obj_query.outerjoin(
+                    after_range_subquery, Obj.id == after_range_subquery.c.obj_id
+                ).filter(after_range_subquery.c.id.is_(None))
+
+                # this is really slow and kinda defeats the purpose
+                # obj_query = obj_query.filter(
+                #     Obj.last_detected_at(self.current_user) <= end_date
+                # )
                 # other ideas:
                 # 1) cache the "last detected" for each source, regardless of permissions, and use that as a starting
                 #    point from which we can filter by each user's access rights (not guaranteed to help much).
@@ -976,7 +1043,7 @@ class SourceHandler(BaseHandler):
 
         if has_spectrum_after:
             try:
-                has_spectrum_after = arrow.get(has_spectrum_after.strip()).datetime
+                has_spectrum_after = str(arrow.get(has_spectrum_after.strip()).datetime)
             except arrow.ParserError:
                 return self.error(
                     f"Invalid input for parameter hasSpectrumAfter:{has_spectrum_after}"
@@ -991,7 +1058,9 @@ class SourceHandler(BaseHandler):
             )
         if has_spectrum_before:
             try:
-                has_spectrum_before = arrow.get(has_spectrum_before.strip()).datetime
+                has_spectrum_before = str(
+                    arrow.get(has_spectrum_before.strip()).datetime
+                )
             except arrow.ParserError:
                 return self.error(
                     f"Invalid input for parameter hasSpectrumBefore:{has_spectrum_before}"
@@ -1010,9 +1079,9 @@ class SourceHandler(BaseHandler):
             source_query = source_query.filter(Source.saved_at >= saved_after)
         if created_or_modified_after:
             try:
-                created_or_modified_date = arrow.get(
-                    created_or_modified_after.strip()
-                ).datetime
+                created_or_modified_date = str(
+                    arrow.get(created_or_modified_after.strip()).datetime
+                )
             except arrow.ParserError:
                 return self.error("Invalid value provided for createdOrModifiedAfter")
             obj_query = obj_query.filter(
@@ -1174,6 +1243,67 @@ class SourceHandler(BaseHandler):
                     isouter=True,
                 )
 
+        if localization_dateobs is not None:
+            if localization_name is not None:
+                localization = (
+                    Localization.query_records_accessible_by(self.current_user)
+                    .filter(Localization.dateobs == localization_dateobs)
+                    .filter(Localization.localization_name == localization_name)
+                    .first()
+                )
+            else:
+                localization = (
+                    Localization.query_records_accessible_by(self.current_user)
+                    .filter(Localization.dateobs == localization_dateobs)
+                    .first()
+                )
+            if localization is None:
+                if localization_name is not None:
+                    return self.error(
+                        f"Localization {localization_dateobs} with name {localization_name} not found",
+                        status=404,
+                    )
+                else:
+                    return self.error(
+                        f"Localization {localization_dateobs} not found", status=404
+                    )
+
+            cum_prob = (
+                sa.func.sum(
+                    LocalizationTile.probdensity * LocalizationTile.healpix.area
+                )
+                .over(order_by=LocalizationTile.probdensity.desc())
+                .label('cum_prob')
+            )
+            localizationtile_subquery = (
+                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                    LocalizationTile.localization_id == localization.id
+                )
+            ).subquery()
+
+            min_probdensity = (
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob <= localization_cumprob
+                )
+            ).scalar_subquery()
+
+            tiles_subquery = (
+                sa.select(Obj.id)
+                .filter(
+                    LocalizationTile.localization_id == localization.id,
+                    LocalizationTile.healpix.contains(Obj.healpix),
+                    LocalizationTile.probdensity >= min_probdensity,
+                )
+                .subquery()
+            )
+
+            obj_query = obj_query.join(
+                tiles_subquery,
+                Obj.id == tiles_subquery.c.id,
+            )
+
         source_query = apply_active_or_requested_filtering(
             source_query, include_requested, requested_only
         )
@@ -1186,6 +1316,7 @@ class SourceHandler(BaseHandler):
 
         source_subquery = source_query.subquery()
         query = obj_query.join(source_subquery, Obj.id == source_subquery.c.obj_id)
+
         order_by = None
         if sort_by is not None:
             if sort_by == "id":
@@ -1256,6 +1387,9 @@ class SourceHandler(BaseHandler):
                     # We'll join thumbnails in manually, as they lead to duplicate
                     # results downstream with the detection stats being added in
                     include_thumbnails=False,
+                    # include detection stats here as it is a query column,
+                    include_detection_stats=include_detection_stats,
+                    current_user=self.current_user,
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
@@ -1264,33 +1398,6 @@ class SourceHandler(BaseHandler):
 
             # Records are Objs, not Sources
             obj_list = []
-
-            # The query_results could be an empty list instead of a SQLAlchemy
-            # Query object if there are no matching sources
-            if query_results["sources"] != [] and include_detection_stats:
-                # Load in all last_detected_at values at once
-                last_detected_at = Obj.last_detected_at(self.current_user)
-                query_results["sources"] = query_results["sources"].add_columns(
-                    last_detected_at
-                )
-
-                # Load in all last_detected_mag values at once
-                last_detected_mag = Obj.last_detected_mag(self.current_user)
-                query_results["sources"] = query_results["sources"].add_columns(
-                    last_detected_mag
-                )
-
-                # Load in all peak_detected_at values at once
-                peak_detected_at = Obj.peak_detected_at(self.current_user)
-                query_results["sources"] = query_results["sources"].add_columns(
-                    peak_detected_at
-                )
-
-                # Load in all peak_detected_mag values at once
-                peak_detected_mag = Obj.peak_detected_mag(self.current_user)
-                query_results["sources"] = query_results["sources"].add_columns(
-                    peak_detected_mag
-                )
 
             for result in query_results["sources"]:
                 if include_detection_stats:
@@ -1302,7 +1409,7 @@ class SourceHandler(BaseHandler):
                         peak_detected_mag,
                     ) = result
                 else:
-                    obj = result
+                    (obj,) = result
                 obj_list.append(obj.to_dict())
 
                 if include_comments:
@@ -1446,6 +1553,34 @@ class SourceHandler(BaseHandler):
             query_results["sources"] = obj_list
 
         query_results = recursive_to_dict(query_results)
+        if includeGeojson:
+            # features are JSON representations that the d3 stuff understands.
+            # We use these to render the contours of the sky localization and
+            # locations of the transients.
+
+            features = []
+
+            # useful for testing visualization
+            # import numpy as np
+            # for xx in np.arange(30, 180, 30):
+            #   features.append(Feature(
+            #       geometry=Point([float(xx), float(-30.0)]),
+            #       properties={"name": "tmp"},
+            #   ))
+
+            for source in query_results["sources"]:
+                point = Point((source["ra"], source["dec"]))
+                if source["alias"] is not None:
+                    source_name = ",".join(source["alias"])
+                else:
+                    source_name = f'{source["ra"]},{source["dec"]}'
+
+                features.append(
+                    Feature(geometry=point, properties={"name": source_name})
+                )
+
+            query_results["geojson"] = features
+
         self.verify_and_commit()
         return self.success(data=query_results)
 
@@ -1528,12 +1663,17 @@ class SourceHandler(BaseHandler):
                 "Invalid group_ids field. Please specify at least "
                 "one valid group ID that you belong to."
             )
+
         try:
             obj = schema.load(data)
         except ValidationError as e:
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'
             )
+
+        if (ra is not None) and (dec is not None):
+            # This adds a healpix index for a new object being created
+            obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
         groups = (
             Group.query_records_accessible_by(self.current_user)
