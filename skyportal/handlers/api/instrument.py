@@ -210,14 +210,6 @@ class InstrumentHandler(BaseHandler):
         instrument = Instrument.get_if_accessible_by(
             int(instrument_id), self.current_user, raise_if_none=True, mode='update'
         )
-        filters = instrument.filters
-        sensitivity_data = data.pop('sensitivity_data', None)
-        if sensitivity_data:
-            for data in sensitivity_data:
-                if data['filter_name'] not in filters:
-                    return self.error(
-                        'Filter names must be present in both sensitivity_data property and filters property'
-                    )
 
         schema = Instrument.__schema__()
         try:
@@ -226,6 +218,14 @@ class InstrumentHandler(BaseHandler):
             return self.error(
                 'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
             )
+        filters = instrument.filters
+        sensitivity_data = data.pop('sensitivity_data', None)
+        if sensitivity_data:
+            for data in sensitivity_data:
+                if data['filter_name'] not in filters:
+                    return self.error(
+                        'Filter names must be present in both sensitivity_data property and filters property'
+                    )
         self.verify_and_commit()
 
         self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
