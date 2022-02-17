@@ -218,6 +218,7 @@ def test_gcnevents_observations(
     driver.wait_for_xpath('//*[text()="1.57415"]')
     driver.wait_for_xpath('//*[text()="20.40705"]')
 
+
 def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
@@ -314,7 +315,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     # wait for the observation plan to complete
     time.sleep(15)
-    
+
     driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
     driver.wait_for_xpath(
         f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]'
