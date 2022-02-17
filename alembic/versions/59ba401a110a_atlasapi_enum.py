@@ -1,7 +1,7 @@
 """atlasapi enum
 
 Revision ID: 59ba401a110a
-Revises: 46a40b35cdbb
+Revises: 529166dc7732
 Create Date: 2022-01-27 13:24:35.958075
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '59ba401a110a'
-down_revision = '46a40b35cdbb'
+down_revision = '529166dc7732'
 branch_labels = None
 depends_on = None
 
