@@ -4,4 +4,4 @@ Skyportal supports periodicity features. In particular, we provide a `Periodogra
 
 ![Periodogram page](images/periodogram.png)
 
-The periods are saved as `Annotation`s, and the app searches for annotated periods with the keyword "period." For those sources with this annotation, the `SourceTable` includes a phase-folded light curve on that period.
+The periods are saved as `Annotation`s, and the app searches for annotated periods with the keyword "period." Therefore, to add a period the app recognizes,  post an annotation with data: {'period': <value>} as an annotation (in units of days). The keyword for period can be capitalized or not. In the case of multiple annotations with periods posted, the most recent annotation is plotted. For those sources with this annotation, the `SourceTable` includes a phase-folded light curve on that period.
