@@ -21,11 +21,13 @@ def upgrade():
         """
 alter type "public"."followup_apis" rename to "followup_apis__old_version_to_be_dropped";
 
-create type "public"."followup_apis" as enum ('ATLASAPI', 'KAITAPI', 'SEDMAPI', 'SEDMV2API', 'IOOAPI', 'IOIAPI', 'SPRATAPI', 'SINISTROAPI', 'SPECTRALAPI', 'FLOYDSAPI', 'MUSCATAPI', 'SLACKAPI', 'ZTFAPI');
+create type "public"."followup_apis" as enum ('ATLASAPI', 'KAITAPI', 'SEDMAPI', 'SEDMV2API', 'IOOAPI', 'IOIAPI', 'SPRATAPI', 'SINISTROAPI', 'SPECTRALAPI', 'FLOYDSAPI', 'MUSCATAPI', 'MMAAPI', 'SLACKAPI', 'ZTFAPI', 'ZTFMMAAPI');
 
 alter table "public"."instruments" alter column api_classname type "public"."followup_apis" using api_classname::text::"public"."followup_apis";
 
-drop type "public"."followup_apis__old_version_to_be_dropped" cascade;
+alter table "public"."instruments" alter column api_classname_obsplan type "public"."followup_apis" using api_classname_obsplan::text::"public"."followup_apis";
+
+drop type "public"."followup_apis__old_version_to_be_dropped";
 """
     )
     # ### end Alembic commands ###
@@ -46,8 +48,10 @@ drop type "public"."followup_apis__old_version_to_be_dropped" cascade;
                 'SPECTRALAPI',
                 'FLOYDSAPI',
                 'MUSCATAPI',
+                'MMAAPI',
                 'SLACKAPI',
                 'ZTFAPI',
+                'ZTFMMAAPI',
                 name='followup_apis',
             ),
             nullable=True,
