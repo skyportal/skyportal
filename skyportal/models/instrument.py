@@ -81,6 +81,7 @@ class Instrument(Base):
         doc="The Spectra produced by this instrument.",
     )
 
+    # can be [] if an instrument is spec only
     filters = sa.Column(
         ArrayOfEnum(allowed_bandpasses),
         nullable=False,
