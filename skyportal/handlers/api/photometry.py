@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 import sncosmo
 from sncosmo.photdata import PhotometricData
+from distutils.util import strtobool
+import arrow
 
 import sqlalchemy as sa
 from sqlalchemy.sql import column, Values
@@ -23,6 +25,7 @@ from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    Annotation,
     Group,
     Stream,
     Photometry,
@@ -1062,16 +1065,41 @@ class PhotometryHandler(BaseHandler):
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
+        phase_fold_data = bool(
+            strtobool(self.get_query_argument("phaseFoldData", 'False'))
+        )
+
         Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
         photometry = Photometry.query_records_accessible_by(self.current_user).filter(
             Photometry.obj_id == obj_id
         )
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
+
         self.verify_and_commit()
-        return self.success(
-            data=[serialize(phot, outsys, format) for phot in photometry]
-        )
+        data = [serialize(phot, outsys, format) for phot in photometry]
+
+        if phase_fold_data:
+            period, modified = None, arrow.Arrow(1, 1, 1)
+            annotations = (
+                Annotation.query_records_accessible_by(self.current_user)
+                .filter(Annotation.obj_id == obj_id)
+                .all()
+            )
+            period_str_options = ['period', 'Period', 'PERIOD']
+            for an in annotations:
+                if not isinstance(an.data, dict):
+                    continue
+                for period_str in period_str_options:
+                    if period_str in an.data and arrow.get(an.modified) > modified:
+                        period = an.data[period_str]
+                        modified = arrow.get(an.modified)
+            if period is None:
+                self.error(f'No period for object {obj_id}')
+            for ii in range(len(data)):
+                data[ii]['phase'] = np.mod(data[ii]['mjd'], period) / period
+
+        return self.success(data=data)
 
 
 class BulkDeletePhotometryHandler(BaseHandler):
@@ -1245,7 +1273,13 @@ ObjPhotometryHandler.get.__doc__ = f"""
             schema:
               type: string
               enum: {list(ALLOWED_MAGSYSTEMS)}
-
+          - in: query
+            name: phaseFoldData
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to phase fold the light curve. Defaults to false.
         responses:
           200:
             content:
