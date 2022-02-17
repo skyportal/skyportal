@@ -74,9 +74,8 @@ const Group = () => {
 
   const [groupLoadError, setGroupLoadError] = useState("");
 
-  const [panelSourcesExpanded, setPanelSourcesExpanded] = React.useState(
-    "panel-sources"
-  );
+  const [panelSourcesExpanded, setPanelSourcesExpanded] =
+    React.useState("panel-sources");
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
@@ -155,6 +154,9 @@ const Group = () => {
       <Typography variant="h5" style={{ paddingBottom: 10 }}>
         Group:&nbsp;&nbsp;{group.name}
         {group.nickname && ` (${group.nickname})`}
+      </Typography>
+      <Typography variant="h6" data-testid="description">
+        {group.description && `${group.description}`}
       </Typography>
 
       <Accordion
