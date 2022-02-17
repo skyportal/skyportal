@@ -17,6 +17,7 @@ from marshmallow.exceptions import ValidationError
 import functools
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
+from distutils.util import strtobool
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -637,7 +638,9 @@ class SourceHandler(BaseHandler):
         include_spectrum_exists = self.get_query_argument(
             "includeSpectrumExists", False
         )
-        include_period_exists = self.get_query_argument("includePeriodExists", False)
+        include_period_exists = bool(
+            strtobool(self.get_query_argument("includePeriodExists", 'False'))
+        )
         remove_nested = self.get_query_argument("removeNested", False)
         include_detection_stats = self.get_query_argument(
             "includeDetectionStats", False
@@ -845,10 +848,12 @@ class SourceHandler(BaseHandler):
                     .filter(Annotation.obj_id == obj_id)
                     .all()
                 )
+                period_str_options = ['period', 'Period', 'PERIOD']
                 source_info["period_exists"] = any(
                     [
-                        isinstance(an.data, dict) and 'period' in an.data
+                        isinstance(an.data, dict) and period_str in an.data
                         for an in annotations
+                        for period_str in period_str_options
                     ]
                 )
 
@@ -1471,10 +1476,12 @@ class SourceHandler(BaseHandler):
                         .filter(Annotation.obj_id == obj.id)
                         .all()
                     )
+                    period_str_options = ['period', 'Period', 'PERIOD']
                     obj_list[-1]["period_exists"] = any(
                         [
                             isinstance(an.data, dict) and 'period' in an.data
                             for an in annotations
+                            for period_str in period_str_options
                         ]
                     )
                 if not remove_nested:

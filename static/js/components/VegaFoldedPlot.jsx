@@ -70,7 +70,7 @@ const spec = (url) => ({
           { field: "magAndErr", title: "mag", type: "nominal" },
           { field: "filter", type: "ordinal" },
           { field: "mjd", type: "quantitative" },
-          { field: "daysAgo", type: "quantitative" },
+          { field: "phase", type: "quantitative" },
           { field: "limiting_mag", type: "quantitative", format: ".2f" },
         ],
         opacity: {
