@@ -1,15 +1,16 @@
-"""atlasapi enum
+"""atlas api
 
-Revision ID: 59ba401a110a
+Revision ID: d6b24747693a
 Revises: 529166dc7732
-Create Date: 2022-01-27 13:24:35.958075
+Create Date: 2022-02-17 17:23:25.162577
 
 """
 from alembic import op
 import sqlalchemy as sa
 
+
 # revision identifiers, used by Alembic.
-revision = '59ba401a110a'
+revision = 'd6b24747693a'
 down_revision = '529166dc7732'
 branch_labels = None
 depends_on = None
