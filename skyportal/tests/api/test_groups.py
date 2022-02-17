@@ -11,7 +11,11 @@ def test_token_user_create_new_group(super_admin_token, super_admin_user):
     status, data = api(
         "POST",
         "groups",
-        data={"name": group_name, "group_admins": [super_admin_user.id]},
+        data={
+            "name": group_name,
+            "description": "Group description",
+            "group_admins": [super_admin_user.id],
+        },
         token=super_admin_token,
     )
     assert status == 200
