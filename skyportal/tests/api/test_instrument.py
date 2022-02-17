@@ -214,7 +214,6 @@ def test_token_user_update_instrument(
         },
         token=super_admin_token,
     )
-    print(data)
     assert status == 200
     assert data['status'] == 'success'
 
@@ -260,7 +259,6 @@ def test_token_user_update_instrument(
         },
         token=super_admin_token,
     )
-    print(data)
     assert status == 200
     assert data['status'] == 'success'
 
