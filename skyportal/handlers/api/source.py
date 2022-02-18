@@ -1016,7 +1016,7 @@ class SourceHandler(BaseHandler):
                     Photometry.query_records_accessible_by(self.current_user)
                     .filter(Photometry.mjd >= mjd_start, Photometry.mjd <= mjd_end)
                     .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-                    .scalar_subquery()
+                    .subquery()
                 )
 
                 obj_query = obj_query.join(

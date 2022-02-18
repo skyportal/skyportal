@@ -707,7 +707,7 @@ def test_object_last_detected(
         'POST',
         'photometry',
         data={
-            'obj_id': str(public_source.id),
+            'obj_id': public_source.id,
             'mjd': 99999.0,
             'instrument_id': ztf_camera.id,
             'mag': None,
@@ -727,7 +727,7 @@ def test_object_last_detected(
         'POST',
         'photometry',
         data={
-            'obj_id': str(public_source.id),
+            'obj_id': public_source.id,
             'mjd': 99900.0,
             'instrument_id': ztf_camera.id,
             'mag': None,
@@ -748,7 +748,7 @@ def test_object_last_detected(
         'POST',
         'photometry',
         data={
-            'obj_id': str(public_source.id),
+            'obj_id': public_source.id,
             'mjd': 90000.0,
             'instrument_id': ztf_camera.id,
             'flux': 12.24,
@@ -771,10 +771,28 @@ def test_object_last_detected(
     )
     assert status == 200
     assert data["status"] == "success"
-    assert (
+    assert (  # convert the MJD to ISO date format: 2105-04-16T00:00:00+00:00
         data["data"]["last_detected_at"]
         == arrow.get((90000.0 - 40_587) * 86400.0).isoformat()
     )
+
+    # try finding this source by filtering on last detected:
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            'startDate': '2105-04-15T00:00:00',  # one day before the photometry point
+            'endDate': '2105-04-17T00:00:00',  # one day after the photometry point
+            'queryMode': 'new',  # debugging only!
+        },
+        token=view_only_token,
+    )
+
+    assert status == 200
+    print(data['data']['totalMatches'])
+    source = next(s for s in data['data']['sources'] if s['id'] == public_source.id)
+
+    print(source)
 
 
 def test_source_photometry_summary_info(
