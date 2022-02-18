@@ -7,53 +7,90 @@ import d3GeoZoom from "d3-geo-zoom";
 
 import { GET } from "../API";
 
-const useD3 = (renderer, features) => {
+const useD3 = (renderer, height, width, geoJSON) => {
   const svgRef = useRef();
 
   useEffect(() => {
-    if (features) {
-      renderer(d3.select(svgRef.current), features);
+    if (geoJSON) {
+      renderer(d3.select(svgRef.current), height, width, geoJSON);
     }
-  }, [renderer, svgRef, features]);
+  }, [renderer, svgRef, geoJSON]);
 
   return svgRef;
 };
 
-const pointLabelPlot = (svg, features) => {
-  const projection = d3.geoOrthographic().translate([200, 200]).scale(190);
+const pointLabelPlot = (svg, height, width, geoJSON) => {
+  const center = [width / 2, height / 2];
+  const projection = d3.geoOrthographic().translate(center).scale(180);
   const geoGenerator = d3.geoPath().projection(projection);
   const graticule = d3.geoGraticule();
 
+  const { features } = geoJSON;
+
   const render = () => {
+    // Draw sphere background
     svg.selectAll("*").remove();
+
+    svg
+      .datum({ type: "Sphere" })
+      .append("path")
+      .style("fill", "aliceblue")
+      .style("stroke", "none")
+      .style("opacity", 1)
+      .attr("d", geoGenerator);
+
+    // Draw grid
+    svg
+      .data([graticule()])
+      .append("path")
+      .style("fill", "none")
+      .style("stroke", "darkgray")
+      .style("stroke-width", "0.5px")
+      .attr("d", geoGenerator);
+
+    // Draw text labels
+    const translate = (d) => {
+      const coord = projection(d.geometry.coordinates);
+      return `translate(${coord[0]}, ${coord[1] - 10})`;
+    };
+
+    const visibleOnSphere = (d) => {
+      if (!d.properties?.name) return false;
+      if (!d.geometry?.coordinates) return false;
+
+      const gdistance = d3.geoDistance(
+        d.geometry.coordinates,
+        projection.invert(center)
+      );
+
+      // In front of globe?
+      return gdistance < 1.57;
+    };
 
     svg
       .selectAll(".label")
       .data(features)
       .enter()
       .append("text")
-      .attr("transform", (d) => `translate(${geoGenerator.centroid(d)})`)
-      .style("stroke", "blue")
+      .attr("transform", translate)
+      .style("visibility", (d) => (visibleOnSphere(d) ? "visible" : "hidden"))
       .style("text-anchor", "middle")
+      .style("font-size", "0.75rem")
+      .style("font-weight", "normal")
       .text((d) => d.properties.name);
 
-    svg
-      .selectAll("path")
-      .data([graticule()])
-      .enter()
-      .append("path")
-      .attr("d", geoGenerator)
-      .style("fill", "none")
-      .style("stroke", "darkgray")
-      .style("stroke-width", "0.5px");
+    const x = (d) => projection(d.geometry.coordinates)[0];
+    const y = (d) => projection(d.geometry.coordinates)[1];
 
     svg
-      .selectAll("path")
+      .selectAll("circle")
       .data(features)
       .enter()
-      .append("path")
-      .attr("d", geoGenerator)
-      .style("fill", "red");
+      .append("circle")
+      .attr("fill", (d) => (visibleOnSphere(d) ? "red" : "none"))
+      .attr("cx", x)
+      .attr("cy", y)
+      .attr("r", 3);
   };
 
   render();
@@ -61,7 +98,7 @@ const pointLabelPlot = (svg, features) => {
   d3GeoZoom().projection(projection).onMove(render)(svg.node());
 };
 
-const GeoJSONPlot = ({ dataUrl, renderer }) => {
+const GeoJSONPlot = ({ dataUrl, renderer, height, width }) => {
   const dispatch = useDispatch();
   const [geoJSON, setGeoJSON] = useState(null);
 
@@ -74,10 +111,10 @@ const GeoJSONPlot = ({ dataUrl, renderer }) => {
     fetchGeoJSON();
   }, [dispatch]);
 
-  const svgRef = useD3(renderer, geoJSON?.features);
+  const svgRef = useD3(renderer, height, width, geoJSON);
 
   if (geoJSON) {
-    return <svg ref={svgRef} height="400" width="400" />;
+    return <svg ref={svgRef} height={height} width={width} />;
   }
 
   return <div>Fetching GeoJSON...</div>;
@@ -85,13 +122,25 @@ const GeoJSONPlot = ({ dataUrl, renderer }) => {
 GeoJSONPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,
   renderer: PropTypes.func.isRequired,
+  height: PropTypes.number.isRequired,
+  width: PropTypes.number.isRequired,
 };
 
 const GeoJSONExamplePlot = () => (
-  <GeoJSONPlot
-    dataUrl="/api/galaxy_catalog?includeGeoJSON=true"
-    renderer={pointLabelPlot}
-  />
+  <div>
+    <GeoJSONPlot
+      dataUrl="/api/galaxy_catalog?includeGeoJSON=true"
+      renderer={pointLabelPlot}
+      height={400}
+      width={400}
+    />
+    <GeoJSONPlot
+      dataUrl="/api/sources/?includeGeoJSON=true"
+      renderer={pointLabelPlot}
+      height={400}
+      width={400}
+    />
+  </div>
 );
 
 export default GeoJSONExamplePlot;
