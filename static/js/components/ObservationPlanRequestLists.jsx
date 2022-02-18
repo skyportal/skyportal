@@ -97,6 +97,13 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
     setIsSending(null);
   };
 
+  const [isRemoving, setIsRemoving] = useState(null);
+  const handleRemove = async (id) => {
+    setIsRemoving(id);
+    await dispatch(Actions.removeObservationPlanRequest(id));
+    setIsRemoving(null);
+  };
+
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
@@ -135,7 +142,9 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
       instrumentFormParams[instrument_id].methodsImplemented.delete;
     const implementsSend =
       instrumentFormParams[instrument_id].methodsImplemented.send;
-    const modifiable = implementsSend || implementsDelete;
+    const implementsRemove =
+      instrumentFormParams[instrument_id].methodsImplemented.remove;
+    const modifiable = implementsSend || implementsDelete || implementsRemove;
 
     const columns = [
       { name: "requester.username", label: "Requester" },
@@ -200,6 +209,26 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
                   type="submit"
                   variant="outlined"
                   data-testid={`sendRequest_${observationplanRequest.id}`}
+                >
+                  Send to Queue
+                </Button>
+              </div>
+            )}
+            {implementsRemove && isRemoving === observationplanRequest.id ? (
+              <div>
+                <CircularProgress />
+              </div>
+            ) : (
+              <div>
+                <Button
+                  onClick={() => {
+                    handleRemove(observationplanRequest.id);
+                  }}
+                  size="small"
+                  color="primary"
+                  type="submit"
+                  variant="outlined"
+                  data-testid={`removeRequest_${observationplanRequest.id}`}
                 >
                   Send to Queue
                 </Button>

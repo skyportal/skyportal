@@ -111,6 +111,9 @@ class ZTFRequest:
         observation_plan = request.observation_plans[0]
         planned_observations = observation_plan.planned_observations
 
+        if len(planned_observations) == 0:
+            raise ValueError('Cannot submit observing plan with no observations.')
+
         targets = []
         cnt = 1
         for obs in planned_observations:
@@ -328,12 +331,69 @@ class ZTFMMAAPI(MMAAPI):
         req = Request('PUT', url, json=payload, headers=headers)
         prepped = req.prepare()
         r = s.send(prepped)
-        r.raise_for_status()
+        print(r.text)
+        # r.raise_for_status()
 
         if r.status_code == 200:
             request.status = 'submitted to telescope queue'
         else:
             request.status = f'rejected from telescope queue: {r.content}'
+
+        transaction = FacilityTransaction(
+            request=http.serialize_requests_request(r.request),
+            response=http.serialize_requests_response(r),
+            observation_plan_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+
+        DBSession().add(transaction)
+
+    @staticmethod
+    def remove(request):
+
+        """Delete an EventObservationPlan from ZTF queue.
+
+        Parameters
+        ----------
+        request: skyportal.models.ObservationPlanRequest
+            The request to delete from the queue and the SkyPortal database.
+        """
+
+        from ..models import DBSession, ObservationPlanRequest, FacilityTransaction
+
+        req = (
+            DBSession()
+            .query(ObservationPlanRequest)
+            .filter(ObservationPlanRequest.id == request.id)
+            .one()
+        )
+
+        # this happens for failed submissions
+        # just go ahead and delete
+        if len(req.transactions) == 0:
+            DBSession().query(ObservationPlanRequest).filter(
+                ObservationPlanRequest.id == request.id
+            ).delete()
+            DBSession().commit()
+            return
+
+        altdata = request.allocation.altdata
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        queue_name = "ToO_" + request.payload["queue_name"]
+        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+
+        payload = {'queue_name': queue_name, 'user': request.requester.username}
+
+        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+        s = Session()
+        req = Request('DELETE', url, json=payload, headers=headers)
+        prepped = req.prepare()
+        r = s.send(prepped)
+        r.raise_for_status()
+
+        request.status = "deleted from telescope queue"
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),

@@ -259,3 +259,54 @@ class ObservationPlanSubmitHandler(BaseHandler):
         self.verify_and_commit()
 
         return self.success(data=observation_plan_request)
+
+    @auth_or_token
+    def delete(self, observation_plan_request_id):
+        """
+        ---
+        description: Remove an observation plan from the queue.
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="read",
+            raise_if_none=True,
+        )
+
+        api = observation_plan_request.instrument.api_class_obsplan
+        if not api.implements()['remove']:
+            return self.error(
+                'Cannot remove observation plans from the queue of this instrument.'
+            )
+
+        try:
+            api.remove(observation_plan_request)
+        except Exception as e:
+            observation_plan_request.status = 'failed to remove from queue'
+            return self.error(
+                f'Error removing observation plan from telescope: {e.args[0]}'
+            )
+        finally:
+            self.verify_and_commit()
+        self.push_all(
+            action="skyportal/REFRESH_GCNEVENT",
+            payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
+        )
+
+        self.verify_and_commit()
+
+        return self.success(data=observation_plan_request)
