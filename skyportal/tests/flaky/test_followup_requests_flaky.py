@@ -19,6 +19,21 @@ except requests.exceptions.ConnectTimeout:
 else:
     sedm_isonline = True
 
+if cfg['app.atlas.port'] is None:
+    ATLAS_URL = f"{cfg['app.atlas.protocol']}://{cfg['app.atlas.host']}"
+else:
+    ATLAS_URL = (
+        f"{cfg['app.atlas.protocol']}://{cfg['app.atlas.host']}:{cfg['app.atlas.port']}"
+    )
+
+atlas_isonline = False
+try:
+    requests.get(ATLAS_URL, timeout=5)
+except requests.exceptions.ConnectTimeout:
+    pass
+else:
+    atlas_isonline = True
+
 url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
 
 lt_isonline = False
@@ -50,6 +65,22 @@ except requests.exceptions.ConnectTimeout:
     pass
 else:
     ztf_isonline = True
+
+
+if cfg['app.kait.port'] is None:
+    KAIT_URL = f"{cfg['app.kait.protocol']}://{cfg['app.kait.host']}"
+else:
+    KAIT_URL = (
+        f"{cfg['app.kait.protocol']}://{cfg['app.kait.host']}:{cfg['app.kait.port']}"
+    )
+
+kait_isonline = False
+try:
+    requests.get(KAIT_URL, timeout=5)
+except requests.exceptions.ConnectTimeout:
+    pass
+else:
+    kait_isonline = True
 
 
 def add_telescope_and_instrument(instrument_name, token):
@@ -108,7 +139,23 @@ def add_allocation_sedm(instrument_id, group_id, token):
     )
     assert status == 200
     assert data["status"] == "success"
-    return data["data"]
+
+
+def add_allocation_atlas(instrument_id, group_id, token):
+    status, data = api(
+        "POST",
+        "allocation",
+        data={
+            "group_id": group_id,
+            "instrument_id": instrument_id,
+            "hours_allocated": 100,
+            "pi": "Ed Hubble",
+            "_altdata": '{"api_token": "testtoken"}',
+        },
+        token=token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
 
 
 def add_allocation_lt(instrument_id, group_id, token):
@@ -126,7 +173,23 @@ def add_allocation_lt(instrument_id, group_id, token):
     )
     assert status == 200
     assert data["status"] == "success"
-    return data["data"]
+
+
+def add_allocation_slack(instrument_id, group_id, token):
+    status, data = api(
+        "POST",
+        "allocation",
+        data={
+            "group_id": group_id,
+            "instrument_id": instrument_id,
+            "hours_allocated": 100,
+            "pi": "Ed Hubble",
+            '_altdata': '{"slack_workspace": "test_workspace", "slack_channel": "test_channel", "slack_token": "test_token"}',
+        },
+        token=token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
 
 
 def add_allocation_lco(instrument_id, group_id, token):
@@ -144,7 +207,6 @@ def add_allocation_lco(instrument_id, group_id, token):
     )
     assert status == 200
     assert data["status"] == "success"
-    return data["data"]
 
 
 def add_allocation_ztf(instrument_id, group_id, token):
@@ -162,7 +224,136 @@ def add_allocation_ztf(instrument_id, group_id, token):
     )
     assert status == 200
     assert data["status"] == "success"
+
+
+def add_allocation_sedmv2(instrument_id, group_id, token):
+    status, data = api(
+        "POST",
+        "allocation",
+        data={
+            "group_id": group_id,
+            "instrument_id": instrument_id,
+            "hours_allocated": 100,
+            "pi": "Ed Hubble",
+            '_altdata': '{"access_token": "testtoken"}',
+        },
+        token=token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+
+def add_followup_request_using_frontend_and_verify_SEDMv2(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+    idata = add_telescope_and_instrument("SEDMv2", super_admin_token)
+    add_allocation_sedmv2(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "SEDMv2")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    # IFU option
+    driver.click_xpath(
+        '//input[@id="root_observation_choices_4"]', wait_clickable=False
+    )
+
+    driver.click_xpath(submit_button_xpath)
+
+    driver.click_xpath("//div[@data-testid='SEDMv2-requests-header']")
+    driver.wait_for_xpath(
+        '//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "IFU")]'
+    )
+    driver.wait_for_xpath(
+        '''//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "300")]'''
+    )
+    driver.wait_for_xpath(
+        '''//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "submitted")]'''
+    )
+
+
+def add_allocation_kait(instrument_id, group_id, token):
+    status, data = api(
+        "POST",
+        "allocation",
+        data={
+            "group_id": group_id,
+            "instrument_id": instrument_id,
+            "hours_allocated": 100,
+            "pi": "Ed Hubble",
+        },
+        token=token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
     return data["data"]
+
+
+def add_followup_request_using_frontend_and_verify_KAIT(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+    idata = add_telescope_and_instrument("KAIT", super_admin_token)
+    add_allocation_kait(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "KAIT")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    # U band option
+    driver.click_xpath(
+        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    driver.click_xpath(submit_button_xpath)
+
+    driver.click_xpath("//div[@data-testid='KAIT-requests-header']")
+    driver.wait_for_xpath(
+        '//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "U")]'
+    )
+    driver.wait_for_xpath(
+        '''//div[contains(@data-testid, "KAIT_followupRequestsTable")]//div[contains(., "submitted")]'''
+    )
 
 
 def add_followup_request_using_frontend_and_verify_ZTF(
@@ -293,6 +484,42 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
     )
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "MUSCAT_followupRequestsTable")]//div[contains(., "submitted")]'
+    )
+
+
+def add_followup_request_using_frontend_and_verify_ATLAS(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+
+    idata = add_telescope_and_instrument("ATLAS", super_admin_token)
+    add_allocation_atlas(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "ATLAS")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    driver.click_xpath(submit_button_xpath)
+
+    driver.click_xpath("//div[@data-testid='ATLAS-requests-header']")
+
+    driver.wait_for_xpath(
+        '//div[contains(@data-testid, "ATLAS_followupRequestsTable")]//div[contains(., "submitted")]'
     )
 
 
@@ -564,6 +791,41 @@ def add_followup_request_using_frontend_and_verify_IOI(
     )
 
 
+def add_followup_request_using_frontend_and_verify_SLACK(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+    idata = add_telescope_and_instrument("SLACK", super_admin_token)
+    add_allocation_slack(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_source.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "SLACK")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    # ZTF g-band option
+    driver.click_xpath(
+        '//input[@id="root_observation_choices_0"]', wait_clickable=False
+    )
+
+
 def add_followup_request_using_frontend_and_verify_IOO(
     driver, super_admin_user, public_source, super_admin_token, public_group
 ):
@@ -624,6 +886,27 @@ def add_followup_request_using_frontend_and_verify_IOO(
 
 
 @pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not kait_isonline, reason="KAIT server down")
+def test_submit_new_followup_request_KAIT(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+
+    add_followup_request_using_frontend_and_verify_KAIT(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+def test_submit_new_followup_request_SEDMv2(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+
+    add_followup_request_using_frontend_and_verify_SEDMv2(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not ztf_isonline, reason="ZTF server down")
 def test_submit_new_followup_request_ZTF(
     driver, super_admin_user, public_source, super_admin_token, public_group
@@ -678,6 +961,15 @@ def test_submit_new_followup_request_SPRAT(
 
 
 @pytest.mark.flaky(reruns=2)
+def test_submit_new_followup_request_SLACK(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    add_followup_request_using_frontend_and_verify_SLACK(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+
+@pytest.mark.flaky(reruns=2)
 @pytest.mark.skipif(not lco_isonline, reason="LCO server down")
 def test_submit_new_followup_request_Sinistro(
     driver, super_admin_user, public_ZTF21aaeyldq, super_admin_token, public_group
@@ -695,6 +987,17 @@ def test_submit_new_followup_request_Spectral(
 ):
 
     add_followup_request_using_frontend_and_verify_Spectral(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not atlas_isonline, reason="ATLAS server down")
+def test_submit_new_followup_request_ATLAS(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+
+    add_followup_request_using_frontend_and_verify_ATLAS(
         driver, super_admin_user, public_source, super_admin_token, public_group
     )
 
@@ -756,6 +1059,28 @@ def test_edit_existing_followup_request(
     )
     driver.wait_for_xpath(
         '''//div[contains(@data-testid, "SEDM_followupRequestsTable")]//div[contains(., "submitted")]'''
+    )
+
+
+def test_delete_followup_request_SEDMv2(
+    driver, super_admin_user, public_source, super_admin_token, public_group
+):
+    add_followup_request_using_frontend_and_verify_SEDMv2(
+        driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+    driver.click_xpath(
+        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
+    )
+
+    driver.wait_for_xpath_to_disappear(
+        '''//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "IFU")]'''
+    )
+    driver.wait_for_xpath_to_disappear(
+        '''//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "300")]'''
+    )
+    driver.wait_for_xpath_to_disappear(
+        '''//div[contains(@data-testid, "SEDMv2_followupRequestsTable")]//div[contains(., "submitted")]'''
     )
 
 

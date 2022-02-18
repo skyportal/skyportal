@@ -150,7 +150,7 @@ export function getCommentOnSpectrumAttachment(spectrumID, commentID) {
 
 export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
   return API.GET(
-    `/api/sources/${id}?includeComments=true&includeColorMagnitude=true&includeThumbnails=true`,
+    `/api/sources/${id}?includeComments=true&includeColorMagnitude=true&includeThumbnails=true&includePhotometryExists=true&includeSpectrumExists=true`,
     actionType
   );
 }

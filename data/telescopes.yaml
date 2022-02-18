@@ -503,3 +503,27 @@
   nickname: CNEOST
   skycam_link: null
   =id: CNEOST
+- diameter: 0.3
+  elevation: 1283.0
+  lat: 37.341033
+  lon: -121.642932
+  name: Katzman Automatic Imaging Telescope
+  nickname: KAIT
+  skycam_link: null
+  =id: KAIT
+- diameter: 2.1
+  elevation: 2096.0
+  lat: 31.9599
+  lon: -111.5997
+  name: Kitt Peak 2.1m Telescope
+  nickname: KPNO2m
+  skycam_link: null
+  =id: KPNO2m
+- diameter: 0.5
+  elevation: 3055.0
+  lat: 20.7204
+  lon: -156.1552
+  name: Asteroid Terrestrial-impact Last Alert System
+  nickname: ATLAS
+  skycam_link: null
+  =id: ATLAS

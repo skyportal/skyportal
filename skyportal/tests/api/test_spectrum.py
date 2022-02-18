@@ -223,7 +223,7 @@ def test_token_user_post_spectrum_no_access(
         },
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 401
     assert data['status'] == 'error'
 
 
@@ -259,6 +259,7 @@ def test_token_user_update_spectrum(
             'fluxes': [222.2, 232.1, 235.3],
             'observed_at': str(datetime.datetime.now()),
             'wavelengths': [664, 665, 666],
+            'group_ids': 'all',
         },
         token=upload_data_token,
     )
@@ -270,6 +271,8 @@ def test_token_user_update_spectrum(
     assert status == 200
     assert data['status'] == 'success'
     assert data['data']['fluxes'][0] == 222.2
+    # test that length of groups is greater than 1 after adding all groups to the spectrum
+    assert len(data['data']['groups']) > 1
 
 
 def test_token_user_cannot_update_unowned_spectrum(
@@ -308,7 +311,7 @@ def test_token_user_cannot_update_unowned_spectrum(
         token=manage_sources_token,
     )
 
-    assert status == 400
+    assert status == 401
     assert data['status'] == 'error'
 
 
@@ -344,10 +347,10 @@ def test_admin_can_update_unowned_spectrum_data(
             'fluxes': [222.2, 232.1, 235.3],
             'observed_at': str(datetime.datetime.now()),
             'wavelengths': [664, 665, 666],
+            'group_ids': [2, 3],
         },
         token=super_admin_token,
     )
-
     assert status == 200
     assert data['status'] == 'success'
 
@@ -355,6 +358,8 @@ def test_admin_can_update_unowned_spectrum_data(
     assert status == 200
     assert data['status'] == 'success'
     assert data['data']['fluxes'][0] == 222.2
+    # check if length of groups is 4 after adding permission to two groups (groups with id 2 and 3) because two groups already have permission to this spectrum (groups with id 1405 and 1406)
+    assert len(data['data']['groups']) == 4
 
 
 def test_spectrum_owner_id_is_unmodifiable(
@@ -425,7 +430,7 @@ def test_user_cannot_delete_unowned_spectrum_data(
     assert data['data']['obj_id'] == public_source.id
 
     status, data = api('DELETE', f'spectrum/{spectrum_id}', token=manage_sources_token)
-    assert status == 400
+    assert status == 401
 
 
 def test_user_can_delete_owned_spectrum_data(

@@ -178,6 +178,38 @@ telescope:
     nickname: PS1
     skycam_link: null
     =id: PS1
+  - diameter: 0.3
+    elevation: 1283.0
+    lat: 37.341033
+    lon: -121.642932
+    name: Katzman Automatic Imaging Telescope
+    nickname: KAIT
+    skycam_link: null
+    =id: KAIT
+  - diameter: 2.1
+    elevation: 2096.0
+    lat: 31.9599
+    lon: -111.5997
+    name: Kitt Peak 2.1m Telescope
+    nickname: KPNO2m
+    skycam_link: null
+    =id: KPNO2m
+  - diameter: 0.8
+    elevation: 1957.0
+    lat: 40.0420111
+    lon: -1.0161911
+    name: Javalambre Auxiliary Survey Telescope
+    nickname: JAST
+    skycam_link: null
+    =id: JAST
+  - diameter: 0.5
+    elevation: 3055.0
+    lat: 20.7204
+    lon: -156.1552
+    name: Asteroid Terrestrial-impact Last Alert System
+    nickname: ATLAS-0.5m
+    skycam_link: null
+    =id: ATLAS-0p5m
 
 instrument:
   - name: ZTF
@@ -275,6 +307,34 @@ instrument:
     api_classname: PS1API
     =id: PS1
     filters: ['ps1::open', 'ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y', 'ps1::w']
+  - band: optical
+    name: KAIT
+    telescope_id: =KAIT
+    type: imager
+    filters: ['bessellux', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'bessellb', 'bessellv', 'bessellr', 'besselli']
+    api_classname: KAITAPI
+    =id: KAIT
+  - name: SEDMv2
+    type: imaging spectrograph
+    band: V
+    telescope_id: =KPNO2m
+    filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
+    api_classname: SEDMV2API
+    =id: SEDMv2
+  - band: optical
+    name: T80CAM
+    telescope_id: =JAST
+    type: imager
+    filters: ['sdssg', 'sdssr', 'sdssi', 'sdssz']
+    api_classname: SLACKAPI
+    =id: T80CAM
+  - band: optical
+    name: ATLAS
+    telescope_id: =ATLAS-0p5m
+    type: imager
+    =id: ATLAS
+    api_classname: ATLASAPI
+    filters: ["atlasc", "atlaso"]
 
 allocation:
   - pi: Michael Coughlin
@@ -350,6 +410,34 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =PS1
+   - pi: Michael Coughlin
+    proposal_id: ATLAS-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =ATLAS
+  - pi: Michael Coughlin
+    proposal_id: SEDMv2-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =SEDMv2
+  - pi: Michael Coughlin
+    proposal_id: KAIT-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =KAIT
+  - pi: Michael Coughlin
+    proposal_id: T80CAM-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =T80CAM
 
 candidates:
   - id: ZTF21aaqjmps
@@ -468,6 +556,7 @@ sources/ZTF18aabcvnq/annotations:
       some_boolean: false
       class: "varstar"
 
+
 sources/ZTFe028h94k/annotations:
   - obj_id: ZTFe028h94k
     origin: "Program B"
@@ -492,6 +581,16 @@ sources/ZTFrlh6cyjh/annotations:
 
 taxonomy:
   file: taxonomy_demo.yaml
+
+classification:
+  - taxonomy_id: 1
+    obj_id: ZTF18aabcvnq
+    probability: 0.9
+    classification: "Time-domain Source"
+  - taxonomy_id: 2
+    obj_id: ZTF18aabcvnq
+    probability: 0.02
+    classification: "variable"
 
 observing_run:
   - pi: Danny Goldstein

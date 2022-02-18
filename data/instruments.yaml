@@ -342,3 +342,21 @@
   type: imager
   # todo: add unfiltered
   filters: []
+- band: optical
+  name: ATLAS
+  telescope_id: =ATLAS
+  type: imager
+  filters: ['atlasc', 'atlaso']
+- band: optical
+  name: KAIT
+  telescope_id: =KAIT
+  type: imager
+  filters: ['bessellux', 'sdssg', 'sdssr', 'sdssi', 'sdssz', 'bessellb', 'bessellv', 'bessellr', 'besselli']
+  api_classname: KAITAPI
+- name: SEDMv2
+  type: imaging spectrograph
+  band: V
+  telescope_id: =KPNO2m
+  filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
+  api_classname: SEDMV2API
+  =id: SEDMv2

@@ -10,6 +10,7 @@ from regions import Regions
 from astropy import coordinates
 from astropy import units as u
 import numpy as np
+from distutils.util import strtobool
 
 from ..base import BaseHandler
 from ...models import (
@@ -71,12 +72,14 @@ class InstrumentHandler(BaseHandler):
                 return self.error('`field_region` is required with field_data')
             regions = Regions.parse(field_region, format='ds9')
 
+            log(f"Started generating fields for instrument {instrument.id}")
             # run async
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
             )
 
+        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success(data={"id": instrument.id})
 
     @auth_or_token
@@ -93,6 +96,14 @@ class InstrumentHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: includeGeoJSON
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated geojson. Defaults to
+                false.
           responses:
             200:
               content:
@@ -112,6 +123,14 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: string
               description: Filter by name (exact match)
+            - in: query
+              name: includeGeoJSON
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated geojson. Defaults to
+                false.
           responses:
             200:
               content:
@@ -122,23 +141,28 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        includeGeoJSON = bool(
+            strtobool(self.get_query_argument("includeGeoJSON", 'False'))
+        )
+        if includeGeoJSON:
+            options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
+        else:
+            options = [joinedload(Instrument.fields)]
+
         if instrument_id is not None:
             instrument = Instrument.get_if_accessible_by(
                 int(instrument_id),
                 self.current_user,
                 raise_if_none=True,
                 mode="read",
-                options=[joinedload(Instrument.fields)],
+                options=options,
             )
+
             return self.success(data=instrument)
 
         inst_name = self.get_query_argument("name", None)
         query = Instrument.query_records_accessible_by(
-            self.current_user,
-            mode="read",
-            options=[
-                joinedload(Instrument.fields),
-            ],
+            self.current_user, mode="read", options=options
         )
         if inst_name is not None:
             query = query.filter(Instrument.name == inst_name)
@@ -190,6 +214,7 @@ class InstrumentHandler(BaseHandler):
             )
         self.verify_and_commit()
 
+        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success()
 
     @permissions(['System admin'])
@@ -221,6 +246,7 @@ class InstrumentHandler(BaseHandler):
         DBSession().delete(instrument)
         self.verify_and_commit()
 
+        self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success()
 
 
@@ -292,6 +318,16 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
         for ii, (field_id, ra, dec, coords) in enumerate(
             zip(field_data['ID'], field_data['RA'], field_data['Dec'], coords_icrs)
         ):
+            geometry = []
+            for coord in coords:
+                tab = list(
+                    zip(
+                        (*coord.ra.deg, coord.ra.deg[0]),
+                        (*coord.dec.deg, coord.dec.deg[0]),
+                    )
+                )
+                geometry.append(tab)
+
             contour = {
                 'properties': {
                     'instrument': instrument_name,
@@ -299,6 +335,16 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     'ra': ra,
                     'dec': dec,
                 },
+                'type': 'FeatureCollection',
+                'features': [
+                    {
+                        'type': 'Feature',
+                        'geometry': {
+                            'type': 'MultiLineString',
+                            'coordinates': geometry,
+                        },
+                    },
+                ],
             }
 
             field = InstrumentField(

@@ -8,10 +8,15 @@ _, cfg = load_env()
 
 def test_token_user_create_new_group(super_admin_token, super_admin_user):
     group_name = str(uuid.uuid4())
+    group_description = "Group description"
     status, data = api(
         "POST",
         "groups",
-        data={"name": group_name, "group_admins": [super_admin_user.id]},
+        data={
+            "name": group_name,
+            "description": group_description,
+            "group_admins": [super_admin_user.id],
+        },
         token=super_admin_token,
     )
     assert status == 200
@@ -21,6 +26,7 @@ def test_token_user_create_new_group(super_admin_token, super_admin_user):
     status, data = api("GET", f"groups/{new_group_id}", token=super_admin_token)
     assert data["status"] == "success"
     assert data["data"]["name"] == group_name
+    assert data["data"]["description"] == group_description
 
 
 def test_cannot_create_group_empty_string_name(manage_groups_token, super_admin_user):
@@ -541,7 +547,7 @@ def test_cannot_add_self_to_group(public_group2, view_only_token, user):
         data={"userID": user.id, "admin": False},
         token=view_only_token,
     )
-    assert status == 400
+    assert status == 401
     assert "Unauthorized" in data["message"]
 
 

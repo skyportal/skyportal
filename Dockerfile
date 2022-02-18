@@ -17,7 +17,7 @@ RUN apt-get update && \
 RUN python3 -m venv /skyportal_env && \
     \
     bash -c "source /skyportal_env/bin/activate && \
-    pip install --upgrade pip wheel numpy"
+    pip install --upgrade pip==21.3.1 wheel numpy"
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
@@ -26,6 +26,8 @@ ADD . /skyportal
 WORKDIR /skyportal
 
 RUN bash -c "\
+    cp docker.yaml config.yaml && \
+    \
     source /skyportal_env/bin/activate && \
     make system_setup && \
     \
@@ -36,9 +38,7 @@ RUN bash -c "\
     chown -R skyportal.skyportal /skyportal && \
     \
     mkdir -p /skyportal/static/thumbnails && \
-    chown -R skyportal.skyportal /skyportal/static/thumbnails && \
-    \
-    cp docker.yaml config.yaml"
+    chown -R skyportal.skyportal /skyportal/static/thumbnails"
 
 USER skyportal
 
