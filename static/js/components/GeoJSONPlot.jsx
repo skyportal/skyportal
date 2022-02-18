@@ -71,6 +71,8 @@ const pointLabelPlot = (svg, height, width, geoJSON) => {
       .selectAll(".label")
       .data(features)
       .enter()
+      .append("a")
+      .attr("xlink:href", (d) => d.properties.url)
       .append("text")
       .attr("transform", translate)
       .style("visibility", (d) => (visibleOnSphere(d) ? "visible" : "hidden"))

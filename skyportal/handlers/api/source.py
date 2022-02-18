@@ -1519,7 +1519,13 @@ class SourceHandler(BaseHandler):
                     source_name = f'{source["ra"]},{source["dec"]}'
 
                 features.append(
-                    Feature(geometry=point, properties={"name": source_name})
+                    Feature(
+                        geometry=point,
+                        properties={
+                            "name": source_name,
+                            "url": f"/source/{source['id']}",
+                        },
+                    )
                 )
 
             query_results["geojson"] = {
