@@ -62,7 +62,7 @@ class PlotSpectroscopyHandler(BaseHandler):
                 smoothing=smoothing,
                 smooth_number=smooth_number,
             )
-        except ValueError as e:
+        except Exception as e:
             return self.error(f'Exception in photometry plot: {e}')
 
         self.verify_and_commit()
