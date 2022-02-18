@@ -135,10 +135,7 @@ class GroupHandler(BaseHandler):
                 group_id, self.current_user, raise_if_none=True, mode='read'
             )
 
-            if self.get_query_argument("includeGroupUsers", "true").lower() in (
-                "f",
-                "false",
-            ):
+            if self.get_query_argument("includeGroupUsers", True):
                 include_group_users = False
             else:
                 include_group_users = True
@@ -201,10 +198,7 @@ class GroupHandler(BaseHandler):
             key=lambda g: g.name.lower(),
         )
         all_groups_query = Group.query_records_accessible_by(self.current_user)
-        if (not include_single_user_groups) or (
-            isinstance(include_single_user_groups, str)
-            and include_single_user_groups.lower() == "false"
-        ):
+        if not include_single_user_groups:
             all_groups_query = all_groups_query.filter(
                 Group.single_user_group.is_(False)
             )
