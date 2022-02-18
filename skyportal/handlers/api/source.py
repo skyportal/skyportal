@@ -1513,10 +1513,13 @@ class SourceHandler(BaseHandler):
 
             for source in query_results["sources"]:
                 point = Point((source["ra"], source["dec"]))
-                if source["alias"] is not None:
-                    source_name = ",".join(source["alias"])
-                else:
-                    source_name = f'{source["ra"]},{source["dec"]}'
+                aliases = [alias for alias in (source["alias"] or []) if alias]
+                source_name = ", ".join(
+                    [
+                        source["id"],
+                    ]
+                    + aliases
+                )
 
                 features.append(
                     Feature(
