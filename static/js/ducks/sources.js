@@ -67,23 +67,25 @@ export function fetchFavoriteSources(filterParams = {}) {
   return API.GET("/api/sources", FETCH_FAVORITE_SOURCES, filterParams);
 }
 
-export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
+export function fetchGcnEventSources(dateobs, filterParams = {}) {
   addFilterParamDefaults(filterParams);
   filterParams.localizationDateobs = dateobs;
-  filterParams.localizationCumprob = 0.95;
 
-  if (dateobs) {
-    filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
-    filterParams.endDate = dayjs(dateobs)
-      .add(7, "day")
-      .format("YYYY-MM-DD HH:mm:ss");
+  if (!Object.keys(filterParams).includes("startDate")) {
+    if (dateobs) {
+      filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+    }
   }
 
-  // filterParams.startDate = null;
-  // filterParams.endDate = null;
-  // filterParams.localizationCumprob = 1.00;
+  if (!Object.keys(filterParams).includes("endDate")) {
+    if (dateobs) {
+      filterParams.endDate = dayjs(dateobs)
+        .add(7, "day")
+        .format("YYYY-MM-DD HH:mm:ss");
+    }
+  }
 
-  filterParams.includeGeojson = true;
+  filterParams.includeGeoJSON = true;
   return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);
 }
 

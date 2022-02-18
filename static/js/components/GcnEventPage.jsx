@@ -28,10 +28,13 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
 import * as sourcesActions from "../ducks/sources";
+import * as observationsActions from "../ducks/observations";
 import * as galaxiesActions from "../ducks/galaxies";
 
 import SourceTable from "./SourceTable";
 import GalaxyTable from "./GalaxyTable";
+import ExecutedObservationsTable from "./ExecutedObservationsTable";
+import GcnSelectionForm from "./GcnSelectionForm";
 
 import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
@@ -251,11 +254,16 @@ const GcnEventPage = ({ route }) => {
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const dispatch = useDispatch();
   const styles = useStyles();
+
   const gcnEventSources = useSelector(
     (state) => state?.sources?.gcnEventSources
   );
   const gcnEventGalaxies = useSelector(
     (state) => state?.galaxies?.gcnEventGalaxies
+  );
+
+  const gcnEventObservations = useSelector(
+    (state) => state?.observations?.gcnEventObservations
   );
 
   useEffect(() => {
@@ -267,10 +275,19 @@ const GcnEventPage = ({ route }) => {
   }, [route, dispatch]);
 
   useEffect(() => {
+    dispatch(observationsActions.fetchGcnEventObservations(route.dateobs));
+  }, [route, dispatch]);
+
+  useEffect(() => {
     dispatch(galaxiesActions.fetchGcnEventGalaxies(route.dateobs));
   }, [route, dispatch]);
 
-  if (!gcnEvent || !gcnEventSources || !gcnEventGalaxies) {
+  if (
+    !gcnEvent ||
+    !gcnEventSources ||
+    !gcnEventObservations ||
+    !gcnEventGalaxies
+  ) {
     return <CircularProgress />;
   }
 
@@ -393,6 +410,20 @@ const GcnEventPage = ({ route }) => {
       </div>
       <div className={styles.columnItem}>
         <Accordion defaultExpanded>
+          <AccordionSummary>
+            <Typography className={styles.accordionHeading}>
+              Modify Skymap Selection
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              <GcnSelectionForm gcnEvent={gcnEvent} />
+            </div>
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
@@ -401,6 +432,20 @@ const GcnEventPage = ({ route }) => {
           <AccordionDetails>
             <div className={styles.gcnEventContainer}>
               <GcnEventSourcesPage route={route} sources={gcnEventSources} />
+            </div>
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="observations-header"
+          />
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              <ExecutedObservationsTable observations={gcnEventObservations} />
             </div>
           </AccordionDetails>
         </Accordion>
