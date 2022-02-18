@@ -101,10 +101,6 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     setSelectedLocalizationId,
   ]);
 
-  console.log("allocationList", allocationList);
-  console.log("selectedAllocationId", selectedAllocationId);
-  console.log("instrumentFormParams", instrumentFormParams);
-
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationList is not
@@ -187,10 +183,6 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     return errors;
   };
 
-  console.log("instrumentFormParams", instrumentFormParams);
-  console.log("allocationLookUp", allocationLookUp);
-  console.log("selectedAllocationId", selectedAllocationId);
-
   return (
     <div className={classes.container}>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
@@ -222,7 +214,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         labelId="localizationSelectLabel"
         value={selectedLocalizationId}
         onChange={handleSelectedLocalizationChange}
-        name="followupRequestLocalizationSelect"
+        name="observationPlanRequestLocalizationSelect"
         className={classes.localizationSelect}
       >
         {gcnevent.localizations?.map((localization) => (
@@ -241,7 +233,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         setGroupIDs={setSelectedGroupIds}
         groupIDs={selectedGroupIds}
       />
-      <div data-testid="followup-request-form">
+      <div data-testid="observationplan-request-form">
         <Form
           schema={
             instrumentFormParams[

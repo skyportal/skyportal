@@ -50,7 +50,7 @@ def test_token_user_post_get_instrument(super_admin_token):
     # wait for the fields to populate
     time.sleep(15)
 
-    params = {'includeGeojson': True}
+    params = {'includeGeoJSON': True}
 
     instrument_id = data['data']['id']
     status, data = api(
