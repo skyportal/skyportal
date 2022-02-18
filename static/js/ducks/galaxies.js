@@ -18,10 +18,10 @@ export function fetchGalaxies(filterParams = {}) {
   return API.GET("/api/galaxy_catalog", FETCH_GALAXIES, filterParams);
 }
 
-export function fetchGcnEventGalaxies(dateobs = null, filterParams = {}) {
+export function fetchGcnEventGalaxies(dateobs, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
-  filterParams.localizationCumprob = 0.95;
-  filterParams.includeGeojson = true;
+  filterParams.includeGeoJSON = true;
+
   return API.GET("/api/galaxy_catalog", FETCH_GCNEVENT_GALAXIES, filterParams);
 }
 
