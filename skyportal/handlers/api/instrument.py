@@ -10,6 +10,7 @@ from regions import Regions
 from astropy import coordinates
 from astropy import units as u
 import numpy as np
+from distutils.util import strtobool
 
 from ..base import BaseHandler
 from ...models import (
@@ -105,7 +106,7 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: integer
             - in: query
-              name: includeGeojson
+              name: includeGeoJSON
               nullable: true
               schema:
                 type: boolean
@@ -132,7 +133,7 @@ class InstrumentHandler(BaseHandler):
                 type: string
               description: Filter by name (exact match)
             - in: query
-              name: includeGeojson
+              name: includeGeoJSON
               nullable: true
               schema:
                 type: boolean
@@ -149,8 +150,10 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        includeGeojson = self.get_query_argument("includeGeojson", False)
-        if includeGeojson:
+        includeGeoJSON = bool(
+            strtobool(self.get_query_argument("includeGeoJSON", 'False'))
+        )
+        if includeGeoJSON:
             options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
         else:
             options = [joinedload(Instrument.fields)]

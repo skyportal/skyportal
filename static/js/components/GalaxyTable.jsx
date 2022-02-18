@@ -10,9 +10,6 @@ import {
 } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
 
-// eslint-disable-next-line
-import GeoPropTypes from "geojson-prop-types";
-
 import MUIDataTable from "mui-datatables";
 
 const useStyles = makeStyles((theme) => ({
