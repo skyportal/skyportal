@@ -1,4 +1,5 @@
 from .interface import FollowUpAPI, Listener
+from .atlas import ATLASAPI
 from .kait import KAITAPI
 from .sedm import SEDMAPI, SEDMListener
 from .sedmv2 import SEDMV2API

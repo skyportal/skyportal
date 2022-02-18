@@ -96,6 +96,13 @@ const FollowupRequestLists = ({
     setIsDeleting(null);
   };
 
+  const [isGetting, setIsGetting] = useState(null);
+  const handleGet = async (id) => {
+    setIsGetting(id);
+    await dispatch(Actions.getPhotometryRequest(id));
+    setIsGetting(null);
+  };
+
   if (
     instrumentList.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
@@ -125,7 +132,9 @@ const FollowupRequestLists = ({
       instrumentFormParams[instrument_id].methodsImplemented.delete;
     const implementsEdit =
       instrumentFormParams[instrument_id].methodsImplemented.update;
-    const modifiable = implementsEdit || implementsDelete;
+    const implementsGet =
+      instrumentFormParams[instrument_id].methodsImplemented.get;
+    const modifiable = implementsEdit || implementsDelete || implementsGet;
 
     const columns = [
       { name: "requester.username", label: "Requester" },
@@ -172,6 +181,26 @@ const FollowupRequestLists = ({
                   data-testid={`deleteRequest_${followupRequest.id}`}
                 >
                   Delete
+                </Button>
+              </div>
+            )}
+            {implementsGet && isGetting === followupRequest.id ? (
+              <div>
+                <CircularProgress />
+              </div>
+            ) : (
+              <div>
+                <Button
+                  onClick={() => {
+                    handleGet(followupRequest.id);
+                  }}
+                  size="small"
+                  color="primary"
+                  type="submit"
+                  variant="outlined"
+                  data-testid={`getRequest_${followupRequest.id}`}
+                >
+                  Retrieve
                 </Button>
               </div>
             )}
