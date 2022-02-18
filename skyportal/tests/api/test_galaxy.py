@@ -44,7 +44,7 @@ def test_galaxy(super_admin_token, view_only_token):
     time.sleep(15)
 
     params = {
-        'includeGeojson': True,
+        'includeGeoJSON': True,
         'localizationDateobs': '2019-04-25T08:18:05',
         'localizationCumprob': 0.8,
     }

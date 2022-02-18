@@ -24,7 +24,7 @@ const GeoJSONPlot = () => {
     const fetchGeoJSON = async () => {
       const response = await dispatch(
         GET(
-          "/api/galaxy_catalog?includeGeojson=true",
+          "/api/galaxy_catalog?includeGeoJSON=true",
           "skyportal/FETCH_GEOJSON"
         )
       );

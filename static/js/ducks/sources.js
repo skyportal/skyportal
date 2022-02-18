@@ -83,7 +83,7 @@ export function fetchGcnEventSources(dateobs = null, filterParams = {}) {
   // filterParams.endDate = null;
   // filterParams.localizationCumprob = 1.00;
 
-  filterParams.includeGeojson = true;
+  filterParams.includeGeoJSON = true;
   return API.GET("/api/sources", FETCH_GCNEVENT_SOURCES, filterParams);
 }
 
