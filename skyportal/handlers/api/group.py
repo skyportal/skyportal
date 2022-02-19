@@ -161,6 +161,7 @@ class GroupHandler(BaseHandler):
             filters = group.filters
 
             group = group.to_dict()
+
             if users is not None:
                 group['users'] = users
 
