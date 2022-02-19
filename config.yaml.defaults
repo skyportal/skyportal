@@ -34,7 +34,7 @@ app:
     host: skipper.caltech.edu
     port: 4000
 
-  ps1_endpoint: https://catalogs.mast.stsci.edu/api/v0.1/panstarrs
+  ps1_endpoint: https://catalogs.mast.stsci.edu/
 
   atlas:
     protocol: https

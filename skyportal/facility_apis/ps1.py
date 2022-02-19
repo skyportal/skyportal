@@ -1,15 +1,104 @@
 import astropy
 import requests
 import numpy as np
+from sqlalchemy.orm import sessionmaker, scoped_session
+from tornado.ioloop import IOLoop
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+from baselayer.log import make_log
 
 from ..utils import http
 
 env, cfg = load_env()
 
 PS1_URL = cfg['app.ps1_endpoint']
+
+log = make_log('facility_apis/ps1')
+
+
+def commit_photometry(text_response, request_id, instrument_id):
+    """
+    Commits PS1 DR2 photometry to the database
+
+    Parameters
+    ----------
+    text_response : dict
+        response.text from call to PS1 DR2 photometry service.
+    request_id : int
+        FollowupRequest SkyPortal ID
+    instrument_id : int
+        Instrument SkyPortal ID
+    """
+
+    from ..models import (
+        DBSession,
+        FollowupRequest,
+        Instrument,
+    )
+
+    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+    session = Session()
+
+    try:
+        request = session.query(FollowupRequest).get(request_id)
+        instrument = session.query(Instrument).get(instrument_id)
+
+        tab = astropy.io.ascii.read(text_response)
+        # good data only
+        tab = tab[tab['psfQfPerfect'] > 0.9]
+        id2filter = np.array(['ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y'])
+        tab['filter'] = id2filter[(tab['filterID'] - 1).data.astype(int)]
+        df = tab.to_pandas()
+
+        df.rename(
+            columns={
+                'obsTime': 'mjd',
+                'psfFlux': 'flux',
+                'psfFluxerr': 'fluxerr',
+            },
+            inplace=True,
+        )
+        df = df.replace({np.nan: None})
+
+        df.drop(
+            columns=[
+                'detectID',
+                'filterID',
+                'psfQfPerfect',
+            ],
+            inplace=True,
+        )
+        df['magsys'] = 'ab'
+        df['zp'] = 8.90
+
+        data_out = {
+            'obj_id': request.obj_id,
+            'instrument_id': instrument.id,
+            'group_ids': 'all',
+            **df.to_dict(orient='list'),
+        }
+
+        from skyportal.handlers.api.photometry import add_external_photometry
+
+        add_external_photometry(data_out, request.requester)
+
+        request.status = "Photometry committed to database"
+        session.add(request)
+        session.commit()
+
+        flow = Flow()
+        flow.push(
+            '*',
+            "skyportal/REFRESH_SOURCE",
+            payload={"obj_key": request.obj.internal_key},
+        )
+
+    except Exception as e:
+        return log(f"Unable to commit photometry for {request_id}: {e}")
+    finally:
+        Session.remove()
 
 
 class PS1API(FollowUpAPI):
@@ -35,9 +124,13 @@ class PS1API(FollowUpAPI):
             Instrument,
         )
 
+        Session = scoped_session(
+            sessionmaker(bind=DBSession.session_factory.kw["bind"])
+        )
+        session = Session()
+
         req = (
-            DBSession()
-            .query(FollowupRequest)
+            session.query(FollowupRequest)
             .filter(FollowupRequest.id == request.id)
             .one()
         )
@@ -68,66 +161,33 @@ class PS1API(FollowUpAPI):
             ],
         }
 
-        url = f"{PS1_URL}/dr2/detections.csv"
+        url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/detections.csv"
         r = requests.get(url, params=params)
         r.raise_for_status()
 
         if r.status_code == 200:
-            tab = astropy.io.ascii.read(r.text)
-            # good data only
-            tab = tab[tab['psfQfPerfect'] > 0.9]
-            id2filter = np.array(['ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y'])
-            tab['filter'] = id2filter[(tab['filterID'] - 1).data.astype(int)]
-            df = tab.to_pandas()
+            try:
+                text_response = r.text
+            except Exception:
+                raise ('No text data returned in request')
 
-            df.rename(
-                columns={
-                    'obsTime': 'mjd',
-                    'psfFlux': 'flux',
-                    'psfFluxerr': 'fluxerr',
-                },
-                inplace=True,
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: commit_photometry(text_response, req.id, instrument.id),
             )
-            df = df.replace({np.nan: None})
-
-            df.drop(
-                columns=[
-                    'detectID',
-                    'filterID',
-                    'psfQfPerfect',
-                ],
-                inplace=True,
-            )
-            df['magsys'] = 'ab'
-            df['zp'] = 8.90
-
-            data_out = {
-                'obj_id': request.obj_id,
-                'instrument_id': instrument.id,
-                'group_ids': 'all',
-                **df.to_dict(orient='list'),
-            }
-            token_id = "9a5e8bbf-373f-43d0-86b2-0c65b10fef31"
-
-            t = requests.post(
-                "http://localhost:5000/api/photometry",
-                json=data_out,
-                headers={"Authorization": f"token {token_id}"},
-            )
-            t.raise_for_status()
-
-            request.status = "Photometry committed to database"
+            req.status = "Committing photometry to database"
         else:
-            request.status = f'error: {r.content}'
+            req.status = f'error: {r.content}'
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
             response=http.serialize_requests_response(r),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
+            followup_request=req,
+            initiator_id=req.last_modified_by_id,
         )
 
-        DBSession().add(transaction)
+        session.add(transaction)
+        session.commit()
 
     # subclasses *must* implement the method below
     @staticmethod
@@ -161,7 +221,7 @@ class PS1API(FollowUpAPI):
             ],
         }
 
-        url = f"{PS1_URL}/dr2/mean.csv"
+        url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/mean.csv"
         r = requests.get(url, params=params)
         r.raise_for_status()
         tab = astropy.io.ascii.read(r.text)
@@ -179,6 +239,7 @@ class PS1API(FollowUpAPI):
         )
 
         DBSession().add(transaction)
+        DBSession().commit()
 
     form_json_schema = {
         "type": "object",
@@ -199,8 +260,8 @@ class PS1API(FollowUpAPI):
             },
         },
         "required": [
-            "start_date",
-            "end_date",
+            "radius",
+            "min_detections",
         ],
     }
 

@@ -34,8 +34,8 @@ class PhotometryRequestHandler(BaseHandler):
             return self.error('Cannot retrieve requests on this instrument.')
 
         followup_request.last_modified_by_id = self.associated_user_object.id
-
         internal_key = followup_request.obj.internal_key
+
         api.get(followup_request)
         self.verify_and_commit()
 
