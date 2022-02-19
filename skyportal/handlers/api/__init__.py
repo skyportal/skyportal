@@ -29,6 +29,7 @@ from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
 from .observation import ObservationHandler
 from .observingrun import ObservingRunHandler
+from .observation_plan import ObservationPlanRequestHandler
 from .photometry import (
     PhotometryHandler,
     ObjPhotometryHandler,
@@ -36,6 +37,7 @@ from .photometry import (
     PhotometryRangeHandler,
 )
 from .color_mag import ObjColorMagHandler
+from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler

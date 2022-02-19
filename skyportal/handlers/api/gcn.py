@@ -16,11 +16,13 @@ from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    Allocation,
     GcnEvent,
     GcnNotice,
     GcnTag,
     Localization,
     LocalizationTile,
+    ObservationPlanRequest,
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
@@ -50,6 +52,13 @@ class GcnEventHandler(BaseHandler):
             content:
               application/json:
                 schema: Success
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      gcnevent_id:
+                        type: integer
+                        description: New GcnEvent ID
           400:
             content:
               application/json:
@@ -135,7 +144,7 @@ class GcnEventHandler(BaseHandler):
             IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
             IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
-        return self.success()
+        return self.success(data={'gcnevent_id': event.id})
 
     @auth_or_token
     def get(self, dateobs=None):
@@ -161,6 +170,15 @@ class GcnEventHandler(BaseHandler):
                     options=[
                         joinedload(GcnEvent.localizations),
                         joinedload(GcnEvent.gcn_notices),
+                        joinedload(GcnEvent.observationplan_requests)
+                        .joinedload(ObservationPlanRequest.allocation)
+                        .joinedload(Allocation.instrument),
+                        joinedload(GcnEvent.observationplan_requests)
+                        .joinedload(ObservationPlanRequest.allocation)
+                        .joinedload(Allocation.group),
+                        joinedload(GcnEvent.observationplan_requests).joinedload(
+                            ObservationPlanRequest.requester
+                        ),
                     ],
                 )
                 .filter_by(dateobs=dateobs)
@@ -182,6 +200,7 @@ class GcnEventHandler(BaseHandler):
             options=[
                 joinedload(GcnEvent.localizations),
                 joinedload(GcnEvent.gcn_notices),
+                joinedload(GcnEvent.observationplan_requests),
             ],
         )
 

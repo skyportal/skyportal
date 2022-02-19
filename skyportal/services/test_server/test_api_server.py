@@ -192,6 +192,29 @@ def kait_request_matcher(r1, r2):
     assert r1_is_kait and r2_is_kait and r1.method == r2.method
 
 
+def atlas_request_matcher(r1, r2):
+    """
+    Helper function to help determine if two requests to the ATLAS API are equivalent
+    """
+
+    # A request matches an ATLAS request if the URI and method matches
+
+    r1_uri = r1.uri.replace(":443", "")
+    r2_uri = r2.uri.replace(":443", "")
+
+    def is_atlas_request(uri):
+        pattern = r"/forcedphot/queue/"
+        if re.search(pattern, uri) is not None:
+            return True
+
+        return False
+
+    r1_is_atlas = is_atlas_request(r1_uri)
+    r2_is_atlas = is_atlas_request(r2_uri)
+
+    assert r1_is_atlas and r2_is_atlas and r1.method == r2.method
+
+
 class TestRouteHandler(tornado.web.RequestHandler):
     """
     This handler intercepts calls coming from SkyPortal API handlers which make
@@ -379,6 +402,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
             "/api/requestgroups/",
             "/api/triggers/ztf",
             "/cgi-bin/internal/process_kait_ztf_request.py",
+            "/forcedphot/queue/",
         ]:
             cache = get_cache_file_static()
         else:
@@ -452,6 +476,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
             ".*/cgi-bin/internal/process_kait_ztf_request.py$",
             ".*/api/triggers/ztf/.*",
             ".*/node_agent2/node_agent/.*",
+            ".*/forcedphot/queue/.*",
         ]
 
         is_soap_action = "Soapaction" in self.request.headers
@@ -462,6 +487,8 @@ class TestRouteHandler(tornado.web.RequestHandler):
         match_on = ['uri', 'method', 'body']
         if self.request.uri == "/node_agent2/node_agent":
             match_on = ["lt"]
+        elif self.request.uri == "/forcedphot/queue/":
+            match_on = ["atlas"]
         elif "/api/requestgroups/" in self.request.uri:
             match_on = ["lco"]
         elif self.request.uri == "/api/triggers/ztf":
@@ -506,6 +533,18 @@ class TestRouteHandler(tornado.web.RequestHandler):
                         json=json_body,
                         headers=header,
                     )
+                elif "/forcedphot/queue/" in self.request.uri:
+                    header = {
+                        'Authorization': headers['Authorization'],
+                        'Accept': 'application/json',
+                    }
+                    from urllib.parse import urlparse
+                    from urllib.parse import parse_qs
+
+                    url = f"{url}?{self.request.body.decode()}"
+                    json_body = parse_qs(urlparse(url).query)
+
+                    requests.post(url, data=json_body, headers=header)
                 else:
                     requests.post(url, data=self.request.body, headers=headers)
 
@@ -540,6 +579,7 @@ if __name__ == "__main__":
     env, cfg = load_env()
     log = make_log("testapiserver")
     my_vcr = vcr.VCR()
+    my_vcr.register_matcher("atlas", atlas_request_matcher)
     my_vcr.register_matcher("lt", lt_request_matcher)
     my_vcr.register_matcher("lco", lco_request_matcher)
     my_vcr.register_matcher("ztf", ztf_request_matcher)

@@ -39,6 +39,10 @@ app:
     host: www.swift.psu.edu
     port: 443
 
+  atlas:
+    protocol: https
+    host: fallingstar-data.com
+
   kait:
     protocol: http
     host: herculesii.astro.berkeley.edu

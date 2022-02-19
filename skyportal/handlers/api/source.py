@@ -17,6 +17,7 @@ from marshmallow.exceptions import ValidationError
 import functools
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
+from distutils.util import strtobool
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -199,6 +200,13 @@ class SourceHandler(BaseHandler):
                 type: boolean
               description: |
                 Boolean indicating whether to return if a source has a spectra. Defaults to false.
+            - in: query
+              name: includePeriodExists
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to return if a source has a period set. Defaults to false.
             - in: query
               name: includeThumbnails
               nullable: true
@@ -567,7 +575,7 @@ class SourceHandler(BaseHandler):
             description: |
               Cumulative probability up to which to include sources
           - in: query
-            name: includeGeojson
+            name: includeGeoJSON
             nullable: true
             schema:
               type: boolean
@@ -630,6 +638,9 @@ class SourceHandler(BaseHandler):
         include_spectrum_exists = self.get_query_argument(
             "includeSpectrumExists", False
         )
+        include_period_exists = bool(
+            strtobool(self.get_query_argument("includePeriodExists", 'False'))
+        )
         remove_nested = self.get_query_argument("removeNested", False)
         include_detection_stats = self.get_query_argument(
             "includeDetectionStats", False
@@ -651,7 +662,9 @@ class SourceHandler(BaseHandler):
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-        includeGeojson = self.get_query_argument("includeGeojson", False)
+        includeGeoJSON = bool(
+            strtobool(self.get_query_argument("includeGeoJSON", 'False'))
+        )
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -831,14 +844,19 @@ class SourceHandler(BaseHandler):
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
-            if include_photometry_exists:
-                source_info["photometry_exists"] = (
-                    len(
-                        Photometry.query_records_accessible_by(self.current_user)
-                        .filter(Photometry.obj_id == obj_id)
-                        .all()
-                    )
-                    > 0
+            if include_period_exists:
+                annotations = (
+                    Annotation.query_records_accessible_by(self.current_user)
+                    .filter(Annotation.obj_id == obj_id)
+                    .all()
+                )
+                period_str_options = ['period', 'Period', 'PERIOD']
+                source_info["period_exists"] = any(
+                    [
+                        isinstance(an.data, dict) and period_str in an.data
+                        for an in annotations
+                        for period_str in period_str_options
+                    ]
                 )
 
             source_info["annotations"] = sorted(
@@ -1454,7 +1472,20 @@ class SourceHandler(BaseHandler):
                         )
                         > 0
                     )
-
+                if include_period_exists:
+                    annotations = (
+                        Annotation.query_records_accessible_by(self.current_user)
+                        .filter(Annotation.obj_id == obj.id)
+                        .all()
+                    )
+                    period_str_options = ['period', 'Period', 'PERIOD']
+                    obj_list[-1]["period_exists"] = any(
+                        [
+                            isinstance(an.data, dict) and 'period' in an.data
+                            for an in annotations
+                            for period_str in period_str_options
+                        ]
+                    )
                 if not remove_nested:
                     source_query = Source.query_records_accessible_by(
                         self.current_user
@@ -1496,7 +1527,7 @@ class SourceHandler(BaseHandler):
             query_results["sources"] = obj_list
 
         query_results = recursive_to_dict(query_results)
-        if includeGeojson:
+        if includeGeoJSON:
             # features are JSON representations that the d3 stuff understands.
             # We use these to render the contours of the sky localization and
             # locations of the transients.

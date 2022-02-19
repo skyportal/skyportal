@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Button from "@material-ui/core/Button";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import Accordion from "@material-ui/core/Accordion";
@@ -16,12 +16,10 @@ import {
 } from "@material-ui/core/styles";
 import MUIDataTable from "mui-datatables";
 
-import * as Actions from "../ducks/source";
-
-import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
+import * as Actions from "../ducks/gcnEvent";
 
 const useStyles = makeStyles(() => ({
-  followupRequestTable: {
+  observationplanRequestTable: {
     borderSpacing: "0.7em",
   },
   actionButtons: {
@@ -80,11 +78,7 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const FollowupRequestLists = ({
-  followupRequests,
-  instrumentList,
-  instrumentFormParams,
-}) => {
+const ObservationPlanRequestLists = ({ observationplanRequests }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
@@ -92,22 +86,24 @@ const FollowupRequestLists = ({
   const [isDeleting, setIsDeleting] = useState(null);
   const handleDelete = async (id) => {
     setIsDeleting(id);
-    await dispatch(Actions.deleteFollowupRequest(id));
+    await dispatch(Actions.deleteObservationPlanRequest(id));
     setIsDeleting(null);
   };
 
-  const [isGetting, setIsGetting] = useState(null);
-  const handleGet = async (id) => {
-    setIsGetting(id);
-    await dispatch(Actions.getPhotometryRequest(id));
-    setIsGetting(null);
-  };
+  const { instrumentList, instrumentFormParams } = useSelector(
+    (state) => state.instruments
+  );
 
   if (
+    !instrumentList ||
     instrumentList.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <p>No robotic followup requests for this source...</p>;
+    return <CircularProgress />;
+  }
+
+  if (!observationplanRequests || observationplanRequests.length === 0) {
+    return <p>No observation plan requests for this source...</p>;
   }
 
   const instLookUp = instrumentList.reduce((r, a) => {
@@ -115,7 +111,7 @@ const FollowupRequestLists = ({
     return r;
   }, {});
 
-  const requestsGroupedByInstId = followupRequests.reduce((r, a) => {
+  const requestsGroupedByInstId = observationplanRequests.reduce((r, a) => {
     r[a.allocation.instrument.id] = [
       ...(r[a.allocation.instrument.id] || []),
       a,
@@ -132,9 +128,7 @@ const FollowupRequestLists = ({
       instrumentFormParams[instrument_id].methodsImplemented.delete;
     const implementsEdit =
       instrumentFormParams[instrument_id].methodsImplemented.update;
-    const implementsGet =
-      instrumentFormParams[instrument_id].methodsImplemented.get;
-    const modifiable = implementsEdit || implementsDelete || implementsGet;
+    const modifiable = implementsEdit || implementsDelete;
 
     const columns = [
       { name: "requester.username", label: "Requester" },
@@ -160,11 +154,11 @@ const FollowupRequestLists = ({
     columns.push({ name: "status", label: "Status" });
     if (modifiable) {
       const renderModify = (dataIndex) => {
-        const followupRequest =
+        const observationplanRequest =
           requestsGroupedByInstId[instrument_id][dataIndex];
         return (
           <div className={classes.actionButtons}>
-            {implementsDelete && isDeleting === followupRequest.id ? (
+            {implementsDelete && isDeleting === observationplanRequest.id ? (
               <div>
                 <CircularProgress />
               </div>
@@ -172,43 +166,17 @@ const FollowupRequestLists = ({
               <div>
                 <Button
                   onClick={() => {
-                    handleDelete(followupRequest.id);
+                    handleDelete(observationplanRequest.id);
                   }}
                   size="small"
                   color="primary"
                   type="submit"
                   variant="outlined"
-                  data-testid={`deleteRequest_${followupRequest.id}`}
+                  data-testid={`deleteRequest_${observationplanRequest.id}`}
                 >
                   Delete
                 </Button>
               </div>
-            )}
-            {implementsGet && isGetting === followupRequest.id ? (
-              <div>
-                <CircularProgress />
-              </div>
-            ) : (
-              <div>
-                <Button
-                  onClick={() => {
-                    handleGet(followupRequest.id);
-                  }}
-                  size="small"
-                  color="primary"
-                  type="submit"
-                  variant="outlined"
-                  data-testid={`getRequest_${followupRequest.id}`}
-                >
-                  Retrieve
-                </Button>
-              </div>
-            )}
-            {implementsEdit && (
-              <EditFollowupRequestDialog
-                followupRequest={followupRequest}
-                instrumentFormParams={instrumentFormParams}
-              />
             )}
           </div>
         );
@@ -295,7 +263,7 @@ const FollowupRequestLists = ({
               </Typography>
             </AccordionSummary>
             <AccordionDetails
-              data-testid={`${instLookUp[instrument_id].name}_followupRequestsTable`}
+              data-testid={`${instLookUp[instrument_id].name}_observationplanRequestsTable`}
             >
               <MuiThemeProvider theme={getMuiTheme(theme)}>
                 <MUIDataTable
@@ -312,8 +280,8 @@ const FollowupRequestLists = ({
   );
 };
 
-FollowupRequestLists.propTypes = {
-  followupRequests: PropTypes.arrayOf(
+ObservationPlanRequestLists.propTypes = {
+  observationplanRequests: PropTypes.arrayOf(
     PropTypes.shape({
       requester: PropTypes.shape({
         id: PropTypes.number,
@@ -331,22 +299,6 @@ FollowupRequestLists.propTypes = {
       }),
     })
   ).isRequired,
-  instrumentList: PropTypes.arrayOf(
-    PropTypes.shape({
-      band: PropTypes.string,
-      created_at: PropTypes.string,
-      id: PropTypes.number,
-      name: PropTypes.string,
-      type: PropTypes.string,
-      telescope_id: PropTypes.number,
-    })
-  ).isRequired,
-  instrumentFormParams: PropTypes.shape({
-    formSchema: PropTypes.objectOf(PropTypes.any),
-    uiSchema: PropTypes.objectOf(PropTypes.any),
-    methodsImplemented: PropTypes.objectOf(PropTypes.any),
-    aliasLookup: PropTypes.objectOf(PropTypes.any),
-  }).isRequired,
 };
 
-export default FollowupRequestLists;
+export default ObservationPlanRequestLists;
