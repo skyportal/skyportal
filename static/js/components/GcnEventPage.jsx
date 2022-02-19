@@ -25,6 +25,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
+import { useD3 } from "./GeoJSONPlot";
+
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as localizationActions from "../ducks/localization";
 import * as sourcesActions from "../ducks/sources";
@@ -93,68 +95,72 @@ const DownloadXMLButton = ({ gcn_notice }) => {
     </div>
   );
 };
-
-const useD3 = (renderChartFn) => {
-  const ref = useRef();
-
-  useEffect(() => {
-    renderChartFn(d3.select(ref.current));
-    return () => {};
-  }, [renderChartFn, ref]);
-  return ref;
+DownloadXMLButton.propTypes = {
+  gcn_notice: PropTypes.shape({
+    content: PropTypes.string,
+    ivorn: PropTypes.string,
+  }).isRequired,
 };
 
 const Globe = ({ data }) => {
-  const projRef = useRef(d3.geoOrthographic());
+  function renderMap(svg, height, width, geoJSON) {
+    const center = [width / 2, height / 2];
+    const projection = d3.geoOrthographic().translate(center).scale(100);
+    const path = d3.geoPath().projection(projection);
+    const graticule = d3.geoGraticule();
 
-  function renderMap(svg) {
-    const path = d3.geoPath().projection(projRef.current);
+    function refresh() {
+      svg.selectAll("*").remove();
 
-    function render() {
-      svg.selectAll("path").attr("d", path);
-    }
-
-    d3GeoZoom().projection(projRef.current).onMove(render)(svg.node());
-
-    if (data) {
       svg
-        .selectAll("path")
-        .data(data.features)
-        .enter()
+        .datum({ type: "Sphere" })
         .append("path")
-        .attr("class", (d) => d.properties.name)
+        .style("fill", "aliceblue")
+        .style("stroke", "none")
+        .style("opacity", 1)
+        .attr("d", path);
+
+      svg
+        .data([graticule()])
+        .append("path")
+        .attr("class", "graticule")
         .attr("d", path)
         .style("fill", "none")
-        .style("stroke", "black")
+        .style("stroke", "lightgray")
         .style("stroke-width", "0.5px");
+
+      if (geoJSON) {
+        svg
+          .selectAll("path")
+          .data(geoJSON.features)
+          .enter()
+          .append("path")
+          .attr("class", (d) => d.properties.name)
+          .attr("d", path)
+          .style("fill", "none")
+          .style("stroke", "black")
+          .style("stroke-width", "0.5px");
+      }
     }
 
-    svg
-      .selectAll("path")
-      .data([{ type: "Feature", geometry: d3.geoGraticule10() }])
-      .enter()
-      .append("path")
-      .attr("class", "graticule")
-      .attr("d", path)
-      .style("fill", "none")
-      .style("stroke", "lightgray")
-      .style("stroke-width", "0.5px");
+    refresh();
+
+    d3GeoZoom().projection(projection).onMove(refresh)(svg.node());
   }
 
-  const svgRef = useD3(renderMap);
+  const svgRef = useD3(renderMap, 300, 300, data);
 
-  useEffect(() => {
-    const height = svgRef.current.clientHeight;
-    const width = svgRef.current.clientWidth;
-    projRef.current.translate([width / 2, height / 2]);
-  }, [data, svgRef]);
-
-  return <svg id="globe" ref={svgRef} />;
+  return <svg height={300} width={300} ref={svgRef} />;
+};
+Globe.propTypes = {
+  data: GeoPropTypes.FeatureCollection.isRequired,
 };
 
 const Localization = ({ loc }) => {
-  const localization = useSelector((state) => state.localization);
+  const cachedLocalization = useSelector((state) => state.localization);
   const dispatch = useDispatch();
+  const localization =
+    loc.id === cachedLocalization?.id ? cachedLocalization : null;
 
   useEffect(() => {
     dispatch(
@@ -176,6 +182,13 @@ const Localization = ({ loc }) => {
       <Globe data={localization.contour} />
     </>
   );
+};
+Localization.propTypes = {
+  loc: PropTypes.shape({
+    id: PropTypes.number,
+    dateobs: PropTypes.string,
+    localization_name: PropTypes.string,
+  }).isRequired,
 };
 
 const GcnEventSourcesPage = ({ route, sources }) => {
@@ -244,6 +257,60 @@ const GcnEventSourcesPage = ({ route, sources }) => {
       />
     </div>
   );
+};
+GcnEventSourcesPage.propTypes = {
+  route: PropTypes.shape({
+    dateobs: PropTypes.string,
+  }).isRequired,
+  sources: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      origin: PropTypes.string,
+      alias: PropTypes.arrayOf(PropTypes.string),
+      redshift: PropTypes.number,
+      classifications: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          classification: PropTypes.string,
+          created_at: PropTypes.string,
+          groups: PropTypes.arrayOf(
+            PropTypes.shape({
+              id: PropTypes.number,
+              name: PropTypes.string,
+            })
+          ),
+        })
+      ),
+      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
+      altdata: PropTypes.shape({
+        tns: PropTypes.shape({
+          name: PropTypes.string,
+        }),
+      }),
+      spectrum_exists: PropTypes.bool,
+      last_detected_at: PropTypes.string,
+      last_detected_mag: PropTypes.number,
+      peak_detected_at: PropTypes.string,
+      peak_detected_mag: PropTypes.number,
+      groups: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          name: PropTypes.string,
+        })
+      ),
+    })
+  ).isRequired,
+  pageNumber: PropTypes.number,
+  totalMatches: PropTypes.number,
+  numPerPage: PropTypes.number,
+};
+
+GcnEventSourcesPage.defaultProps = {
+  pageNumber: 1,
+  totalMatches: 0,
+  numPerPage: 10,
 };
 
 const GcnEventPage = ({ route }) => {
@@ -464,97 +531,9 @@ const GcnEventPage = ({ route }) => {
     </div>
   );
 };
-
-Localization.propTypes = {
-  loc: PropTypes.shape({
-    dateobs: PropTypes.string,
-    localization_name: PropTypes.string,
-  }).isRequired,
-};
-
-Localization.propTypes = {
-  loc: PropTypes.shape({
-    dateobs: PropTypes.string,
-    localization_name: PropTypes.string,
-  }).isRequired,
-};
-
 GcnEventPage.propTypes = {
   route: PropTypes.shape({
     dateobs: PropTypes.string,
-  }).isRequired,
-};
-
-Globe.propTypes = {
-  data: PropTypes.shape({
-    length: PropTypes.number,
-    features: GeoPropTypes.FeatureCollection,
-  }).isRequired,
-};
-
-GcnEventSourcesPage.propTypes = {
-  route: PropTypes.shape({
-    dateobs: PropTypes.string,
-  }).isRequired,
-  sources: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string,
-      ra: PropTypes.number,
-      dec: PropTypes.number,
-      origin: PropTypes.string,
-      alias: PropTypes.arrayOf(PropTypes.string),
-      redshift: PropTypes.number,
-      classifications: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number,
-          classification: PropTypes.string,
-          created_at: PropTypes.string,
-          groups: PropTypes.arrayOf(
-            PropTypes.shape({
-              id: PropTypes.number,
-              name: PropTypes.string,
-            })
-          ),
-        })
-      ),
-      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
-      altdata: PropTypes.shape({
-        tns: PropTypes.shape({
-          name: PropTypes.string,
-        }),
-      }),
-      spectrum_exists: PropTypes.bool,
-      last_detected_at: PropTypes.string,
-      last_detected_mag: PropTypes.number,
-      peak_detected_at: PropTypes.string,
-      peak_detected_mag: PropTypes.number,
-      groups: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number,
-          name: PropTypes.string,
-        })
-      ),
-    })
-  ).isRequired,
-  pageNumber: PropTypes.number,
-  totalMatches: PropTypes.number,
-  numPerPage: PropTypes.number,
-  data: PropTypes.shape({
-    length: PropTypes.number,
-    features: GeoPropTypes.FeatureCollection,
-  }).isRequired,
-};
-
-GcnEventSourcesPage.defaultProps = {
-  pageNumber: 1,
-  totalMatches: 0,
-  numPerPage: 10,
-};
-
-DownloadXMLButton.propTypes = {
-  gcn_notice: PropTypes.shape({
-    content: PropTypes.string,
-    ivorn: PropTypes.string,
   }).isRequired,
 };
 

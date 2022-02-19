@@ -14,7 +14,7 @@ const useD3 = (renderer, height, width, geoJSON) => {
     if (geoJSON) {
       renderer(d3.select(svgRef.current), height, width, geoJSON);
     }
-  }, [renderer, svgRef, geoJSON]);
+  }, [renderer, svgRef, geoJSON, height, width]);
 
   return svgRef;
 };
@@ -111,7 +111,7 @@ const GeoJSONPlot = ({ dataUrl, renderer, height, width }) => {
     };
 
     fetchGeoJSON();
-  }, [dispatch]);
+  }, [dispatch, dataUrl]);
 
   const svgRef = useD3(renderer, height, width, geoJSON);
 
@@ -145,4 +145,5 @@ const GeoJSONExamplePlot = () => (
   </div>
 );
 
+export { useD3 };
 export default GeoJSONExamplePlot;
