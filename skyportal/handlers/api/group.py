@@ -135,10 +135,7 @@ class GroupHandler(BaseHandler):
                 group_id, self.current_user, raise_if_none=True, mode='read'
             )
 
-            if self.get_query_argument("includeGroupUsers", True):
-                include_group_users = False
-            else:
-                include_group_users = True
+            include_group_users = self.get_query_argument("includeGroupUsers", True)
 
             # Do not include User.groups to avoid circular reference
             users = (
