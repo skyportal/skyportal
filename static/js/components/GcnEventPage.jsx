@@ -39,9 +39,6 @@ import GcnSelectionForm from "./GcnSelectionForm";
 import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 
-import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
-import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
-
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
