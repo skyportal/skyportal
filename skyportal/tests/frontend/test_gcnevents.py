@@ -272,6 +272,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     assert status == 200
     assert data['status'] == 'success'
     instrument_id = data['data']['id']
+
     # wait for the fields to populate
     time.sleep(15)
 
