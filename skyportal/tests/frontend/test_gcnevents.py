@@ -223,7 +223,7 @@ def test_gcnevents_observations(
 
 def test_observationplan_request(driver, user, super_admin_token, public_group):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     data = {'xml': payload}
@@ -291,11 +291,11 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     assert data["status"] == "success"
 
     driver.get(f'/become_user/{user.id}')
-    driver.get('/gcn_events/2018-01-16T00:36:53')
+    driver.get('/gcn_events/2019-04-25T08:18:05')
 
-    driver.wait_for_xpath('//*[text()="180116 00:36:53"]')
-    driver.wait_for_xpath('//*[text()="Fermi"]')
-    driver.wait_for_xpath('//*[text()="GRB"]')
+    driver.wait_for_xpath('//*[text()="190425 08:18:05"]')
+    driver.wait_for_xpath('//*[text()="LVC"]')
+    driver.wait_for_xpath('//*[text()="BNS"]')
 
     submit_button_xpath = (
         '//div[@data-testid="observationplan-request-form"]//button[@type="submit"]'
@@ -329,5 +329,14 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     )
 
     driver.click_xpath(
-        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
+        '//button[contains(@data-testid, "sendRequest_1")]', scroll_parent=True
+    )
+    driver.wait_for_xpath(
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "submitted to telescope queue")]'''
+    )
+    driver.click_xpath(
+        '//button[contains(@data-testid, "removeRequest_1")]', scroll_parent=True
+    )
+    driver.wait_for_xpath(
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "deleted from telescope queue")]'''
     )

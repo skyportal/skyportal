@@ -398,7 +398,7 @@ class ZTFMMAAPI(MMAAPI):
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
             response=http.serialize_requests_response(r),
-            followup_request=request,
+            observation_plan_request=request,
             initiator_id=request.last_modified_by_id,
         )
 

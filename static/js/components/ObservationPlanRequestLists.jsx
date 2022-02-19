@@ -230,7 +230,7 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
                   variant="outlined"
                   data-testid={`removeRequest_${observationplanRequest.id}`}
                 >
-                  Send to Queue
+                  Remove from Queue
                 </Button>
               </div>
             )}
