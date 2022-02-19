@@ -11,6 +11,17 @@ const FETCH_INSTRUMENTS_OK = "skyportal/FETCH_INSTRUMENTS_OK";
 const FETCH_INSTRUMENT_FORMS = "skyportal/FETCH_INSTRUMENT_FORMS";
 const FETCH_INSTRUMENT_FORMS_OK = "skyportal/FETCH_INSTRUMENT_FORMS_OK";
 
+const FETCH_GCNEVENT_INSTRUMENTS = "skyportal/FETCH_GCNEVENT_INSTRUMENTS";
+const FETCH_GCNEVENT_INSTRUMENTS_OK =
+  "skyportal/FETCH_GCNEVENT_OBSERVATIONS_OK";
+
+export function fetchGcnEventInstruments(dateobs, filterParams = {}) {
+  filterParams.localizationDateobs = dateobs;
+  filterParams.includeGeoJSON = true;
+
+  return API.GET("/api/instrument", FETCH_GCNEVENT_INSTRUMENTS, filterParams);
+}
+
 export const fetchInstruments = () =>
   API.GET("/api/instrument", FETCH_INSTRUMENTS);
 
@@ -25,7 +36,11 @@ messageHandler.add((actionType, payload, dispatch) => {
 });
 
 const reducer = (
-  state = { instrumentList: [], instrumentFormParams: {} },
+  state = {
+    instrumentList: [],
+    instrumentFormParams: {},
+    gcnEventInstruments: [],
+  },
   action
 ) => {
   switch (action.type) {
@@ -41,6 +56,13 @@ const reducer = (
       return {
         ...state,
         instrumentFormParams,
+      };
+    }
+    case FETCH_GCNEVENT_INSTRUMENTS_OK: {
+      const instruments = action.data;
+      return {
+        ...state,
+        gcnEventInstruments: instruments,
       };
     }
     default:

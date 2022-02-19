@@ -30,6 +30,7 @@ import * as localizationActions from "../ducks/localization";
 import * as sourcesActions from "../ducks/sources";
 import * as observationsActions from "../ducks/observations";
 import * as galaxiesActions from "../ducks/galaxies";
+import * as instrumentsActions from "../ducks/instruments";
 
 import SourceTable from "./SourceTable";
 import GalaxyTable from "./GalaxyTable";
@@ -266,6 +267,10 @@ const GcnEventPage = ({ route }) => {
     (state) => state?.observations?.gcnEventObservations
   );
 
+  const gcnEventInstruments = useSelector(
+    (state) => state?.instruments?.gcnEventInstruments
+  );
+
   useEffect(() => {
     dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
   }, [route, dispatch]);
@@ -282,11 +287,16 @@ const GcnEventPage = ({ route }) => {
     dispatch(galaxiesActions.fetchGcnEventGalaxies(route.dateobs));
   }, [route, dispatch]);
 
+  useEffect(() => {
+    dispatch(instrumentsActions.fetchGcnEventInstruments(route.dateobs));
+  }, [route, dispatch]);
+
   if (
     !gcnEvent ||
     !gcnEventSources ||
     !gcnEventObservations ||
-    !gcnEventGalaxies
+    !gcnEventGalaxies ||
+    !gcnEventInstruments
   ) {
     return <CircularProgress />;
   }
