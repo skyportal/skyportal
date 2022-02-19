@@ -221,7 +221,7 @@ class ObservationPlanDownloadHandler(BaseHandler):
           200:
             content:
               application/json:
-                schema: ArrayOfPlannedObservation
+                schema: SingleObservationPlanRequest
         """
 
         options = [
