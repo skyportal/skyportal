@@ -185,7 +185,7 @@ class ObservationPlanRequestHandler(BaseHandler):
         )
         dateobs = observation_plan_request.gcnevent.dateobs
 
-        api = observation_plan_request.instrument.api_classname_obsplan
+        api = observation_plan_request.instrument.api_class_obsplan
         if not api.implements()['delete']:
             return self.error('Cannot delete observation plans on this instrument.')
 

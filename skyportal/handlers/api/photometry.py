@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import sncosmo
 from sncosmo.photdata import PhotometricData
-from distutils.util import strtobool
 import arrow
 
 import sqlalchemy as sa
@@ -1063,9 +1062,7 @@ class PhotometryHandler(BaseHandler):
 class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
-        phase_fold_data = bool(
-            strtobool(self.get_query_argument("phaseFoldData", 'False'))
-        )
+        phase_fold_data = self.get_query_argument("phaseFoldData", False)
 
         Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
         photometry = Photometry.query_records_accessible_by(self.current_user).filter(

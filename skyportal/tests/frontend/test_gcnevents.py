@@ -208,7 +208,9 @@ def test_gcnevents_observations(
     driver.wait_for_xpath('//li[contains(text(), "bayestar.fits.gz")]')
     driver.click_xpath('//li[contains(text(), "bayestar.fits.gz")]')
 
-    submit_button_xpath = '//button[@type="submit"]'
+    submit_button_xpath = (
+        '//div[@data-testid="gcnsource-selection-form"]//button[@type="submit"]'
+    )
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
@@ -217,3 +219,115 @@ def test_gcnevents_observations(
     driver.wait_for_xpath('//*[text()="ztfr"]')
     driver.wait_for_xpath('//*[text()="1.57415"]')
     driver.wait_for_xpath('//*[text()="20.40705"]')
+
+
+def test_observationplan_request(driver, user, super_admin_token, public_group):
+
+    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    telescope_name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'telescope',
+        data={
+            'name': telescope_name,
+            'nickname': telescope_name,
+            'lat': 0.0,
+            'lon': 0.0,
+            'elevation': 0.0,
+            'diameter': 10.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    telescope_id = data['data']['id']
+
+    fielddatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Fields.csv'
+    regionsdatafile = f'{os.path.dirname(__file__)}/../../../data/ZTF_Region.reg'
+
+    instrument_name = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'instrument',
+        data={
+            'name': instrument_name,
+            'type': 'imager',
+            'band': 'NIR',
+            'filters': ['f110w'],
+            'telescope_id': telescope_id,
+            "api_classname_obsplan": "ZTFMMAAPI",
+            'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
+            'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    instrument_id = data['data']['id']
+    # wait for the fields to populate
+    time.sleep(15)
+
+    status, data = api(
+        "POST",
+        "allocation",
+        data={
+            "group_id": public_group.id,
+            "instrument_id": instrument_id,
+            "hours_allocated": 100,
+            "pi": "Ed Hubble",
+            '_altdata': '{"access_token": "testtoken"}',
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    driver.get(f'/become_user/{user.id}')
+    driver.get('/gcn_events/2018-01-16T00:36:53')
+
+    driver.wait_for_xpath('//*[text()="180116 00:36:53"]')
+    driver.wait_for_xpath('//*[text()="Fermi"]')
+    driver.wait_for_xpath('//*[text()="GRB"]')
+
+    submit_button_xpath = (
+        '//div[@data-testid="observationplan-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    # Click somewhere outside to remove focus from instrument select
+    driver.click_xpath("//header")
+
+    driver.click_xpath(submit_button_xpath)
+
+    # wait for the observation plan to complete
+    time.sleep(15)
+
+    driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
+    driver.wait_for_xpath(
+        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]'
+    )
+    driver.wait_for_xpath(
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]'''
+    )
+
+    driver.click_xpath(
+        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
+    )

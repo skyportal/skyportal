@@ -1,7 +1,7 @@
 """atlas api
 
 Revision ID: d6b24747693a
-Revises: 529166dc7732
+Revises: 695affb5e503
 Create Date: 2022-02-17 17:23:25.162577
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'd6b24747693a'
-down_revision = '529166dc7732'
+down_revision = '695affb5e503'
 branch_labels = None
 depends_on = None
 
