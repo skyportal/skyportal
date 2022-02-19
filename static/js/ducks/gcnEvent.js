@@ -66,7 +66,6 @@ export const editObservationPlanRequest = (params, requestID) => {
   );
 };
 
-
 export const sendObservationPlanRequest = (id) =>
   API.POST(`/api/observation_plan/${id}/queue`, SEND_OBSERVATION_PLAN_REQUEST);
 
