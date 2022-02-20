@@ -376,10 +376,6 @@ const GcnEventPage = ({ route }) => {
     (state) => state?.observations?.gcnEventObservations
   );
 
-  const gcnEventObservations = useSelector(
-    (state) => state?.observations?.gcnEventObservations
-  );
-
   useEffect(() => {
     dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
   }, [route, dispatch]);
