@@ -1,6 +1,5 @@
 import string
 import base64
-from distutils.util import strtobool
 from marshmallow.exceptions import ValidationError
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import permissions, auth_or_token
@@ -641,7 +640,7 @@ class CommentAttachmentHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid (scalar integer) comment ID. ")
 
-        download = strtobool(self.get_query_argument('download', "True").lower())
+        download = self.get_query_argument('download', True)
 
         if associated_resource_type.lower() == "sources":
             try:

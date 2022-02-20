@@ -42,6 +42,7 @@ from skyportal.tests.fixtures import (
     ClassicalAssignmentFactory,
     TaxonomyFactory,
     CommentFactory,
+    CommentOnGCNFactory,
     AnnotationFactory,
     ClassificationFactory,
     FollowupRequestFactory,
@@ -50,6 +51,7 @@ from skyportal.tests.fixtures import (
     NotificationFactory,
     UserNotificationFactory,
     ThumbnailFactory,
+    GcnFactory,
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 from skyportal.models import Obj
@@ -1353,12 +1355,26 @@ def public_group_taxonomy(public_taxonomy):
 
 
 @pytest.fixture()
+def gcn(user_no_groups):
+    gcn = GcnFactory()
+    yield gcn
+    GcnFactory.teardown(gcn)
+
+
+@pytest.fixture()
 def public_comment(user_no_groups, public_source, public_group):
     comment = CommentFactory(
         obj=public_source, groups=[public_group], author=user_no_groups
     )
     yield comment
     CommentFactory.teardown(comment)
+
+
+@pytest.fixture()
+def public_comment_on_gcn(gcn, public_group):
+    comment = CommentOnGCNFactory(gcn=gcn, groups=[public_group])
+    yield comment
+    CommentOnGCNFactory.teardown(comment)
 
 
 @pytest.fixture()

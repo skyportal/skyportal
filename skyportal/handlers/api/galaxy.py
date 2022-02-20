@@ -151,7 +151,7 @@ class GalaxyCatalogHandler(BaseHandler):
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-        includeGeojson = self.get_query_argument("includeGeojson", False)
+        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
 
         query = Galaxy.query_records_accessible_by(self.current_user, mode="read")
         if catalog_name is not None:
@@ -222,7 +222,7 @@ class GalaxyCatalogHandler(BaseHandler):
         galaxies = query.all()
         query_results = {'sources': galaxies}
 
-        if includeGeojson:
+        if includeGeoJSON:
             # features are JSON representations that the d3 stuff understands.
             # We use these to render the contours of the sky localization and
             # locations of the transients.

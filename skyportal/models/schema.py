@@ -882,15 +882,15 @@ class AssignmentSchema(_Schema):
 
 
 class ObservationHandlerPost(_Schema):
-    telescope_name = fields.String(
+    telescopeName = fields.String(
         required=True,
         metadata={"description": ('The telescope name associated with the fields')},
     )
-    instrument_name = fields.String(
+    instrumentName = fields.String(
         required=True,
         metadata={"description": ('The instrument name associated with the fields')},
     )
-    observation_data = fields.Field(
+    observationData = fields.Field(
         metadata={'description': 'Observation data dictionary list'}
     )
 
@@ -971,6 +971,44 @@ class FollowupRequestPost(_Schema):
         metadata={
             'description': (
                 'IDs of groups to share the results of the f' 'ollowup request with.'
+            )
+        },
+    )
+
+
+class ObservationPlanPost(_Schema):
+
+    gcnevent_id = fields.Integer(
+        required=True,
+        metadata={'description': "ID of the GcnEvent."},
+    )
+
+    payload = fields.Field(
+        required=False, metadata={'description': "Content of the followup request."}
+    )
+
+    status = fields.String(
+        missing="pending submission",
+        metadata={'description': "The status of the request."},
+        required=False,
+    )
+
+    allocation_id = fields.Integer(
+        required=True,
+        metadata={'description': "Followup request allocation ID."},
+    )
+
+    localization_id = fields.Integer(
+        required=True,
+        metadata={'description': "Localization ID."},
+    )
+
+    target_group_ids = fields.List(
+        fields.Integer,
+        required=False,
+        metadata={
+            'description': (
+                'IDs of groups to share the results of the followup request with.'
             )
         },
     )
@@ -1447,6 +1485,7 @@ ObservingRunGetWithAssignments = ObservingRunGetWithAssignments()
 PhotometryRangeQuery = PhotometryRangeQuery()
 SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
 FollowupRequestPost = FollowupRequestPost()
+ObservationPlanPost = ObservationPlanPost()
 SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
 GroupIDList = GroupIDList()

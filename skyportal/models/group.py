@@ -276,6 +276,9 @@ class Group(Base):
     nickname = sa.Column(
         sa.String, unique=True, nullable=True, index=True, doc='Short group nickname.'
     )
+    description = sa.Column(
+        sa.Text, nullable=True, doc='Longer description of the group.'
+    )
     private = sa.Column(
         sa.Boolean,
         nullable=False,
@@ -295,6 +298,13 @@ class Group(Base):
         back_populates="group",
         passive_deletes=True,
         doc='All filters (not just active) associated with a group.',
+    )
+
+    shifts = relationship(
+        "Shift",
+        back_populates="group",
+        passive_deletes=True,
+        doc='All shifts associated with a group.',
     )
 
     users = relationship(

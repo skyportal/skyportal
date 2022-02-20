@@ -19,21 +19,22 @@ export function fetchObservations(filterParams = {}) {
   return API.GET("/api/observation", FETCH_OBSERVATIONS, filterParams);
 }
 
-export function fetchGcnEventObservations(dateobs = null, filterParams = {}) {
+export function fetchGcnEventObservations(dateobs, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
-  filterParams.localizationCumprob = 1.01;
-  filterParams.includeGeojson = true;
-  if (!Object.keys(filterParams).includes("returnStatistics")) {
-    filterParams.returnStatistics = true;
+  filterParams.includeGeoJSON = true;
+
+  if (!Object.keys(filterParams).includes("startDate")) {
+    if (dateobs) {
+      filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
+    }
   }
-  if (dateobs) {
-    filterParams.startDate = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
-    filterParams.endDate = dayjs(dateobs)
-      .add(7, "day")
-      .format("YYYY-MM-DD HH:mm:ss");
-  } else {
-    filterParams.startDate = dayjs().format("YYYY-MM-DD HH:mm:ss");
-    filterParams.endDate = dayjs().add(7, "day").format("YYYY-MM-DD HH:mm:ss");
+
+  if (!Object.keys(filterParams).includes("endDate")) {
+    if (dateobs) {
+      filterParams.endDate = dayjs(dateobs)
+        .add(7, "day")
+        .format("YYYY-MM-DD HH:mm:ss");
+    }
   }
 
   return API.GET("/api/observation", FETCH_GCNEVENT_OBSERVATIONS, filterParams);

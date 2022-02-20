@@ -71,6 +71,7 @@ class InstrumentHandler(BaseHandler):
                 return self.error('`field_region` is required with field_data')
             regions = Regions.parse(field_region, format='ds9')
 
+            log(f"Started generating fields for instrument {instrument.id}")
             # run async
             IOLoop.current().run_in_executor(
                 None,
@@ -94,6 +95,14 @@ class InstrumentHandler(BaseHandler):
               required: true
               schema:
                 type: integer
+            - in: query
+              name: includeGeoJSON
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated geojson. Defaults to
+                false.
           responses:
             200:
               content:
@@ -113,6 +122,14 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: string
               description: Filter by name (exact match)
+            - in: query
+              name: includeGeoJSON
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated geojson. Defaults to
+                false.
           responses:
             200:
               content:
@@ -123,13 +140,19 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+        if includeGeoJSON:
+            options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
+        else:
+            options = [joinedload(Instrument.fields)]
+
         if instrument_id is not None:
             instrument = Instrument.get_if_accessible_by(
                 int(instrument_id),
                 self.current_user,
                 raise_if_none=True,
                 mode="read",
-                options=[joinedload(Instrument.fields)],
+                options=options,
             )
 
             return self.success(data=instrument)

@@ -50,8 +50,12 @@ def test_token_user_post_get_instrument(super_admin_token):
     # wait for the fields to populate
     time.sleep(15)
 
+    params = {'includeGeoJSON': True}
+
     instrument_id = data['data']['id']
-    status, data = api('GET', f'instrument/{instrument_id}', token=super_admin_token)
+    status, data = api(
+        'GET', f'instrument/{instrument_id}', params=params, token=super_admin_token
+    )
     assert status == 200
     assert data['status'] == 'success'
     assert data['data']['band'] == 'NIR'
