@@ -329,5 +329,9 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     )
 
     driver.click_xpath(
+        '//a[contains(@data-testid, "gcnRequest_1")]', scroll_parent=True
+    )
+
+    driver.click_xpath(
         '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
     )

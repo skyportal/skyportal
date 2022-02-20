@@ -178,6 +178,19 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
                 </Button>
               </div>
             )}
+            <div>
+              <Button
+                href={`/api/observation_plan/${observationplanRequest.id}/gcn`}
+                download={`observation-plan-gcn-${observationplanRequest.id}`}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`gcnRequest_${observationplanRequest.id}`}
+              >
+                GCN
+              </Button>
+            </div>
           </div>
         );
       };
