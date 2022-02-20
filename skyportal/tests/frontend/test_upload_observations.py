@@ -68,4 +68,3 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
     submit_button_xpath = '//button[contains(.,"Submit")]'
     driver.click_xpath(submit_button_xpath, scroll_parent=True)
-    driver.wait_for_xpath(f'//*[contains(.,"{84434604}")]', 20)
