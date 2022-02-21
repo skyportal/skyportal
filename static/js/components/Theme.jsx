@@ -81,9 +81,6 @@ const Theme = ({ disableTransitions, children }) => {
                 : `3px solid ${grey[100]}`,
             },
           },
-          a: {
-            color: dark ? grey[600] : null,
-          },
         },
       },
     },
