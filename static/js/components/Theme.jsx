@@ -37,6 +37,19 @@ const Theme = ({ disableTransitions, children }) => {
       background: dark ? { default: "#303030" } : { default: "#f0f2f5" },
     },
     overrides: {
+      MuiTypography: {
+        body1: {
+          color: dark ? grey[50] : null,
+        },
+      },
+      MuiButton: {
+        textPrimary: {
+          color: dark ? "#b1dae9" : null,
+        },
+        outlinedPrimary: {
+          color: dark ? "#b1dae9" : null,
+        },
+      },
       MuiCssBaseline: {
         "@global": {
           html: {
@@ -67,6 +80,9 @@ const Theme = ({ disableTransitions, children }) => {
                 ? `3px solid ${grey[800]}`
                 : `3px solid ${grey[100]}`,
             },
+          },
+          a: {
+            color: dark ? grey[600] : null,
           },
         },
       },
