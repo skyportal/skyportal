@@ -30,6 +30,7 @@ const NewGroupForm = () => {
   const [formState, setState] = useState({
     name: "",
     nickname: "",
+    description: "",
     group_admins: [],
   });
 
@@ -52,6 +53,7 @@ const NewGroupForm = () => {
       setState({
         name: "",
         nickname: "",
+        description: "",
         group_admins: [],
       });
     }
@@ -115,6 +117,14 @@ const NewGroupForm = () => {
             label="Nickname"
             name="nickname"
             value={formState.nickname}
+            onChange={handleChange}
+          />
+        </Box>
+        <Box>
+          <TextField
+            label="Description"
+            name="description"
+            value={formState.description}
             onChange={handleChange}
           />
         </Box>

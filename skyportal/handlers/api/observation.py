@@ -140,7 +140,7 @@ class ObservationHandler(BaseHandler):
             .first()
         )
         if telescope is None:
-            return self.error(message="Missing telescope {telescope_name}")
+            return self.error(message=f"Missing telescope {telescope_name}")
 
         instrument = (
             Instrument.query_records_accessible_by(
@@ -255,7 +255,8 @@ class ObservationHandler(BaseHandler):
               schema:
                 type: number
               description: |
-                Cumulative probability up to which to include fields. Defaults to 0.95
+                Cumulative probability up to which to include fields.
+                Defaults to 0.95.
             - in: query
               name: returnStatistics
               nullable: true
