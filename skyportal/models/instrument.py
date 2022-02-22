@@ -182,13 +182,13 @@ class InstrumentField(Base):
 
     ra = sa.Column(
         sa.Float,
-        doc='The mid-point right ascension for the tile.',
+        doc='The mid-point right ascension for the tile [degrees].',
         nullable=True,
     )
 
     dec = sa.Column(
         sa.Float,
-        doc='The mid-point declination for the tile.',
+        doc='The mid-point declination for the tile [degrees].',
         nullable=True,
     )
 

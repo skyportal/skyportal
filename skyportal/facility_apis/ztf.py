@@ -108,6 +108,10 @@ class ZTFRequest:
         else:
             raise ValueError('Unknown program.')
 
+        # One observation plan per request
+        if not len(request.observation_plans) == 1:
+            raise ValueError('Should be one observation plan for this request.')
+
         observation_plan = request.observation_plans[0]
         planned_observations = observation_plan.planned_observations
 
@@ -328,11 +332,10 @@ class ZTFMMAAPI(MMAAPI):
 
         url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
         s = Session()
-        req = Request('PUT', url, json=payload, headers=headers)
-        prepped = req.prepare()
+        ztfreq = Request('PUT', url, json=payload, headers=headers)
+        prepped = ztfreq.prepare()
         r = s.send(prepped)
-        print(r.text)
-        # r.raise_for_status()
+        r.raise_for_status()
 
         if r.status_code == 200:
             request.status = 'submitted to telescope queue'
@@ -388,8 +391,8 @@ class ZTFMMAAPI(MMAAPI):
 
         url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
         s = Session()
-        req = Request('DELETE', url, json=payload, headers=headers)
-        prepped = req.prepare()
+        ztfreq = Request('DELETE', url, json=payload, headers=headers)
+        prepped = ztfreq.prepare()
         r = s.send(prepped)
         r.raise_for_status()
 
