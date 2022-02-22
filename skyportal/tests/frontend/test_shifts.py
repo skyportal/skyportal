@@ -3,6 +3,7 @@ from selenium.webdriver.common.keys import Keys
 
 import uuid
 
+
 def test_super_user_post_shift(
     public_group, super_admin_token, super_admin_user, driver
 ):
@@ -61,4 +62,7 @@ def test_super_user_post_shift(
     driver.click_xpath(delete_button_xpath)
     driver.wait_for_xpath_to_disappear(f'//*[text()[contains(.,"{form_name}")]]')
 
-    assert len(driver.find_elements_by_xpath(f'//*[text()[contains(.,"{form_name}")]]')) == 0
+    assert (
+        len(driver.find_elements_by_xpath(f'//*[text()[contains(.,"{form_name}")]]'))
+        == 0
+    )
