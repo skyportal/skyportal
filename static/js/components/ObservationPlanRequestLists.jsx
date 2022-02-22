@@ -144,7 +144,8 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
       instrumentFormParams[instrument_id].methodsImplemented.send;
     const implementsRemove =
       instrumentFormParams[instrument_id].methodsImplemented.remove;
-    const modifiable = implementsSend || implementsDelete || implementsRemove;
+    const modifiable = implementsDelete;
+    const queuable = implementsSend || implementsRemove;
 
     const columns = [
       { name: "requester.username", label: "Requester" },
@@ -196,7 +197,7 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
             )}
             <div>
               <Button
-                href={`/api/observation_plan/${observationplanRequest.id}/download`}
+                href={`/api/observation_plan/${observationplanRequest.id}?includePlannedObservations=True`}
                 download={`observation-plan-${observationplanRequest.id}`}
                 size="small"
                 color="primary"
@@ -207,6 +208,24 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
                 Download
               </Button>
             </div>
+          </div>
+        );
+      };
+      columns.push({
+        name: "interact",
+        label: "Interact",
+        options: {
+          customBodyRenderLite: renderModify,
+        },
+      });
+    }
+
+    if (queuable) {
+      const renderQueue = (dataIndex) => {
+        const observationplanRequest =
+          requestsGroupedByInstId[instrument_id][dataIndex];
+        return (
+          <div className={classes.actionButtons}>
             {implementsSend && isSending === observationplanRequest.id ? (
               <div>
                 <CircularProgress />
@@ -251,10 +270,10 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
         );
       };
       columns.push({
-        name: "modify",
-        label: "Modify",
+        name: "queue",
+        label: "Telescope Queue",
         options: {
-          customBodyRenderLite: renderModify,
+          customBodyRenderLite: renderQueue,
         },
       });
     }

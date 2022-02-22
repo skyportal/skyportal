@@ -215,10 +215,10 @@ def test_gcnevents_observations(
     driver.click_xpath(submit_button_xpath)
 
     # check that the executed observation table appears
-    # driver.wait_for_xpath('//*[text()="84434604"]')
-    # driver.wait_for_xpath('//*[text()="ztfr"]')
-    # driver.wait_for_xpath('//*[text()="1.57415"]')
-    # driver.wait_for_xpath('//*[text()="20.40705"]')
+    driver.wait_for_xpath('//*[text()="84434604"]')
+    driver.wait_for_xpath('//*[text()="ztfr"]')
+    driver.wait_for_xpath('//*[text()="1.57415"]')
+    driver.wait_for_xpath('//*[text()="20.40705"]')
 
 
 def test_observationplan_request(driver, user, super_admin_token, public_group):
@@ -332,7 +332,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     driver.click_xpath(
         '//a[contains(@data-testid, "downloadRequest_1")]', scroll_parent=True
     )
-    
+
     driver.click_xpath(
         '//button[contains(@data-testid, "sendRequest_1")]', scroll_parent=True
     )
@@ -345,7 +345,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     driver.wait_for_xpath(
         f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "deleted from telescope queue")]'''
     )
-    
+
     driver.click_xpath(
         '//button[contains(@data-testid, "deleteRequest_1")]', scroll_parent=True
     )

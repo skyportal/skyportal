@@ -8,7 +8,6 @@ from ...models import (
     DBSession,
     EventObservationPlan,
     ObservationPlanRequest,
-    PlannedObservation,
     Group,
     Allocation,
     PlannedObservation,
@@ -203,7 +202,7 @@ class ObservationPlanRequestHandler(BaseHandler):
 
         return self.success()
 
-      
+
 class ObservationPlanSubmitHandler(BaseHandler):
     @auth_or_token
     def post(self, observation_plan_request_id):
@@ -308,45 +307,6 @@ class ObservationPlanSubmitHandler(BaseHandler):
             payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
         )
 
-        self.verify_and_commit()
-
-        return self.success(data=observation_plan_request)
-
-      
- class ObservationPlanDownloadHandler(BaseHandler):
-    @auth_or_token
-    def get(self, observation_plan_request_id):
-        """
-        ---
-        description: Get a json dictionary representation of the observation plan.
-        tags:
-          - observation_plan_requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleObservationPlanRequest
-        """
-
-        options = [
-            joinedload(ObservationPlanRequest.observation_plans)
-            .joinedload(EventObservationPlan.planned_observations)
-            .joinedload(PlannedObservation.field)
-        ]
-
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
         self.verify_and_commit()
 
         return self.success(data=observation_plan_request)
