@@ -1,7 +1,7 @@
 """instrument contour summary
 
 Revision ID: 5f8328a76607
-Revises: d6b24747693a
+Revises: 29fbb7ea2c4f
 Create Date: 2022-02-22 15:44:13.011868
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '5f8328a76607'
-down_revision = 'd6b24747693a'
+down_revision = '29fbb7ea2c4f'
 branch_labels = None
 depends_on = None
 
