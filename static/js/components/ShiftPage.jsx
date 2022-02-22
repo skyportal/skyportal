@@ -149,7 +149,6 @@ const ShiftPage = () => {
 
   const permission =
     currentUser.permissions?.includes("System admin") ||
-    currentUser.permissions?.includes("Manage groups") ||
     currentUser.permissions?.includes("Manage shifts");
 
   return (
