@@ -327,7 +327,8 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
         f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]'
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]'''
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]''',
+        timeout=30,
     )
 
     driver.click_xpath(
