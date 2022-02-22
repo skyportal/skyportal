@@ -74,6 +74,30 @@ class FollowUpAPI(_Base):
         """
         raise NotImplementedError
 
+    # subclasses should implement this if desired
+    @staticmethod
+    def send(request):
+        """Send an observation plan to the facility's queue.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to add to the queue and the SkyPortal database.
+        """
+        raise NotImplementedError
+
+    # subclasses should implement this if desired
+    @staticmethod
+    def remove(request):
+        """Remove an observation plan from the facility's queue.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to remove from the queue and the SkyPortal database.
+        """
+        raise NotImplementedError
+
     # jsonschema outlining the schema of the frontend form. See
     # https://github.com/rjsf-team/react-jsonschema-form
     # for examples.
