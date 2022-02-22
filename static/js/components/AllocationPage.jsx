@@ -60,8 +60,14 @@ export function allocationInfo(allocation, groups) {
       </div>
     );
   }
-
-  let result = `${allocation?.start_date}-${allocation?.end_date}`;
+  const startDate = new Date(`${allocation.start_date}Z`).toLocaleString(
+    "en-US",
+    { hour12: false }
+  );
+  const endDate = new Date(`${allocation.end_date}Z`).toLocaleString("en-US", {
+    hour12: false,
+  });
+  let result = `From ${startDate} to ${endDate}`;
 
   if (allocation?.pi || group?.name) {
     result += "\r\n(";

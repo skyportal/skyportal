@@ -736,3 +736,9 @@ galaxy_catalog:
   - catalog_name: CLU_mini
     catalog_data:
       file: ../data/CLU_mini.hdf5
+
+shift:
+  - group_id: =program_A
+    start_date: "2022-02-16 00:00:00"
+    end_date: "2020-02-17 12:00:00"
+    name: "the Night Shift"
