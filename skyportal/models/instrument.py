@@ -182,6 +182,14 @@ class InstrumentField(Base):
 
     contour = deferred(sa.Column(JSONB, nullable=False, doc='GeoJSON contours'))
 
+    contour_summary = deferred(
+        sa.Column(
+            JSONB,
+            nullable=False,
+            doc='GeoJSON contour bounding box for lower memory display',
+        )
+    )
+
     tiles = relationship("InstrumentFieldTile")
 
 
