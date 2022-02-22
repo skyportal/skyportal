@@ -223,7 +223,7 @@ def test_gcnevents_observations(
 
 def test_observationplan_request(driver, user, super_admin_token, public_group):
 
-    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
         payload = fid.read()
     data = {'xml': payload}
@@ -263,7 +263,8 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
             'band': 'NIR',
             'filters': ['f110w'],
             'telescope_id': telescope_id,
-            "api_classname_obsplan": "ZTFMMAAPI",
+            'api_classname_obsplan': 'ZTFMMAAPI',
+            'treasuremap_id': 47,
             'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
             'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
         },
@@ -283,7 +284,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
             "instrument_id": instrument_id,
             "hours_allocated": 100,
             "pi": "Ed Hubble",
-            '_altdata': '{"access_token": "testtoken"}',
+            '_altdata': '{"access_token": "testtoken", "TREASUREMAP_API_TOKEN": "testtoken"}',
         },
         token=super_admin_token,
     )
@@ -291,11 +292,11 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     assert data["status"] == "success"
 
     driver.get(f'/become_user/{user.id}')
-    driver.get('/gcn_events/2018-01-16T00:36:53')
+    driver.get('/gcn_events/2019-04-25T08:18:05')
 
-    driver.wait_for_xpath('//*[text()="180116 00:36:53"]')
-    driver.wait_for_xpath('//*[text()="Fermi"]')
-    driver.wait_for_xpath('//*[text()="GRB"]')
+    driver.wait_for_xpath('//*[text()="190425 08:18:05"]')
+    driver.wait_for_xpath('//*[text()="LVC"]')
+    driver.wait_for_xpath('//*[text()="BNS"]')
 
     submit_button_xpath = (
         '//div[@data-testid="observationplan-request-form"]//button[@type="submit"]'
@@ -318,7 +319,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     driver.click_xpath(submit_button_xpath)
 
     # wait for the observation plan to complete
-    time.sleep(15)
+    time.sleep(30)
 
     driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
     driver.wait_for_xpath(
@@ -326,6 +327,10 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     )
     driver.wait_for_xpath(
         f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]'''
+    )
+
+    driver.click_xpath(
+        '//button[contains(@data-testid, "treasuremapRequest_1")]', scroll_parent=True
     )
 
     driver.click_xpath(

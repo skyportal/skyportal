@@ -126,6 +126,12 @@ class Instrument(Base):
         doc="The ExecutedObservations by this instrument.",
     )
 
+    treasuremap_id = sa.Column(
+        sa.Integer,
+        nullable=True,
+        doc="treasuremap.space API ID for this instrument",
+    )
+
     @property
     def does_spectroscopy(self):
         """Return a boolean indicating whether the instrument is capable of
@@ -178,6 +184,18 @@ class InstrumentField(Base):
         index=True,
         doc='The Field ID for the tile (can be repeated between instruments).',
         nullable=False,
+    )
+
+    ra = sa.Column(
+        sa.Float,
+        doc='The mid-point right ascension for the tile.',
+        nullable=True,
+    )
+
+    dec = sa.Column(
+        sa.Float,
+        doc='The mid-point declination for the tile.',
+        nullable=True,
     )
 
     contour = deferred(sa.Column(JSONB, nullable=False, doc='GeoJSON contours'))

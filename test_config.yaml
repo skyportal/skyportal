@@ -72,7 +72,7 @@ test_server:
     /api/requestgroups/: https://observe.lco.global # LCO
     /api/triggers/ztf: http://skipper.caltech.edu:4000 # ZTF
     /cgi-bin/internal/process_kait_ztf_request.py: http://herculesii.astro.berkeley.edu # KAIT
-
+    /api/v0/pointings: http://treasuremap.space
 app:
   atlas:
     protocol: http
@@ -91,3 +91,4 @@ app:
     protocol: http
     host: localhost
     port: 64502
+  treasuremap_endpoint: http://localhost:64502

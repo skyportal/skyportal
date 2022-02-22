@@ -29,7 +29,10 @@ from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
 from .observation import ObservationHandler
 from .observingrun import ObservingRunHandler
-from .observation_plan import ObservationPlanRequestHandler
+from .observation_plan import (
+    ObservationPlanRequestHandler,
+    ObservationPlanTreasureMapHandler,
+)
 from .photometry import (
     PhotometryHandler,
     ObjPhotometryHandler,

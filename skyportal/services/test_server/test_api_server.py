@@ -57,6 +57,33 @@ def get_cache_file():
     return current_file
 
 
+def treasuremap_request_matcher(r1, r2):
+    """
+    Helper function to help determine if two requests to the TreasureMap API are equivalent
+    """
+
+    # A request matches a TreasureMap request if the URI and method matches
+
+    r1_uri = r1.uri.replace(":443", "")
+    r2_uri = r2.uri.replace(":443", "")
+
+    def is_treasuremap_request(uri):
+        patterns = {
+            "delete": r"/api/v0/cancel_all/$",
+            "submit": r"/api/v0/pointings/$",
+        }
+        for (submit_type, pattern) in patterns.items():
+            if re.search(pattern, uri) is not None:
+                return submit_type
+
+        return False
+
+    r1_is_treasuremap = is_treasuremap_request(r1_uri)
+    r2_is_treasuremap = is_treasuremap_request(r2_uri)
+
+    assert r1_is_treasuremap == r2_is_treasuremap and r1.method == r2.method
+
+
 def lt_request_matcher(r1, r2):
     """
     Helper function to help determine if two requests to the LT API are equivalent
@@ -204,12 +231,14 @@ class TestRouteHandler(tornado.web.RequestHandler):
 
     def delete(self):
         is_soap_action = "Soapaction" in self.request.headers
-        if "/api/requestgroups/" in self.request.uri:
-            cache = get_cache_file_static()
-        elif self.request.uri == "/api/triggers/ztf":
+        if self.request.uri in [
+            "/api/requestgroups/",
+            "/api/triggers/ztf",
+        ]:
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()
+
         match_on = ['uri', 'method', 'body']
         if self.request.uri == "/node_agent2/node_agent":
             match_on = ["lt"]
@@ -451,6 +480,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
             "/api/triggers/ztf",
             "/cgi-bin/internal/process_kait_ztf_request.py",
             "/forcedphot/queue/",
+            "/api/v0/pointings",
         ]:
             cache = get_cache_file_static()
         else:
@@ -466,6 +496,8 @@ class TestRouteHandler(tornado.web.RequestHandler):
             match_on = ["ztf"]
         elif self.request.uri == "/cgi-bin/internal/process_kait_ztf_request.py":
             match_on = ["kait"]
+        elif self.request.uri == "/api/v0/pointings":
+            match_on = ["treasuremap"]
 
         with my_vcr.use_cassette(
             cache,
@@ -514,13 +546,20 @@ class TestRouteHandler(tornado.web.RequestHandler):
                     json_body = parse_qs(urlparse(url).query)
 
                     requests.post(url, data=json_body, headers=header)
+                elif self.request.uri == "/api/v0/pointings":
+                    json_body = (
+                        json.loads(self.request.body.decode())
+                        if len(self.request.body) > 0
+                        else None
+                    )
+                    requests.post(url=url, json=json_body)
                 else:
                     requests.post(url, data=self.request.body, headers=headers)
 
-                # Get recorded document and pass it back
                 response = cass.responses_of(
                     vcr.request.Request("POST", url, self.request.body, headers)
                 )[0]
+
                 self.set_status(
                     response["status"]["code"], response["status"]["message"]
                 )
@@ -553,6 +592,7 @@ if __name__ == "__main__":
     my_vcr.register_matcher("lco", lco_request_matcher)
     my_vcr.register_matcher("ztf", ztf_request_matcher)
     my_vcr.register_matcher("kait", kait_request_matcher)
+    my_vcr.register_matcher("treasuremap", treasuremap_request_matcher)
     if "test_server" in cfg:
         app = make_app()
         server = tornado.httpserver.HTTPServer(app)
