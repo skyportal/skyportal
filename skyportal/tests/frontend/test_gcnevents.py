@@ -346,7 +346,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
         f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "submitted to telescope queue")]'''
     )
     driver.click_xpath(
-        '//button[contains(@data-testid, "removeRequest_{observation_plan_request_id}")]',
+        f'//button[contains(@data-testid, "removeRequest_{observation_plan_request_id}")]',
         scroll_parent=True,
     )
     driver.wait_for_xpath(
