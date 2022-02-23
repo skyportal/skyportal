@@ -35,6 +35,7 @@ from skyportal.handlers.api import (
     ObservingRunHandler,
     ObservationPlanRequestHandler,
     ObservationPlanTreasureMapHandler,
+    ObservationPlanSubmitHandler,
     PhotometryHandler,
     BulkDeletePhotometryHandler,
     ObjHandler,
@@ -145,6 +146,8 @@ skyportal_handlers = [
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/treasuremap',
         ObservationPlanTreasureMapHandler,
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/queue',
+        ObservationPlanSubmitHandler,
     ),
     (r'/api/objs(/[0-9A-Za-z-_\.\+]+)', ObjHandler),
     (r'/api/photometry(/[0-9]+)?', PhotometryHandler),

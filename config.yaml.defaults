@@ -102,6 +102,8 @@ app:
       component: TelescopePage
     - path: "/instruments"
       component: InstrumentPage
+    - path: "/shifts"
+      component: ShiftPage
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -145,6 +147,10 @@ app:
     - name: Allocations
       icon: HourglassEmptyOutlined
       url: /allocations
+
+    - name: Shifts
+      icon: SubwayRounded
+      url: /shifts
 
     - name: About
       icon: Info

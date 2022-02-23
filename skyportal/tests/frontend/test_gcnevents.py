@@ -273,6 +273,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     assert status == 200
     assert data['status'] == 'success'
     instrument_id = data['data']['id']
+
     # wait for the fields to populate
     time.sleep(15)
 
@@ -329,10 +330,22 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
         f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]'''
     )
 
+    # running the button gauntlet
     driver.click_xpath(
         '//button[contains(@data-testid, "treasuremapRequest_1")]', scroll_parent=True
     )
-
     driver.click_xpath(
-        '//button[contains(@data-testid, "deleteRequest")]', scroll_parent=True
+        '//button[contains(@data-testid, "sendRequest_1")]', scroll_parent=True
+    )
+    driver.wait_for_xpath(
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "submitted to telescope queue")]'''
+    )
+    driver.click_xpath(
+        '//button[contains(@data-testid, "removeRequest_1")]', scroll_parent=True
+    )
+    driver.wait_for_xpath(
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "deleted from telescope queue")]'''
+    )
+    driver.click_xpath(    
+        '//button[contains(@data-testid, "deleteRequest_1")]', scroll_parent=True
     )
