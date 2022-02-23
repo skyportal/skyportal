@@ -192,46 +192,6 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
                 </Button>
               </div>
             )}
-            {isSubmittingTreasureMap === observationplanRequest.id ? (
-              <div>
-                <CircularProgress />
-              </div>
-            ) : (
-              <div>
-                <Button
-                  onClick={() => {
-                    handleSubmitTreasureMap(observationplanRequest.id);
-                  }}
-                  size="small"
-                  color="primary"
-                  type="submit"
-                  variant="outlined"
-                  data-testid={`treasuremapRequest_${observationplanRequest.id}`}
-                >
-                  Send to Treasure Map
-                </Button>
-              </div>
-            )}
-            {isDeletingTreasureMap === observationplanRequest.id ? (
-              <div>
-                <CircularProgress />
-              </div>
-            ) : (
-              <div>
-                <Button
-                  onClick={() => {
-                    handleDeleteTreasureMap(observationplanRequest.id);
-                  }}
-                  size="small"
-                  color="primary"
-                  type="submit"
-                  variant="outlined"
-                  data-testid={`treasuremapDelete_${observationplanRequest.id}`}
-                >
-                  Retract from Treasure Map
-                </Button>
-              </div>
-            )}
           </div>
         );
       };
@@ -243,6 +203,62 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
         },
       });
     }
+
+    const renderTreasureMap = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div className={classes.actionButtons}>
+          {isSubmittingTreasureMap === observationplanRequest.id ? (
+            <div>
+              <CircularProgress />
+            </div>
+          ) : (
+            <div>
+              <Button
+                onClick={() => {
+                  handleSubmitTreasureMap(observationplanRequest.id);
+                }}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`treasuremapRequest_${observationplanRequest.id}`}
+              >
+                Send to Treasure Map
+              </Button>
+            </div>
+          )}
+          {isDeletingTreasureMap === observationplanRequest.id ? (
+            <div>
+              <CircularProgress />
+            </div>
+          ) : (
+            <div>
+              <Button
+                onClick={() => {
+                  handleDeleteTreasureMap(observationplanRequest.id);
+                }}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`treasuremapDelete_${observationplanRequest.id}`}
+              >
+                Retract from Treasure Map
+              </Button>
+            </div>
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "treasuremap",
+      label: "Treasure Map",
+      options: {
+        customBodyRenderLite: renderTreasureMap,
+      },
+    });
 
     return columns;
   };
