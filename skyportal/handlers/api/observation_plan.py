@@ -318,9 +318,9 @@ class ObservationPlanSubmitHandler(BaseHandler):
         self.verify_and_commit()
 
         return self.success(data=observation_plan_request)
-     
-    
- class ObservationPlanTreasureMapHandler(BaseHandler):
+
+
+class ObservationPlanTreasureMapHandler(BaseHandler):
     @auth_or_token
     def post(self, observation_plan_request_id):
         """
