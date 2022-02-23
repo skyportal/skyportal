@@ -47,6 +47,8 @@ needs-migration?:
     all: ["!alembic/versions/*"]
   - any: ["baselayer/app/models.py", "baselayer/app/models/*"]
     all: ["!alembic/versions/*"]
+  - any: ["requirements.txt"]
+    all: ["!alembic/versions/*"]
 
 # Add 'workflows' label to any changes to GA workflows (.github folder)
 workflows:
