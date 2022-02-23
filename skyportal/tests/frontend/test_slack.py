@@ -46,7 +46,7 @@ def test_slack_url(driver, user):
     ActionChains(driver).move_to_element(header).click().perform()
 
     # since we added a bad URL, check for the error message
-    driver.wait_for_xpath('//*[text()="Must be a Slack URL"]')
+    driver.wait_for_xpath('//*[text()="Must be a Slack URL"]', timeout=10)
 
     # now add a good path and make sure the error goes away
     url_path = driver.wait_for_xpath('//input[@name="url"]')

@@ -51,7 +51,7 @@ def test_super_user_post_shift(
     driver.click_xpath(submit_button_xpath)
 
     # check for dropdown shift
-    driver.wait_for_xpath(f'//span[text()[contains(.,"{form_name}")]]')
+    driver.wait_for_xpath(f'//span[text()[contains(.,"{form_name}")]]', timeout=30)
 
     # check for delete shift button
     primary_text = f'Sitewide Group: {form_name}'
