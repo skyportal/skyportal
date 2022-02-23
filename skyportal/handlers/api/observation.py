@@ -565,10 +565,12 @@ class ObservationASCIIFileHandler(BaseHandler):
         )
         if instrument is None:
             return self.error(message=f"Missing instrument with ID {instrument_id}")
-
-        observation_data = pd.read_table(StringIO(observation_data), sep=",").to_dict(
-            orient='list'
-        )
+        try:
+            observation_data = pd.read_table(
+                StringIO(observation_data), sep=","
+            ).to_dict(orient='list')
+        except Exception as e:
+            return self.error(f"Unable to read in observation file: {e}")
 
         if not all(
             k in observation_data

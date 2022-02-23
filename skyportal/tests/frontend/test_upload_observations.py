@@ -54,6 +54,42 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get("/observations/")
 
+    filename = "sample_observation_data_upload_malformed.csv"
+
+    attachment_file = driver.wait_for_xpath('//input[@type="file"]')
+    attachment_file.send_keys(
+        os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            'data',
+            filename,
+        ),
+    )
+
+    driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
+    submit_button_xpath = '//button[contains(.,"Submit")]'
+    driver.click_xpath(submit_button_xpath, scroll_parent=True)
+
+    # check that upload fails
+    driver.wait_for_xpath('//div[contains(.,"Filter 1.0 not present in [\'ztfr\']")]')
+
+    filename = "sample_observation_data_upload_noseeing.csv"
+
+    attachment_file = driver.wait_for_xpath('//input[@type="file"]')
+    attachment_file.send_keys(
+        os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            'data',
+            filename,
+        ),
+    )
+
+    driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
+    submit_button_xpath = '//button[contains(.,"Submit")]'
+    driver.click_xpath(submit_button_xpath, scroll_parent=True)
+
+    # check that the executed observation table appears
+    driver.wait_for_xpath('//*[text()="94434604"]')
+
     filename = "sample_observation_data_upload.csv"
 
     attachment_file = driver.wait_for_xpath('//input[@type="file"]')
@@ -68,3 +104,6 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
     submit_button_xpath = '//button[contains(.,"Submit")]'
     driver.click_xpath(submit_button_xpath, scroll_parent=True)
+
+    # check that the executed observation table appears
+    driver.wait_for_xpath('//*[text()="84434604"]')
