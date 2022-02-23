@@ -133,15 +133,31 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
             open={confirmDeleteOpen}
             onClose={handleConfirmDeleteDialogClose}
           >
-            <DialogTitle>Remove user?</DialogTitle>
-            <DialogContent dividers>
-              <DialogContentText>
-                Are you sure you want to delete this user from this group?
-                <br />
-                Warning! This will delete the user from the group and all of its
-                filters.
-              </DialogContentText>
-            </DialogContent>
+            {user.username === currentUser.username ? (
+              <>
+                <DialogTitle>Remove yourself?</DialogTitle>
+                <DialogContent dividers>
+                  <DialogContentText>
+                    Are you sure you want to delete yourself from this group?
+                    <br />
+                    Warning! This will delete you from the group and all of its
+                    filters.
+                  </DialogContentText>
+                </DialogContent>
+              </>
+            ) : (
+              <>
+                <DialogTitle>Remove user?</DialogTitle>
+                <DialogContent dividers>
+                  <DialogContentText>
+                    Are you sure you want to delete this user from this group?
+                    <br />
+                    Warning! This will delete the user from this group and all
+                    of its filters.
+                  </DialogContentText>
+                </DialogContent>
+              </>
+            )}
 
             <DialogActions>
               <Button autoFocus onClick={() => setConfirmDeleteOpen(false)}>
