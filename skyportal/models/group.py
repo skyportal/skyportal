@@ -276,6 +276,9 @@ class Group(Base):
     nickname = sa.Column(
         sa.String, unique=True, nullable=True, index=True, doc='Short group nickname.'
     )
+    description = sa.Column(
+        sa.Text, nullable=True, doc='Longer description of the group.'
+    )
     private = sa.Column(
         sa.Boolean,
         nullable=False,

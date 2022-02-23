@@ -101,11 +101,6 @@ class StandardsHandler(BaseHandler):
                 'Invalid `starlist_type`. Should be in [Keck, Shane, P200]'
             )
 
-        try:
-            show_first_line = bool(show_first_line)
-        except TypeError:
-            return self.error('Invalid argument for `show_first_line`')
-
         dec_filter_range = ast.literal_eval(dec_filter_range_str)
         if not (
             isinstance(dec_filter_range, (list, tuple)) and len(dec_filter_range) == 2

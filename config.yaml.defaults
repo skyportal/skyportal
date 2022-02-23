@@ -34,6 +34,10 @@ app:
     host: skipper.caltech.edu
     port: 4000
 
+  atlas:
+    protocol: https
+    host: fallingstar-data.com
+
   kait:
     protocol: http
     host: herculesii.astro.berkeley.edu
@@ -96,6 +100,8 @@ app:
       component: TelescopePage
     - path: "/instruments"
       component: InstrumentPage
+    - path: "/shifts"
+      component: ShiftPage
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -139,6 +145,10 @@ app:
     - name: Allocations
       icon: HourglassEmptyOutlined
       url: /allocations
+
+    - name: Shifts
+      icon: SubwayRounded
+      url: /shifts
 
     - name: About
       icon: Info

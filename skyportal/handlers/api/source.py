@@ -200,6 +200,13 @@ class SourceHandler(BaseHandler):
               description: |
                 Boolean indicating whether to return if a source has a spectra. Defaults to false.
             - in: query
+              name: includePeriodExists
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to return if a source has a period set. Defaults to false.
+            - in: query
               name: includeThumbnails
               nullable: true
               schema:
@@ -567,7 +574,7 @@ class SourceHandler(BaseHandler):
             description: |
               Cumulative probability up to which to include sources
           - in: query
-            name: includeGeojson
+            name: includeGeoJSON
             nullable: true
             schema:
               type: boolean
@@ -630,6 +637,7 @@ class SourceHandler(BaseHandler):
         include_spectrum_exists = self.get_query_argument(
             "includeSpectrumExists", False
         )
+        include_period_exists = self.get_query_argument("includePeriodExists", False)
         remove_nested = self.get_query_argument("removeNested", False)
         include_detection_stats = self.get_query_argument(
             "includeDetectionStats", False
@@ -651,7 +659,7 @@ class SourceHandler(BaseHandler):
         localization_dateobs = self.get_query_argument("localizationDateobs", None)
         localization_name = self.get_query_argument("localizationName", None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-        includeGeojson = self.get_query_argument("includeGeojson", False)
+        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
 
         # These are just throwaway helper classes to help with deserialization
         class UTCTZnaiveDateTime(fields.DateTime):
@@ -831,14 +839,19 @@ class SourceHandler(BaseHandler):
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
-            if include_photometry_exists:
-                source_info["photometry_exists"] = (
-                    len(
-                        Photometry.query_records_accessible_by(self.current_user)
-                        .filter(Photometry.obj_id == obj_id)
-                        .all()
-                    )
-                    > 0
+            if include_period_exists:
+                annotations = (
+                    Annotation.query_records_accessible_by(self.current_user)
+                    .filter(Annotation.obj_id == obj_id)
+                    .all()
+                )
+                period_str_options = ['period', 'Period', 'PERIOD']
+                source_info["period_exists"] = any(
+                    [
+                        isinstance(an.data, dict) and period_str in an.data
+                        for an in annotations
+                        for period_str in period_str_options
+                    ]
                 )
 
             source_info["annotations"] = sorted(
@@ -1052,9 +1065,9 @@ class SourceHandler(BaseHandler):
             obj_query = obj_query.filter(Obj.alias.any(alias.strip()))
         if origin is not None:
             obj_query = obj_query.filter(Obj.origin.contains(origin.strip()))
-        if has_tns_name in ['true', True]:
+        if has_tns_name:
             obj_query = obj_query.filter(Obj.altdata['tns']['name'].isnot(None))
-        if has_spectrum in ["true", True]:
+        if has_spectrum:
             spectrum_subquery = Spectrum.query_records_accessible_by(
                 self.current_user
             ).subquery()
@@ -1454,7 +1467,20 @@ class SourceHandler(BaseHandler):
                         )
                         > 0
                     )
-
+                if include_period_exists:
+                    annotations = (
+                        Annotation.query_records_accessible_by(self.current_user)
+                        .filter(Annotation.obj_id == obj.id)
+                        .all()
+                    )
+                    period_str_options = ['period', 'Period', 'PERIOD']
+                    obj_list[-1]["period_exists"] = any(
+                        [
+                            isinstance(an.data, dict) and 'period' in an.data
+                            for an in annotations
+                            for period_str in period_str_options
+                        ]
+                    )
                 if not remove_nested:
                     source_query = Source.query_records_accessible_by(
                         self.current_user
@@ -1496,7 +1522,7 @@ class SourceHandler(BaseHandler):
             query_results["sources"] = obj_list
 
         query_results = recursive_to_dict(query_results)
-        if includeGeojson:
+        if includeGeoJSON:
             # features are JSON representations that the d3 stuff understands.
             # We use these to render the contours of the sky localization and
             # locations of the transients.
@@ -1899,8 +1925,6 @@ class SourceOffsetsHandler(BaseHandler):
         facility = self.get_query_argument('facility', 'Keck')
         num_offset_stars = self.get_query_argument('num_offset_stars', '3')
         use_ztfref = self.get_query_argument('use_ztfref', True)
-        if isinstance(use_ztfref, str):
-            use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
 
         obstime = self.get_query_argument(
             'obstime', datetime.datetime.utcnow().isoformat()
@@ -2088,8 +2112,6 @@ class SourceFinderHandler(BaseHandler):
         facility = self.get_query_argument('facility', 'Keck')
         image_source = self.get_query_argument('image_source', 'ps1')
         use_ztfref = self.get_query_argument('use_ztfref', True)
-        if isinstance(use_ztfref, str):
-            use_ztfref = use_ztfref in ['t', 'True', 'true', 'yes', 'y']
 
         num_offset_stars = self.get_query_argument('num_offset_stars', '3')
         try:

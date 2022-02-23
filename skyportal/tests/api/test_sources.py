@@ -2001,3 +2001,29 @@ def test_filter_sources_by_modified(upload_data_token, view_only_token, public_g
     )
     assert status == 200
     assert len(data["data"]["sources"]) == 0
+
+
+def test_token_user_retrieving_source_with_period_exists(
+    view_only_token, public_source, annotation_token
+):
+
+    status, data = api(
+        'POST',
+        f'sources/{public_source.id}/annotations',
+        data={
+            'origin': 'kowalski',
+            'data': {'period': 1.5},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}",
+        params={"includePeriodExists": "true"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert data["data"]['period_exists']

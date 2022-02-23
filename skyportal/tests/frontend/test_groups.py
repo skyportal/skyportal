@@ -23,18 +23,35 @@ def test_super_admin_groups_list(driver, super_admin_user, public_group):
     # get list of names of previously created groups here
 
 
-@pytest.mark.flaky(reruns=2)
-def test_add_new_group(driver, super_admin_user, user):
+def test_add_new_group(driver, super_admin_user, user, super_admin_token):
     test_proj_name = str(uuid.uuid4())
+    group_description = str(uuid.uuid4())
     driver.get(f'/become_user/{super_admin_user.id}')  # TODO decorator/context manager?
     driver.get('/')
     driver.refresh()
     driver.get('/groups')
     driver.wait_for_xpath('//input[@name="name"]').send_keys(test_proj_name)
+    driver.wait_for_xpath('//input[@name="description"]').send_keys(group_description)
     driver.click_xpath('//div[@id="groupAdminsSelect"]')
     driver.click_xpath(f'//li[contains(text(),"{user.username}")]', scroll_parent=True)
     driver.click_xpath('//button[contains(.,"Create Group")]', wait_clickable=False)
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
+    # check for group description
+    status, data = api(
+        "GET",
+        "groups",
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    user_groups = data["data"]["user_groups"]
+    for group in user_groups:
+        if group["description"] == group_description:
+            id = group["id"]
+            break
+    driver.get(f'/group/{id}')
+    driver.wait_for_xpath('//h6[@data-testid="description"]')
+    driver.wait_for_xpath(f'//*[text()[contains(., "{group_description}")]]')
 
 
 @pytest.mark.flaky(reruns=2)
