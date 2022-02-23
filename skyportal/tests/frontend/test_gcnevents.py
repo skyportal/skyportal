@@ -188,7 +188,7 @@ def test_gcnevents_observations(
     driver.get(f'/become_user/{user.id}')
     driver.get('/gcn_events/2019-04-25T08:18:05')
 
-    driver.wait_for_xpath('//*[text()="190425 08:18:05"]')
+    driver.wait_for_xpath('//*[text()="190425 08:18:05"]', timeout=30)
     driver.wait_for_xpath('//*[text()="LVC"]')
     driver.wait_for_xpath('//*[text()="BNS"]')
 
@@ -339,13 +339,15 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
         '//button[contains(@data-testid, "sendRequest_1")]', scroll_parent=True
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "submitted to telescope queue")]'''
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "submitted to telescope queue")]''',
+        timeout=30,
     )
     driver.click_xpath(
         '//button[contains(@data-testid, "removeRequest_1")]', scroll_parent=True
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "deleted from telescope queue")]'''
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "deleted from telescope queue")]''',
+        timeout=30,
     )
 
     driver.click_xpath(
