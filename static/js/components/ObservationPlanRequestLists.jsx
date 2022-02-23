@@ -103,7 +103,7 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
     await dispatch(Actions.deleteObservationPlanRequestTreasureMap(id));
     setIsDeletingTreasureMap(null);
   };
-  
+
   const [isSending, setIsSending] = useState(null);
   const handleSend = async (id) => {
     setIsSending(id);
