@@ -328,7 +328,8 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
         timeout=15,
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]'''
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]''',
+        timeout=15,
     )
 
     status, data = api("GET", "observation_plan", token=super_admin_token)
