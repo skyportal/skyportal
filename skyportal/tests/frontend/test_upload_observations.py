@@ -3,6 +3,7 @@ import uuid
 import time
 import pandas as pd
 from regions import Regions
+from selenium.common.exceptions import TimeoutException
 
 from skyportal.tests import api
 
@@ -89,6 +90,12 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     submit_button_xpath = '//button[contains(.,"Submit")]'
     driver.click_xpath(submit_button_xpath, scroll_parent=True)
 
+    scroll_forward_button_xpath = '//button[@data-testid="pagination-next"]'
+    try:
+        # sometimes need to scroll forward
+        driver.click_xpath(scroll_forward_button_xpath, scroll_parent=True)
+    except TimeoutException:
+        pass
     # check that the executed observation table appears
     driver.wait_for_xpath('//*[text()="94434604"]')
 
@@ -106,6 +113,13 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
     submit_button_xpath = '//button[contains(.,"Submit")]'
     driver.click_xpath(submit_button_xpath, scroll_parent=True)
+
+    scroll_backward_button_xpath = '//button[@data-testid="pagination-back"]'
+    try:
+        # sometimes need to scroll backward
+        driver.click_xpath(scroll_backward_button_xpath, scroll_parent=True)
+    except TimeoutException:
+        pass
 
     # check that the executed observation table appears
     driver.wait_for_xpath('//*[text()="84434604"]')
