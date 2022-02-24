@@ -1,7 +1,7 @@
 """ps1 migration
 
 Revision ID: 33ef976ca10f
-Revises: 29fbb7ea2c4f
+Revises: 6a769fd6d909
 Create Date: 2022-02-19 14:50:54.172754
 
 """
@@ -9,7 +9,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '33ef976ca10f'
-down_revision = '29fbb7ea2c4f'
+down_revision = '6a769fd6d909'
 branch_labels = None
 depends_on = None
 
