@@ -3,7 +3,6 @@ import uuid
 import time
 import pandas as pd
 from regions import Regions
-from selenium.common.exceptions import TimeoutException
 import pytest
 
 from skyportal.tests import api
@@ -73,9 +72,9 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     driver.click_xpath(submit_button_xpath, scroll_parent=True)
 
     # check that upload fails
-    # driver.wait_for_xpath(
-    #     '//div[contains(.,"Filter 1.0 not present in [\'ztfr\']")]', timeout=10
-    # )
+    driver.wait_for_xpath(
+        '//div[contains(.,"Filter 1.0 not present in [\'ztfr\']")]', timeout=10
+    )
 
     filename = "sample_observation_data_upload.csv"
 
@@ -91,16 +90,7 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
     submit_button_xpath = '//button[contains(.,"Submit")]'
     driver.click_xpath(submit_button_xpath, scroll_parent=True)
-
-    scroll_backward_button_xpath = '//button[@data-testid="pagination-back"]'
-    scroll_forward_button_xpath = '//button[@data-testid="pagination-next"]'
-
-    try:
-        driver.wait_for_xpath('//*[text()="84434604"]', timeout=10)
-    except TimeoutException:
-        # sometimes need to scroll backwards
-        driver.click_xpath(scroll_backward_button_xpath, scroll_parent=True)
-        driver.wait_for_xpath('//*[text()="84434604"]', timeout=10)
+    driver.wait_for_xpath('//*[text()="84434604"]', timeout=10)
 
     filename = "sample_observation_data_upload_noseeing.csv"
 
@@ -116,10 +106,4 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
     submit_button_xpath = '//button[contains(.,"Submit")]'
     driver.click_xpath(submit_button_xpath, scroll_parent=True)
-
-    try:
-        driver.wait_for_xpath('//*[text()="94434604"]', timeout=10)
-    except TimeoutException:
-        # sometimes need to scroll forward
-        driver.click_xpath(scroll_forward_button_xpath, scroll_parent=True)
-        driver.wait_for_xpath('//*[text()="94434604"]', timeout=10)
+    driver.wait_for_xpath('//*[text()="94434604"]', timeout=10)
