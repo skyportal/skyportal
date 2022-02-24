@@ -32,6 +32,7 @@ from .observingrun import ObservingRunHandler
 from .observation_plan import (
     ObservationPlanRequestHandler,
     ObservationPlanSubmitHandler,
+    ObservationPlanMovieHandler,
 )
 from .photometry import (
     PhotometryHandler,

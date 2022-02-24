@@ -344,10 +344,47 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                 ],
             }
 
+            # compute summary (bounding-box) contour
+            geometry = []
+            min_ra, max_ra = np.min(coords[0].ra.deg), np.max(coords[0].ra.deg)
+            min_dec, max_dec = np.min(coords[0].dec.deg), np.max(coords[0].dec.deg)
+            for coord in coords:
+                min_ra, max_ra = min(min_ra, np.min(coord.ra.deg)), max(
+                    max_ra, np.max(coord.ra.deg)
+                )
+                min_dec, max_dec = min(min_dec, np.min(coord.dec.deg)), max(
+                    max_dec, np.max(coord.dec.deg)
+                )
+            ras = [min_ra, max_ra, max_ra, min_ra, min_ra]
+            decs = [min_dec, min_dec, max_dec, max_dec, max_dec]
+
+            tab = list(zip(ras, decs))
+            geometry_summary = tab
+
+            contour_summary = {
+                'properties': {
+                    'instrument': instrument_name,
+                    'field_id': int(field_id),
+                    'ra': ra,
+                    'dec': dec,
+                },
+                'type': 'FeatureCollection',
+                'features': [
+                    {
+                        'type': 'Feature',
+                        'geometry': {
+                            'type': 'MultiLineString',
+                            'coordinates': geometry_summary,
+                        },
+                    },
+                ],
+            }
+
             field = InstrumentField(
                 instrument_id=instrument_id,
                 field_id=int(field_id),
                 contour=contour,
+                contour_summary=contour_summary,
                 ra=ra,
                 dec=dec,
             )

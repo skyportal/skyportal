@@ -1,6 +1,15 @@
 import jsonschema
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm import joinedload
+import numpy as np
+import io
+from tornado.ioloop import IOLoop
+import functools
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import tempfile
+from ligo.skymap import plot  # noqa: F401
 
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
@@ -10,7 +19,9 @@ from ...models import (
     ObservationPlanRequest,
     Group,
     Allocation,
+    Localization,
     PlannedObservation,
+    InstrumentField,
 )
 
 from ...models.schema import ObservationPlanPost
@@ -310,3 +321,179 @@ class ObservationPlanSubmitHandler(BaseHandler):
         self.verify_and_commit()
 
         return self.success(data=observation_plan_request)
+
+
+def observation_animations(
+    observations,
+    localization,
+    output_format='gif',
+    figsize=(10, 8),
+    decay=4,
+    alpha_default=1,
+    alpha_cutoff=0.1,
+):
+
+    """Create a movie to display observations of a given skymap
+
+    Parameters
+    ----------
+
+    observations : skyportal.models.observation_plan.PlannedObservation
+        The planned observations associated with the request
+    localization : skyportal.models.localizstion.Localization
+        The skymap that the request is made based on
+    output_format : str, optional
+        "gif" or "mp4" -- determines the format of the returned movie
+    figsize : tuple, optional
+        Matplotlib figsize of the movie created
+    decay: float, optional
+        The alpha of older fields follows an exponential decay to
+        avoid cluttering the screen, this is how fast it falls off
+        set decay = 0 to have no exponential decay
+    alpha_default: float, optional
+        The alpha to assign all fields observed if decay is 0,
+        unused otherwise
+    alpha_cutoff: float, optional
+        The alpha below which you don't draw a field since it is
+        too light. Used to not draw lots of invisible fields and
+        waste processing time.
+
+    Returns
+    -------
+    dict
+        success : bool
+            Whether the request was successful or not, returning
+            a sensible error in 'reason'
+        name : str
+            suggested filename based on `source_name` and `output_format`
+        data : str
+            binary encoded data for the movie (to be streamed)
+        reason : str
+            If not successful, a reason is returned.
+    """
+
+    matplotlib.use("Agg")
+    fig = plt.figure(figsize=figsize, constrained_layout=False)
+    ax = plt.axes(projection='astro mollweide')
+    ax.imshow_hpx(localization.flat_2d, cmap='cylon')
+
+    old_artists = []
+
+    def plot_schedule(k):
+        for artist in old_artists:
+            artist.remove()
+        del old_artists[:]
+
+        for i, obs in enumerate(observations):
+
+            if decay != 0:
+                alpha = np.exp((i - k) / decay)
+            else:
+                alpha = alpha_default
+            if alpha > 1:
+                alpha = 1
+
+            if alpha > alpha_cutoff:
+                poly = plt.Polygon(
+                    obs.field.contour_summary["features"][0]["geometry"]["coordinates"],
+                    alpha=alpha,
+                    facecolor='green',
+                    edgecolor='black',
+                    transform=ax.get_transform('world'),
+                )
+                ax.add_patch(poly)
+                old_artists.append(poly)
+
+    if output_format == "gif":
+        writer = animation.PillowWriter()
+    elif output_format == "mp4":
+        writer = animation.FFMpegWriter()
+    else:
+        raise ValueError('output_format must be gif or mp4')
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.' + output_format) as f:
+        anim = animation.FuncAnimation(fig, plot_schedule, frames=len(observations))
+        anim.save(f.name, writer=writer)
+        f.flush()
+
+        with open(f.name, mode='rb') as g:
+            anim_content = g.read()
+
+    return {
+        "success": True,
+        "name": f"{localization.localization_name}.{output_format}",
+        "data": anim_content,
+        "reason": "",
+    }
+
+
+class ObservationPlanMovieHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, observation_plan_request_id):
+        """
+        ---
+        description: Get a movie summary of the observation plan.
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleObservationPlanRequest
+        """
+
+        options = [
+            joinedload(ObservationPlanRequest.observation_plans)
+            .joinedload(EventObservationPlan.planned_observations)
+            .joinedload(PlannedObservation.field)
+            .undefer(InstrumentField.contour_summary)
+        ]
+
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="read",
+            raise_if_none=True,
+            options=options,
+        )
+        self.verify_and_commit()
+
+        localization = (
+            Localization.query_records_accessible_by(
+                self.current_user,
+            )
+            .filter(Localization.id == observation_plan_request.localization_id)
+            .first()
+        )
+
+        observations = observation_plan_request.observation_plans[
+            0
+        ].planned_observations
+
+        output_format = 'gif'
+        anim = functools.partial(
+            observation_animations,
+            observations,
+            localization,
+            output_format=output_format,
+            figsize=(10, 8),
+            decay=4,
+            alpha_default=1,
+            alpha_cutoff=0.1,
+        )
+
+        self.push_notification(
+            'Movie generation in progress. Download will start soon.'
+        )
+        rez = await IOLoop.current().run_in_executor(None, anim)
+
+        filename = rez["name"]
+        data = io.BytesIO(rez["data"])
+
+        await self.send_file(data, filename, output_type=output_format)

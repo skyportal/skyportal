@@ -323,21 +323,25 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
     driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]'
+        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]',
+        timeout=15,
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]'''
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]''',
+        timeout=15,
     )
 
     driver.click_xpath(
         '//button[contains(@data-testid, "sendRequest_1")]', scroll_parent=True
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "submitted to telescope queue")]'''
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "submitted to telescope queue")]''',
+        timeout=15,
     )
     driver.click_xpath(
         '//button[contains(@data-testid, "removeRequest_1")]', scroll_parent=True
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "deleted from telescope queue")]'''
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "deleted from telescope queue")]''',
+        timeout=15,
     )
