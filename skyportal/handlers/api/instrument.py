@@ -52,8 +52,8 @@ class InstrumentHandler(BaseHandler):
         sensitivity_data = data.pop("sensitivity_data", None)
         if sensitivity_data:
             filters = data.get("filters", [])
-            for data in sensitivity_data:
-                if data['filter_name'] not in filters:
+            for filter in sensitivity_data:
+                if filter not in filters:
                     return self.error(
                         'Filter names must be present in both sensitivity_data property and filters property'
                     )
@@ -221,8 +221,8 @@ class InstrumentHandler(BaseHandler):
         filters = instrument.filters
         sensitivity_data = data.pop('sensitivity_data', None)
         if sensitivity_data:
-            for data in sensitivity_data:
-                if data['filter_name'] not in filters:
+            for filter in sensitivity_data:
+                if filter not in filters:
                     return self.error(
                         'Filter names must be present in both sensitivity_data property and filters property'
                     )
@@ -288,20 +288,22 @@ InstrumentHandler.post.__doc__ = f"""
                         leave blank or pass the empty list.
                       default: []
                     sensitivity_data:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          filter_name:
-                            type: string
-                            enum: {list(ALLOWED_BANDPASSES)}
-                          limiting_magnitude:
-                            type: float
-                          exposure_time:
-                            type: float
+                      type: object
+                      properties:
+                        filter_name:
+                          type: object
+                          enum: {list(ALLOWED_BANDPASSES)}
+                          properties:
+                            limiting_magnitude:
+                              type: float
+                            magsys:
+                              type: string
+                            exposure_time:
+                              type: float
+                              description: >-
+                                Exposure time in seconds.
                       description: >-
                         List of filters and associated limiting magnitude and exposure time. Filters must be the same as in the filters property.
-                      default: []
         responses:
           200:
             content:
