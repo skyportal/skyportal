@@ -24,7 +24,7 @@ class RoboticInstrumentsHandler(BaseHandler):
                     .all()
                 )
                 retval = {
-                    i.id: i.api_classname_obsplan.frontend_render_info(i)
+                    i.id: i.api_class_obsplan.frontend_render_info(i)
                     for i in instruments
                 }
             else:

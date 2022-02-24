@@ -72,7 +72,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
   };
 
   return (
-    <div data-testid="gcnsource-request-form">
+    <div data-testid="gcnsource-selection-form">
       <Form
         schema={GcnSourceSelectionFormSchema}
         onSubmit={handleSubmit}
