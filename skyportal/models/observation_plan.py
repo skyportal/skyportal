@@ -155,6 +155,13 @@ class ObservationPlanRequest(Base):
         doc='Groups to share the resulting data from this request with.',
     )
 
+    transactions = relationship(
+        'FacilityTransaction',
+        back_populates='observation_plan_request',
+        passive_deletes=True,
+        order_by="FacilityTransaction.created_at.desc()",
+    )
+
     @property
     def instrument(self):
         return self.allocation.instrument
