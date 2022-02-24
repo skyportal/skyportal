@@ -68,7 +68,7 @@ class AllocationHandler(BaseHandler):
         if instrument_id is not None:
             allocations = allocations.filter(Allocation.instrument_id == instrument_id)
 
-        apitype = self.get_query_argument('apitype', None)
+        apitype = self.get_query_argument('apiType', None)
         if apitype is not None:
             if apitype == "api_classname":
                 instruments_subquery = sa.select(Instrument.id).filter(
