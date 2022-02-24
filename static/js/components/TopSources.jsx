@@ -48,7 +48,10 @@ const useStyles = makeStyles((theme) => ({
     flexDirection: "column",
   },
   sourceNameLink: {
-    color: theme.palette.primary.main,
+    color:
+      theme.palette.type === "dark"
+        ? theme.palette.secondary.main
+        : theme.palette.primary.main,
   },
   quickViewContainer: {
     display: "flex",

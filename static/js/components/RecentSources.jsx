@@ -72,7 +72,10 @@ export const useSourceListStyles = makeStyles((theme) => ({
     fontSize: "1rem",
   },
   sourceNameLink: {
-    color: theme.palette.primary.main,
+    color:
+      theme.palette.type === "dark"
+        ? theme.palette.secondary.main
+        : theme.palette.primary.main,
   },
   link: {
     color: theme.palette.warning.main,
@@ -97,7 +100,8 @@ export const useSourceListStyles = makeStyles((theme) => ({
     // marginBottom: "1rem",
     transition: "all 0.3s ease",
     "&:hover": {
-      backgroundColor: theme.palette.secondary.light,
+      backgroundColor:
+        theme.palette.type === "light" ? theme.palette.secondary.light : null,
     },
     "&:hover $quickViewButton": {
       visibility: "visible",
