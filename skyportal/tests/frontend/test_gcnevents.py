@@ -343,12 +343,14 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
         scroll_parent=True,
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "submitted to telescope queue")]'''
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "submitted to telescope queue")]''',
+        timeout=10,
     )
     driver.click_xpath(
         f'//button[contains(@data-testid, "removeRequest_{observation_plan_request_id}")]',
         scroll_parent=True,
     )
     driver.wait_for_xpath(
-        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "deleted from telescope queue")]'''
+        f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "deleted from telescope queue")]''',
+        timeout=10,
     )
