@@ -1,13 +1,16 @@
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
 from collections import defaultdict
-from baselayer.app.access import auth_or_token, AccessError
+from baselayer.app.access import auth_or_token
+from baselayer.log import make_log
 from ...base import BaseHandler
 from ....models import Obj, Source
 from .source_views import t_index
 
 
 default_prefs = {'maxNumSources': 5}
+
+log = make_log('api/recent_sources')
 
 
 class RecentSourcesHandler(BaseHandler):
@@ -89,12 +92,6 @@ class RecentSourcesHandler(BaseHandler):
             # Delete bookkeeping recency_index key
             del source["recency_index"]
 
-        try:
-            # check for AccessError:
-            # this is in a try-except in case of group deletions
-            # which lead to a change in what classifications are accessible
-            self.verify_and_commit()
-        except AccessError as e:
-            return self.error(f'Classification access failed: {e}')
+        self.verify_and_commit()
 
         return self.success(data=sources)

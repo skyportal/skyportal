@@ -172,13 +172,14 @@ class GroupHandler(BaseHandler):
             # grab streams:
             group['streams'] = streams
 
+            group['filters'] = filters
             try:
                 # grab filters:
                 # this is in a try-except in case of deletions
                 self.verify_and_commit()
                 group['filters'] = filters
             except AccessError as e:
-                log(f'Filter access failed: {e}')
+                log(f'Insufficient filter permissions: {e}.')
 
             return self.success(data=group)
 
@@ -602,6 +603,8 @@ class GroupUserHandler(BaseHandler):
 
         DBSession().delete(gu)
         self.verify_and_commit()
+        self.flow.push(user_id, 'skyportal/FETCH_GROUPS')
+        self.flow.push(user_id, 'skyportal/FETCH_SOURCES')
         self.push_all(
             action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
         )

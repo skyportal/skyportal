@@ -77,13 +77,13 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
   };
 
   const handleDelete = () => {
+    history.push("/groups");
     dispatch(
       groupsActions.deleteGroupUser({
         userID: user.id,
         group_id: group.id,
       })
     );
-    history.goBack();
   };
 
   return (
