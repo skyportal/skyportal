@@ -19,13 +19,13 @@ def test_observation(super_admin_token, view_only_token):
     assert status == 200
     assert data['status'] == 'success'
 
-    name = str(uuid.uuid4())
+    telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',
         'telescope',
         data={
-            'name': name,
-            'nickname': name,
+            'name': telescope_name,
+            'nickname': telescope_name,
             'lat': 0.0,
             'lon': 0.0,
             'elevation': 0.0,
@@ -63,7 +63,7 @@ def test_observation(super_admin_token, view_only_token):
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/sample_observation_data.csv'
     data = {
-        'telescopeName': name,
+        'telescopeName': telescope_name,
         'instrumentName': instrument_name,
         'observationData': pd.read_csv(datafile).to_dict(orient='list'),
     }
@@ -77,7 +77,7 @@ def test_observation(super_admin_token, view_only_token):
     time.sleep(15)
 
     data = {
-        'telescopeName': name,
+        'telescopeName': telescope_name,
         'instrumentName': instrument_name,
         'startDate': "2019-04-25 08:18:05",
         'endDate': "2019-04-28 08:18:05",
@@ -111,7 +111,7 @@ def test_observation(super_admin_token, view_only_token):
     assert status == 200
 
     data = {
-        'telescopeName': name,
+        'telescopeName': telescope_name,
         'instrumentName': instrument_name,
         'startDate': "2019-04-25 08:18:05",
         'endDate': "2019-04-28 08:18:05",

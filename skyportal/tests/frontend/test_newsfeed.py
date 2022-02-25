@@ -86,7 +86,9 @@ def test_news_feed_prefs_widget(
     driver.get('/')
     # Default is to not show bot comments; enable for now
     driver.click_xpath('//*[@id="newsFeedSettingsIcon"]', scroll_parent=True)
-    driver.click_xpath('//*[@data-testid="categories.includeCommentsFromBots"]')
+    driver.click_xpath(
+        '//*[@data-testid="categories.includeCommentsFromBots"]', scroll_parent=True
+    )
     driver.click_xpath('//button[contains(., "Save")]')
     driver.wait_for_xpath('//span[text()="a few seconds ago"]')
     for i in range(2):

@@ -119,7 +119,8 @@ def test_add_sources_two_groups(
     obj_button.clear()
     obj_button.send_keys(obj_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        scroll_parent=True,
     )
 
     # check the classification does show up after a refresh

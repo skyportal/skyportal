@@ -28,7 +28,7 @@ export function fetchObservations(filterParams = {}) {
   if (!Object.keys(filterParams).includes("startDate")) {
     filterParams.startDate = dayjs()
       .utc()
-      .subtract(365, "day")
+      .subtract(3650, "day")
       .utc()
       .format("YYYY-MM-DDTHH:mm:ssZ");
   }

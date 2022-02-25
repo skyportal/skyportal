@@ -21,7 +21,7 @@ def test_share_data(
 
     driver.wait_for_xpath(
         '//div[@data-testid="photometry-div"]//*[@data-testid="MUIDataTableBodyRow-0"]',
-        wait_clickable=False,
+        timeout=10,
     )
     driver.click_xpath('//*[@id="MUIDataTableSelectCell-0"]', wait_clickable=False)
     driver.click_xpath('//*[@id="dataSharingFormGroupsSelect"]')
