@@ -114,6 +114,9 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     driver.wait_for_xpath(f'//*[contains(., "{filename}")]')
     submit_button_xpath = '//button[contains(.,"Submit")]'
     driver.click_xpath(submit_button_xpath, scroll_parent=True)
+
+    search_button_xpath = '//button[@data-testid="Search-iconButton"]'
+    driver.click_xpath(search_button_xpath, scroll_parent=True)
     search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
     search_bar.send_keys('94434604')
     driver.wait_for_xpath('//*[text()="94434604"]', timeout=10)
