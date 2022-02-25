@@ -211,6 +211,7 @@ instrument:
     filters: ["ztfg", "ztfr", "ztfi"]
     =id: ZTF
     api_classname: ZTFAPI
+    api_classname_obsplan: ZTFMMAAPI
     # field_data:
     #   file: ../data/ZTF_Fields.csv
     # field_region:
@@ -318,6 +319,7 @@ instrument:
     telescope_id: =ATLAS-0p5m
     type: imager
     =id: ATLAS
+    api_classname: ATLASAPI
     filters: ["atlasc", "atlaso"]
 
 
@@ -388,6 +390,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =ZTF
+  - pi: Michael Coughlin
+    proposal_id: ATLAS-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =ATLAS
   - pi: Michael Coughlin
     proposal_id: SEDMv2-001
     start_date: "3020-02-12T00:00:00"
@@ -727,3 +736,9 @@ galaxy_catalog:
   - catalog_name: CLU_mini
     catalog_data:
       file: ../data/CLU_mini.hdf5
+
+shift:
+  - group_id: =program_A
+    start_date: "2022-02-16 00:00:00"
+    end_date: "2020-02-17 12:00:00"
+    name: "the Night Shift"
