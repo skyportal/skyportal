@@ -135,6 +135,9 @@ class PS1API(FollowUpAPI):
             .one()
         )
 
+        if req.status == "Photometry committed to database":
+            raise ValueError('Photometry already in database')
+
         instrument = (
             Instrument.query_records_accessible_by(request.requester)
             .join(Allocation)
@@ -193,7 +196,7 @@ class PS1API(FollowUpAPI):
     @staticmethod
     def submit(request):
 
-        """Submit a photometry request to PS1.
+        """Submit a photometry request to PS1 DR2 API.
 
         Parameters
         ----------
@@ -239,6 +242,24 @@ class PS1API(FollowUpAPI):
         )
 
         DBSession().add(transaction)
+        DBSession().commit()
+
+    @staticmethod
+    def delete(request):
+
+        """Delete a photometry request from PS1 DR2 API.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+        """
+
+        from ..models import DBSession, FollowupRequest
+
+        DBSession().query(FollowupRequest).filter(
+            FollowupRequest.id == request.id
+        ).delete()
         DBSession().commit()
 
     form_json_schema = {
