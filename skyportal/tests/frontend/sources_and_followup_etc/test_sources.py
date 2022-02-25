@@ -639,9 +639,8 @@ def test_update_redshift_and_history(driver, user, public_source):
     driver.click_xpath(
         "//*[@data-testid='redshiftHistoryIconButton']",
         wait_clickable=False,
-        scroll_parent=True,
     )
-    driver.wait_for_xpath("//th[text()='Set By']")
+    driver.wait_for_xpath("//th[text()='Set By']", timeout=10)
     driver.wait_for_xpath("//td[text()='0.9999']")
     driver.wait_for_xpath("//td[text()='0.0001']")
     driver.wait_for_xpath(f"//td[text()='{user.username}']")
