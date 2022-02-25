@@ -124,6 +124,12 @@ const SurveyLinkList = ({ ra, dec, id }) => {
         }${dec}%3A0%201%22&sort=date%20desc%2C%20bibcode%20desc&p_=0`}
       />
       <SurveyLink
+        name="Aladin"
+        url={`http://aladin.unistra.fr/AladinLite/?target=${ra_to_hours(ra, "%20")}${
+          dec > 0 ? "%2B" : ""
+        }${dec_to_dms(dec, "%20")}&fov=0.01&survey=P%2FDSS2%2Fcolor`}
+      />
+      <SurveyLink
         name="CFHT"
         url={`http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/cadcbin/megapipe/imc.pl?lang=en&object=&size=256&ra=${ra}&dec=${dec}`}
       />
