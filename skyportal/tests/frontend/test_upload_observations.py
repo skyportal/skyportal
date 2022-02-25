@@ -9,7 +9,7 @@ from selenium.webdriver import ActionChains
 from skyportal.tests import api
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=5)
 def test_upload_observations(driver, super_admin_user, super_admin_token):
 
     telescope_name = str(uuid.uuid4())
