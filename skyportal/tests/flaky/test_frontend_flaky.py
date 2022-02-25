@@ -8,18 +8,13 @@ import pytest
 @pytest.mark.flaky(reruns=2)
 def test_telescope_frontend(super_admin_token, super_admin_user, driver):
 
-    driver.get(f"/become_user/{super_admin_user.id}")
-
-    # go to the allocations page
-    driver.get("/telescopes")
-
-    name = str(uuid.uuid4())
+    telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',
         'telescope',
         data={
-            'name': name,
-            'nickname': name,
+            'name': telescope_name,
+            'nickname': telescope_name,
             'lat': 0.0,
             'lon': 0.0,
             'elevation': 0.0,
@@ -30,8 +25,13 @@ def test_telescope_frontend(super_admin_token, super_admin_user, driver):
     assert status == 200
     assert data['status'] == 'success'
 
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    # go to the allocations page
+    driver.get("/telescopes")
+
     # check for API instrument
-    driver.wait_for_xpath(f'//span[text()="{name}"]')
+    driver.wait_for_xpath(f'//span[text()="{telescope_name}"]')
 
     # add dropdown instrument
     name2 = str(uuid.uuid4())
@@ -53,11 +53,6 @@ def test_telescope_frontend(super_admin_token, super_admin_user, driver):
 
 @pytest.mark.flaky(reruns=5)
 def test_instrument_frontend(super_admin_token, super_admin_user, driver):
-
-    driver.get(f"/become_user/{super_admin_user.id}")
-
-    # go to the allocations page
-    driver.get("/instruments")
 
     telescope_name = str(uuid.uuid4())
     status, data = api(
@@ -93,6 +88,11 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     )
     assert status == 200
     assert data['status'] == 'success'
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    # go to the allocations page
+    driver.get("/instruments")
 
     # check for API instrument
     driver.wait_for_xpath(
@@ -138,18 +138,13 @@ def test_super_user_post_allocation(
     public_group, super_admin_token, super_admin_user, driver
 ):
 
-    driver.get(f"/become_user/{super_admin_user.id}")
-
-    # go to the allocations page
-    driver.get("/allocations")
-
-    name = str(uuid.uuid4())
+    telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',
         'telescope',
         data={
-            'name': name,
-            'nickname': name,
+            'name': telescope_name,
+            'nickname': telescope_name,
             'lat': 0.0,
             'lon': 0.0,
             'elevation': 0.0,
@@ -215,9 +210,14 @@ def test_super_user_post_allocation(
     assert status == 200
     assert data['status'] == 'success'
 
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    # go to the allocations page
+    driver.get("/allocations")
+
     # check for API instrument
     driver.wait_for_xpath(
-        f'//span[text()[contains(.,"{instrument_name}/{name}")]]', timeout=20
+        f'//span[text()[contains(.,"{instrument_name}/{telescope_name}")]]', timeout=20
     )
     driver.wait_for_xpath('//*[@id="root_pi"]').send_keys('Shri')
     driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('01/01/2022')
@@ -241,4 +241,6 @@ def test_super_user_post_allocation(
     driver.click_xpath(submit_button_xpath)
 
     # check for dropdown instrument
-    driver.wait_for_xpath(f'//span[text()[contains(.,"{instrument_name2}/{name}")]]')
+    driver.wait_for_xpath(
+        f'//span[text()[contains(.,"{instrument_name2}/{telescope_name}")]]'
+    )
