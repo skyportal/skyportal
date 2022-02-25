@@ -9,7 +9,7 @@ from selenium.webdriver import ActionChains
 from skyportal.tests import api
 
 
-@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=2)
 def test_upload_observations(driver, super_admin_user, super_admin_token):
 
     telescope_name = str(uuid.uuid4())
@@ -93,6 +93,8 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     search_bar.send_keys('84434604')
     driver.wait_for_xpath('//*[text()="84434604"]', timeout=10)
     search_bar.clear()
+
+    driver.refresh()
 
     # Click somewhere outside to remove focus from search bar
     header = driver.wait_for_xpath("//header")

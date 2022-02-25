@@ -9,7 +9,7 @@ from selenium.webdriver.common.keys import Keys
 from skyportal.tests import api
 
 
-@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=2)
 def test_gcnevents_object(
     driver, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
 ):
@@ -114,7 +114,7 @@ def test_gcnevents_object(
     driver.wait_for_xpath(f'//*[text()[contains(.,"{obj_id}")]]')
 
 
-@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=2)
 def test_gcnevents_observations(
     driver, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
 ):
@@ -221,7 +221,7 @@ def test_gcnevents_observations(
     driver.wait_for_xpath('//*[text()="20.40705"]')
 
 
-@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=2)
 def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
