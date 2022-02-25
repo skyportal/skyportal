@@ -112,7 +112,7 @@ def test_public_source_page_null_z(driver, user, public_source, public_group):
     driver.get(f"/become_user/{user.id}")  # TODO decorator/context manager?
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath(f'//div[text()="{public_source.id}"]')
-    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', 20)
+    driver.wait_for_xpath('//*[text()="Export Bold Light Curve to CSV"]', timeout=20)
     driver.wait_for_xpath('//span[contains(text(), "Fe III")]')
     driver.wait_for_xpath(f'//span[text()="{public_group.name}"]')
 
@@ -174,8 +174,18 @@ def test_classifications(driver, user, taxonomy_token, public_group, public_sour
         wait_clickable=False,
         scroll_parent=True,
     )
+
+    # Click somewhere outside to remove focus from taxonomy select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
     driver.click_xpath('//*[@id="classification"]')
     driver.click_xpath('//li[contains(@data-value, "Symmetrical")]', scroll_parent=True)
+
+    # Click somewhere outside to remove focus from classification select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
     driver.click_xpath('//*[@id="probability"]')
     driver.wait_for_xpath('//*[@id="probability"]').send_keys("1", Keys.ENTER)
     driver.click_xpath(

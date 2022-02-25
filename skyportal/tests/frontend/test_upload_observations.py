@@ -91,7 +91,7 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
     search_bar.send_keys('84434604')
     driver.wait_for_xpath('//*[text()="84434604"]', timeout=10)
-    search_bar.clear('')
+    search_bar.clear()
 
     filename = "sample_observation_data_upload_noseeing.csv"
 
@@ -108,8 +108,9 @@ def test_upload_observations(driver, super_admin_user, super_admin_token):
     submit_button_xpath = '//button[contains(.,"Submit")]'
     driver.click_xpath(submit_button_xpath, scroll_parent=True)
 
+    search_button_xpath = '//button[@data-testid="Search-iconButton"]'
     driver.click_xpath(search_button_xpath, scroll_parent=True)
     search_bar = driver.wait_for_xpath('//input[@aria-label="Search"]')
     search_bar.send_keys('94434604')
     driver.wait_for_xpath('//*[text()="94434604"]', timeout=10)
-    search_bar.clear('')
+    search_bar.clear()

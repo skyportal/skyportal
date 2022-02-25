@@ -52,7 +52,8 @@ def test_add_sources_two_groups(
     obj_button.clear()
     obj_button.send_keys(obj_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        scroll_parent=True,
     )
 
     # find the name of the newly added source
@@ -336,7 +337,7 @@ def test_filter_by_spectrum_time(
         'spectrum',
         data={
             'obj_id': obj_id2,
-            'observed_at': str(datetime.now(timezone.utc)),
+            'observed_at': str(datetime.now(timezone.utc) + timedelta(days=1)),
             'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
@@ -443,7 +444,8 @@ def test_filter_by_alias_and_origin(
     alias_field = driver.wait_for_xpath("//*[@data-testid='alias-text']//input")
     alias_field.send_keys(str(uuid.uuid4()))
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        scroll_parent=True,
     )
 
     # Should no longer see the source
@@ -525,7 +527,8 @@ def test_hr_diagram(
     obj_button.clear()
     obj_button.send_keys(source_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        scroll_parent=True,
     )
 
     # find the name of the newly added source
