@@ -64,7 +64,7 @@ const NewShift = () => {
       },
       name: {
         type: "string",
-        title: "Shift name (i.e. the Night Shift)",
+        title: "Shift name (ie. the Night Shift)",
       },
       start_date: {
         type: "string",
