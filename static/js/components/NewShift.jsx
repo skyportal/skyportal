@@ -62,6 +62,10 @@ const NewShift = () => {
         title: "Group",
         default: groups[0]?.id,
       },
+      name: {
+        type: "string",
+        title: "Shift name (i.e. the Night Shift)",
+      },
       start_date: {
         type: "string",
         format: "date-time",
@@ -74,12 +78,12 @@ const NewShift = () => {
         title: "End Date (Local Time)",
         default: defaultEndDate,
       },
-      name: {
+      description: {
         type: "string",
-        title: "Shift name (i.e. the Night Shift)",
+        title: "Shift's description",
       },
     },
-    required: ["group_id", "start_date", "end_date"],
+    required: ["group_id", "name", "start_date", "end_date"],
   };
 
   return (

@@ -14,6 +14,7 @@ import { Button } from "@material-ui/core";
 import NewShift from "./NewShift";
 
 import * as shiftActions from "../ducks/shift";
+import { addShiftUser, deleteShiftUser } from "../ducks/shifts";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -40,6 +41,14 @@ const useStyles = makeStyles((theme) => ({
     right: 0,
     top: 0,
     opacity: 0,
+  },
+  participateButton: {
+    cursor: "pointer",
+    fontSize: "1em",
+    position: "bottom-right",
+    padding: 0,
+    right: 0,
+    tbottom: 0,
   },
 }));
 
@@ -91,13 +100,26 @@ export function shiftInfo(shift) {
     ...(shift?.end_date ? [`End Date: ${endDate}`] : []),
   ];
 
+  if (shift?.description) {
+    array.push(`Notes: ${shift.description}`);
+  }
+
+  // add shift_group members to array
+  if (shift?.users) {
+    array.push(
+      `Members: ${shift.users
+        .map((user) => user.first_name + user.last_name)
+        .join(", ")}`
+    );
+  }
+
   // eslint-disable-next-line prefer-template
   const result = array.join("\n");
 
   return result;
 }
 
-const ShiftList = ({ shifts, deletePermission }) => {
+const ShiftList = ({ shifts, currentUser, deletePermission }) => {
   const dispatch = useDispatch();
   const deleteShift = (shift) => {
     dispatch(shiftActions.deleteShift(shift.id)).then((result) => {
@@ -119,8 +141,46 @@ const ShiftList = ({ shifts, deletePermission }) => {
               secondary={shiftInfo(shift)}
               classes={textClasses}
             />
+            {!shift.users.map((user) => user.id).includes(currentUser.id) && (
+              <Button
+                id="join_button"
+                classes={{
+                  root: classes.participateButton,
+                }}
+                onClick={() =>
+                  dispatch(
+                    addShiftUser({
+                      userID: currentUser.id,
+                      admin: false,
+                      shift_id: shift.id,
+                      canSave: true,
+                    })
+                  )
+                }
+              >
+                Join
+              </Button>
+            )}
+            {shift.users.map((user) => user.id).includes(currentUser.id) && (
+              <Button
+                id="leave_button"
+                classes={{
+                  root: classes.participateButton,
+                }}
+                onClick={() =>
+                  dispatch(
+                    deleteShiftUser({
+                      userID: currentUser.id,
+                      shift_id: shift.id,
+                    })
+                  )
+                }
+              >
+                Leave
+              </Button>
+            )}
+
             <Button
-              key={shift.id}
               id="delete_button"
               classes={{
                 root: classes.shiftDelete,
@@ -157,7 +217,11 @@ const ShiftPage = () => {
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Shifts</Typography>
-            <ShiftList shifts={shiftList} deletePermission={permission} />
+            <ShiftList
+              shifts={shiftList}
+              currentUser={currentUser}
+              deletePermission={permission}
+            />
           </div>
         </Paper>
       </Grid>
@@ -178,6 +242,10 @@ const ShiftPage = () => {
 ShiftList.propTypes = {
   shifts: PropTypes.arrayOf(PropTypes.any).isRequired,
   deletePermission: PropTypes.bool.isRequired,
+  currentUser: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    permissions: PropTypes.arrayOf(PropTypes.string).isRequired,
+  }).isRequired,
 };
 
 export default ShiftPage;

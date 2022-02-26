@@ -6,6 +6,10 @@ from ...models import (
     DBSession,
     Group,
     Shift,
+    ShiftUser,
+    User,
+    Token,
+    UserNotification,
 )
 
 
@@ -41,7 +45,23 @@ class ShiftHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
         data = self.get_json()
+        try:
+            shift_admin_ids = [int(e) for e in data.get('shift_admins', [])]
+        except ValueError:
+            return self.error(
+                "Invalid shift_admins field; unable to parse all items to int"
+            )
+        shift_admins = (
+            User.query_records_accessible_by(self.current_user)
+            .filter(User.id.in_(shift_admin_ids))
+            .all()
+        )
+        if self.current_user not in shift_admins and not isinstance(
+            self.current_user, Token
+        ):
+            shift_admins.append(self.current_user)
 
         schema = Shift.__schema__()
 
@@ -53,6 +73,9 @@ class ShiftHandler(BaseHandler):
             )
 
         DBSession().add(shift)
+        DBSession().add_all(
+            [ShiftUser(shift=shift, user=user, admin=True) for user in shift_admins]
+        )
         self.verify_and_commit()
 
         self.push_all(action="skyportal/REFRESH_SHIFTS")
@@ -86,7 +109,10 @@ class ShiftHandler(BaseHandler):
                 Shift.query_records_accessible_by(
                     self.current_user,
                     mode="read",
-                    options=[joinedload(Shift.group).joinedload(Group.users)],
+                    options=[
+                        joinedload(Shift.group).joinedload(Group.users),
+                        joinedload(Shift.users),
+                    ],
                 )
                 .filter(Shift.group_id == group_id)
                 .order_by(Shift.start_date.asc())
@@ -97,7 +123,10 @@ class ShiftHandler(BaseHandler):
                 Shift.query_records_accessible_by(
                     self.current_user,
                     mode="read",
-                    options=[joinedload(Shift.group).joinedload(Group.users)],
+                    options=[
+                        joinedload(Shift.group).joinedload(Group.users),
+                        joinedload(Shift.users),
+                    ],
                 )
                 .order_by(Shift.start_date.asc())
                 .all()
@@ -144,4 +173,248 @@ class ShiftHandler(BaseHandler):
 
         self.push_all(action="skyportal/REFRESH_SHIFTS")
 
+        return self.success()
+
+
+class ShiftUserHandler(BaseHandler):
+    @permissions(["Upload data"])
+    def post(self, shift_id, *ignored_args):
+        """
+        ---
+        description: Add a shift user
+        tags:
+          - shifts
+          - users
+        parameters:
+          - in: path
+            name: shift_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userID:
+                    type: integer
+                  admin:
+                    type: boolean
+                  canSave:
+                    type: boolean
+                    description: Boolean indicating whether user can save sources to shift. Defaults to true.
+                required:
+                  - userID
+                  - admin
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            shift_id:
+                              type: integer
+                              description: Group ID
+                            user_id:
+                              type: integer
+                              description: User ID
+                            admin:
+                              type: boolean
+                              description: Boolean indicating whether user is shift admin
+        """
+
+        data = self.get_json()
+
+        user_id = data.get("userID", None)
+        if user_id is None:
+            return self.error("userID parameter must be specified")
+        try:
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            return self.error("Invalid userID parameter: unable to parse to integer")
+
+        admin = data.get("admin", False)
+        if not isinstance(admin, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `admin`"
+            )
+        can_save = data.get("canSave", True)
+        if not isinstance(can_save, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `canSave`"
+            )
+        shift_id = int(shift_id)
+        # CHANGE TO SHIFT NOT GROUP
+        shift = Shift.get_if_accessible_by(
+            shift_id, self.current_user, raise_if_none=True, mode='read'
+        )
+        user = User.get_if_accessible_by(
+            user_id, self.current_user, raise_if_none=True, mode='read'
+        )
+
+        # Add user to group
+        su = (
+            ShiftUser.query.filter(ShiftUser.shift_id == shift_id)
+            .filter(ShiftUser.user_id == user_id)
+            .first()
+        )
+        if su is not None:
+            return self.error(
+                f"User {user_id} is already a member of shift {shift_id}."
+            )
+
+        DBSession().add(
+            ShiftUser(
+                shift_id=shift_id, user_id=user_id, admin=admin, can_save=can_save
+            )
+        )
+        DBSession().add(
+            UserNotification(
+                user=user,
+                text=f"You've been added to shift *{shift.name}*",
+                url=f"/shift/{shift.id}",
+            )
+        )
+        self.verify_and_commit()
+        self.flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS", {})
+
+        self.push_all(action='skyportal/REFRESH_SHIFTS', payload={'shift_id': shift_id})
+        return self.success(
+            data={'shift_id': shift_id, 'user_id': user_id, 'admin': admin}
+        )
+
+    @permissions(["Upload data"])
+    def patch(self, shift_id, *ignored_args):
+        """
+        ---
+        description: Update a shift user's admin or save access status
+        tags:
+          - shifts
+          - users
+        parameters:
+          - in: path
+            name: shift_id
+            required: true
+            schema:
+              type: integer
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userID:
+                    type: integer
+                  admin:
+                    type: boolean
+                    description: |
+                      Boolean indicating whether user is shift admin. Either this
+                      or `canSave` must be provided in request body.
+                  canSave:
+                    type: boolean
+                    description: |
+                      Boolean indicating whether user can save sources to shift. Either
+                      this or `admin` must be provided in request body.
+                required:
+                  - userID
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        data = self.get_json()
+        try:
+            shift_id = int(shift_id)
+        except ValueError:
+            return self.error("Invalid shift ID")
+
+        user_id = data.get("userID")
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return self.error("Invalid userID parameter")
+
+        shiftuser = (
+            ShiftUser.query_records_accessible_by(self.current_user, mode='update')
+            .filter(ShiftUser.shift_id == shift_id)
+            .filter(ShiftUser.user_id == user_id)
+            .first()
+        )
+
+        if shiftuser is None:
+            return self.error(f"User {user_id} is not a member of shift {shift_id}.")
+
+        if data.get("admin") is None and data.get("canSave") is None:
+            return self.error(
+                "Missing required parameter: at least one of `admin` or `canSave`"
+            )
+        admin = data.get("admin", shiftuser.admin)
+        if not isinstance(admin, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `admin`"
+            )
+        can_save = data.get("canSave", shiftuser.can_save)
+        if not isinstance(can_save, bool):
+            return self.error(
+                "Invalid (non-boolean) value provided for parameter `canSave`"
+            )
+        shiftuser.admin = admin
+        shiftuser.can_save = can_save
+        self.verify_and_commit()
+        return self.success()
+
+    @auth_or_token
+    def delete(self, shift_id, user_id):
+        """
+        ---
+        description: Delete a shift user
+        tags:
+          - shifts
+          - users
+        parameters:
+          - in: path
+            name: shift_id
+            required: true
+            schema:
+              type: integer
+          - in: path
+            name: user_id
+            required: true
+            schema:
+              type: integer
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        try:
+            user_id = int(user_id)
+        except ValueError:
+            return self.error("Invalid user_id; unable to parse to integer")
+
+        su = (
+            ShiftUser.query_records_accessible_by(self.current_user, mode='delete')
+            .filter(ShiftUser.shift_id == shift_id)
+            .filter(ShiftUser.user_id == user_id)
+            .first()
+        )
+
+        if su is None:
+            raise AccessError("ShiftUser does not exist.")
+
+        DBSession().delete(su)
+        self.verify_and_commit()
+        self.push_all(
+            action='skyportal/REFRESH_SHIFTS', payload={'shift_id': int(shift_id)}
+        )
         return self.success()

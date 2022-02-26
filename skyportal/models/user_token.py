@@ -94,6 +94,13 @@ User.groups = relationship(
     passive_deletes=True,
     doc="The Groups this User is a member of.",
 )
+User.shifts = relationship(
+    'Shift',
+    secondary='shift_users',
+    back_populates='users',
+    passive_deletes=True,
+    doc="The Shifts this User is a member of.",
+)
 User.comments = relationship(
     "Comment",
     back_populates="author",

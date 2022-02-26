@@ -8,8 +8,35 @@ const FETCH_SHIFTS_OK = "skyportal/FETCH_SHIFTS_OK";
 
 const REFRESH_SHIFTS = "skyportal/REFRESH_SHIFTS";
 
+const ADD_SHIFT_USER = "skyportal/ADD_SHIFT_USER";
+
+const UPDATE_SHIFT_USER = "skyportal/UPDATE_SHIFT_USER";
+
+const DELETE_SHIFT_USER = "skyportal/DELETE_SHIFT_USER";
+
 // eslint-disable-next-line import/prefer-default-export
 export const fetchShifts = () => API.GET("/api/shift", FETCH_SHIFTS);
+
+export function addShiftUser({ userID, admin, shift_id, canSave }) {
+  return API.POST(`/api/shifts/${shift_id}/users`, ADD_SHIFT_USER, {
+    userID,
+    admin,
+    shift_id,
+    canSave,
+  });
+}
+
+export const updateShiftUser = (shiftID, params) =>
+  API.PATCH(`/api/shifts/${shiftID}/users`, UPDATE_SHIFT_USER, params);
+
+export function deleteShiftUser({ userID, shift_id }) {
+  console.log(userID, shift_id);
+  return API.DELETE(
+    `/api/shifts/${shift_id}/users/${userID}`,
+    DELETE_SHIFT_USER,
+    { userID, shift_id }
+  );
+}
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch) => {

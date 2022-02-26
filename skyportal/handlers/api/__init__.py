@@ -45,7 +45,10 @@ from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
 from .sharing import SharingHandler
-from .shift import ShiftHandler
+from .shift import (
+    ShiftHandler,
+    ShiftUserHandler,
+)
 from .source import (
     SourceHandler,
     SourceOffsetsHandler,
