@@ -53,28 +53,32 @@ def add_observations(instrument_id, obstable):
         observations = []
         for index, row in obstable.iterrows():
             field_id = int(row["field_id"])
-            field = (
-                session.query(InstrumentField)
-                .filter_by(instrument_id=instrument_id, field_id=field_id)
-                .first()
-            )
+            field = session.execute(
+                sa.select(InstrumentField).where(
+                    InstrumentField.instrument_id == instrument_id,
+                    InstrumentField.field_id == field_id,
+                )
+            ).first()
             if field is None:
                 return log(
                     f"Unable to add observations for instrument {instrument_id}: Missing field {field_id}"
                 )
+            else:
+                (field,) = field
 
-            observation = (
-                session.query(ExecutedObservation)
-                .filter_by(
-                    instrument_id=instrument_id, observation_id=row["observation_id"]
+            observation = session.execute(
+                sa.select(ExecutedObservation).where(
+                    ExecutedObservation.instrument_id == instrument_id,
+                    ExecutedObservation.observation_id == row["observation_id"],
                 )
-                .first()
-            )
+            ).first()
             if observation is not None:
                 log(
                     f"Observation {row['observation_id']} for instrument {instrument_id} already exists... continuing."
                 )
                 continue
+            else:
+                (observation,) = observation
 
             observations.append(
                 ExecutedObservation(

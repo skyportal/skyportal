@@ -106,6 +106,8 @@ class WeatherHandler(BaseHandler):
         if weather is None:
             weather = Weather(telescope=telescope)
             DBSession().add(weather)
+        else:
+            (weather,) = weather
 
         # Should we call the API again?
         refresh = weather_refresh is not None

@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 from baselayer.app.access import permissions
 
 from ..base import BaseHandler
@@ -70,47 +71,86 @@ class StatsHandler(BaseHandler):
                                 the newest row in the candidates table.
         """
         data = {}
-        data["Number of candidates"] = Candidate.query.count()
-        data["Number of sources"] = Source.query.count()
-        data["Number of objs"] = Obj.query.count()
+        data["Number of candidates"] = DBSession().scalar(
+            sa.select(sa.func.count()).select_from(Candidate)
+        )
+        data["Number of sources"] = DBSession().scalar(
+            sa.select(sa.func.count()).select_from(Source)
+        )
+        data["Number of objs"] = DBSession().scalar(
+            sa.select(sa.func.count()).select_from(Obj)
+        )
         data["Number of photometry (approx)"] = list(
             DBSession().execute(
                 "SELECT reltuples::bigint FROM pg_catalog.pg_class WHERE relname = 'photometry'"
             )
         )[0][0]
-        data["Number of spectra"] = Spectrum.query.count()
-        data["Number of groups"] = Group.query.count()
-        data["Number of users"] = User.query.count()
-        data["Number of tokens"] = Token.query.count()
-        cand = Candidate.query.order_by(Candidate.created_at).first()
+        data["Number of spectra"] = DBSession().scalar(
+            sa.select(sa.func.count()).select_from(Spectrum)
+        )
+        data["Number of groups"] = DBSession().scalar(
+            sa.select(sa.func.count()).select_from(Group)
+        )
+        data["Number of users"] = DBSession().scalar(
+            sa.select(sa.func.count()).select_from(User)
+        )
+        data["Number of tokens"] = DBSession().scalar(
+            sa.select(sa.func.count()).select_from(Token)
+        )
+        cand = (
+            DBSession()
+            .execute(sa.select(Candidate).order_by(Candidate.created_at))
+            .first()
+        )
+        if cand is not None:
+            (cand,) = cand
         data["Oldest candidate creation datetime"] = (
             cand.created_at if cand is not None else None
         )
-        cand = Candidate.query.order_by(Candidate.created_at.desc()).first()
+        cand = (
+            DBSession()
+            .execute(sa.select(Candidate).order_by(Candidate.created_at.desc()))
+            .first()
+        )
+        if cand is not None:
+            (cand,) = cand
         data["Newest candidate creation datetime"] = (
             cand.created_at if cand is not None else None
         )
         cand = (
             DBSession()
-            .query(Candidate)
-            .filter(Candidate.obj_id.notin_(DBSession.query(Source.obj_id)))
-            .order_by(Candidate.created_at)
+            .execute(
+                sa.select(Candidate)
+                .where(Candidate.obj_id.notin_(sa.select(Source.obj_id).subquery()))
+                .order_by(Candidate.created_at)
+            )
             .first()
         )
+        if cand is not None:
+            (cand,) = cand
+
         data["Oldest unsaved candidate creation datetime"] = (
             cand.created_at if cand is not None else None
         )
         data["Latest cron job run times & statuses"] = []
-        cron_job_scripts = DBSession().query(CronJobRun.script).distinct().all()
-        for script in cron_job_scripts:
+        cron_job_scripts = (
+            DBSession().execute(sa.select(CronJobRun.script).distinct()).all()
+        )
+        for (script,) in cron_job_scripts:
             cron_job_run = (
-                CronJobRun.query.filter(CronJobRun.script == script[0])
-                .order_by(CronJobRun.created_at.desc())
+                DBSession()
+                .execute(
+                    sa.select(CronJobRun)
+                    .where(CronJobRun.script == script)
+                    .order_by(CronJobRun.created_at.desc())
+                )
                 .first()
             )
+            if cron_job_run is not None:
+                (cron_job_run,) = cron_job_run
             data["Latest cron job run times & statuses"].append(
                 {
-                    "summary": f"{script[0]} ran at {cron_job_run.created_at} with exit status {cron_job_run.exit_status}",
+                    "summary": f"{script} ran at {cron_job_run.created_at} with exit status {cron_job_run.exit_status}",
                     "output": cron_job_run.output,
                 }
             )
