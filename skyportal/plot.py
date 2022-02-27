@@ -494,6 +494,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     telescope_subquery = Telescope.query_records_accessible_by(user).subquery()
     instrument_subquery = Instrument.query_records_accessible_by(user).subquery()
+
     data = pd.read_sql(
         Photometry.query_records_accessible_by(user)
         .add_columns(
@@ -505,8 +506,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             telescope_subquery,
             telescope_subquery.c.id == instrument_subquery.c.telescope_id,
         )
-        .filter(Photometry.obj_id == obj_id)
-        .statement,
+        .where(Photometry.obj_id == obj_id),
         DBSession().bind,
     )
 
@@ -514,11 +514,14 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         return None, None, None
 
     # get spectra to annotate on phot plots
-    spectra = (
-        Spectrum.query_records_accessible_by(user)
-        .filter(Spectrum.obj_id == obj_id)
+    spectra = [
+        s
+        for s, in DBSession()
+        .execute(
+            Spectrum.query_records_accessible_by(user).where(Spectrum.obj_id == obj_id)
+        )
         .all()
-    )
+    ]
 
     data['effwave'] = [get_effective_wavelength(f) for f in data['filter']]
     data['color'] = [get_color(w) for w in data['effwave']]
@@ -1105,13 +1108,17 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     # get periods from annotations
     annotation_list = (
-        Annotation.query_records_accessible_by(user)
-        .filter(Annotation.obj_id == obj.id)
+        DBSession()
+        .execute(
+            Annotation.query_records_accessible_by(user).where(
+                Annotation.obj_id == obj.id
+            )
+        )
         .all()
     )
     period_labels = []
     period_list = []
-    for an in annotation_list:
+    for (an,) in annotation_list:
         if 'period' in an.data:
             period_list.append(an.data['period'])
             period_labels.append(an.origin + ": %.9f" % an.data['period'])
@@ -1434,11 +1441,14 @@ def spectroscopy_plot(
     """
 
     obj = Obj.get_if_accessible_by(obj_id, user)
-    spectra = (
-        Spectrum.query_records_accessible_by(user)
-        .filter(Spectrum.obj_id == obj_id)
+    spectra = [
+        s
+        for s, in DBSession()
+        .execute(
+            Spectrum.query_records_accessible_by(user).where(Spectrum.obj_id == obj_id)
+        )
         .all()
-    )
+    ]
 
     # Accept a string with a single spectrum ID
     # or a comma separated list of IDs.
@@ -1537,12 +1547,16 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         normfac = normfac if normfac != 0.0 else 1e-20
         altdata = json.dumps(s.altdata) if s.altdata is not None else ""
         annotations = (
-            AnnotationOnSpectrum.query_records_accessible_by(user)
-            .filter(AnnotationOnSpectrum.spectrum_id == s.id)
+            DBSession()
+            .execute(
+                AnnotationOnSpectrum.query_records_accessible_by(user).where(
+                    AnnotationOnSpectrum.spectrum_id == s.id
+                )
+            )
             .all()
         )
         annotations = (
-            json.dumps([{a.origin: a.data} for a in annotations])
+            json.dumps([{a.origin: a.data} for a, in annotations])
             if len(annotations)
             else ""
         )

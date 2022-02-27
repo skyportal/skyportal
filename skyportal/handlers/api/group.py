@@ -176,8 +176,12 @@ class GroupHandler(BaseHandler):
         group_name = self.get_query_argument("name", None)
         if group_name is not None:
             groups = (
-                Group.query_records_accessible_by(self.current_user)
-                .filter(Group.name == group_name)
+                DBSession()
+                .execute(
+                    Group.query_records_accessible_by(self.current_user).filter(
+                        Group.name == group_name
+                    )
+                )
                 .all()
             )
             # Ensure access
@@ -197,11 +201,13 @@ class GroupHandler(BaseHandler):
         )
         all_groups_query = Group.query_records_accessible_by(self.current_user)
         if not include_single_user_groups:
-            all_groups_query = all_groups_query.filter(
+            all_groups_query = all_groups_query.where(
                 Group.single_user_group.is_(False)
             )
+
         info["all_groups"] = sorted(
-            all_groups_query.all(), key=lambda g: g.name.lower()
+            [g for g, in DBSession().execute(all_groups_query).all()],
+            key=lambda g: g.name.lower(),
         )
         self.verify_and_commit()
 
@@ -257,11 +263,18 @@ class GroupHandler(BaseHandler):
             return self.error(
                 "Invalid group_admins field; unable to parse all items to int"
             )
-        group_admins = (
-            User.query_records_accessible_by(self.current_user)
-            .filter(User.id.in_(group_admin_ids))
-            .all()
-        )
+        group_admins = [
+            u
+            for u, in (
+                DBSession()
+                .execute(
+                    User.query_records_accessible_by(self.current_user).where(
+                        User.id.in_(group_admin_ids)
+                    )
+                )
+                .all()
+            )
+        ]
         if self.current_user not in group_admins and not isinstance(
             self.current_user, Token
         ):

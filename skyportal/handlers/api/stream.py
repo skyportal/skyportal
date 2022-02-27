@@ -229,9 +229,12 @@ class StreamUserHandler(BaseHandler):
 
         stream_id = int(stream_id)
         su = (
-            StreamUser.query_records_accessible_by(self.current_user)
-            .filter(StreamUser.stream_id == stream_id)
-            .filter(StreamUser.user_id == user_id)
+            DBSession()
+            .execute(
+                StreamUser.query_records_accessible_by(self.current_user)
+                .where(StreamUser.stream_id == stream_id)
+                .where(StreamUser.user_id == user_id)
+            )
             .first()
         )
         if su is None:

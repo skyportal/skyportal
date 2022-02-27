@@ -2,7 +2,7 @@ import io
 from pathlib import Path
 from astropy.time import Time
 import numpy as np
-
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 
 from marshmallow.exceptions import ValidationError
@@ -619,24 +619,34 @@ class ObjSpectraHandler(BaseHandler):
             return self.error('Invalid object ID.')
 
         spectra = (
-            Spectrum.query_records_accessible_by(self.current_user)
-            .filter(Spectrum.obj_id == obj_id)
+            DBSession()
+            .execute(
+                Spectrum.query_records_accessible_by(self.current_user).where(
+                    Spectrum.obj_id == obj_id
+                )
+            )
             .all()
         )
 
         return_values = []
-        for spec in spectra:
+        for (spec,) in spectra:
             spec_dict = recursive_to_dict(spec)
             comments = (
-                CommentOnSpectrum.query_records_accessible_by(
-                    self.current_user,
+                DBSession()
+                .execute(
+                    CommentOnSpectrum.query_records_accessible_by(
+                        self.current_user,
+                    ).where(CommentOnSpectrum.spectrum_id == spec.id)
                 )
-                .filter(CommentOnSpectrum.spectrum_id == spec.id)
                 .all()
             )
             annotations = (
-                AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
-                .filter(AnnotationOnSpectrum.spectrum_id == spec.id)
+                DBSession()
+                .execute(
+                    AnnotationOnSpectrum.query_records_accessible_by(
+                        self.current_user
+                    ).where(AnnotationOnSpectrum.spectrum_id == spec.id)
+                )
                 .all()
             )
 
@@ -653,13 +663,13 @@ class ObjSpectraHandler(BaseHandler):
                             "gravatar_url": c.author.gravatar_url,
                         },
                     }
-                    for c in comments
+                    for c, in comments
                 ],
                 key=lambda x: x["created_at"],
                 reverse=True,
             )
             annotations = [
-                {**a.to_dict(), 'author': a.author.to_dict()} for a in annotations
+                {**a.to_dict(), 'author': a.author.to_dict()} for a, in annotations
             ]
             spec_dict["annotations"] = annotations
             spec_dict["instrument_name"] = spec.instrument.name
@@ -668,16 +678,22 @@ class ObjSpectraHandler(BaseHandler):
             spec_dict["observers"] = spec.observers
             external_reducer = (
                 DBSession()
-                .query(SpectrumReducer.external_reducer)
-                .filter(SpectrumReducer.spectr_id == spec.id)
+                .execute(
+                    sa.select(SpectrumReducer.external_reducer).where(
+                        SpectrumReducer.spectr_id == spec.id
+                    )
+                )
                 .first()
             )
             if external_reducer is not None:
                 spec_dict["external_reducer"] = external_reducer[0]
             external_observer = (
                 DBSession()
-                .query(SpectrumObserver.external_observer)
-                .filter(SpectrumObserver.spectr_id == spec.id)
+                .execute(
+                    sa.select(SpectrumObserver.external_observer).where(
+                        SpectrumObserver.spectr_id == spec.id
+                    )
+                )
                 .first()
             )
             if external_observer is not None:

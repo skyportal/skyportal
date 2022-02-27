@@ -125,12 +125,12 @@ class GcnEventHandler(BaseHandler):
 
         try:
             localization = (
-                Localization.query_records_accessible_by(
-                    self.current_user,
-                )
-                .filter_by(
-                    dateobs=dateobs,
-                    localization_name=skymap["localization_name"],
+                DBSession()
+                .execute(
+                    Localization.query_records_accessible_by(self.current_user,).where(
+                        Localization.dateobs == dateobs,
+                        Localization.localization_name == skymap["localization_name"],
+                    )
                 )
                 .one()
             )
@@ -165,27 +165,30 @@ class GcnEventHandler(BaseHandler):
         """
         if dateobs is not None:
             event = (
-                GcnEvent.query_records_accessible_by(
-                    self.current_user,
-                    options=[
-                        joinedload(GcnEvent.localizations),
-                        joinedload(GcnEvent.gcn_notices),
-                        joinedload(GcnEvent.observationplan_requests)
-                        .joinedload(ObservationPlanRequest.allocation)
-                        .joinedload(Allocation.instrument),
-                        joinedload(GcnEvent.observationplan_requests)
-                        .joinedload(ObservationPlanRequest.allocation)
-                        .joinedload(Allocation.group),
-                        joinedload(GcnEvent.observationplan_requests).joinedload(
-                            ObservationPlanRequest.requester
-                        ),
-                    ],
+                DBSession()
+                .execute(
+                    GcnEvent.query_records_accessible_by(
+                        self.current_user,
+                        options=[
+                            joinedload(GcnEvent.localizations),
+                            joinedload(GcnEvent.gcn_notices),
+                            joinedload(GcnEvent.observationplan_requests)
+                            .joinedload(ObservationPlanRequest.allocation)
+                            .joinedload(Allocation.instrument),
+                            joinedload(GcnEvent.observationplan_requests)
+                            .joinedload(ObservationPlanRequest.allocation)
+                            .joinedload(Allocation.group),
+                            joinedload(GcnEvent.observationplan_requests).joinedload(
+                                ObservationPlanRequest.requester
+                            ),
+                        ],
+                    ).where(GcnEvent.dateobs == dateobs)
                 )
-                .filter_by(dateobs=dateobs)
                 .first()
             )
             if event is None:
                 return self.error("GCN event not found", status=404)
+            (event,) = event
 
             data = {
                 **event.to_dict(),
@@ -195,17 +198,23 @@ class GcnEventHandler(BaseHandler):
 
             return self.success(data=data)
 
-        q = GcnEvent.query_records_accessible_by(
-            self.current_user,
-            options=[
-                joinedload(GcnEvent.localizations),
-                joinedload(GcnEvent.gcn_notices),
-                joinedload(GcnEvent.observationplan_requests),
-            ],
+        q = (
+            DBSession()
+            .execute(
+                GcnEvent.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(GcnEvent.localizations),
+                        joinedload(GcnEvent.gcn_notices),
+                        joinedload(GcnEvent.observationplan_requests),
+                    ],
+                )
+            )
+            .unique()
         )
 
         events = []
-        for event in q.all():
+        for (event,) in q.all():
             events.append({**event.to_dict(), "tags": event.tags})
 
         return self.success(data=events)
@@ -318,15 +327,19 @@ class LocalizationHandler(BaseHandler):
                 schema: Error
         """
         localization = (
-            Localization.query_records_accessible_by(self.current_user)
-            .filter(
-                Localization.dateobs == dateobs,
-                Localization.localization_name == localization_name,
+            DBSession()
+            .execute(
+                Localization.query_records_accessible_by(self.current_user).where(
+                    Localization.dateobs == dateobs,
+                    Localization.localization_name == localization_name,
+                )
             )
             .first()
         )
         if localization is None:
             return self.error("Localization not found", status=404)
+        else:
+            (localization,) = localization
 
         data = {
             **localization.to_dict(),

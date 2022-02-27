@@ -1,4 +1,4 @@
-from ....models import Instrument
+from ....models import DBSession, Instrument
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
 
@@ -10,22 +10,30 @@ class RoboticInstrumentsHandler(BaseHandler):
         if apitype is not None:
             if apitype == "api_classname":
                 instruments = (
-                    Instrument.query_records_accessible_by(self.current_user)
-                    .filter(Instrument.api_classname.isnot(None))
+                    DBSession()
+                    .execute(
+                        Instrument.query_records_accessible_by(self.current_user).where(
+                            Instrument.api_classname.isnot(None)
+                        )
+                    )
                     .all()
                 )
                 retval = {
-                    i.id: i.api_class.frontend_render_info(i) for i in instruments
+                    i.id: i.api_class.frontend_render_info(i) for i, in instruments
                 }
             elif apitype == "api_classname_obsplan":
                 instruments = (
-                    Instrument.query_records_accessible_by(self.current_user)
-                    .filter(Instrument.api_classname_obsplan.isnot(None))
+                    DBSession()
+                    .execute(
+                        Instrument.query_records_accessible_by(self.current_user).where(
+                            Instrument.api_classname_obsplan.isnot(None)
+                        )
+                    )
                     .all()
                 )
                 retval = {
                     i.id: i.api_class_obsplan.frontend_render_info(i)
-                    for i in instruments
+                    for i, in instruments
                 }
             else:
                 return self.error(

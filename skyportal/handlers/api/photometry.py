@@ -1065,24 +1065,34 @@ class ObjPhotometryHandler(BaseHandler):
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
 
         Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
-        photometry = Photometry.query_records_accessible_by(self.current_user).filter(
-            Photometry.obj_id == obj_id
+        photometry = (
+            DBSession()
+            .execute(
+                Photometry.query_records_accessible_by(self.current_user).where(
+                    Photometry.obj_id == obj_id
+                )
+            )
+            .all()
         )
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
 
         self.verify_and_commit()
-        data = [serialize(phot, outsys, format) for phot in photometry]
+        data = [serialize(phot, outsys, format) for phot, in photometry]
 
         if phase_fold_data:
             period, modified = None, arrow.Arrow(1, 1, 1)
             annotations = (
-                Annotation.query_records_accessible_by(self.current_user)
-                .filter(Annotation.obj_id == obj_id)
+                DBSession()
+                .execute(
+                    Annotation.query_records_accessible_by(self.current_user).where(
+                        Annotation.obj_id == obj_id
+                    )
+                )
                 .all()
             )
             period_str_options = ['period', 'Period', 'PERIOD']
-            for an in annotations:
+            for (an,) in annotations:
                 if not isinstance(an.data, dict):
                     continue
                 for period_str in period_str_options:

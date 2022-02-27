@@ -59,15 +59,17 @@ class UserObjListHandler(BaseHandler):
 
         list_name = self.get_query_argument("listName", None)
 
-        query = Listing.query_records_accessible_by(self.current_user).filter(
+        query = Listing.query_records_accessible_by(self.current_user).where(
             Listing.user_id == user_id
         )
 
         if list_name is not None:
-            query = query.filter(Listing.list_name == list_name)
+            query = query.where(Listing.list_name == list_name)
 
         self.verify_and_commit()
-        return self.success(data=query.all())
+        data = DBSession().execute(query).all()
+
+        return self.success(data=data)
 
     @auth_or_token
     def post(self):
@@ -142,10 +144,12 @@ class UserObjListHandler(BaseHandler):
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
 
-        query = Listing.query_records_accessible_by(self.current_user).filter(
-            Listing.user_id == int(user_id),
-            Listing.obj_id == obj_id,
-            Listing.list_name == list_name,
+        query = DBSession().execute(
+            Listing.query_records_accessible_by(self.current_user).filter(
+                Listing.user_id == int(user_id),
+                Listing.obj_id == obj_id,
+                Listing.list_name == list_name,
+            )
         )
 
         # what to do if listing already exists...

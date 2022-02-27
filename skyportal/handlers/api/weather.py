@@ -1,4 +1,5 @@
 import datetime
+import sqlalchemy as sa
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -68,9 +69,13 @@ class WeatherHandler(BaseHandler):
                               type: string
                               description: Weather fetching error message
         """
-        user = (
-            User.query_records_accessible_by(self.current_user)
-            .filter(User.username == self.associated_user_object.username)
+        (user,) = (
+            DBSession()
+            .execute(
+                User.query_records_accessible_by(self.current_user).where(
+                    User.username == self.associated_user_object.username
+                )
+            )
             .first()
         )
         user_prefs = getattr(user, 'preferences', None) or {}
@@ -93,7 +98,11 @@ class WeatherHandler(BaseHandler):
             return self.error(
                 f"Could not load telescope with ID {weather_prefs['telescopeID']}"
             )
-        weather = Weather.query.filter(Weather.telescope_id == telescope_id).first()
+        weather = (
+            DBSession()
+            .execute(sa.select(Weather).where(Weather.telescope_id == telescope_id))
+            .first()
+        )
         if weather is None:
             weather = Weather(telescope=telescope)
             DBSession().add(weather)

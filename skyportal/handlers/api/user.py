@@ -2,6 +2,7 @@ import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
 from validate_email import validate_email
 import arrow
+import sqlalchemy as sa
 
 from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
@@ -57,10 +58,13 @@ def add_user_and_setup_groups(
                 DBSession().add(StreamUser(user_id=user.id, stream_id=stream.id))
 
     # Add user to sitewide public group
-    public_group = Group.query.filter(
-        Group.name == cfg["misc"]["public_group_name"]
-    ).first()
+    public_group = (
+        DBSession()
+        .execute(sa.select(Group).where(Group.name == cfg["misc"]["public_group_name"]))
+        .first()
+    )
     if public_group is not None:
+        (public_group,) = public_group
         DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
     return user.id
 

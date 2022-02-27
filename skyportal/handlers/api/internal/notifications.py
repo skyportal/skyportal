@@ -14,12 +14,12 @@ class NotificationHandler(BaseHandler):
             return self.success(data=notification)
         notifications = (
             UserNotification.query_records_accessible_by(self.current_user)
-            .filter(UserNotification.user_id == self.associated_user_object.id)
+            .where(UserNotification.user_id == self.associated_user_object.id)
             .order_by(UserNotification.created_at.desc())
-            .all()
         )
         self.verify_and_commit()
-        return self.success(data=notifications)
+        data = DBSession().execute(notifications).all()
+        return self.success(data=data)
 
     @auth_or_token
     def patch(self, notification_id):

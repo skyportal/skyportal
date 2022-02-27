@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from collections import defaultdict
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
-from ....models import Obj, Source
+from ....models import DBSession, Obj, Source
 from .source_views import t_index
 
 
@@ -18,14 +18,20 @@ class RecentSourcesHandler(BaseHandler):
         recent_sources_prefs = {**default_prefs, **recent_sources_prefs}
 
         max_num_sources = int(recent_sources_prefs['maxNumSources'])
-        query_results = (
-            Source.query_records_accessible_by(current_user)
-            .filter(Source.active.is_(True))
-            .order_by(desc(Source.created_at))
-            .distinct(Source.obj_id, Source.created_at)
-            .limit(max_num_sources)
-            .all()
-        )
+        query_results = [
+            s
+            for s, in (
+                DBSession()
+                .execute(
+                    Source.query_records_accessible_by(current_user)
+                    .filter(Source.active.is_(True))
+                    .order_by(desc(Source.created_at))
+                    .distinct(Source.obj_id, Source.created_at)
+                    .limit(max_num_sources)
+                )
+                .all()
+            )
+        ]
         ids = map(lambda src: src.obj_id, query_results)
         return ids
 
@@ -51,11 +57,14 @@ class RecentSourcesHandler(BaseHandler):
             )
 
             # Get the entry in the Source table to get the accurate saved_at time
-            source_entry = (
-                Source.query_records_accessible_by(self.current_user)
-                .filter(Source.obj_id == obj_id)
-                .order_by(desc(Source.created_at))
-                .offset(recency_index)
+            (source_entry,) = (
+                DBSession()
+                .execute(
+                    Source.query_records_accessible_by(self.current_user)
+                    .filter(Source.obj_id == obj_id)
+                    .order_by(desc(Source.created_at))
+                    .offset(recency_index)
+                )
                 .first()
             )
 

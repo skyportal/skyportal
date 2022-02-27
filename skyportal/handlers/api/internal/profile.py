@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 from ...base import BaseHandler
-from ....models import User
+from ....models import DBSession, User
 
 
 class ProfileHandler(BaseHandler):
@@ -71,9 +71,13 @@ class ProfileHandler(BaseHandler):
                             preferences:
                               type: object
         """
-        user = (
-            User.query_records_accessible_by(self.current_user)
-            .filter(User.username == self.associated_user_object.username)
+        (user,) = (
+            DBSession()
+            .execute(
+                User.query_records_accessible_by(self.current_user).where(
+                    User.username == self.associated_user_object.username
+                )
+            )
             .first()
         )
         user_roles = sorted([role.id for role in user.roles])

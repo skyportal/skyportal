@@ -2,7 +2,7 @@ import datetime
 from sqlalchemy import func
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
-from ....models import Source
+from ....models import DBSession, Source
 
 default_prefs = {'sinceDaysAgo': 7}
 
@@ -20,9 +20,11 @@ class SourceCountHandler(BaseHandler):
             datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
         ).isoformat()
 
-        q = Source.query_records_accessible_by(
-            self.current_user, columns=[func.count(Source.obj_id).label('count')]
-        ).filter(Source.created_at >= cutoff_day)
+        q = DBSession().execute(
+            Source.query_records_accessible_by(
+                self.current_user, columns=[func.count(Source.obj_id).label('count')]
+            ).where(Source.created_at >= cutoff_day)
+        )
         result = q.first()[0]
         data = {"count": result, "sinceDaysAgo": since_days_ago}
         self.verify_and_commit()

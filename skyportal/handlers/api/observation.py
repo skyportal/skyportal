@@ -355,17 +355,21 @@ class ObservationHandler(BaseHandler):
                     return self.error("Localization not found", status=404)
             else:
                 event = (
-                    GcnEvent.query_records_accessible_by(
-                        self.current_user,
-                        options=[
-                            joinedload(GcnEvent.localizations),
-                        ],
+                    DBSession()
+                    .execute(
+                        GcnEvent.query_records_accessible_by(
+                            self.current_user,
+                            options=[
+                                joinedload(GcnEvent.localizations),
+                            ],
+                        ).where(GcnEvent.dateobs == localization_dateobs)
                     )
-                    .filter(GcnEvent.dateobs == localization_dateobs)
                     .first()
                 )
                 if event is None:
                     return self.error("GCN event not found", status=404)
+                else:
+                    (event,) = event
                 localization = event.localizations[-1]
 
             cum_prob = (
@@ -463,7 +467,7 @@ class ObservationHandler(BaseHandler):
                 intprob = DBSession().execute(query_prob).scalar_one()
                 intarea = DBSession().execute(query_area).scalar_one()
 
-        observations = obs_query.all()
+        observations = [o for o, in DBSession().execute(obs_query).all()]
 
         if return_statistics:
             data = {

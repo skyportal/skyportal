@@ -82,26 +82,39 @@ class ShiftHandler(BaseHandler):
                 schema: Error
         """
         if group_id is not None:
-            shifts = (
-                Shift.query_records_accessible_by(
-                    self.current_user,
-                    mode="read",
-                    options=[joinedload(Shift.group).joinedload(Group.users)],
+            shifts = [
+                s
+                for s, in (
+                    DBSession()
+                    .execute(
+                        Shift.query_records_accessible_by(
+                            self.current_user,
+                            mode="read",
+                            options=[joinedload(Shift.group).joinedload(Group.users)],
+                        )
+                        .where(Shift.group_id == group_id)
+                        .order_by(Shift.start_date.asc())
+                    )
+                    .unique()
+                    .all()
                 )
-                .filter(Shift.group_id == group_id)
-                .order_by(Shift.start_date.asc())
-                .all()
-            )
+            ]
         else:
-            shifts = (
-                Shift.query_records_accessible_by(
-                    self.current_user,
-                    mode="read",
-                    options=[joinedload(Shift.group).joinedload(Group.users)],
+            shifts = [
+                s
+                for s, in (
+                    DBSession()
+                    .execute(
+                        Shift.query_records_accessible_by(
+                            self.current_user,
+                            mode="read",
+                            options=[joinedload(Shift.group).joinedload(Group.users)],
+                        ).order_by(Shift.start_date.asc())
+                    )
+                    .unique()
+                    .all()
                 )
-                .order_by(Shift.start_date.asc())
-                .all()
-            )
+            ]
         self.verify_and_commit()
         return self.success(data=shifts)
 

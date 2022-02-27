@@ -161,15 +161,22 @@ class GalaxyCatalogHandler(BaseHandler):
 
             if localization_name is not None:
                 localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(Localization.dateobs == localization_dateobs)
-                    .filter(Localization.localization_name == localization_name)
+                    DBSession()
+                    .execute(
+                        Localization.query_records_accessible_by(self.current_user)
+                        .where(Localization.dateobs == localization_dateobs)
+                        .where(Localization.localization_name == localization_name)
+                    )
                     .first()
                 )
             else:
                 localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(Localization.dateobs == localization_dateobs)
+                    DBSession()
+                    .execute(
+                        Localization.query_records_accessible_by(
+                            self.current_user
+                        ).where(Localization.dateobs == localization_dateobs)
+                    )
                     .first()
                 )
             if localization is None:
@@ -182,6 +189,8 @@ class GalaxyCatalogHandler(BaseHandler):
                     return self.error(
                         f"Localization {localization_dateobs} not found", status=404
                     )
+            else:
+                (localization,) = localization
 
             cum_prob = (
                 sa.func.sum(
@@ -191,7 +200,7 @@ class GalaxyCatalogHandler(BaseHandler):
                 .label('cum_prob')
             )
             localizationtile_subquery = (
-                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                sa.select(LocalizationTile.probdensity, cum_prob).where(
                     LocalizationTile.localization_id == localization.id
                 )
             ).subquery()
@@ -219,7 +228,7 @@ class GalaxyCatalogHandler(BaseHandler):
                 Galaxy.id == tiles_subquery.c.id,
             )
 
-        galaxies = query.all()
+        galaxies = [g for g, in DBSession().execute(query).all()]
         query_results = {'sources': galaxies}
 
         if includeGeoJSON:

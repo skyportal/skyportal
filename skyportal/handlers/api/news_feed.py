@@ -2,6 +2,7 @@ from sqlalchemy import desc, or_
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
+    DBSession,
     Source,
     Comment,
     Classification,
@@ -63,7 +64,7 @@ class NewsFeedHandler(BaseHandler):
                 )
             elif model == Comment and not include_bot_comments:
                 query = query.filter(Comment.bot.is_(False))
-            query = (
+            query = DBSession().execute(
                 query.order_by(desc(model.created_at or model.saved_at))
                 .distinct(model.obj_id, model.created_at)
                 .limit(n_items)
@@ -81,7 +82,7 @@ class NewsFeedHandler(BaseHandler):
             sources = fetch_newest(Source)
             source_seen = set()
             # Iterate in reverse so that we arrive at re-saved sources second
-            for s in reversed(sources):
+            for (s,) in reversed(sources):
                 if s.obj_id in source_seen:
                     message = 'Source saved to new group'
                 else:
@@ -135,7 +136,7 @@ class NewsFeedHandler(BaseHandler):
                         "source_id": c.obj_id,
                         "author_info": basic_user_display_info(c.author),
                     }
-                    for c in classifications
+                    for c, in classifications
                 ]
             )
         if preferences.get("newsFeed", {}).get("categories", {}).get("spectra", True):
@@ -150,7 +151,7 @@ class NewsFeedHandler(BaseHandler):
                         "source_id": s.obj_id,
                         "author_info": basic_user_display_info(s.owner),
                     }
-                    for s in spectra
+                    for s, in spectra
                 ]
             )
         if (

@@ -50,12 +50,12 @@ class InstrumentHandler(BaseHandler):
             )
 
         existing_instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-            )
-            .filter(
-                Instrument.name == data.get('name'),
-                Instrument.telescope_id == telescope_id,
+            DBSession()
+            .execute(
+                Instrument.query_records_accessible_by(self.current_user,).where(
+                    Instrument.name == data.get('name'),
+                    Instrument.telescope_id == telescope_id,
+                )
             )
             .first()
         )
@@ -64,7 +64,7 @@ class InstrumentHandler(BaseHandler):
             DBSession().add(instrument)
             DBSession().commit()
         else:
-            instrument = existing_instrument
+            (instrument,) = existing_instrument
 
         if field_data is not None:
             if field_region is None:
@@ -162,8 +162,8 @@ class InstrumentHandler(BaseHandler):
             self.current_user, mode="read", options=options
         )
         if inst_name is not None:
-            query = query.filter(Instrument.name == inst_name)
-        instruments = query.all()
+            query = query.where(Instrument.name == inst_name)
+        instruments = [i for i, in DBSession().execute(query).unique().all()]
         self.verify_and_commit()
         return self.success(data=instruments)
 

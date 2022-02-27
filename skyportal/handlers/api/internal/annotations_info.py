@@ -2,7 +2,7 @@ from collections import defaultdict
 from sqlalchemy import func, literal
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
-from ....models import Annotation
+from ....models import DBSession, Annotation
 
 
 class AnnotationsInfoHandler(BaseHandler):
@@ -36,7 +36,7 @@ class AnnotationsInfoHandler(BaseHandler):
 
         # Objs are read-public, so no need to check that annotations belong to an unreadable obj
         # Instead, just check for annotation group membership
-        q = (
+        q = DBSession().execute(
             Annotation.query_records_accessible_by(
                 self.current_user, columns=[Annotation.origin]
             )

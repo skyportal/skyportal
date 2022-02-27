@@ -156,13 +156,13 @@ class ObservingRunHandler(BaseHandler):
             self.verify_and_commit()
             return self.success(data=data)
 
-        runs = (
-            ObservingRun.query_records_accessible_by(self.current_user, mode="read")
-            .order_by(ObservingRun.calendar_date.asc())
-            .all()
-        )
+        runs = DBSession.execute(
+            ObservingRun.query_records_accessible_by(
+                self.current_user, mode="read"
+            ).order_by(ObservingRun.calendar_date.asc())
+        ).all()
         runs_list = []
-        for run in runs:
+        for (run,) in runs:
             runs_list.append(run.to_dict())
             runs_list[-1]["run_end_utc"] = run.instrument.telescope.next_sunrise(
                 run.calendar_noon

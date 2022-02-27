@@ -1154,7 +1154,7 @@ def grab_query_results(
     # from. This is because subqueries provide a set of results to query from,
     # losing any order_by information.
     row = func.row_number().over(order_by=order_by).label("row_num")
-    full_query = q.add_column(row)
+    full_query = q.add_columns(row)
 
     info = {}
     full_query = full_query.subquery()

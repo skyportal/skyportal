@@ -737,40 +737,48 @@ class SourceHandler(BaseHandler):
                 return self.error("Source not found", status=404)
             source_info = s.to_dict()
             source_info["followup_requests"] = (
-                FollowupRequest.query_records_accessible_by(
-                    self.current_user,
-                    options=[
-                        joinedload(FollowupRequest.allocation).joinedload(
-                            Allocation.instrument
-                        ),
-                        joinedload(FollowupRequest.allocation).joinedload(
-                            Allocation.group
-                        ),
-                        joinedload(FollowupRequest.requester),
-                    ],
+                DBSession()
+                .execute(
+                    FollowupRequest.query_records_accessible_by(
+                        self.current_user,
+                        options=[
+                            joinedload(FollowupRequest.allocation).joinedload(
+                                Allocation.instrument
+                            ),
+                            joinedload(FollowupRequest.allocation).joinedload(
+                                Allocation.group
+                            ),
+                            joinedload(FollowupRequest.requester),
+                        ],
+                    )
+                    .where(FollowupRequest.obj_id == obj_id)
+                    .where(FollowupRequest.status != "deleted")
                 )
-                .filter(FollowupRequest.obj_id == obj_id)
-                .filter(FollowupRequest.status != "deleted")
                 .all()
             )
             source_info["assignments"] = (
-                ClassicalAssignment.query_records_accessible_by(
-                    self.current_user,
-                    options=[
-                        joinedload(ClassicalAssignment.run)
-                        .joinedload(ObservingRun.instrument)
-                        .joinedload(Instrument.telescope)
-                    ],
+                DBSession()
+                .execute(
+                    ClassicalAssignment.query_records_accessible_by(
+                        self.current_user,
+                        options=[
+                            joinedload(ClassicalAssignment.run)
+                            .joinedload(ObservingRun.instrument)
+                            .joinedload(Instrument.telescope)
+                        ],
+                    ).where(ClassicalAssignment.obj_id == obj_id)
                 )
-                .filter(ClassicalAssignment.obj_id == obj_id)
                 .all()
             )
             point = ca.Point(ra=s.ra, dec=s.dec)
             # Check for duplicates (within 4 arcsecs)
             duplicates = (
-                Obj.query_records_accessible_by(self.current_user)
-                .filter(Obj.within(point, 4 / 3600))
-                .filter(Obj.id != s.id)
+                DBSession()
+                .execute(
+                    Obj.query_records_accessible_by(self.current_user)
+                    .where(Obj.within(point, 4 / 3600))
+                    .where(Obj.id != s.id)
+                )
                 .all()
             )
             if len(duplicates) > 0:
@@ -811,14 +819,17 @@ class SourceHandler(BaseHandler):
                     )
             if include_comments:
                 comments = (
-                    Comment.query_records_accessible_by(
-                        self.current_user,
-                        options=[
-                            joinedload(Comment.author),
-                            joinedload(Comment.groups),
-                        ],
+                    DBSession()
+                    .execute(
+                        Comment.query_records_accessible_by(
+                            self.current_user,
+                            options=[
+                                joinedload(Comment.author),
+                                joinedload(Comment.groups),
+                            ],
+                        ).where(Comment.obj_id == obj_id)
                     )
-                    .filter(Comment.obj_id == obj_id)
+                    .unique()
                     .all()
                 )
                 source_info["comments"] = sorted(
@@ -834,42 +845,55 @@ class SourceHandler(BaseHandler):
                                 "gravatar_url": c.author.gravatar_url,
                             },
                         }
-                        for c in comments
+                        for c, in comments
                     ],
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
             if include_period_exists:
                 annotations = (
-                    Annotation.query_records_accessible_by(self.current_user)
-                    .filter(Annotation.obj_id == obj_id)
+                    DBSession()
+                    .execute(
+                        Annotation.query_records_accessible_by(self.current_user).where(
+                            Annotation.obj_id == obj_id
+                        )
+                    )
                     .all()
                 )
                 period_str_options = ['period', 'Period', 'PERIOD']
                 source_info["period_exists"] = any(
                     [
                         isinstance(an.data, dict) and period_str in an.data
-                        for an in annotations
+                        for an, in annotations
                         for period_str in period_str_options
                     ]
                 )
 
             source_info["annotations"] = sorted(
-                Annotation.query_records_accessible_by(
-                    self.current_user, options=[joinedload(Annotation.author)]
-                )
-                .filter(Annotation.obj_id == obj_id)
-                .all(),
+                [
+                    x
+                    for x, in DBSession()
+                    .execute(
+                        Annotation.query_records_accessible_by(
+                            self.current_user, options=[joinedload(Annotation.author)]
+                        ).where(Annotation.obj_id == obj_id)
+                    )
+                    .all()
+                ],
                 key=lambda x: x.origin,
             )
             readable_classifications = (
-                Classification.query_records_accessible_by(self.current_user)
-                .filter(Classification.obj_id == obj_id)
+                DBSession()
+                .execute(
+                    Classification.query_records_accessible_by(self.current_user).where(
+                        Classification.obj_id == obj_id
+                    )
+                )
                 .all()
             )
 
             readable_classifications_json = []
-            for classification in readable_classifications:
+            for (classification,) in readable_classifications:
                 classification_dict = classification.to_dict()
                 classification_dict['groups'] = [
                     g.to_dict() for g in classification.groups
@@ -894,18 +918,26 @@ class SourceHandler(BaseHandler):
 
             if include_photometry:
                 photometry = (
-                    Photometry.query_records_accessible_by(self.current_user)
-                    .filter(Photometry.obj_id == obj_id)
+                    DBSession()
+                    .execute(
+                        Photometry.query_records_accessible_by(self.current_user).where(
+                            Photometry.obj_id == obj_id
+                        )
+                    )
                     .all()
                 )
                 source_info["photometry"] = [
-                    serialize(phot, 'ab', 'flux') for phot in photometry
+                    serialize(phot, 'ab', 'flux') for phot, in photometry
                 ]
             if include_photometry_exists:
                 source_info["photometry_exists"] = (
                     len(
-                        Photometry.query_records_accessible_by(self.current_user)
-                        .filter(Photometry.obj_id == obj_id)
+                        DBSession()
+                        .execute(
+                            Photometry.query_records_accessible_by(
+                                self.current_user
+                            ).where(Photometry.obj_id == obj_id)
+                        )
                         .all()
                     )
                     > 0
@@ -913,8 +945,12 @@ class SourceHandler(BaseHandler):
             if include_spectrum_exists:
                 source_info["spectrum_exists"] = (
                     len(
-                        Spectrum.query_records_accessible_by(self.current_user)
-                        .filter(Spectrum.obj_id == obj_id)
+                        DBSession()
+                        .execute(
+                            Spectrum.query_records_accessible_by(
+                                self.current_user
+                            ).where(Spectrum.obj_id == obj_id)
+                        )
                         .all()
                     )
                     > 0
@@ -927,15 +963,23 @@ class SourceHandler(BaseHandler):
             )
             source_subquery = source_query.subquery()
             groups = (
-                Group.query_records_accessible_by(self.current_user)
-                .join(source_subquery, Group.id == source_subquery.c.group_id)
+                DBSession()
+                .execute(
+                    Group.query_records_accessible_by(self.current_user).join(
+                        source_subquery, Group.id == source_subquery.c.group_id
+                    )
+                )
                 .all()
             )
-            source_info["groups"] = [g.to_dict() for g in groups]
+            source_info["groups"] = [g.to_dict() for g, in groups]
             for group in source_info["groups"]:
-                source_table_row = (
-                    Source.query_records_accessible_by(self.current_user)
-                    .filter(Source.obj_id == s.id, Source.group_id == group["id"])
+                (source_table_row,) = (
+                    DBSession()
+                    .execute(
+                        Source.query_records_accessible_by(self.current_user).where(
+                            Source.obj_id == s.id, Source.group_id == group["id"]
+                        )
+                    )
                     .first()
                 )
                 if source_table_row is not None:
@@ -1040,7 +1084,7 @@ class SourceHandler(BaseHandler):
                 )
             except arrow.ParserError:
                 return self.error("Invalid value provided for createdOrModifiedAfter")
-            obj_query = obj_query.filter(
+            obj_query = obj_query.where(
                 or_(
                     Obj.created_at > created_or_modified_date,
                     Obj.modified > created_or_modified_date,
@@ -1202,15 +1246,22 @@ class SourceHandler(BaseHandler):
         if localization_dateobs is not None:
             if localization_name is not None:
                 localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(Localization.dateobs == localization_dateobs)
-                    .filter(Localization.localization_name == localization_name)
+                    DBSession()
+                    .execute(
+                        Localization.query_records_accessible_by(self.current_user)
+                        .where(Localization.dateobs == localization_dateobs)
+                        .where(Localization.localization_name == localization_name)
+                    )
                     .first()
                 )
             else:
                 localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(Localization.dateobs == localization_dateobs)
+                    DBSession()
+                    .execute(
+                        Localization.query_records_accessible_by(
+                            self.current_user
+                        ).where(Localization.dateobs == localization_dateobs)
+                    )
                     .first()
                 )
             if localization is None:
@@ -1223,6 +1274,8 @@ class SourceHandler(BaseHandler):
                     return self.error(
                         f"Localization {localization_dateobs} not found", status=404
                     )
+            else:
+                (localization,) = localization
 
             cum_prob = (
                 sa.func.sum(
@@ -1232,7 +1285,7 @@ class SourceHandler(BaseHandler):
                 .label('cum_prob')
             )
             localizationtile_subquery = (
-                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                sa.select(LocalizationTile.probdensity, cum_prob).where(
                     LocalizationTile.localization_id == localization.id
                 )
             ).subquery()
@@ -1387,21 +1440,21 @@ class SourceHandler(BaseHandler):
                     )
 
                 if include_thumbnails and not remove_nested:
-                    obj_list[-1]["thumbnails"] = (
-                        Thumbnail.query_records_accessible_by(self.current_user)
-                        .filter(Thumbnail.obj_id == obj.id)
-                        .all()
-                    )
+                    obj_list[-1]["thumbnails"] = DBSession.execute(
+                        Thumbnail.query_records_accessible_by(self.current_user).where(
+                            Thumbnail.obj_id == obj.id
+                        )
+                    ).all()
 
                 if not remove_nested:
-                    readable_classifications = (
-                        Classification.query_records_accessible_by(self.current_user)
-                        .filter(Classification.obj_id == obj.id)
-                        .all()
-                    )
+                    readable_classifications = DBSession.execute(
+                        Classification.query_records_accessible_by(
+                            self.current_user
+                        ).where(Classification.obj_id == obj.id)
+                    ).all()
 
                     readable_classifications_json = []
-                    for classification in readable_classifications:
+                    for (classification,) in readable_classifications:
                         classification_dict = classification.to_dict()
                         classification_dict['groups'] = [
                             g.to_dict() for g in classification.groups
@@ -1411,9 +1464,14 @@ class SourceHandler(BaseHandler):
                     obj_list[-1]["classifications"] = readable_classifications_json
 
                     obj_list[-1]["annotations"] = sorted(
-                        Annotation.query_records_accessible_by(
-                            self.current_user
-                        ).filter(Annotation.obj_id == obj.id),
+                        [
+                            x
+                            for x, in DBSession().execute(
+                                Annotation.query_records_accessible_by(
+                                    self.current_user
+                                ).where(Annotation.obj_id == obj.id)
+                            )
+                        ],
                         key=lambda x: x.origin,
                     )
                 if include_detection_stats:
@@ -1452,8 +1510,12 @@ class SourceHandler(BaseHandler):
                 if include_photometry_exists:
                     obj_list[-1]["photometry_exists"] = (
                         len(
-                            Photometry.query_records_accessible_by(self.current_user)
-                            .filter(Photometry.obj_id == obj.id)
+                            DBSession()
+                            .execute(
+                                Photometry.query_records_accessible_by(
+                                    self.current_user
+                                ).where(Photometry.obj_id == obj.id)
+                            )
                             .all()
                         )
                         > 0
@@ -1461,47 +1523,63 @@ class SourceHandler(BaseHandler):
                 if include_spectrum_exists:
                     obj_list[-1]["spectrum_exists"] = (
                         len(
-                            Spectrum.query_records_accessible_by(self.current_user)
-                            .filter(Spectrum.obj_id == obj.id)
+                            DBSession()
+                            .execute(
+                                Spectrum.query_records_accessible_by(
+                                    self.current_user
+                                ).where(Spectrum.obj_id == obj.id)
+                            )
                             .all()
                         )
                         > 0
                     )
                 if include_period_exists:
                     annotations = (
-                        Annotation.query_records_accessible_by(self.current_user)
-                        .filter(Annotation.obj_id == obj.id)
+                        DBSession()
+                        .execute(
+                            Annotation.query_records_accessible_by(
+                                self.current_user
+                            ).filter(Annotation.obj_id == obj.id)
+                        )
                         .all()
                     )
                     period_str_options = ['period', 'Period', 'PERIOD']
                     obj_list[-1]["period_exists"] = any(
                         [
                             isinstance(an.data, dict) and 'period' in an.data
-                            for an in annotations
+                            for an, in annotations
                             for period_str in period_str_options
                         ]
                     )
                 if not remove_nested:
                     source_query = Source.query_records_accessible_by(
                         self.current_user
-                    ).filter(Source.obj_id == obj_list[-1]["id"])
+                    ).where(Source.obj_id == obj_list[-1]["id"])
                     source_query = apply_active_or_requested_filtering(
                         source_query, include_requested, requested_only
                     )
                     source_subquery = source_query.subquery()
                     groups = (
-                        Group.query_records_accessible_by(self.current_user)
-                        .join(source_subquery, Group.id == source_subquery.c.group_id)
+                        DBSession()
+                        .execute(
+                            Group.query_records_accessible_by(self.current_user).join(
+                                source_subquery, Group.id == source_subquery.c.group_id
+                            )
+                        )
                         .all()
                     )
-                    obj_list[-1]["groups"] = [g.to_dict() for g in groups]
+                    obj_list[-1]["groups"] = [g.to_dict() for g, in groups]
 
                     for group in obj_list[-1]["groups"]:
-                        source_table_row = (
-                            Source.query_records_accessible_by(self.current_user)
-                            .filter(
-                                Source.obj_id == obj_list[-1]["id"],
-                                Source.group_id == group["id"],
+                        (source_table_row,) = (
+                            DBSession()
+                            .execute(
+                                Source.query_records_accessible_by(
+                                    self.current_user
+                                ).where(
+                                    Source.obj_id == obj_list[-1]["id"],
+                                    Source.group_id == group["id"],
+                                )
                             )
                             .first()
                         )
@@ -1645,8 +1723,12 @@ class SourceHandler(BaseHandler):
             obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
         groups = (
-            Group.query_records_accessible_by(self.current_user)
-            .filter(Group.id.in_(group_ids))
+            DBSession()
+            .execute(
+                Group.query_records_accessible_by(self.current_user).filter(
+                    Group.id.in_(group_ids)
+                )
+            )
             .all()
         )
         if not groups:
@@ -1658,14 +1740,18 @@ class SourceHandler(BaseHandler):
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
 
         DBSession().add(obj)
-        for group in groups:
+        for (group,) in groups:
             source = (
-                Source.query_records_accessible_by(self.current_user)
-                .filter(Source.obj_id == obj.id)
-                .filter(Source.group_id == group.id)
+                DBSession()
+                .execute(
+                    Source.query_records_accessible_by(self.current_user)
+                    .where(Source.obj_id == obj.id)
+                    .where(Source.group_id == group.id)
+                )
                 .first()
             )
             if source is not None:
+                (source,) = source
                 source.active = True
                 source.saved_by = self.associated_user_object
             else:
@@ -1765,10 +1851,13 @@ class SourceHandler(BaseHandler):
         """
         if group_id not in [g.id for g in self.current_user.accessible_groups]:
             return self.error("Inadequate permissions.")
-        s = (
-            Source.query_records_accessible_by(self.current_user, mode="update")
-            .filter(Source.obj_id == obj_id)
-            .filter(Source.group_id == group_id)
+        (s,) = (
+            DBSession()
+            .execute(
+                Source.query_records_accessible_by(self.current_user, mode="update")
+                .where(Source.obj_id == obj_id)
+                .where(Source.group_id == group_id)
+            )
             .first()
         )
         s.active = False

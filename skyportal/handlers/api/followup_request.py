@@ -136,10 +136,14 @@ class AssignmentHandler(BaseHandler):
         ObservingRun.get_if_accessible_by(run_id, self.current_user, raise_if_none=True)
 
         predecessor = (
-            ClassicalAssignment.query_records_accessible_by(self.current_user)
-            .filter(
-                ClassicalAssignment.obj_id == assignment.obj_id,
-                ClassicalAssignment.run_id == run_id,
+            DBSession()
+            .execute(
+                ClassicalAssignment.query_records_accessible_by(
+                    self.current_user
+                ).where(
+                    ClassicalAssignment.obj_id == assignment.obj_id,
+                    ClassicalAssignment.run_id == run_id,
+                )
             )
             .first()
         )

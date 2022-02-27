@@ -2,6 +2,7 @@ import uuid
 import smtplib
 import python_http_client.exceptions
 import arrow
+import sqlalchemy as sa
 from baselayer.app.access import permissions, AccessError
 from baselayer.app.env import load_env
 from ..base import BaseHandler
@@ -316,11 +317,11 @@ class InvitationHandler(BaseHandler):
                 .filter(User.username.contains(invited_by))
             )
 
-        total_matches = query.count()
+        total_matches = DBSession().scalar(sa.select(sa.func.count(Invitation.id)))
         query = query.limit(n_per_page).offset((page_number - 1) * n_per_page)
-        invitations = query.all()
+        invitations = DBSession().execute(query).all()
         info = {}
-        return_data = [invitation.to_dict() for invitation in invitations]
+        return_data = [invitation.to_dict() for invitation, in invitations]
         for idx, invite_dict in enumerate(return_data):
             invite_dict["streams"] = invitations[idx].streams
             invite_dict["groups"] = invitations[idx].groups

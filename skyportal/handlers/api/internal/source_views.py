@@ -20,7 +20,7 @@ class SourceViewsHandler(BaseHandler):
         max_num_sources = int(top_sources_prefs['maxNumSources'])
         since_days_ago = int(top_sources_prefs['sinceDaysAgo'])
         cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
-        q = (
+        q = DBSession().execute(
             SourceView.query_records_accessible_by(
                 current_user,
                 columns=[
