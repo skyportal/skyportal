@@ -1,20 +1,12 @@
 import React from "react";
-import { useSelector, useDispatch } from "react-redux";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
+import { useSelector } from "react-redux";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
 import { makeStyles } from "@material-ui/core/styles";
-import PropTypes from "prop-types";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import { showNotification } from "baselayer/components/Notifications";
-import { Button } from "@material-ui/core";
 import NewShift from "./NewShift";
-
-import * as shiftActions from "../ducks/shift";
-import { addShiftUser, deleteShiftUser } from "../ducks/shifts";
+import MyCalendar from "./ShiftCalendar";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -25,178 +17,7 @@ const useStyles = makeStyles((theme) => ({
   paperContent: {
     padding: "1rem",
   },
-  shiftDelete: {
-    cursor: "pointer",
-    fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
-  },
-  shiftDeleteDisabled: {
-    cursor: "pointer",
-    fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
-    opacity: 0,
-  },
-  participateButton: {
-    cursor: "pointer",
-    fontSize: "1em",
-    position: "bottom-right",
-    padding: 0,
-    right: 0,
-    tbottom: 0,
-  },
 }));
-
-const textStyles = makeStyles(() => ({
-  primary: {
-    fontWeight: "bold",
-    fontSize: "130%",
-  },
-  secondary: {
-    fontSize: "120%",
-    whiteSpace: "pre-wrap",
-  },
-}));
-
-export function shiftTitle(shift) {
-  if (!shift?.group.name) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-
-  let result = `${shift?.group.name}`;
-  if (shift?.name) {
-    result += `: ${shift?.name}`;
-  }
-
-  return result;
-}
-
-export function shiftInfo(shift) {
-  if (!shift?.group.name) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  }
-  const startDate = new Date(`${shift.start_date}Z`).toLocaleString("en-US", {
-    hour12: false,
-  });
-  const endDate = new Date(`${shift.end_date}Z`).toLocaleString("en-US", {
-    hour12: false,
-  });
-
-  const array = [
-    ...(shift?.start_date ? [`Start Date: ${startDate}`] : []),
-    ...(shift?.end_date ? [`End Date: ${endDate}`] : []),
-  ];
-
-  if (shift?.description) {
-    array.push(`Notes: ${shift.description}`);
-  }
-
-  // add shift_group members to array
-  if (shift?.users) {
-    array.push(
-      `Members: ${shift.users
-        .map((user) => user.first_name + user.last_name)
-        .join(", ")}`
-    );
-  }
-
-  // eslint-disable-next-line prefer-template
-  const result = array.join("\n");
-
-  return result;
-}
-
-const ShiftList = ({ shifts, currentUser, deletePermission }) => {
-  const dispatch = useDispatch();
-  const deleteShift = (shift) => {
-    dispatch(shiftActions.deleteShift(shift.id)).then((result) => {
-      if (result.status === "success") {
-        dispatch(showNotification("Shift deleted"));
-      }
-    });
-  };
-
-  const classes = useStyles();
-  const textClasses = textStyles();
-  return (
-    <div className={classes.root}>
-      <List component="nav">
-        {shifts?.map((shift) => (
-          <ListItem button key={shift.id}>
-            <ListItemText
-              primary={shiftTitle(shift)}
-              secondary={shiftInfo(shift)}
-              classes={textClasses}
-            />
-            {!shift.users.map((user) => user.id).includes(currentUser.id) && (
-              <Button
-                id="join_button"
-                classes={{
-                  root: classes.participateButton,
-                }}
-                onClick={() =>
-                  dispatch(
-                    addShiftUser({
-                      userID: currentUser.id,
-                      admin: false,
-                      shift_id: shift.id,
-                      canSave: true,
-                    })
-                  )
-                }
-              >
-                Join
-              </Button>
-            )}
-            {shift.users.map((user) => user.id).includes(currentUser.id) && (
-              <Button
-                id="leave_button"
-                classes={{
-                  root: classes.participateButton,
-                }}
-                onClick={() =>
-                  dispatch(
-                    deleteShiftUser({
-                      userID: currentUser.id,
-                      shift_id: shift.id,
-                    })
-                  )
-                }
-              >
-                Leave
-              </Button>
-            )}
-
-            <Button
-              id="delete_button"
-              classes={{
-                root: classes.shiftDelete,
-                disabled: classes.shiftDeleteDisabled,
-              }}
-              onClick={() => deleteShift(shift)}
-              disabled={!deletePermission}
-            >
-              &times;
-            </Button>
-          </ListItem>
-        ))}
-      </List>
-    </div>
-  );
-};
 
 const ShiftPage = () => {
   const classes = useStyles();
@@ -215,14 +36,7 @@ const ShiftPage = () => {
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">List of Shifts</Typography>
-            <ShiftList
-              shifts={shiftList}
-              currentUser={currentUser}
-              deletePermission={permission}
-            />
-          </div>
+          <MyCalendar shifts={shiftList} />
         </Paper>
       </Grid>
       {permission && (
@@ -237,15 +51,6 @@ const ShiftPage = () => {
       )}
     </Grid>
   );
-};
-
-ShiftList.propTypes = {
-  shifts: PropTypes.arrayOf(PropTypes.any).isRequired,
-  deletePermission: PropTypes.bool.isRequired,
-  currentUser: PropTypes.shape({
-    id: PropTypes.number.isRequired,
-    permissions: PropTypes.arrayOf(PropTypes.string).isRequired,
-  }).isRequired,
 };
 
 export default ShiftPage;
