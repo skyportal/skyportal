@@ -39,6 +39,8 @@ import GcnSelectionForm from "./GcnSelectionForm";
 import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 
+import RenderTags from "./RenderTags";
+
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
@@ -51,24 +53,6 @@ const useStyles = makeStyles((theme) => ({
       color: "white",
       background: theme.palette.primary.main,
     },
-  },
-  BNS: {
-    background: "#468847!important",
-  },
-  NSBH: {
-    background: "#b94a48!important",
-  },
-  BBH: {
-    background: "#333333!important",
-  },
-  GRB: {
-    background: "#f89406!important",
-  },
-  AMON: {
-    background: "#3a87ad!important",
-  },
-  Terrestrial: {
-    background: "#999999!important",
   },
   accordionHeading: {
     fontSize: "1.25rem",
@@ -352,14 +336,7 @@ const GcnEventPage = ({ route }) => {
           </AccordionSummary>
           <AccordionDetails>
             <div className={styles.eventTags}>
-              {gcnEvent.tags?.map((tag) => (
-                <Chip
-                  className={styles[tag]}
-                  size="small"
-                  label={tag}
-                  key={tag}
-                />
-              ))}
+              <RenderTags gcnEvent={gcnEvent} />
             </div>
           </AccordionDetails>
         </Accordion>

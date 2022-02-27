@@ -7,7 +7,6 @@ import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
 import Button from "@material-ui/core/Button";
-import Chip from "@material-ui/core/Chip";
 import { makeStyles } from "@material-ui/core/styles";
 
 import dayjs from "dayjs";
@@ -17,6 +16,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import * as profileActions from "../ducks/profile";
 import * as recentGcnEventsActions from "../ducks/recentGcnEvents";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
+import RenderTags from "./RenderTags";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -51,24 +51,6 @@ const useStyles = makeStyles((theme) => ({
       color: "white",
       background: theme.palette.primary.main,
     },
-  },
-  BNS: {
-    background: "#468847!important",
-  },
-  NSBH: {
-    background: "#b94a48!important",
-  },
-  BBH: {
-    background: "#333333!important",
-  },
-  GRB: {
-    background: "#f89406!important",
-  },
-  AMON: {
-    background: "#3a87ad!important",
-  },
-  Terrestrial: {
-    background: "#999999!important",
   },
 }));
 
@@ -124,14 +106,7 @@ const RecentGcnEvents = ({ classes }) => {
                   </Link>
                   <div>({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})</div>
                   <div className={styles.eventTags}>
-                    {gcnEvent.tags?.map((tag) => (
-                      <Chip
-                        className={styles[tag]}
-                        size="small"
-                        label={tag}
-                        key={tag}
-                      />
-                    ))}
+                    <RenderTags gcnEvent={gcnEvent} />
                   </div>
                 </div>
               </li>
