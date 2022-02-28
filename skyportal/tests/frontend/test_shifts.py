@@ -1,9 +1,11 @@
+import pytest
 from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
 
 import uuid
 
 
+@pytest.mark.flaky(reruns=2)
 def test_super_user_post_shift(
     public_group, super_admin_token, super_admin_user, driver
 ):
