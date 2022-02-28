@@ -115,7 +115,7 @@ ShiftUser.delete = (
     # users can remove themselves from a group
     # admins can remove users from a group
     # no one can remove a user from their single user group
-    (accessible_by_group_admins | AccessibleIfUserMatches('user'))
+    (AccessibleIfUserMatches('user'))
     & ShiftUser.read
     & CustomUserAccessControl(
         lambda cls, user_or_token: DBSession().query(cls).join(Shift)
