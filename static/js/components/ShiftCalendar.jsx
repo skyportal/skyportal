@@ -2,7 +2,7 @@ import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import moment from "moment";
-import "!style-loader!css-loader!react-big-calendar/lib/css/react-big-calendar.css";
+import "react-big-calendar/lib/css/react-big-calendar.css";
 import { Button } from "@material-ui/core";
 import { showNotification } from "baselayer/components/Notifications";
 import PropTypes from "prop-types";
