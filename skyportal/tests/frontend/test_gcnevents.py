@@ -221,6 +221,7 @@ def test_gcnevents_observations(
     driver.wait_for_xpath('//*[text()="20.40705"]')
 
 
+@pytest.mark.flaky(reruns=2)
 def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
@@ -276,6 +277,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     # wait for the fields to populate
     time.sleep(15)
 
+    print(super_admin_token)
     status, data = api(
         "POST",
         "allocation",
@@ -324,32 +326,39 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
     driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]'
+        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]',
+        timeout=15,
     )
     driver.wait_for_xpath(
         f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]''',
         timeout=30,
     )
 
-    driver.click_xpath(
-        '//a[contains(@data-testid, "downloadRequest_1")]', scroll_parent=True
-    )
+    status, data = api("GET", "observation_plan", token=super_admin_token)
+    assert status == 200
+
+    observation_plan_request_id = data['data'][-1]['observation_plans'][0][
+        'observation_plan_request_id'
+    ]
 
     driver.click_xpath(
-        '//button[contains(@data-testid, "sendRequest_1")]', scroll_parent=True
+        f'//a[contains(@data-testid, "downloadRequest_{observation_plan_request_id}")]', scroll_parent=True
+        timeout=15,
+    )    
+    
+    driver.click_xpath(
+        f'//button[contains(@data-testid, "sendRequest_{observation_plan_request_id}")]',
+        scroll_parent=True,
     )
     driver.wait_for_xpath(
         f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "submitted to telescope queue")]''',
-        timeout=30,
+        timeout=10,
     )
     driver.click_xpath(
-        '//button[contains(@data-testid, "removeRequest_1")]', scroll_parent=True
+        f'//button[contains(@data-testid, "removeRequest_{observation_plan_request_id}")]',
+        scroll_parent=True,
     )
     driver.wait_for_xpath(
         f'''//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "deleted from telescope queue")]''',
-        timeout=30,
-    )
-
-    driver.click_xpath(
-        '//button[contains(@data-testid, "deleteRequest_1")]', scroll_parent=True
+        timeout=10,
     )
