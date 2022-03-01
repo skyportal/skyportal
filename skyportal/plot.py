@@ -1930,17 +1930,24 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
                 """,
         )
         column_checkboxes.js_on_click(callback_toggle_lines)
+
+    last_column = all_column_checkboxes[-1]
     reset_button = Button(name="Reset", label="Reset", width=30, align="end")
     callback_reset_specs = CustomJS(
-        args={'all_column_checkboxes': all_column_checkboxes},
+        args={
+            'all_column_checkboxes': all_column_checkboxes,
+            'last_column': last_column,
+        },
         code=f"""
-            for (let i = 0; i < {len(all_column_checkboxes)}; i++) {{
+            for (let i = 0; i < {len(all_column_checkboxes) - 1}; i++) {{
                 all_column_checkboxes[i].active = [];
             }}
+            last_column.active = [];
         """,
     )
     reset_button.js_on_click(callback_reset_specs)
-    all_column_checkboxes[-1] = column(all_column_checkboxes[-1], reset_button)
+    all_column_checkboxes[-1] = column(last_column, reset_button)
+
     # Move spectral lines when redshift or velocity changes
     speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
     callback_zvs = CustomJS(
