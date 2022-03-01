@@ -39,7 +39,7 @@ import GcnSelectionForm from "./GcnSelectionForm";
 import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 
-import RenderTags from "./RenderTags";
+import GcnTags from "./GcnTags";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -336,7 +336,7 @@ const GcnEventPage = ({ route }) => {
           </AccordionSummary>
           <AccordionDetails>
             <div className={styles.eventTags}>
-              <RenderTags gcnEvent={gcnEvent} />
+              <GcnTags gcnEvent={gcnEvent} />
             </div>
           </AccordionDetails>
         </Accordion>

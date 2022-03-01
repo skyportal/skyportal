@@ -16,7 +16,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import * as profileActions from "../ducks/profile";
 import * as recentGcnEventsActions from "../ducks/recentGcnEvents";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
-import RenderTags from "./RenderTags";
+import GcnTags from "./GcnTags";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -106,7 +106,7 @@ const RecentGcnEvents = ({ classes }) => {
                   </Link>
                   <div>({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})</div>
                   <div className={styles.eventTags}>
-                    <RenderTags gcnEvent={gcnEvent} />
+                    <GcnTags gcnEvent={gcnEvent} />
                   </div>
                 </div>
               </li>
