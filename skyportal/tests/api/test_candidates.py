@@ -729,7 +729,7 @@ def test_exclude_by_outdated_annotations(
         params={
             "groupIDs": f"{public_group.id}",
             "annotationExcludeOrigin": origin,
-            "annotationExcludeOutdatedDate": str(t0 + datetime.timedelta(seconds=3)),
+            "annotationExcludeOutdatedDate": str(t0 + datetime.timedelta(seconds=60)),
         },
         token=view_only_token,
     )

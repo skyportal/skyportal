@@ -212,7 +212,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       <Select
         inputProps={{ MenuProps: { disableScrollLock: true } }}
         labelId="localizationSelectLabel"
-        value={selectedLocalizationId}
+        value={selectedLocalizationId || ""}
         onChange={handleSelectedLocalizationChange}
         name="observationPlanRequestLocalizationSelect"
         className={classes.localizationSelect}
@@ -265,7 +265,7 @@ ObservationPlanRequestForm.propTypes = {
     dateobs: PropTypes.string,
     localizations: PropTypes.arrayOf(
       PropTypes.shape({
-        id: PropTypes.string,
+        id: PropTypes.number,
         localization_name: PropTypes.string,
       })
     ),
@@ -275,7 +275,15 @@ ObservationPlanRequestForm.propTypes = {
     formSchema: PropTypes.objectOf(PropTypes.any),
     uiSchema: PropTypes.objectOf(PropTypes.any),
     implementedMethods: PropTypes.objectOf(PropTypes.any),
-  }).isRequired,
+  }),
+};
+
+ObservationPlanRequestForm.defaultProps = {
+  instrumentFormParams: {
+    formSchema: {},
+    uiSchema: {},
+    implementedMethods: {},
+  },
 };
 
 export default ObservationPlanRequestForm;
