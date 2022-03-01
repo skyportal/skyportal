@@ -342,10 +342,10 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     ]
 
     driver.click_xpath(
-        f'//a[contains(@data-testid, "downloadRequest_{observation_plan_request_id}")]', scroll_parent=True
-        timeout=15,
-    )    
-    
+        f'//a[contains(@data-testid, "downloadRequest_{observation_plan_request_id}")]',
+        scroll_parent=True,
+    )
+
     driver.click_xpath(
         f'//button[contains(@data-testid, "sendRequest_{observation_plan_request_id}")]',
         scroll_parent=True,
