@@ -566,7 +566,7 @@ def p60_telescope():
     observer = astroplan.Observer.at_site('Palomar')
     telescope = TelescopeFactory(
         name=f'Palomar 60-inch telescope_{uuid.uuid4()}',
-        nickname='p60_{uuid.uuid4()}',
+        nickname=f'p60_{uuid.uuid4()}',
         lat=observer.location.lat.to('deg').value,
         lon=observer.location.lon.to('deg').value,
         elevation=observer.location.height.to('m').value,
