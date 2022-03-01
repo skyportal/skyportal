@@ -894,6 +894,7 @@ class ObservationHandlerPost(_Schema):
         metadata={'description': 'Observation data dictionary list'}
     )
 
+
 class ObservationExternalAPIHandlerPost(_Schema):
 
     start_date = fields.Field(
@@ -907,8 +908,9 @@ class ObservationExternalAPIHandlerPost(_Schema):
     allocation_id = fields.Integer(
         required=True,
         metadata={'description': "Followup request allocation ID."},
+    )
 
-      
+
 class ObservationASCIIFileHandlerPost(_Schema):
     instrumentID = fields.String(
         required=True,
