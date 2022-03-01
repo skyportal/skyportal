@@ -9,7 +9,8 @@ def filter_for_user(driver, username):
     driver.click_xpath(username_input_xpath)
     username_input.send_keys(username)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        scroll_parent=True,
     )
 
 
@@ -18,9 +19,10 @@ def test_delete_user_role(driver, super_admin_user, user):
     driver.get('/user_management')
     filter_for_user(driver, user.username)
     driver.click_xpath(
-        f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']//*[contains(@class, 'MuiChip-deleteIcon')]"
+        f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']//*[contains(@class, 'MuiChip-deleteIcon')]",
+        scroll_parent=True,
     )
-    driver.wait_for_xpath("//div[text()='User role successfully removed.']")
+    driver.wait_for_xpath("//div[text()='User role successfully removed.']", timeout=10)
     driver.wait_for_xpath_to_disappear(
         f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']//*[contains(@class, 'MuiChip-deleteIcon')]"
     )
