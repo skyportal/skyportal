@@ -1930,7 +1930,17 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
                 """,
         )
         column_checkboxes.js_on_click(callback_toggle_lines)
-
+    reset_button = Button(name="Reset", label="Reset", width=30, align="end")
+    callback_reset_specs = CustomJS(
+        args={'all_column_checkboxes': all_column_checkboxes},
+        code=f"""
+            for (let i = 0; i < {len(all_column_checkboxes)}; i++) {{
+                all_column_checkboxes[i].active = [];
+            }}
+        """,
+    )
+    reset_button.js_on_click(callback_reset_specs)
+    all_column_checkboxes[-1] = column(all_column_checkboxes[-1], reset_button)
     # Move spectral lines when redshift or velocity changes
     speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
     callback_zvs = CustomJS(
@@ -1973,18 +1983,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
                 """,
         ),
     )
-    reset_button = Button(name="Reset", label="Reset Specs")
-    callback_reset_specs = CustomJS(
-        args={'all_column_checkboxes': all_column_checkboxes},
-        code=f"""
-            for (let i = 0; i < {len(all_column_checkboxes)}; i++) {{
-                all_column_checkboxes[i].active = [];
-            }}
-        """,
-    )
-    reset_button.js_on_click(callback_reset_specs)
-
-    row1 = row(column(reset_button))
 
     row2 = row(all_column_checkboxes)
     row3 = (
@@ -1994,7 +1992,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     )
     return column(
         plot,
-        row1,
         row2,
         row3,
         sizing_mode='stretch_width',
