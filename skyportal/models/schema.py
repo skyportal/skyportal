@@ -895,6 +895,22 @@ class ObservationHandlerPost(_Schema):
     )
 
 
+class ObservationExternalAPIHandlerPost(_Schema):
+
+    start_date = fields.Field(
+        required=True, metadata={'description': "start date of the request."}
+    )
+
+    end_date = fields.Field(
+        required=True, metadata={'description': "end date of the request."}
+    )
+
+    allocation_id = fields.Integer(
+        required=True,
+        metadata={'description': "Followup request allocation ID."},
+    )
+
+
 class ObservingRunPost(_Schema):
     instrument_id = fields.Integer(
         required=True,
@@ -1486,6 +1502,7 @@ PhotometryRangeQuery = PhotometryRangeQuery()
 SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
 FollowupRequestPost = FollowupRequestPost()
 ObservationPlanPost = ObservationPlanPost()
+ObservationExternalAPIHandlerPost = ObservationExternalAPIHandlerPost()
 SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
 GroupIDList = GroupIDList()

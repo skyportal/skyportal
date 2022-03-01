@@ -27,7 +27,11 @@ from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
-from .observation import ObservationHandler
+from .observation import (
+    ObservationHandler,
+    ObservationASCIIFileHandler,
+    ObservationExternalAPIHandler,
+)
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
     ObservationPlanRequestHandler,

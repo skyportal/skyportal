@@ -1,6 +1,10 @@
 from requests import Request, Session
 from datetime import datetime, timedelta
 from astropy.time import Time
+import functools
+from tornado.ioloop import IOLoop
+import pandas as pd
+import pyvo
 import urllib
 
 from . import FollowUpAPI, MMAAPI
@@ -15,6 +19,9 @@ if cfg['app.ztf.port'] is None:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}"
 else:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
+
+bands = {'g': 1, 'r': 2, 'i': 3}
+inv_bands = {v: k for k, v in bands.items()}
 
 
 class ZTFRequest:
@@ -39,7 +46,6 @@ class ZTFRequest:
         start_mjd = Time(request.payload["start_date"], format='iso').mjd
         end_mjd = Time(request.payload["end_date"], format='iso').mjd
 
-        bands = {'g': 1, 'r': 2, 'i': 3}
         json_data = {
             'queue_name': "ToO_" + request.payload["queue_name"],
             'validity_window_mjd': [start_mjd, end_mjd],
@@ -95,7 +101,6 @@ class ZTFRequest:
         start_mjd = Time(request.payload["start_date"], format='iso').mjd
         end_mjd = Time(request.payload["end_date"], format='iso').mjd
 
-        bands = {'g': 1, 'r': 2, 'i': 3}
         json_data = {
             'queue_name': "ToO_" + request.payload["queue_name"],
             'validity_window_mjd': [start_mjd, end_mjd],
@@ -407,6 +412,47 @@ class ZTFMMAAPI(MMAAPI):
 
         DBSession().add(transaction)
 
+    @staticmethod
+    def retrieve(allocation, start_date, end_date):
+
+        """Retrieve executed observations by ZTF.
+
+        Parameters
+        ----------
+        allocation: skyportal.models.Allocation
+            The allocation with queue information.
+        """
+
+        altdata = allocation.altdata
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        jd_start = Time(start_date, format='datetime').jd
+        jd_end = Time(end_date, format='datetime').jd
+
+        if not jd_start < jd_end:
+            raise ValueError('start_date must be before end_date.')
+
+        s = Session()
+        s.auth = (altdata['tap_username'], altdata['tap_password'])
+        client = pyvo.dal.TAPService(altdata['tap_service'], session=s)
+
+        request_str = """
+            SELECT field,rcid,fid,expid,obsjd,exptime,maglimit,ipac_gid,seeing
+            FROM ztf.ztf_current_meta_sci WHERE (obsjd BETWEEN {0} AND {1})
+        """.format(
+            jd_start, jd_end
+        )
+
+        fetch_obs = functools.partial(
+            fetch_observations,
+            allocation.instrument.id,
+            client,
+            request_str,
+        )
+
+        IOLoop.current().run_in_executor(None, fetch_obs)
+
     form_json_schema = MMAAPI.form_json_schema
 
     form_json_schema["properties"] = {
@@ -426,3 +472,45 @@ class ZTFMMAAPI(MMAAPI):
         "subprogram_name",
         "program_id",
     ]
+
+
+def fetch_observations(instrument_id, client, request_str):
+    """Fetch executed observations from a TAP client.
+    instrument_id: int
+        ID of the instrument
+    client: pyvo.dal.TAPService
+        An authenticated pyvo.dal.TAPService instance.
+    request_str: str
+        TAP request of the form:
+        SELECT field,rcid,fid,expid,obsjd,exptime,maglimit,ipac_gid,seeing
+        FROM ztf.ztf_current_meta_sci WHERE (obsjd BETWEEN 2459637.2474652776 AND 2459640.2474652776)
+    """
+
+    job = client.submit_job(request_str)
+    job = job.run().wait()
+    job.raise_if_error()
+    obstable = job.fetch_result().to_table()
+    obstable = obstable.filled().to_pandas()
+
+    obs_grouped_by_exp = obstable.groupby('expid')
+    dfs = []
+    for expid, df_group in obs_grouped_by_exp:
+        df_group_median = df_group.median()
+        df_group_median['observation_id'] = int(expid)
+        df_group_median['processed_fraction'] = len(df_group["field"]) / 64.0
+        df_group_median['filter'] = 'ztf' + inv_bands[int(df_group_median["fid"])]
+        dfs.append(df_group_median)
+    obstable = pd.concat(dfs, axis=1).T
+    obstable.rename(
+        columns={
+            'obsjd': 'obstime',
+            'field': 'field_id',
+            'maglimit': 'limmag',
+            'exptime': 'exposure_time',
+        },
+        inplace=True,
+    )
+
+    from skyportal.handlers.api.observation import add_observations
+
+    add_observations(instrument_id, obstable)

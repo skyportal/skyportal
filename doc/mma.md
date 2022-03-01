@@ -20,3 +20,9 @@ The vast majority of follow-up instruments will require some form of authenticat
 * LT: A proposal ID, username, and password are passed as {"username": "username", "password": "password", "LT_proposalID": "your_proposal_ID"}.
 * SLACK: As discussed further [here](./slack.html), slack information is pass as {"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}.
 * ZTF: An API token for an admin user for [Kowalski](https://github.com/dmitryduev/kowalski) can be passed as {"access_token": "your_token"}.
+
+## Executed Observations API Upload
+
+As part of the `ObservationPlanRequest` API, it is possible to retrieve `ExecutedObservation`s. We briefly describe the authentication form the available telescopes take below:
+
+* ZTF: Login information for IRSA, which takes the form: {"tap_service": "https://irsa.ipac.caltech.edu/TAP", "tap_username": "your_password", "tap_password": "your_password"}

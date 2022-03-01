@@ -15,9 +15,51 @@ const FETCH_GCNEVENT_OBSERVATIONS = "skyportal/FETCH_GCNEVENT_OBSERVATIONS";
 const FETCH_GCNEVENT_OBSERVATIONS_OK =
   "skyportal/FETCH_GCNEVENT_OBSERVATIONS_OK";
 
+const SUBMIT_OBSERVATIONS = "skyportal/SUBMIT_OBSERVATIONS";
+
+const UPLOAD_OBSERVATIONS = "skyportal/UPLOAD_OBSERVATIONS";
+
+const REFRESH_OBSERVATIONS = "skyportal/REFRESH_OBSERVATIONS";
+
+const REQUEST_API_OBSERVATIONS = "skyportal/REQUEST_API_OBSERVATIONS";
+
+export const submitObservations = (params) =>
+  API.POST(`/api/observation`, SUBMIT_OBSERVATIONS, params);
+
 export function fetchObservations(filterParams = {}) {
+  if (!Object.keys(filterParams).includes("startDate")) {
+    filterParams.startDate = dayjs()
+      .utc()
+      .subtract(3650, "day")
+      .utc()
+      .format("YYYY-MM-DDTHH:mm:ssZ");
+  }
+
+  if (!Object.keys(filterParams).includes("endDate")) {
+    filterParams.endDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  }
+
   return API.GET("/api/observation", FETCH_OBSERVATIONS, filterParams);
 }
+
+export function uploadObservations(data) {
+  return API.POST(`/api/observation/ascii`, UPLOAD_OBSERVATIONS, data);
+}
+
+export function requestAPIObservations(data) {
+  return API.POST(
+    `/api/observation/external_api`,
+    REQUEST_API_OBSERVATIONS,
+    data
+  );
+}
+
+// Websocket message handler
+messageHandler.add((actionType, payload, dispatch) => {
+  if (actionType === REFRESH_OBSERVATIONS) {
+    dispatch(fetchObservations());
+  }
+});
 
 export function fetchGcnEventObservations(dateobs, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;

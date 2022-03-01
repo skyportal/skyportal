@@ -2,6 +2,7 @@ from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
 import arrow
 import healpix_alchemy as ha
+from marshmallow.exceptions import ValidationError
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
@@ -9,10 +10,13 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 from astropy.time import Time
+from io import StringIO
 
+from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    Allocation,
     GcnEvent,
     Localization,
     LocalizationTile,
@@ -23,6 +27,7 @@ from ...models import (
     ExecutedObservation,
 )
 
+from ...models.schema import ObservationExternalAPIHandlerPost
 
 log = make_log('api/observation')
 
@@ -91,6 +96,9 @@ def add_observations(instrument_id, obstable):
             )
         session.add_all(observations)
         session.commit()
+
+        flow = Flow()
+        flow.push('*', "skyportal/REFRESH_OBSERVATIONS")
 
         return log(f"Successfully added observations for instrument {instrument_id}")
     except Exception as e:
@@ -514,3 +522,159 @@ class ObservationHandler(BaseHandler):
         self.verify_and_commit()
 
         return self.success()
+
+
+class ObservationASCIIFileHandler(BaseHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Upload observation from ASCII file
+        tags:
+          - observations
+        requestBody:
+          content:
+            application/json:
+              schema: ObservationASCIIFileHandlerPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfExecutedObservations
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        json = self.get_json()
+        observation_data = json.pop('observationData', None)
+        instrument_id = json.pop('instrumentID', None)
+
+        if observation_data is None:
+            return self.error(message="Missing observation_data")
+
+        instrument = (
+            Instrument.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(Instrument.fields, InstrumentField.tiles),
+                ],
+            )
+            .filter(
+                Instrument.id == instrument_id,
+            )
+            .first()
+        )
+        if instrument is None:
+            return self.error(message=f"Missing instrument with ID {instrument_id}")
+        try:
+            observation_data = pd.read_table(
+                StringIO(observation_data), sep=","
+            ).to_dict(orient='list')
+        except Exception as e:
+            return self.error(f"Unable to read in observation file: {e}")
+
+        if not all(
+            k in observation_data
+            for k in [
+                'observation_id',
+                'field_id',
+                'obstime',
+                'filter',
+                'exposure_time',
+            ]
+        ):
+            return self.error(
+                "observation_id, field_id, obstime, filter, and exposure_time required in observation_data."
+            )
+
+        for filt in observation_data["filter"]:
+            if filt not in instrument.filters:
+                return self.error(f"Filter {filt} not present in {instrument.filters}")
+
+        # fill in any missing optional parameters
+        optional_parameters = [
+            'airmass',
+            'seeing',
+            'limmag',
+        ]
+        for key in optional_parameters:
+            if key not in observation_data:
+                observation_data[key] = [None] * len(observation_data['observation_id'])
+
+        if "processed_fraction" not in observation_data:
+            observation_data["processed_fraction"] = [1] * len(
+                observation_data['observation_id']
+            )
+
+        obstable = pd.DataFrame.from_dict(observation_data)
+        # run async
+        IOLoop.current().run_in_executor(
+            None,
+            lambda: add_observations(instrument.id, obstable),
+        )
+
+        return self.success()
+
+
+class ObservationExternalAPIHandler(BaseHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Retrieve observations from external API
+        tags:
+          - observations
+        requestBody:
+          content:
+            application/json:
+              schema: ObservationExternalAPIHandlerPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfExecutedObservations
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+
+        try:
+            data = ObservationExternalAPIHandlerPost.load(data)
+        except ValidationError as e:
+            return self.error(
+                f'Invalid / missing parameters: {e.normalized_messages()}'
+            )
+
+        data["requester_id"] = self.associated_user_object.id
+        data["last_modified_by_id"] = self.associated_user_object.id
+        data['allocation_id'] = int(data['allocation_id'])
+        data['start_date'] = arrow.get(data['start_date'].strip()).datetime
+        data['end_date'] = arrow.get(data['end_date'].strip()).datetime
+
+        allocation = Allocation.get_if_accessible_by(
+            data['allocation_id'], self.current_user, raise_if_none=True
+        )
+        instrument = allocation.instrument
+
+        if instrument.api_classname_obsplan is None:
+            return self.error('Instrument has no remote observation plan API.')
+
+        if not instrument.api_class_obsplan.implements()['retrieve']:
+            return self.error(
+                'Cannot submit executed observation plan requests to this Instrument.'
+            )
+
+        try:
+            instrument.api_class_obsplan.retrieve(
+                allocation, data['start_date'], data['end_date']
+            )
+            self.push_notification(
+                'Observation ingestion in progress. Should be available soon.'
+            )
+        except Exception as e:
+            return self.error(f"Error in querying instrument API: {e}")
