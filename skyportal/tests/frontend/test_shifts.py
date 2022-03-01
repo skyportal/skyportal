@@ -1,5 +1,5 @@
 from skyportal.tests import api
-from selenium.webdriver.common.keys import Keys
+from selenium.webdriver import ActionChains
 
 import uuid
 
@@ -31,18 +31,12 @@ def test_super_user_post_shift(
     # check for API shift
     driver.wait_for_xpath(f'//*[text()[contains(.,"{name}")]]', timeout=20)
 
+    # Click somewhere outside to remove focus from shift select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
     form_name = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(form_name)
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('01/01/2022')
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('01:01')
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('P')
-
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('03/01/2022')
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('01:01')
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('P')
-
     driver.click_xpath('//*[@id="root_group_id"]')
     driver.click_xpath('//li[contains(text(), "Sitewide Group")]')
 
