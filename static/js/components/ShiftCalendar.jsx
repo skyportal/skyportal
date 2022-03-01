@@ -9,6 +9,9 @@ import PropTypes from "prop-types";
 import * as shiftActions from "../ducks/shift";
 import { addShiftUser, deleteShiftUser } from "../ducks/shifts";
 
+/* eslint-disable no-alert */
+/* eslint-disable react/prop-types */
+
 const allViews = Object.keys(Views).map((k) => Views[k]);
 let dispatch;
 let currentUser;
@@ -163,8 +166,8 @@ MyCalendar.propTypes = {
         first_name: PropTypes.string,
         last_name: PropTypes.string,
       })
-    ),
-  }),
+    ).isRequired,
+  }).isRequired,
 
   shifts: PropTypes.arrayOf(
     PropTypes.shape({
