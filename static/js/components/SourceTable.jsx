@@ -150,7 +150,10 @@ const useStyles = makeStyles((theme) => ({
     verticalAlign: "middle",
   },
   objId: {
-    color: theme.palette.primary.main,
+    color:
+      theme.palette.type === "dark"
+        ? theme.palette.secondary.main
+        : theme.palette.primary.main,
   },
   starButton: {
     verticalAlign: "middle",

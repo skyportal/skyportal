@@ -10,7 +10,6 @@ from regions import Regions
 from astropy import coordinates
 from astropy import units as u
 import numpy as np
-from distutils.util import strtobool
 
 from ..base import BaseHandler
 from ...models import (
@@ -141,9 +140,7 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        includeGeoJSON = bool(
-            strtobool(self.get_query_argument("includeGeoJSON", 'False'))
-        )
+        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         if includeGeoJSON:
             options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
         else:
@@ -348,7 +345,11 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
             }
 
             field = InstrumentField(
-                instrument_id=instrument_id, field_id=int(field_id), contour=contour
+                instrument_id=instrument_id,
+                field_id=int(field_id),
+                contour=contour,
+                ra=ra,
+                dec=dec,
             )
             session.add(field)
             session.commit()

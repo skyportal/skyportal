@@ -27,9 +27,12 @@ from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
-from .observation import ObservationHandler
+from .observation import ObservationHandler, ObservationASCIIFileHandler
 from .observingrun import ObservingRunHandler
-from .observation_plan import ObservationPlanRequestHandler
+from .observation_plan import (
+    ObservationPlanRequestHandler,
+    ObservationPlanSubmitHandler,
+)
 from .photometry import (
     PhotometryHandler,
     ObjPhotometryHandler,
@@ -37,6 +40,7 @@ from .photometry import (
     PhotometryRangeHandler,
 )
 from .color_mag import ObjColorMagHandler
+from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler

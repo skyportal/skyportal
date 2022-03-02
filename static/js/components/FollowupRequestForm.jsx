@@ -7,7 +7,9 @@ import MenuItem from "@material-ui/core/MenuItem";
 import Form from "@rjsf/material-ui";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { makeStyles } from "@material-ui/core/styles";
-import * as Actions from "../ducks/source";
+import * as sourceActions from "../ducks/source";
+import * as allocationActions from "../ducks/allocations";
+import * as instrumentActions from "../ducks/instruments";
 import GroupShareSelect from "./GroupShareSelect";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
@@ -50,10 +52,34 @@ const FollowupRequestForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Initialize the select
-    setSelectedAllocationId(allocationList[0]?.id);
-    setSelectedGroupIds([allocationList[0]?.group_id]);
-  }, [setSelectedAllocationId, allocationList, setSelectedGroupIds]);
+    const getAllocations = async () => {
+      // Wait for the allocations to update before setting
+      // the new default form fields, so that the allocations list can
+      // update
+      const result = await dispatch(
+        allocationActions.fetchAllocations({
+          apiType: "api_classname",
+        })
+      );
+
+      const { data } = result;
+      setSelectedAllocationId(data[0]?.id);
+      setSelectedGroupIds([data[0]?.group_id]);
+    };
+
+    getAllocations();
+
+    dispatch(
+      instrumentActions.fetchInstrumentForms({
+        apiType: "api_classname",
+      })
+    );
+    dispatch(
+      allocationActions.fetchAllocations({
+        apiType: "api_classname",
+      })
+    );
+  }, [setSelectedAllocationId, setSelectedGroupIds]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
@@ -112,7 +138,7 @@ const FollowupRequestForm = ({
       target_group_ids: selectedGroupIds,
       payload: formData,
     };
-    await dispatch(Actions.submitFollowupRequest(json));
+    await dispatch(sourceActions.submitFollowupRequest(json));
     setIsSubmitting(false);
   };
 

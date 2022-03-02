@@ -34,6 +34,10 @@ app:
     host: skipper.caltech.edu
     port: 4000
 
+  atlas:
+    protocol: https
+    host: fallingstar-data.com
+
   kait:
     protocol: http
     host: herculesii.astro.berkeley.edu
@@ -76,6 +80,8 @@ app:
       component: ObservingRunPage
     - path: "/allocations"
       component: AllocationPage
+    - path: "/observations"
+      component: ObservationPage
     - path: "/group_sources/:id"
       component: GroupSources
     - path: "/user_management"
@@ -96,6 +102,8 @@ app:
       component: TelescopePage
     - path: "/instruments"
       component: InstrumentPage
+    - path: "/shifts"
+      component: ShiftPage
     - path: "/test_geojson"
       component: GeoJSONPlot
 
@@ -141,6 +149,14 @@ app:
     - name: Allocations
       icon: HourglassEmptyOutlined
       url: /allocations
+
+    - name: Observations
+      icon: ZoomInOutlined
+      url: /observations
+
+    - name: Shifts
+      icon: SubwayRounded
+      url: /shifts
 
     - name: About
       icon: Info

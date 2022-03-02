@@ -38,6 +38,11 @@ import GalaxyTable from "./GalaxyTable";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import GcnSelectionForm from "./GcnSelectionForm";
 
+import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
+import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
+
+import GcnTags from "./GcnTags";
+
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
@@ -50,24 +55,6 @@ const useStyles = makeStyles((theme) => ({
       color: "white",
       background: theme.palette.primary.main,
     },
-  },
-  BNS: {
-    background: "#468847!important",
-  },
-  NSBH: {
-    background: "#b94a48!important",
-  },
-  BBH: {
-    background: "#333333!important",
-  },
-  GRB: {
-    background: "#f89406!important",
-  },
-  AMON: {
-    background: "#3a87ad!important",
-  },
-  Terrestrial: {
-    background: "#999999!important",
   },
   accordionHeading: {
     fontSize: "1.25rem",
@@ -416,14 +403,7 @@ const GcnEventPage = ({ route }) => {
           </AccordionSummary>
           <AccordionDetails>
             <div className={styles.eventTags}>
-              {gcnEvent.tags?.map((tag) => (
-                <Chip
-                  className={styles[tag]}
-                  size="small"
-                  label={tag}
-                  key={tag}
-                />
-              ))}
+              <GcnTags gcnEvent={gcnEvent} />
             </div>
           </AccordionDetails>
         </Accordion>
@@ -492,11 +472,21 @@ const GcnEventPage = ({ route }) => {
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
             id="sources-header"
-          />
+          >
+            <Typography className={styles.accordionHeading}>
+              Sources within localization
+            </Typography>
+          </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.gcnEventContainer}>
-              <GcnEventSourcesPage route={route} sources={gcnEventSources} />
-            </div>
+            {gcnEventSources?.sources.length === 0 ? (
+              <Typography variant="h5">None             </Typography>
+            ) : (
+              <div className={styles.gcnEventContainer}>
+                             {" "}
+                <GcnEventSourcesPage route={route} sources={gcnEventSources} /> 
+                         {" "}
+              </div>
+            )}
           </AccordionDetails>
         </Accordion>
       </div>
@@ -506,11 +496,23 @@ const GcnEventPage = ({ route }) => {
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
             id="observations-header"
-          />
+          >
+            <Typography className={styles.accordionHeading}>
+              Observations within localization
+            </Typography>
+          </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.gcnEventContainer}>
-              <ExecutedObservationsTable observations={gcnEventObservations} />
-            </div>
+            {gcnEventObservations?.length === 0 ? (
+              <Typography variant="h5">None             </Typography>
+            ) : (
+              <div className={styles.gcnEventContainer}>
+                             {" "}
+                <ExecutedObservationsTable
+                  observations={gcnEventObservations}
+                />
+                           {" "}
+              </div>
+            )}
           </AccordionDetails>
         </Accordion>
       </div>
@@ -520,10 +522,43 @@ const GcnEventPage = ({ route }) => {
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
             id="galaxies-header"
-          />
+          >
+            <Typography className={styles.accordionHeading}>
+              Galaxies within localization
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            {gcnEventGalaxies?.sources.length === 0 ? (
+              <Typography variant="h5">None             </Typography>
+            ) : (
+              <div className={styles.gcnEventContainer}>
+                             {" "}
+                <GalaxyTable galaxies={gcnEventGalaxies.sources} />           {" "}
+              </div>
+            )}
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
+            id="observationplan-header"
+          >
+            <Typography className={styles.accordionHeading}>
+              Observation Plans
+            </Typography>
+          </AccordionSummary>
           <AccordionDetails>
             <div className={styles.gcnEventContainer}>
-              <GalaxyTable galaxies={gcnEventGalaxies.sources} />
+              <ObservationPlanRequestForm
+                gcnevent={gcnEvent}
+                action="createNew"
+              />
+              <ObservationPlanRequestLists
+                observationplanRequests={gcnEvent.observationplan_requests}
+              />
             </div>
           </AccordionDetails>
         </Accordion>

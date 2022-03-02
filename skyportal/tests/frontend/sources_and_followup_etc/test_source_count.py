@@ -28,7 +28,7 @@ def test_source_count_widget(driver, user, public_group, upload_data_token):
     driver.get('/')
 
     source_counter = driver.wait_for_xpath('//*[@id="sourceCountsWidget"]')
-    time.sleep(1)  # wait for the counter to finish. Not a vanilla hardcode!
+    time.sleep(2)  # wait for the counter to finish. Not a vanilla hardcode!
     source_count_text = source_counter.text
 
     # expecting something like:

@@ -570,7 +570,7 @@ const ManageDataForm = ({ route }) => {
 
   return (
     <>
-      <div>
+      <div data-testid="photometry-div">
         <Typography variant="h5">
           Share Source Data -&nbsp;
           <Link to={`/source/${route.id}`} role="link">
