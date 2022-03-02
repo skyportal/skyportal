@@ -2027,3 +2027,39 @@ def test_token_user_retrieving_source_with_period_exists(
     assert status == 200
     assert data["status"] == "success"
     assert data["data"]['period_exists']
+
+
+def test_token_user_retrieving_source_with_annotation_filter(
+    view_only_token, public_source, annotation_token
+):
+
+    status, data = api(
+        'POST',
+        f'sources/{public_source.id}/annotations',
+        data={
+            'origin': 'kowalski',
+            'data': {'period': 1.5},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"annotationsFilter": "period:2.0:le"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) > 0
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"annotationsFilter": "period:2.0:ge"},
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 0

@@ -14,6 +14,7 @@ from sqlalchemy import func, or_, distinct
 import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
+import operator  # noqa: F401
 import functools
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
@@ -492,6 +493,18 @@ class SourceHandler(BaseHandler):
               Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching
               that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
           - in: query
+            name: annotationsFilter
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: string
+            explode: false
+            style: simple
+            description: |
+              Comma-separated string of "annotation: value: operator" pair(s) to filter for sources matching
+              that/those annotation(s), i.e. "redshift: 0.5: lt"
+          - in: query
             name: minRedshift
             nullable: true
             schema:
@@ -643,6 +656,7 @@ class SourceHandler(BaseHandler):
             "includeDetectionStats", False
         )
         classifications = self.get_query_argument("classifications", None)
+        annotations_filter = self.get_query_argument("annotationsFilter", None)
         min_redshift = self.get_query_argument("minRedshift", None)
         max_redshift = self.get_query_argument("maxRedshift", None)
         min_peak_magnitude = self.get_query_argument("minPeakMagnitude", None)
@@ -1198,6 +1212,15 @@ class SourceHandler(BaseHandler):
                     Obj.id == classification_subquery.c.obj_id,
                     isouter=True,
                 )
+        if annotations_filter is not None:
+            if isinstance(annotations_filter, str) and "," in annotations_filter:
+                annotations_filter = [c.strip() for c in annotations_filter.split(",")]
+            elif isinstance(annotations_filter, str):
+                annotations_filter = [annotations_filter]
+            else:
+                return self.error(
+                    "Invalid annotationsFilter value -- must provide at least one string value"
+                )
 
         if localization_dateobs is not None:
             if localization_name is not None:
@@ -1366,6 +1389,56 @@ class SourceHandler(BaseHandler):
                     ) = result
                 else:
                     (obj,) = result
+
+                if annotations_filter is not None:
+                    annotations = (
+                        Annotation.query_records_accessible_by(self.current_user)
+                        .filter(Annotation.obj_id == obj.id)
+                        .all()
+                    )
+
+                    passes_filter = True
+                    for ann_filt in annotations_filter:
+                        ann_split = ann_filt.split(":")
+                        if not (len(ann_split) == 1 or len(ann_split) == 3):
+                            return self.error(
+                                "Invalid annotationsFilter value -- annotation filter must have 1 or 3 values"
+                            )
+                        name = ann_split[0].strip()
+                        if len(ann_split) == 3:
+                            value = ann_split[1].strip()
+                            try:
+                                value = float(value)
+                            except ValueError as e:
+                                return self.error(
+                                    f"Invalid annotation filter value: {e}"
+                                )
+                            op = ann_split[2].strip()
+                        # first check that the name is present
+                        name_present = [
+                            isinstance(an.data, dict) and name in an.data
+                            for an in annotations
+                        ]
+                        name_check = any(name_present)
+
+                        # fails the filter if name is not present
+                        if not name_check:
+                            passes_filter = False
+                            break
+                        if len(ann_split) == 3:
+                            index = name_present.index(True)
+                            data_value = annotations[index].data[name]
+                            try:
+                                comp_function = eval(f"operator.{op}")
+                            except AttributeError as e:
+                                return self.error(f"Invalid operator: {e}")
+                            comp_check = comp_function(data_value, value)
+                            if not comp_check:
+                                passes_filter = False
+                                break
+
+                    if not passes_filter:
+                        continue
                 obj_list.append(obj.to_dict())
 
                 if include_comments:
