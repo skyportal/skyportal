@@ -110,30 +110,56 @@ class ObservationPlanRequestHandler(BaseHandler):
         return self.success(data={"id": observation_plan_request.id})
 
     @auth_or_token
-    def get(self, observation_plan_request_id):
+    def get(self, observation_plan_request_id=None):
         """
         ---
-        description: Get an observation plan.
-        tags:
-          - observation_plan_requests
-        parameters:
-          - in: path
-            name: observation_plan_id
-            required: true
-            schema:
-              type: string
-          - in: query
-            name: includePlannedObservations
-            nullable: true
-            schema:
-              type: boolean
-            description: |
-              Boolean indicating whether to include associated planned observations. Defaults to false.
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleObservationPlanRequest
+        single:
+          description: Get an observation plan.
+          tags:
+            - observation_plan_requests
+          parameters:
+            - in: path
+              name: observation_plan_id
+              required: true
+              schema:
+                type: string
+            - in: query
+              name: includePlannedObservations
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated planned observations. Defaults to false.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleObservationPlanRequest
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Get all observation plans.
+          tags:
+            - observation_plan_requests
+          parameters:
+            - in: query
+              name: includePlannedObservations
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated planned observations. Defaults to false.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: ArrayOfObservationPlanRequests
+            400:
+              content:
+                application/json:
+                  schema: Error
         """
 
         include_planned_observations = self.get_query_argument(
@@ -148,16 +174,22 @@ class ObservationPlanRequestHandler(BaseHandler):
         else:
             options = [joinedload(ObservationPlanRequest.observation_plans)]
 
-        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
-            observation_plan_request_id,
-            self.current_user,
-            mode="read",
-            raise_if_none=True,
-            options=options,
-        )
-        self.verify_and_commit()
+        if observation_plan_request_id is not None:
+            observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+                observation_plan_request_id,
+                self.current_user,
+                mode="read",
+                raise_if_none=True,
+                options=options,
+            )
+            return self.success(data=observation_plan_request)
 
-        return self.success(data=observation_plan_request)
+        query = ObservationPlanRequest.query_records_accessible_by(
+            self.current_user, mode="read", options=options
+        )
+        observation_plan_requests = query.all()
+        self.verify_and_commit()
+        return self.success(data=observation_plan_requests)
 
     @auth_or_token
     def delete(self, observation_plan_request_id):
