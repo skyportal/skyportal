@@ -3,10 +3,12 @@ import uuid
 import pandas as pd
 import time
 from regions import Regions
+import pytest
 
 from skyportal.tests import api
 
 
+@pytest.mark.flaky(reruns=2)
 def test_observation_plan(
     user, super_admin_token, upload_data_token, view_only_token, public_group
 ):

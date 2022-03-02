@@ -565,7 +565,11 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
             }
 
             field = InstrumentField(
-                instrument_id=instrument_id, field_id=int(field_id), contour=contour
+                instrument_id=instrument_id,
+                field_id=int(field_id),
+                contour=contour,
+                ra=ra,
+                dec=dec,
             )
             session.add(field)
             session.commit()

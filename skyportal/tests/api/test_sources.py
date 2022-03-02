@@ -1160,7 +1160,7 @@ def test_sources_filter_by_time_spectrum(
         'spectrum',
         data={
             'obj_id': obj_id1,
-            'observed_at': str(datetime.now(timezone.utc)),
+            'observed_at': str(datetime.now(timezone.utc) - timedelta(days=1)),
             'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
@@ -1178,7 +1178,7 @@ def test_sources_filter_by_time_spectrum(
         'spectrum',
         data={
             'obj_id': obj_id2,
-            'observed_at': str(datetime.now(timezone.utc)),
+            'observed_at': str(datetime.now(timezone.utc) + timedelta(days=1)),
             'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],

@@ -84,7 +84,8 @@ def test_add_favorites_from_api(driver, super_admin_user, public_group):
     driver.wait_for_xpath("//input[@name='sourceID']").send_keys(obj_id)
 
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        scroll_parent=True,
     )
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")

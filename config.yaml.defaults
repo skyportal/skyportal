@@ -80,6 +80,8 @@ app:
       component: ObservingRunPage
     - path: "/allocations"
       component: AllocationPage
+    - path: "/observations"
+      component: ObservationPage
     - path: "/group_sources/:id"
       component: GroupSources
     - path: "/user_management"
@@ -100,6 +102,8 @@ app:
       component: TelescopePage
     - path: "/instruments"
       component: InstrumentPage
+    - path: "/shifts"
+      component: ShiftPage
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -143,6 +147,14 @@ app:
     - name: Allocations
       icon: HourglassEmptyOutlined
       url: /allocations
+
+    - name: Observations
+      icon: ZoomInOutlined
+      url: /observations
+
+    - name: Shifts
+      icon: SubwayRounded
+      url: /shifts
 
     - name: About
       icon: Info

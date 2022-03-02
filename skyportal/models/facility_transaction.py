@@ -35,6 +35,20 @@ class FacilityTransaction(Base):
         doc="The FollowupRequest this message pertains to.",
     )
 
+    observation_plan_request_id = sa.Column(
+        sa.ForeignKey('observationplanrequests.id', ondelete='SET NULL'),
+        index=True,
+        nullable=True,
+        doc="The ID of the ObservationPlanRequest this message pertains to.",
+    )
+
+    observation_plan_request = relationship(
+        'ObservationPlanRequest',
+        back_populates='transactions',
+        doc='The ObservationPlanRequest this message pertains to.',
+        passive_deletes=True,
+    )
+
     initiator_id = sa.Column(
         sa.ForeignKey('users.id', ondelete='SET NULL'),
         index=True,
