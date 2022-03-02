@@ -405,11 +405,21 @@ const GcnEventPage = ({ route }) => {
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
             id="sources-header"
-          />
+          >
+            <Typography className={styles.accordionHeading}>
+              Sources within localization
+            </Typography>
+          </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.gcnEventContainer}>
-              <GcnEventSourcesPage route={route} sources={gcnEventSources} />
-            </div>
+            {gcnEventSources?.sources.length === 0 ? (
+              <Typography variant="h5">None             </Typography>
+            ) : (
+              <div className={styles.gcnEventContainer}>
+                             {" "}
+                <GcnEventSourcesPage route={route} sources={gcnEventSources} /> 
+                         {" "}
+              </div>
+            )}
           </AccordionDetails>
         </Accordion>
       </div>
@@ -419,11 +429,23 @@ const GcnEventPage = ({ route }) => {
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
             id="observations-header"
-          />
+          >
+            <Typography className={styles.accordionHeading}>
+              Observations within localization
+            </Typography>
+          </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.gcnEventContainer}>
-              <ExecutedObservationsTable observations={gcnEventObservations} />
-            </div>
+            {gcnEventObservations?.length === 0 ? (
+              <Typography variant="h5">None             </Typography>
+            ) : (
+              <div className={styles.gcnEventContainer}>
+                             {" "}
+                <ExecutedObservationsTable
+                  observations={gcnEventObservations}
+                />
+                           {" "}
+              </div>
+            )}
           </AccordionDetails>
         </Accordion>
       </div>
@@ -433,11 +455,20 @@ const GcnEventPage = ({ route }) => {
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
             id="galaxies-header"
-          />
+          >
+            <Typography className={styles.accordionHeading}>
+              Galaxies within localization
+            </Typography>
+          </AccordionSummary>
           <AccordionDetails>
-            <div className={styles.gcnEventContainer}>
-              <GalaxyTable galaxies={gcnEventGalaxies.sources} />
-            </div>
+            {gcnEventGalaxies?.sources.length === 0 ? (
+              <Typography variant="h5">None             </Typography>
+            ) : (
+              <div className={styles.gcnEventContainer}>
+                             {" "}
+                <GalaxyTable galaxies={gcnEventGalaxies.sources} />           {" "}
+              </div>
+            )}
           </AccordionDetails>
         </Accordion>
       </div>
