@@ -539,8 +539,8 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
             for coord in coords:
                 tab = list(
                     zip(
-                        (*coord.ra.deg.astype(int).tolist(), int(coord.ra.deg[0])),
-                        (*coord.dec.deg.astype(int).tolist(), int(coord.dec.deg[0])),
+                        (*coord.ra.deg, coord.ra.deg[0]),
+                        (*coord.dec.deg, coord.dec.deg[0]),
                     )
                 )
                 geometry.append(tab)
