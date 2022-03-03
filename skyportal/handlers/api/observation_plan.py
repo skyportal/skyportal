@@ -359,7 +359,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
 
         return self.success(data=observation_plan_request)
 
-      
+
 class ObservationPlanGCNHandler(BaseHandler):
     @auth_or_token
     def get(self, observation_plan_request_id):
@@ -438,7 +438,7 @@ class ObservationPlanGCNHandler(BaseHandler):
 
         return self.success(data=content)
 
-      
+
 def observation_animations(
     observations,
     localization,
