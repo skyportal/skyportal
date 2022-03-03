@@ -379,11 +379,13 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                 min_dec, max_dec = min(min_dec, np.min(coord.dec.deg)), max(
                     max_dec, np.max(coord.dec.deg)
                 )
-            ras = [min_ra, max_ra, max_ra, min_ra, min_ra]
-            decs = [min_dec, min_dec, max_dec, max_dec, max_dec]
-
-            tab = list(zip(ras, decs))
-            geometry_summary = tab
+            geometry_summary = [
+                (min_ra, min_dec),
+                (max_ra, min_dec),
+                (max_ra, max_dec),
+                (min_ra, max_dec),
+                (min_ra, min_dec),
+            ]
 
             contour_summary = {
                 'properties': {
