@@ -78,7 +78,18 @@ const ObservationPage = () => {
 };
 
 ObservationList.propTypes = {
-  observations: PropTypes.arrayOf(PropTypes.any).isRequired,
+  observations: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      obstime: PropTypes.instanceOf(Date),
+      filt: PropTypes.string,
+      exposure_time: PropTypes.number,
+      airmass: PropTypes.number,
+      limmag: PropTypes.number,
+      seeing: PropTypes.number,
+      processed_fraction: PropTypes.number,
+    })
+  ).isRequired,
 };
 
 export default ObservationPage;
