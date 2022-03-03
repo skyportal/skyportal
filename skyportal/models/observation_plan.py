@@ -291,8 +291,9 @@ class EventObservationPlan(Base):
         overhead = sum(obs.overhead_per_exposure for obs in self.planned_observations)
         return overhead + self.total_time
 
-    def get_area_probability(self, localization):
-        """Integrated area in sq. deg and probability within a given localization."""
+    @property
+    def area(self):
+        """Integrated area in sq. deg within localization."""
 
         union = (
             sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
@@ -304,22 +305,44 @@ class EventObservationPlan(Base):
         )
 
         area = sa.func.sum(union.columns.healpix.area)
+        query_area = sa.select(area).filter(
+            LocalizationTile.localization_id
+            == self.observation_plan_request.localization_id,
+            union.columns.healpix.overlaps(LocalizationTile.healpix),
+        )
+        intarea = DBSession().execute(query_area).scalar_one()
+
+        if intarea is None:
+            intarea = 0.0
+        return intarea * (180.0 / np.pi) ** 2
+
+    @property
+    def probability(self):
+        """Integrated probability within a given localization."""
+
+        union = (
+            sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+            .filter(
+                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
+                PlannedObservation.observation_plan_id == self.id,
+            )
+            .subquery()
+        )
+
         prob = sa.func.sum(
             LocalizationTile.probdensity
             * (union.columns.healpix * LocalizationTile.healpix).area
         )
-        query_area = sa.select(area).filter(
-            LocalizationTile.localization_id == localization.id,
-            union.columns.healpix.overlaps(LocalizationTile.healpix),
-        )
         query_prob = sa.select(prob).filter(
-            LocalizationTile.localization_id == localization.id,
+            LocalizationTile.localization_id
+            == self.observation_plan_request.localization_id,
             union.columns.healpix.overlaps(LocalizationTile.healpix),
         )
         intprob = DBSession().execute(query_prob).scalar_one()
-        intarea = DBSession().execute(query_area).scalar_one()
+        if intprob is None:
+            intprob = 0.0
 
-        return (intprob, intarea * (180.0 / np.pi) ** 2)
+        return intprob
 
 
 class PlannedObservation(Base):

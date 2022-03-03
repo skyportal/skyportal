@@ -169,6 +169,81 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
       });
     });
     columns.push({ name: "status", label: "Status" });
+
+    const renderNumberObservations = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div>
+          {observationplanRequest.observation_plans &&
+          observationplanRequest.observation_plans.length > 0 ? (
+            <div>
+              {observationplanRequest.observation_plans[0].num_observations}
+            </div>
+          ) : (
+            <div>N/A</div>
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "nobs",
+      label: "Number of Observations",
+      options: {
+        customBodyRenderLite: renderNumberObservations,
+      },
+    });
+
+    const renderArea = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div>
+          {observationplanRequest.observation_plans &&
+          observationplanRequest.observation_plans.length > 0 ? (
+            <div>
+              {observationplanRequest.observation_plans[0].area.toFixed(2)}
+            </div>
+          ) : (
+            <div>N/A</div>
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "area",
+      label: "Area [sq. deg.]",
+      options: {
+        customBodyRenderLite: renderArea,
+      },
+    });
+
+    const renderProbability = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div>
+          {observationplanRequest.observation_plans &&
+          observationplanRequest.observation_plans.length > 0 ? (
+            <div>
+              {observationplanRequest.observation_plans[0].probability.toFixed(
+                3
+              )}
+            </div>
+          ) : (
+            <div>N/A</div>
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "probability",
+      label: "Int. Probability",
+      options: {
+        customBodyRenderLite: renderProbability,
+      },
+    });
+
     if (modifiable) {
       const renderModify = (dataIndex) => {
         const observationplanRequest =

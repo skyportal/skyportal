@@ -12,7 +12,6 @@ from ...models import (
     EventObservationPlan,
     GcnEvent,
     Group,
-    Localization,
     ObservationPlanRequest,
     PlannedObservation,
 )
@@ -395,14 +394,6 @@ class ObservationPlanGCNHandler(BaseHandler):
             .first()
         )
 
-        localization = (
-            Localization.query_records_accessible_by(
-                self.current_user,
-            )
-            .filter(Localization.id == observation_plan_request.localization_id)
-            .first()
-        )
-
         allocation = Allocation.get_if_accessible_by(
             observation_plan_request.allocation_id,
             self.current_user,
@@ -412,13 +403,17 @@ class ObservationPlanGCNHandler(BaseHandler):
         instrument = allocation.instrument
 
         observation_plan = observation_plan_request.observation_plans[0]
+        num_observations = observation_plan.num_observations
+        if num_observations == 0:
+            return self.error('Need at least one observation to produce a GCN')
+
         start_observation = astropy.time.Time(
             observation_plan.start_observation, format='datetime'
         )
         unique_filters = observation_plan.unique_filters
-        num_observations = observation_plan.num_observations
         total_time = observation_plan.total_time
-        (intprob, intarea) = observation_plan.get_area_probability(localization)
+        probability = observation_plan.probability
+        area = observation_plan.area
 
         trigger_time = astropy.time.Time(event.dateobs, format='datetime')
         dt = observation_plan.start_observation - event.dateobs
@@ -426,7 +421,7 @@ class ObservationPlanGCNHandler(BaseHandler):
         content = f"""
             SUBJECT: Follow-up of {event.gcn_notices[0].stream} trigger {trigger_time.isot} with {instrument.name}.
 
-            We observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC with {instrument.name} on the {instrument.telescope.name}. We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {intarea:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} after the burst trigger time) corresponding to ~{int(100 * intprob)}% of the probability enclosed in the localization region.
+            We observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC with {instrument.name} on the {instrument.telescope.name}. We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} after the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.
             """
 
         return self.success(data=content)
