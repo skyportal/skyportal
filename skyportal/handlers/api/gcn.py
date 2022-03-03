@@ -179,6 +179,9 @@ class GcnEventHandler(BaseHandler):
                         joinedload(GcnEvent.observationplan_requests).joinedload(
                             ObservationPlanRequest.requester
                         ),
+                        joinedload(GcnEvent.observationplan_requests).joinedload(
+                            ObservationPlanRequest.observation_plans
+                        ),
                     ],
                 )
                 .filter_by(dateobs=dateobs)
@@ -193,6 +196,23 @@ class GcnEventHandler(BaseHandler):
                 "lightcurve": event.lightcurve,
             }
 
+            # go through some pain to get probability and area included
+            # as these are properties
+            request_data = []
+            for ii, req in enumerate(data['observationplan_requests']):
+                dat = req.to_dict()
+                plan_data = []
+                for plan in dat["observation_plans"]:
+                    plan_dict = {
+                        **plan.to_dict(),
+                        "probability": plan.probability,
+                        "area": plan.area,
+                        "num_observations": plan.num_observations,
+                    }
+                    plan_data.append(plan_dict)
+                dat["observation_plans"] = plan_data
+                request_data.append(dat)
+            data['observationplan_requests'] = request_data
             return self.success(data=data)
 
         q = GcnEvent.query_records_accessible_by(

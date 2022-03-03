@@ -1,3 +1,5 @@
+import astropy
+import humanize
 import jsonschema
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm import joinedload
@@ -16,12 +18,13 @@ import random
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 from ...models import (
+    Allocation,
     DBSession,
     EventObservationPlan,
-    ObservationPlanRequest,
+    GcnEvent,
     Group,
-    Allocation,
     Localization,
+    ObservationPlanRequest,
     PlannedObservation,
     InstrumentField,
 )
@@ -356,7 +359,86 @@ class ObservationPlanSubmitHandler(BaseHandler):
 
         return self.success(data=observation_plan_request)
 
+      
+class ObservationPlanGCNHandler(BaseHandler):
+    @auth_or_token
+    def get(self, observation_plan_request_id):
+        """
+        ---
+        description: Get a GCN-izable summary of the observation plan.
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleObservationPlanRequest
+        """
 
+        options = [
+            joinedload(ObservationPlanRequest.observation_plans)
+            .joinedload(EventObservationPlan.planned_observations)
+            .joinedload(PlannedObservation.field)
+        ]
+
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="read",
+            raise_if_none=True,
+            options=options,
+        )
+        self.verify_and_commit()
+
+        event = (
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(GcnEvent.gcn_notices),
+                ],
+            )
+            .filter(GcnEvent.id == observation_plan_request.gcnevent_id)
+            .first()
+        )
+
+        allocation = Allocation.get_if_accessible_by(
+            observation_plan_request.allocation_id,
+            self.current_user,
+            raise_if_none=True,
+        )
+
+        instrument = allocation.instrument
+
+        observation_plan = observation_plan_request.observation_plans[0]
+        num_observations = observation_plan.num_observations
+        if num_observations == 0:
+            return self.error('Need at least one observation to produce a GCN')
+
+        start_observation = astropy.time.Time(
+            observation_plan.start_observation, format='datetime'
+        )
+        unique_filters = observation_plan.unique_filters
+        total_time = observation_plan.total_time
+        probability = observation_plan.probability
+        area = observation_plan.area
+
+        trigger_time = astropy.time.Time(event.dateobs, format='datetime')
+        dt = observation_plan.start_observation - event.dateobs
+
+        content = f"""
+            SUBJECT: Follow-up of {event.gcn_notices[0].stream} trigger {trigger_time.isot} with {instrument.name}.
+            We observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC with {instrument.name} on the {instrument.telescope.name}. We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {area:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} after the burst trigger time) corresponding to ~{int(100 * probability)}% of the probability enclosed in the localization region.
+            """
+
+        return self.success(data=content)
+
+      
 def observation_animations(
     observations,
     localization,
@@ -368,10 +450,8 @@ def observation_animations(
 ):
 
     """Create a movie to display observations of a given skymap
-
     Parameters
     ----------
-
     observations : skyportal.models.observation_plan.PlannedObservation
         The planned observations associated with the request
     localization : skyportal.models.localizstion.Localization
@@ -391,7 +471,6 @@ def observation_animations(
         The alpha below which you don't draw a field since it is
         too light. Used to not draw lots of invisible fields and
         waste processing time.
-
     Returns
     -------
     dict
