@@ -41,6 +41,7 @@ from skyportal.handlers.api import (
     ObjPhotometryHandler,
     ObjClassificationHandler,
     ObservationHandler,
+    ObservationASCIIFileHandler,
     PhotometryRangeHandler,
     PhotometryRequestHandler,
     RoleHandler,
@@ -140,6 +141,7 @@ skyportal_handlers = [
     (r'/api/invitations(/.*)?', InvitationHandler),
     (r'/api/newsfeed', NewsFeedHandler),
     (r'/api/observation(/[0-9]+)?', ObservationHandler),
+    (r'/api/observation/ascii(/[0-9]+)?', ObservationASCIIFileHandler),
     (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
     (r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)?', ObservationPlanRequestHandler),
     (

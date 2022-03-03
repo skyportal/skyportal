@@ -37,7 +37,7 @@ export function allocationTitle(allocation, instrumentList, telescopeList) {
   const telescope_id = instrument?.telescope_id;
   const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
 
-  if (!(allocation?.start_date && instrument?.name && telescope?.name)) {
+  if (!(instrument?.name && telescope?.name)) {
     return (
       <div>
         <CircularProgress color="secondary" />
