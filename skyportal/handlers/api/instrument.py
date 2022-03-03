@@ -11,7 +11,6 @@ from regions import Regions
 from astropy import coordinates
 from astropy import units as u
 import numpy as np
-from distutils.util import strtobool
 
 from ..base import BaseHandler
 from ...models import (
@@ -195,17 +194,39 @@ class InstrumentHandler(BaseHandler):
 
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
-        options = [joinedload(Instrument.fields)]
         if includeGeoJSON:
-            options.append(
-                joinedload(Instrument.fields).undefer(InstrumentField.contour)
-            )
-        if includeGeoJSONSummary:
-            options.append(
+            options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
+        elif includeGeoJSONSummary:
+            options = [
                 joinedload(Instrument.fields).undefer(InstrumentField.contour_summary)
-            )
+            ]
+        else:
+            options = []
+
+        print(
+            localization_dateobs,
+            localization_name,
+            localization_cumprob,
+            includeGeoJSON,
+            includeGeoJSONSummary,
+            instrument_id,
+            options,
+        )
 
         if instrument_id is not None:
+            if includeGeoJSON:
+                options = [
+                    joinedload(Instrument.fields).undefer(InstrumentField.contour)
+                ]
+            elif includeGeoJSONSummary:
+                options = [
+                    joinedload(Instrument.fields).undefer(
+                        InstrumentField.contour_summary
+                    )
+                ]
+            else:
+                options = []
+
             instrument = Instrument.get_if_accessible_by(
                 int(instrument_id),
                 self.current_user,
@@ -265,7 +286,11 @@ class InstrumentHandler(BaseHandler):
                     )
                 ).scalar_subquery()
 
-                if includeGeoJSON:
+                if includeGeoJSON or includeGeoJSONSummary:
+                    if includeGeoJSON:
+                        undefer_column = 'contour'
+                    elif includeGeoJSONSummary:
+                        undefer_column = 'contour_summary'
                     tiles = (
                         DBSession()
                         .execute(
@@ -280,7 +305,7 @@ class InstrumentHandler(BaseHandler):
                                     LocalizationTile.healpix
                                 ),
                             )
-                            .options(undefer('contour'))
+                            .options(undefer(undefer_column))
                         )
                         .unique()
                         .all()
@@ -309,9 +334,7 @@ class InstrumentHandler(BaseHandler):
             return self.success(data=data)
 
         inst_name = self.get_query_argument("name", None)
-        query = Instrument.query_records_accessible_by(
-            self.current_user, mode="read", options=options
-        )
+        query = Instrument.query_records_accessible_by(self.current_user, mode="read")
         if inst_name is not None:
             query = query.filter(Instrument.name == inst_name)
         instruments = query.all()
@@ -367,7 +390,11 @@ class InstrumentHandler(BaseHandler):
             ).scalar_subquery()
 
             for ii, instrument in enumerate(instruments):
-                if includeGeoJSON:
+                if includeGeoJSON or includeGeoJSONSummary:
+                    if includeGeoJSON:
+                        undefer_column = 'contour'
+                    elif includeGeoJSONSummary:
+                        undefer_column = 'contour_summary'
                     tiles = (
                         DBSession()
                         .execute(
@@ -382,7 +409,7 @@ class InstrumentHandler(BaseHandler):
                                     LocalizationTile.healpix
                                 ),
                             )
-                            .options(undefer('contour'))
+                            .options(undefer(undefer_column))
                         )
                         .unique()
                         .all()
@@ -407,6 +434,8 @@ class InstrumentHandler(BaseHandler):
                         .all()
                     )
                 data[ii]['fields'] = [tile.to_dict() for tile, in tiles]
+
+        print(data)
 
         self.verify_and_commit()
         return self.success(data=data)
