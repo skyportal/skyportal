@@ -366,7 +366,7 @@ class MMAAPI(FollowUpAPI):
                 "default": "tiling",
             },
             "exposure_time": {"type": "string", "default": "300"},
-            "filters": {"type": "string", "default": "g,r,i"},
+            "filters": {"type": "string", "default": "ztfg,ztfr,ztfi"},
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
                 "type": "number",

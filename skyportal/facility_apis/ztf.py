@@ -20,7 +20,7 @@ if cfg['app.ztf.port'] is None:
 else:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
 
-bands = {'g': 1, 'r': 2, 'i': 3}
+bands = {'ztfg': 1, 'ztfr': 2, 'ztfi': 3}
 inv_bands = {v: k for k, v in bands.items()}
 
 
@@ -430,19 +430,17 @@ class ZTFMMAAPI(MMAAPI):
         jd_start = Time(start_date, format='datetime').jd
         jd_end = Time(end_date, format='datetime').jd
 
-        if not jd_start < jd_end:
+        if jd_start > jd_end:
             raise ValueError('start_date must be before end_date.')
 
         s = Session()
         s.auth = (altdata['tap_username'], altdata['tap_password'])
         client = pyvo.dal.TAPService(altdata['tap_service'], session=s)
 
-        request_str = """
+        request_str = f"""
             SELECT field,rcid,fid,expid,obsjd,exptime,maglimit,ipac_gid,seeing
-            FROM ztf.ztf_current_meta_sci WHERE (obsjd BETWEEN {0} AND {1})
-        """.format(
-            jd_start, jd_end
-        )
+            FROM ztf.ztf_current_meta_sci WHERE (obsjd BETWEEN {jd_start} AND {jd_end})
+        """
 
         fetch_obs = functools.partial(
             fetch_observations,
@@ -498,7 +496,7 @@ def fetch_observations(instrument_id, client, request_str):
         df_group_median = df_group.median()
         df_group_median['observation_id'] = int(expid)
         df_group_median['processed_fraction'] = len(df_group["field"]) / 64.0
-        df_group_median['filter'] = 'ztf' + inv_bands[int(df_group_median["fid"])]
+        df_group_median['filter'] = inv_bands[int(df_group_median["fid"])]
         dfs.append(df_group_median)
     obstable = pd.concat(dfs, axis=1).T
     obstable.rename(
