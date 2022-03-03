@@ -18,8 +18,6 @@ from ...models import (
     ObservationPlanRequest,
     PlannedObservation,
     LocalizationTile,
-    Allocation,
-    PlannedObservation,
 )
 
 from ...models.schema import ObservationPlanPost
@@ -243,6 +241,7 @@ class ObservationPlanRequestHandler(BaseHandler):
 
         return self.success()
 
+
 class ObservationPlanSubmitHandler(BaseHandler):
     @auth_or_token
     def post(self, observation_plan_request_id):
@@ -351,7 +350,7 @@ class ObservationPlanSubmitHandler(BaseHandler):
 
         return self.success(data=observation_plan_request)
 
-      
+
 class ObservationPlanGCNHandler(BaseHandler):
     @auth_or_token
     def get(self, observation_plan_request_id):
