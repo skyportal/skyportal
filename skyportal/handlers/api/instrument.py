@@ -373,12 +373,10 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
             min_ra, max_ra = np.min(coords[0].ra.deg), np.max(coords[0].ra.deg)
             min_dec, max_dec = np.min(coords[0].dec.deg), np.max(coords[0].dec.deg)
             for coord in coords:
-                min_ra, max_ra = min(min_ra, np.min(coord.ra.deg)), max(
-                    max_ra, np.max(coord.ra.deg)
-                )
-                min_dec, max_dec = min(min_dec, np.min(coord.dec.deg)), max(
-                    max_dec, np.max(coord.dec.deg)
-                )
+                min_ra = min(min_ra, np.min(coord.ra.deg))
+                max_ra = max(max_ra, np.max(coord.ra.deg))
+                min_dec = min(min_dec, np.min(coord.dec.deg))
+                max_dec = max(max_dec, np.max(coord.dec.deg))
             geometry_summary = [
                 (min_ra, min_dec),
                 (max_ra, min_dec),
