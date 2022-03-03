@@ -8,8 +8,10 @@ import functools
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import matplotlib.patches as mpatches
 import tempfile
 from ligo.skymap import plot  # noqa: F401
+import random
 
 from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
@@ -404,6 +406,25 @@ def observation_animations(
             If not successful, a reason is returned.
     """
 
+    surveyColors = {
+        "ztfg": "#28A745",
+        "ztfr": "#DC3545",
+        "ztfi": "#F3DC11",
+        "AllWISE": "#2F5492",
+        "Gaia_EDR3": "#FF7F0E",
+        "PS1_DR1": "#3BBED5",
+        "GALEX": "#6607C2",
+        "TNS": "#ED6CF6",
+    }
+
+    filters = list(set(obs.filt for obs in observations))
+    for filt in filters:
+        if filt in surveyColors:
+            continue
+        surveyColors[filt] = "#" + ''.join(
+            [random.choice('0123456789ABCDEF') for i in range(6)]
+        )
+
     matplotlib.use("Agg")
     fig = plt.figure(figsize=figsize, constrained_layout=False)
     ax = plt.axes(projection='astro mollweide')
@@ -426,15 +447,27 @@ def observation_animations(
                 alpha = 1
 
             if alpha > alpha_cutoff:
+                coords = obs.field.contour_summary["features"][0]["geometry"][
+                    "coordinates"
+                ]
+                ras = np.array(coords)[:, 0]
+                # cannot handle 0-crossing well
+                if len(np.where(ras > 180)[0]) > 0 and len(np.where(ras < 180)) > 0:
+                    continue
                 poly = plt.Polygon(
-                    obs.field.contour_summary["features"][0]["geometry"]["coordinates"],
+                    coords,
                     alpha=alpha,
-                    facecolor='green',
+                    facecolor=surveyColors[obs.filt],
                     edgecolor='black',
                     transform=ax.get_transform('world'),
                 )
                 ax.add_patch(poly)
                 old_artists.append(poly)
+
+        patches = []
+        for filt in filters:
+            patches.append(mpatches.Patch(color=surveyColors[filt], label=filt))
+        plt.legend(handles=patches)
 
     if output_format == "gif":
         writer = animation.PillowWriter()
