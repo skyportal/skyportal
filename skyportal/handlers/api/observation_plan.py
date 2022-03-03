@@ -1,9 +1,7 @@
 import astropy
+import humanize
 import jsonschema
 from marshmallow.exceptions import ValidationError
-import numpy as np
-import healpix_alchemy as ha
-import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 
 from baselayer.app.access import auth_or_token
@@ -14,10 +12,9 @@ from ...models import (
     EventObservationPlan,
     GcnEvent,
     Group,
-    InstrumentFieldTile,
+    Localization,
     ObservationPlanRequest,
     PlannedObservation,
-    LocalizationTile,
 )
 
 from ...models.schema import ObservationPlanPost
@@ -398,6 +395,14 @@ class ObservationPlanGCNHandler(BaseHandler):
             .first()
         )
 
+        localization = (
+            Localization.query_records_accessible_by(
+                self.current_user,
+            )
+            .filter(Localization.id == observation_plan_request.localization_id)
+            .first()
+        )
+
         allocation = Allocation.get_if_accessible_by(
             observation_plan_request.allocation_id,
             self.current_user,
@@ -406,70 +411,23 @@ class ObservationPlanGCNHandler(BaseHandler):
 
         instrument = allocation.instrument
 
-        filters, dates = [], []
-        for obs in observation_plan_request.observation_plans[0].planned_observations:
-            filters.append(obs.filt)
-            dates.append(astropy.time.Time(obs.obstime, format='datetime'))
+        observation_plan = observation_plan_request.observation_plans[0]
+        start_observation = astropy.time.Time(
+            observation_plan.start_observation, format='datetime'
+        )
+        unique_filters = observation_plan.unique_filters
+        num_observations = observation_plan.num_observations
+        total_time = observation_plan.total_time
+        (intprob, intarea) = observation_plan.get_area_probability(localization)
 
-        filtersUnique = list(set(filters))
-        minDate = min(dates)
         trigger_time = astropy.time.Time(event.dateobs, format='datetime')
-        dt = minDate - trigger_time
+        dt = observation_plan.start_observation - event.dateobs
+        print(dt)
 
-        union = (
-            sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
-            .filter(
-                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
-                PlannedObservation.observation_plan_id
-                == observation_plan_request.observation_plans[0].id,
-            )
-            .subquery()
-        )
+        content = f"""
+            SUBJECT: Follow-up of {event.gcn_notices[0].stream} trigger {trigger_time.isot} with {instrument.name}.
 
-        area = sa.func.sum(union.columns.healpix.area)
-        prob = sa.func.sum(
-            LocalizationTile.probdensity
-            * (union.columns.healpix * LocalizationTile.healpix).area
-        )
-        query_area = sa.select(area).filter(
-            LocalizationTile.localization_id
-            == observation_plan_request.localization_id,
-            union.columns.healpix.overlaps(LocalizationTile.healpix),
-        )
-        query_prob = sa.select(prob).filter(
-            LocalizationTile.localization_id
-            == observation_plan_request.localization_id,
-            union.columns.healpix.overlaps(LocalizationTile.healpix),
-        )
-        intprob = DBSession().execute(query_prob).scalar_one()
-        intarea = DBSession().execute(query_area).scalar_one()
+            We observed the localization region of {event.gcn_notices[0].stream} trigger {trigger_time.isot} UTC with {instrument.name} on the {instrument.telescope.name}. We obtained a total of {num_observations} images covering {",".join(unique_filters)} bands for a total of {total_time} seconds. The observations covered {intarea:.1f} square degrees beginning at {start_observation.isot} ({humanize.naturaldelta(dt)} after the burst trigger time) corresponding to ~{int(100 * intprob)}% of the probability enclosed in the localization region.
+            """
 
-        content = [
-            "SUBJECT: Follow-up of ",
-            event.gcn_notices[0].stream,
-            " trigger",
-            trigger_time.isot,
-            " with ",
-            instrument.name,
-            "\nWe observed the localization region of ",
-            event.gcn_notices[0].stream,
-            " trigger ",
-            trigger_time.isot,
-            " UTC with ",
-            instrument.name,
-            " on the ",
-            instrument.telescope.name,
-            ". We obtained a series of ",
-            ",".join(filtersUnique),
-            " band images covering ",
-            "%.2f" % (intarea * (180.0 / np.pi) ** 2),
-            " square degrees beginning at ",
-            minDate.isot,
-            " (",
-            "%.2f" % dt.jd,
-            " days after the burst trigger time) corresponding to ~",
-            "%.2f" % (100 * intprob),
-            "% of the probability enclosed in the localization region.\n\n",
-        ]
-
-        return self.success(data="".join(content))
+        return self.success(data=content)
