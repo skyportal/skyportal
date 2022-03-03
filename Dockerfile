@@ -29,6 +29,7 @@ RUN bash -c "\
     cp docker.yaml config.yaml && \
     \
     source /skyportal_env/bin/activate && \
+    export NPM_CONFIG_LEGACY_PEER_DEPS=true && \
     make system_setup && \
     \
     ./node_modules/.bin/webpack --mode=production && \
