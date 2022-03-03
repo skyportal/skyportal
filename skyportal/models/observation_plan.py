@@ -10,7 +10,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime, timedelta
-import healpy as hp
+import healpix_alchemy as ha
 import numpy as np
 
 from baselayer.app.models import (
@@ -25,9 +25,9 @@ from baselayer.app.models import (
 )
 
 from .group import Group
-from .instrument import Instrument
+from .instrument import Instrument, InstrumentFieldTile
 from .allocation import Allocation
-from .localization import Localization
+from .localization import LocalizationTile
 
 
 def updatable_by_token_with_listener_acl(cls, user_or_token):
@@ -256,6 +256,21 @@ class EventObservationPlan(Base):
         else:
             return None
 
+    @property
+    def unique_filters(self):
+        """List of filters used in the observations."""
+        if self.planned_observations:
+            return list(
+                set(
+                    [
+                        planned_observation.filt
+                        for planned_observation in self.planned_observations
+                    ]
+                )
+            )
+        else:
+            return None
+
     @hybrid_property
     def num_observations(self):
         """Number of planned observation."""
@@ -277,22 +292,57 @@ class EventObservationPlan(Base):
         return overhead + self.total_time
 
     @property
-    def ipix(self):
-        return {
-            i
-            for planned_observation in self.planned_observations
-            if planned_observation.field.ipix is not None
-            for i in planned_observation.field.ipix
-        }
+    def area(self):
+        """Integrated area in sq. deg within localization."""
+
+        union = (
+            sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+            .filter(
+                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
+                PlannedObservation.observation_plan_id == self.id,
+            )
+            .subquery()
+        )
+
+        area = sa.func.sum(union.columns.healpix.area)
+        query_area = sa.select(area).filter(
+            LocalizationTile.localization_id
+            == self.observation_plan_request.localization_id,
+            union.columns.healpix.overlaps(LocalizationTile.healpix),
+        )
+        intarea = DBSession().execute(query_area).scalar_one()
+
+        if intarea is None:
+            intarea = 0.0
+        return intarea * (180.0 / np.pi) ** 2
 
     @property
-    def area(self):
-        nside = Localization.nside
-        return hp.nside2pixarea(nside, degrees=True) * len(self.ipix)
+    def probability(self):
+        """Integrated probability within a given localization."""
 
-    def get_probability(self, localization):
-        ipix = np.asarray(list(self.ipix))
-        return localization.flat_2d[ipix].sum()
+        union = (
+            sa.select(ha.func.union(InstrumentFieldTile.healpix).label('healpix'))
+            .filter(
+                InstrumentFieldTile.instrument_field_id == PlannedObservation.field_id,
+                PlannedObservation.observation_plan_id == self.id,
+            )
+            .subquery()
+        )
+
+        prob = sa.func.sum(
+            LocalizationTile.probdensity
+            * (union.columns.healpix * LocalizationTile.healpix).area
+        )
+        query_prob = sa.select(prob).filter(
+            LocalizationTile.localization_id
+            == self.observation_plan_request.localization_id,
+            union.columns.healpix.overlaps(LocalizationTile.healpix),
+        )
+        intprob = DBSession().execute(query_prob).scalar_one()
+        if intprob is None:
+            intprob = 0.0
+
+        return intprob
 
 
 class PlannedObservation(Base):

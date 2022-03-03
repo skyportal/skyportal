@@ -233,6 +233,10 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
         'observation_plan_request_id'
     ]
     driver.click_xpath(
+        f'//a[contains(@data-testid, "gcnRequest_{observation_plan_request_id}")]',
+        scroll_parent=True,
+    )
+    driver.click_xpath(
         f'//a[contains(@data-testid, "downloadRequest_{observation_plan_request_id}")]',
         scroll_parent=True,
     )
