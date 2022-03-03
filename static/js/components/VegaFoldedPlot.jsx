@@ -3,6 +3,9 @@ import PropTypes from "prop-types";
 import embed from "vega-embed";
 import { isMobileOnly } from "react-device-detect";
 
+const getRandomColor = () =>
+  `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+
 const spec = (url) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   data: {
@@ -38,6 +41,26 @@ const spec = (url) => ({
             "join([format(datum.mag, '.2f'), ' ± ', format(datum.magerr, '.2f'), ' (', datum.magsys, ')'], '')",
           as: "magAndErr",
         },
+        {
+          calculate: `(indexof(datum.filter, 'ztfr') >= 0
+          ? "#dc3545"
+          : indexof(datum.filter, 'ztfi') >= 0
+            ? "#f3dc11"
+            : indexof(datum.filter, 'ztfg') >= 0
+              ? "#28a745"
+              : indexof(datum.filter, 'AllWISE') >= 0
+                ? "#2f5492"
+                : indexof(datum.filter, 'Gaia_EDR3') >= 0
+                  ? "#ff7f0e"
+                  : indexof(datum.filter, 'PS1_DR1') >= 0
+                    ? "#3bbed5"
+                    : indexof(datum.filter, 'GALEX') >= 0
+                      ? "#6607c2"
+                      : indexof(datum.filter, 'TNX') >= 0
+                        ? "#ed6cf6"
+                        : "${getRandomColor()}")`,
+          as: "plcolor",
+        },
       ],
       encoding: {
         x: {
@@ -65,6 +88,7 @@ const spec = (url) => ({
         color: {
           field: "filter",
           type: "nominal",
+          scale: { range: { field: "plcolor" } },
         },
         tooltip: [
           { field: "magAndErr", title: "mag", type: "nominal" },
