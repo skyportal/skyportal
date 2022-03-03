@@ -422,7 +422,6 @@ class ObservationPlanGCNHandler(BaseHandler):
 
         trigger_time = astropy.time.Time(event.dateobs, format='datetime')
         dt = observation_plan.start_observation - event.dateobs
-        print(dt)
 
         content = f"""
             SUBJECT: Follow-up of {event.gcn_notices[0].stream} trigger {trigger_time.isot} with {instrument.name}.
