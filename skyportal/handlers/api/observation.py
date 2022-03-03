@@ -9,7 +9,9 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 from astropy.time import Time
+from io import StringIO
 
+from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -91,6 +93,9 @@ def add_observations(instrument_id, obstable):
             )
         session.add_all(observations)
         session.commit()
+
+        flow = Flow()
+        flow.push('*', "skyportal/REFRESH_OBSERVATIONS")
 
         return log(f"Successfully added observations for instrument {instrument_id}")
     except Exception as e:
@@ -512,5 +517,99 @@ class ObservationHandler(BaseHandler):
 
         DBSession().delete(observation)
         self.verify_and_commit()
+
+        return self.success()
+
+
+class ObservationASCIIFileHandler(BaseHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Upload observation from ASCII file
+        tags:
+          - observations
+        requestBody:
+          content:
+            application/json:
+              schema: ObservationASCIIFileHandlerPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfExecutedObservations
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        json = self.get_json()
+        observation_data = json.pop('observationData', None)
+        instrument_id = json.pop('instrumentID', None)
+
+        if observation_data is None:
+            return self.error(message="Missing observation_data")
+
+        instrument = (
+            Instrument.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(Instrument.fields, InstrumentField.tiles),
+                ],
+            )
+            .filter(
+                Instrument.id == instrument_id,
+            )
+            .first()
+        )
+        if instrument is None:
+            return self.error(message=f"Missing instrument with ID {instrument_id}")
+        try:
+            observation_data = pd.read_table(
+                StringIO(observation_data), sep=","
+            ).to_dict(orient='list')
+        except Exception as e:
+            return self.error(f"Unable to read in observation file: {e}")
+
+        if not all(
+            k in observation_data
+            for k in [
+                'observation_id',
+                'field_id',
+                'obstime',
+                'filter',
+                'exposure_time',
+            ]
+        ):
+            return self.error(
+                "observation_id, field_id, obstime, filter, and exposure_time required in observation_data."
+            )
+
+        for filt in observation_data["filter"]:
+            if filt not in instrument.filters:
+                return self.error(f"Filter {filt} not present in {instrument.filters}")
+
+        # fill in any missing optional parameters
+        optional_parameters = [
+            'airmass',
+            'seeing',
+            'limmag',
+        ]
+        for key in optional_parameters:
+            if key not in observation_data:
+                observation_data[key] = [None] * len(observation_data['observation_id'])
+
+        if "processed_fraction" not in observation_data:
+            observation_data["processed_fraction"] = [1] * len(
+                observation_data['observation_id']
+            )
+
+        obstable = pd.DataFrame.from_dict(observation_data)
+        # run async
+        IOLoop.current().run_in_executor(
+            None,
+            lambda: add_observations(instrument.id, obstable),
+        )
 
         return self.success()
