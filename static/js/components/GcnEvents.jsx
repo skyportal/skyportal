@@ -30,6 +30,12 @@ const useStyles = makeStyles((theme) => ({
       background: theme.palette.primary.main,
     },
   },
+  gcnEventLink: {
+    color:
+      theme.palette.type === "dark"
+        ? theme.palette.secondary.main
+        : theme.palette.primary.main,
+  },
 }));
 
 // Tweak responsive styling
@@ -108,7 +114,9 @@ const GcnEvents = () => {
 
   const renderDateObs = (dataIndex) => (
     <Link to={`/gcn_events/${gcnEvents[dataIndex]?.dateobs}`}>
-      <Button color="primary">{gcnEvents[dataIndex]?.dateobs}</Button>
+      <Button className={classes.gcnEventLink}>
+        {gcnEvents[dataIndex]?.dateobs}
+      </Button>
     </Link>
   );
 

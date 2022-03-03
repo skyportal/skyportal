@@ -8,7 +8,7 @@ The features are available on the **gcn_events** page, where information on the 
 
 These `ObservationPlanRequest`s in particular are triggered on the front-end from the **gcn_events** page, with drop down menus creating a schedule for a given instrument. This request creates an `EventObservationPlan`, which will then have the option of being sent to the instrument through the APIs developed in the **FollowupRequest** (see the APIs here: https://github.com/skyportal/skyportal/tree/master/skyportal/facility_apis).
 
-To evaluate the efficacy of the executed observation plans, we have the `ExecutedObservation`s table, which is accessible through the `observation` api. After execution of the requested observations in the `EventObservationPlan`, the user is responsible for uploading successfully executed observations to the `ExecutedObservation`s table. Users should include information about the time of observation, filter, limiting magnitude, etc. The results of the observations can be compared to the `Localization`s to determine sky coverage and integrated probability contained with the map.
+To evaluate the efficacy of the executed observation plans, we have the `ExecutedObservation`s table, which is accessible through the `observation` api. After execution of the requested observations in the `EventObservationPlan`, the user is responsible for uploading successfully executed observations to the `ExecutedObservation`s table (see below). Users should include information about the time of observation, filter, limiting magnitude, etc. The results of the observations can be compared to the `Localization`s to determine sky coverage and integrated probability contained with the map.
 
 ## Follow-up triggering
 
@@ -20,3 +20,14 @@ The vast majority of follow-up instruments will require some form of authenticat
 * LT: A proposal ID, username, and password are passed as {"username": "username", "password": "password", "LT_proposalID": "your_proposal_ID"}.
 * SLACK: As discussed further [here](./slack.html), slack information is pass as {"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}.
 * ZTF: An API token for an admin user for [Kowalski](https://github.com/dmitryduev/kowalski) can be passed as {"access_token": "your_token"}.
+
+## Uploading executed observations
+
+In addition to making available the `observation` api, we also include an Observations page to simplify upload and viewing of `ExecutedObservation`s. On this page, simply specify the instrument and upload a file of the form:
+
+observation_id,field_id,obstime,seeing,limmag,exposure_time,filter,processed_fraction
+84434604,1,2458598.8460417003,1.5741500000,20.4070500000,30,ztfr,1.00000
+84434651,1,2458598.8465162003,1.5812000000,20.4940500000,30,ztfr,1.00000
+84434696,1,2458598.8469676003,1.6499500000,20.5603000000,30,ztfr,1.00000
+
+where observation_id (the ID of the observations, does not need to be unique), the field_id, the observation time (in JD), the seeing (in arcseconds), the limiting magnitude, the exposure time (in seconds), the filter, and the "processed_fraction" (what fraction of the image was successfully processed) are potential columns. We note that only observation_id, field_id, obstime, filter, and exposure_time required.

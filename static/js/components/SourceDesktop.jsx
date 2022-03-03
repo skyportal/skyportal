@@ -72,7 +72,10 @@ export const useSourceStyles = makeStyles((theme) => ({
   name: {
     fontSize: "200%",
     fontWeight: "900",
-    color: theme.palette.primary.main,
+    color:
+      theme.palette.type === "dark"
+        ? theme.palette.secondary.main
+        : theme.palette.primary.main,
     paddingBottom: "0.25em",
     display: "inline-block",
   },
