@@ -20,10 +20,10 @@ def test_bulk_invite_users(driver, super_admin_user, public_group, public_stream
 
     # Check that the users show up in pending invitations
     driver.wait_for_xpath(
-        f"//*[@data-testid='pendingInvitations']//*[text()='{user1_email}']"
+        f"//*[@data-testid='pendingInvitations']//*[text()='{user1_email}']", timeout=15
     )
     driver.wait_for_xpath(
-        f"//*[@data-testid='pendingInvitations']//*[text()='{user2_email}']"
+        f"//*[@data-testid='pendingInvitations']//*[text()='{user2_email}']", timeout=15
     )
 
 
