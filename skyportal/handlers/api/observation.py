@@ -670,6 +670,8 @@ class ObservationExternalAPIHandler(BaseHandler):
             )
 
         try:
+            # we now retrieve and commit to the database the
+            # executed observations
             instrument.api_class_obsplan.retrieve(
                 allocation, data['start_date'], data['end_date']
             )
