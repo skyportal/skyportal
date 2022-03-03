@@ -82,6 +82,8 @@ app:
       component: ObservingRunPage
     - path: "/allocations"
       component: AllocationPage
+    - path: "/observations"
+      component: ObservationPage
     - path: "/group_sources/:id"
       component: GroupSources
     - path: "/user_management"
@@ -147,6 +149,10 @@ app:
     - name: Allocations
       icon: HourglassEmptyOutlined
       url: /allocations
+
+    - name: Observations
+      icon: ZoomInOutlined
+      url: /observations
 
     - name: Shifts
       icon: SubwayRounded
