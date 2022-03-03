@@ -216,7 +216,6 @@ const spec = (url) => ({
 
 const VegaPlot = React.memo((props) => {
   const { dataUrl } = props;
-  console.log(dataUrl);
   return (
     <div
       ref={(node) => {
