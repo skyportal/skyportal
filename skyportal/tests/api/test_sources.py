@@ -2030,15 +2030,28 @@ def test_token_user_retrieving_source_with_period_exists(
 
 
 def test_token_user_retrieving_source_with_annotation_filter(
-    view_only_token, public_source, annotation_token
+    super_admin_token, public_source, public_source_two_groups, annotation_token
 ):
+
+    annotation_name = str(uuid.uuid4())
 
     status, data = api(
         'POST',
         f'sources/{public_source.id}/annotations',
         data={
             'origin': 'kowalski',
-            'data': {'period': 1.5},
+            'data': {annotation_name: 1.5},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'POST',
+        f'sources/{public_source_two_groups.id}/annotations',
+        data={
+            'origin': 'gloria',
+            'data': {annotation_name: 1.5},
         },
         token=annotation_token,
     )
@@ -2047,18 +2060,31 @@ def test_token_user_retrieving_source_with_annotation_filter(
     status, data = api(
         "GET",
         "sources",
-        params={"annotationsFilter": "period:2.0:le"},
-        token=view_only_token,
+        params={"annotationsFilter": f"{annotation_name}:2.0:le"},
+        token=super_admin_token,
     )
     assert status == 200
     assert data["status"] == "success"
-    assert len(data["data"]["sources"]) > 0
+    assert len(data["data"]["sources"]) == 2
 
     status, data = api(
         "GET",
         "sources",
-        params={"annotationsFilter": "period:2.0:ge"},
-        token=view_only_token,
+        params={
+            "annotationsFilter": f"{annotation_name}:2.0:le",
+            "annotationsFilterOrigin": "kowalski",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 1
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"annotationsFilter": f"{annotation_name}:2.0:ge"},
+        token=super_admin_token,
     )
     assert status == 200
     assert data["status"] == "success"

@@ -502,8 +502,14 @@ class SourceHandler(BaseHandler):
             explode: false
             style: simple
             description: |
-              Comma-separated string of "annotation: value: operator" pair(s) to filter for sources matching
+              Comma-separated string of "annotation: value: operator" triplet(s) to filter for sources matching
               that/those annotation(s), i.e. "redshift: 0.5: lt"
+          - in: query
+            name: annotationsFilterOrigin
+            nullable: true
+            schema:
+              type: string
+            description: Comma-separated string of who posted the annotations to filter
           - in: query
             name: minRedshift
             nullable: true
@@ -657,6 +663,9 @@ class SourceHandler(BaseHandler):
         )
         classifications = self.get_query_argument("classifications", None)
         annotations_filter = self.get_query_argument("annotationsFilter", None)
+        annotations_filter_origin = self.get_query_argument(
+            "annotationsFilterOrigin", None
+        )
         min_redshift = self.get_query_argument("minRedshift", None)
         max_redshift = self.get_query_argument("maxRedshift", None)
         min_peak_magnitude = self.get_query_argument("minPeakMagnitude", None)
@@ -1221,6 +1230,20 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     "Invalid annotationsFilter value -- must provide at least one string value"
                 )
+        if annotations_filter_origin is not None:
+            if (
+                isinstance(annotations_filter_origin, str)
+                and "," in annotations_filter_origin
+            ):
+                annotations_filter_origin = [
+                    c.strip() for c in annotations_filter_origin.split(",")
+                ]
+            elif isinstance(annotations_filter_origin, str):
+                annotations_filter_origin = [annotations_filter_origin]
+            else:
+                return self.error(
+                    "Invalid annotationsFilterOrigin value -- must provide at least one string value"
+                )
 
         if localization_dateobs is not None:
             if localization_name is not None:
@@ -1391,11 +1414,19 @@ class SourceHandler(BaseHandler):
                     (obj,) = result
 
                 if annotations_filter is not None:
-                    annotations = (
-                        Annotation.query_records_accessible_by(self.current_user)
-                        .filter(Annotation.obj_id == obj.id)
-                        .all()
-                    )
+                    if annotations_filter_origin is not None:
+                        annotations = (
+                            Annotation.query_records_accessible_by(self.current_user)
+                            .filter(Annotation.obj_id == obj.id)
+                            .filter(Annotation.origin.in_(annotations_filter_origin))
+                            .all()
+                        )
+                    else:
+                        annotations = (
+                            Annotation.query_records_accessible_by(self.current_user)
+                            .filter(Annotation.obj_id == obj.id)
+                            .all()
+                        )
 
                     passes_filter = True
                     for ann_filt in annotations_filter:
@@ -1428,10 +1459,23 @@ class SourceHandler(BaseHandler):
                         if len(ann_split) == 3:
                             index = name_present.index(True)
                             data_value = annotations[index].data[name]
-                            try:
-                                comp_function = eval(f"operator.{op}")
-                            except AttributeError as e:
-                                return self.error(f"Invalid operator: {e}")
+
+                            op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                            if op not in op_options:
+                                return self.error(f"Invalid operator: {op}")
+
+                            if op == "lt":
+                                comp_function = operator.lt
+                            elif op == "le":
+                                comp_function = operator.le
+                            elif op == "eq":
+                                comp_function = operator.eq
+                            elif op == "ne":
+                                comp_function = operator.ne
+                            elif op == "ge":
+                                comp_function = operator.ge
+                            elif op == "gt":
+                                comp_function = operator.gt
                             comp_check = comp_function(data_value, value)
                             if not comp_check:
                                 passes_filter = False
