@@ -97,6 +97,7 @@ User Guide
    query_analysis
    permissions
    slack
+   mma
    advanced_usage
 
 Contributing
