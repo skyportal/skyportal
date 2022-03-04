@@ -8,10 +8,18 @@ from sqlalchemy.orm import joinedload
 
 from baselayer.log import make_log
 from baselayer.app.flow import Flow
+from baselayer.app.env import load_env
 
 from . import FollowUpAPI
 
 log = make_log('api/observation_plan')
+
+env, cfg = load_env()
+
+if cfg['app.observation_plan.default_filters'] is None:
+    default_filters = ['g', 'r', 'i']
+else:
+    default_filters = cfg['app.observation_plan.default_filters']
 
 
 def generate_plan(observation_plan_id, request_id):
@@ -366,7 +374,7 @@ class MMAAPI(FollowUpAPI):
                 "default": "tiling",
             },
             "exposure_time": {"type": "string", "default": "300"},
-            "filters": {"type": "string", "default": "ztfg,ztfr,ztfi"},
+            "filters": {"type": "string", "default": ",".join(default_filters)},
             "maximum_airmass": {
                 "title": "Maximum Airmass (1-3)",
                 "type": "number",
