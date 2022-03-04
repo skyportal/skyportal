@@ -1,5 +1,4 @@
 import requests
-from swifttools.swift_too import Swift_TOO
 
 from . import FollowUpAPI
 from baselayer.app.env import load_env
@@ -44,6 +43,8 @@ class UVOTXRTRequest:
         """
 
         altdata = request.allocation.altdata
+
+        from swifttools.swift_too import Swift_TOO
 
         too = Swift_TOO()
         too.username = altdata["username"]
