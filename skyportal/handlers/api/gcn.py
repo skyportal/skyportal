@@ -16,11 +16,13 @@ from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    Allocation,
     GcnEvent,
     GcnNotice,
     GcnTag,
     Localization,
     LocalizationTile,
+    ObservationPlanRequest,
 )
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
@@ -50,6 +52,13 @@ class GcnEventHandler(BaseHandler):
             content:
               application/json:
                 schema: Success
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      gcnevent_id:
+                        type: integer
+                        description: New GcnEvent ID
           400:
             content:
               application/json:
@@ -106,6 +115,11 @@ class GcnEventHandler(BaseHandler):
         DBSession().add(gcn_notice)
 
         skymap = get_skymap(root, gcn_notice)
+        if skymap is None:
+            return self.success(
+                f"Event {event.dateobs} does not have skymap. Returning."
+            )
+
         skymap["dateobs"] = event.dateobs
         skymap["sent_by_id"] = self.associated_user_object.id
 
@@ -130,7 +144,7 @@ class GcnEventHandler(BaseHandler):
             IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
             IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
 
-        return self.success()
+        return self.success(data={'gcnevent_id': event.id})
 
     @auth_or_token
     def get(self, dateobs=None):
@@ -156,6 +170,18 @@ class GcnEventHandler(BaseHandler):
                     options=[
                         joinedload(GcnEvent.localizations),
                         joinedload(GcnEvent.gcn_notices),
+                        joinedload(GcnEvent.observationplan_requests)
+                        .joinedload(ObservationPlanRequest.allocation)
+                        .joinedload(Allocation.instrument),
+                        joinedload(GcnEvent.observationplan_requests)
+                        .joinedload(ObservationPlanRequest.allocation)
+                        .joinedload(Allocation.group),
+                        joinedload(GcnEvent.observationplan_requests).joinedload(
+                            ObservationPlanRequest.requester
+                        ),
+                        joinedload(GcnEvent.observationplan_requests).joinedload(
+                            ObservationPlanRequest.observation_plans
+                        ),
                     ],
                 )
                 .filter_by(dateobs=dateobs)
@@ -170,6 +196,23 @@ class GcnEventHandler(BaseHandler):
                 "lightcurve": event.lightcurve,
             }
 
+            # go through some pain to get probability and area included
+            # as these are properties
+            request_data = []
+            for ii, req in enumerate(data['observationplan_requests']):
+                dat = req.to_dict()
+                plan_data = []
+                for plan in dat["observation_plans"]:
+                    plan_dict = {
+                        **plan.to_dict(),
+                        "probability": plan.probability,
+                        "area": plan.area,
+                        "num_observations": plan.num_observations,
+                    }
+                    plan_data.append(plan_dict)
+                dat["observation_plans"] = plan_data
+                request_data.append(dat)
+            data['observationplan_requests'] = request_data
             return self.success(data=data)
 
         q = GcnEvent.query_records_accessible_by(
@@ -177,6 +220,7 @@ class GcnEventHandler(BaseHandler):
             options=[
                 joinedload(GcnEvent.localizations),
                 joinedload(GcnEvent.gcn_notices),
+                joinedload(GcnEvent.observationplan_requests),
             ],
         )
 
@@ -323,17 +367,17 @@ class LocalizationHandler(BaseHandler):
             name: dateobs
             required: true
             schema:
-              type: dateobs
+              type: string
           - in: path
             name: localization_name
             required: true
             schema:
-              type: localization_name
+              type: string
         responses:
           200:
             content:
               application/json:
-                schema: LocalizationHandlerGet
+                schema: Success
           400:
             content:
               application/json:

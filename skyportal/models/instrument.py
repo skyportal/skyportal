@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy import cast
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import deferred
 
 from baselayer.app.models import Base, restricted
 
@@ -105,10 +106,24 @@ class Instrument(Base):
         api_classnames, nullable=True, doc="Name of the instrument's API class."
     )
 
+    api_classname_obsplan = sa.Column(
+        api_classnames,
+        nullable=True,
+        doc="Name of the instrument's ObservationPlan API class.",
+    )
+
     listener_classname = sa.Column(
         listener_classnames,
         nullable=True,
         doc="Name of the instrument's listener class.",
+    )
+
+    observations = relationship(
+        'ExecutedObservation',
+        back_populates='instrument',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc="The ExecutedObservations by this instrument.",
     )
 
     @property
@@ -128,11 +143,16 @@ class Instrument(Base):
         return getattr(facility_apis, self.api_classname)
 
     @property
+    def api_class_obsplan(self):
+        return getattr(facility_apis, self.api_classname_obsplan)
+
+    @property
     def listener_class(self):
         return getattr(facility_apis, self.listener_classname)
 
     fields = relationship("InstrumentField")
     tiles = relationship("InstrumentFieldTile")
+    plans = relationship("EventObservationPlan")
 
 
 class InstrumentField(Base):
@@ -160,7 +180,27 @@ class InstrumentField(Base):
         nullable=False,
     )
 
-    contour = sa.Column(JSONB, nullable=False, doc='GeoJSON contours')
+    ra = sa.Column(
+        sa.Float,
+        doc='The mid-point right ascension for the tile [degrees].',
+        nullable=True,
+    )
+
+    dec = sa.Column(
+        sa.Float,
+        doc='The mid-point declination for the tile [degrees].',
+        nullable=True,
+    )
+
+    contour = deferred(sa.Column(JSONB, nullable=False, doc='GeoJSON contours'))
+
+    contour_summary = deferred(
+        sa.Column(
+            JSONB,
+            nullable=False,
+            doc='GeoJSON contour bounding box for lower memory display',
+        )
+    )
 
     tiles = relationship("InstrumentFieldTile")
 

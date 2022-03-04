@@ -216,7 +216,9 @@ def test_token_user_cannot_post_two_candidates_same_obj_filter_passed_at(
         },
         token=upload_data_token,
     )
-    assert status in [401, 500]
+    assert status == 400
+    assert data['status'] == 'error'
+    assert 'Failed to post candidate' in data['message']
 
 
 def test_candidate_list_sorting_basic(
@@ -727,7 +729,7 @@ def test_exclude_by_outdated_annotations(
         params={
             "groupIDs": f"{public_group.id}",
             "annotationExcludeOrigin": origin,
-            "annotationExcludeOutdatedDate": str(t0 + datetime.timedelta(seconds=3)),
+            "annotationExcludeOutdatedDate": str(t0 + datetime.timedelta(seconds=60)),
         },
         token=view_only_token,
     )

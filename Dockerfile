@@ -4,7 +4,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common && \
-    curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
+    curl -sL https://deb.nodesource.com/setup_17.x | bash - && \
     apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y python3 python3-venv python3-dev \
@@ -17,7 +17,7 @@ RUN apt-get update && \
 RUN python3 -m venv /skyportal_env && \
     \
     bash -c "source /skyportal_env/bin/activate && \
-    pip install --upgrade pip wheel numpy"
+    pip install --upgrade pip==21.3.1 wheel numpy"
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
@@ -29,6 +29,7 @@ RUN bash -c "\
     cp docker.yaml config.yaml && \
     \
     source /skyportal_env/bin/activate && \
+    export NPM_CONFIG_LEGACY_PEER_DEPS=true && \
     make system_setup && \
     \
     ./node_modules/.bin/webpack --mode=production && \

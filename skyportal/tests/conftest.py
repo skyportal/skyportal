@@ -42,6 +42,7 @@ from skyportal.tests.fixtures import (
     ClassicalAssignmentFactory,
     TaxonomyFactory,
     CommentFactory,
+    CommentOnGCNFactory,
     AnnotationFactory,
     ClassificationFactory,
     FollowupRequestFactory,
@@ -50,6 +51,7 @@ from skyportal.tests.fixtures import (
     NotificationFactory,
     UserNotificationFactory,
     ThumbnailFactory,
+    GcnFactory,
 )
 from skyportal.tests.fixtures import TMP_DIR  # noqa: F401
 from skyportal.models import Obj
@@ -355,6 +357,15 @@ def public_ZTF21aaeyldq(public_group):
 
 
 @pytest.fixture()
+def public_ZTFe028h94k(public_group):
+    obj = ObjFactory(groups=[public_group], ra=229.9620403, dec=34.8442757)
+    DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
+    DBSession().commit()
+    yield obj
+    ObjFactory.teardown(obj)
+
+
+@pytest.fixture()
 def public_source(public_group):
     obj = ObjFactory(groups=[public_group])
     source = Source(obj_id=obj.id, group_id=public_group.id)
@@ -564,7 +575,7 @@ def p60_telescope():
     observer = astroplan.Observer.at_site('Palomar')
     telescope = TelescopeFactory(
         name=f'Palomar 60-inch telescope_{uuid.uuid4()}',
-        nickname='p60_{uuid.uuid4()}',
+        nickname=f'p60_{uuid.uuid4()}',
         lat=observer.location.lat.to('deg').value,
         lon=observer.location.lon.to('deg').value,
         elevation=observer.location.height.to('m').value,
@@ -1353,12 +1364,26 @@ def public_group_taxonomy(public_taxonomy):
 
 
 @pytest.fixture()
+def gcn(user_no_groups):
+    gcn = GcnFactory()
+    yield gcn
+    GcnFactory.teardown(gcn)
+
+
+@pytest.fixture()
 def public_comment(user_no_groups, public_source, public_group):
     comment = CommentFactory(
         obj=public_source, groups=[public_group], author=user_no_groups
     )
     yield comment
     CommentFactory.teardown(comment)
+
+
+@pytest.fixture()
+def public_comment_on_gcn(gcn, public_group):
+    comment = CommentOnGCNFactory(gcn=gcn, groups=[public_group])
+    yield comment
+    CommentOnGCNFactory.teardown(comment)
 
 
 @pytest.fixture()

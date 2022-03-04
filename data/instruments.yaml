@@ -266,6 +266,7 @@
   name: PS1
   telescope_id: =PS1
   type: imager
+  filters: ['ps1::open', 'ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y', 'ps1::w']
 - band: optical
   name: ANDOR_2kx2k
   telescope_id: =DFOT
@@ -341,6 +342,11 @@
   type: imager
   # todo: add unfiltered
   filters: []
+- band: optical
+  name: ATLAS
+  telescope_id: =ATLAS
+  type: imager
+  filters: ['atlasc', 'atlaso']
 - band: optical
   name: KAIT
   telescope_id: =KAIT

@@ -48,6 +48,8 @@ const UPDATE_SOURCE = "skyportal/UPDATE_SOURCE";
 
 const DELETE_FOLLOWUP_REQUEST = "skyportal/DELETE_FOLLOWUP_REQUEST";
 
+const GET_PHOTOMETRY_REQUEST = "skyportal/GET_PHOTOMETRY_REQUEST";
+
 const UPLOAD_PHOTOMETRY = "skyportal/UPLOAD_PHOTOMETRY";
 
 const SHARE_DATA = "skyportal/SHARE_DATA";
@@ -148,7 +150,7 @@ export function getCommentOnSpectrumAttachment(spectrumID, commentID) {
 
 export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
   return API.GET(
-    `/api/sources/${id}?includeComments=true&includeColorMagnitude=true&includeThumbnails=true`,
+    `/api/sources/${id}?includeComments=true&includeColorMagnitude=true&includeThumbnails=true&includePhotometryExists=true&includeSpectrumExists=true`,
     actionType
   );
 }
@@ -200,6 +202,9 @@ export const editFollowupRequest = (params, requestID) => {
 
 export const deleteFollowupRequest = (id) =>
   API.DELETE(`/api/followup_request/${id}`, DELETE_FOLLOWUP_REQUEST);
+
+export const getPhotometryRequest = (id) =>
+  API.GET(`/api/photometry_request/${id}`, GET_PHOTOMETRY_REQUEST);
 
 export const submitAssignment = (params) =>
   API.POST("/api/assignment", SUBMIT_ASSIGNMENT, params);

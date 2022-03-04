@@ -81,18 +81,18 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+          curl -sL https://deb.nodesource.com/setup_17.x | sudo -E bash -
 
           sudo apt install -y wget nodejs unzip firefox nginx
 
-          pip install --upgrade pip
+          pip install pip==21.3.1
           pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
-          sudo npm -g install npm@6.14.11
+          sudo npm -g install npm@latest
 
           which python; python --version
           echo npm $(npm --version)
@@ -122,6 +122,7 @@ jobs:
           createdb -h localhost -U skyportal skyportal_test
           psql -U skyportal -h localhost -c "GRANT ALL PRIVILEGES ON DATABASE skyportal_test TO skyportal;" skyportal_test
 
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make db_init
 
           pip list --format=columns
@@ -147,6 +148,7 @@ jobs:
       - name: Refresh SkyPortal dependencies for tested version
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
+          export NPM_CONFIG_LEGACY_PEER_DEPS="true"
           make dependencies
 
       - name: Formatting and linting checks

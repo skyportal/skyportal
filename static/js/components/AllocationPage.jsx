@@ -37,7 +37,7 @@ export function allocationTitle(allocation, instrumentList, telescopeList) {
   const telescope_id = instrument?.telescope_id;
   const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
 
-  if (!(allocation?.start_date && instrument?.name && telescope?.name)) {
+  if (!(instrument?.name && telescope?.name)) {
     return (
       <div>
         <CircularProgress color="secondary" />
@@ -60,8 +60,14 @@ export function allocationInfo(allocation, groups) {
       </div>
     );
   }
-
-  let result = `${allocation?.start_date}-${allocation?.end_date}`;
+  const startDate = new Date(`${allocation.start_date}Z`).toLocaleString(
+    "en-US",
+    { hour12: false }
+  );
+  const endDate = new Date(`${allocation.end_date}Z`).toLocaleString("en-US", {
+    hour12: false,
+  });
+  let result = `From ${startDate} to ${endDate}`;
 
   if (allocation?.pi || group?.name) {
     result += "\r\n(";
@@ -107,6 +113,7 @@ const AllocationList = ({ allocations }) => {
 
 const AllocationPage = () => {
   const { allocationList } = useSelector((state) => state.allocations);
+  const currentUser = useSelector((state) => state.profile);
   const classes = useStyles();
 
   return (
@@ -119,14 +126,16 @@ const AllocationPage = () => {
           </div>
         </Paper>
       </Grid>
-      <Grid item md={6} sm={12}>
-        <Paper>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">Add a New Allocation</Typography>
-            <NewAllocation />
-          </div>
-        </Paper>
-      </Grid>
+      {currentUser.permissions?.includes("System admin") && (
+        <Grid item md={6} sm={12}>
+          <Paper>
+            <div className={classes.paperContent}>
+              <Typography variant="h6">Add a New Allocation</Typography>
+              <NewAllocation />
+            </div>
+          </Paper>
+        </Grid>
+      )}
     </Grid>
   );
 };

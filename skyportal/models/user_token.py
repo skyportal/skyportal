@@ -17,6 +17,7 @@ from baselayer.app.models import (
 
 from .group import Group, GroupUser
 from .followup_request import FollowupRequest
+from .observation_plan import ObservationPlanRequest
 from .stream import Stream
 from .invitation import Invitation
 
@@ -131,12 +132,26 @@ User.annotations_on_spectra = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.comments_on_gcns = relationship(
+    "CommentOnGCN",
+    back_populates="author",
+    foreign_keys="CommentOnGCN.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
     passive_deletes=True,
     doc="The follow-up requests this User has made.",
     foreign_keys=[FollowupRequest.requester_id],
+)
+User.observationplan_requests = relationship(
+    'ObservationPlanRequest',
+    back_populates='requester',
+    passive_deletes=True,
+    doc="The observation plan requests this User has made.",
+    foreign_keys=[ObservationPlanRequest.requester_id],
 )
 User.transactions = relationship(
     'FacilityTransaction',

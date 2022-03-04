@@ -67,13 +67,19 @@ test_server:
     # requests should be redirected to. Requests will be forwarded by the
     # test server, cached, and responses played back to the API as if it came
     # from the real server.
+    /forcedphot/queue/: https://fallingstar-data.com # ATLAS
     /node_agent2/node_agent: http://161.72.57.3:8080 # LT
     /api/requestgroups/: https://observe.lco.global # LCO
     /api/triggers/ztf: http://skipper.caltech.edu:4000 # ZTF
     /cgi-bin/internal/process_kait_ztf_request.py: http://herculesii.astro.berkeley.edu # KAIT
     /toop/submit_json.php: https://www.swift.psu.edu # Swift
+    /api/v0.1/panstarrs/dr2/: https://catalogs.mast.stsci.edu # PS1
 
 app:
+  atlas:
+    protocol: http
+    host: localhost
+    port: 64502
   lt_host: localhost
   lt_port: 64502
   lco_protocol: http
@@ -91,3 +97,4 @@ app:
     protocol: http
     host: localhost
     port: 64502
+  ps1_endpoint: http://localhost:64502

@@ -1,7 +1,11 @@
 name: Test Skyportal Migrations
 
 on:
-  # Run only if potential changes in database schema
+  # Run only if potential changes in database schema, or if made on
+  # master
+  push:
+    branches:
+      - master
   pull_request:
     paths:
       - "baselayer"
@@ -10,6 +14,7 @@ on:
       - "alembic/versions/**"
       - "skyportal/enum_types.py"
       - "skyportal/facility_apis/__init__.py"
+      - "requirements.txt"
 
 jobs:
   test:
@@ -24,7 +29,7 @@ jobs:
       # (e.g., to get access to a newer data loader or dependencies).
       # Pick any commit known to have passed the migration tests on
       # CI, or which has deployed successfully.
-      MIGRATION_REFERENCE: 88b66a5a4aaaff761315dc4c79251fc3cfec46d7
+      MIGRATION_REFERENCE: 5c6a907c4bc5b33ad045c78733ebd3787f49d458
 
     services:
       postgres:
@@ -68,18 +73,18 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+          curl -sL https://deb.nodesource.com/setup_17.x | sudo -E bash -
 
           sudo apt install -y wget nodejs unzip firefox nginx
 
-          pip install --upgrade pip
+          pip install pip==21.3.1
           pip install wheel numpy
 
           export NPM_PACKAGES="${HOME}/.npm-packages"
           export PATH=${NPM_PACKAGES}/bin:$PATH
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
-          sudo npm -g install npm@7.24.0
+          sudo npm -g install npm@latest
 
           which python; python --version
           echo npm $(npm --version)
@@ -254,6 +259,13 @@ jobs:
           else
             echo "Migrated database and fresh database match."
           fi
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v2
+        if: ${{ always() }}
+        with:
+          name: logs
+          path: log
 
       - name: Upload the Alembic diff
         uses: actions/upload-artifact@v2

@@ -46,6 +46,7 @@ import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 const VegaHR = React.lazy(() => import("./VegaHR"));
+const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
 
 const useStyles = makeStyles((theme) => ({
   comment: {
@@ -149,7 +150,10 @@ const useStyles = makeStyles((theme) => ({
     verticalAlign: "middle",
   },
   objId: {
-    color: theme.palette.primary.main,
+    color:
+      theme.palette.type === "dark"
+        ? theme.palette.secondary.main
+        : theme.palette.primary.main,
   },
   starButton: {
     verticalAlign: "middle",
@@ -442,6 +446,22 @@ const SourceTable = ({
                   }
                 >
                   <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
+                </Suspense>
+              )}
+              {!source.photometry_exists && <div> no photometry exists </div>}
+            </Grid>
+            <Grid item>
+              {source.photometry_exists && source.period_exists && (
+                <Suspense
+                  fallback={
+                    <div>
+                      <CircularProgress color="secondary" />
+                    </div>
+                  }
+                >
+                  <VegaFoldedPlot
+                    dataUrl={`/api/sources/${source.id}/photometry?phaseFoldData=True`}
+                  />
                 </Suspense>
               )}
               {!source.photometry_exists && <div> no photometry exists </div>}
@@ -1086,9 +1106,114 @@ const SourceTable = ({
     onFilterChange: handleTableFilterChipChange,
     onFilterDialogOpen: () => setFilterFormSubmitted(false),
     search: false,
+    download: true,
     rowsExpanded: openedRows,
     onRowExpansionChange: (_, allRowsExpanded) => {
       setOpenedRows(allRowsExpanded.map((i) => i.dataIndex));
+    },
+    onDownload: (buildHead, buildBody, columnsDownload, data) => {
+      const renderDownloadClassification = (dataIndex) => {
+        const source = sources[dataIndex];
+        const classifications = [];
+        source?.classifications.forEach((x) => {
+          classifications.push(x.classification);
+        });
+        return classifications.join(";");
+      };
+      const renderDownloadGroups = (dataIndex) => {
+        const source = sources[dataIndex];
+        const groups = [];
+        source?.groups.forEach((x) => {
+          groups.push(x.name);
+        });
+        return groups.join(";");
+      };
+
+      const renderDownloadDateSaved = (dataIndex) => {
+        const source = sources[dataIndex];
+        return getDate(source)?.substring(0, 19);
+      };
+
+      const renderDownloadAlias = (dataIndex) => {
+        const { alias } = sources[dataIndex];
+        let alias_str = "";
+        if (alias) {
+          alias_str = Array.isArray(alias) ? alias.join(";") : alias;
+        }
+        return alias_str;
+      };
+      const renderDownloadOrigin = (dataIndex) => {
+        const { origin } = sources[dataIndex];
+        return origin;
+      };
+      const renderDownloadTNSName = (dataIndex) => {
+        const source = sources[dataIndex];
+        return source.altdata && source.altdata.tns
+          ? source.altdata.tns.name
+          : "";
+      };
+
+      return (
+        buildHead([
+          {
+            name: "id",
+            download: true,
+          },
+          {
+            name: "ra [deg]",
+            download: true,
+          },
+          {
+            name: "dec [deg]",
+            download: true,
+          },
+          {
+            name: "redshift",
+            download: true,
+          },
+          {
+            name: "classification",
+            download: true,
+          },
+          {
+            name: "groups",
+            download: true,
+          },
+          {
+            name: "Date saved",
+            download: true,
+          },
+          {
+            name: "Alias",
+            download: true,
+          },
+          {
+            name: "Origin",
+            download: true,
+          },
+          {
+            name: "TNS Name",
+            download: true,
+          },
+        ]) +
+        buildBody(
+          data.map((x) => ({
+            ...x,
+            data: [
+              x.data[0],
+              x.data[4],
+              x.data[5],
+              x.data[8],
+              renderDownloadClassification(x.index),
+              renderDownloadGroups(x.index),
+              renderDownloadDateSaved(x.index),
+              renderDownloadAlias(x.index),
+              renderDownloadOrigin(x.index),
+              renderDownloadTNSName(x.index),
+            ],
+          }))
+        )
+      );
     },
   };
 
