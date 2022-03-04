@@ -50,7 +50,7 @@ def test_token_user_post_get_instrument(super_admin_token):
     # wait for the fields to populate
     time.sleep(15)
 
-    params = {'includeGeoJSON': True}
+    params = {'includeGeoJSON': True, 'includeGeoJSONSummary': True}
 
     instrument_id = data['data']['id']
     status, data = api(
@@ -67,6 +67,15 @@ def test_token_user_post_get_instrument(super_admin_token):
             d['field_id'] == 1
             and d['contour']['features'][0]['geometry']['coordinates'][0][0]
             == [110.84784299030288, -87.01522509948724]
+            for d in data['data']['fields']
+        ]
+    )
+
+    assert any(
+        [
+            d['field_id'] == 1
+            and d['contour_summary']['features'][0]['geometry']['coordinates'][0]
+            == [1.0239199794587863, -89.93778080237439]
             for d in data['data']['fields']
         ]
     )
