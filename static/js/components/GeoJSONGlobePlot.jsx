@@ -170,10 +170,12 @@ const GeoJSONGlobePlot = ({ skymap, sources, galaxies, instrument }) => {
       if (instrument?.fields) {
         for (let z = 0; z < instrument.fields.length; z += 1) {
           svg
-            .append("path")
+            .selectAll("path")
             .data(instrument.fields[z].contour_summary.features)
             .enter()
             .append("path")
+            .attr("class", (d) => d.properties.field_id)
+            .attr("fake", (d) => console.log(d))
             .attr("d", geoGenerator)
             .style("fill", "none")
             .style("stroke", "black")
