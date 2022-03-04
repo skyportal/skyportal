@@ -371,8 +371,8 @@ interactions:
       Server:
       - Apache
       Set-Cookie:
-      - sessionid=test; expires=Thu, 27 Jan 2022 16:01:48
-        GMT; HttpOnly; Max-Age=1209600; Path=/; SameSite=Lax
+      - sessionid=test; expires=Thu, 27 Jan 2022 16:01:48 GMT; HttpOnly; Max-Age=1209600;
+        Path=/; SameSite=Lax
       Vary:
       - Accept,Cookie
       X-Content-Type-Options:
@@ -384,4 +384,62 @@ interactions:
     status:
       code: 201
       message: Created
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.27.0
+    method: GET
+    uri: https://catalogs.mast.stsci.edu/api/v0.1/panstarrs/dr2/mean.csv?ra=229.9620403&dec=34.8442757&radius=0.0002777777777777778&nDetections.gt=1&columns=objID&columns=raMean&columns=decMean&columns=nDetections&columns=gMeanPSFMag&columns=rMeanPSFMag&columns=iMeanPSFMag&columns=zMeanPSFMag&columns=yMeanPSFMag
+  response:
+    body:
+      string: "objID,raMean,decMean,nDetections,gMeanPSFMag,rMeanPSFMag,iMeanPSFMag,zMeanPSFMag,yMeanPSFMag\r\n149812299620603702,229.9620946449489,34.84424324589214,72,14.595100402832031,14.433699607849121,14.470199584960938,14.457300186157227,14.293000221252441\r\n"
+    headers:
+      Access-Control-Allow-Origin:
+      - https://catalogs.mast.stsci.edu
+      Connection:
+      - keep-alive
+      Content-Security-Policy:
+      - 'default-src ''self'' ''unsafe-inline'' ''unsafe-eval'' *.stsci.edu ws://*.stsci.edu
+        wss://*.stsci.edu https://stackpath.bootstrapcdn.com https://cdnjs.cloudflare.com
+        https://code.jquery.com https://ajax.googleapis.com https://cdn.datatables.net
+        https://www.googletagmanager.com https://www.google-analytics.com https://cdn.materialdesignicons.com/
+        https://cdn.jsdelivr.net https://fastapi.tiangolo.com https://cdn.pydata.org
+        https://cdn.bokeh.org https://cdn.datatables.net https://fonts.googleapis.com
+        https://fonts.gstatic.com;font-src ''self'' data: ''self'' ''unsafe-inline''
+        ''unsafe-eval'' *.stsci.edu ws://*.stsci.edu wss://*.stsci.edu https://stackpath.bootstrapcdn.com
+        https://cdnjs.cloudflare.com https://code.jquery.com https://ajax.googleapis.com
+        https://cdn.datatables.net https://www.googletagmanager.com https://www.google-analytics.com
+        https://cdn.materialdesignicons.com/ https://cdn.jsdelivr.net https://fastapi.tiangolo.com
+        https://cdn.pydata.org https://cdn.bokeh.org https://cdn.datatables.net https://fonts.googleapis.com
+        https://fonts.gstatic.com;img-src ''self'' blob: https://cdn.datatables.net
+        https://www.google-analytics.com https://validator.swagger.io data:;frame-src
+        ''self'' blob:'
+      Content-Type:
+      - text/csv; charset=utf-8
+      Date:
+      - Sat, 19 Feb 2022 16:28:17 GMT
+      Server:
+      - nginx/1.20.1
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Origin
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - sameorigin
+      X-Permitted-Cross-Domain-Policies:
+      - master-only
+      X-XSS-Protection:
+      - '1'
+    status:
+      code: 200
+      message: OK
 version: 1

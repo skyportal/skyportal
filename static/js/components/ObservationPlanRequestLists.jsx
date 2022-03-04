@@ -90,6 +90,20 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
     setIsDeleting(null);
   };
 
+  const [isSending, setIsSending] = useState(null);
+  const handleSend = async (id) => {
+    setIsSending(id);
+    await dispatch(Actions.sendObservationPlanRequest(id));
+    setIsSending(null);
+  };
+
+  const [isRemoving, setIsRemoving] = useState(null);
+  const handleRemove = async (id) => {
+    setIsRemoving(id);
+    await dispatch(Actions.removeObservationPlanRequest(id));
+    setIsRemoving(null);
+  };
+
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
@@ -126,9 +140,12 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
   const getDataTableColumns = (keys, instrument_id) => {
     const implementsDelete =
       instrumentFormParams[instrument_id].methodsImplemented.delete;
-    const implementsEdit =
-      instrumentFormParams[instrument_id].methodsImplemented.update;
-    const modifiable = implementsEdit || implementsDelete;
+    const implementsSend =
+      instrumentFormParams[instrument_id].methodsImplemented.send;
+    const implementsRemove =
+      instrumentFormParams[instrument_id].methodsImplemented.remove;
+    const modifiable = implementsDelete;
+    const queuable = implementsSend || implementsRemove;
 
     const columns = [
       { name: "requester.username", label: "Requester" },
@@ -152,6 +169,81 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
       });
     });
     columns.push({ name: "status", label: "Status" });
+
+    const renderNumberObservations = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div>
+          {observationplanRequest.observation_plans &&
+          observationplanRequest.observation_plans.length > 0 ? (
+            <div>
+              {observationplanRequest.observation_plans[0].num_observations}
+            </div>
+          ) : (
+            <div>N/A</div>
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "nobs",
+      label: "Number of Observations",
+      options: {
+        customBodyRenderLite: renderNumberObservations,
+      },
+    });
+
+    const renderArea = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div>
+          {observationplanRequest.observation_plans &&
+          observationplanRequest.observation_plans.length > 0 ? (
+            <div>
+              {observationplanRequest.observation_plans[0].area.toFixed(2)}
+            </div>
+          ) : (
+            <div>N/A</div>
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "area",
+      label: "Area [sq. deg.]",
+      options: {
+        customBodyRenderLite: renderArea,
+      },
+    });
+
+    const renderProbability = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div>
+          {observationplanRequest.observation_plans &&
+          observationplanRequest.observation_plans.length > 0 ? (
+            <div>
+              {observationplanRequest.observation_plans[0].probability.toFixed(
+                3
+              )}
+            </div>
+          ) : (
+            <div>N/A</div>
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "probability",
+      label: "Int. Probability",
+      options: {
+        customBodyRenderLite: renderProbability,
+      },
+    });
+
     if (modifiable) {
       const renderModify = (dataIndex) => {
         const observationplanRequest =
@@ -178,14 +270,98 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
                 </Button>
               </div>
             )}
+            <div>
+              <Button
+                href={`/api/observation_plan/${observationplanRequest.id}/gcn`}
+                download={`observation-plan-gcn-${observationplanRequest.id}`}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`gcnRequest_${observationplanRequest.id}`}
+              >
+                GCN
+              </Button>
+            </div>
+            <div>
+              <Button
+                href={`/api/observation_plan/${observationplanRequest.id}?includePlannedObservations=True`}
+                download={`observation-plan-${observationplanRequest.id}`}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`downloadRequest_${observationplanRequest.id}`}
+              >
+                Download
+              </Button>
+            </div>
           </div>
         );
       };
       columns.push({
-        name: "modify",
-        label: "Modify",
+        name: "interact",
+        label: "Interact",
         options: {
           customBodyRenderLite: renderModify,
+        },
+      });
+    }
+
+    if (queuable) {
+      const renderQueue = (dataIndex) => {
+        const observationplanRequest =
+          requestsGroupedByInstId[instrument_id][dataIndex];
+        return (
+          <div className={classes.actionButtons}>
+            {implementsSend && isSending === observationplanRequest.id ? (
+              <div>
+                <CircularProgress />
+              </div>
+            ) : (
+              <div>
+                <Button
+                  onClick={() => {
+                    handleSend(observationplanRequest.id);
+                  }}
+                  size="small"
+                  color="primary"
+                  type="submit"
+                  variant="outlined"
+                  data-testid={`sendRequest_${observationplanRequest.id}`}
+                >
+                  Send to Queue
+                </Button>
+              </div>
+            )}
+            {implementsRemove && isRemoving === observationplanRequest.id ? (
+              <div>
+                <CircularProgress />
+              </div>
+            ) : (
+              <div>
+                <Button
+                  onClick={() => {
+                    handleRemove(observationplanRequest.id);
+                  }}
+                  size="small"
+                  color="primary"
+                  type="submit"
+                  variant="outlined"
+                  data-testid={`removeRequest_${observationplanRequest.id}`}
+                >
+                  Remove from Queue
+                </Button>
+              </div>
+            )}
+          </div>
+        );
+      };
+      columns.push({
+        name: "queue",
+        label: "Telescope Queue",
+        options: {
+          customBodyRenderLite: renderQueue,
         },
       });
     }

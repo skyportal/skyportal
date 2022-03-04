@@ -357,6 +357,15 @@ def public_ZTF21aaeyldq(public_group):
 
 
 @pytest.fixture()
+def public_ZTFe028h94k(public_group):
+    obj = ObjFactory(groups=[public_group], ra=229.9620403, dec=34.8442757)
+    DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
+    DBSession().commit()
+    yield obj
+    ObjFactory.teardown(obj)
+
+
+@pytest.fixture()
 def public_source(public_group):
     obj = ObjFactory(groups=[public_group])
     source = Source(obj_id=obj.id, group_id=public_group.id)
@@ -566,7 +575,7 @@ def p60_telescope():
     observer = astroplan.Observer.at_site('Palomar')
     telescope = TelescopeFactory(
         name=f'Palomar 60-inch telescope_{uuid.uuid4()}',
-        nickname='p60_{uuid.uuid4()}',
+        nickname=f'p60_{uuid.uuid4()}',
         lat=observer.location.lat.to('deg').value,
         lon=observer.location.lon.to('deg').value,
         elevation=observer.location.height.to('m').value,

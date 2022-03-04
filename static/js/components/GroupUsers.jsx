@@ -95,7 +95,6 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
     return (
       <div>
         {group &&
-          isAdmin(currentUser) &&
           (mobile ? (
             <div>
               <IconButton
@@ -125,6 +124,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
                     user={user}
                     isAdmin={isAdmin}
                     group={group}
+                    currentUser={currentUser}
                   />
                 </div>
               </Popover>
@@ -135,6 +135,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
               user={user}
               isAdmin={isAdmin}
               group={group}
+              currentUser={currentUser}
             />
           ))}
       </div>
@@ -186,7 +187,6 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
         sort: false,
         customBodyRenderLite: renderActions,
         filter: false,
-        display: isAdmin(currentUser),
         hint: "Note that removing admin status only applies to group-specific admin status. Users who are also system admins and/or have 'Manage groups' permissions will remain admins regardless.",
       },
     },

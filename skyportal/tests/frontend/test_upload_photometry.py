@@ -28,9 +28,13 @@ def test_upload_photometry(
     driver.click_xpath('//div[@id="selectGroups"]')
     driver.click_xpath(f'//li[text()="{public_group.name}"]', scroll_parent=True)
 
+    # Click somewhere outside to remove focus from group select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
     driver.click_xpath('//*[text()="Preview in Tabular Form"]')
     driver.wait_for_xpath('//div[text()="58001"]')
-    driver.click_xpath('//*[text()="Upload Photometry"]')
+    driver.click_xpath('//*[text()="Upload Photometry"]', scroll_parent=True)
     driver.wait_for_xpath('//*[contains(.,"Upload successful. Your upload ID is")]')
 
 
@@ -68,6 +72,10 @@ def test_upload_photometry_multiple_groups(
     driver.click_xpath(f'//li[text()="{public_group.name}"]', scroll_parent=True)
     driver.click_xpath(f'//li[text()="{public_group2.name}"]', scroll_parent=True)
 
+    # Click somewhere outside to remove focus from group select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
     driver.click_xpath('//*[text()="Preview in Tabular Form"]')
     driver.wait_for_xpath('//div[text()="58001"]')
     driver.click_xpath('//*[text()="Upload Photometry"]')
@@ -98,6 +106,10 @@ def test_upload_photometry_with_altdata(
     # group select
     driver.click_xpath('//div[@id="selectGroups"]')
     driver.click_xpath(f'//li[text()="{public_group.name}"]', scroll_parent=True)
+
+    # Click somewhere outside to remove focus from group select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
 
     driver.click_xpath('//*[text()="Preview in Tabular Form"]')
     driver.wait_for_xpath('//div[text()="58001"]')

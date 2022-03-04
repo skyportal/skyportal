@@ -2,12 +2,15 @@ from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
 from collections import defaultdict
 from baselayer.app.access import auth_or_token
+from baselayer.log import make_log
 from ...base import BaseHandler
 from ....models import Obj, Source
 from .source_views import t_index
 
 
 default_prefs = {'maxNumSources': 5}
+
+log = make_log('api/recent_sources')
 
 
 class RecentSourcesHandler(BaseHandler):
@@ -90,4 +93,5 @@ class RecentSourcesHandler(BaseHandler):
             del source["recency_index"]
 
         self.verify_and_commit()
+
         return self.success(data=sources)

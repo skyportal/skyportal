@@ -10,7 +10,6 @@ from regions import Regions
 from astropy import coordinates
 from astropy import units as u
 import numpy as np
-from distutils.util import strtobool
 
 from ..base import BaseHandler
 from ...models import (
@@ -104,6 +103,14 @@ class InstrumentHandler(BaseHandler):
               description: |
                 Boolean indicating whether to include associated geojson. Defaults to
                 false.
+            - in: query
+              name: includeGeoJSONSummary
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated geojson summary bounding box. Defaults to
+                false.
           responses:
             200:
               content:
@@ -131,6 +138,14 @@ class InstrumentHandler(BaseHandler):
               description: |
                 Boolean indicating whether to include associated geojson. Defaults to
                 false.
+            - in: query
+              name: includeGeoJSONSummary
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated geojson summary bounding box. Defaults to
+                false.
           responses:
             200:
               content:
@@ -141,13 +156,17 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        includeGeoJSON = bool(
-            strtobool(self.get_query_argument("includeGeoJSON", 'False'))
-        )
+        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+        includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
+        options = [joinedload(Instrument.fields)]
         if includeGeoJSON:
-            options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
-        else:
-            options = [joinedload(Instrument.fields)]
+            options.append(
+                joinedload(Instrument.fields).undefer(InstrumentField.contour)
+            )
+        if includeGeoJSONSummary:
+            options.append(
+                joinedload(Instrument.fields).undefer(InstrumentField.contour_summary)
+            )
 
         if instrument_id is not None:
             instrument = Instrument.get_if_accessible_by(
@@ -318,6 +337,8 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
         for ii, (field_id, ra, dec, coords) in enumerate(
             zip(field_data['ID'], field_data['RA'], field_data['Dec'], coords_icrs)
         ):
+
+            # compute full contour
             geometry = []
             for coord in coords:
                 tab = list(
@@ -347,8 +368,49 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                 ],
             }
 
+            # compute summary (bounding-box) contour
+            geometry = []
+            min_ra, max_ra = np.min(coords[0].ra.deg), np.max(coords[0].ra.deg)
+            min_dec, max_dec = np.min(coords[0].dec.deg), np.max(coords[0].dec.deg)
+            for coord in coords:
+                min_ra = min(min_ra, np.min(coord.ra.deg))
+                max_ra = max(max_ra, np.max(coord.ra.deg))
+                min_dec = min(min_dec, np.min(coord.dec.deg))
+                max_dec = max(max_dec, np.max(coord.dec.deg))
+            geometry_summary = [
+                (min_ra, min_dec),
+                (max_ra, min_dec),
+                (max_ra, max_dec),
+                (min_ra, max_dec),
+                (min_ra, min_dec),
+            ]
+
+            contour_summary = {
+                'properties': {
+                    'instrument': instrument_name,
+                    'field_id': int(field_id),
+                    'ra': ra,
+                    'dec': dec,
+                },
+                'type': 'FeatureCollection',
+                'features': [
+                    {
+                        'type': 'Feature',
+                        'geometry': {
+                            'type': 'MultiLineString',
+                            'coordinates': geometry_summary,
+                        },
+                    },
+                ],
+            }
+
             field = InstrumentField(
-                instrument_id=instrument_id, field_id=int(field_id), contour=contour
+                instrument_id=instrument_id,
+                field_id=int(field_id),
+                contour=contour,
+                contour_summary=contour_summary,
+                ra=ra,
+                dec=dec,
             )
             session.add(field)
             session.commit()

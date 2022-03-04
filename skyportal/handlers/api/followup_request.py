@@ -522,11 +522,13 @@ class FollowupRequestHandler(BaseHandler):
             return self.error('Cannot delete requests on this instrument.')
 
         followup_request.last_modified_by_id = self.associated_user_object.id
+        internal_key = followup_request.obj.internal_key
+
         api.delete(followup_request)
         self.verify_and_commit()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": followup_request.obj.internal_key},
+            payload={"obj_key": internal_key},
         )
         return self.success()

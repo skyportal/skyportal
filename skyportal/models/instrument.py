@@ -180,7 +180,27 @@ class InstrumentField(Base):
         nullable=False,
     )
 
+    ra = sa.Column(
+        sa.Float,
+        doc='The mid-point right ascension for the tile [degrees].',
+        nullable=True,
+    )
+
+    dec = sa.Column(
+        sa.Float,
+        doc='The mid-point declination for the tile [degrees].',
+        nullable=True,
+    )
+
     contour = deferred(sa.Column(JSONB, nullable=False, doc='GeoJSON contours'))
+
+    contour_summary = deferred(
+        sa.Column(
+            JSONB,
+            nullable=False,
+            doc='GeoJSON contour bounding box for lower memory display',
+        )
+    )
 
     tiles = relationship("InstrumentFieldTile")
 

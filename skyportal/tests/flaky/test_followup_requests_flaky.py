@@ -34,6 +34,16 @@ except requests.exceptions.ConnectTimeout:
 else:
     atlas_isonline = True
 
+PS1_URL = cfg['app.ps1_endpoint']
+
+ps1_isonline = False
+try:
+    requests.get(PS1_URL, timeout=5)
+except requests.exceptions.ConnectTimeout:
+    pass
+else:
+    ps1_isonline = True
+
 url = f"http://{cfg['app.lt_host']}:{cfg['app.lt_port']}/node_agent2/node_agent?wsdl"
 
 lt_isonline = False
@@ -159,6 +169,22 @@ def add_allocation_atlas(instrument_id, group_id, token):
             "hours_allocated": 100,
             "pi": "Ed Hubble",
             "_altdata": '{"api_token": "testtoken"}',
+        },
+        token=token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+
+def add_allocation_ps1(instrument_id, group_id, token):
+    status, data = api(
+        "POST",
+        "allocation",
+        data={
+            "group_id": group_id,
+            "instrument_id": instrument_id,
+            "hours_allocated": 100,
+            "pi": "Ed Hubble",
         },
         token=token,
     )
@@ -593,6 +619,42 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
 
     driver.wait_for_xpath(
         '//div[contains(@data-testid, "ATLAS_followupRequestsTable")]//div[contains(., "submitted")]'
+    )
+
+
+def add_followup_request_using_frontend_and_verify_PS1(
+    driver, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+
+    idata = add_telescope_and_instrument("PS1", super_admin_token)
+    add_allocation_ps1(idata['id'], public_group.id, super_admin_token)
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    driver.get(f"/source/{public_ZTFe028h94k.id}")
+
+    submit_button_xpath = (
+        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+
+    select_box = driver.find_element_by_id(
+        "mui-component-select-followupRequestAllocationSelect"
+    )
+    select_box.click()
+
+    driver.click_xpath(
+        f'//li[contains(text(), "PS1")][contains(text(), "{public_group.name}")]',
+        scroll_parent=True,
+    )
+
+    driver.click_xpath(submit_button_xpath)
+
+    driver.click_xpath("//div[@data-testid='PS1-requests-header']")
+
+    driver.wait_for_xpath(
+        '//div[contains(@data-testid, "PS1_followupRequestsTable")]//div[contains(., "Source available")]'
     )
 
 
@@ -1083,6 +1145,17 @@ def test_submit_new_followup_request_ATLAS(
 
     add_followup_request_using_frontend_and_verify_ATLAS(
         driver, super_admin_user, public_source, super_admin_token, public_group
+    )
+
+
+@pytest.mark.flaky(reruns=2)
+@pytest.mark.skipif(not ps1_isonline, reason="PS1 server down")
+def test_submit_new_followup_request_PS1(
+    driver, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
+):
+
+    add_followup_request_using_frontend_and_verify_PS1(
+        driver, super_admin_user, public_ZTFe028h94k, super_admin_token, public_group
     )
 
 

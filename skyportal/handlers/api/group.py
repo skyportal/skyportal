@@ -2,6 +2,7 @@ from sqlalchemy import or_
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import auth_or_token, permissions, AccessError
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -29,6 +30,9 @@ def has_admin_access_for_group(user, group_id):
             set(user.permissions)
         )
     ) > 0 or (groupuser is not None and groupuser.admin)
+
+
+log = make_log('api/group')
 
 
 class GroupHandler(BaseHandler):
@@ -135,13 +139,7 @@ class GroupHandler(BaseHandler):
                 group_id, self.current_user, raise_if_none=True, mode='read'
             )
 
-            if self.get_query_argument("includeGroupUsers", "true").lower() in (
-                "f",
-                "false",
-            ):
-                include_group_users = False
-            else:
-                include_group_users = True
+            include_group_users = self.get_query_argument("includeGroupUsers", True)
 
             # Do not include User.groups to avoid circular reference
             users = (
@@ -167,15 +165,22 @@ class GroupHandler(BaseHandler):
             filters = group.filters
 
             group = group.to_dict()
+
             if users is not None:
                 group['users'] = users
 
             # grab streams:
             group['streams'] = streams
-            # grab filters:
-            group['filters'] = filters
 
-            self.verify_and_commit()
+            group['filters'] = filters
+            try:
+                # grab filters:
+                # this is in a try-except in case of deletions
+                self.verify_and_commit()
+                group['filters'] = filters
+            except AccessError as e:
+                log(f'Insufficient filter permissions: {e}.')
+
             return self.success(data=group)
 
         group_name = self.get_query_argument("name", None)
@@ -201,10 +206,7 @@ class GroupHandler(BaseHandler):
             key=lambda g: g.name.lower(),
         )
         all_groups_query = Group.query_records_accessible_by(self.current_user)
-        if (not include_single_user_groups) or (
-            isinstance(include_single_user_groups, str)
-            and include_single_user_groups.lower() == "false"
-        ):
+        if not include_single_user_groups:
             all_groups_query = all_groups_query.filter(
                 Group.single_user_group.is_(False)
             )
@@ -601,6 +603,8 @@ class GroupUserHandler(BaseHandler):
 
         DBSession().delete(gu)
         self.verify_and_commit()
+        self.flow.push(user_id, 'skyportal/FETCH_GROUPS')
+        self.flow.push(user_id, 'skyportal/FETCH_SOURCES')
         self.push_all(
             action='skyportal/REFRESH_GROUP', payload={'group_id': int(group_id)}
         )
