@@ -65,7 +65,6 @@ function Event({ event }) {
         userID: currentUser.id,
         admin: false,
         shift_id: shift.id,
-        canSave: true,
       })
     ).then((result) => {
       if (result.status === "success") {
@@ -83,7 +82,7 @@ function Event({ event }) {
       }
     });
   };
-
+  // TODO: Show the leave button to the shift admin ONLY if there is at least one other admin, otherwise they can't join or leave, only delete
   const members = event.users.map(
     (user) => `${user.first_name} ${user.last_name}`
   );
