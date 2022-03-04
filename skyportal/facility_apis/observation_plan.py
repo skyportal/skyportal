@@ -16,11 +16,7 @@ log = make_log('api/observation_plan')
 
 env, cfg = load_env()
 
-if cfg['app.observation_plan.default_filters'] is None:
-    default_filters = ['g', 'r', 'i']
-else:
-    default_filters = cfg['app.observation_plan.default_filters']
-
+default_filters = cfg.get('app.observation_plan.default_filters', ['g', 'r', 'i']):
 
 def generate_plan(observation_plan_id, request_id):
     """Use gwemopt to construct observing plan."""
