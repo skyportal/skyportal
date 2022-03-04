@@ -36,6 +36,7 @@ import SourceTable from "./SourceTable";
 import GalaxyTable from "./GalaxyTable";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import GcnSelectionForm from "./GcnSelectionForm";
+import { useD3 } from "./GeoJSONPlot";
 
 import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
@@ -82,66 +83,112 @@ const DownloadXMLButton = ({ gcn_notice }) => {
   );
 };
 
-const useD3 = (renderChartFn) => {
-  const ref = useRef();
+const Globe = ({ skymap_contour, sources }) => {
+  // eslint-disable-next-line
+  function renderMap(svg, height, width, skymap_contour, sources) {
+    const center = [width / 2, height / 2];
+    const projection = d3.geoOrthographic().translate(center).scale(100);
+    const geoGenerator = d3.geoPath().projection(projection);
+    const graticule = d3.geoGraticule();
 
-  useEffect(() => {
-    renderChartFn(d3.select(ref.current));
-    return () => {};
-  }, [renderChartFn, ref]);
-  return ref;
-};
+    function refresh() {
+      svg.selectAll("*").remove();
 
-const Globe = ({ data }) => {
-  const projRef = useRef(d3.geoOrthographic());
-
-  function renderMap(svg) {
-    const path = d3.geoPath().projection(projRef.current);
-
-    function render() {
-      svg.selectAll("path").attr("d", path);
-    }
-
-    d3GeoZoom().projection(projRef.current).onMove(render)(svg.node());
-
-    if (data) {
       svg
-        .selectAll("path")
-        .data(data.features)
-        .enter()
+        .datum({ type: "Sphere" })
         .append("path")
-        .attr("class", (d) => d.properties.name)
-        .attr("d", path)
+        .style("fill", "aliceblue")
+        .style("stroke", "none")
+        .style("opacity", 1)
+        .attr("d", geoGenerator);
+
+      // Draw grid
+      svg
+        .data([graticule()])
+        .append("path")
         .style("fill", "none")
-        .style("stroke", "black")
-        .style("stroke-width", "0.5px");
+        .style("stroke", "darkgray")
+        .style("stroke-width", "0.5px")
+        .attr("d", geoGenerator);
+
+      if (skymap_contour?.features) {
+        svg
+          .selectAll("path")
+          .data(skymap_contour.features)
+          .enter()
+          .append("path")
+          .attr("class", (d) => d.properties.name)
+          .attr("d", geoGenerator)
+          .style("fill", "none")
+          .style("stroke", "black")
+          .style("stroke-width", "0.5px");
+      }
+
+      if (sources?.features) {
+        // Draw text labels
+        const translate = (d) => {
+          const coord = projection(d.geometry.coordinates);
+          return `translate(${coord[0]}, ${coord[1] - 10})`;
+        };
+
+        const visibleOnSphere = (d) => {
+          if (!d.properties?.name) return false;
+          if (!d.geometry?.coordinates) return false;
+
+          const gdistance = d3.geoDistance(
+            d.geometry.coordinates,
+            projection.invert(center)
+          );
+
+          // In front of globe?
+          return gdistance < 1.57;
+        };
+
+        svg
+          .selectAll(".label")
+          .data(sources.features)
+          .enter()
+          .append("a")
+          .attr("xlink:href", (d) => d.properties.url)
+          .append("text")
+          .attr("transform", translate)
+          .style("visibility", (d) =>
+            visibleOnSphere(d) ? "visible" : "hidden"
+          )
+          .style("text-anchor", "middle")
+          .style("font-size", "0.75rem")
+          .style("font-weight", "normal")
+          .text((d) => d.properties.name);
+
+        const x = (d) => projection(d.geometry.coordinates)[0];
+        const y = (d) => projection(d.geometry.coordinates)[1];
+
+        svg
+          .selectAll("circle")
+          .data(sources.features)
+          .enter()
+          .append("circle")
+          .attr("fill", (d) => (visibleOnSphere(d) ? "red" : "none"))
+          .attr("cx", x)
+          .attr("cy", y)
+          .attr("r", 3);
+      }
     }
 
-    svg
-      .selectAll("path")
-      .data([{ type: "Feature", geometry: d3.geoGraticule10() }])
-      .enter()
-      .append("path")
-      .attr("class", "graticule")
-      .attr("d", path)
-      .style("fill", "none")
-      .style("stroke", "lightgray")
-      .style("stroke-width", "0.5px");
+    refresh();
+    d3GeoZoom().projection(projection).onMove(refresh)(svg.node());
   }
+  const svgRef = useD3(renderMap, 300, 300, skymap_contour, sources);
 
-  const svgRef = useD3(renderMap);
-
-  useEffect(() => {
-    const height = svgRef.current.clientHeight;
-    const width = svgRef.current.clientWidth;
-    projRef.current.translate([width / 2, height / 2]);
-  }, [data, svgRef]);
-
-  return <svg id="globe" ref={svgRef} />;
+  return <svg height={300} width={300} ref={svgRef} />;
+};
+Globe.propTypes = {
+  skymap_contour: GeoPropTypes.FeatureCollection.isRequired,
+  sources: GeoPropTypes.FeatureCollection.isRequired,
 };
 
-const Localization = ({ loc }) => {
-  const localization = useSelector((state) => state.localization);
+const Localization = ({ loc, sources }) => {
+  const cachedLocalization = useSelector((state) => state.localization);
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -149,6 +196,9 @@ const Localization = ({ loc }) => {
       localizationActions.fetchLocalization(loc.dateobs, loc.localization_name)
     );
   }, [loc, dispatch]);
+
+  const localization =
+    loc.id === cachedLocalization?.id ? cachedLocalization : null;
 
   if (!localization) {
     return <CircularProgress />;
@@ -161,7 +211,7 @@ const Localization = ({ loc }) => {
         label={localization.localization_name}
         key={localization.localization_name}
       />
-      <Globe data={localization.contour} />
+      <Globe skymap_contour={localization.contour} sources={sources.geojson} />
     </>
   );
 };
@@ -365,7 +415,10 @@ const GcnEventPage = ({ route }) => {
               {gcnEvent.localizations?.map((localization) => (
                 <li key={localization.localization_name}>
                   <div id="map" ref={mapRef}>
-                    <Localization loc={localization} />
+                    <Localization
+                      loc={localization}
+                      sources={gcnEventSources}
+                    />
                   </div>
                 </li>
               ))}
@@ -512,16 +565,50 @@ const GcnEventPage = ({ route }) => {
 
 Localization.propTypes = {
   loc: PropTypes.shape({
+    id: PropTypes.number,
     dateobs: PropTypes.string,
     localization_name: PropTypes.string,
   }).isRequired,
-};
-
-Localization.propTypes = {
-  loc: PropTypes.shape({
-    dateobs: PropTypes.string,
-    localization_name: PropTypes.string,
-  }).isRequired,
+  sources: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      origin: PropTypes.string,
+      alias: PropTypes.arrayOf(PropTypes.string),
+      redshift: PropTypes.number,
+      classifications: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          classification: PropTypes.string,
+          created_at: PropTypes.string,
+          groups: PropTypes.arrayOf(
+            PropTypes.shape({
+              id: PropTypes.number,
+              name: PropTypes.string,
+            })
+          ),
+        })
+      ),
+      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
+      altdata: PropTypes.shape({
+        tns: PropTypes.shape({
+          name: PropTypes.string,
+        }),
+      }),
+      spectrum_exists: PropTypes.bool,
+      last_detected_at: PropTypes.string,
+      last_detected_mag: PropTypes.number,
+      peak_detected_at: PropTypes.string,
+      peak_detected_mag: PropTypes.number,
+      groups: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          name: PropTypes.string,
+        })
+      ),
+    })
+  ).isRequired,
 };
 
 GcnEventPage.propTypes = {

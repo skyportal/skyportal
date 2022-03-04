@@ -105,7 +105,7 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson. Defaults to
+                Boolean indicating whether to include associated GeoJSON. Defaults to
                 false.
             - in: query
               name: includeGeoJSONSummary
@@ -113,7 +113,7 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson summary bounding box. Defaults to
+                Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
                 false.
             - in: query
               name: localizationDateobs
@@ -167,7 +167,7 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson. Defaults to
+                Boolean indicating whether to include associated GeoJSON. Defaults to
                 false.
             - in: query
               name: includeGeoJSONSummary
@@ -175,7 +175,7 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson summary bounding box. Defaults to
+                Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
                 false.
           responses:
             200:

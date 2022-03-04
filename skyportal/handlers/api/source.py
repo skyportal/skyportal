@@ -579,7 +579,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: boolean
             description: |
-              Boolean indicating whether to include associated geojson. Defaults to
+              Boolean indicating whether to include associated GeoJSON. Defaults to
               false.
           responses:
             200:
@@ -1539,16 +1539,28 @@ class SourceHandler(BaseHandler):
 
             for source in query_results["sources"]:
                 point = Point((source["ra"], source["dec"]))
-                if source["alias"] is not None:
-                    source_name = ",".join(source["alias"])
-                else:
-                    source_name = f'{source["ra"]},{source["dec"]}'
-
-                features.append(
-                    Feature(geometry=point, properties={"name": source_name})
+                aliases = [alias for alias in (source["alias"] or []) if alias]
+                source_name = ", ".join(
+                    [
+                        source["id"],
+                    ]
+                    + aliases
                 )
 
-            query_results["geojson"] = features
+                features.append(
+                    Feature(
+                        geometry=point,
+                        properties={
+                            "name": source_name,
+                            "url": f"/source/{source['id']}",
+                        },
+                    )
+                )
+
+            query_results["geojson"] = {
+                'type': 'FeatureCollection',
+                'features': features,
+            }
 
         self.verify_and_commit()
         return self.success(data=query_results)
