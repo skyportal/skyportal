@@ -38,12 +38,10 @@ class Photometry(conesearch_alchemy.Point, Base):
     )
     update = delete = accessible_by_owner
 
-    mjd = sa.Column(
-        sa.Float, nullable=False, doc='MJD of the observations.', index=True
-    )
-    fluxes = sa.Column(
+    mjd = sa.Column(sa.Float, nullable=False, doc='MJD of the observation.', index=True)
+    flux = sa.Column(
         sa.Float,
-        doc='Fluxes of each observation in µJy. '
+        doc='Flux of the observation in µJy. '
         'Corresponds to an AB Zeropoint of 23.9 in all '
         'filters.',
         server_default='NaN',
@@ -51,7 +49,7 @@ class Photometry(conesearch_alchemy.Point, Base):
     )
 
     fluxerr = sa.Column(
-        sa.Float, nullable=False, doc='Gaussian errors on the fluxes in µJy.'
+        sa.Float, nullable=False, doc='Gaussian error on the flux in µJy.'
     )
     filter = sa.Column(
         allowed_bandpasses,
@@ -62,7 +60,7 @@ class Photometry(conesearch_alchemy.Point, Base):
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
     dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
 
-    original_userdata = sa.Column(
+    original_user_data = sa.Column(
         JSONB,
         doc='Original data passed by the user '
         'through the PhotometryHandler.POST '
@@ -77,7 +75,7 @@ class Photometry(conesearch_alchemy.Point, Base):
         sa.String,
         nullable=False,
         default=lambda: str(uuid.uuid4()),
-        doc="ID of the batch in which this photometric series was uploaded (for bulk deletes).",
+        doc="ID of the batch in which this Photometry was uploaded (for bulk deletes).",
     )
 
     origin = sa.Column(
