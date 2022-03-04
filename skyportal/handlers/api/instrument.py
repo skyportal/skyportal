@@ -203,16 +203,6 @@ class InstrumentHandler(BaseHandler):
         else:
             options = []
 
-        print(
-            localization_dateobs,
-            localization_name,
-            localization_cumprob,
-            includeGeoJSON,
-            includeGeoJSONSummary,
-            instrument_id,
-            options,
-        )
-
         if instrument_id is not None:
             if includeGeoJSON:
                 options = [
@@ -434,8 +424,6 @@ class InstrumentHandler(BaseHandler):
                         .all()
                     )
                 data[ii]['fields'] = [tile.to_dict() for tile, in tiles]
-
-        print(data)
 
         self.verify_and_commit()
         return self.success(data=data)

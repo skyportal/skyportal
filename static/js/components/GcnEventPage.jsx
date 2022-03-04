@@ -15,9 +15,6 @@ import IconButton from "@material-ui/core/IconButton";
 import GetAppIcon from "@material-ui/icons/GetApp";
 import Typography from "@material-ui/core/Typography";
 
-import * as d3 from "d3";
-// eslint-disable-next-line
-import d3GeoZoom from "d3-geo-zoom";
 // eslint-disable-next-line
 import GeoPropTypes from "geojson-prop-types";
 
@@ -36,7 +33,7 @@ import SourceTable from "./SourceTable";
 import GalaxyTable from "./GalaxyTable";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import GcnSelectionForm from "./GcnSelectionForm";
-import { useD3 } from "./GeoJSONPlot";
+import GeoJSONGlobePlot from "./GeoJSONGlobePlot";
 
 import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
@@ -83,111 +80,14 @@ const DownloadXMLButton = ({ gcn_notice }) => {
   );
 };
 
-const Globe = ({ skymap_contour, sources }) => {
-  // eslint-disable-next-line
-  function renderMap(svg, height, width, skymap_contour, sources) {
-    const center = [width / 2, height / 2];
-    const projection = d3.geoOrthographic().translate(center).scale(100);
-    const geoGenerator = d3.geoPath().projection(projection);
-    const graticule = d3.geoGraticule();
-
-    function refresh() {
-      svg.selectAll("*").remove();
-
-      svg
-        .datum({ type: "Sphere" })
-        .append("path")
-        .style("fill", "aliceblue")
-        .style("stroke", "none")
-        .style("opacity", 1)
-        .attr("d", geoGenerator);
-
-      // Draw grid
-      svg
-        .data([graticule()])
-        .append("path")
-        .style("fill", "none")
-        .style("stroke", "darkgray")
-        .style("stroke-width", "0.5px")
-        .attr("d", geoGenerator);
-
-      if (skymap_contour?.features) {
-        svg
-          .selectAll("path")
-          .data(skymap_contour.features)
-          .enter()
-          .append("path")
-          .attr("class", (d) => d.properties.name)
-          .attr("d", geoGenerator)
-          .style("fill", "none")
-          .style("stroke", "black")
-          .style("stroke-width", "0.5px");
-      }
-
-      if (sources?.features) {
-        // Draw text labels
-        const translate = (d) => {
-          const coord = projection(d.geometry.coordinates);
-          return `translate(${coord[0]}, ${coord[1] - 10})`;
-        };
-
-        const visibleOnSphere = (d) => {
-          if (!d.properties?.name) return false;
-          if (!d.geometry?.coordinates) return false;
-
-          const gdistance = d3.geoDistance(
-            d.geometry.coordinates,
-            projection.invert(center)
-          );
-
-          // In front of globe?
-          return gdistance < 1.57;
-        };
-
-        svg
-          .selectAll(".label")
-          .data(sources.features)
-          .enter()
-          .append("a")
-          .attr("xlink:href", (d) => d.properties.url)
-          .append("text")
-          .attr("transform", translate)
-          .style("visibility", (d) =>
-            visibleOnSphere(d) ? "visible" : "hidden"
-          )
-          .style("text-anchor", "middle")
-          .style("font-size", "0.75rem")
-          .style("font-weight", "normal")
-          .text((d) => d.properties.name);
-
-        const x = (d) => projection(d.geometry.coordinates)[0];
-        const y = (d) => projection(d.geometry.coordinates)[1];
-
-        svg
-          .selectAll("circle")
-          .data(sources.features)
-          .enter()
-          .append("circle")
-          .attr("fill", (d) => (visibleOnSphere(d) ? "red" : "none"))
-          .attr("cx", x)
-          .attr("cy", y)
-          .attr("r", 3);
-      }
-    }
-
-    refresh();
-    d3GeoZoom().projection(projection).onMove(refresh)(svg.node());
-  }
-  const svgRef = useD3(renderMap, 300, 300, skymap_contour, sources);
-
-  return <svg height={300} width={300} ref={svgRef} />;
-};
-Globe.propTypes = {
-  skymap_contour: GeoPropTypes.FeatureCollection.isRequired,
-  sources: GeoPropTypes.FeatureCollection.isRequired,
+DownloadXMLButton.propTypes = {
+  gcn_notice: PropTypes.shape({
+    content: PropTypes.string,
+    ivorn: PropTypes.string,
+  }).isRequired,
 };
 
-const Localization = ({ loc, sources }) => {
+const Localization = ({ loc, sources, galaxies, instruments }) => {
   const cachedLocalization = useSelector((state) => state.localization);
   const dispatch = useDispatch();
 
@@ -200,9 +100,18 @@ const Localization = ({ loc, sources }) => {
   const localization =
     loc.id === cachedLocalization?.id ? cachedLocalization : null;
 
-  if (!localization) {
+  if (!localization || !instruments) {
     return <CircularProgress />;
   }
+
+  const instruments_with_contour = [];
+  instruments?.forEach((instrument) => {
+    if (instrument?.fields.length > 0) {
+      if (instrument.fields[0].contour_summary) {
+        instruments_with_contour.push(instrument);
+      }
+    }
+  });
 
   return (
     <>
@@ -211,9 +120,105 @@ const Localization = ({ loc, sources }) => {
         label={localization.localization_name}
         key={localization.localization_name}
       />
-      <Globe skymap_contour={localization.contour} sources={sources.geojson} />
+      {instruments_with_contour.length === 0 ? (
+        <GeoJSONGlobePlot
+          skymap={localization.contour}
+          sources={sources.geojson}
+          galaxies={galaxies.geojson}
+        />
+      ) : (
+        <GeoJSONGlobePlot
+          skymap={localization.contour}
+          sources={sources.geojson}
+          galaxies={galaxies.geojson}
+          instrument={instruments_with_contour[0]}
+        />
+      )}
     </>
   );
+};
+
+Localization.propTypes = {
+  loc: PropTypes.shape({
+    id: PropTypes.number,
+    dateobs: PropTypes.string,
+    localization_name: PropTypes.string,
+  }).isRequired,
+  sources: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      origin: PropTypes.string,
+      alias: PropTypes.arrayOf(PropTypes.string),
+      redshift: PropTypes.number,
+      classifications: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          classification: PropTypes.string,
+          created_at: PropTypes.string,
+          groups: PropTypes.arrayOf(
+            PropTypes.shape({
+              id: PropTypes.number,
+              name: PropTypes.string,
+            })
+          ),
+        })
+      ),
+      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
+      altdata: PropTypes.shape({
+        tns: PropTypes.shape({
+          name: PropTypes.string,
+        }),
+      }),
+      spectrum_exists: PropTypes.bool,
+      last_detected_at: PropTypes.string,
+      last_detected_mag: PropTypes.number,
+      peak_detected_at: PropTypes.string,
+      peak_detected_mag: PropTypes.number,
+      groups: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          name: PropTypes.string,
+        })
+      ),
+    })
+  ).isRequired,
+  galaxies: PropTypes.arrayOf(
+    PropTypes.shape({
+      catalog_name: PropTypes.string,
+      name: PropTypes.String,
+      alt_name: PropTypes.String,
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      distmpc: PropTypes.number,
+      distmpc_unc: PropTypes.number,
+      redshift: PropTypes.number,
+      redshift_error: PropTypes.number,
+      sfr_fuv: PropTypes.number,
+      mstar: PropTypes.number,
+      magb: PropTypes.number,
+      magk: PropTypes.number,
+      a: PropTypes.number,
+      b2a: PropTypes.number,
+      pa: PropTypes.number,
+      btc: PropTypes.number,
+    })
+  ).isRequired,
+  instruments: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.String,
+      type: PropTypes.String,
+      band: PropTypes.String,
+      fields: PropTypes.arrayOf(
+        PropTypes.shape({
+          ra: PropTypes.number,
+          dec: PropTypes.number,
+          id: PropTypes.number,
+        })
+      ),
+    })
+  ).isRequired,
 };
 
 const GcnEventSourcesPage = ({ route, sources }) => {
@@ -282,6 +287,65 @@ const GcnEventSourcesPage = ({ route, sources }) => {
       />
     </div>
   );
+};
+
+GcnEventSourcesPage.propTypes = {
+  route: PropTypes.shape({
+    dateobs: PropTypes.string,
+  }).isRequired,
+  sources: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      ra: PropTypes.number,
+      dec: PropTypes.number,
+      origin: PropTypes.string,
+      alias: PropTypes.arrayOf(PropTypes.string),
+      redshift: PropTypes.number,
+      classifications: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          classification: PropTypes.string,
+          created_at: PropTypes.string,
+          groups: PropTypes.arrayOf(
+            PropTypes.shape({
+              id: PropTypes.number,
+              name: PropTypes.string,
+            })
+          ),
+        })
+      ),
+      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
+      altdata: PropTypes.shape({
+        tns: PropTypes.shape({
+          name: PropTypes.string,
+        }),
+      }),
+      spectrum_exists: PropTypes.bool,
+      last_detected_at: PropTypes.string,
+      last_detected_mag: PropTypes.number,
+      peak_detected_at: PropTypes.string,
+      peak_detected_mag: PropTypes.number,
+      groups: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          name: PropTypes.string,
+        })
+      ),
+    })
+  ).isRequired,
+  pageNumber: PropTypes.number,
+  totalMatches: PropTypes.number,
+  numPerPage: PropTypes.number,
+  data: PropTypes.shape({
+    length: PropTypes.number,
+    features: GeoPropTypes.FeatureCollection,
+  }).isRequired,
+};
+
+GcnEventSourcesPage.defaultProps = {
+  pageNumber: 1,
+  totalMatches: 0,
+  numPerPage: 10,
 };
 
 const GcnEventPage = ({ route }) => {
@@ -406,6 +470,28 @@ const GcnEventPage = ({ route }) => {
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
             aria-controls="gcnEvent-content"
+            id="gcnnotices-header"
+          >
+            <Typography className={styles.accordionHeading}>
+              GCN Notices
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <div className={styles.gcnEventContainer}>
+              {gcnEvent.gcn_notices?.map((gcn_notice) => (
+                <li key={gcn_notice.ivorn}>
+                  <DownloadXMLButton gcn_notice={gcn_notice} />
+                </li>
+              ))}
+            </div>
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="gcnEvent-content"
             id="skymap-header"
           >
             <Typography className={styles.accordionHeading}>Skymaps</Typography>
@@ -418,30 +504,10 @@ const GcnEventPage = ({ route }) => {
                     <Localization
                       loc={localization}
                       sources={gcnEventSources}
+                      galaxies={gcnEventGalaxies}
+                      instruments={gcnEventInstruments}
                     />
                   </div>
-                </li>
-              ))}
-            </div>
-          </AccordionDetails>
-        </Accordion>
-      </div>
-      <div className={styles.columnItem}>
-        <Accordion defaultExpanded>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="gcnEvent-content"
-            id="gcnnotices-header"
-          >
-            <Typography className={styles.accordionHeading}>
-              GCN Notices
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <div className={styles.gcnEventContainer}>
-              {gcnEvent.gcn_notices?.map((gcn_notice) => (
-                <li key={gcn_notice.ivorn}>
-                  <DownloadXMLButton gcn_notice={gcn_notice} />
                 </li>
               ))}
             </div>
@@ -563,130 +629,9 @@ const GcnEventPage = ({ route }) => {
   );
 };
 
-Localization.propTypes = {
-  loc: PropTypes.shape({
-    id: PropTypes.number,
-    dateobs: PropTypes.string,
-    localization_name: PropTypes.string,
-  }).isRequired,
-  sources: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string,
-      ra: PropTypes.number,
-      dec: PropTypes.number,
-      origin: PropTypes.string,
-      alias: PropTypes.arrayOf(PropTypes.string),
-      redshift: PropTypes.number,
-      classifications: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number,
-          classification: PropTypes.string,
-          created_at: PropTypes.string,
-          groups: PropTypes.arrayOf(
-            PropTypes.shape({
-              id: PropTypes.number,
-              name: PropTypes.string,
-            })
-          ),
-        })
-      ),
-      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
-      altdata: PropTypes.shape({
-        tns: PropTypes.shape({
-          name: PropTypes.string,
-        }),
-      }),
-      spectrum_exists: PropTypes.bool,
-      last_detected_at: PropTypes.string,
-      last_detected_mag: PropTypes.number,
-      peak_detected_at: PropTypes.string,
-      peak_detected_mag: PropTypes.number,
-      groups: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number,
-          name: PropTypes.string,
-        })
-      ),
-    })
-  ).isRequired,
-};
-
 GcnEventPage.propTypes = {
   route: PropTypes.shape({
     dateobs: PropTypes.string,
-  }).isRequired,
-};
-
-Globe.propTypes = {
-  data: PropTypes.shape({
-    length: PropTypes.number,
-    features: GeoPropTypes.FeatureCollection,
-  }).isRequired,
-};
-
-GcnEventSourcesPage.propTypes = {
-  route: PropTypes.shape({
-    dateobs: PropTypes.string,
-  }).isRequired,
-  sources: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string,
-      ra: PropTypes.number,
-      dec: PropTypes.number,
-      origin: PropTypes.string,
-      alias: PropTypes.arrayOf(PropTypes.string),
-      redshift: PropTypes.number,
-      classifications: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number,
-          classification: PropTypes.string,
-          created_at: PropTypes.string,
-          groups: PropTypes.arrayOf(
-            PropTypes.shape({
-              id: PropTypes.number,
-              name: PropTypes.string,
-            })
-          ),
-        })
-      ),
-      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
-      altdata: PropTypes.shape({
-        tns: PropTypes.shape({
-          name: PropTypes.string,
-        }),
-      }),
-      spectrum_exists: PropTypes.bool,
-      last_detected_at: PropTypes.string,
-      last_detected_mag: PropTypes.number,
-      peak_detected_at: PropTypes.string,
-      peak_detected_mag: PropTypes.number,
-      groups: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number,
-          name: PropTypes.string,
-        })
-      ),
-    })
-  ).isRequired,
-  pageNumber: PropTypes.number,
-  totalMatches: PropTypes.number,
-  numPerPage: PropTypes.number,
-  data: PropTypes.shape({
-    length: PropTypes.number,
-    features: GeoPropTypes.FeatureCollection,
-  }).isRequired,
-};
-
-GcnEventSourcesPage.defaultProps = {
-  pageNumber: 1,
-  totalMatches: 0,
-  numPerPage: 10,
-};
-
-DownloadXMLButton.propTypes = {
-  gcn_notice: PropTypes.shape({
-    content: PropTypes.string,
-    ivorn: PropTypes.string,
   }).isRequired,
 };
 
