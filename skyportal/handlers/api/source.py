@@ -509,7 +509,7 @@ class SourceHandler(BaseHandler):
             nullable: true
             schema:
               type: string
-            description: Comma-separated string of who posted the annotations to filter
+            description: Comma separated string of origins. Only annotations from these origins are used when filtering with the annotationsFilter.
           - in: query
             name: minRedshift
             nullable: true
