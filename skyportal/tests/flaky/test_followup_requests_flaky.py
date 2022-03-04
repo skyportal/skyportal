@@ -395,7 +395,7 @@ def add_followup_request_using_frontend_and_verify_ZTF(
         '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "300")]'''
     )
     driver.wait_for_xpath(
-        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "ztfg,ztfr,ztfi")]'''
+        '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "g,r,i")]'''
     )
     driver.wait_for_xpath(
         '''//div[contains(@data-testid, "ZTF_followupRequestsTable")]//div[contains(., "submitted")]'''
