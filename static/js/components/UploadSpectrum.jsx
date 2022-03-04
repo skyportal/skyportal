@@ -295,7 +295,10 @@ const UploadSpectrumForm = ({ route }) => {
           type: "integer",
           anyOf: users?.map((user) => ({
             enum: [user.id],
-            title: user.username,
+            title:
+              user?.first_name && user?.last_name
+                ? `${user.username} (${user.first_name} ${user.last_name})`
+                : `${user.username}`,
           })),
         },
         uniqueItems: true,
@@ -313,7 +316,10 @@ const UploadSpectrumForm = ({ route }) => {
           type: "integer",
           anyOf: users?.map((user) => ({
             enum: [user.id],
-            title: user.username,
+            title:
+              user?.first_name && user?.last_name
+                ? `${user.username} (${user.first_name} ${user.last_name})`
+                : `${user.username}`,
           })),
         },
         uniqueItems: true,
@@ -388,7 +394,10 @@ const UploadSpectrumForm = ({ route }) => {
                   type: "integer",
                   anyOf: users?.map((user) => ({
                     enum: [user.id],
-                    title: user.username,
+                    title:
+                      user?.first_name && user?.last_name
+                        ? `${user.username} (${user.first_name} ${user.last_name})`
+                        : `${user.username}`,
                   })),
                 },
                 uniqueItems: true,
@@ -411,7 +420,10 @@ const UploadSpectrumForm = ({ route }) => {
                   type: "integer",
                   anyOf: users?.map((user) => ({
                     enum: [user.id],
-                    title: user.username,
+                    title:
+                      user?.first_name && user?.last_name
+                        ? `${user.username} (${user.first_name} ${user.last_name})`
+                        : `${user.username}`,
                   })),
                 },
                 uniqueItems: true,
@@ -439,7 +451,10 @@ const UploadSpectrumForm = ({ route }) => {
                   type: "integer",
                   anyOf: users?.map((user) => ({
                     enum: [user.id],
-                    title: user.username,
+                    title:
+                      user?.first_name && user?.last_name
+                        ? `${user.username} (${user.first_name} ${user.last_name})`
+                        : `${user.username}`,
                   })),
                 },
                 uniqueItems: true,
@@ -462,7 +477,10 @@ const UploadSpectrumForm = ({ route }) => {
                   type: "integer",
                   anyOf: users?.map((user) => ({
                     enum: [user.id],
-                    title: user.username,
+                    title:
+                      user?.first_name && user?.last_name
+                        ? `${user.username} (${user.first_name} ${user.last_name})`
+                        : `${user.username}`,
                   })),
                 },
                 uniqueItems: true,
