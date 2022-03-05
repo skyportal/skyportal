@@ -10,6 +10,8 @@ from regions import Regions
 from astropy import coordinates
 from astropy import units as u
 import numpy as np
+import pandas as pd
+from io import StringIO
 
 from ..base import BaseHandler
 from ...models import (
@@ -70,6 +72,21 @@ class InstrumentHandler(BaseHandler):
             if field_region is None:
                 return self.error('`field_region` is required with field_data')
             regions = Regions.parse(field_region, format='ds9')
+
+            if type(field_data) is str:
+                field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
+                    orient='list'
+                )
+
+            if not all(
+                k in field_data
+                for k in [
+                    'ID',
+                    'RA',
+                    'Dec',
+                ]
+            ):
+                return self.error("ID, RA, and Dec required in field_data.")
 
             log(f"Started generating fields for instrument {instrument.id}")
             # run async
