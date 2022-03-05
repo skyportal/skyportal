@@ -399,3 +399,18 @@ def test_followup_request_frontend(
     driver.wait_for_xpath(
         f'''//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "submitted")]'''
     )
+
+    driver.wait_for_xpath('//*[@id="root_sourceID"]').send_keys('not_the_source')
+    submit_button_xpath = '//button[contains(.,"Submit")]'
+    driver.wait_for_xpath(submit_button_xpath)
+    driver.click_xpath(submit_button_xpath)
+
+    driver.wait_for_xpath_to_disappear(
+        f'''//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "IFU")]'''
+    )
+    driver.wait_for_xpath_to_disappear(
+        f'''//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "5")]'''
+    )
+    driver.wait_for_xpath_to_disappear(
+        f'''//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "submitted")]'''
+    )

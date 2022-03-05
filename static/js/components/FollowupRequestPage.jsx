@@ -5,6 +5,7 @@ import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
 import { makeStyles } from "@material-ui/core/styles";
 import FollowupRequestLists from "./FollowupRequestLists";
+import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -39,6 +40,14 @@ const FollowupRequestPage = () => {
               instrumentFormParams={instrumentFormParams}
               showObject
             />
+          </div>
+        </Paper>
+      </Grid>
+      <Grid item md={6} sm={12}>
+        <Paper>
+          <div className={classes.paperContent}>
+            <Typography variant="h6">Query Followup Requests</Typography>
+            <FollowupRequestSelectionForm />
           </div>
         </Paper>
       </Grid>
