@@ -342,6 +342,24 @@ class ATLASAPI(FollowUpAPI):
 
         DBSession().add(transaction)
 
+    @staticmethod
+    def delete(request):
+
+        """Delete a photometry request from ATLAS API.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+        """
+
+        from ..models import DBSession, FollowupRequest
+
+        DBSession().query(FollowupRequest).filter(
+            FollowupRequest.id == request.id
+        ).delete()
+        DBSession().commit()
+
     form_json_schema = {
         "type": "object",
         "properties": {

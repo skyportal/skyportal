@@ -895,6 +895,16 @@ class ObservationHandlerPost(_Schema):
     )
 
 
+class ObservationASCIIFileHandlerPost(_Schema):
+    instrumentID = fields.String(
+        required=True,
+        metadata={"description": ('The instrument ID associated with the fields')},
+    )
+    observationData = fields.Field(
+        metadata={'description': 'Observation data Ascii string'}
+    )
+
+
 class ObservingRunPost(_Schema):
     instrument_id = fields.Integer(
         required=True,

@@ -1160,7 +1160,7 @@ def test_sources_filter_by_time_spectrum(
         'spectrum',
         data={
             'obj_id': obj_id1,
-            'observed_at': str(datetime.now(timezone.utc)),
+            'observed_at': str(datetime.now(timezone.utc) - timedelta(days=1)),
             'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
@@ -1178,7 +1178,7 @@ def test_sources_filter_by_time_spectrum(
         'spectrum',
         data={
             'obj_id': obj_id2,
-            'observed_at': str(datetime.now(timezone.utc)),
+            'observed_at': str(datetime.now(timezone.utc) + timedelta(days=1)),
             'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
@@ -2027,3 +2027,65 @@ def test_token_user_retrieving_source_with_period_exists(
     assert status == 200
     assert data["status"] == "success"
     assert data["data"]['period_exists']
+
+
+def test_token_user_retrieving_source_with_annotation_filter(
+    super_admin_token, public_source, public_source_two_groups, annotation_token
+):
+
+    annotation_name = str(uuid.uuid4())
+
+    status, data = api(
+        'POST',
+        f'sources/{public_source.id}/annotations',
+        data={
+            'origin': 'kowalski',
+            'data': {annotation_name: 1.5},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'POST',
+        f'sources/{public_source_two_groups.id}/annotations',
+        data={
+            'origin': 'gloria',
+            'data': {annotation_name: 1.5},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"annotationsFilter": f"{annotation_name}:2.0:le"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 2
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "annotationsFilter": f"{annotation_name}:2.0:le",
+            "annotationsFilterOrigin": "kowalski",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 1
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"annotationsFilter": f"{annotation_name}:2.0:ge"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 0
