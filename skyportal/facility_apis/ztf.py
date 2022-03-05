@@ -20,7 +20,7 @@ if cfg['app.ztf.port'] is None:
 else:
     ZTF_URL = f"{cfg['app.ztf.protocol']}://{cfg['app.ztf.host']}:{cfg['app.ztf.port']}"
 
-bands = {'ztfg': 1, 'ztfr': 2, 'ztfi': 3}
+bands = {'g': 1, 'ztfg': 1, 'r': 1, 'ztfr': 2, 'i': 3, 'ztfi': 3}
 inv_bands = {v: k for k, v in bands.items()}
 
 
