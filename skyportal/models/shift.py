@@ -16,14 +16,13 @@ from baselayer.app.models import (
 )
 from baselayer.app.env import load_env
 
-from .group import accessible_by_group_admins, accessible_by_group_members
+from .group import accessible_by_group_members
 
 _, cfg = load_env()
 
 
-def delete_shift_access_logic(cls, user_or_token):
-    """User can delete a group that is not the sitewide public group, is not
-    a single user group, and that they are an admin member of."""
+def manage_shift_access_logic(cls, user_or_token):
+    """Users can update and delete a shift that they are the admin of."""
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = DBSession().query(cls).join(ShiftUser)
     if not user_or_token.is_system_admin:
@@ -31,7 +30,7 @@ def delete_shift_access_logic(cls, user_or_token):
     return query
 
 
-# group admins can set the admin status of other group members
+# shift admins can set the admin status of other shift members
 def shiftuser_update_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
@@ -44,12 +43,11 @@ def shiftuser_update_access_logic(cls, user_or_token):
 class Shift(Base):
     """A scanning shift. A Shift is associated
     with exactly one Group, and a Group may have multiple operational Shifts.
+    Members of a group can create, delete, join and leave these shifts depending on their permissions.
     """
 
-    # TODO: Track shift ownership and allow owners to update, delete shifts
-    create = update = delete = accessible_by_group_admins
-    read = accessible_by_group_members
-    delete = CustomUserAccessControl(delete_shift_access_logic)
+    create = read = accessible_by_group_members
+    update = delete = CustomUserAccessControl(manage_shift_access_logic)
 
     name = sa.Column(sa.String, nullable=True, index=True, doc='Name of the shift.')
 
@@ -83,7 +81,7 @@ class Shift(Base):
         secondary='shift_users',
         back_populates='shifts',
         passive_deletes=True,
-        doc='The members of this group.',
+        doc='The members of this shift.',
     )
 
     shift_users = relationship(
@@ -104,18 +102,12 @@ ShiftUser.admin = sa.Column(
     doc="Boolean flag indicating whether the User is an admin of the shift.",
 )
 
-ShiftUser.can_save = sa.Column(
-    sa.Boolean,
-    nullable=False,
-    server_default="true",
-    doc="Boolean flag indicating whether the user should be able to save sources to the group",
-)
 ShiftUser.update = CustomUserAccessControl(shiftuser_update_access_logic)
 ShiftUser.delete = (
-    # users can remove themselves from a group
-    # admins can remove users from a group
-    # no one can remove a user from their single user group
-    (accessible_by_group_admins | AccessibleIfUserMatches('user'))
+    # TODO: admins can leave a shift ONLY if there is at least one other admin
+    # users can remove themselves from a shift
+    # admins of a shift can remove users from it
+    (AccessibleIfUserMatches('user'))
     & ShiftUser.read
     & CustomUserAccessControl(
         lambda cls, user_or_token: DBSession().query(cls).join(Shift)

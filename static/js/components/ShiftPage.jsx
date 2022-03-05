@@ -153,7 +153,6 @@ const ShiftList = ({ shifts, currentUser, deletePermission }) => {
                       userID: currentUser.id,
                       admin: false,
                       shift_id: shift.id,
-                      canSave: true,
                     })
                   )
                 }

@@ -739,6 +739,7 @@ galaxy_catalog:
 
 shift:
   - group_id: =program_A
-    start_date: "2022-02-16 00:00:00"
-    end_date: "2020-02-17 12:00:00"
+    start_date: "2022-03-08 16:00:00"
+    end_date: "2022-03-08 23:00:00"
     name: "the Night Shift"
+    =id: nightshift

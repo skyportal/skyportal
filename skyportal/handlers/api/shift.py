@@ -40,6 +40,21 @@ class ShiftHandler(BaseHandler):
                             id:
                               type: integer
                               description: New Shift
+                            name:
+                              type: string
+                              description: New Shift's name
+                            start_date:
+                              type: string
+                              description: New Shift's start date
+                            end_date:
+                              type: string
+                              description: New Shift's end date
+                            shift_admins:
+                              type: array
+                              description: New Shift's admins IDs
+                            description:
+                              type: string
+                              description: New Shift's description
           400:
             content:
               application/json:
@@ -177,7 +192,7 @@ class ShiftHandler(BaseHandler):
 
 
 class ShiftUserHandler(BaseHandler):
-    @permissions(["Upload data"])
+    @permissions(["Manage shifts"])
     def post(self, shift_id, *ignored_args):
         """
         ---
@@ -201,9 +216,6 @@ class ShiftUserHandler(BaseHandler):
                     type: integer
                   admin:
                     type: boolean
-                  canSave:
-                    type: boolean
-                    description: Boolean indicating whether user can save sources to shift. Defaults to true.
                 required:
                   - userID
                   - admin
@@ -221,7 +233,7 @@ class ShiftUserHandler(BaseHandler):
                           properties:
                             shift_id:
                               type: integer
-                              description: Group ID
+                              description: Shift ID
                             user_id:
                               type: integer
                               description: User ID
@@ -245,13 +257,8 @@ class ShiftUserHandler(BaseHandler):
             return self.error(
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
-        can_save = data.get("canSave", True)
-        if not isinstance(can_save, bool):
-            return self.error(
-                "Invalid (non-boolean) value provided for parameter `canSave`"
-            )
         shift_id = int(shift_id)
-        # CHANGE TO SHIFT NOT GROUP
+
         shift = Shift.get_if_accessible_by(
             shift_id, self.current_user, raise_if_none=True, mode='read'
         )
@@ -270,11 +277,7 @@ class ShiftUserHandler(BaseHandler):
                 f"User {user_id} is already a member of shift {shift_id}."
             )
 
-        DBSession().add(
-            ShiftUser(
-                shift_id=shift_id, user_id=user_id, admin=admin, can_save=can_save
-            )
-        )
+        DBSession().add(ShiftUser(shift_id=shift_id, user_id=user_id, admin=admin))
         DBSession().add(
             UserNotification(
                 user=user,
@@ -290,11 +293,11 @@ class ShiftUserHandler(BaseHandler):
             data={'shift_id': shift_id, 'user_id': user_id, 'admin': admin}
         )
 
-    @permissions(["Upload data"])
+    @permissions(["Manage shifts"])
     def patch(self, shift_id, *ignored_args):
         """
         ---
-        description: Update a shift user's admin or save access status
+        description: Update a shift user's admin status
         tags:
           - shifts
           - users
@@ -315,13 +318,8 @@ class ShiftUserHandler(BaseHandler):
                   admin:
                     type: boolean
                     description: |
-                      Boolean indicating whether user is shift admin. Either this
-                      or `canSave` must be provided in request body.
-                  canSave:
-                    type: boolean
-                    description: |
-                      Boolean indicating whether user can save sources to shift. Either
-                      this or `admin` must be provided in request body.
+                      Boolean indicating whether user is shift admin.
+
                 required:
                   - userID
         responses:
@@ -352,22 +350,12 @@ class ShiftUserHandler(BaseHandler):
         if shiftuser is None:
             return self.error(f"User {user_id} is not a member of shift {shift_id}.")
 
-        if data.get("admin") is None and data.get("canSave") is None:
-            return self.error(
-                "Missing required parameter: at least one of `admin` or `canSave`"
-            )
         admin = data.get("admin", shiftuser.admin)
         if not isinstance(admin, bool):
             return self.error(
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
-        can_save = data.get("canSave", shiftuser.can_save)
-        if not isinstance(can_save, bool):
-            return self.error(
-                "Invalid (non-boolean) value provided for parameter `canSave`"
-            )
         shiftuser.admin = admin
-        shiftuser.can_save = can_save
         self.verify_and_commit()
         return self.success()
 
