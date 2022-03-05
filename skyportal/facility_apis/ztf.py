@@ -39,7 +39,7 @@ class ZTFRequest:
         start_mjd = Time(request.payload["start_date"], format='iso').mjd
         end_mjd = Time(request.payload["end_date"], format='iso').mjd
 
-        bands = {'ztfg': 1, 'ztfr': 2, 'ztfi': 3}
+        bands = {'g': 1, 'r': 2, 'i': 3}
         json_data = {
             'queue_name': "ToO_" + request.payload["queue_name"],
             'validity_window_mjd': [start_mjd, end_mjd],
@@ -95,7 +95,7 @@ class ZTFRequest:
         start_mjd = Time(request.payload["start_date"], format='iso').mjd
         end_mjd = Time(request.payload["end_date"], format='iso').mjd
 
-        bands = {'ztfg': 1, 'ztfr': 2, 'ztfi': 3}
+        bands = {'g': 1, 'r': 2, 'i': 3}
         json_data = {
             'queue_name': "ToO_" + request.payload["queue_name"],
             'validity_window_mjd': [start_mjd, end_mjd],
