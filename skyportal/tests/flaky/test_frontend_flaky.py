@@ -355,3 +355,47 @@ def test_gcnevents_observations(
     driver.wait_for_xpath('//*[text()="ztfr"]')
     driver.wait_for_xpath('//*[text()="1.57415"]')
     driver.wait_for_xpath('//*[text()="20.40705"]')
+
+
+# @pytest.mark.flaky(reruns=2)
+def test_followup_request_frontend(
+    public_group_sedm_allocation,
+    public_source,
+    upload_data_token,
+    super_admin_user,
+    sedm,
+    driver,
+):
+
+    request_data = {
+        'allocation_id': public_group_sedm_allocation.id,
+        'obj_id': public_source.id,
+        'payload': {
+            'priority': 5,
+            'start_date': '3020-09-01',
+            'end_date': '3022-09-01',
+            'observation_type': 'IFU',
+        },
+    }
+
+    status, data = api(
+        'POST', 'followup_request', data=request_data, token=upload_data_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+
+    # go to the allocations page
+    driver.get("/followup_requests")
+
+    driver.click_xpath(f"//div[@data-testid='{sedm.name}-requests-header']")
+    driver.wait_for_xpath(
+        f'//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "IFU")]'
+    )
+    driver.wait_for_xpath(
+        f'''//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "5")]'''
+    )
+    driver.wait_for_xpath(
+        f'''//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "submitted")]'''
+    )

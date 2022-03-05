@@ -316,7 +316,12 @@ class FollowupRequestHandler(BaseHandler):
             self.verify_and_commit()
             return self.success(data=followup_request)
 
-        followup_requests = followup_requests.all()
+        followup_requests = followup_requests.options(
+            joinedload(FollowupRequest.allocation).joinedload(Allocation.instrument),
+            joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
+            joinedload(FollowupRequest.obj),
+            joinedload(FollowupRequest.requester),
+        ).all()
         self.verify_and_commit()
         return self.success(data=followup_requests)
 
