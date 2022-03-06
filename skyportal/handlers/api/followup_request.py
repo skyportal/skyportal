@@ -1,12 +1,39 @@
+import arrow
 import jsonschema
 from marshmallow.exceptions import ValidationError
+import io
+from tornado.ioloop import IOLoop
+import pandas as pd
+import tempfile
+import functools
 
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+from astropy.coordinates import EarthLocation
+from astropy.time import Time, TimeDelta
+
+from astroplan import Observer
+from astroplan import FixedTarget
+from astroplan import ObservingBlock
+from astroplan.constraints import (
+    AtNightConstraint,
+    AirmassConstraint,
+    MoonSeparationConstraint,
+)
+from astroplan.scheduling import Transitioner
+from astroplan.scheduling import PriorityScheduler
+from astroplan.scheduling import Schedule
+from astroplan.plots import plot_schedule_airmass
+
+import matplotlib
+import matplotlib.pyplot as plt
 
 from baselayer.app.access import auth_or_token, permissions
 from ..base import BaseHandler
 from ...models import (
     DBSession,
     FollowupRequest,
+    Instrument,
     ClassicalAssignment,
     ObservingRun,
     Obj,
@@ -281,6 +308,36 @@ class FollowupRequestHandler(BaseHandler):
           description: Retrieve all followup requests
           tags:
             - followup_requests
+          parameters:
+          - in: query
+            name: sourceID
+            nullable: true
+            schema:
+              type: string
+            description: Portion of ID to filter on
+          - in: query
+            name: startDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              created_at >= startDate
+          - in: query
+            name: endDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              created_at <= endDate
+          - in: query
+            name: status
+            nullable: true
+            schema:
+              type: string
+            description: |
+              String to match status of request against
           responses:
             200:
               content:
@@ -291,6 +348,11 @@ class FollowupRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+        sourceID = self.get_query_argument('sourceID', None)
+        status = self.get_query_argument('status', None)
 
         # get owned assignments
         followup_requests = FollowupRequest.query_records_accessible_by(
@@ -316,7 +378,35 @@ class FollowupRequestHandler(BaseHandler):
             self.verify_and_commit()
             return self.success(data=followup_request)
 
-        followup_requests = followup_requests.all()
+        if start_date:
+            start_date = str(arrow.get(start_date.strip()).datetime)
+            followup_requests = followup_requests.filter(
+                FollowupRequest.created_at >= start_date
+            )
+        if end_date:
+            end_date = str(arrow.get(end_date.strip()).datetime)
+            followup_requests = followup_requests.filter(
+                FollowupRequest.created_at <= end_date
+            )
+        if sourceID:
+            obj_query = Obj.query_records_accessible_by(self.current_user).filter(
+                Obj.id.contains(sourceID.strip())
+            )
+            obj_subquery = obj_query.subquery()
+            followup_requests = followup_requests.join(
+                obj_subquery, FollowupRequest.obj_id == obj_subquery.c.id
+            )
+        if status:
+            followup_requests = followup_requests.filter(
+                FollowupRequest.status.contains(status.strip())
+            )
+
+        followup_requests = followup_requests.options(
+            joinedload(FollowupRequest.allocation).joinedload(Allocation.instrument),
+            joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
+            joinedload(FollowupRequest.obj),
+            joinedload(FollowupRequest.requester),
+        ).all()
         self.verify_and_commit()
         return self.success(data=followup_requests)
 
@@ -532,3 +622,406 @@ class FollowupRequestHandler(BaseHandler):
             payload={"obj_key": internal_key},
         )
         return self.success()
+
+
+def observation_schedule(
+    followup_requests,
+    instrument,
+    observation_start=Time.now(),
+    observation_end=Time.now() + TimeDelta(12 * u.hour),
+    output_format='csv',
+    figsize=(10, 8),
+):
+
+    """Create a movie to display observations of a given skymap
+    Parameters
+    ----------
+    followup_requests : skyportal.models.followup_request.FollowupRequest
+        The planned observations associated with the request
+    instrument : skyportal.models.instrument.Instrument
+        The instrument that the request is made based on
+    observation_start: astropy.time.Time
+        Start time for the observations
+    observation_end: astropy.time.Time
+        End time for the observations
+    output_format : str, optional
+        "csv", "pdf" or "png" -- determines the format of the returned observation plan
+    figsize : tuple, optional
+        Matplotlib figsize of the movie created
+    Returns
+    -------
+    dict
+        success : bool
+            Whether the request was successful or not, returning
+            a sensible error in 'reason'
+        name : str
+            suggested filename based on `instrument` and `output_format`
+        data : str
+            binary encoded data for the file (to be streamed)
+        reason : str
+            If not successful, a reason is returned.
+    """
+
+    location = EarthLocation.from_geodetic(
+        instrument.telescope.lon * u.deg,
+        instrument.telescope.lat * u.deg,
+        instrument.telescope.elevation * u.m,
+    )
+    observer = Observer(location=location, name=instrument.name)
+
+    global_constraints = [
+        AirmassConstraint(max=2.50, boolean_constraint=False),
+        AtNightConstraint.twilight_civil(),
+        MoonSeparationConstraint(min=10.0 * u.deg),
+    ]
+
+    blocks = []
+    read_out = 10.0 * u.s
+
+    for ii, followup_request in enumerate(followup_requests):
+        obj = followup_request.obj
+        coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
+        target = FixedTarget(coord=coord, name=obj.id)
+
+        payload = followup_request.payload
+        allocation = followup_request.allocation
+        requester = followup_request.requester
+
+        if "start_date" in payload:
+            start_date = Time(payload["start_date"], format='isot')
+            if start_date > observation_end:
+                continue
+
+        if "end_date" in payload:
+            end_date = Time(payload["end_date"], format='isot')
+            if end_date < observation_start:
+                continue
+
+        if "priority" in payload:
+            priority = payload["priority"]
+        else:
+            priority = 1
+
+        # make sure to invert priority (priority = 5.0 is max, priority = 1.0 is min)
+        priority = 5.0 / priority
+
+        if "exposure_time" in payload:
+            exposure_time = payload["exposure_time"] * u.s
+        else:
+            exposure_time = 3600 * u.s
+
+        if "exposure_counts" in payload:
+            exposure_counts = payload["exposure_counts"]
+        else:
+            exposure_counts = 1
+
+        # get extra constraints
+        constraints = []
+        if "minimum_lunar_distance" in payload:
+            constraints.append(
+                MoonSeparationConstraint(min=payload['minimum_lunar_distance'] * u.deg)
+            )
+
+        if "maximum_airmass" in payload:
+            constraints.append(
+                AirmassConstraint(
+                    max=payload['maximum_airmass'], boolean_constraint=False
+                )
+            )
+
+        if "observation_choices" in payload:
+            configurations = [
+                {
+                    'requester': requester.username,
+                    'group_id': allocation.group_id,
+                    'request_id': followup_request.id,
+                    'filter': bandpass,
+                }
+                for bandpass in payload["observation_choices"]
+            ]
+        else:
+            configurations = [
+                {
+                    'requester': requester.username,
+                    'group_id': allocation.group_id,
+                    'request_id': followup_request.id,
+                    'filter': 'default',
+                }
+            ]
+
+        for configuration in configurations:
+            b = ObservingBlock.from_exposures(
+                target,
+                priority,
+                exposure_time,
+                exposure_counts,
+                read_out,
+                configuration=configuration,
+            )
+            blocks.append(b)
+
+    # Initialize a transitioner object with the slew rate and/or the
+    # duration of other transitions (e.g. filter changes)
+    slew_rate = 2.0 * u.deg / u.second
+    transitioner = Transitioner(slew_rate, {'filter': {'default': 10 * u.second}})
+
+    # Initialize the sequential scheduler with the constraints and transitioner
+    prior_scheduler = PriorityScheduler(
+        constraints=global_constraints, observer=observer, transitioner=transitioner
+    )
+    # Initialize a Schedule object, to contain the new schedule
+    priority_schedule = Schedule(observation_start, observation_end)
+
+    # Call the schedule with the observing blocks and schedule to schedule the blocks
+    prior_scheduler(blocks, priority_schedule)
+
+    if output_format in ["png", "pdf"]:
+        matplotlib.use("Agg")
+        fig = plt.figure(figsize=figsize, constrained_layout=False)
+        plot_schedule_airmass(priority_schedule, show_night=True)
+        plt.legend(loc="upper right")
+        buf = io.BytesIO()
+        fig.savefig(buf, format=output_format)
+        plt.close(fig)
+        buf.seek(0)
+
+        return {
+            "success": True,
+            "name": f"schedule_{instrument.name}.{output_format}",
+            "data": buf.read(),
+            "reason": "",
+        }
+    elif output_format == "csv":
+        try:
+            schedule_table = priority_schedule.to_table(
+                show_transitions=False, show_unused=False
+            )
+        except Exception as e:
+            raise ValueError(
+                f'Scheduling failed: there are probably no observable targets: {str(e)}.'
+            )
+
+        schedule = []
+        for block in schedule_table:
+            target = block["target"]
+            if target == "TransitionBlock":
+                continue
+
+            filt = block["configuration"]["filter"]
+            request_id = block["configuration"]["request_id"]
+            group_id = block["configuration"]["group_id"]
+            requester = block["configuration"]["requester"]
+
+            obs_start = Time(block["start time (UTC)"], format='iso')
+            obs_end = Time(block["end time (UTC)"], format='iso')
+            exposure_time = int(block["duration (minutes)"] * 60.0)
+
+            c = SkyCoord(
+                ra=block["ra"] * u.degree, dec=block["dec"] * u.degree, frame='icrs'
+            )
+            ra = c.ra.to_string(unit=u.hour, sep=':')
+            dec = c.dec.to_string(unit=u.degree, sep=':')
+
+            observation = {
+                'request_id': request_id,
+                'group_id': group_id,
+                'object_id': target,
+                'ra': ra,
+                'dec': dec,
+                'epoch': 2000,
+                'observation_start': obs_start,
+                'observation_end': obs_end,
+                'exposure_time': exposure_time,
+                'filter': filt,
+                'requester': requester,
+            }
+            schedule.append(observation)
+
+        df = pd.DataFrame(schedule)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.' + output_format) as f:
+            df.to_csv(f.name)
+            f.flush()
+
+            with open(f.name, mode='rb') as g:
+                csv_content = g.read()
+
+        return {
+            "success": True,
+            "name": f"schedule_{instrument.name}.{output_format}",
+            "data": csv_content,
+            "reason": "",
+        }
+
+
+class FollowupRequestSchedulerHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, instrument_id):
+        """
+        ---
+        description: Retrieve followup requests schedule
+        tags:
+            - followup_requests
+        parameters:
+        - in: query
+          name: sourceID
+          nullable: true
+          schema:
+            type: string
+          description: Portion of ID to filter on
+        - in: query
+          name: startDate
+          nullable: true
+          schema:
+            type: string
+          description: |
+            Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+            created_at >= startDate
+        - in: query
+          name: endDate
+          nullable: true
+          schema:
+            type: string
+          description: |
+            Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+            created_at <= endDate
+        - in: query
+          name: status
+          nullable: true
+          schema:
+            type: string
+          description: |
+            String to match status of request against
+        - in: query
+          name: observationStartDate
+          nullable: true
+          schema:
+            type: string
+          description: |
+            Arrow-parseable date string (e.g. 2020-01-01). If provided, start time
+            of observation window, otherwise now.
+        - in: query
+          name: observationEndDate
+          nullable: true
+          schema:
+            type: string
+          description: |
+            Arrow-parseable date string (e.g. 2020-01-01). If provided, end time
+            of observation window, otherwise 12 hours from now.
+        - in: query
+          name: output_format
+          nullable: true
+          schema:
+            type: string
+          description: |
+            Output format for schedule. Can be png, pdf, or csv
+        responses:
+          200:
+            description: A PDF/PNG schedule file
+            content:
+              application/pdf:
+                schema:
+                  type: string
+                  format: binary
+              image/png:
+                schema:
+                  type: string
+                  format: binary
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        instrument = (
+            Instrument.query_records_accessible_by(
+                self.current_user,
+            )
+            .filter(
+                Instrument.id == instrument_id,
+            )
+            .first()
+        )
+        if instrument is None:
+            return self.error(message=f"Missing instrument with id {instrument_id}")
+
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+        sourceID = self.get_query_argument('sourceID', None)
+        status = self.get_query_argument('status', None)
+        output_format = self.get_query_argument('output_format', 'csv')
+        observation_start_date = self.get_query_argument('observationStartDate', None)
+        observation_end_date = self.get_query_argument('observationEndDate', None)
+
+        allocation_query = Allocation.query_records_accessible_by(
+            self.current_user
+        ).filter(Allocation.instrument_id == instrument_id)
+        allocation_subquery = allocation_query.subquery()
+
+        # get owned assignments
+        followup_requests = FollowupRequest.query_records_accessible_by(
+            self.current_user
+        ).join(
+            allocation_subquery,
+            FollowupRequest.allocation_id == allocation_subquery.c.id,
+        )
+
+        if start_date:
+            start_date = str(arrow.get(start_date.strip()).datetime)
+            followup_requests = followup_requests.filter(
+                FollowupRequest.created_at >= start_date
+            )
+        if end_date:
+            end_date = str(arrow.get(end_date.strip()).datetime)
+            followup_requests = followup_requests.filter(
+                FollowupRequest.created_at <= end_date
+            )
+        if sourceID:
+            obj_query = Obj.query_records_accessible_by(self.current_user).filter(
+                Obj.id.contains(sourceID.strip())
+            )
+            obj_subquery = obj_query.subquery()
+            followup_requests = followup_requests.join(
+                obj_subquery, FollowupRequest.obj_id == obj_subquery.c.id
+            )
+        if status:
+            followup_requests = followup_requests.filter(
+                FollowupRequest.status.contains(status.strip())
+            )
+        if not observation_start_date:
+            observation_start = Time.now()
+        else:
+            observation_start = Time(arrow.get(observation_start_date.strip()).datetime)
+        if not observation_end_date:
+            observation_end = Time.now() + TimeDelta(12 * u.hour)
+        else:
+            observation_end = Time(arrow.get(observation_end_date.strip()).datetime)
+
+        followup_requests = followup_requests.options(
+            joinedload(FollowupRequest.allocation).joinedload(Allocation.instrument),
+            joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
+            joinedload(FollowupRequest.obj),
+            joinedload(FollowupRequest.requester),
+        ).all()
+
+        if len(followup_requests) == 0:
+            return self.error('Need at least one observation to schedule.')
+
+        schedule = functools.partial(
+            observation_schedule,
+            followup_requests,
+            instrument,
+            observation_start=observation_start,
+            observation_end=observation_end,
+            output_format=output_format,
+            figsize=(10, 8),
+        )
+
+        self.push_notification(
+            'Schedule generation in progress. Download will start soon.'
+        )
+        rez = await IOLoop.current().run_in_executor(None, schedule)
+
+        filename = rez["name"]
+        data = io.BytesIO(rez["data"])
+
+        await self.send_file(data, filename, output_type=output_format)
