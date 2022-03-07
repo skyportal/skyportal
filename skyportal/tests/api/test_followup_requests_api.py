@@ -190,9 +190,12 @@ def test_filter_followup_request(
     assert status == 200
     assert data['status'] == 'success'
 
+    params = {'startDate': time_before_post}
+
     status, data = api(
         "GET",
-        f"followup_request?startDate={time_before_post}",
+        "followup_request",
+        params=params,
         token=view_only_token,
     )
     assert status == 200
@@ -200,18 +203,25 @@ def test_filter_followup_request(
     assert any([s['obj_id'] == public_source.id for s in data["data"]])
 
     time_after_post = datetime.utcnow().isoformat()
+
+    params = {'startDate': time_after_post}
+
     status, data = api(
         "GET",
-        f"followup_request?startDate={time_after_post}",
+        "followup_request",
+        params=params,
         token=view_only_token,
     )
     assert status == 200
     assert data['status'] == 'success'
     assert not any([s['obj_id'] == public_source.id for s in data["data"]])
 
+    params = {'sourceID': public_source.id}
+
     status, data = api(
         "GET",
-        f"followup_request?sourceID={public_source.id}",
+        "followup_request",
+        params=params,
         token=view_only_token,
     )
     assert status == 200
