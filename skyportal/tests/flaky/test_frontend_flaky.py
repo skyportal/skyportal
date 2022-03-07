@@ -411,9 +411,23 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     instrument_id = data['data']['id']
 
     # wait for the fields to populate
-    time.sleep(15)
+    nretries = 0
+    fields_loaded = False
+    while not fields_loaded and nretries < 5:
+        try:
+            status, data = api(
+                'GET', f'instrument/{instrument_id}', token=super_admin_token
+            )
+            assert status == 200
+            assert data['status'] == 'success'
+            assert data['data']['band'] == 'NIR'
 
-    print(super_admin_token)
+            assert len(data['data']['fields']) == 5
+            fields_loaded = True
+        except AssertionError:
+            nretries = nretries + 1
+            time.sleep(3)
+
     status, data = api(
         "POST",
         "allocation",
@@ -456,9 +470,9 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     driver.click_xpath(submit_button_xpath)
 
-    # wait for the observation plan to complete
-    time.sleep(15)
-
+    driver.wait_for_xpath(
+        f"//div[@data-testid='{instrument_name}-requests-header']", timeout=15
+    )
     driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
     driver.wait_for_xpath(
         f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]',
