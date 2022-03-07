@@ -34,6 +34,11 @@ app:
     host: skipper.caltech.edu
     port: 4000
 
+  swift:
+    protocol: https
+    host: www.swift.psu.edu
+    port: 443
+
   ps1_endpoint: https://catalogs.mast.stsci.edu/
 
   atlas:

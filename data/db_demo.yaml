@@ -170,6 +170,14 @@ telescope:
     nickname: CTIO-4m
     skycam_link: null
     =id: CTIO-4m
+  - diameter: 1.0
+    elevation: 1.0
+    lat: 1.0
+    lon: 1.0
+    nickname: Swift
+    name: Swift
+    skycam_link: null
+    =id: Swift
   - diameter: 1.8
     elevation: 4215.0
     lat: 204.5317
@@ -302,6 +310,13 @@ instrument:
     # field_region:
     #   file: ../data/DECam_Region.reg
   - band: optical
+    name: UVOTXRT
+    api_classname: UVOTXRTAPI
+    =id: UVOTXRT
+    telescope_id: =Swift
+    type: imager
+    filters: ['bessellux']
+  - band: optical
     name: PS1
     telescope_id: =PS1
     type: imager
@@ -425,6 +440,14 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =SEDMv2
+  - pi: Michael Coughlin
+    proposal_id: Swift-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =UVOTXRT
+    _altdata: '{"username": "anonymous", "secret": "anonymous"}'
   - pi: Michael Coughlin
     proposal_id: KAIT-001
     start_date: "3020-02-12T00:00:00"
