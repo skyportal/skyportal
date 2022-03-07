@@ -258,8 +258,10 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
         timeout=10,
     )
     driver.click_xpath(
-        f'//button[contains(@data-testid, "deleteRequest_{observation_plan_request_id}")]', scroll_parent=True
+        f'//button[contains(@data-testid, "deleteRequest_{observation_plan_request_id}")]',
+        scroll_parent=True,
     )
     driver.click_xpath(
-        f'//button[contains(@data-testid, "treasuremapRequest_{observation_plan_request_id}")]', scroll_parent=True
+        f'//button[contains(@data-testid, "treasuremapRequest_{observation_plan_request_id}")]',
+        scroll_parent=True,
     )
