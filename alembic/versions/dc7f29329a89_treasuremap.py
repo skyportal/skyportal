@@ -1,7 +1,7 @@
 """treasuremap
 
 Revision ID: dc7f29329a89
-Revises: 6a769fd6d909
+Revises: ca2e59a85ff4
 Create Date: 2022-02-23 10:29:01.434260
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'dc7f29329a89'
-down_revision = '6a769fd6d909'
+down_revision = 'ca2e59a85ff4'
 branch_labels = None
 depends_on = None
 
