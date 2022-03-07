@@ -678,7 +678,7 @@ class ObservationASCIIFileHandler(BaseHandler):
 
         return self.success()
 
-      
+
 class ObservationGCNHandler(BaseHandler):
     @auth_or_token
     def get(self, instrument_id):
@@ -811,7 +811,7 @@ class ObservationGCNHandler(BaseHandler):
 
         return self.success(data=content)
 
-      
+
 class ObservationExternalAPIHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
