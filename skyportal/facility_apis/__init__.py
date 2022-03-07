@@ -8,4 +8,5 @@ from .lco import SINISTROAPI, SPECTRALAPI, FLOYDSAPI, MUSCATAPI
 from .observation_plan import MMAAPI
 from .ps1 import PS1API
 from .slack import SLACKAPI
+from .swift import UVOTXRTAPI
 from .ztf import ZTFAPI, ZTFMMAAPI
