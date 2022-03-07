@@ -78,14 +78,7 @@ class InstrumentHandler(BaseHandler):
                     orient='list'
                 )
 
-            if not all(
-                k in field_data
-                for k in [
-                    'ID',
-                    'RA',
-                    'Dec',
-                ]
-            ):
+            if not {'ID', 'RA', 'Dec'}.issubset(field_data):
                 return self.error("ID, RA, and Dec required in field_data.")
 
             log(f"Started generating fields for instrument {instrument.id}")
