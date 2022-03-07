@@ -356,7 +356,7 @@ def test_gcnevents_observations(
     driver.wait_for_xpath('//*[text()="1.57415"]')
     driver.wait_for_xpath('//*[text()="20.40705"]')
 
-    
+
 @pytest.mark.flaky(reruns=2)
 def test_observationplan_request(driver, user, super_admin_token, public_group):
 
@@ -514,7 +514,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
         timeout=10,
     )
 
-    
+
 @pytest.mark.flaky(reruns=2)
 def test_gcn_request(driver, user, super_admin_token, public_group):
 
