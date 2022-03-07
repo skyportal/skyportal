@@ -414,7 +414,8 @@ def test_followup_request_frontend(
     driver.wait_for_xpath_to_disappear(
         f'''//div[contains(@data-testid, "{sedm.name}_followupRequestsTable")]//div[contains(., "submitted")]'''
     )
-      
+
+
 @pytest.mark.flaky(reruns=2)
 def test_observationplan_request(driver, user, super_admin_token, public_group):
 
