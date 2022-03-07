@@ -28,6 +28,7 @@ from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
 from .observation import (
+    ObservationASCIIFileHandler,
     ObservationHandler,
     ObservationGCNHandler,
     ObservationExternalAPIHandler,
