@@ -18,6 +18,9 @@ app:
                         # base64.b64encode(os.urandom(50)).decode('ascii')
   factory: skyportal.app_server.make_app
 
+  observation_plan:
+    default_filters: ['ztfg', 'ztfr', 'ztfi']
+
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://pharos.caltech.edu/add_fritz
   sedmv2_endpoint:
