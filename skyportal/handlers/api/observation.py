@@ -6,16 +6,20 @@ import healpix_alchemy as ha
 import humanize
 import numpy as np
 import pandas as pd
+import requests
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
+import urllib
 from astropy.time import Time
 from io import StringIO
 
 from baselayer.app.flow import Flow
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
+    Allocation,
     DBSession,
     GcnEvent,
     Localization,
@@ -27,6 +31,9 @@ from ...models import (
     ExecutedObservation,
 )
 
+
+env, cfg = load_env()
+TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
 log = make_log('api/observation')
 
@@ -162,7 +169,8 @@ def get_observations(
         user,
         mode="read",
         options=[
-            joinedload(ExecutedObservation.instrument).joinedload(Instrument.telescope)
+            joinedload(ExecutedObservation.instrument).joinedload(Instrument.telescope),
+            joinedload(ExecutedObservation.field),
         ],
     )
 
@@ -685,6 +693,13 @@ class ObservationGCNHandler(BaseHandler):
           tags:
             - observations
           parameters:
+            - in: path
+              name: instrument_id
+              required: true
+              schema:
+                type: string
+              description: |
+                ID for the instrument to submit
             - in: query
               name: startDate
               required: true
@@ -740,8 +755,6 @@ class ObservationGCNHandler(BaseHandler):
         localization_dateobs = self.get_query_argument('localizationDateobs', None)
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-        return_statistics = self.get_query_argument("returnStatistics", False)
-
         if start_date is None:
             return self.error(message="Missing start_date")
 
@@ -765,15 +778,6 @@ class ObservationGCNHandler(BaseHandler):
         )
         if instrument is None:
             return self.error(message=f"Invalid instrument ID {instrument_id}")
-
-        print(
-            start_date,
-            end_date,
-            localization_dateobs,
-            localization_name,
-            localization_cumprob,
-            return_statistics,
-        )
 
         data = get_observations(
             self.current_user,
@@ -817,3 +821,266 @@ class ObservationGCNHandler(BaseHandler):
             """
 
         return self.success(data=content)
+
+
+class ObservationTreasureMapHandler(BaseHandler):
+    @auth_or_token
+    def post(self, instrument_id):
+        """
+        ---
+        description: Submit the observation plan to treasuremap.space
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: instrument_id
+            required: true
+            schema:
+              type: string
+            description: |
+              ID for the instrument to submit
+          - in: query
+            name: startDate
+            required: true
+            schema:
+              type: string
+            description: Filter by start date
+          - in: query
+            name: endDate
+            required: true
+            schema:
+              type: string
+            description: Filter by end date
+          - in: query
+            name: localizationDateobs
+            schema:
+              type: string
+            description: |
+              Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+              Each localization is associated with a specific GCNEvent by
+              the date the event happened, and this date is used as a unique
+              identifier. It can be therefore found as Localization.dateobs,
+              queried from the /api/localization endpoint or dateobs in the
+              GcnEvent page table.
+          - in: query
+            name: localizationName
+            schema:
+              type: string
+            description: |
+              Name of localization / skymap to use.
+              Can be found in Localization.localization_name queried from
+              /api/localization endpoint or skymap name in GcnEvent page
+              table.
+          - in: query
+            name: localizationCumprob
+            schema:
+              type: number
+            description: |
+              Cumulative probability up to which to include fields.
+              Defaults to 0.95.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        start_date = data.get('startDate')
+        end_date = data.get('endDate')
+        localization_dateobs = data.get('localizationDateobs', None)
+        localization_name = data.get('localizationName', None)
+        localization_cumprob = data.get("localizationCumprob", 0.95)
+
+        if start_date is None:
+            return self.error(message="Missing start_date")
+
+        if end_date is None:
+            return self.error(message="Missing end_date")
+
+        start_date = arrow.get(start_date.strip()).datetime
+        end_date = arrow.get(end_date.strip()).datetime
+
+        instrument = (
+            Instrument.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(Instrument.telescope),
+                ],
+            )
+            .filter(
+                Instrument.id == instrument_id,
+            )
+            .first()
+        )
+        if instrument is None:
+            return self.error(message=f"Invalid instrument ID {instrument_id}")
+
+        data = get_observations(
+            self.current_user,
+            start_date,
+            end_date,
+            telescope_name=instrument.telescope.name,
+            instrument_name=instrument.name,
+            localization_dateobs=localization_dateobs,
+            localization_name=localization_name,
+            localization_cumprob=localization_cumprob,
+            return_statistics=True,
+        )
+
+        observations = data["observations"]
+        num_observations = len(observations)
+        if num_observations == 0:
+            return self.error('Need at least one observation to send to Treasure Map')
+
+        event = (
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(GcnEvent.gcn_notices),
+                ],
+            )
+            .filter(GcnEvent.dateobs == localization_dateobs)
+            .first()
+        )
+        if event is None:
+            return self.error(
+                message=f"Invalid GcnEvent dateobs: {localization_dateobs}"
+            )
+
+        allocations = (
+            Allocation.query_records_accessible_by(self.current_user)
+            .filter(Allocation.instrument_id == instrument.id)
+            .all()
+        )
+
+        api_token = None
+        for allocation in allocations:
+            altdata = allocation.altdata
+            if altdata and 'TREASUREMAP_API_TOKEN' in altdata:
+                api_token = altdata['TREASUREMAP_API_TOKEN']
+        if not api_token:
+            raise self.error('Missing allocation information.')
+
+        graceid = event.graceid
+        payload = {"graceid": graceid, "api_token": api_token}
+
+        pointings = []
+        for obs in observations:
+            pointing = {}
+            print(obs)
+            pointing["ra"] = obs["field"].ra
+            pointing["dec"] = obs["field"].dec
+            pointing["band"] = obs["filt"]
+            pointing["instrumentid"] = 47  # str(instrument.treasuremap_id)
+            pointing["status"] = "completed"
+            pointing["time"] = Time(obs["obstime"], format='datetime').isot
+            pointing["depth"] = obs["limmag"]
+            pointing["depth_unit"] = "ab_mag"
+            pointings.append(pointing)
+
+        payload["pointings"] = pointings
+
+        url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
+        r = requests.post(url=url, json=payload)
+        r.raise_for_status()
+
+        return self.success()
+
+    @auth_or_token
+    def delete(self, instrument_id):
+        """
+        ---
+        description: Remove observations from treasuremap.space.
+        tags:
+          - observationplan_requests
+        parameters:
+          - in: path
+            name: instrument_id
+            required: true
+            schema:
+              type: string
+            description: |
+              ID for the instrument to submit
+          - in: query
+            name: localizationDateobs
+            schema:
+              type: string
+            description: |
+              Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+              Each localization is associated with a specific GCNEvent by
+              the date the event happened, and this date is used as a unique
+              identifier. It can be therefore found as Localization.dateobs,
+              queried from the /api/localization endpoint or dateobs in the
+              GcnEvent page table.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        data = self.get_json()
+        localization_dateobs = data.get('localizationDateobs', None)
+
+        instrument = (
+            Instrument.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(Instrument.telescope),
+                ],
+            )
+            .filter(
+                Instrument.id == instrument_id,
+            )
+            .first()
+        )
+        if instrument is None:
+            return self.error(message=f"Invalid instrument ID {instrument_id}")
+
+        event = (
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(GcnEvent.gcn_notices),
+                ],
+            )
+            .filter(GcnEvent.dateobs == localization_dateobs)
+            .first()
+        )
+        if event is None:
+            return self.error(
+                message=f"Invalid GcnEvent dateobs: {localization_dateobs}"
+            )
+
+        allocations = (
+            Allocation.query_records_accessible_by(self.current_user)
+            .filter(Allocation.instrument_id == instrument.id)
+            .all()
+        )
+
+        api_token = None
+        for allocation in allocations:
+            altdata = allocation.altdata
+            if altdata and 'TREASUREMAP_API_TOKEN' in altdata:
+                api_token = altdata['TREASUREMAP_API_TOKEN']
+        if not api_token:
+            raise self.error('Missing allocation information.')
+
+        graceid = event.graceid
+        payload = {
+            "graceid": graceid,
+            "api_token": api_token,
+            "instrumentid": instrument.treasuremap_id,
+        }
+
+        baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/cancel_all')
+        url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
+        r = requests.post(url=url)
+        r.raise_for_status()
+
+        return self.success()

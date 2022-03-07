@@ -30,6 +30,7 @@ from .news_feed import NewsFeedHandler
 from .observation import (
     ObservationHandler,
     ObservationGCNHandler,
+    ObservationTreasureMapHandler,
     ObservationASCIIFileHandler,
 )
 from .observingrun import ObservingRunHandler

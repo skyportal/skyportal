@@ -14,7 +14,11 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import { filterOutEmptyValues } from "../API";
 import { fetchGcnEventSources } from "../ducks/sources";
-import { fetchGcnEventObservations } from "../ducks/observations";
+import {
+  fetchGcnEventObservations,
+  submitObservationsTreasureMap,
+  deleteObservationsTreasureMap,
+} from "../ducks/observations";
 import { fetchGcnEventGalaxies } from "../ducks/galaxies";
 import * as instrumentActions from "../ducks/instruments";
 
@@ -49,9 +53,37 @@ const GcnSelectionForm = ({ gcnEvent }) => {
     .add(7, "day")
     .format("YYYY-MM-DDTHH:mm:ssZ");
   const [formDataState, setFormDataState] = useState({
-    observationStartDate: defaultStartDate,
-    observationEndDate: defaultEndDate,
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
   });
+
+  const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] = useState(null);
+  const handleSubmitTreasureMap = async (id, filterParams) => {
+    setIsSubmittingTreasureMap(id);
+    const data = {
+      startDate: filterParams.startDate,
+      endDate: filterParams.endDate,
+      localizationCumprob: filterParams.localizationCumprob,
+      localizationName: filterParams.localizationName,
+      localizationDateobs: filterParams.localizationDateobs,
+    };
+    await dispatch(submitObservationsTreasureMap(id, data));
+    setIsSubmittingTreasureMap(null);
+  };
+
+  const [isDeletingTreasureMap, setIsDeletingTreasureMap] = useState(null);
+  const handleDeleteTreasureMap = async (id, filterParams) => {
+    setIsDeletingTreasureMap(id);
+    const data = {
+      startDate: filterParams.startDate,
+      endDate: filterParams.endDate,
+      localizationCumprob: filterParams.localizationCumprob,
+      localizationName: filterParams.localizationName,
+      localizationDateobs: filterParams.localizationDateobs,
+    };
+    await dispatch(deleteObservationsTreasureMap(id, data));
+    setIsDeletingTreasureMap(null);
+  };
 
   useEffect(() => {
     const getInstruments = async () => {
@@ -129,6 +161,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
   }
 
   const url = createUrl(selectedInstrumentId, formDataState);
+
   const GcnSourceSelectionFormSchema = {
     type: "object",
     properties: {
@@ -217,6 +250,46 @@ const GcnSelectionForm = ({ gcnEvent }) => {
           GCN
         </Button>
       </div>
+      {isSubmittingTreasureMap === selectedInstrumentId ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <div>
+          <Button
+            onClick={() => {
+              handleSubmitTreasureMap(selectedInstrumentId, formDataState);
+            }}
+            size="small"
+            color="primary"
+            type="submit"
+            variant="outlined"
+            data-testid={`treasuremapRequest_${selectedInstrumentId}`}
+          >
+            Send to Treasure Map
+          </Button>
+        </div>
+      )}
+      {isDeletingTreasureMap === selectedInstrumentId ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <div>
+          <Button
+            onClick={() => {
+              handleDeleteTreasureMap(selectedInstrumentId, formDataState);
+            }}
+            size="small"
+            color="primary"
+            type="submit"
+            variant="outlined"
+            data-testid={`treasuremapDelete_${selectedInstrumentId}`}
+          >
+            Retract from Treasure Map
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

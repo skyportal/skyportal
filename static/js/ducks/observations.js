@@ -21,6 +21,11 @@ const UPLOAD_OBSERVATIONS = "skyportal/UPLOAD_OBSERVATIONS";
 
 const REFRESH_OBSERVATIONS = "skyportal/REFRESH_OBSERVATIONS";
 
+const SUBMIT_OBSERVATIONS_TREASUREMAP =
+  "skyportal/SUBMIT_OBSERVATIONS_TREASUREMAP";
+const DELETE_OBSERVATIONS_TREASUREMAP =
+  "skyportal/DELETE_OBSERVATIONS_TREASUREMAP";
+
 export const submitObservations = (params) =>
   API.POST(`/api/observation`, SUBMIT_OBSERVATIONS, params);
 
@@ -71,6 +76,20 @@ export function fetchGcnEventObservations(dateobs, filterParams = {}) {
 
   return API.GET("/api/observation", FETCH_GCNEVENT_OBSERVATIONS, filterParams);
 }
+
+export const submitObservationsTreasureMap = (id, data) =>
+  API.POST(
+    `/api/observation/treasuremap/${id}`,
+    SUBMIT_OBSERVATIONS_TREASUREMAP,
+    data
+  );
+
+export const deleteObservationsTreasureMap = (id, data) =>
+  API.DELETE(
+    `/api/observation/treasuremap/${id}`,
+    DELETE_OBSERVATIONS_TREASUREMAP,
+    data
+  );
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
