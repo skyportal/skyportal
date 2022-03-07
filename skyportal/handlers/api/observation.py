@@ -740,7 +740,6 @@ class ObservationGCNHandler(BaseHandler):
         localization_dateobs = self.get_query_argument('localizationDateobs', None)
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
-        return_statistics = self.get_query_argument("returnStatistics", False)
 
         if start_date is None:
             return self.error(message="Missing start_date")
@@ -765,15 +764,6 @@ class ObservationGCNHandler(BaseHandler):
         )
         if instrument is None:
             return self.error(message=f"Invalid instrument ID {instrument_id}")
-
-        print(
-            start_date,
-            end_date,
-            localization_dateobs,
-            localization_name,
-            localization_cumprob,
-            return_statistics,
-        )
 
         data = get_observations(
             self.current_user,
