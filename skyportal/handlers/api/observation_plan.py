@@ -365,9 +365,9 @@ class ObservationPlanSubmitHandler(BaseHandler):
         self.verify_and_commit()
 
         return self.success(data=observation_plan_request)
-      
-      
- class ObservationPlanGCNHandler(BaseHandler):
+
+
+class ObservationPlanGCNHandler(BaseHandler):
     @auth_or_token
     def get(self, observation_plan_request_id):
         """
@@ -648,7 +648,8 @@ class ObservationPlanMovieHandler(BaseHandler):
         data = io.BytesIO(rez["data"])
 
         await self.send_file(data, filename, output_type=output_format)
-        
+
+
 class ObservationPlanTreasureMapHandler(BaseHandler):
     @auth_or_token
     def post(self, observation_plan_request_id):
