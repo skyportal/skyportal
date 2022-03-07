@@ -52,5 +52,7 @@ xmlschema==1.9.0
 requests==2.27.1
 geojson==2.5.0
 typing-extensions>=4.0.1  # astropy v5.0 needs this, but does not correctly specify as much in its install config
+swifttools==2.3.2
 pip==22.0.3
 gwemopt==0.0.75
+humanize==4.0.0

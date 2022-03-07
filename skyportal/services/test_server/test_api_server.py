@@ -174,6 +174,28 @@ def ztf_request_matcher(r1, r2):
     assert r1_is_ztf and r2_is_ztf and r1.method == r2.method
 
 
+def swift_request_matcher(r1, r2):
+    """
+    Helper function to help determine if two requests to the Swift API are equivalent
+    """
+
+    # A request matches a Swift request if the URI and method matches
+    r1_uri = r1.uri.replace(":443", "")
+    r2_uri = r2.uri.replace(":443", "")
+
+    def is_swift_request(uri):
+        pattern = r"/toop/submit_json.php"
+        if re.search(pattern, uri) is not None:
+            return True
+
+        return False
+
+    r1_is_swift = is_swift_request(r1_uri)
+    r2_is_swift = is_swift_request(r2_uri)
+
+    assert r1_is_swift and r2_is_swift and r1.method == r2.method
+
+
 def kait_request_matcher(r1, r2):
     """
     Helper function to help determine if two requests to the KAIT API are equivalent
@@ -218,6 +240,29 @@ def atlas_request_matcher(r1, r2):
     r2_is_atlas = is_atlas_request(r2_uri)
 
     assert r1_is_atlas and r2_is_atlas and r1.method == r2.method
+
+
+def ps1_request_matcher(r1, r2):
+    """
+    Helper function to help determine if two requests to the PS1 DR2 API are equivalent
+    """
+
+    # A request matches an PS1 request if the URI and method matches
+
+    r1_uri = r1.uri.replace(":443", "")
+    r2_uri = r2.uri.replace(":443", "")
+
+    def is_ps1_request(uri):
+        pattern = r"/api/v0.1/panstarrs"
+        if re.search(pattern, uri) is not None:
+            return True
+
+        return False
+
+    r1_is_ps1 = is_ps1_request(r1_uri)
+    r2_is_ps1 = is_ps1_request(r2_uri)
+
+    assert r1_is_ps1 and r2_is_ps1 and r1.method == r2.method
 
 
 class TestRouteHandler(tornado.web.RequestHandler):
@@ -317,6 +362,7 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 self.write("Could not find test route redirect")
 
     def put(self):
+
         is_soap_action = "Soapaction" in self.request.headers
         if "/api/requestgroups/" in self.request.uri:
             cache = get_cache_file_static()
@@ -402,16 +448,21 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 self.write("Could not find test route redirect")
 
     def get(self):
+
         is_wsdl = self.get_query_argument('wsdl', None)
-        if self.request.uri in [
+        is_ps1 = re.match("/api/v0.1/panstarrs", self.request.uri)
+        cached_urls = [
             "/api/requestgroups/",
             "/api/triggers/ztf",
             "/cgi-bin/internal/process_kait_ztf_request.py",
             "/forcedphot/queue/",
-        ]:
+            "/api/v0.1/panstarrs",
+        ]
+        if any(re.match(pat, self.request.uri) for pat in cached_urls):
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()
+
         with my_vcr.use_cassette(cache, record_mode="new_episodes") as cass:
             base_route = self.request.uri.split("?")[0]
 
@@ -437,12 +488,17 @@ class TestRouteHandler(tornado.web.RequestHandler):
                     Client(url=url, headers=headers, cache=None)
                 else:
                     log(f"Forwarding GET call: {url}")
-                    requests.get(url, headers=headers)
+                    if is_ps1:
+                        # PS1 request does not need headers
+                        requests.get(url)
+                    else:
+                        requests.get(url, headers=headers)
 
                 # Get recorded document and pass it back
                 response = cass.responses_of(
                     vcr.request.Request("GET", url, "", headers)
                 )[0]
+                print(response)
                 self.set_status(
                     response["status"]["code"], response["status"]["message"]
                 )
@@ -468,20 +524,23 @@ class TestRouteHandler(tornado.web.RequestHandler):
                 else:
                     response_body = response["body"]["string"]
                 self.write(response_body)
-
             else:
                 self.set_status(500)
                 self.write("Could not find test route redirect")
 
     def post(self):
+
+        cached_urls = [
+            ".*/api/requestgroups/.*",
+            ".*/toop/submit_json.php$",
+            ".*/cgi-bin/internal/process_kait_ztf_request.py$",
+            ".*/api/triggers/ztf/.*",
+            ".*/node_agent2/node_agent/.*",
+            ".*/forcedphot/queue/.*",
+            ".*/api/v0/pointings/.*",
+        ]
         is_soap_action = "Soapaction" in self.request.headers
-        if self.request.uri in [
-            "/api/requestgroups/",
-            "/api/triggers/ztf",
-            "/cgi-bin/internal/process_kait_ztf_request.py",
-            "/forcedphot/queue/",
-            "/api/v0/pointings",
-        ]:
+        if any(re.match(pat, self.request.uri) for pat in cached_urls):
             cache = get_cache_file_static()
         else:
             cache = get_cache_file()
@@ -498,6 +557,8 @@ class TestRouteHandler(tornado.web.RequestHandler):
             match_on = ["kait"]
         elif self.request.uri == "/api/v0/pointings":
             match_on = ["treasuremap"]
+        elif "/toop/submit_json.php" in self.request.uri:
+            match_on = ["swift"]
 
         with my_vcr.use_cassette(
             cache,
@@ -590,9 +651,11 @@ if __name__ == "__main__":
     my_vcr.register_matcher("atlas", atlas_request_matcher)
     my_vcr.register_matcher("lt", lt_request_matcher)
     my_vcr.register_matcher("lco", lco_request_matcher)
+    my_vcr.register_matcher("ps1", ps1_request_matcher)
     my_vcr.register_matcher("ztf", ztf_request_matcher)
     my_vcr.register_matcher("kait", kait_request_matcher)
     my_vcr.register_matcher("treasuremap", treasuremap_request_matcher)
+    my_vcr.register_matcher("swift", swift_request_matcher)
     if "test_server" in cfg:
         app = make_app()
         server = tornado.httpserver.HTTPServer(app)

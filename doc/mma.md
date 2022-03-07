@@ -19,6 +19,7 @@ The vast majority of follow-up instruments will require some form of authenticat
 * LCO: A user account must be made on https://lco.global/, at which point the authentication takes the form {"PROPOSAL_ID": "your_proposal_ID", "API_TOKEN": "testtoken"}.
 * LT: A proposal ID, username, and password are passed as {"username": "username", "password": "password", "LT_proposalID": "your_proposal_ID"}.
 * SLACK: As discussed further [here](./slack.html), slack information is pass as {"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}.
+* SWIFT: A username and password are passed as {"username": "username", "secret": "password"}.
 * ZTF: An API token for an admin user for [Kowalski](https://github.com/dmitryduev/kowalski) can be passed as {"access_token": "your_token"}.
 
 ## Uploading executed observations
