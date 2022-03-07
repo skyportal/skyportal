@@ -262,6 +262,14 @@ const UploadSpectrumForm = ({ route }) => {
     });
   }
 
+  const getUserDisplay = (user) => {
+    const lastOrFirst = user?.first_name || user?.last_name;
+    const displayStr = `${user.username} ${lastOrFirst ? "(" : ""}${
+      user?.first_name ? user.first_name : ""
+    } ${user?.last_name ? user.last_name : ""}${lastOrFirst ? ")" : ""}`;
+    return displayStr;
+  };
+
   const uploadFormSchema = {
     type: "object",
     properties: {
@@ -295,10 +303,7 @@ const UploadSpectrumForm = ({ route }) => {
           type: "integer",
           anyOf: users?.map((user) => ({
             enum: [user.id],
-            title:
-              user?.first_name && user?.last_name
-                ? `${user.username} (${user.first_name} ${user.last_name})`
-                : `${user.username}`,
+            title: getUserDisplay(user),
           })),
         },
         uniqueItems: true,
@@ -316,10 +321,7 @@ const UploadSpectrumForm = ({ route }) => {
           type: "integer",
           anyOf: users?.map((user) => ({
             enum: [user.id],
-            title:
-              user?.first_name && user?.last_name
-                ? `${user.username} (${user.first_name} ${user.last_name})`
-                : `${user.username}`,
+            title: getUserDisplay(user),
           })),
         },
         uniqueItems: true,
@@ -394,10 +396,7 @@ const UploadSpectrumForm = ({ route }) => {
                   type: "integer",
                   anyOf: users?.map((user) => ({
                     enum: [user.id],
-                    title:
-                      user?.first_name && user?.last_name
-                        ? `${user.username} (${user.first_name} ${user.last_name})`
-                        : `${user.username}`,
+                    title: getUserDisplay(user),
                   })),
                 },
                 uniqueItems: true,
@@ -420,10 +419,7 @@ const UploadSpectrumForm = ({ route }) => {
                   type: "integer",
                   anyOf: users?.map((user) => ({
                     enum: [user.id],
-                    title:
-                      user?.first_name && user?.last_name
-                        ? `${user.username} (${user.first_name} ${user.last_name})`
-                        : `${user.username}`,
+                    title: getUserDisplay(user),
                   })),
                 },
                 uniqueItems: true,
@@ -451,10 +447,7 @@ const UploadSpectrumForm = ({ route }) => {
                   type: "integer",
                   anyOf: users?.map((user) => ({
                     enum: [user.id],
-                    title:
-                      user?.first_name && user?.last_name
-                        ? `${user.username} (${user.first_name} ${user.last_name})`
-                        : `${user.username}`,
+                    title: getUserDisplay(user),
                   })),
                 },
                 uniqueItems: true,
@@ -477,10 +470,7 @@ const UploadSpectrumForm = ({ route }) => {
                   type: "integer",
                   anyOf: users?.map((user) => ({
                     enum: [user.id],
-                    title:
-                      user?.first_name && user?.last_name
-                        ? `${user.username} (${user.first_name} ${user.last_name})`
-                        : `${user.username}`,
+                    title: getUserDisplay(user),
                   })),
                 },
                 uniqueItems: true,
