@@ -29,7 +29,8 @@ const NewObservation = () => {
       file: {
         type: "string",
         format: "data-url",
-        title: "Spectrum file",
+        title: "Observation file",
+        description: "Observation file",
       },
       instrument_id: {
         type: "integer",
