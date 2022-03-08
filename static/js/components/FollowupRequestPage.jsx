@@ -46,7 +46,7 @@ const FollowupRequestPage = () => {
       <Grid item md={6} sm={12}>
         <Paper>
           <div className={classes.paperContent}>
-            <Typography variant="h6">Query Followup Requests</Typography>
+            <Typography variant="h6">Filter Followup Requests</Typography>
             <FollowupRequestSelectionForm />
           </div>
         </Paper>
