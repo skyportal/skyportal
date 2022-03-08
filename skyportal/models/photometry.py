@@ -1,8 +1,9 @@
 __all__ = ['Photometry', 'PHOT_ZP', 'PHOT_SYS']
 import os
 import uuid
+import hashlib
+import re
 
-import pandas as pd
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
@@ -10,13 +11,15 @@ from sqlalchemy.ext.hybrid import hybrid_property
 
 import conesearch_alchemy
 import numpy as np
+import xarray as xr
 import arrow
 
 from baselayer.app.models import Base, accessible_by_owner
 from baselayer.app.env import load_env
 
-from ..enum_types import allowed_bandpasses
+from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
 from .group import accessible_by_groups_members, accessible_by_streams_members
+from ..utils.cache import array_to_bytes
 
 _, cfg = load_env()
 
@@ -24,6 +27,9 @@ _, cfg = load_env()
 # All DB fluxes are stored in microJy (AB).
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
+
+RE_SLASHES = re.compile(r'^[\w_-+\/]*$')
+RE_NO_SLASHES = re.compile(r'^[\w_-+]*$')
 
 
 class Photometry(conesearch_alchemy.Point, Base):
@@ -261,27 +267,33 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     continuously from mjd_start to mjd_end.
 
     To initialize this function user must provide:
-    - data: a dictionary, pandas DataFrame, or structured arry
-            The data must contain an "mjds" column, and either
-            a "fluxes" or a "mags" column.
-            Other columns can include "fluxerr" or "magerr",
-            and any other measurements that are stored but
-            generally not used by the system like raw counts,
-            backgrounds, etc.
-    - exptime: must provide the exposure time at initialization
-            in order to find the correct start/end times of
-            the series.
-    - run_id: a unique identifier of the set of images from
+    - data: an xarray dataset.
+            The data must contain an "mjds" coordinate,
+            and either a "fluxes" or a "mags" dataset.
+            Other datasets can include "fluxerr" or "magerr",
+            and any other auxiliary measurements that are stored
+            but generally not used by Skyportal like raw counts,
+            backgrounds, fluxes in other apertures, etc.
+            All the datasets must have the same length along
+            the mjd dimension.
+            Auxiliary data (not mags/fluxes) may have additional
+            dimensions that are saved but do not affect
+            calculations/plotting in Skyportal.
+      - series_id: a unique identifier of the set of images from
             which this series was extracted. This is useful
             for finding other objects that were observed
             at the same time as this series.
-    - run_obj_id: a unique index or name of the object inside
+            Must be an integer or string with only
+            alphanumeric characters (underscores are allowed).
+            The
+    - series_obj_id: a unique index or name of the object inside
             this observation series. Can be an index of the
             star in the images, or an official designation.
-            Does not have to be the same as the obj_id,
-            and for the same phyical object, it can be
-            a different identifier in different runs.
-
+            Does not have to be the same as the obj_id.
+            E.g., the same physical object can have
+            a different identifier in different series.
+            Must be an integer or string with only
+            alphanumeric characters, underscores and "+-".
     """
 
     __tablename__ = 'photometric_series'
@@ -289,49 +301,26 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     # there's a default value but it is best to provide a full path in the config
     folder = cfg.get('photometric_series_folder', 'phot_series')
 
-    def __init__(self, data, exptime, run_id, run_obj_id):
-        self.exp_time = exptime  # need this to calculate the start/end mjd
-        self.run_identifier = str(run_id)
-        self.run_object_id = str(run_obj_id)
-        self.filename = f'{run_id}_{run_obj_id}.h5'
+    def __init__(self, data, series_id, series_obj_id):
+        self.series_identifier = str(series_id)
+        self.series_obj_id = str(series_obj_id)
 
-        # convert data into a structured array
         if len(data) == 0:
             raise ValueError('Must supply a non-empty data structure.')
 
-        if isinstance(data, dict) or isinstance(data, pd.DataFrame):
-            names = list(data.keys())
-            dt = np.dtype({'names': names, 'formats': 'f8' * len(data[names[0]])})
-            if isinstance(data, dict):
-                lengths = np.array([len(v) for v in data.values()])
-                if np.any(lengths != max(lengths)):
-                    raise ValueError(
-                        'All values of data dictionary must be of the same length.'
-                    )
-                arr = np.array(list(data.values()), dtype=float).T
-            else:  # data is a pd.DataFrame
-                arr = np.array(data, dtype=float).T
-
-            data = arr.ravel().view(dtype=dt)
-
-        elif isinstance(data, np.array) and data.dtype.names is None:
-            raise ValueError('Must provide a structured array. ')
-        else:
-            raise KeyError(
-                'data input to PhotometricSeries must be'
-                'a dictionary, a DataFrame, or a structured array.'
-            )
-
-        names = data.dtype.names
-        if 'fluxes' not in names and 'mags' not in names or 'mjds' not in names:
+        # verify data has all required fields
+        if 'fluxes' not in data and 'mags' not in data or 'mjds' not in data:
             raise KeyError(
                 'Data input to photometric series must contain at least ["fluxes"|"mags"] and "mjds". '
             )
 
-        self.save_data()
+        self.calc_hash()
+
+        # should we save at the intialization point or only when the row is added to the DB?
+        # self.save_data()
 
         # these can be lazy loaded from file
-        self.data = data
+        self._data = data
         self._mjds = None
         self._fluxes = None
         self._fluxerr = None
@@ -432,26 +421,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         fluxes = PhotometricSeries.mag2flux(mags)
         return fluxes * magerr * np.log(10) / 2.5
 
-    def load_data(self):
-        """
-        Load the underlying photometric data from disk.
-        """
-        self.data = np.load(os.path.join(self.folder, self.filename))
-
-    def save_data(self):
-        """
-        Save the underlying photometric data to disk.
-        """
-        np.save(os.path.join(self.folder, self.filename), self.data)
-
-    def delete_data(self):
-        """
-        Delete the underlying photometric data from disk
-        """
-        fullfile = os.path.join(self.folder, self.filename)
-        if os.path.exists(fullfile):
-            os.remove(fullfile)
-
     def calc_flux_mag(self):
         """
         Use the available fluxes to calculate the magnitudes,
@@ -459,21 +428,21 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         Also fills in the mjds field, and the errors if
         they are included in the dataset.
         """
-        names = self.data.dtype.names
-        if 'fluxes' in names:
-            self._fluxes = self.data['fluxes']
+
+        if 'fluxes' in self._data:
+            self._fluxes = self._data['fluxes']
             self._mags = self.flux2mag(self._fluxes)
-        elif 'mags' in names:
-            self._mags = self.data['mags']
+        elif 'mags' in self._data:
+            self._mags = self._data['mags']
             self._fluxes = self.mag2flux(self._mags)
         else:
             raise KeyError('Cannot find "fluxes" or "mags" in loaded data')
 
-        if 'fluxerr' in names:
-            self._fluxerr = self.data['fluxerr']
+        if 'fluxerr' in self._data:
+            self._fluxerr = self._data['fluxerr']
             self._magerr = self.fluxerr2magerr(self.fluxes, self._fluxerr)
-        elif 'magerr' in names:
-            self._magerr = self.data['magerr']
+        elif 'magerr' in self._data:
+            self._magerr = self._data['magerr']
             self._fluxerr = self.magerr2fluxerr(self._mags, self._magerr)
 
     def calculate_stats(self):
@@ -491,16 +460,15 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         """
 
         # get the min/max/media for each column of data
-        names = self.data.dtype.names
         meds = {}
         mins = {}
         maxs = {}
         stds = {}
-        for key in names:
-            meds[key] = np.nanmedian(self.data[key])
-            mins[key] = np.nanmin(self.data[key])
-            maxs[key] = np.nanmax(self.data[key])
-            stds[key] = np.nanstd(self.data[key])
+        for key in self._data:
+            meds[key] = self._data.median('mjds')
+            mins[key] = self._data.min('mjds')
+            maxs[key] = self._data.max('mjds')
+            stds[key] = self._data.std('mjds')
 
         self.medians = meds
         self.minima = mins
@@ -509,8 +477,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         # get the start/end/mid of the mjds
         # add half the exposure time, converted to seconds
-        self.mjd_start = self.mjds[0] - self.exp_time / 24 / 3600 / 2
-        self.mjd_end = self.mjds[-1] + self.exp_time / 24 / 3600 / 2
+        self.mjd_first = self.mjds[0]
+        self.mjd_last = self.mjds[-1]
         self.mjd_mid = (self.mjd_start + self.mjd_end) / 2
         self.num_exp = len(self.mjds)
 
@@ -575,6 +543,34 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         return mean_value, scatter
 
+    def calc_hash(self):
+        md5_hash = hashlib.md5()
+        md5_hash.update(array_to_bytes(np.array(self._data)))
+        self.hash = md5_hash.hexdigest()
+
+    def load_data(self):
+        """
+        Load the underlying photometric data from disk.
+        """
+        self._data = xr.load_dataset(os.path.join(self.folder, self.filename))
+
+    def save_data(self):
+        """
+        Save the underlying photometric data to disk.
+        """
+        folder = os.path.join(self.folder, os.path.split(self.filename)[0])
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        self._data.to_netcdf(os.path.join(self.folder, self.filename))
+
+    def delete_data(self):
+        """
+        Delete the underlying photometric data from disk
+        """
+        fullfile = os.path.join(self.folder, self.filename)
+        if os.path.exists(fullfile):
+            os.remove(fullfile)
+
     read = (
         accessible_by_groups_members
         | accessible_by_streams_members
@@ -582,14 +578,17 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     )
     update = delete = accessible_by_owner
 
-    mjd_start = sa.Column(
+    mjd_first = sa.Column(
         sa.Float,
         nullable=False,
-        doc='MJD of the start of the observations.',
+        doc='MJD of the first exposure of the series.',
         index=True,
     )
-    mjd_end = sa.Column(
-        sa.Float, nullable=False, doc='MJD of the end of the observations.', index=True
+    mjd_last = sa.Column(
+        sa.Float,
+        nullable=False,
+        doc='MJD of the last exposure of the series.',
+        index=True,
     )
 
     mjd_mid = sa.Column(
@@ -599,17 +598,17 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         index=True,
     )
 
-    run_identifier = sa.Column(
+    series_identifier = sa.Column(
         sa.String,
         nullable=False,
-        doc='Unique identifier of the set of images out of which the series is generated.',
+        doc='Unique identifier of the series of images out of which the photometry is generated.',
         index=True,
     )
 
-    run_object_id = sa.Column(
+    series_obj_id = sa.Column(
         sa.String,
         nullable=False,
-        doc='Unique identifier of an object inside the set of images out of which the series is generated.',
+        doc='Unique identifier of an object inside the series of images out of which the photometry is generated.',
     )
 
     channel_id = sa.Column(
@@ -638,6 +637,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     num_exp = sa.Column(
         sa.Integer, nullable=False, doc='Number of exposures in the series. '
+    )
+
+    time_stamp_alignment = sa.Column(
+        time_stamp_alignment_types,
+        nullable=False,
+        doc='When in each exposure is the mjd timestamp measured: start, middle, or end.',
+        default='middle',
     )
 
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
@@ -760,16 +766,62 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         doc='Summary statistics on this series. The nanstd value of each column in data is saved.',
     )
 
+    hash = sa.Column(
+        sa.String,
+        nullable=False,
+        unique=True,
+        doc='MD5sum hash of the data to be saved to file. Prevents duplications.',
+    )
+
+    @staticmethod
+    def check_path_string(string, allow_slashes=False):
+        if allow_slashes:
+            reg = RE_SLASHES
+        else:
+            reg = RE_NO_SLASHES
+
+        if not reg.match(string):
+            raise ValueError(f'Illegal characters in string "{string}". ')
+
+    @hybrid_property
+    def filename(self):
+        """Generate a filename and path to save to. """
+
+        self.check_path_string(self.series_obj_id)
+        return f'photo_series_{self.series_obj_id}.nc'
+
+    @hybrid_property
+    def path(self):
+        """
+        Generate a path to save this file into.
+        The path is defined relative to the config's
+        data root folder.
+        """
+
+        # we can let series_identifier have slashes, which makes subdirs
+        self.series_identifier = self.series_identifier.replace(
+            "\\", "/"
+        )  # handle windows type slashes
+        self.check_path_string(self.series_identifier, allow_slashes=True)
+        return f'{self.series_identifier}'  # do we want anything more complicated?
+
+    @hybrid_property
+    def data(self):
+        """Lazy load the data dictionary"""
+        if self._data is None:
+            self.load_data()
+        return self._data
+
     @hybrid_property
     def mjds(self):
         """
         Modified Julian dates for each exposure.
         """
         if self._mjds is None:  # lazy load
-            if self.data is None:  # lazy load from file
+            if self._data is None:  # lazy load from file
                 self.load_data()
             self.calc_flux_mag()  # do this once, cache all the hidden variables
-        return self._mjds
+        return np.array(self._mjds)
 
     @hybrid_property
     def fluxes(self):
@@ -778,10 +830,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         Corresponds to an AB Zeropoint of 23.9 in all filters.
         """
         if self._fluxes is None:
-            if self.data is None:  # lazy load from file
+            if self._data is None:  # lazy load from file
                 self.load_data()
             self.calc_flux_mag()  # do this once, cache all the hidden variables
-        return self._fluxes
+        return np.array(self._fluxes)
 
     @hybrid_property
     def fluxerr(self):
@@ -789,33 +841,33 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         Gaussian error on the flux in µJy.
         """
         if self._fluxerr is None:  # lazy load
-            if self.data is None:  # lazy load from file
+            if self._data is None:  # lazy load from file
                 self.load_data()
             self.calc_flux_mag()  # do this once, cache all the hidden variables
-        return self._fluxerr
+        return np.array(self._fluxerr)
 
     @hybrid_property
     def mags(self):
         """The magnitude of each point in the AB system."""
         if self._mags is None:  # lazy load
-            if self.data is None:  # lazy load from file
+            if self._data is None:  # lazy load from file
                 self.load_data()
             self.calc_flux_mag()  # do this once, cache all the hidden variables
-        return self._mags
+        return np.array(self._mags)
 
     @hybrid_property
     def magerr(self):
         """The error on the magnitude of each photometry point."""
         if self._magerr is None:  # lazy load
-            if self.data is None:  # lazy load from file
+            if self._data is None:  # lazy load from file
                 self.load_data()
             self.calc_flux_mag()  # do this once, cache all the hidden variables
-        return self._magerr
+        return np.array(self._magerr)
 
     @hybrid_property
-    def jd_start(self):
-        """Julian Date of the start of the series."""
-        return self.mjd_start + 2_400_000.5
+    def jd_first(self):
+        """Julian Date of the first exposure of the series."""
+        return self.mjd_first + 2_400_000.5
 
     @hybrid_property
     def jd_mid(self):
@@ -823,20 +875,20 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         return self.mjd_mid + 2_400_000.5
 
     @hybrid_property
-    def jd_end(self):
-        """Julian Date of the end of the series."""
-        return self.mjd_end + 2_400_000.5
+    def jd_last(self):
+        """Julian Date of the last exposure of the series."""
+        return self.mjd_last + 2_400_000.5
 
     @hybrid_property
-    def iso_start(self):
+    def iso_first(self):
         """UTC ISO timestamp (ArrowType) of the start of the series. """
-        return arrow.get((self.mjd_start - 40_587) * 86400.0)
+        return arrow.get((self.mjd_first - 40_587) * 86400.0)
 
-    @iso_start.expression
-    def iso_start(cls):
-        """UTC ISO timestamp (ArrowType) of the start of the series. """
+    @iso_first.expression
+    def iso_first(cls):
+        """UTC ISO timestamp (ArrowType) of the first exposure of the series. """
         # converts MJD to unix timestamp
-        return sa.func.to_timestamp((cls.mjd_start - 40_587) * 86400.0)
+        return sa.func.to_timestamp((cls.mjd_first - 40_587) * 86400.0)
 
     @hybrid_property
     def iso_mid(self):
@@ -850,15 +902,15 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         return sa.func.to_timestamp((cls.mjd_mid - 40_587) * 86400.0)
 
     @hybrid_property
-    def iso_end(self):
-        """UTC ISO timestamp (ArrowType) of the end of the series. """
-        return arrow.get((self.mjd_end - 40_587) * 86400.0)
+    def iso_last(self):
+        """UTC ISO timestamp (ArrowType) of the last exposure of the series. """
+        return arrow.get((self.mjd_last - 40_587) * 86400.0)
 
-    @iso_end.expression
-    def iso_end(cls):
-        """UTC ISO timestamp (ArrowType) of the end of the series. """
+    @iso_last.expression
+    def iso_last(cls):
+        """UTC ISO timestamp (ArrowType) of the last exposure of the series. """
         # converts MJD to unix timestamp
-        return sa.func.to_timestamp((cls.mjd_end - 40_587) * 86400.0)
+        return sa.func.to_timestamp((cls.mjd_last - 40_587) * 86400.0)
 
     @hybrid_property
     def snr(self):

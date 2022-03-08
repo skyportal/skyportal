@@ -49,6 +49,7 @@ ALLOWED_SPECTRUM_TYPES = tuple(
 ALLOWED_MAGSYSTEMS = tuple(val['name'] for val in _MAGSYSTEMS.get_loaders_metadata())
 # though in the registry, the additional bandpass names are not in the _BANDPASSES list
 ALLOWED_BANDPASSES = tuple(existing_bandpasses_names + additional_bandpasses_names)
+TIME_STAMP_ALIGNMENT_TYPES = ('start', 'middle', 'end')
 
 THUMBNAIL_TYPES = (
     'new',
@@ -84,6 +85,9 @@ allowed_magsystems = sa.Enum(
 )
 allowed_bandpasses = sa.Enum(
     *ALLOWED_BANDPASSES, name="bandpasses", validate_strings=True
+)
+time_stamp_alignment_types = sa.Enum(
+    *TIME_STAMP_ALIGNMENT_TYPES, name='time_stamp_alignments', validate_strings=True
 )
 thumbnail_types = sa.Enum(
     *THUMBNAIL_TYPES, name='thumbnail_types', validate_strings=True

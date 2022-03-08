@@ -54,3 +54,4 @@ geojson==2.5.0
 typing-extensions>=4.0.1  # astropy v5.0 needs this, but does not correctly specify as much in its install config
 pip==22.0.3
 gwemopt==0.0.75
+xarray>=21.1
