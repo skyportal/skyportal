@@ -161,7 +161,6 @@ const GcnSelectionForm = ({ gcnEvent }) => {
   }
 
   const url = createUrl(selectedInstrumentId, formDataState);
-
   const GcnSourceSelectionFormSchema = {
     type: "object",
     properties: {

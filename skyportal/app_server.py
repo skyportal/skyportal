@@ -36,6 +36,7 @@ from skyportal.handlers.api import (
     ObservationPlanRequestHandler,
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
+    ObservationPlanMovieHandler,
     PhotometryHandler,
     BulkDeletePhotometryHandler,
     ObjHandler,
@@ -45,6 +46,7 @@ from skyportal.handlers.api import (
     ObservationGCNHandler,
     ObservationTreasureMapHandler,
     ObservationASCIIFileHandler,
+    ObservationExternalAPIHandler,
     PhotometryRangeHandler,
     PhotometryRequestHandler,
     RoleHandler,
@@ -147,6 +149,7 @@ skyportal_handlers = [
     (r'/api/observation/ascii(/[0-9]+)?', ObservationASCIIFileHandler),
     (r'/api/observation/gcn(/[0-9]+)', ObservationGCNHandler),
     (r'/api/observation/treasuremap(/[0-9]+)', ObservationTreasureMapHandler),
+    (r'/api/observation/external_api(/[0-9]+)?', ObservationExternalAPIHandler),
     (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
     (r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)?', ObservationPlanRequestHandler),
     (
@@ -156,6 +159,10 @@ skyportal_handlers = [
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/queue',
         ObservationPlanSubmitHandler,
+    ),
+    (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/movie',
+        ObservationPlanMovieHandler,
     ),
     (r'/api/objs(/[0-9A-Za-z-_\.\+]+)', ObjHandler),
     (r'/api/photometry(/[0-9]+)?', PhotometryHandler),

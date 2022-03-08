@@ -4,6 +4,7 @@ import arrow
 import astropy
 import healpix_alchemy as ha
 import humanize
+from marshmallow.exceptions import ValidationError
 import numpy as np
 import pandas as pd
 import requests
@@ -21,6 +22,7 @@ from ..base import BaseHandler
 from ...models import (
     Allocation,
     DBSession,
+    Allocation,
     GcnEvent,
     Localization,
     LocalizationTile,
@@ -31,6 +33,7 @@ from ...models import (
     ExecutedObservation,
 )
 
+from ...models.schema import ObservationExternalAPIHandlerPost
 
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
@@ -755,6 +758,7 @@ class ObservationGCNHandler(BaseHandler):
         localization_dateobs = self.get_query_argument('localizationDateobs', None)
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+
         if start_date is None:
             return self.error(message="Missing start_date")
 
@@ -822,7 +826,71 @@ class ObservationGCNHandler(BaseHandler):
 
         return self.success(data=content)
 
+      
+class ObservationExternalAPIHandler(BaseHandler):
+    @permissions(['Upload data'])
+    def post(self):
+        """
+        ---
+        description: Retrieve observations from external API
+        tags:
+          - observations
+        requestBody:
+          content:
+            application/json:
+              schema: ObservationExternalAPIHandlerPost
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfExecutedObservations
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
 
+        data = self.get_json()
+
+        try:
+            data = ObservationExternalAPIHandlerPost.load(data)
+        except ValidationError as e:
+            return self.error(
+                f'Invalid / missing parameters: {e.normalized_messages()}'
+            )
+
+        data["requester_id"] = self.associated_user_object.id
+        data["last_modified_by_id"] = self.associated_user_object.id
+        data['allocation_id'] = int(data['allocation_id'])
+        data['start_date'] = arrow.get(data['start_date'].strip()).datetime
+        data['end_date'] = arrow.get(data['end_date'].strip()).datetime
+
+        allocation = Allocation.get_if_accessible_by(
+            data['allocation_id'], self.current_user, raise_if_none=True
+        )
+        instrument = allocation.instrument
+
+        if instrument.api_classname_obsplan is None:
+            return self.error('Instrument has no remote observation plan API.')
+
+        if not instrument.api_class_obsplan.implements()['retrieve']:
+            return self.error(
+                'Cannot submit executed observation plan requests to this Instrument.'
+            )
+
+        try:
+            # we now retrieve and commit to the database the
+            # executed observations
+            instrument.api_class_obsplan.retrieve(
+                allocation, data['start_date'], data['end_date']
+            )
+            self.push_notification(
+                'Observation ingestion in progress. Should be available soon.'
+            )
+        except Exception as e:
+            return self.error(f"Error in querying instrument API: {e}")
+      
+      
 class ObservationTreasureMapHandler(BaseHandler):
     @auth_or_token
     def post(self, instrument_id):

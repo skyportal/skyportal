@@ -28,16 +28,18 @@ from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
 from .observation import (
+    ObservationASCIIFileHandler,
     ObservationHandler,
     ObservationGCNHandler,
     ObservationTreasureMapHandler,
-    ObservationASCIIFileHandler,
+    ObservationExternalAPIHandler,
 )
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
     ObservationPlanRequestHandler,
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
+    ObservationPlanMovieHandler,
 )
 from .photometry import (
     PhotometryHandler,
