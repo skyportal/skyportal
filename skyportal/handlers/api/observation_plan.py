@@ -734,13 +734,16 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             pointing["depth"] = 0.0
             pointing["depth_unit"] = "ab_mag"
             pointings.append(pointing)
-
         payload["pointings"] = pointings
 
         url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
         r = requests.post(url=url, json=payload)
         r.raise_for_status()
-
+        request_json = r.json()
+        errors = request_json["ERRORS"]
+        if len(errors) > 0:
+            return self.error(f'TreasureMap upload failed: {errors}')
+        self.push_notification('TreasureMap upload succeeded')
         return self.success()
 
     @auth_or_token
@@ -812,5 +815,8 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
         r = requests.post(url=url)
         r.raise_for_status()
-
+        request_text = r.text
+        if "successfully" not in request_text:
+            return self.error(f'TreasureMap delete failed: {request_text}')
+        self.push_notification(f'TreasureMap delete succeeded: {request_text}.')
         return self.success()
