@@ -9,6 +9,7 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import NewObservation from "./NewObservation";
+import NewAPIObservation from "./NewAPIObservation";
 
 import * as observationsActions from "../ducks/observations";
 
@@ -64,6 +65,12 @@ const ObservationPage = () => {
               <NewObservation />
             </div>
           </Paper>
+          <Paper>
+            <div className={classes.paperContent}>
+              <Typography variant="h6">Add API Observations</Typography>
+              <NewAPIObservation />
+            </div>
+          </Paper>
         </Grid>
       )}
     </Grid>
@@ -71,7 +78,18 @@ const ObservationPage = () => {
 };
 
 ObservationList.propTypes = {
-  observations: PropTypes.arrayOf(PropTypes.any).isRequired,
+  observations: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      obstime: PropTypes.instanceOf(Date),
+      filt: PropTypes.string,
+      exposure_time: PropTypes.number,
+      airmass: PropTypes.number,
+      limmag: PropTypes.number,
+      seeing: PropTypes.number,
+      processed_fraction: PropTypes.number,
+    })
+  ).isRequired,
 };
 
 export default ObservationPage;

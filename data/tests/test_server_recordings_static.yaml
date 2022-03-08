@@ -241,6 +241,50 @@ interactions:
       code: 200
       message: OK
 - request:
+    body: jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcGlfbmFtZSI6IlN3aWZ0X1RPT19SZXF1ZXN0IiwiYXBpX3ZlcnNpb24iOiIxLjIiLCJhcGlfZGF0YSI6eyJ1c2VybmFtZSI6ImFub255bW91cyIsInNvdXJjZV9uYW1lIjoiMTc1ZTZkMjNiMWEzNDM4YTljYjA1YTg2YzBmYzM2NTQiLCJzb3VyY2VfdHlwZSI6Ik9wdGljYWwgZmFzdCB0cmFuc2llbnQiLCJyYSI6MC4wLCJkZWMiOjAuMCwicG9zZXJyIjowLjAsImluc3RydW1lbnQiOiJYUlQiLCJ1cmdlbmN5IjozLCJ4cnRfY291bnRyYXRlIjowLjAwMjUsImltbWVkaWF0ZV9vYmplY3RpdmUiOiJXZSB3aXNoIHRvIG1lYXN1cmUgdGhlIFgtcmF5IGVtaXNzaW9uIG9mIGFuIG9wdGljYWxseSBkaXNjb3ZlcmVkIHBvdGVudGlhbCBvcnBoYW4gYWZ0ZXJnbG93L2tpbG9ub3ZhLiIsInNjaWVuY2VfanVzdCI6IkFuIFgtcmF5IGRldGVjdGlvbiBvZiB0aGlzIHRyYW5zaWVudCB3aWxsIGZ1cnRoZXIgYXNzb2NpYXRlIHRoaXMgb2JqZWN0IHRvIGEgcmVsYXRpdmlzdGljIGV4cGxvc2lvbiBhbmQgd2lsbCBoZWxwIHVudmVpbCB0aGUgbmF0dXJlIG9mIHRoZSBwcm9nZW5pdG9yIHR5cGUuIiwiZXhwb3N1cmUiOjQwMDAsImV4cF90aW1lX2p1c3QiOiJBdCB-Mi41ZS0zIGNvdW50cy9zZWMsIDRrcyBzaG91bGQgc3VmZmljZSB0byBhY2hpZXZlIGEgaGlnaCBTTlIsIGFzc3VtaW5nIGEgYmFja2dyb3VuZCBvZiB-MWUtNCBjb3VudHMvc2VjIChQYWdhbmkgZXQgYWwuIDIwMDcpIiwiZXhwX3RpbWVfcGVyX3Zpc2l0Ijo0MDAwLCJudW1fb2ZfdmlzaXRzIjoxLCJtb25pdG9yaW5nX2ZyZXEiOiIxIGRheXMiLCJ4cnRfbW9kZSI6IlBDIiwidXZvdF9tb2RlIjoiZGVmYXVsdCIsIm9ic19uIjoic2luZ2xlIiwib2JzX3R5cGUiOiJMaWdodCBDdXJ2ZSIsInZhbGlkYXRlX29ubHkiOmZhbHNlfX0.PrzYHA42kdg5apdpJD_7xRn7RsW0eGHGj3TDTw0jN5c
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, br
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '1280'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Host:
+      - localhost:64502
+      User-Agent:
+      - python-requests/2.26.0
+    method: POST
+    uri: https://www.swift.psu.edu/toop/submit_json.php
+  response:
+    body:
+      string: '
+
+
+        {"api_name":"Swift_TOO_Status","api_version":"1.2","api_data":{"status":"Rejected","errors":["Cannot
+        submit TOOs from anonymous user."]}}'
+    headers:
+      Connection:
+      - Keep-Alive
+      Content-Length:
+      - '139'
+      Content-Type:
+      - text/html; charset=UTF-8
+      Date:
+      - Fri, 19 Nov 2021 22:05:56 GMT
+      Keep-Alive:
+      - timeout=5, max=100
+      Server:
+      - Apache/2.4.6 (CentOS) OpenSSL/1.0.2k-fips PHP/5.4.16 mod_wsgi/3.4 Python/2.7.5
+      X-Powered-By:
+      - PHP/5.4.16
+    status:
+      code: 200
+      message: OK
+- request:
     body: '{"name": "d74a126b2614455bb21763ad3f7a3f1c", "ra": 0.0, "dec": 0.0, "filters":
       "U", "exposure": "long"}'
     headers:
@@ -327,8 +371,8 @@ interactions:
       Server:
       - Apache
       Set-Cookie:
-      - sessionid=test; expires=Thu, 27 Jan 2022 16:01:48
-        GMT; HttpOnly; Max-Age=1209600; Path=/; SameSite=Lax
+      - sessionid=test; expires=Thu, 27 Jan 2022 16:01:48 GMT; HttpOnly; Max-Age=1209600;
+        Path=/; SameSite=Lax
       Vary:
       - Accept,Cookie
       X-Content-Type-Options:
@@ -340,4 +384,62 @@ interactions:
     status:
       code: 201
       message: Created
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.27.0
+    method: GET
+    uri: https://catalogs.mast.stsci.edu/api/v0.1/panstarrs/dr2/mean.csv?ra=229.9620403&dec=34.8442757&radius=0.0002777777777777778&nDetections.gt=1&columns=objID&columns=raMean&columns=decMean&columns=nDetections&columns=gMeanPSFMag&columns=rMeanPSFMag&columns=iMeanPSFMag&columns=zMeanPSFMag&columns=yMeanPSFMag
+  response:
+    body:
+      string: "objID,raMean,decMean,nDetections,gMeanPSFMag,rMeanPSFMag,iMeanPSFMag,zMeanPSFMag,yMeanPSFMag\r\n149812299620603702,229.9620946449489,34.84424324589214,72,14.595100402832031,14.433699607849121,14.470199584960938,14.457300186157227,14.293000221252441\r\n"
+    headers:
+      Access-Control-Allow-Origin:
+      - https://catalogs.mast.stsci.edu
+      Connection:
+      - keep-alive
+      Content-Security-Policy:
+      - 'default-src ''self'' ''unsafe-inline'' ''unsafe-eval'' *.stsci.edu ws://*.stsci.edu
+        wss://*.stsci.edu https://stackpath.bootstrapcdn.com https://cdnjs.cloudflare.com
+        https://code.jquery.com https://ajax.googleapis.com https://cdn.datatables.net
+        https://www.googletagmanager.com https://www.google-analytics.com https://cdn.materialdesignicons.com/
+        https://cdn.jsdelivr.net https://fastapi.tiangolo.com https://cdn.pydata.org
+        https://cdn.bokeh.org https://cdn.datatables.net https://fonts.googleapis.com
+        https://fonts.gstatic.com;font-src ''self'' data: ''self'' ''unsafe-inline''
+        ''unsafe-eval'' *.stsci.edu ws://*.stsci.edu wss://*.stsci.edu https://stackpath.bootstrapcdn.com
+        https://cdnjs.cloudflare.com https://code.jquery.com https://ajax.googleapis.com
+        https://cdn.datatables.net https://www.googletagmanager.com https://www.google-analytics.com
+        https://cdn.materialdesignicons.com/ https://cdn.jsdelivr.net https://fastapi.tiangolo.com
+        https://cdn.pydata.org https://cdn.bokeh.org https://cdn.datatables.net https://fonts.googleapis.com
+        https://fonts.gstatic.com;img-src ''self'' blob: https://cdn.datatables.net
+        https://www.google-analytics.com https://validator.swagger.io data:;frame-src
+        ''self'' blob:'
+      Content-Type:
+      - text/csv; charset=utf-8
+      Date:
+      - Sat, 19 Feb 2022 16:28:17 GMT
+      Server:
+      - nginx/1.20.1
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Origin
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - sameorigin
+      X-Permitted-Cross-Domain-Policies:
+      - master-only
+      X-XSS-Protection:
+      - '1'
+    status:
+      code: 200
+      message: OK
 version: 1
