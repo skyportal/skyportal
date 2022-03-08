@@ -109,4 +109,4 @@ def test_gcnevents_object(
     driver.click_xpath(submit_button_xpath)
 
     # check for object
-    driver.wait_for_xpath(f'//*[text()[contains(.,"{obj_id}")]]')
+    driver.wait_for_xpath(f'//*[text()[contains(.,"{obj_id}")]]', timeout=15)
