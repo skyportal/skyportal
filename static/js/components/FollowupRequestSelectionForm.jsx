@@ -152,6 +152,7 @@ const FollowupRequestSelectionForm = () => {
         format: "date-time",
         title: "Maximum Requested Date",
         description: "Do not include requests after this date",
+        title: "End Date",
       },
       sourceID: {
         type: "string",

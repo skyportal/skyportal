@@ -22,6 +22,7 @@ The vast majority of follow-up instruments will require some form of authenticat
 * SWIFT: A username and password are passed as {"username": "username", "secret": "password"}.
 * ZTF: An API token for an admin user for [Kowalski](https://github.com/dmitryduev/kowalski) can be passed as {"access_token": "your_token"}.
 
+
 ## Uploading executed observations
 
 In addition to making available the `observation` api, we also include an Observations page to simplify upload and viewing of `ExecutedObservation`s. On this page, simply specify the instrument and upload a file of the form:
@@ -32,3 +33,9 @@ observation_id,field_id,obstime,seeing,limmag,exposure_time,filter,processed_fra
 84434696,1,2458598.8469676003,1.6499500000,20.5603000000,30,ztfr,1.00000
 
 where observation_id (the ID of the observations, does not need to be unique), the field_id, the observation time (in JD), the seeing (in arcseconds), the limiting magnitude, the exposure time (in seconds), the filter, and the "processed_fraction" (what fraction of the image was successfully processed) are potential columns. We note that only observation_id, field_id, obstime, filter, and exposure_time required.
+
+## Executed Observations API Upload
+
+As part of the `ObservationPlanRequest` API, it is possible to retrieve `ExecutedObservation`s. We briefly describe the authentication form the available telescopes take below:
+
+* ZTF: Login information for IRSA, which takes the form: {"tap_service": "https://irsa.ipac.caltech.edu/TAP", "tap_username": "your_password", "tap_password": "your_password"}
