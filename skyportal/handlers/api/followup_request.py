@@ -633,7 +633,7 @@ def observation_schedule(
     figsize=(10, 8),
 ):
 
-    """Create a movie to display observations of a given skymap
+    """Create a schedule to display observations for a particular instrument
     Parameters
     ----------
     followup_requests : skyportal.models.followup_request.FollowupRequest
@@ -647,7 +647,7 @@ def observation_schedule(
     output_format : str, optional
         "csv", "pdf" or "png" -- determines the format of the returned observation plan
     figsize : tuple, optional
-        Matplotlib figsize of the movie created
+        Matplotlib figsize of the pdf/png created
     Returns
     -------
     dict
