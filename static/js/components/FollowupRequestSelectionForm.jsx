@@ -12,7 +12,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { filterOutEmptyValues } from "../API";
-import fetchFollowupRequests from "../ducks/followup_requests";
+import * as followupRequestActions from "../ducks/followup_requests";
 import * as instrumentActions from "../ducks/instruments";
 
 dayjs.extend(utc);
@@ -113,7 +113,7 @@ const FollowupRequestSelectionForm = () => {
 
   const handleSubmitFilter = async ({ formData }) => {
     setIsSubmittingFilter(true);
-    await dispatch(fetchFollowupRequests(formData));
+    await dispatch(followupRequestActions.fetchFollowupRequests(formData));
     setFormDataState(formData);
     setIsSubmittingFilter(false);
   };
@@ -237,12 +237,12 @@ const FollowupRequestSelectionForm = () => {
         </Select>
         <Button
           href={`${url}`}
-          download={`observation-plan-${selectedInstrumentId}`}
+          download={`scheduleRequest-${selectedInstrumentId}`}
           size="small"
           color="primary"
           type="submit"
           variant="outlined"
-          data-testid={`movieRequest_${selectedInstrumentId}`}
+          data-testid={`scheduleRequest_${selectedInstrumentId}`}
         >
           Download
         </Button>
