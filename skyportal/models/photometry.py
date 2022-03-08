@@ -487,6 +487,27 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.rms_mag = np.nanstd(self.mags)
         (self.robust_mag, self.robust_rms) = self.sigma_clipping(self.mags)
 
+        # if RA, Dec or exposure time are given in the auxiliary data:
+        for key in ['RA', 'ra']:
+            if key in self._data:
+                self.ra = self._data[key].median()
+                break
+        for key in ['Dec', 'DEC', 'dec']:
+            if key in self._data:
+                self.dec = self._data[key].median()
+                break
+        for key in [
+            'exptime',
+            'exp_time',
+            'exposure',
+            'exposure_time',
+            'EXPTIME',
+            'EXP_TIME',
+        ]:
+            if key in self._data:
+                self.exp_time = self._data[key].median()
+                break
+
     @staticmethod
     def sigma_clipping(input_values, iterations=3, sigma=3.0):
         """
