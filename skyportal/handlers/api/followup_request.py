@@ -1,3 +1,4 @@
+import arrow
 import jsonschema
 from marshmallow.exceptions import ValidationError
 
@@ -281,6 +282,36 @@ class FollowupRequestHandler(BaseHandler):
           description: Retrieve all followup requests
           tags:
             - followup_requests
+          parameters:
+          - in: query
+            name: sourceID
+            nullable: true
+            schema:
+              type: string
+            description: Portion of ID to filter on
+          - in: query
+            name: startDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              created_at >= startDate
+          - in: query
+            name: endDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              created_at <= endDate
+          - in: query
+            name: status
+            nullable: true
+            schema:
+              type: string
+            description: |
+              String to match status of request against
           responses:
             200:
               content:
@@ -291,6 +322,11 @@ class FollowupRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+        sourceID = self.get_query_argument('sourceID', None)
+        status = self.get_query_argument('status', None)
 
         # get owned assignments
         followup_requests = FollowupRequest.query_records_accessible_by(
@@ -316,7 +352,35 @@ class FollowupRequestHandler(BaseHandler):
             self.verify_and_commit()
             return self.success(data=followup_request)
 
-        followup_requests = followup_requests.all()
+        if start_date:
+            start_date = str(arrow.get(start_date.strip()).datetime)
+            followup_requests = followup_requests.filter(
+                FollowupRequest.created_at >= start_date
+            )
+        if end_date:
+            end_date = str(arrow.get(end_date.strip()).datetime)
+            followup_requests = followup_requests.filter(
+                FollowupRequest.created_at <= end_date
+            )
+        if sourceID:
+            obj_query = Obj.query_records_accessible_by(self.current_user).filter(
+                Obj.id.contains(sourceID.strip())
+            )
+            obj_subquery = obj_query.subquery()
+            followup_requests = followup_requests.join(
+                obj_subquery, FollowupRequest.obj_id == obj_subquery.c.id
+            )
+        if status:
+            followup_requests = followup_requests.filter(
+                FollowupRequest.status.contains(status.strip())
+            )
+
+        followup_requests = followup_requests.options(
+            joinedload(FollowupRequest.allocation).joinedload(Allocation.instrument),
+            joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
+            joinedload(FollowupRequest.obj),
+            joinedload(FollowupRequest.requester),
+        ).all()
         self.verify_and_commit()
         return self.success(data=followup_requests)
 
