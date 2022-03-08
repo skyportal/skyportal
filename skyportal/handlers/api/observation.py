@@ -20,7 +20,6 @@ from baselayer.app.flow import Flow
 from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
-    Allocation,
     DBSession,
     Allocation,
     GcnEvent,
@@ -826,7 +825,7 @@ class ObservationGCNHandler(BaseHandler):
 
         return self.success(data=content)
 
-      
+
 class ObservationExternalAPIHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
@@ -889,8 +888,8 @@ class ObservationExternalAPIHandler(BaseHandler):
             )
         except Exception as e:
             return self.error(f"Error in querying instrument API: {e}")
-      
-      
+
+
 class ObservationTreasureMapHandler(BaseHandler):
     @auth_or_token
     def post(self, instrument_id):
