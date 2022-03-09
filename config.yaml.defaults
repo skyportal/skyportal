@@ -37,6 +37,8 @@ app:
     host: skipper.caltech.edu
     port: 4000
 
+  ztf_forced_endpoint: https://ztfweb.ipac.caltech.edu
+
   swift:
     protocol: https
     host: www.swift.psu.edu
