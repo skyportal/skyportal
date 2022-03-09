@@ -509,12 +509,6 @@ class ZTFAPI(FollowUpAPI):
             requestgroup["userpass"] = altdata["ipac_userpass"]
             params = urllib.parse.urlencode(requestgroup)
             url = f"{ZTF_FORCED_URL}/cgi-bin/requestForcedPhotometry.cgi?{params}"
-            print(url)
-
-        # wget --http-user=ztffps --http-passwd=dontgocrazy! -O log.txt
-        # "https://ztfweb.ipac.caltech.edu/cgi-bin/requestForcedPhotometry.cgi?
-        # ra=280.8058788&dec=45.2077645&jdstart=2458231.891227&jdend=2458345.025359&
-        # email=xxxx&userpass=xxxx"
 
         if request.payload["request_type"] == "triggered":
             headers = {"Authorization": f"Bearer {altdata['access_token']}"}
