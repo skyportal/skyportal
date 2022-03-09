@@ -56,3 +56,4 @@ swifttools==2.3.2
 pip==22.0.3
 gwemopt==0.0.75
 humanize==4.0.0
+noaodatalab==2.20.0

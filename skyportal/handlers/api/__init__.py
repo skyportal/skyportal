@@ -4,6 +4,7 @@ from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
+from .annotation_services import DatalabQueryHandler
 from .db_stats import StatsHandler
 from .filter import FilterHandler
 from .followup_request import (
