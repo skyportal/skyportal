@@ -511,7 +511,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             )
             .filter(Photometry.obj_id == obj_id)
             .statement,
-            session.bind,
+            session.get_bind(),
         )
 
     if data.empty:
