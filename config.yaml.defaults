@@ -52,6 +52,8 @@ app:
     protocol: http
     host: herculesii.astro.berkeley.edu
 
+  treasuremap_endpoint: http://treasuremap.space
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
