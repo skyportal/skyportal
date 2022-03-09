@@ -1000,8 +1000,7 @@ class ObservationTreasureMapHandler(BaseHandler):
         )
 
         observations = data["observations"]
-        num_observations = len(observations)
-        if num_observations == 0:
+        if len(observations) == 0:
             return self.error('Need at least one observation to send to Treasure Map')
 
         event = (
@@ -1039,7 +1038,6 @@ class ObservationTreasureMapHandler(BaseHandler):
         pointings = []
         for obs in observations:
             pointing = {}
-            print(obs)
             pointing["ra"] = obs["field"].ra
             pointing["dec"] = obs["field"].dec
             pointing["band"] = obs["filt"]
@@ -1049,13 +1047,16 @@ class ObservationTreasureMapHandler(BaseHandler):
             pointing["depth"] = obs["limmag"]
             pointing["depth_unit"] = "ab_mag"
             pointings.append(pointing)
-
         payload["pointings"] = pointings
 
         url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
         r = requests.post(url=url, json=payload)
         r.raise_for_status()
-
+        request_json = r.json()
+        errors = request_json["ERRORS"]
+        if len(errors) > 0:
+            return self.error(f'TreasureMap upload failed: {errors}')
+        self.push_notification('TreasureMap upload succeeded')
         return self.success()
 
     @auth_or_token
@@ -1149,5 +1150,8 @@ class ObservationTreasureMapHandler(BaseHandler):
         url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
         r = requests.post(url=url)
         r.raise_for_status()
-
+        request_text = r.text
+        if "successfully" not in request_text:
+            return self.error(f'TreasureMap delete failed: {request_text}')
+        self.push_notification(f'TreasureMap delete succeeded: {request_text}.')
         return self.success()
