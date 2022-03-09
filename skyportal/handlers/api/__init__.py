@@ -40,6 +40,7 @@ from .observation import (
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
     ObservationPlanRequestHandler,
+    ObservationPlanTreasureMapHandler,
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,

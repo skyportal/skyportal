@@ -35,6 +35,7 @@ from skyportal.handlers.api import (
     NewsFeedHandler,
     ObservingRunHandler,
     ObservationPlanRequestHandler,
+    ObservationPlanTreasureMapHandler,
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
@@ -152,6 +153,10 @@ skyportal_handlers = [
     (r'/api/observation/external_api(/[0-9]+)?', ObservationExternalAPIHandler),
     (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
     (r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)?', ObservationPlanRequestHandler),
+    (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/treasuremap',
+        ObservationPlanTreasureMapHandler,
+    ),
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/gcn',
         ObservationPlanGCNHandler,
