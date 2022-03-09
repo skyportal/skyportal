@@ -1,6 +1,7 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Form from "@rjsf/material-ui";
+import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitInstrument } from "../ducks/instrument";
 import { fetchInstruments } from "../ducks/instruments";
@@ -13,6 +14,16 @@ const NewInstrument = () => {
   const handleSubmit = async ({ formData }) => {
     if (formData.group_id === -1) {
       delete formData.group_id;
+    }
+    if (formData.field_data === -1) {
+      delete formData.field_data;
+    } else {
+      formData.field_data = dataUriToBuffer(formData.field_data).toString();
+    }
+    if (formData.field_region === -1) {
+      delete formData.field_region;
+    } else {
+      formData.field_region = dataUriToBuffer(formData.field_region).toString();
     }
     const result = await dispatch(submitInstrument(formData));
     if (result.status === "success") {
@@ -99,6 +110,18 @@ const NewInstrument = () => {
         anyOf: api_classnames,
         title: "API Classname",
         default: api_classnames[0]?.enum,
+      },
+      field_data: {
+        type: "string",
+        format: "data-url",
+        title: "Field data file",
+        description: "Field data file",
+      },
+      field_region: {
+        type: "string",
+        format: "data-url",
+        title: "Field region file",
+        description: "Field region file",
       },
     },
     required: ["name", "type", "band", "telescope_id"],

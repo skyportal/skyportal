@@ -442,4 +442,101 @@ interactions:
     status:
       code: 200
       message: OK
+- request:
+    body: '{"graceid": "TEST_EVENT", "api_token": "testtoken",
+      "pointings": [{"ra": 16.36364, "dec": -81.85, "band": "g", "instrumentid": "47",
+      "status": "planned", "time": "2019-04-25T18:48:23.596", "depth": 0.0, "depth_unit":
+      "ab_mag"}, {"ra": 16.36364, "dec": -81.85, "band": "r", "instrumentid": "47",
+      "status": "planned", "time": "2019-04-25T18:53:23.596", "depth": 0.0, "depth_unit":
+      "ab_mag"}, {"ra": 16.36364, "dec": -81.85, "band": "i", "instrumentid": "47",
+      "status": "planned", "time": "2019-04-25T18:58:23.596", "depth": 0.0, "depth_unit":
+      "ab_mag"}, {"ra": 0.0, "dec": -89.05, "band": "g", "instrumentid": "47", "status":
+      "planned", "time": "2019-04-25T19:03:23.596", "depth": 0.0, "depth_unit": "ab_mag"},
+      {"ra": 0.0, "dec": -89.05, "band": "r", "instrumentid": "47", "status": "planned",
+      "time": "2019-04-25T19:08:23.596", "depth": 0.0, "depth_unit": "ab_mag"}, {"ra":
+      0.0, "dec": -89.05, "band": "i", "instrumentid": "47", "status": "planned",
+      "time": "2019-04-25T19:13:23.596", "depth": 0.0, "depth_unit": "ab_mag"}, {"ra":
+      90.0, "dec": -89.05, "band": "g", "instrumentid": "47", "status": "planned",
+      "time": "2019-04-25T19:18:23.596", "depth": 0.0, "depth_unit": "ab_mag"}, {"ra":
+      90.0, "dec": -89.05, "band": "r", "instrumentid": "47", "status": "planned",
+      "time": "2019-04-25T19:23:23.596", "depth": 0.0, "depth_unit": "ab_mag"}, {"ra":
+      90.0, "dec": -89.05, "band": "i", "instrumentid": "47", "status": "planned",
+      "time": "2019-04-25T19:28:23.596", "depth": 0.0, "depth_unit": "ab_mag"}, {"ra":
+      180.0, "dec": -89.05, "band": "g", "instrumentid": "47", "status": "planned",
+      "time": "2019-04-25T19:33:23.596", "depth": 0.0, "depth_unit": "ab_mag"}, {"ra":
+      180.0, "dec": -89.05, "band": "r", "instrumentid": "47", "status": "planned",
+      "time": "2019-04-25T19:38:23.596", "depth": 0.0, "depth_unit": "ab_mag"}, {"ra":
+      180.0, "dec": -89.05, "band": "i", "instrumentid": "47", "status": "planned",
+      "time": "2019-04-25T19:43:23.596", "depth": 0.0, "depth_unit": "ab_mag"}, {"ra":
+      270.0, "dec": -89.05, "band": "g", "instrumentid": "47", "status": "planned",
+      "time": "2019-04-25T19:48:23.596", "depth": 0.0, "depth_unit": "ab_mag"}, {"ra":
+      270.0, "dec": -89.05, "band": "r", "instrumentid": "47", "status": "planned",
+      "time": "2019-04-25T19:53:23.596", "depth": 0.0, "depth_unit": "ab_mag"}, {"ra":
+      270.0, "dec": -89.05, "band": "i", "instrumentid": "47", "status": "planned",
+      "time": "2019-04-25T19:58:23.596", "depth": 0.0, "depth_unit": "ab_mag"}]}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '2480'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.27.0
+    method: POST
+    uri: http://treasuremap.space/api/v0/pointings
+  response:
+    body:
+      string: '{"ERRORS":[["Object: {\"ra\": 16.36364, \"dec\": -81.85, \"band\":
+        \"g\", \"instrumentid\": \"47\", \"status\": \"planned\", \"time\": \"2019-04-25T18:48:23.596\",
+        \"depth\": 0.0, \"depth_unit\": \"ab_mag\"}",["Pointing already submitted"]],["Object:
+        {\"ra\": 16.36364, \"dec\": -81.85, \"band\": \"r\", \"instrumentid\": \"47\",
+        \"status\": \"planned\", \"time\": \"2019-04-25T18:53:23.596\", \"depth\":
+        0.0, \"depth_unit\": \"ab_mag\"}",["Pointing already submitted"]],["Object:
+        {\"ra\": 16.36364, \"dec\": -81.85, \"band\": \"i\", \"instrumentid\": \"47\",
+        \"status\": \"planned\", \"time\": \"2019-04-25T18:58:23.596\", \"depth\":
+        0.0, \"depth_unit\": \"ab_mag\"}",["Pointing already submitted"]],["Object:
+        {\"ra\": 0.0, \"dec\": -89.05, \"band\": \"g\", \"instrumentid\": \"47\",
+        \"status\": \"planned\", \"time\": \"2019-04-25T19:03:23.596\", \"depth\":
+        0.0, \"depth_unit\": \"ab_mag\"}",["Pointing already submitted"]],["Object:
+        {\"ra\": 0.0, \"dec\": -89.05, \"band\": \"r\", \"instrumentid\": \"47\",
+        \"status\": \"planned\", \"time\": \"2019-04-25T19:08:23.596\", \"depth\":
+        0.0, \"depth_unit\": \"ab_mag\"}",["Pointing already submitted"]],["Object:
+        {\"ra\": 0.0, \"dec\": -89.05, \"band\": \"i\", \"instrumentid\": \"47\",
+        \"status\": \"planned\", \"time\": \"2019-04-25T19:13:23.596\", \"depth\":
+        0.0, \"depth_unit\": \"ab_mag\"}",["Pointing already submitted"]],["Object:
+        {\"ra\": 90.0, \"dec\": -89.05, \"band\": \"r\", \"instrumentid\": \"47\",
+        \"status\": \"planned\", \"time\": \"2019-04-25T19:23:23.596\", \"depth\":
+        0.0, \"depth_unit\": \"ab_mag\"}",["Pointing already submitted"]],["Object:
+        {\"ra\": 90.0, \"dec\": -89.05, \"band\": \"i\", \"instrumentid\": \"47\",
+        \"status\": \"planned\", \"time\": \"2019-04-25T19:28:23.596\", \"depth\":
+        0.0, \"depth_unit\": \"ab_mag\"}",["Pointing already submitted"]],["Object:
+        {\"ra\": 180.0, \"dec\": -89.05, \"band\": \"g\", \"instrumentid\": \"47\",
+        \"status\": \"planned\", \"time\": \"2019-04-25T19:33:23.596\", \"depth\":
+        0.0, \"depth_unit\": \"ab_mag\"}",["Pointing already submitted"]],["Object:
+        {\"ra\": 180.0, \"dec\": -89.05, \"band\": \"r\", \"instrumentid\": \"47\",
+        \"status\": \"planned\", \"time\": \"2019-04-25T19:38:23.596\", \"depth\":
+        0.0, \"depth_unit\": \"ab_mag\"}",["Pointing already submitted"]],["Object:
+        {\"ra\": 180.0, \"dec\": -89.05, \"band\": \"i\", \"instrumentid\": \"47\",
+        \"status\": \"planned\", \"time\": \"2019-04-25T19:43:23.596\", \"depth\":
+        0.0, \"depth_unit\": \"ab_mag\"}",["Pointing already submitted"]]],"WARNINGS":[],"pointing_ids":[34291,34292,34293]}
+        '
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '2786'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 22 Feb 2022 20:24:17 GMT
+      Server:
+      - gunicorn
+    status:
+      code: 200
+      message: OK
 version: 1
