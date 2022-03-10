@@ -105,6 +105,18 @@ const ModifyInstrument = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedInstrumentId]);
 
+  if (instrumentList.length === 0 || telescopeList.length === 0) {
+    return <h3>No instruments available...</h3>;
+  }
+
+  if (enum_types.length === 0) {
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
+  }
+
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
   // render to update it, so it can be null even if allocationList is not

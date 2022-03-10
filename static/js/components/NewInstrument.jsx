@@ -35,11 +35,7 @@ const NewInstrument = () => {
     }
   };
 
-  if (
-    telescopeList.length === 0 ||
-    instrumentList.length === 0 ||
-    enum_types.length === 0
-  ) {
+  if (enum_types.length === 0) {
     return (
       <div>
         <CircularProgress color="secondary" />
