@@ -43,6 +43,10 @@ class InstrumentHandler(BaseHandler):
         field_data = data.pop("field_data", None)
         field_region = data.pop("field_region", None)
 
+        if field_region is not None:
+            regions = Regions.parse(field_region, format='ds9')
+            data['region'] = regions.serialize(format='ds9')
+
         schema = Instrument.__schema__()
         try:
             instrument = schema.load(data)
@@ -71,7 +75,6 @@ class InstrumentHandler(BaseHandler):
         if field_data is not None:
             if field_region is None:
                 return self.error('`field_region` is required with field_data')
-            regions = Regions.parse(field_region, format='ds9')
 
             if type(field_data) is str:
                 field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
