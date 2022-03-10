@@ -1,6 +1,7 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Form from "@rjsf/material-ui";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitInstrument } from "../ducks/instrument";
@@ -9,6 +10,7 @@ import { fetchInstruments } from "../ducks/instruments";
 const NewInstrument = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
+  const { enum_types } = useSelector((state) => state.enum_types);
   const dispatch = useDispatch();
 
   const handleSubmit = async ({ formData }) => {
@@ -33,25 +35,21 @@ const NewInstrument = () => {
     }
   };
 
-  const api_classnames = [];
-  instrumentList?.forEach((instrument) => {
-    if (instrument.api_classname) {
-      api_classnames.push(instrument.api_classname);
-    }
-    if (instrument.api_classname_obsplan) {
-      api_classnames.push(instrument.api_classname_obsplan);
-    }
-  });
-  api_classnames.push("");
-  const api_classnames_unique = [...new Set(api_classnames)];
+  if (
+    telescopeList.length === 0 ||
+    instrumentList.length === 0 ||
+    enum_types.length === 0
+  ) {
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
+  }
 
-  const filters = [];
-  instrumentList?.forEach((instrument) => {
-    instrument.filters?.forEach((filter) => {
-      filters.push(filter);
-    });
-  });
-  const filtersUnique = [...new Set(filters)];
+  const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES];
+  api_classnames.push("");
+  const filters = [...enum_types.ALLOWED_BANDPASSES];
 
   function validate(formData, errors) {
     instrumentList?.forEach((instrument) => {
@@ -96,7 +94,7 @@ const NewInstrument = () => {
         type: "array",
         items: {
           type: "string",
-          enum: filtersUnique,
+          enum: filters,
         },
         uniqueItems: true,
         title: "Filter list",
@@ -114,7 +112,7 @@ const NewInstrument = () => {
         type: "array",
         items: {
           type: "string",
-          enum: api_classnames_unique,
+          enum: api_classnames,
         },
         uniqueItems: true,
         title: "API Classname",
@@ -123,7 +121,7 @@ const NewInstrument = () => {
         type: "array",
         items: {
           type: "string",
-          enum: api_classnames_unique,
+          enum: api_classnames,
         },
         uniqueItems: true,
         title: "API Observation Plan Classname",

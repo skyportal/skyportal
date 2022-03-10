@@ -57,9 +57,9 @@ const ModifyInstrument = () => {
   const textClasses = textStyles();
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
-
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
+  const { enum_types } = useSelector((state) => state.enum_types);
   const dispatch = useDispatch();
 
   const handleSubmit = async ({ formData }) => {
@@ -113,25 +113,9 @@ const ModifyInstrument = () => {
     return <h3>No instruments available...</h3>;
   }
 
-  const api_classnames = [];
-  instrumentList?.forEach((instrument) => {
-    if (instrument.api_classname) {
-      api_classnames.push(instrument.api_classname);
-    }
-    if (instrument.api_classname_obsplan) {
-      api_classnames.push(instrument.api_classname_obsplan);
-    }
-  });
+  const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES];
   api_classnames.push("");
-  const api_classnames_unique = [...new Set(api_classnames)];
-
-  const filters = [];
-  instrumentList?.forEach((instrument) => {
-    instrument.filters?.forEach((filter) => {
-      filters.push(filter);
-    });
-  });
-  const filtersUnique = [...new Set(filters)];
+  const filters = [...enum_types.ALLOWED_BANDPASSES];
 
   if (telescopeList.length === 0 || instrumentList.length === 0) {
     return (
@@ -196,7 +180,7 @@ const ModifyInstrument = () => {
         type: "array",
         items: {
           type: "string",
-          enum: filtersUnique,
+          enum: filters,
         },
         uniqueItems: true,
         title: "Filter list",
@@ -205,7 +189,7 @@ const ModifyInstrument = () => {
         type: "array",
         items: {
           type: "string",
-          enum: api_classnames_unique,
+          enum: api_classnames,
         },
         uniqueItems: true,
         title: "API Classname",
@@ -214,7 +198,7 @@ const ModifyInstrument = () => {
         type: "array",
         items: {
           type: "string",
-          enum: api_classnames_unique,
+          enum: api_classnames,
         },
         uniqueItems: true,
         title: "API Observation Plan Classname",
