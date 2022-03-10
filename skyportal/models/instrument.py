@@ -26,7 +26,7 @@ class ArrayOfEnum(ARRAY):
         return cast(bindvalue, self)
 
     def result_processor(self, dialect, coltype):
-        super_rp = super(ArrayOfEnum, self).result_processor(dialect, coltype)
+        super_rp = super().result_processor(dialect, coltype)
 
         def handle_raw_string(value):
             if value is None or value == '{}':  # 2nd case, empty array

@@ -503,7 +503,7 @@ def observation_animations(
         "TNS": "#ED6CF6",
     }
 
-    filters = list(set(obs.filt for obs in observations))
+    filters = list({obs.filt for obs in observations})
     for filt in filters:
         if filt in surveyColors:
             continue

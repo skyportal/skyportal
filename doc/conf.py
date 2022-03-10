@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #
 # skyportal documentation build configuration file, created by
 # sphinx-quickstart on Thu Jul 23 13:00:45 2015 (copied from `cesium`).
@@ -72,12 +71,12 @@ author = 'The SkyPortal Team'
 
 version = 'vUndefined'
 setup_lines = open('../skyportal/__init__.py').readlines()
-for l in setup_lines:
-    if l.startswith('__version__ = '):
+for line in setup_lines:
+    if line.startswith('__version__ = '):
         try:
-            version = l.split('"')[1]
+            version = line.split('"')[1]
         except IndexError:
-            version = l.split("'")[1]
+            version = line.split("'")[1]
         break
 
 # The full version, including alpha/beta/rc tags.
