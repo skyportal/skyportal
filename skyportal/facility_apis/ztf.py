@@ -355,9 +355,10 @@ class ZTFAPI(FollowUpAPI):
         req = Request('DELETE', url, json=payload, headers=headers)
         prepped = req.prepare()
         r = s.send(prepped)
-        r.raise_for_status()
-
-        request.status = "deleted"
+        if r.status_code == 200:
+            request.status = "deleted"
+        else:
+            request.status = f'rejected: {r.content}'
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),
@@ -438,8 +439,6 @@ class ZTFAPI(FollowUpAPI):
                 altdata['ipac_http_user'], altdata['ipac_http_password']
             ),
         )
-        r.raise_for_status()
-
         if r.status_code == 200:
             df_result = pd.read_html(r.text)[0]
             df_result.rename(
@@ -536,7 +535,6 @@ class ZTFAPI(FollowUpAPI):
             req = Request('PUT', url, json=payload, headers=headers)
             prepped = req.prepare()
             r = s.send(prepped)
-            r.raise_for_status()
         elif request.payload["request_type"] == "forced_photometry":
             r = requests.get(
                 url,
@@ -544,7 +542,6 @@ class ZTFAPI(FollowUpAPI):
                     altdata['ipac_http_user'], altdata['ipac_http_password']
                 ),
             )
-            r.raise_for_status()
 
         if r.status_code == 200:
             request.status = 'submitted'
@@ -649,7 +646,6 @@ class ZTFMMAAPI(MMAAPI):
         ztfreq = Request('PUT', url, json=payload, headers=headers)
         prepped = ztfreq.prepare()
         r = s.send(prepped)
-        r.raise_for_status()
 
         if r.status_code == 200:
             request.status = 'submitted to telescope queue'
@@ -708,9 +704,10 @@ class ZTFMMAAPI(MMAAPI):
         ztfreq = Request('DELETE', url, json=payload, headers=headers)
         prepped = ztfreq.prepare()
         r = s.send(prepped)
-        r.raise_for_status()
-
-        request.status = "deleted from telescope queue"
+        if r.status_code == 200:
+            request.status = "deleted from telescope queue"
+        else:
+            request.status = f'rejected: {r.content}'
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),

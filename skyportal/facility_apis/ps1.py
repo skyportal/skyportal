@@ -170,13 +170,12 @@ class PS1API(FollowUpAPI):
 
         url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/detections.csv"
         r = requests.get(url, params=params)
-        r.raise_for_status()
 
         if r.status_code == 200:
             try:
                 text_response = r.text
             except Exception:
-                raise ('No text data returned in request')
+                raise ValueError('No text data returned in request')
 
             IOLoop.current().run_in_executor(
                 None,
@@ -232,13 +231,15 @@ class PS1API(FollowUpAPI):
 
         url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/mean.csv"
         r = requests.get(url, params=params)
-        r.raise_for_status()
-        tab = astropy.io.ascii.read(r.text)
+        if r.status_code == 200:
+            tab = astropy.io.ascii.read(r.text)
 
-        if len(tab) == 0:
-            request.status = 'No DR2 source'
+            if len(tab) == 0:
+                request.status = 'No DR2 source'
+            else:
+                request.status = 'Source available'
         else:
-            request.status = 'Source available'
+            request.status = f'rejected: {r.content}'
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),

@@ -261,7 +261,6 @@ class ATLASAPI(FollowUpAPI):
                 'Accept': 'application/json',
             },
         )
-        r.raise_for_status()
 
         if r.status_code == 200:
             try:
@@ -332,7 +331,6 @@ class ATLASAPI(FollowUpAPI):
             },
             data=requestgroup,
         )
-        r.raise_for_status()
 
         if r.status_code == 201:
             request.status = 'submitted'
