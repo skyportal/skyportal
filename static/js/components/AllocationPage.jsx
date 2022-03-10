@@ -1,5 +1,5 @@
 import React from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
@@ -8,8 +8,12 @@ import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
 import { makeStyles } from "@material-ui/core/styles";
 import PropTypes from "prop-types";
+import { showNotification } from "baselayer/components/Notifications";
+import { Button } from "@material-ui/core";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import NewAllocation from "./NewAllocation";
+
+import * as allocationActions from "../ducks/allocation";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -20,6 +24,23 @@ const useStyles = makeStyles((theme) => ({
   },
   paperContent: {
     padding: "1rem",
+  },
+  allocationDelete: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+  },
+  allocationDeleteDisabled: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+    opacity: 0,
   },
 }));
 
@@ -83,12 +104,23 @@ export function allocationInfo(allocation, groups) {
   return result;
 }
 
-const AllocationList = ({ allocations }) => {
+const AllocationList = ({ allocations, deletePermission }) => {
+  const dispatch = useDispatch();
   const classes = useStyles();
   const textClasses = textStyles();
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
+
+  const deleteAllocation = (allocation) => {
+    dispatch(allocationActions.deleteAllocation(allocation.id)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Allocation deleted"));
+        }
+      }
+    );
+  };
 
   return (
     <div className={classes.root}>
@@ -104,6 +136,18 @@ const AllocationList = ({ allocations }) => {
               secondary={allocationInfo(allocation, groups)}
               classes={textClasses}
             />
+            <Button
+              key={allocation.id}
+              id="delete_button"
+              classes={{
+                root: classes.allocationDelete,
+                disabled: classes.allocationDeleteDisabled,
+              }}
+              onClick={() => deleteAllocation(allocation)}
+              disabled={!deletePermission}
+            >
+              &times;
+            </Button>
           </ListItem>
         ))}
       </List>
@@ -116,17 +160,24 @@ const AllocationPage = () => {
   const currentUser = useSelector((state) => state.profile);
   const classes = useStyles();
 
+  const permission =
+    currentUser.permissions?.includes("System admin") ||
+    currentUser.permissions?.includes("Manage allocations");
+
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Allocations</Typography>
-            <AllocationList allocations={allocationList} />
+            <AllocationList
+              allocations={allocationList}
+              deletePermission={permission}
+            />
           </div>
         </Paper>
       </Grid>
-      {currentUser.permissions?.includes("System admin") && (
+      {permission && (
         <Grid item md={6} sm={12}>
           <Paper>
             <div className={classes.paperContent}>
@@ -141,7 +192,9 @@ const AllocationPage = () => {
 };
 
 AllocationList.propTypes = {
+  // eslint-disable-next-line react/forbid-prop-types
   allocations: PropTypes.arrayOf(PropTypes.any).isRequired,
+  deletePermission: PropTypes.bool.isRequired,
 };
 
 export default AllocationPage;
