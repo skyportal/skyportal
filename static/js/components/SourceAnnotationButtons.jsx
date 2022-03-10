@@ -18,6 +18,14 @@ const SourceAnnotationButtons = ({ source }) => {
     setIsSubmittingAnnotationPhotoz(null);
   };
 
+  const [isSubmittingAnnotationWise, setIsSubmittingAnnotationWise] =
+    useState(null);
+  const handleAnnotationWise = async (id) => {
+    setIsSubmittingAnnotationWise(id);
+    await dispatch(sourceActions.fetchWise(id));
+    setIsSubmittingAnnotationWise(null);
+  };
+
   return (
     <div>
       {isSubmittingAnnotationPhotoz === source.id ? (
@@ -36,6 +44,24 @@ const SourceAnnotationButtons = ({ source }) => {
           data-testid={`photozRequest_${source.id}`}
         >
           Photoz
+        </Button>
+      )}
+      {isSubmittingAnnotationWise === source.id ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <Button
+          onClick={() => {
+            handleAnnotationWise(source.id);
+          }}
+          size="small"
+          color="primary"
+          type="submit"
+          variant="outlined"
+          data-testid={`wiseRequest_${source.id}`}
+        >
+          WISE Colors
         </Button>
       )}
     </div>

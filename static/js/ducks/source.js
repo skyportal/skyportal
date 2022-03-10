@@ -58,6 +58,8 @@ const SEND_ALERT = "skyportal/SEND_ALERT";
 
 const FETCH_PHOTOZ = "skyportal/FETCH_PHOTOZ";
 
+const FETCH_WISE = "skyportal/FETCH_WISE";
+
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
 export const uploadPhotometry = (data) =>
@@ -222,6 +224,9 @@ export const sendAlert = (params) =>
 
 export const fetchPhotoz = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/datalab`, FETCH_PHOTOZ);
+
+export const fetchWise = (sourceID) =>
+  API.POST(`/api/sources/${sourceID}/annotations/irsa`, FETCH_WISE);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

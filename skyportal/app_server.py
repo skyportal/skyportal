@@ -16,6 +16,7 @@ from skyportal.handlers.api import (
     CommentAttachmentHandler,
     AnnotationHandler,
     DatalabQueryHandler,
+    IRSAQueryHandler,
     FilterHandler,
     FollowupRequestHandler,
     FollowupRequestSchedulerHandler,
@@ -198,6 +199,7 @@ skyportal_handlers = [
         CommentAttachmentHandler,
     ),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/datalab', DatalabQueryHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/irsa', IRSAQueryHandler),
     (
         r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations',
         AnnotationHandler,
