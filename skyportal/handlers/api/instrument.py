@@ -230,9 +230,12 @@ class InstrumentHandler(BaseHandler):
         data['id'] = int(instrument_id)
 
         # permission check
-        _ = Instrument.get_if_accessible_by(
+        instrument = Instrument.get_if_accessible_by(
             int(instrument_id), self.current_user, raise_if_none=True, mode='update'
         )
+
+        field_data = data.pop("field_data", None)
+        field_region = data.pop("field_region", None)
 
         schema = Instrument.__schema__()
         try:
@@ -242,6 +245,26 @@ class InstrumentHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
             )
         self.verify_and_commit()
+
+        if field_data is not None:
+            if field_region is None:
+                return self.error('`field_region` is required with field_data')
+            regions = Regions.parse(field_region, format='ds9')
+
+            if type(field_data) is str:
+                field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
+                    orient='list'
+                )
+
+            if not {'ID', 'RA', 'Dec'}.issubset(field_data):
+                return self.error("ID, RA, and Dec required in field_data.")
+
+            log(f"Started generating fields for instrument {instrument.id}")
+            # run async
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
+            )
 
         self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success()
