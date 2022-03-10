@@ -15,22 +15,22 @@ def test_add_filter(driver, super_admin_user, user, public_group, public_stream)
     el = driver.wait_for_xpath(f'//a[contains(.,"{public_group.name}")]')
     driver.execute_script("arguments[0].click();", el)
     # add stream
-    driver.wait_for_xpath(f'//button[contains(.,"Add stream")]').click()
+    driver.wait_for_xpath('//button[contains(.,"Add stream")]').click()
     driver.wait_for_xpath('//input[@name="stream_id"]/..', timeout=10).click()
     driver.wait_for_xpath(f'//li[contains(.,"{public_stream.id}")]', timeout=10)
     stream = driver.switch_to.active_element
     stream.click()
-    add_stream = driver.wait_for_xpath_to_be_clickable(f'//button[@type="submit"]')
+    add_stream = driver.wait_for_xpath_to_be_clickable('//button[@type="submit"]')
     driver.execute_script("arguments[0].click();", add_stream)
 
     # add filter
     filter_name = str(uuid.uuid4())
     driver.wait_for_xpath_to_be_clickable(
-        f'//button[contains(.,"Add filter")]', timeout=10
+        '//button[contains(.,"Add filter")]', timeout=10
     )
     flt = driver.switch_to.active_element
     flt.click()
-    driver.click_xpath(f'//button[contains(.,"Add filter")]')
+    driver.click_xpath('//button[contains(.,"Add filter")]')
     driver.click_xpath('//input[@name="filter_name"]/..', timeout=10)
     driver.wait_for_xpath('//input[@name="filter_name"]').send_keys(filter_name)
     driver.click_xpath(
@@ -39,7 +39,7 @@ def test_add_filter(driver, super_admin_user, user, public_group, public_stream)
     driver.wait_for_xpath(f'//li[contains(.,"{public_stream.id}")]', timeout=10)
     stream = driver.switch_to.active_element
     stream.click()
-    add_filter = driver.wait_for_xpath(f'//button[@type="submit"]', timeout=10)
+    add_filter = driver.wait_for_xpath('//button[@type="submit"]', timeout=10)
     driver.execute_script("arguments[0].click();", add_filter)
     driver.wait_for_xpath(f'//span[contains(.,"{filter_name}")]', timeout=10)
     assert (

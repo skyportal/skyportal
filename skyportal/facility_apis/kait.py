@@ -48,8 +48,8 @@ class KAITRequest:
         # The target of the observation
         target = {
             'name': request.obj.id,
-            'ra': "{:.5f}".format(request.obj.ra),
-            'dec': "{:.5f}".format(request.obj.dec),
+            'ra': f"{request.obj.ra:.5f}",
+            'dec': f"{request.obj.dec:.5f}",
             'filters': "".join(request.payload["observation_choices"]),
             'exposure': request.payload["observation_type"],
         }

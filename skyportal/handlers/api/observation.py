@@ -800,9 +800,9 @@ class ObservationGCNHandler(BaseHandler):
             return self.error('Need at least one observation to produce a GCN')
 
         start_observation = astropy.time.Time(
-            min([obs["obstime"] for obs in observations]), format='datetime'
+            min(obs["obstime"] for obs in observations), format='datetime'
         )
-        unique_filters = list(set([obs["filt"] for obs in observations]))
+        unique_filters = list({obs["filt"] for obs in observations})
         total_time = sum(obs["exposure_time"] for obs in observations)
         probability = data["probability"]
         area = data["area"]

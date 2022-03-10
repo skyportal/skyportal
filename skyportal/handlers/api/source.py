@@ -845,7 +845,7 @@ class SourceHandler(BaseHandler):
                     .all()
                 )
                 source_info["comments"] = sorted(
-                    [
+                    (
                         {
                             **{
                                 k: v
@@ -858,7 +858,7 @@ class SourceHandler(BaseHandler):
                             },
                         }
                         for c in comments
-                    ],
+                    ),
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
@@ -1487,7 +1487,7 @@ class SourceHandler(BaseHandler):
 
                 if include_comments:
                     obj_list[-1]["comments"] = sorted(
-                        [
+                        (
                             {
                                 k: v
                                 for k, v in c.to_dict().items()
@@ -1498,7 +1498,7 @@ class SourceHandler(BaseHandler):
                             )
                             .filter(Comment.obj_id == obj.id)
                             .all()
-                        ],
+                        ),
                         key=lambda x: x["created_at"],
                         reverse=True,
                     )

@@ -187,7 +187,7 @@ def setup_schema():
                 )
 
 
-class PhotBaseFlexible(object):
+class PhotBaseFlexible:
     """This is the base class for two classes that are used for rendering the
     input data to `PhotometryHandler.post` in redoc. These classes are only
     used for generating documentation and not for validation, serialization,
@@ -498,7 +498,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
     )
 
 
-class PhotBase(object):
+class PhotBase:
     """This is the base class of two classes that are used for deserializing
     and validating the postprocessed input data of `PhotometryHandler.post`
     and `PhotometryHandler.put` and for generating the API docs of
