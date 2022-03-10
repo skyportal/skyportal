@@ -35,6 +35,7 @@ from .observation import (
     ObservationASCIIFileHandler,
     ObservationHandler,
     ObservationGCNHandler,
+    ObservationTreasureMapHandler,
     ObservationExternalAPIHandler,
 )
 from .observingrun import ObservingRunHandler
