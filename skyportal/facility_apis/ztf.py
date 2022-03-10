@@ -31,7 +31,7 @@ else:
 ZTF_FORCED_URL = cfg['app.ztf_forced_endpoint']
 
 bands = {'g': 1, 'ztfg': 1, 'r': 1, 'ztfr': 2, 'i': 3, 'ztfi': 3}
-inv_bands = {v: k for k, v in bands.items()}
+inv_bands = {1: 'ztfg', 2: 'ztfr', 3: 'ztfi'}
 
 log = make_log('facility_apis/ztf')
 
@@ -185,7 +185,7 @@ class ZTFRequest:
         return json_data
 
 
-def commit_photometry(url, altdata, df_request, request_id, instrument_id):
+def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_id):
     """
     Commits ZTF forced photometry to the database
 
@@ -201,12 +201,15 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id):
         FollowupRequest SkyPortal ID
     instrument_id : int
         Instrument SkyPortal ID
+    user_id: int
+        User SkyPortal ID
     """
 
     from ..models import (
         DBSession,
         FollowupRequest,
         Instrument,
+        User,
     )
 
     Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
@@ -215,6 +218,8 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id):
     try:
         request = session.query(FollowupRequest).get(request_id)
         instrument = session.query(Instrument).get(instrument_id)
+        user = session.query(User).get(user_id)
+
         r = requests.get(
             url,
             auth=HTTPBasicAuth(
@@ -279,7 +284,7 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id):
         data_out = {
             'obj_id': request.obj_id,
             'instrument_id': instrument.id,
-            'group_ids': 'all',
+            'group_ids': [g.id for g in user.accessible_groups],
             **df.to_dict(orient='list'),
         }
 
@@ -371,7 +376,7 @@ class ZTFAPI(FollowUpAPI):
         Parameters
         ----------
         request : skyportal.models.FollowupRequest
-            The request to add to the queue and the SkyPortal database.
+            The request to retrieve ZTF forced photometry.
         """
 
         from ..models import (
@@ -464,7 +469,12 @@ class ZTFAPI(FollowUpAPI):
                     IOLoop.current().run_in_executor(
                         None,
                         lambda: commit_photometry(
-                            dataurl, altdata, df_request, req.id, instrument.id
+                            dataurl,
+                            altdata,
+                            df_request,
+                            req.id,
+                            instrument.id,
+                            request.requester.id,
                         ),
                     )
         else:

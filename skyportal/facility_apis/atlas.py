@@ -68,7 +68,7 @@ class ATLASRequest:
         return target
 
 
-def commit_photometry(json_response, altdata, request_id, instrument_id):
+def commit_photometry(json_response, altdata, request_id, instrument_id, user_id):
     """
     Commits ATLAS photometry to the database
 
@@ -82,12 +82,15 @@ def commit_photometry(json_response, altdata, request_id, instrument_id):
         FollowupRequest SkyPortal ID
     instrument_id : int
         Instrument SkyPortal ID
+    user_id: int
+        User SkyPortal ID
     """
 
     from ..models import (
         DBSession,
         FollowupRequest,
         Instrument,
+        User,
     )
 
     Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
@@ -96,6 +99,7 @@ def commit_photometry(json_response, altdata, request_id, instrument_id):
     try:
         request = session.query(FollowupRequest).get(request_id)
         instrument = session.query(Instrument).get(instrument_id)
+        user = session.query(User).get(user_id)
 
         result_url = json_response['result_url']
         request.status = f"Task is complete with results available at {result_url}"
@@ -175,7 +179,7 @@ def commit_photometry(json_response, altdata, request_id, instrument_id):
         data_out = {
             'obj_id': request.obj_id,
             'instrument_id': instrument.id,
-            'group_ids': 'all',
+            'group_ids': [g.id for g in user.accessible_groups],
             **df.to_dict(orient='list'),
         }
 
@@ -269,7 +273,11 @@ class ATLASAPI(FollowUpAPI):
                 IOLoop.current().run_in_executor(
                     None,
                     lambda: commit_photometry(
-                        json_response, altdata, req.id, instrument.id
+                        json_response,
+                        altdata,
+                        req.id,
+                        instrument.id,
+                        request.requester.id,
                     ),
                 )
                 req.status = "Committing photometry to database"
