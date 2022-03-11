@@ -646,7 +646,7 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     {
                         'type': 'Feature',
                         'geometry': {
-                            'type': 'MultiLineString',
+                            'type': 'LineString',
                             'coordinates': geometry_summary,
                         },
                     },

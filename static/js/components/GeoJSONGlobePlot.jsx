@@ -168,19 +168,18 @@ const GeoJSONGlobePlot = ({ skymap, sources, galaxies, instrument }) => {
       }
 
       if (instrument?.fields) {
-        for (let z = 0; z < instrument.fields.length; z += 1) {
+        instrument.fields.forEach((f) => {
+          const { field_id } = f.contour_summary.properties;
+          const { features } = f.contour_summary;
           svg
-            .selectAll("path")
-            .data(instrument.fields[z].contour_summary.features)
-            .enter()
+            .data(features)
             .append("path")
-            .attr("class", (d) => d.properties.field_id)
-            .attr("fake", (d) => console.log(d))
-            .attr("d", geoGenerator)
+            .attr("class", field_id)
             .style("fill", "none")
-            .style("stroke", "black")
-            .style("stroke-width", "0.5px");
-        }
+            .style("stroke", "blue")
+            .style("stroke-width", "0.5px")
+            .attr("d", geoGenerator);
+        });
       }
     }
 
