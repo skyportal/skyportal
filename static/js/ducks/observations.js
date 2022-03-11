@@ -21,6 +21,8 @@ const UPLOAD_OBSERVATIONS = "skyportal/UPLOAD_OBSERVATIONS";
 
 const REFRESH_OBSERVATIONS = "skyportal/REFRESH_OBSERVATIONS";
 
+const REQUEST_API_OBSERVATIONS = "skyportal/REQUEST_API_OBSERVATIONS";
+
 export const submitObservations = (params) =>
   API.POST(`/api/observation`, SUBMIT_OBSERVATIONS, params);
 
@@ -42,6 +44,14 @@ export function fetchObservations(filterParams = {}) {
 
 export function uploadObservations(data) {
   return API.POST(`/api/observation/ascii`, UPLOAD_OBSERVATIONS, data);
+}
+
+export function requestAPIObservations(data) {
+  return API.POST(
+    `/api/observation/external_api`,
+    REQUEST_API_OBSERVATIONS,
+    data
+  );
 }
 
 // Websocket message handler

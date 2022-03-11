@@ -52,6 +52,8 @@ app:
     protocol: http
     host: herculesii.astro.berkeley.edu
 
+  treasuremap_endpoint: http://treasuremap.space
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
@@ -92,6 +94,8 @@ app:
       component: AllocationPage
     - path: "/observations"
       component: ObservationPage
+    - path: "/followup_requests"
+      component: FollowupRequestPage
     - path: "/group_sources/:id"
       component: GroupSources
     - path: "/user_management"
@@ -161,6 +165,10 @@ app:
     - name: Observations
       icon: ZoomInOutlined
       url: /observations
+
+    - name: Followup Requests
+      icon: WorkOutlined
+      url: /followup_requests
 
     - name: Shifts
       icon: SubwayRounded

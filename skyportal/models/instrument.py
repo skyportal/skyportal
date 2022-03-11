@@ -126,6 +126,12 @@ class Instrument(Base):
         doc="The ExecutedObservations by this instrument.",
     )
 
+    treasuremap_id = sa.Column(
+        sa.Integer,
+        nullable=True,
+        doc="treasuremap.space API ID for this instrument",
+    )
+
     @property
     def does_spectroscopy(self):
         """Return a boolean indicating whether the instrument is capable of

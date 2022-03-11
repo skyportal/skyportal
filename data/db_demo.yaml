@@ -228,6 +228,7 @@ instrument:
     =id: ZTF
     api_classname: ZTFAPI
     api_classname_obsplan: ZTFMMAAPI
+    treasuremap_id: 47
     # field_data:
     #   file: ../data/ZTF_Fields.csv
     # field_region:
