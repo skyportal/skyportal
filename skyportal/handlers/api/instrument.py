@@ -408,6 +408,29 @@ InstrumentHandler.post.__doc__ = f"""
                         has no filters (e.g., because it is a spectrograph),
                         leave blank or pass the empty list.
                       default: []
+                    field_data:
+                      type: dict
+                      items:
+                        type: array
+                      description: |
+                        List of ID, RA, and Dec for each field.
+                    field_region:
+                      type: str
+                      description: |
+                        Serialized version of a regions.Region describing
+                        the shape of the instrument field
+                    field_fov_type:
+                      type: str
+                      description: |
+                        Option for instrument field shape. Must be either
+                        circle or rectangle.
+                    field_fov_attributes:
+                      type: list
+                      description: |
+                        Option for instrument field shape parameters.
+                        Single float radius in degrees in case of circle or
+                        list of two floats (height and width) in case of
+                        a rectangle.
         responses:
           200:
             content:
