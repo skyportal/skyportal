@@ -464,6 +464,7 @@ const SourceTable = ({
                 >
                   <VegaFoldedPlot
                     dataUrl={`/api/sources/${source.id}/photometry?phaseFoldData=True`}
+                    sourceId={source.id}
                   />
                 </Suspense>
               )}

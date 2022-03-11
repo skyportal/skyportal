@@ -1,12 +1,13 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { isMobileOnly } from "react-device-detect";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
-import { isMobileOnly } from "react-device-detect";
+import * as photometryActions from "../ducks/photometry";
+import * as filterActions from "../ducks/filter";
+import wavelengthsToHex from "../wavelengthConverter";
 
-const getRandomColor = () =>
-  `#${Math.floor(Math.random() * 16777215).toString(16)}`;
-
-const spec = (url) => ({
+const spec = (url, colorScale) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   data: {
     url,
@@ -41,26 +42,6 @@ const spec = (url) => ({
             "join([format(datum.mag, '.2f'), ' ± ', format(datum.magerr, '.2f'), ' (', datum.magsys, ')'], '')",
           as: "magAndErr",
         },
-        {
-          calculate: `(indexof(datum.filter, 'ztfr') >= 0
-          ? "#dc3545"
-          : indexof(datum.filter, 'ztfi') >= 0
-            ? "#f3dc11"
-            : indexof(datum.filter, 'ztfg') >= 0
-              ? "#28a745"
-              : indexof(datum.filter, 'AllWISE') >= 0
-                ? "#2f5492"
-                : indexof(datum.filter, 'Gaia_EDR3') >= 0
-                  ? "#ff7f0e"
-                  : indexof(datum.filter, 'PS1_DR1') >= 0
-                    ? "#3bbed5"
-                    : indexof(datum.filter, 'GALEX') >= 0
-                      ? "#6607c2"
-                      : indexof(datum.filter, 'TNX') >= 0
-                        ? "#ed6cf6"
-                        : "${getRandomColor()}")`,
-          as: "plcolor",
-        },
       ],
       encoding: {
         x: {
@@ -88,7 +69,7 @@ const spec = (url) => ({
         color: {
           field: "filter",
           type: "nominal",
-          scale: { range: { field: "plcolor" } },
+          scale: colorScale,
         },
         tooltip: [
           { field: "magAndErr", title: "mag", type: "nominal" },
@@ -208,12 +189,46 @@ const spec = (url) => ({
 });
 
 const VegaFoldedPlot = React.memo((props) => {
-  const { dataUrl } = props;
+  const { dataUrl, sourceId } = props;
+  const dispatch = useDispatch();
+  const photometry = useSelector((state) => state.photometry[sourceId]);
+
+  useEffect(() => {
+    if (!photometry) {
+      dispatch(photometryActions.fetchSourcePhotometry(sourceId));
+    }
+  }, [sourceId, photometry, dispatch]);
+
+  const filters = photometry
+    ? [...new Set(photometry.map((datum) => datum.filter))]
+    : null;
+  const [wavelengths, setWavelengths] = useState([]);
+  useEffect(() => {
+    const getWavelengths = async () => {
+      const result = await dispatch(
+        filterActions.fetchFilterWavelengths(filters)
+      );
+      if (result.status === "success") {
+        setWavelengths(
+          wavelengthsToHex(
+            result.data.wavelengths.map((wavelength) => wavelength / 10)
+          )
+        );
+      }
+    };
+    if (filters) {
+      getWavelengths();
+    }
+  }, [photometry]);
+  const colorScale = {
+    domain: filters,
+    range: wavelengths,
+  };
   return (
     <div
       ref={(node) => {
         if (node) {
-          embed(node, spec(dataUrl), {
+          embed(node, spec(dataUrl, colorScale), {
             actions: false,
           });
         }
@@ -224,6 +239,7 @@ const VegaFoldedPlot = React.memo((props) => {
 
 VegaFoldedPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,
+  sourceId: PropTypes.string.isRequired,
 };
 
 VegaFoldedPlot.displayName = "VegaFoldedPlot";
