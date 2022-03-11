@@ -27,7 +27,7 @@ if __name__ == "__main__":
             }
         ]
         variables_taxonomy = yaml.load(
-            open("data/variable_taxonomy.yaml", 'r'), Loader=yaml.Loader
+            open("data/variable_taxonomy.yaml"), Loader=yaml.Loader
         )
         tax_obj.append(variables_taxonomy)
         yaml.dump(tax_obj, f)

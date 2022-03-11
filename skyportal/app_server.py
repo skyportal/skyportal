@@ -47,6 +47,7 @@ from skyportal.handlers.api import (
     ObjClassificationHandler,
     ObservationHandler,
     ObservationGCNHandler,
+    ObservationTreasureMapHandler,
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
     PhotometryRangeHandler,
@@ -152,6 +153,7 @@ skyportal_handlers = [
     (r'/api/observation(/[0-9]+)?', ObservationHandler),
     (r'/api/observation/ascii(/[0-9]+)?', ObservationASCIIFileHandler),
     (r'/api/observation/gcn(/[0-9]+)', ObservationGCNHandler),
+    (r'/api/observation/treasuremap(/[0-9]+)', ObservationTreasureMapHandler),
     (r'/api/observation/external_api(/[0-9]+)?', ObservationExternalAPIHandler),
     (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
     (r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)?', ObservationPlanRequestHandler),
@@ -353,7 +355,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     admin_token = model_util.provision_token()
     with open('.tokens.yaml', 'w') as f:
         f.write(f'INITIAL_ADMIN: {admin_token.id}\n')
-    with open('.tokens.yaml', 'r') as f:
+    with open('.tokens.yaml') as f:
         print('-' * 78)
         print('Tokens in .tokens.yaml:')
         print('\n'.join(f.readlines()), end='')
