@@ -58,7 +58,7 @@ class GcnNotice(Base):
 
     def _get_property(self, property_name, value=None):
         root = lxml.etree.fromstring(self.content)
-        path = ".//Param[@name='{}']".format(property_name)
+        path = f".//Param[@name='{property_name}']"
         elem = root.find(path)
         value = float(elem.attrib.get('value', '')) * 100
         return value
@@ -233,6 +233,19 @@ class GcnEvent(Base):
                 return elem.attrib.get('value', '')
             except Exception:
                 return None
+
+    @property
+    def graceid(self):
+        try:
+            notice = self.gcn_notices[0]
+        except IndexError:
+            return None
+        root = lxml.etree.fromstring(notice.content)
+        elem = root.find(".//Param[@name='GraceID']")
+        if elem is None:
+            return None
+        else:
+            return elem.attrib.get('value', '')
 
     @property
     def ned_gwf(self):

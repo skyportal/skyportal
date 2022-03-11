@@ -6,7 +6,11 @@ from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .db_stats import StatsHandler
 from .filter import FilterHandler
-from .followup_request import FollowupRequestHandler, AssignmentHandler
+from .followup_request import (
+    FollowupRequestHandler,
+    FollowupRequestSchedulerHandler,
+    AssignmentHandler,
+)
 from .facility_listener import FacilityMessageHandler
 from .galaxy import GalaxyCatalogHandler
 from .gcn import (
@@ -28,13 +32,16 @@ from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
 from .observation import (
-    ObservationHandler,
     ObservationASCIIFileHandler,
+    ObservationHandler,
+    ObservationGCNHandler,
+    ObservationTreasureMapHandler,
     ObservationExternalAPIHandler,
 )
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
     ObservationPlanRequestHandler,
+    ObservationPlanTreasureMapHandler,
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from skyportal.tests import api
 
 
@@ -162,3 +164,66 @@ def test_group1_user_cannot_see_group2_followup_request(
     status, data = api('GET', 'followup_request/', token=view_only_token)
     assert status == 200
     assert id not in [a['id'] for a in data['data']]
+
+
+def test_filter_followup_request(
+    public_group_sedm_allocation,
+    public_source,
+    upload_data_token,
+    view_only_token,
+):
+    request_data = {
+        'allocation_id': public_group_sedm_allocation.id,
+        'obj_id': public_source.id,
+        'payload': {
+            'priority': 5,
+            'start_date': '3020-09-01',
+            'end_date': '3022-09-01',
+            'observation_type': 'IFU',
+        },
+    }
+
+    time_before_post = datetime.utcnow().isoformat()
+    status, data = api(
+        'POST', 'followup_request', data=request_data, token=upload_data_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    params = {'startDate': time_before_post}
+
+    status, data = api(
+        "GET",
+        "followup_request",
+        params=params,
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert any([s['obj_id'] == public_source.id for s in data["data"]])
+
+    time_after_post = datetime.utcnow().isoformat()
+
+    params = {'startDate': time_after_post}
+
+    status, data = api(
+        "GET",
+        "followup_request",
+        params=params,
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert not any([s['obj_id'] == public_source.id for s in data["data"]])
+
+    params = {'sourceID': public_source.id}
+
+    status, data = api(
+        "GET",
+        "followup_request",
+        params=params,
+        token=view_only_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert any([s['obj_id'] == public_source.id for s in data["data"]])

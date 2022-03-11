@@ -21,7 +21,7 @@ def test_spectrum_read_directly_from_file(public_source, lris):
             instrument_id=instrument_id,
         )
 
-        answer = yaml.load(open(filename, 'r'), Loader=yaml.FullLoader)
+        answer = yaml.load(open(filename), Loader=yaml.FullLoader)
 
         # check the header serialization
         for key in answer:
