@@ -26,6 +26,8 @@ def upgrade():
         autoincrement=True,
     )
     op.add_column('instruments', sa.Column('region', sa.String(), nullable=True))
+    op.execute('create sequence "public"."seq_field_id";')
+
     # ### end Alembic commands ###
 
 
