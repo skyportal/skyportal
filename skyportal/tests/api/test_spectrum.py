@@ -503,7 +503,7 @@ def test_jsonify_spectrum_header(
     upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
     for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii.head'):
-        with open(filename[:-5], 'r') as f:
+        with open(filename[:-5]) as f:
             status, data = api(
                 'POST',
                 'spectrum/parse/ascii',
@@ -520,7 +520,7 @@ def test_jsonify_spectrum_header(
         assert status == 200
         assert data['status'] == 'success'
 
-        answer = yaml.load(open(filename, 'r'), Loader=yaml.FullLoader)
+        answer = yaml.load(open(filename), Loader=yaml.FullLoader)
 
         # check the header serialization
         for key in answer:
@@ -597,7 +597,7 @@ def test_jsonify_spectrum_data(
     upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
     for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii'):
-        with open(filename, 'r') as f:
+        with open(filename) as f:
             status, data = api(
                 'POST',
                 'spectrum/parse/ascii',
@@ -652,7 +652,7 @@ def test_upload_bad_spectrum_from_ascii_file(
     upload_data_token, manage_sources_token, public_source, public_group, lris
 ):
     for filename in glob(f'{os.path.dirname(__file__)}/../data/ZTF*.ascii.bad'):
-        with open(filename, 'r') as f:
+        with open(filename) as f:
             content = f.read()
             observed_at = str(datetime.datetime.now())
 

@@ -1543,7 +1543,7 @@ def test_submit_new_followup_request_two_groups(
     filename = glob.glob(
         f'{os.path.dirname(__file__)}/../data/ZTF20abwdwoa_20200902_P60_v1.ascii'
     )[0]
-    with open(filename, 'r') as f:
+    with open(filename) as f:
         ascii = f.read()
 
     status, data = api(
