@@ -34,12 +34,6 @@ const useStyles = makeStyles((theme) => ({
     top: 0,
   },
   allocationDeleteDisabled: {
-    cursor: "pointer",
-    fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
     opacity: 0,
   },
 }));
