@@ -136,6 +136,7 @@ class Instrument(Base):
         sa.Column(
             sa.String, nullable=True, doc="Instrument astropy.regions representation."
         )
+    )
 
     @property
     def does_spectroscopy(self):
