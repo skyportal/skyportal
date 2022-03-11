@@ -213,7 +213,7 @@ app:
     #
     # The props property should be a set of properties to be passed on to the
     # underlying React component for the widget. You may run into cases in which
-    # you must pass a more complex, dyamic property (perhaps fetched from the
+    # you must pass a more complex, dynamic property (perhaps fetched from the
     # application redux store). Since you can not know that in the time of the
     # configuration writing, such properties should be directly coded into the
     # HomePage.jsx.template file (see the GroupList widget for an example)
@@ -311,11 +311,11 @@ app:
       resizeable: true
       minW: 3
       layouts:
-        xlg: [5, 3, 5, 2]
-        lg: [4, 3, 5, 2]
-        md: [5, 6, 5, 2]
-        sm: [0, 7, 6, 2]
-        xs: [0, 13, 4, 2]
+        xlg: [10, 0, 4, 3]
+        lg: [7, 0, 3, 3]
+        md: [0, 0, 8, 3]
+        sm: [0, 0, 4.5, 3]
+        xs: [0, 1, 4, 3]
 
 database:
   database: skyportal
