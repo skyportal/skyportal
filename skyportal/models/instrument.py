@@ -132,6 +132,10 @@ class Instrument(Base):
         doc="treasuremap.space API ID for this instrument",
     )
 
+    region = sa.Column(
+        sa.String, nullable=True, doc="Instrument astropy.regions representation."
+    )
+
     @property
     def does_spectroscopy(self):
         """Return a boolean indicating whether the instrument is capable of
