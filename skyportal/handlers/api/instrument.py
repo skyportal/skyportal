@@ -74,7 +74,7 @@ class InstrumentHandler(BaseHandler):
 
         if field_data is not None:
             if field_region is None:
-                return self.error('`field_region` is required with field_data')
+                return self.error('field_region is required with field_data')
 
             if type(field_data) is str:
                 field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
@@ -234,8 +234,17 @@ class InstrumentHandler(BaseHandler):
 
         # permission check
         instrument = Instrument.get_if_accessible_by(
-            int(instrument_id), self.current_user, raise_if_none=True, mode='update'
+            int(instrument_id), self.current_user, mode='update'
         )
+        if instrument is None:
+            return self.error(f'Missing instrument with ID {instrument_id}')
+
+        field_data = data.pop("field_data", None)
+        field_region = data.pop("field_region", None)
+
+        if field_region is not None:
+            regions = Regions.parse(field_region, format='ds9')
+            data['region'] = regions.serialize(format='ds9')
 
         field_data = data.pop("field_data", None)
         field_region = data.pop("field_region", None)
@@ -251,8 +260,7 @@ class InstrumentHandler(BaseHandler):
 
         if field_data is not None:
             if field_region is None:
-                return self.error('`field_region` is required with field_data')
-            regions = Regions.parse(field_region, format='ds9')
+                return self.error('field_region is required with field_data')
 
             if type(field_data) is str:
                 field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(

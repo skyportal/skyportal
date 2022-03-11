@@ -14,6 +14,7 @@ from skyportal.handlers.api import (
     ClassificationHandler,
     CommentHandler,
     CommentAttachmentHandler,
+    EnumTypesHandler,
     AnnotationHandler,
     FilterHandler,
     FollowupRequestHandler,
@@ -127,6 +128,7 @@ skyportal_handlers = [
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
+    (r'/api/enum_types(/.*)?', EnumTypesHandler),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
     (r'/api/followup_request/schedule(/[0-9]+)', FollowupRequestSchedulerHandler),
@@ -353,7 +355,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     admin_token = model_util.provision_token()
     with open('.tokens.yaml', 'w') as f:
         f.write(f'INITIAL_ADMIN: {admin_token.id}\n')
-    with open('.tokens.yaml', 'r') as f:
+    with open('.tokens.yaml') as f:
         print('-' * 78)
         print('Tokens in .tokens.yaml:')
         print('\n'.join(f.readlines()), end='')

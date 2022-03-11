@@ -5,6 +5,7 @@ from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .db_stats import StatsHandler
+from .enum_types import EnumTypesHandler
 from .filter import FilterHandler
 from .followup_request import (
     FollowupRequestHandler,
