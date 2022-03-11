@@ -219,6 +219,7 @@ const RunSummary = ({ route }) => {
               <Suspense fallback={<div>Loading plot...</div>}>
                 <VegaPlot
                   dataUrl={`/api/sources/${assignment.obj.id}/photometry`}
+                  sourceId={assignment.obj.id}
                 />
               </Suspense>
             </Grid>

@@ -445,7 +445,10 @@ const SourceTable = ({
                     </div>
                   }
                 >
-                  <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
+                  <VegaPlot
+                    dataUrl={`/api/sources/${source.id}/photometry`}
+                    sourceId={source.id}
+                  />
                 </Suspense>
               )}
               {!source.photometry_exists && <div> no photometry exists </div>}

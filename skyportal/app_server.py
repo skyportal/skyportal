@@ -93,6 +93,7 @@ from skyportal.handlers.api.internal import (
     NotificationHandler,
     BulkNotificationHandler,
     RecentGcnEventsHandler,
+    FilterWavelengthHandler,
 )
 
 from . import model_util, openapi
@@ -218,6 +219,7 @@ skyportal_handlers = [
     (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
     (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
     (r'/api/internal/standards', StandardsHandler),
+    (r'/api/internal/wavelengths', FilterWavelengthHandler),
     (r'/api/internal/plot/airmass/assignment/(.*)', PlotAssignmentAirmassHandler),
     (
         r'/api/internal/plot/airmass/objtel/(.*)/([0-9]+)',
