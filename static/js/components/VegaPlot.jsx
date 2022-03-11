@@ -216,7 +216,11 @@ const VegaPlot = React.memo((props) => {
         filterActions.fetchFilterWavelengths(filters)
       );
       if (result.status === "success") {
-        setWavelengths(wavelengthsToHex(result.data.wavelengths));
+        setWavelengths(
+          wavelengthsToHex(
+            result.data.wavelengths.map((wavelength) => wavelength / 10)
+          )
+        );
       }
     };
     if (filters) {
