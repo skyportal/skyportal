@@ -43,9 +43,9 @@ const NewInstrument = () => {
     );
   }
 
-  const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES];
+  const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES].sort();
   api_classnames.push("");
-  const filters = [...enum_types.ALLOWED_BANDPASSES];
+  const filters = [...enum_types.ALLOWED_BANDPASSES].sort();
 
   function validate(formData, errors) {
     instrumentList?.forEach((instrument) => {

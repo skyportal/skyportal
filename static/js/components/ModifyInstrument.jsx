@@ -119,15 +119,15 @@ const ModifyInstrument = () => {
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
-  // render to update it, so it can be null even if allocationList is not
+  // render to update it, so it can be null even if instruments is not
   // empty.
   if (!selectedInstrumentId) {
     return <h3>No instruments available...</h3>;
   }
 
-  const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES];
+  const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES].sort();
   api_classnames.push("");
-  const filters = [...enum_types.ALLOWED_BANDPASSES];
+  const filters = [...enum_types.ALLOWED_BANDPASSES].sort();
 
   if (telescopeList.length === 0 || instrumentList.length === 0) {
     return (

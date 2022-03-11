@@ -51,10 +51,10 @@ class EnumTypesHandler(BaseHandler):
                               description: list of allowed API classnames
         """
         data = {}
-        data["ALLOWED_SPECTRUM_TYPES"] = sorted(ALLOWED_SPECTRUM_TYPES)
-        data["ALLOWED_MAGSYSTEMS"] = sorted(ALLOWED_MAGSYSTEMS)
-        data["ALLOWED_BANDPASSES"] = sorted(ALLOWED_BANDPASSES)
-        data["THUMBNAIL_TYPES"] = sorted(THUMBNAIL_TYPES)
-        data["FOLLOWUP_PRIORITIES"] = sorted(FOLLOWUP_PRIORITIES)
-        data["ALLOWED_API_CLASSNAMES"] = sorted(ALLOWED_API_CLASSNAMES)
+        data["ALLOWED_SPECTRUM_TYPES"] = ALLOWED_SPECTRUM_TYPES
+        data["ALLOWED_MAGSYSTEMS"] = ALLOWED_MAGSYSTEMS
+        data["ALLOWED_BANDPASSES"] = ALLOWED_BANDPASSES
+        data["THUMBNAIL_TYPES"] = THUMBNAIL_TYPES
+        data["FOLLOWUP_PRIORITIES"] = FOLLOWUP_PRIORITIES
+        data["ALLOWED_API_CLASSNAMES"] = ALLOWED_API_CLASSNAMES
         return self.success(data=data)
