@@ -6,6 +6,9 @@ import Form from "@rjsf/material-ui";
 import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
 import MenuItem from "@material-ui/core/MenuItem";
+import FormGroup from "@material-ui/core/FormGroup";
+import FormControlLabel from "@material-ui/core/FormControlLabel";
+import Checkbox from "@material-ui/core/Checkbox";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
@@ -13,14 +16,12 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import { filterOutEmptyValues } from "../API";
-import { fetchGcnEventSources } from "../ducks/sources";
-import {
-  fetchGcnEventObservations,
-  submitObservationsTreasureMap,
-  deleteObservationsTreasureMap,
-} from "../ducks/observations";
-import { fetchGcnEventGalaxies } from "../ducks/galaxies";
-import * as instrumentActions from "../ducks/instruments";
+import * as sourcesActions from "../ducks/sources";
+import * as observationsActions from "../ducks/observations";
+import * as galaxiesActions from "../ducks/galaxies";
+import * as instrumentsActions from "../ducks/instruments";
+
+import LocalizationPlot from "./LocalizationPlot";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -36,16 +37,41 @@ const useStyles = makeStyles(() => ({
   selectItem: {
     whiteSpace: "break-spaces",
   },
+  localizationSelect: {
+    width: "100%",
+  },
+  localizationSelectItem: {
+    whiteSpace: "break-spaces",
+  },
+  instrumentSelect: {
+    width: "100%",
+  },
+  instrumentSelectItem: {
+    whiteSpace: "break-spaces",
+  },
 }));
 
 const GcnSelectionForm = ({ gcnEvent }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
-  const { telescopeList } = useSelector((state) => state.telescopes);
-  const { instrumentList } = useSelector((state) => state.instruments);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const displayOptions = [
+    "localization",
+    "sources",
+    "galaxies",
+    "instrument",
+    "observations",
+  ];
+
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
+  const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] = useState(null);
+  const [isDeletingTreasureMap, setIsDeletingTreasureMap] = useState(null);
+  const [checkedState, setCheckedState] = useState(
+    new Array(displayOptions.length).fill(false)
+  );
+
   const defaultStartDate = dayjs(gcnEvent.dateobs).format(
     "YYYY-MM-DDTHH:mm:ssZ"
   );
@@ -57,7 +83,65 @@ const GcnSelectionForm = ({ gcnEvent }) => {
     endDate: defaultEndDate,
   });
 
-  const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] = useState(null);
+  const { telescopeList } = useSelector((state) => state.telescopes);
+
+  const gcnEventSources = useSelector(
+    (state) => state?.sources?.gcnEventSources
+  );
+  const gcnEventGalaxies = useSelector(
+    (state) => state?.galaxies?.gcnEventGalaxies
+  );
+
+  const gcnEventObservations = useSelector(
+    (state) => state?.observations?.gcnEventObservations
+  );
+
+  const gcnEventInstruments = useSelector(
+    (state) => state?.instruments?.gcnEventInstruments
+  );
+
+  useEffect(() => {
+    const getInstruments = async () => {
+      // Wait for the allocations to update before setting
+      // the new default form fields, so that the instruments list can
+      // update
+
+      const result = await dispatch(
+        instrumentsActions.fetchGcnEventInstruments(gcnEvent.dateobs)
+      );
+
+      const { data } = result;
+      setSelectedInstrumentId(data[0]?.id);
+      setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
+    };
+
+    getInstruments();
+
+    // Don't want to reset everytime the component rerenders and
+    // the defaultStartDate is updated, so ignore ESLint here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, setSelectedInstrumentId, setSelectedLocalizationId, gcnEvent]);
+
+  // need to check both of these conditions as selectedInstrumentId is
+  // initialized to be null and useEffect is not called on the first
+  // render to update it, so it can be null even if allocationList is not
+  // empty.
+  if (
+    gcnEventInstruments.length === 0 ||
+    !selectedInstrumentId ||
+    gcnEvent.localizations.length === 0 ||
+    !selectedLocalizationId
+  ) {
+    return <h3>Fetching skymap...</h3>;
+  }
+
+  const handleOnChange = (position) => {
+    const updatedCheckedState = checkedState.map((item, index) =>
+      index === position ? !item : item
+    );
+    setCheckedState(updatedCheckedState);
+  };
+
   const handleSubmitTreasureMap = async (id, filterParams) => {
     setIsSubmittingTreasureMap(id);
     const data = {
@@ -67,11 +151,10 @@ const GcnSelectionForm = ({ gcnEvent }) => {
       localizationName: filterParams.localizationName,
       localizationDateobs: filterParams.localizationDateobs,
     };
-    await dispatch(submitObservationsTreasureMap(id, data));
+    await dispatch(observationsActions.submitObservationsTreasureMap(id, data));
     setIsSubmittingTreasureMap(null);
   };
 
-  const [isDeletingTreasureMap, setIsDeletingTreasureMap] = useState(null);
   const handleDeleteTreasureMap = async (id, filterParams) => {
     setIsDeletingTreasureMap(id);
     const data = {
@@ -81,36 +164,55 @@ const GcnSelectionForm = ({ gcnEvent }) => {
       localizationName: filterParams.localizationName,
       localizationDateobs: filterParams.localizationDateobs,
     };
-    await dispatch(deleteObservationsTreasureMap(id, data));
+    await dispatch(observationsActions.deleteObservationsTreasureMap(id, data));
     setIsDeletingTreasureMap(null);
   };
 
-  useEffect(() => {
-    const getInstruments = async () => {
-      // Wait for the allocations to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
+  const handleSubmit = async ({ formData }) => {
+    setIsSubmitting(true);
+    formData.startDate = formData.startDate.replace("+00:00", "");
+    formData.endDate = formData.endDate.replace("+00:00", "");
+    dispatch(sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData));
+    formData.includeGeoJSON = true;
+    dispatch(
+      observationsActions.fetchGcnEventObservations(gcnEvent.dateobs, formData)
+    );
+    dispatch(galaxiesActions.fetchGcnEventGalaxies(gcnEvent.dateobs, formData));
+    dispatch(
+      instrumentsActions.fetchGcnEventInstruments(gcnEvent.dateobs, formData)
+    );
+    setFormDataState(formData);
+    setIsSubmitting(false);
+  };
 
-      const result = await dispatch(instrumentActions.fetchInstruments());
-
-      const { data } = result;
-      setSelectedInstrumentId(data[0]?.id);
-    };
-
-    getInstruments();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedInstrumentId]);
-
-  if (
-    instrumentList.length === 0 ||
-    telescopeList.length === 0 ||
-    !selectedInstrumentId
-  ) {
+  if (telescopeList.length === 0) {
     return <p>No robotic followup requests for this source...</p>;
   }
+
+  if (
+    !gcnEvent ||
+    !gcnEventSources ||
+    !gcnEventObservations ||
+    !gcnEventGalaxies ||
+    !gcnEventInstruments
+  ) {
+    return <CircularProgress />;
+  }
+
+  if (!gcnEvent.localizations || gcnEvent.localizations.length === 0) {
+    return <p>No skymaps available to display...</p>;
+  }
+
+  const instLookUp = {};
+  const instruments_with_contour = [];
+  gcnEventInstruments?.forEach((instrument) => {
+    if (instrument?.fields && instrument?.fields.length > 0) {
+      if (instrument.fields[0].contour_summary) {
+        instruments_with_contour.push(instrument);
+        instLookUp[instrument.id] = instrument;
+      }
+    }
+  });
 
   const telLookUp = {};
   // eslint-disable-next-line no-unused-expressions
@@ -118,8 +220,18 @@ const GcnSelectionForm = ({ gcnEvent }) => {
     telLookUp[tel.id] = tel;
   });
 
+  const locLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  gcnEvent.localizations?.forEach((loc) => {
+    locLookUp[loc.id] = loc;
+  });
+
   const handleSelectedInstrumentChange = (e) => {
     setSelectedInstrumentId(e.target.value);
+  };
+
+  const handleSelectedLocalizationChange = (e) => {
+    setSelectedLocalizationId(e.target.value);
   };
 
   function createUrl(instrumentId, queryParams) {
@@ -131,17 +243,6 @@ const GcnSelectionForm = ({ gcnEvent }) => {
     }
     return url;
   }
-
-  const handleSubmit = async ({ formData }) => {
-    setIsSubmitting(true);
-    formData.startDate = formData.startDate.replace("+00:00", "");
-    formData.endDate = formData.endDate.replace("+00:00", "");
-    await dispatch(fetchGcnEventSources(gcnEvent.dateobs, formData));
-    await dispatch(fetchGcnEventObservations(gcnEvent.dateobs, formData));
-    await dispatch(fetchGcnEventGalaxies(gcnEvent.dateobs, formData));
-    setFormDataState(formData);
-    setIsSubmitting(false);
-  };
 
   function validate(formData, errors) {
     if (formData.start_date > formData.end_date) {
@@ -181,25 +282,77 @@ const GcnSelectionForm = ({ gcnEvent }) => {
         title: "Cumulative Probability",
         default: 0.95,
       },
-      localizationName: {
-        type: "string",
-        title: "Localization Date Obs.",
-        oneOf: gcnEvent.localizations?.map((localization) => ({
-          enum: [localization?.localization_name],
-          title: `${localization.localization_name}`,
-        })),
-      },
     },
-    required: [
-      "startDate",
-      "endDate",
-      "localizationCumprob",
-      "localizationName",
-    ],
+    required: ["startDate", "endDate", "localizationCumprob"],
   };
 
   return (
     <div>
+      <div>
+        <LocalizationPlot
+          loc={locLookUp[selectedLocalizationId]}
+          sources={gcnEventSources}
+          galaxies={gcnEventGalaxies}
+          instrument={instLookUp[selectedInstrumentId]}
+          observations={gcnEventObservations}
+          options={checkedState}
+        />
+      </div>
+      <div>
+        <InputLabel id="allocationSelectLabel">Localization</InputLabel>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="localizationSelectLabel"
+          value={selectedLocalizationId || ""}
+          onChange={handleSelectedLocalizationChange}
+          name="gcnPageLocalizationSelect"
+          className={classes.localizationSelect}
+        >
+          {gcnEvent.localizations?.map((localization) => (
+            <MenuItem
+              value={localization.id}
+              key={localization.id}
+              className={classes.localizationSelectItem}
+            >
+              {`${localization.localization_name}`}
+            </MenuItem>
+          ))}
+        </Select>
+      </div>
+      <div>
+        <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="instrumentSelectLabel"
+          value={selectedInstrumentId || ""}
+          onChange={handleSelectedInstrumentChange}
+          name="gcnPageInstrumentSelect"
+          className={classes.instrumentSelect}
+        >
+          {instruments_with_contour?.map((instrument) => (
+            <MenuItem
+              value={instrument.id}
+              key={instrument.id}
+              className={classes.instrumentSelectItem}
+            >
+              {`${telLookUp[instrument.telescope_id].name} / ${
+                instrument.name
+              }`}
+            </MenuItem>
+          ))}
+        </Select>
+      </div>
+      <div>
+        <FormGroup>
+          {displayOptions.map((option, index) => (
+            <FormControlLabel
+              control={<Checkbox onChange={() => handleOnChange(index)} />}
+              label={option}
+              key={option}
+            />
+          ))}
+        </FormGroup>
+      </div>
       <div data-testid="gcnsource-selection-form">
         <Form
           schema={GcnSourceSelectionFormSchema}
@@ -215,40 +368,17 @@ const GcnSelectionForm = ({ gcnEvent }) => {
           </div>
         )}
       </div>
-      <div>
-        <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="instrumentSelectLabel"
-          value={selectedInstrumentId}
-          onChange={handleSelectedInstrumentChange}
-          name="followupRequestInstrumentSelect"
-          className={classes.select}
-        >
-          {instrumentList?.map((instrument) => (
-            <MenuItem
-              value={instrument.id}
-              key={instrument.id}
-              className={classes.selectItem}
-            >
-              {`${telLookUp[instrument.telescope_id].name} / ${
-                instrument.name
-              }`}
-            </MenuItem>
-          ))}
-        </Select>
-        <Button
-          href={`${url}`}
-          download={`observationGcn-${selectedInstrumentId}`}
-          size="small"
-          color="primary"
-          type="submit"
-          variant="outlined"
-          data-testid={`observationGcn_${selectedInstrumentId}`}
-        >
-          GCN
-        </Button>
-      </div>
+      <Button
+        href={`${url}`}
+        download={`observationGcn-${selectedInstrumentId}`}
+        size="small"
+        color="primary"
+        type="submit"
+        variant="outlined"
+        data-testid={`observationGcn_${selectedInstrumentId}`}
+      >
+        GCN
+      </Button>
       {isSubmittingTreasureMap === selectedInstrumentId ? (
         <div>
           <CircularProgress />

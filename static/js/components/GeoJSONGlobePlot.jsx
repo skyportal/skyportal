@@ -13,12 +13,14 @@ const useD3 = (
   skymap,
   sources,
   galaxies,
-  instrument
+  instrument,
+  observations,
+  options
 ) => {
   const svgRef = useRef();
 
   useEffect(() => {
-    if (skymap || sources || galaxies || instrument) {
+    if (skymap || sources || galaxies || instrument || observations) {
       renderer(
         d3.select(svgRef.current),
         height,
@@ -26,15 +28,35 @@ const useD3 = (
         skymap,
         sources,
         galaxies,
-        instrument
+        instrument,
+        observations,
+        options
       );
     }
-  }, [renderer, svgRef, skymap, sources, galaxies, instrument, height, width]);
+  }, [
+    renderer,
+    svgRef,
+    skymap,
+    sources,
+    galaxies,
+    instrument,
+    observations,
+    options,
+    height,
+    width,
+  ]);
 
   return svgRef;
 };
 
-const GeoJSONGlobePlot = ({ skymap, sources, galaxies, instrument }) => {
+const GeoJSONGlobePlot = ({
+  skymap,
+  sources,
+  galaxies,
+  instrument,
+  observations,
+  options,
+}) => {
   function renderMap(
     svg,
     height,
@@ -46,7 +68,11 @@ const GeoJSONGlobePlot = ({ skymap, sources, galaxies, instrument }) => {
     // eslint-disable-next-line
     galaxies,
     // eslint-disable-next-line
-    instrument
+    instrument,
+    // eslint-disable-next-line
+    observations,
+    // eslint-disable-next-line
+    options
   ) {
     const center = [width / 2, height / 2];
     const projection = d3.geoOrthographic().translate(center).scale(100);
@@ -92,7 +118,7 @@ const GeoJSONGlobePlot = ({ skymap, sources, galaxies, instrument }) => {
         .style("stroke-width", "0.5px")
         .attr("d", geoGenerator);
 
-      if (skymap?.features) {
+      if (skymap?.features && options[0]) {
         svg
           .selectAll("path")
           .data(skymap.features)
@@ -105,7 +131,7 @@ const GeoJSONGlobePlot = ({ skymap, sources, galaxies, instrument }) => {
           .style("stroke-width", "0.5px");
       }
 
-      if (sources?.features) {
+      if (sources?.features && options[1]) {
         svg
           .selectAll(".label")
           .data(sources.features)
@@ -136,7 +162,7 @@ const GeoJSONGlobePlot = ({ skymap, sources, galaxies, instrument }) => {
           .attr("r", 3);
       }
 
-      if (galaxies?.features) {
+      if (galaxies?.features && options[2]) {
         svg
           .selectAll(".label")
           .data(galaxies.features)
@@ -167,10 +193,25 @@ const GeoJSONGlobePlot = ({ skymap, sources, galaxies, instrument }) => {
           .attr("r", 3);
       }
 
-      if (instrument?.fields) {
+      if (instrument?.fields && options[3]) {
         instrument.fields.forEach((f) => {
           const { field_id } = f.contour_summary.properties;
           const { features } = f.contour_summary;
+          svg
+            .data(features)
+            .append("path")
+            .attr("class", field_id)
+            .style("fill", "none")
+            .style("stroke", "blue")
+            .style("stroke-width", "0.5px")
+            .attr("d", geoGenerator);
+        });
+      }
+
+      if (observations && options[4]) {
+        observations.forEach((f) => {
+          const { field_id } = f.properties;
+          const { features } = f;
           svg
             .data(features)
             .append("path")
@@ -188,16 +229,19 @@ const GeoJSONGlobePlot = ({ skymap, sources, galaxies, instrument }) => {
   }
   const svgRef = useD3(
     renderMap,
-    300,
-    300,
+    600,
+    600,
     skymap,
     sources,
     galaxies,
-    instrument
+    instrument,
+    observations,
+    options
   );
 
-  return <svg height={300} width={300} ref={svgRef} />;
+  return <svg height={600} width={600} ref={svgRef} />;
 };
+
 GeoJSONGlobePlot.propTypes = {
   skymap: GeoPropTypes.FeatureCollection.isRequired,
   sources: GeoPropTypes.FeatureCollection.isRequired,
@@ -216,6 +260,12 @@ GeoJSONGlobePlot.propTypes = {
       })
     ),
   }).isRequired,
+  observations: PropTypes.arrayOf(GeoPropTypes.FeatureCollection).isRequired,
+  options: PropTypes.arrayOf(PropTypes.number),
+};
+
+GeoJSONGlobePlot.defaultProps = {
+  options: [false, false, false, false, false],
 };
 
 export { useD3 };

@@ -67,7 +67,6 @@ messageHandler.add((actionType, payload, dispatch) => {
 
 export function fetchGcnEventObservations(dateobs, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
-  filterParams.includeGeoJSON = true;
 
   if (!Object.keys(filterParams).includes("startDate")) {
     if (dateobs) {

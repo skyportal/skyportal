@@ -53,7 +53,7 @@ const ObservationPage = () => {
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Observations</Typography>
-            <ObservationList observations={observations} />
+            <ObservationList observations={observations.observations} />
           </div>
         </Paper>
       </Grid>
