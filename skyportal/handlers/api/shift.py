@@ -24,7 +24,18 @@ class ShiftHandler(BaseHandler):
         requestBody:
           content:
             application/json:
-              schema: ShiftNoID
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ShiftNoID'
+                  - type: object
+                    properties:
+                      shift_admins:
+                        type: array
+                        items:
+                          type: integer
+                        description: |
+                          List of IDs of users to be shift admins. Current user will
+                          automatically be added as a shift admin.
         responses:
           200:
             content:
