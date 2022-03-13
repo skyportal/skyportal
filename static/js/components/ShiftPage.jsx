@@ -34,12 +34,6 @@ const useStyles = makeStyles((theme) => ({
     top: 0,
   },
   shiftDeleteDisabled: {
-    cursor: "pointer",
-    fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
     opacity: 0,
   },
   participateButton: {
@@ -239,6 +233,7 @@ const ShiftPage = () => {
 };
 
 ShiftList.propTypes = {
+  // eslint-disable-next-line react/forbid-prop-types
   shifts: PropTypes.arrayOf(PropTypes.any).isRequired,
   deletePermission: PropTypes.bool.isRequired,
   currentUser: PropTypes.shape({

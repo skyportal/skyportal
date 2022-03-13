@@ -1,6 +1,8 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Form from "@rjsf/material-ui";
+import CircularProgress from "@material-ui/core/CircularProgress";
+import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { submitInstrument } from "../ducks/instrument";
 import { fetchInstruments } from "../ducks/instruments";
@@ -8,11 +10,23 @@ import { fetchInstruments } from "../ducks/instruments";
 const NewInstrument = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
+  const { enum_types } = useSelector((state) => state.enum_types);
   const dispatch = useDispatch();
 
   const handleSubmit = async ({ formData }) => {
-    if (formData.group_id === -1) {
-      delete formData.group_id;
+    if (Object.keys(formData).includes("api_classname")) {
+      // eslint-disable-next-line prefer-destructuring
+      formData.api_classname = formData.api_classname[0];
+    }
+    if (Object.keys(formData).includes("api_classname_obsplan")) {
+      // eslint-disable-next-line prefer-destructuring
+      formData.api_classname_obsplan = formData.api_classname_obsplan[0];
+    }
+    if (Object.keys(formData).includes("field_data")) {
+      formData.field_data = dataUriToBuffer(formData.field_data).toString();
+    }
+    if (Object.keys(formData).includes("field_region")) {
+      formData.field_region = dataUriToBuffer(formData.field_region).toString();
     }
     const result = await dispatch(submitInstrument(formData));
     if (result.status === "success") {
@@ -21,31 +35,17 @@ const NewInstrument = () => {
     }
   };
 
-  const api_classnames = [];
-  instrumentList?.forEach((instrument) => {
-    if (instrument.api_classname) {
-      api_classnames.push({
-        enum: [instrument.api_classname],
-        title: instrument.api_classname,
-      });
-    }
-  });
-  api_classnames.push({ enum: [""], title: "No API" });
+  if (enum_types.length === 0) {
+    return (
+      <div>
+        <CircularProgress color="secondary" />
+      </div>
+    );
+  }
 
-  const filters = [];
-  instrumentList?.forEach((instrument) => {
-    instrument.filters?.forEach((filter) => {
-      filters.push(filter);
-    });
-  });
-  const filtersUnique = [...new Set(filters)];
-
-  const uiSchema = {
-    filters: {
-      "ui:widget": "checkboxes",
-      "ui:column": "is-6",
-    },
-  };
+  const api_classnames = [...enum_types.ALLOWED_API_CLASSNAMES].sort();
+  api_classnames.push("");
+  const filters = [...enum_types.ALLOWED_BANDPASSES].sort();
 
   function validate(formData, errors) {
     instrumentList?.forEach((instrument) => {
@@ -53,6 +53,16 @@ const NewInstrument = () => {
         errors.name.addError("Instrument name matches another, please change.");
       }
     });
+    if (errors && formData.api_classname && formData.api_classname.length > 1) {
+      errors.api_classname.addError("Must only choose one API class.");
+    }
+    if (
+      errors &&
+      formData.api_classname_obsplan &&
+      formData.api_classname_obsplan.length > 1
+    ) {
+      errors.api_classname_obsplan.addError("Must only choose one API class.");
+    }
     return errors;
   }
 
@@ -80,7 +90,7 @@ const NewInstrument = () => {
         type: "array",
         items: {
           type: "string",
-          enum: filtersUnique,
+          enum: filters,
         },
         uniqueItems: true,
         title: "Filter list",
@@ -95,10 +105,34 @@ const NewInstrument = () => {
         default: telescopeList[0]?.id,
       },
       api_classname: {
-        type: "string",
-        anyOf: api_classnames,
+        type: "array",
+        items: {
+          type: "string",
+          enum: api_classnames,
+        },
+        uniqueItems: true,
         title: "API Classname",
-        default: api_classnames[0]?.enum,
+      },
+      api_classname_obsplan: {
+        type: "array",
+        items: {
+          type: "string",
+          enum: api_classnames,
+        },
+        uniqueItems: true,
+        title: "API Observation Plan Classname",
+      },
+      field_data: {
+        type: "string",
+        format: "data-url",
+        title: "Field data file",
+        description: "Field data file",
+      },
+      field_region: {
+        type: "string",
+        format: "data-url",
+        title: "Field region file",
+        description: "Field region file",
       },
     },
     required: ["name", "type", "band", "telescope_id"],
@@ -107,10 +141,10 @@ const NewInstrument = () => {
   return (
     <Form
       schema={instrumentFormSchema}
-      uiSchema={uiSchema}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
       validate={validate}
+      liveValidate
     />
   );
 };

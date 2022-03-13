@@ -46,9 +46,29 @@ def test_token_user_post_get_instrument(super_admin_token):
     )
     assert status == 200
     assert data['status'] == 'success'
+    instrument_id = data['data']['id']
+
+    params = {'includeGeoJSON': True}
 
     # wait for the fields to populate
-    time.sleep(15)
+    nretries = 0
+    fields_loaded = False
+    while not fields_loaded and nretries < 5:
+        try:
+            status, data = api(
+                'GET',
+                f'instrument/{instrument_id}',
+                params=params,
+                token=super_admin_token,
+            )
+            assert status == 200
+            assert data['status'] == 'success'
+            assert data['data']['band'] == 'NIR'
+            assert len(data['data']['fields']) == 5
+            fields_loaded = True
+        except AssertionError:
+            nretries = nretries + 1
+            time.sleep(3)
 
     params = {'includeGeoJSON': True}
 
@@ -67,6 +87,27 @@ def test_token_user_post_get_instrument(super_admin_token):
             d['field_id'] == 1
             and d['contour']['features'][0]['geometry']['coordinates'][0][0]
             == [110.84784299030288, -87.01522509948724]
+            for d in data['data']['fields']
+        ]
+    )
+
+    params = {'includeGeoJSONSummary': True}
+
+    instrument_id = data['data']['id']
+    status, data = api(
+        'GET', f'instrument/{instrument_id}', params=params, token=super_admin_token
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['band'] == 'NIR'
+
+    assert len(data['data']['fields']) == 5
+
+    assert any(
+        [
+            d['field_id'] == 1
+            and d['contour_summary']['features'][0]['geometry']['coordinates'][0]
+            == [1.0239199794587863, -89.93778080237439]
             for d in data['data']['fields']
         ]
     )

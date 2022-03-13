@@ -18,6 +18,9 @@ app:
                         # base64.b64encode(os.urandom(50)).decode('ascii')
   factory: skyportal.app_server.make_app
 
+  observation_plan:
+    default_filters: ['ztfg', 'ztfr', 'ztfi']
+
   # this endpoint does not actually do anything -- it is just for testing
   sedm_endpoint: http://pharos.caltech.edu/add_fritz
   sedmv2_endpoint:
@@ -34,6 +37,13 @@ app:
     host: skipper.caltech.edu
     port: 4000
 
+  swift:
+    protocol: https
+    host: www.swift.psu.edu
+    port: 443
+
+  ps1_endpoint: https://catalogs.mast.stsci.edu/
+
   atlas:
     protocol: https
     host: fallingstar-data.com
@@ -41,6 +51,8 @@ app:
   kait:
     protocol: http
     host: herculesii.astro.berkeley.edu
+
+  treasuremap_endpoint: http://treasuremap.space
 
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
@@ -80,6 +92,10 @@ app:
       component: ObservingRunPage
     - path: "/allocations"
       component: AllocationPage
+    - path: "/observations"
+      component: ObservationPage
+    - path: "/followup_requests"
+      component: FollowupRequestPage
     - path: "/group_sources/:id"
       component: GroupSources
     - path: "/user_management"
@@ -145,6 +161,14 @@ app:
     - name: Allocations
       icon: HourglassEmptyOutlined
       url: /allocations
+
+    - name: Observations
+      icon: ZoomInOutlined
+      url: /observations
+
+    - name: Followup Requests
+      icon: WorkOutlined
+      url: /followup_requests
 
     - name: Shifts
       icon: SubwayRounded

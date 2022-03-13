@@ -641,7 +641,7 @@ class ObjSpectraHandler(BaseHandler):
             )
 
             spec_dict["comments"] = sorted(
-                [
+                (
                     {
                         **{
                             k: v
@@ -654,7 +654,7 @@ class ObjSpectraHandler(BaseHandler):
                         },
                     }
                     for c in comments
-                ],
+                ),
                 key=lambda x: x["created_at"],
                 reverse=True,
             )

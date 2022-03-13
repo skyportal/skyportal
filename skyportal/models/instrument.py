@@ -26,7 +26,7 @@ class ArrayOfEnum(ARRAY):
         return cast(bindvalue, self)
 
     def result_processor(self, dialect, coltype):
-        super_rp = super(ArrayOfEnum, self).result_processor(dialect, coltype)
+        super_rp = super().result_processor(dialect, coltype)
 
         def handle_raw_string(value):
             if value is None or value == '{}':  # 2nd case, empty array
@@ -126,6 +126,16 @@ class Instrument(Base):
         doc="The ExecutedObservations by this instrument.",
     )
 
+    treasuremap_id = sa.Column(
+        sa.Integer,
+        nullable=True,
+        doc="treasuremap.space API ID for this instrument",
+    )
+
+    region = sa.Column(
+        sa.String, nullable=True, doc="Instrument astropy.regions representation."
+    )
+
     @property
     def does_spectroscopy(self):
         """Return a boolean indicating whether the instrument is capable of
@@ -193,6 +203,14 @@ class InstrumentField(Base):
     )
 
     contour = deferred(sa.Column(JSONB, nullable=False, doc='GeoJSON contours'))
+
+    contour_summary = deferred(
+        sa.Column(
+            JSONB,
+            nullable=False,
+            doc='GeoJSON contour bounding box for lower memory display',
+        )
+    )
 
     tiles = relationship("InstrumentFieldTile")
 

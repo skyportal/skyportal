@@ -166,6 +166,19 @@ const SlackPreferences = () => {
                 }
                 label="GCN Notices"
               />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={
+                      profile.slack_integration?.facilitytransactions === true
+                    }
+                    name="facilitytransactions"
+                    onChange={prefToggled}
+                    data-testid="slack_facilitytransactions"
+                  />
+                }
+                label="Facility Transactions"
+              />
             </FormGroup>
           </div>
         </>
