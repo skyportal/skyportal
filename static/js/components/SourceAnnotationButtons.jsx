@@ -10,14 +10,6 @@ import * as sourceActions from "../ducks/source";
 const SourceAnnotationButtons = ({ source }) => {
   const dispatch = useDispatch();
 
-  const [isSubmittingAnnotationPhotoz, setIsSubmittingAnnotationPhotoz] =
-    useState(null);
-  const handleAnnotationPhotoz = async (id) => {
-    setIsSubmittingAnnotationPhotoz(id);
-    await dispatch(sourceActions.fetchPhotoz(id));
-    setIsSubmittingAnnotationPhotoz(null);
-  };
-
   const [isSubmittingAnnotationWise, setIsSubmittingAnnotationWise] =
     useState(null);
   const handleAnnotationWise = async (id) => {
@@ -28,24 +20,6 @@ const SourceAnnotationButtons = ({ source }) => {
 
   return (
     <div>
-      {isSubmittingAnnotationPhotoz === source.id ? (
-        <div>
-          <CircularProgress />
-        </div>
-      ) : (
-        <Button
-          onClick={() => {
-            handleAnnotationPhotoz(source.id);
-          }}
-          size="small"
-          color="primary"
-          type="submit"
-          variant="outlined"
-          data-testid={`photozRequest_${source.id}`}
-        >
-          Photoz
-        </Button>
-      )}
       {isSubmittingAnnotationWise === source.id ? (
         <div>
           <CircularProgress />
