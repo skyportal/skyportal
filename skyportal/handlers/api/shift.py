@@ -180,7 +180,7 @@ class ShiftHandler(BaseHandler):
             )
         except AccessError as e:
             return self.error(
-                f"Only the owner of a shift can delete it. Original error: {e}"
+                f"Only the admin of a shift or an admin of the shift's group can delete it. Original error: {e}"
             )
 
         DBSession().delete(shift)
@@ -257,6 +257,10 @@ class ShiftUserHandler(BaseHandler):
             return self.error(
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
+        # if the shift has no users, we need to make sure the user is an admin
+        if not ShiftUser.query.filter_by(shift_id=shift_id).count():
+            admin = True
+
         shift_id = int(shift_id)
 
         shift = Shift.get_if_accessible_by(

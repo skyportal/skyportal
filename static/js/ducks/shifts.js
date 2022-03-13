@@ -15,7 +15,7 @@ const UPDATE_SHIFT_USER = "skyportal/UPDATE_SHIFT_USER";
 const DELETE_SHIFT_USER = "skyportal/DELETE_SHIFT_USER";
 
 // eslint-disable-next-line import/prefer-default-export
-export const fetchShifts = () => API.GET("/api/shift", FETCH_SHIFTS);
+export const fetchShifts = () => API.GET("/api/shifts", FETCH_SHIFTS);
 
 export function addShiftUser({ userID, admin, shift_id }) {
   return API.POST(`/api/shifts/${shift_id}/users`, ADD_SHIFT_USER, {

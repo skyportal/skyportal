@@ -177,7 +177,7 @@ skyportal_handlers = [
     (r'/api/objs(/[0-9A-Za-z-_\.\+]+)', ObjHandler),
     (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
     (r'/api/sharing', SharingHandler),
-    (r'/api/shift(/.*)?', ShiftHandler),
+    (r'/api/shifts(/[0-9]+)?', ShiftHandler),
     (r'/api/shifts(/[0-9]+)/users(/[0-9]+)?', ShiftUserHandler),
     (r'/api/photometry/bulk_delete/(.*)', BulkDeletePhotometryHandler),
     (r'/api/photometry/range(/.*)?', PhotometryRangeHandler),

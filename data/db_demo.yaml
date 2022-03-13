@@ -784,7 +784,7 @@ galaxy_catalog:
     catalog_data:
       file: ../data/CLU_mini.hdf5
 
-shift:
+shifts:
   - group_id: =program_A
     start_date: "2022-03-08 16:00:00"
     end_date: "2022-03-08 23:00:00"

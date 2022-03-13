@@ -16,17 +16,26 @@ from baselayer.app.models import (
 )
 from baselayer.app.env import load_env
 
-from .group import accessible_by_group_members
+from .group import GroupUser, accessible_by_group_members
 
 _, cfg = load_env()
 
 
 def manage_shift_access_logic(cls, user_or_token):
-    """Users can update and delete a shift that they are the admin of."""
+    # admins of the shift and admins of the group associated with the shift can delete and update a shift
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = DBSession().query(cls).join(ShiftUser)
+    query = DBSession().query(cls).join(GroupUser, cls.group_id == GroupUser.group_id)
     if not user_or_token.is_system_admin:
-        query = query.filter(ShiftUser.user_id == user_id, ShiftUser.admin.is_(True))
+        admin_query = query.filter(
+            GroupUser.user_id == user_id, GroupUser.admin.is_(True)
+        )
+        if admin_query.count() == 0:
+            query = query.join(ShiftUser)
+            query = query.filter(
+                ShiftUser.user_id == user_id, ShiftUser.admin.is_(True)
+            )
+        else:
+            query = admin_query
     return query
 
 
@@ -34,7 +43,7 @@ def manage_shift_access_logic(cls, user_or_token):
 def shiftuser_update_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.shift_id)
+    query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.id)
     if not user_or_token.is_system_admin:
         query = query.filter(aliased.user_id == user_id, aliased.admin.is_(True))
     return query

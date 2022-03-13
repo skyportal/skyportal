@@ -12,12 +12,12 @@ const SUBMIT_SHIFT = "skyportal/SUBMIT_SHIFT";
 
 const DELETE_SHIFT = "skyportal/DELETE_SHIFT";
 
-export const fetchShift = (id) => API.GET(`/api/shift/${id}`, FETCH_SHIFT);
+export const fetchShift = (id) => API.GET(`/api/shifts/${id}`, FETCH_SHIFT);
 
-export const submitShift = (run) => API.POST(`/api/shift`, SUBMIT_SHIFT, run);
+export const submitShift = (run) => API.POST(`/api/shifts`, SUBMIT_SHIFT, run);
 
 export function deleteShift(shiftID) {
-  return API.DELETE(`/api/shift/${shiftID}`, DELETE_SHIFT);
+  return API.DELETE(`/api/shifts/${shiftID}`, DELETE_SHIFT);
 }
 
 // Websocket message handler
