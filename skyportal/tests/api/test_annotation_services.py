@@ -1,39 +1,53 @@
+import uuid
 import pytest
 from skyportal.tests import api
 
 
 @pytest.mark.flaky(reruns=2)
-def test_irsa_wise(annotation_token, public_source, public_group):
+def test_irsa_wise(annotation_token, public_source, public_group, upload_data_token):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 229.9620403,
+            "dec": 34.8442757,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+
     status, data = api(
         'POST',
-        f'sources/{public_source.id}/annotations/irsa',
+        f'sources/{obj_id}/annotations/irsa',
         token=annotation_token,
-        data={'crossmatchRadius': 30},
+        data={'crossmatchRadius': 10},
     )
     assert status == 200
 
     status, data = api(
         'GET',
-        f'sources/{public_source.id}/annotations',
+        f'sources/{obj_id}/annotations',
         token=annotation_token,
     )
 
     assert status == 200
 
-    assert any(
+    assert all(
         [
             'ra' in d['data']
-            and d['data']['ra'] == 0.0070215
+            and d['data']['ra'] == 229.9620821
             and 'dec' in d['data']
-            and d['data']['dec'] == 0.0022575
+            and d['data']['dec'] == 34.8442227
             and 'w1mpro' in d['data']
-            and d['data']['w1mpro'] == 17.11
+            and d['data']['w1mpro'] == 13.197
             and 'w2mpro' in d['data']
-            and d['data']['w2mpro'] == 16.751
+            and d['data']['w2mpro'] == 13.198
             and 'w3mpro' in d['data']
-            and d['data']['w3mpro'] == 12.129
+            and d['data']['w3mpro'] == 12.517
             and 'w4mpro' in d['data']
-            and d['data']['w4mpro'] == 9.07
+            and d['data']['w4mpro'] == 9.399
             for d in data['data']
         ]
     )

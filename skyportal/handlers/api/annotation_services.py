@@ -16,59 +16,60 @@ from ...models import (
 )
 
 
-class IRSAQueryHandler(BaseHandler):
-    """
-    ---
-    description: |
-        get WISE colors and post them as an annotation
-        based on cross-matches to some catalog (default is allwise_p3as_psd).
-    parameters:
-    - in: path
-        name: obj_id
-        required: true
-        schema:
-          type: string
-        description: ID of the object to retrieve WISE colors for
-      - in: query
-        name: catalog
-        required: false
-        schema:
-          type: string
-        description: |
-          The name of the catalog key, associated with a catalog cross match,
-          from which the data should be retrieved.
-          Default is allwise_p3as_psd.
-      - in: query
-        name: crossmatchRadius
-        required: false
-        schema:
-          type: number
-        description: |
-          Crossmatch radius (in arcseconds) to retrieve photoz's
-          Default is 2.
-      - in: query
-        name: group_ids
-        required: false
-        schema:
-          type: array
-          items:
-            type: integer
-        description: |
-          List of group IDs corresponding to which groups should be
-          able to view annotation. Defaults to all of requesting user's groups.
-    responses:
-      200:
-        content:
-          application/json:
-            schema: Success
-      400:
-        content:
-          application/json:
-            schema: Error
-    """
-
+class IRSAQueryWISEHandler(BaseHandler):
     @auth_or_token
     def post(self, obj_id):
+        """
+        ---
+        description: |
+            get WISE colors and post them as an annotation
+            based on cross-matches to some catalog (default is allwise_p3as_psd).
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+            description: ID of the object to retrieve WISE colors for
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  catalog:
+                    required: false
+                    type: string
+                    description: |
+                      The name of the catalog key, associated with a
+                      catalog cross match,
+                      from which the data should be retrieved.
+                      Default is allwise_p3as_psd.
+                  crossmatchRadius:
+                    required: false
+                    type: number
+                    description: |
+                      Crossmatch radius (in arcseconds) to retrieve photoz's
+                      Default is 2.
+                  group_ids:
+                    required: false
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of group IDs corresponding to which groups
+                      should be able to view annotation.
+                      Defaults to all of requesting user's groups.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         obj = Obj.query.get(obj_id)
         if obj is None:
             return self.error('Invalid object id.')
@@ -84,7 +85,9 @@ class IRSAQueryHandler(BaseHandler):
                     group_ids, self.current_user, raise_if_none=True
                 )
             except AccessError:
-                return self.error('Could not find any accessible groups.', status=403)
+                return self.error(
+                    'At least some of the groups are not accessible.', status=403
+                )
 
         author = self.associated_user_object
 
@@ -120,14 +123,6 @@ class IRSAQueryHandler(BaseHandler):
             }
 
             origin = f"{catalog}-{row['ra']}-{row['dec']}"
-            if (
-                (annotation_data['w1mpro'] - annotation_data['w2mpro'] > 0.6)
-                and (annotation_data['w1mpro'] - annotation_data['w2mpro'] < 1.7)
-                and (annotation_data['w2mpro'] - annotation_data['w3mpro'] > 2.2)
-                and (annotation_data['w2mpro'] - annotation_data['w3mpro'] < 4.5)
-            ):
-                annotation_data['comment'] = 'AGN?'
-
             annotation = Annotation(
                 data=annotation_data,
                 obj_id=obj_id,
