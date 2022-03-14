@@ -218,6 +218,7 @@ const VegaPlot = React.memo((props) => {
       if (result.status === "success") {
         setWavelengths(
           wavelengthsToHex(
+            // divide by 10 to convert angstrom -> nm
             result.data.wavelengths.map((wavelength) => wavelength / 10)
           )
         );

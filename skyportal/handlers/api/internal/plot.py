@@ -190,9 +190,7 @@ class FilterWavelengthHandler(BaseHandler):
     @auth_or_token
     def post(self):
         data = self.get_json()
-        print(data)
         filters = data.pop("filters", None)
-        print(filters)
         if filters:
             wavelengths = []
             for filter in filters:
