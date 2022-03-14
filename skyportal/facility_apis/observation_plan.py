@@ -1,4 +1,5 @@
 from astropy.time import Time
+from regions import Regions
 from datetime import datetime, timedelta
 import numpy as np
 
@@ -19,7 +20,7 @@ env, cfg = load_env()
 default_filters = cfg.get('app.observation_plan.default_filters', ['g', 'r', 'i'])
 
 
-def generate_plan(observation_plan_id, request_id):
+def generate_plan(observation_plan_id, request_id, user_id):
     """Use gwemopt to construct observing plan."""
 
     from ..models import DBSession
@@ -33,15 +34,19 @@ def generate_plan(observation_plan_id, request_id):
 
     from ..models import (
         EventObservationPlan,
+        Galaxy,
         ObservationPlanRequest,
         InstrumentField,
         PlannedObservation,
+        User,
     )
 
     session = Session()
-    try:
+    # try:
+    if True:
         plan = session.query(EventObservationPlan).get(observation_plan_id)
         request = session.query(ObservationPlanRequest).get(request_id)
+        user = session.query(User).get(user_id)
 
         event_time = Time(request.gcnevent.dateobs, format='datetime', scale='utc')
         start_time = Time(request.payload["start_date"], format='iso', scale='utc')
@@ -114,7 +119,7 @@ def generate_plan(observation_plan_id, request_id):
             params = {
                 **params,
                 'tilesType': 'galaxy',
-                'galaxy_catalog': 'CLU',
+                'galaxy_catalog': 'CLU_mini',
                 'galaxy_grade': 'S',
                 'writeCatalog': False,
                 'catalog_n': 1.0,
@@ -144,10 +149,31 @@ def generate_plan(observation_plan_id, request_id):
             params, is3D=params["do3D"], map_struct=params['map_struct']
         )
 
-        moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
-            params, map_struct=map_struct
-        )
-        tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
+        if params["tilesType"] == "galaxy":
+            query = Galaxy.query_records_accessible_by(user, mode="read")
+            query = query.filter(Galaxy.catalog_name == params["galaxy_catalog"])
+            galaxies = query.all()
+            catalog_struct = {}
+            catalog_struct["ra"] = np.array([g.ra for g in galaxies])
+            catalog_struct["dec"] = np.array([g.dec for g in galaxies])
+            catalog_struct["S"] = np.array([1.0 for g in galaxies])
+            catalog_struct["Sloc"] = np.array([1.0 for g in galaxies])
+            catalog_struct["Smass"] = np.array([1.0 for g in galaxies])
+
+        if params["tilesType"] == "moc":
+            moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
+                params, map_struct=map_struct
+            )
+            tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
+        elif params["tilesType"] == "galaxy":
+            if request.instrument.region is None:
+                raise ValueError(
+                    'Must define the instrument region in the case of galaxy requests'
+                )
+            regions = Regions.parse(request.instrument.region, format='ds9')
+            tile_structs = gwemopt.skyportal.create_galaxy_from_skyportal(
+                params, map_struct, catalog_struct, regions=regions
+            )
 
         tile_structs, coverage_struct = gwemopt.coverage.timeallocation(
             params, map_struct, tile_structs
@@ -205,12 +231,12 @@ def generate_plan(observation_plan_id, request_id):
 
         return log(f"Generated plan for observation plan {observation_plan_id}")
 
-    except Exception as e:
-        return log(
-            f"Unable to generate plan for observation plan {observation_plan_id}: {e}"
-        )
-    finally:
-        Session.remove()
+    # except Exception as e:
+    #    return log(
+    #        f"Unable to generate plan for observation plan {observation_plan_id}: {e}"
+    #    )
+    # finally:
+    #    Session.remove()
 
 
 class MMAAPI(FollowUpAPI):
@@ -301,7 +327,7 @@ class MMAAPI(FollowUpAPI):
 
             log(f"Generating schedule for observation plan {plan.id}")
             IOLoop.current().run_in_executor(
-                None, lambda: generate_plan(plan.id, request.id)
+                None, lambda: generate_plan(plan.id, request.id, request.requester.id)
             )
         else:
             raise ValueError(
