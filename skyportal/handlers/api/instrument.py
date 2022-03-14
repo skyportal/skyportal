@@ -418,12 +418,14 @@ InstrumentHandler.post.__doc__ = f"""
                       type: str
                       description: |
                         Serialized version of a regions.Region describing
-                        the shape of the instrument field
+                        the shape of the instrument field. Note: should
+                        only include field_region or field_fov_type.
                     field_fov_type:
                       type: str
                       description: |
                         Option for instrument field shape. Must be either
-                        circle or rectangle.
+                        circle or rectangle. Note: should only
+                        include field_region or field_fov_type.
                     field_fov_attributes:
                       type: list
                       description: |
