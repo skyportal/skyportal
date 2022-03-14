@@ -62,14 +62,18 @@ const GcnSelectionForm = ({ gcnEvent }) => {
     "instrument",
     "observations",
   ];
+  const displayOptionsDefault = displayOptions.reduce(
+    (o, key) => Object.assign(o, { [key]: false }),
+    {}
+  );
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] = useState(null);
   const [isDeletingTreasureMap, setIsDeletingTreasureMap] = useState(null);
-  const [checkedState, setCheckedState] = useState(
-    new Array(displayOptions.length).fill(false)
+  const [checkedDisplayState, setCheckedDisplayState] = useState(
+    displayOptionsDefault
   );
 
   const defaultStartDate = dayjs(gcnEvent.dateobs).format(
@@ -136,10 +140,12 @@ const GcnSelectionForm = ({ gcnEvent }) => {
   }
 
   const handleOnChange = (position) => {
-    const updatedCheckedState = checkedState.map((item, index) =>
-      index === position ? !item : item
+    const checkedDisplayStateCopy = JSON.parse(
+      JSON.stringify(checkedDisplayState)
     );
-    setCheckedState(updatedCheckedState);
+    checkedDisplayStateCopy[displayOptions[position]] =
+      !checkedDisplayStateCopy[displayOptions[position]];
+    setCheckedDisplayState(checkedDisplayStateCopy);
   };
 
   const handleSubmitTreasureMap = async (id, filterParams) => {
@@ -295,7 +301,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
           galaxies={gcnEventGalaxies}
           instrument={instLookUp[selectedInstrumentId]}
           observations={gcnEventObservations}
-          options={checkedState}
+          options={checkedDisplayState}
         />
       </div>
       <div>
