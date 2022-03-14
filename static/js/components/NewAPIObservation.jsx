@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Form from "@rjsf/material-ui";
-import CircularProgress from "@material-ui/core/CircularProgress";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -62,14 +61,13 @@ const NewAPIObservation = () => {
     !allGroups ||
     allGroups.length === 0 ||
     telescopeList.length === 0 ||
-    instrumentList.length === 0 ||
-    allocationList.length === 0
+    instrumentList.length === 0
   ) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+    return <h3>No telescopes/instruments available...</h3>;
+  }
+
+  if (allocationList.length === 0) {
+    return <h3>No robotic instruments available...</h3>;
   }
 
   const groupLookUp = {};

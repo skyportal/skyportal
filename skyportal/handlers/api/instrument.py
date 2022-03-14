@@ -710,8 +710,8 @@ InstrumentHandler.post.__doc__ = f"""
         """
 
 
-def add_tiles(instrument_id, instrument_name, regions, field_data):
-    session = Session()
+def add_tiles(instrument_id, instrument_name, regions, field_data, session=Session()):
+    field_ids = []
     try:
         # Loop over the telescope tiles and create fields for each
         skyoffset_frames = coordinates.SkyCoord(
@@ -730,9 +730,24 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
             frame=skyoffset_frames[:, np.newaxis, np.newaxis],
         ).transform_to(coordinates.ICRS)
 
+        if 'ID' in field_data:
+            ids = field_data['ID']
+        else:
+            ids = [-1] * len(field_data['RA'])
+
         for ii, (field_id, ra, dec, coords) in enumerate(
-            zip(field_data['ID'], field_data['RA'], field_data['Dec'], coords_icrs)
+            zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
         ):
+
+            if field_id == -1:
+                field = InstrumentField.query.filter(
+                    InstrumentField.instrument_id == instrument_id,
+                    InstrumentField.ra == ra,
+                    InstrumentField.dec == dec,
+                ).first()
+                if field is not None:
+                    field_ids.append(field.field_id)
+                    continue
 
             # compute full contour
             geometry = []
@@ -763,6 +778,8 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     },
                 ],
             }
+            if field_id == -1:
+                del contour['properties']['field_id']
 
             # compute summary (bounding-box) contour
             geometry = []
@@ -799,17 +816,29 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     },
                 ],
             }
+            if field_id == -1:
+                del contour_summary['properties']['field_id']
 
-            field = InstrumentField(
-                instrument_id=instrument_id,
-                field_id=int(field_id),
-                contour=contour,
-                contour_summary=contour_summary,
-                ra=ra,
-                dec=dec,
-            )
+            if field_id == -1:
+                field = InstrumentField(
+                    instrument_id=instrument_id,
+                    contour=contour,
+                    contour_summary=contour_summary,
+                    ra=ra,
+                    dec=dec,
+                )
+            else:
+                field = InstrumentField(
+                    instrument_id=instrument_id,
+                    field_id=int(field_id),
+                    contour=contour,
+                    contour_summary=contour_summary,
+                    ra=ra,
+                    dec=dec,
+                )
             session.add(field)
             session.commit()
+            field_ids.append(field.field_id)
             tiles = []
             for coord in coords:
                 for hpx in Tile.tiles_from_polygon_skycoord(coord):
@@ -822,8 +851,9 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     )
             session.add_all(tiles)
             session.commit()
-        return log(f"Successfully generated fields for instrument {instrument_id}")
+        log(f"Successfully generated fields for instrument {instrument_id}")
     except Exception as e:
-        return log(f"Unable to generate fields for instrument {instrument_id}: {e}")
+        log(f"Unable to generate fields for instrument {instrument_id}: {e}")
     finally:
         Session.remove()
+        return field_ids
