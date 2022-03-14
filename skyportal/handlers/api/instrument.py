@@ -167,6 +167,14 @@ class InstrumentHandler(BaseHandler):
                 Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
                 false.
             - in: query
+              name: includeRegion
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated DS9 region. Defaults to
+                false.
+            - in: query
               name: localizationDateobs
               schema:
                 type: string
@@ -230,6 +238,14 @@ class InstrumentHandler(BaseHandler):
                 Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
                 false.
             - in: query
+              name: includeRegion
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated DS9 region. Defaults to
+                false.
+            - in: query
               name: localizationDateobs
               schema:
                 type: string
@@ -274,6 +290,7 @@ class InstrumentHandler(BaseHandler):
 
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
+        includeRegion = self.get_query_argument("includeRegion", False)
         if includeGeoJSON:
             options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
         elif includeGeoJSONSummary:
@@ -282,6 +299,8 @@ class InstrumentHandler(BaseHandler):
             ]
         else:
             options = []
+        if includeRegion:
+            options.append(undefer(Instrument.region))
 
         if instrument_id is not None:
             instrument = Instrument.get_if_accessible_by(
@@ -391,7 +410,13 @@ class InstrumentHandler(BaseHandler):
             return self.success(data=data)
 
         inst_name = self.get_query_argument("name", None)
-        query = Instrument.query_records_accessible_by(self.current_user, mode="read")
+        if includeRegion:
+            options = [undefer(Instrument.region)]
+        else:
+            options = []
+        query = Instrument.query_records_accessible_by(
+            self.current_user, mode="read", options=options
+        )
         if inst_name is not None:
             query = query.filter(Instrument.name == inst_name)
         instruments = query.all()

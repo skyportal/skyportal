@@ -323,13 +323,18 @@ def test_post_instrument_fov(super_admin_token):
     assert data['status'] == 'success'
     instrument_id = data['data']['id']
 
+    params = {'includeRegion': True}
+
     # wait for the fields to populate
     nretries = 0
     fields_loaded = False
     while not fields_loaded and nretries < 5:
         try:
             status, data = api(
-                'GET', f'instrument/{instrument_id}', token=super_admin_token
+                'GET',
+                f'instrument/{instrument_id}',
+                token=super_admin_token,
+                params=params,
             )
             assert status == 200
             assert data['status'] == 'success'
@@ -341,6 +346,8 @@ def test_post_instrument_fov(super_admin_token):
 
     assert status == 200
     assert data['status'] == 'success'
+    print(data['data'])
+
     assert (
         data['data']['region']
         == '# Region file format: DS9 astropy/regions\nfk5\ncircle(0.000006,0.000003,3.000000)\n'
