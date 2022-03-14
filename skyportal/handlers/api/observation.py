@@ -418,25 +418,24 @@ class ObservationHandler(BaseHandler):
         if instrument is None:
             return self.error(message=f"Missing instrument {instrument_name}")
 
-        if not all(
-            k in observation_data
-            for k in [
-                'observation_id',
-                'field_id',
-                'obstime',
-                'filter',
-                'exposure_time',
-            ]
-        ) and not all(
-            k in observation_data
-            for k in [
-                'observation_id',
-                'RA',
-                'Dec',
-                'obstime',
-                'filter',
-                'exposure_time',
-            ]
+        unique_keys = set(list(observation_data.keys()))
+        field_id_keys = {
+            'observation_id',
+            'field_id',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        radec_keys = {
+            'observation_id',
+            'RA',
+            'Dec',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
+            unique_keys
         ):
             return self.error(
                 "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
@@ -678,25 +677,24 @@ class ObservationASCIIFileHandler(BaseHandler):
         except Exception as e:
             return self.error(f"Unable to read in observation file: {e}")
 
-        if not all(
-            k in observation_data
-            for k in [
-                'observation_id',
-                'field_id',
-                'obstime',
-                'filter',
-                'exposure_time',
-            ]
-        ) and not all(
-            k in observation_data
-            for k in [
-                'observation_id',
-                'RA',
-                'Dec',
-                'obstime',
-                'filter',
-                'exposure_time',
-            ]
+        unique_keys = set(list(observation_data.keys()))
+        field_id_keys = {
+            'observation_id',
+            'field_id',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        radec_keys = {
+            'observation_id',
+            'RA',
+            'Dec',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
+            unique_keys
         ):
             return self.error(
                 "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
