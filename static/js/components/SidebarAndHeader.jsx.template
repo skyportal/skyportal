@@ -3,6 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useLocation } from "react-router-dom";
 
 import Typography from "@material-ui/core/Typography";
+import Accordion from "@material-ui/core/Accordion";
+import AccordionSummary from "@material-ui/core/AccordionSummary";
+import AccordionDetails from "@material-ui/core/AccordionDetails";
 import Drawer from "@material-ui/core/Drawer";
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
@@ -12,10 +15,16 @@ import ListItemIcon from "@material-ui/core/ListItemIcon";
 import ListItemText from "@material-ui/core/ListItemText";
 import IconButton from "@material-ui/core/IconButton";
 import GroupIcon from "@material-ui/icons/Group";
+import AddIcon from "@material-ui/icons/Add";
+import SettingsIcon from "@material-ui/icons/Settings";
 import AssessmentIcon from '@material-ui/icons/Assessment';
+import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import { makeStyles } from "@material-ui/core/styles";
 
 {% for item in app.sidebar -%}
+import {{ item.icon }}Icon from "@material-ui/icons/{{ item.icon }}";
+{% endfor %}
+{% for item in app.sidebar_add_group -%}
 import {{ item.icon }}Icon from "@material-ui/icons/{{ item.icon }}";
 {% endfor %}
 import MenuIcon from "@material-ui/icons/Menu";
@@ -95,6 +104,25 @@ const useStyles = makeStyles((theme) => ({
   },
   icon: {
     color: theme.palette.info.main,
+  },
+  dropdown: {
+    backgroundColor: theme.palette.primary.light
+  },
+  dropdownContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    paddingLeft: 0
+  },
+  accordionPadding: {
+    paddingLeft: 5
+  },
+  expandIcon: {
+    color: theme.palette.info.main,
+  },
+  addText: {
+    color: theme.palette.info.main,
+    marginLeft: 5,
+    marginRight: 10
   }
 }));
 
@@ -212,31 +240,113 @@ const SidebarAndHeader = () => {
           {%- endif -%}
 
           {%- endfor %}
+          <Accordion className={classes.dropdown}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon className={classes.expandIcon}/>}
+              aria-controls="panel1a-content"
+              id="panel1a-header"
+              className={classes.accordionPadding}
+            >
+              <ListItem button name="addButton">
+                <ListItemIcon>
+                  <AddIcon className={classes.icon} />
+                </ListItemIcon>
+                <Typography className={classes.addText}>Add</Typography>
+              </ListItem>
+            </AccordionSummary>
+            <AccordionDetails className={classes.dropdownContainer}>
+              {%- for item in app.sidebar_add_group -%}
+
+              {%- if item.url.startswith('http') %}
+              <a href="{{ item.url }}" className={classes.link}>
+              {% else %}
+              <Link to="{{ item.url }}" onClick={() => hydrateIfDashboardClicked("{{ item.url }}")} className={classes.link}>
+              {%- endif %}
+                <ListItem button name="sidebar{{ item.name }}Button">
+                  <ListItemIcon>
+                    <{{ item.icon }}Icon className={classes.icon} />
+                  </ListItemIcon>
+                  <SidebarLinkText
+                    route="{{ item.url }}"
+                    title="{{ item.name }}"
+                  />
+                </ListItem>
+              {%- if item.url.startswith('http') %}
+              </a>
+              {% else %}
+              </Link>
+              {%- endif -%}
+
+              {%- endfor %}
+            </AccordionDetails>
+          </Accordion>
+
           {(currentUser.permissions?.includes("System admin") || currentUser.permissions?.includes("Manage users")) && (
-            <Link to="/user_management" className={classes.link}>
-              <ListItem button name="userManagementButton">
-                <ListItemIcon>
-                  <GroupIcon className={classes.icon} />
-                </ListItemIcon>
-                <SidebarLinkText
-                  route="/user_management"
-                  title="User Management"
-                />
-              </ListItem>
-            </Link>
-          )}
-          {currentUser.permissions?.includes("System admin") && (
-            <Link to="/db_stats" className={classes.link}>
-              <ListItem button name="dbStatsButton">
-                <ListItemIcon>
-                  <AssessmentIcon className={classes.icon} />
-                </ListItemIcon>
-                <SidebarLinkText
-                  route="/db_stats"
-                  title="DB Stats"
-                />
-              </ListItem>
-            </Link>
+            <Accordion className={classes.dropdown}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon className={classes.expandIcon}/>}
+                aria-controls="panel1a-content"
+                id="panel1a-header"
+                className={classes.accordionPadding}
+              >
+                <ListItem button name="adminButton">
+                  <ListItemIcon>
+                    <SettingsIcon className={classes.icon}/>
+                  </ListItemIcon>
+                  <Typography className={classes.icon}>Admin</Typography>
+                </ListItem>
+              </AccordionSummary>
+              <AccordionDetails className={classes.dropdownContainer}>
+                {(currentUser.permissions?.includes("System admin") || currentUser.permissions?.includes("Manage users")) && (
+                  <Link to="/user_management" className={classes.link}>
+                    <ListItem button name="userManagementButton">
+                      <ListItemIcon>
+                        <GroupIcon className={classes.icon} />
+                      </ListItemIcon>
+                      <SidebarLinkText
+                        route="/user_management"
+                        title="User Management"
+                      />
+                    </ListItem>
+                  </Link>
+                )}
+                {currentUser.permissions?.includes("System admin") && (
+                  <Link to="/db_stats" className={classes.link}>
+                    <ListItem button name="dbStatsButton">
+                      <ListItemIcon>
+                        <AssessmentIcon className={classes.icon} />
+                      </ListItemIcon>
+                      <SidebarLinkText
+                        route="/db_stats"
+                        title="DB Stats"
+                      />
+                    </ListItem>
+                  </Link>
+                )}
+                  <Link to="/telescopes" className={classes.link}>
+                    <ListItem button name="telescopeButton">
+                      <ListItemIcon>
+                        <MyLocationIcon className={classes.icon} />
+                      </ListItemIcon>
+                      <SidebarLinkText
+                        route="/telescopes"
+                        title="Telescopes"
+                      />
+                    </ListItem>
+                  </Link>
+                  <Link to="/instruments" className={classes.link}>
+                    <ListItem button name="instrumentsButton">
+                      <ListItemIcon>
+                        <WifiIcon className={classes.icon} />
+                      </ListItemIcon>
+                      <SidebarLinkText
+                        route="/instruments"
+                        title="Instruments"
+                      />
+                    </ListItem>
+                  </Link>
+              </AccordionDetails>
+            </Accordion>
           )}
 
         </List>

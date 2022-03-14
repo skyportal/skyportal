@@ -150,6 +150,19 @@ app:
       icon: SettingsInputAntenna
       url: /gcn_events
 
+    - name: Followup Requests
+      icon: WorkOutlined
+      url: /followup_requests
+
+    - name: Shifts
+      icon: SubwayRounded
+      url: /shifts
+
+    - name: About
+      icon: Info
+      url: /about
+
+  sidebar_add_group:
     - name: Telescopes
       icon: MyLocation
       url: /telescopes
@@ -166,17 +179,6 @@ app:
       icon: ZoomInOutlined
       url: /observations
 
-    - name: Followup Requests
-      icon: WorkOutlined
-      url: /followup_requests
-
-    - name: Shifts
-      icon: SubwayRounded
-      url: /shifts
-
-    - name: About
-      icon: Info
-      url: /about
 
   # See https://github.com/STRML/react-grid-layout for more on the grid package
   homepage_grid:
