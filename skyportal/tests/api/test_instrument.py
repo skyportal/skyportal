@@ -334,8 +334,6 @@ def test_post_instrument_fov(super_admin_token):
             assert status == 200
             assert data['status'] == 'success'
             assert data['data']['band'] == 'NIR'
-
-            assert len(data['data']['fields']) == 5
             fields_loaded = True
         except AssertionError:
             nretries = nretries + 1
