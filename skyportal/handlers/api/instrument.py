@@ -1,8 +1,9 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm import sessionmaker, scoped_session
+import sqlalchemy as sa
 from tornado.ioloop import IOLoop
 
 from healpix_alchemy import Tile
@@ -17,10 +18,13 @@ from io import StringIO
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    GcnEvent,
     Instrument,
-    Telescope,
     InstrumentField,
     InstrumentFieldTile,
+    Localization,
+    LocalizationTile,
+    Telescope,
 )
 from ...enum_types import ALLOWED_BANDPASSES
 
@@ -152,7 +156,7 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson. Defaults to
+                Boolean indicating whether to include associated GeoJSON. Defaults to
                 false.
             - in: query
               name: includeGeoJSONSummary
@@ -160,8 +164,36 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson summary bounding box. Defaults to
+                Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
                 false.
+            - in: query
+              name: localizationDateobs
+              schema:
+                type: string
+              description: |
+                Include fields within a given localization.
+                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                Each localization is associated with a specific GCNEvent by
+                the date the event happened, and this date is used as a unique
+                identifier. It can be therefore found as Localization.dateobs,
+                queried from the /api/localization endpoint or dateobs in the
+                GcnEvent page table.
+            - in: query
+              name: localizationName
+              schema:
+                type: string
+              description: |
+                Name of localization / skymap to use.
+                Can be found in Localization.localization_name queried from
+                /api/localization endpoint or skymap name in GcnEvent page
+                table.
+            - in: query
+              name: localizationCumprob
+              schema:
+                type: number
+              description: |
+                Cumulative probability up to which to include fields.
+                Defaults to 0.95.
           responses:
             200:
               content:
@@ -187,7 +219,7 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson. Defaults to
+                Boolean indicating whether to include associated GeoJSON. Defaults to
                 false.
             - in: query
               name: includeGeoJSONSummary
@@ -195,8 +227,36 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson summary bounding box. Defaults to
+                Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
                 false.
+            - in: query
+              name: localizationDateobs
+              schema:
+                type: string
+              description: |
+                Include fields within a given localization.
+                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                Each localization is associated with a specific GCNEvent by
+                the date the event happened, and this date is used as a unique
+                identifier. It can be therefore found as Localization.dateobs,
+                queried from the /api/localization endpoint or dateobs in the
+                GcnEvent page table.
+            - in: query
+              name: localizationName
+              schema:
+                type: string
+              description: |
+                Name of localization / skymap to use.
+                Can be found in Localization.localization_name queried from
+                /api/localization endpoint or skymap name in GcnEvent page
+                table.
+            - in: query
+              name: localizationCumprob
+              schema:
+                type: number
+              description: |
+                Cumulative probability up to which to include fields.
+                Defaults to 0.95.
           responses:
             200:
               content:
@@ -207,17 +267,21 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+
+        localization_dateobs = self.get_query_argument('localizationDateobs', None)
+        localization_name = self.get_query_argument('localizationName', None)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
-        options = [joinedload(Instrument.fields)]
         if includeGeoJSON:
-            options.append(
-                joinedload(Instrument.fields).undefer(InstrumentField.contour)
-            )
-        if includeGeoJSONSummary:
-            options.append(
+            options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
+        elif includeGeoJSONSummary:
+            options = [
                 joinedload(Instrument.fields).undefer(InstrumentField.contour_summary)
-            )
+            ]
+        else:
+            options = []
 
         if instrument_id is not None:
             instrument = Instrument.get_if_accessible_by(
@@ -227,18 +291,209 @@ class InstrumentHandler(BaseHandler):
                 mode="read",
                 options=options,
             )
+            data = instrument.to_dict()
 
-            return self.success(data=instrument)
+            # optional: slice by GcnEvent localization
+            if localization_dateobs is not None:
+                if localization_name is not None:
+                    localization = (
+                        Localization.query_records_accessible_by(self.current_user)
+                        .filter(
+                            Localization.dateobs == localization_dateobs,
+                            Localization.localization_name == localization_name,
+                        )
+                        .first()
+                    )
+                    if localization is None:
+                        return self.error("Localization not found", status=404)
+                else:
+                    event = (
+                        GcnEvent.query_records_accessible_by(
+                            self.current_user,
+                            options=[
+                                joinedload(GcnEvent.localizations),
+                            ],
+                        )
+                        .filter(GcnEvent.dateobs == localization_dateobs)
+                        .first()
+                    )
+                    if event is None:
+                        return self.error("GCN event not found", status=404)
+                    localization = event.localizations[-1]
+
+                cum_prob = (
+                    sa.func.sum(
+                        LocalizationTile.probdensity * LocalizationTile.healpix.area
+                    )
+                    .over(order_by=LocalizationTile.probdensity.desc())
+                    .label('cum_prob')
+                )
+                localizationtile_subquery = (
+                    sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                        LocalizationTile.localization_id == localization.id
+                    )
+                ).subquery()
+
+                min_probdensity = (
+                    sa.select(
+                        sa.func.min(localizationtile_subquery.columns.probdensity)
+                    ).filter(
+                        localizationtile_subquery.columns.cum_prob
+                        <= localization_cumprob
+                    )
+                ).scalar_subquery()
+
+                if includeGeoJSON or includeGeoJSONSummary:
+                    if includeGeoJSON:
+                        undefer_column = 'contour'
+                    elif includeGeoJSONSummary:
+                        undefer_column = 'contour_summary'
+                    tiles = (
+                        DBSession()
+                        .execute(
+                            sa.select(InstrumentField)
+                            .filter(
+                                LocalizationTile.localization_id == localization.id,
+                                LocalizationTile.probdensity >= min_probdensity,
+                                InstrumentFieldTile.instrument_id == instrument.id,
+                                InstrumentFieldTile.instrument_field_id
+                                == InstrumentField.id,
+                                InstrumentFieldTile.healpix.overlaps(
+                                    LocalizationTile.healpix
+                                ),
+                            )
+                            .options(undefer(undefer_column))
+                        )
+                        .unique()
+                        .all()
+                    )
+                else:
+                    tiles = (
+                        (
+                            DBSession().execute(
+                                sa.select(InstrumentField).filter(
+                                    LocalizationTile.localization_id == localization.id,
+                                    LocalizationTile.probdensity >= min_probdensity,
+                                    InstrumentFieldTile.instrument_id == instrument.id,
+                                    InstrumentFieldTile.instrument_field_id
+                                    == InstrumentField.id,
+                                    InstrumentFieldTile.healpix.overlaps(
+                                        LocalizationTile.healpix
+                                    ),
+                                )
+                            )
+                        )
+                        .unique()
+                        .all()
+                    )
+                data['fields'] = [tile.to_dict() for tile, in tiles]
+
+            return self.success(data=data)
 
         inst_name = self.get_query_argument("name", None)
-        query = Instrument.query_records_accessible_by(
-            self.current_user, mode="read", options=options
-        )
+        query = Instrument.query_records_accessible_by(self.current_user, mode="read")
         if inst_name is not None:
             query = query.filter(Instrument.name == inst_name)
         instruments = query.all()
+        data = [instrument.to_dict() for instrument in instruments]
+
+        # optional: slice by GcnEvent localization
+        if localization_dateobs is not None:
+            if localization_name is not None:
+                localization = (
+                    Localization.query_records_accessible_by(self.current_user)
+                    .filter(
+                        Localization.dateobs == localization_dateobs,
+                        Localization.localization_name == localization_name,
+                    )
+                    .first()
+                )
+                if localization is None:
+                    return self.error("Localization not found", status=404)
+            else:
+                event = (
+                    GcnEvent.query_records_accessible_by(
+                        self.current_user,
+                        options=[
+                            joinedload(GcnEvent.localizations),
+                        ],
+                    )
+                    .filter(GcnEvent.dateobs == localization_dateobs)
+                    .first()
+                )
+                if event is None:
+                    return self.error("GCN event not found", status=404)
+                localization = event.localizations[-1]
+
+            cum_prob = (
+                sa.func.sum(
+                    LocalizationTile.probdensity * LocalizationTile.healpix.area
+                )
+                .over(order_by=LocalizationTile.probdensity.desc())
+                .label('cum_prob')
+            )
+            localizationtile_subquery = (
+                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                    LocalizationTile.localization_id == localization.id
+                )
+            ).subquery()
+
+            min_probdensity = (
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob <= localization_cumprob
+                )
+            ).scalar_subquery()
+
+            for ii, instrument in enumerate(instruments):
+                if includeGeoJSON or includeGeoJSONSummary:
+                    if includeGeoJSON:
+                        undefer_column = 'contour'
+                    elif includeGeoJSONSummary:
+                        undefer_column = 'contour_summary'
+                    tiles = (
+                        DBSession()
+                        .execute(
+                            sa.select(InstrumentField)
+                            .filter(
+                                LocalizationTile.localization_id == localization.id,
+                                LocalizationTile.probdensity >= min_probdensity,
+                                InstrumentFieldTile.instrument_id == instrument.id,
+                                InstrumentFieldTile.instrument_field_id
+                                == InstrumentField.id,
+                                InstrumentFieldTile.healpix.overlaps(
+                                    LocalizationTile.healpix
+                                ),
+                            )
+                            .options(undefer(undefer_column))
+                        )
+                        .unique()
+                        .all()
+                    )
+                else:
+                    tiles = (
+                        (
+                            DBSession().execute(
+                                sa.select(InstrumentField).filter(
+                                    LocalizationTile.localization_id == localization.id,
+                                    LocalizationTile.probdensity >= min_probdensity,
+                                    InstrumentFieldTile.instrument_id == instrument.id,
+                                    InstrumentFieldTile.instrument_field_id
+                                    == InstrumentField.id,
+                                    InstrumentFieldTile.healpix.overlaps(
+                                        LocalizationTile.healpix
+                                    ),
+                                )
+                            )
+                        )
+                        .unique()
+                        .all()
+                    )
+                data[ii]['fields'] = [tile.to_dict() for tile, in tiles]
+
         self.verify_and_commit()
-        return self.success(data=instruments)
+        return self.success(data=data)
 
     @permissions(['System admin'])
     def put(self, instrument_id):
@@ -538,7 +793,7 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     {
                         'type': 'Feature',
                         'geometry': {
-                            'type': 'MultiLineString',
+                            'type': 'LineString',
                             'coordinates': geometry_summary,
                         },
                     },
