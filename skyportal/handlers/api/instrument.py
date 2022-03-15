@@ -7,8 +7,9 @@ import sqlalchemy as sa
 from tornado.ioloop import IOLoop
 
 from healpix_alchemy import Tile
-from regions import Regions
+from regions import Regions, CircleSkyRegion, RectangleSkyRegion, PolygonSkyRegion
 from astropy import coordinates
+from astropy.coordinates import SkyCoord
 from astropy import units as u
 import numpy as np
 import pandas as pd
@@ -47,8 +48,45 @@ class InstrumentHandler(BaseHandler):
         field_data = data.pop("field_data", None)
         field_region = data.pop("field_region", None)
 
+        field_fov_type = data.pop("field_fov_type", None)
+        field_fov_attributes = data.pop("field_fov_attributes", None)
+
+        if (field_region is not None) and (field_fov_type is not None):
+            return self.error('must supply only one of field_region or field_fov_type')
+
         if field_region is not None:
             regions = Regions.parse(field_region, format='ds9')
+            data['region'] = regions.serialize(format='ds9')
+
+        if field_fov_type is not None:
+            if field_fov_attributes is None:
+                return self.error(
+                    'field_fov_attributes required if field_fov_type supplied'
+                )
+            if not field_fov_type.lower() in ["circle", "rectangle"]:
+                return self.error('field_fov_type must be circle or rectangle')
+            if isinstance(field_fov_attributes, list):
+                field_fov_attributes = [float(x) for x in field_fov_attributes]
+            else:
+                field_fov_attributes = [float(field_fov_attributes)]
+
+            center = SkyCoord(0.0, 0.0, unit='deg', frame='icrs')
+            if field_fov_type.lower() == "circle":
+                if not len(field_fov_attributes) == 1:
+                    return self.error(
+                        'If field_fov_type is circle, then should supply only radius for field_fov_attributes'
+                    )
+                radius = field_fov_attributes[0]
+                regions = CircleSkyRegion(center=center, radius=radius * u.deg)
+            elif field_fov_type.lower() == "rectangle":
+                if not len(field_fov_attributes) == 2:
+                    return self.error(
+                        'If field_fov_type is rectangle, then should supply width and height for field_fov_attributes'
+                    )
+                width, height = field_fov_attributes
+                regions = RectangleSkyRegion(
+                    center=center, width=width * u.deg, height=height * u.deg
+                )
             data['region'] = regions.serialize(format='ds9')
 
         schema = Instrument.__schema__()
@@ -497,12 +535,46 @@ class InstrumentHandler(BaseHandler):
         field_data = data.pop("field_data", None)
         field_region = data.pop("field_region", None)
 
+        field_fov_type = data.pop("field_fov_type", None)
+        field_fov_attributes = data.pop("field_fov_attributes", None)
+
+        if (field_region is not None) and (field_fov_type is not None):
+            return self.error('must supply only one of field_region or field_fov_type')
+
         if field_region is not None:
             regions = Regions.parse(field_region, format='ds9')
             data['region'] = regions.serialize(format='ds9')
 
-        field_data = data.pop("field_data", None)
-        field_region = data.pop("field_region", None)
+        if field_fov_type is not None:
+            if field_fov_attributes is None:
+                return self.error(
+                    'field_fov_attributes required if field_fov_type supplied'
+                )
+            if not field_fov_type.lower() in ["circle", "rectangle"]:
+                return self.error('field_fov_type must be circle or rectangle')
+            if isinstance(field_fov_attributes, list):
+                field_fov_attributes = [float(x) for x in field_fov_attributes]
+            else:
+                field_fov_attributes = [float(field_fov_attributes)]
+
+            center = SkyCoord(0.0, 0.0, unit='deg', frame='icrs')
+            if field_fov_type.lower() == "circle":
+                if not len(field_fov_attributes) == 1:
+                    return self.error(
+                        'If field_fov_type is circle, then should supply only radius for field_fov_attributes'
+                    )
+                radius = field_fov_attributes[0]
+                regions = CircleSkyRegion(center=center, radius=radius * u.deg)
+            elif field_fov_type.lower() == "rectangle":
+                if not len(field_fov_attributes) == 2:
+                    return self.error(
+                        'If field_fov_type is rectangle, then should supply width and height for field_fov_attributes'
+                    )
+                width, height = field_fov_attributes
+                regions = RectangleSkyRegion(
+                    center=center, width=width * u.deg, height=height * u.deg
+                )
+            data['region'] = regions.serialize(format='ds9')
 
         schema = Instrument.__schema__()
         try:
@@ -591,6 +663,31 @@ InstrumentHandler.post.__doc__ = f"""
                         has no filters (e.g., because it is a spectrograph),
                         leave blank or pass the empty list.
                       default: []
+                    field_data:
+                      type: dict
+                      items:
+                        type: array
+                      description: |
+                        List of ID, RA, and Dec for each field.
+                    field_region:
+                      type: str
+                      description: |
+                        Serialized version of a regions.Region describing
+                        the shape of the instrument field. Note: should
+                        only include field_region or field_fov_type.
+                    field_fov_type:
+                      type: str
+                      description: |
+                        Option for instrument field shape. Must be either
+                        circle or rectangle. Note: should only
+                        include field_region or field_fov_type.
+                    field_fov_attributes:
+                      type: list
+                      description: |
+                        Option for instrument field shape parameters.
+                        Single float radius in degrees in case of circle or
+                        list of two floats (height and width) in case of
+                        a rectangle.
         responses:
           200:
             content:
@@ -615,15 +712,43 @@ InstrumentHandler.post.__doc__ = f"""
 
 def add_tiles(instrument_id, instrument_name, regions, field_data, session=Session()):
     field_ids = []
+
     try:
         # Loop over the telescope tiles and create fields for each
         skyoffset_frames = coordinates.SkyCoord(
             field_data['RA'], field_data['Dec'], unit=u.deg
         ).skyoffset_frame()
 
-        ra = np.array([reg.vertices.ra for reg in regions])
-        dec = np.array([reg.vertices.dec for reg in regions])
-        coords = np.stack([ra, dec])
+        ra, dec = [], []
+        for ii, reg in enumerate(regions):
+            if type(reg) == RectangleSkyRegion:
+                height = reg.height.value
+                width = reg.width.value
+
+                geometry = np.array(
+                    [
+                        (-width / 2.0, -height / 2.0),
+                        (width / 2.0, -height / 2.0),
+                        (width / 2.0, height / 2.0),
+                        (-width / 2.0, height / 2.0),
+                        (-width / 2.0, -height / 2.0),
+                    ]
+                )
+                ra_tmp = geometry[:, 0]
+                dec_tmp = geometry[:, 1]
+            elif type(reg) == CircleSkyRegion:
+                radius = reg.radius.value
+                N = 10
+                phi = np.linspace(0, 2 * np.pi, N)
+                ra_tmp = radius * np.cos(phi)
+                dec_tmp = radius * np.sin(phi)
+            elif type(reg) == PolygonSkyRegion:
+                ra_tmp = reg.vertices.ra
+                dec_tmp = reg.vertices.dec
+
+            ra.append(ra_tmp)
+            dec.append(dec_tmp)
+        coords = np.stack([np.array(ra), np.array(dec)])
 
         # Copy the tile coordinates such that there is one per field
         # in the grid

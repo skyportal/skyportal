@@ -1,4 +1,5 @@
 from astropy.time import Time
+import pandas as pd
 from regions import Regions
 from datetime import datetime, timedelta
 import numpy as np
@@ -24,6 +25,7 @@ def generate_plan(observation_plan_id, request_id, user_id):
     """Use gwemopt to construct observing plan."""
 
     from ..models import DBSession
+    from skyportal.handlers.api.instrument import add_tiles
 
     Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
@@ -179,6 +181,22 @@ def generate_plan(observation_plan_id, request_id, user_id):
             params, map_struct, tile_structs
         )
 
+        # if the fields do not yet exist, we need to add them
+        if params["tilesType"] == "galaxy":
+            regions = Regions.parse(request.instrument.region, format='ds9')
+            data = {
+                'RA': coverage_struct["data"][:, 0],
+                'Dec': coverage_struct["data"][:, 1],
+            }
+            field_data = pd.DataFrame.from_dict(data)
+            field_ids = add_tiles(
+                request.instrument.id,
+                request.instrument.name,
+                regions,
+                field_data,
+                session=session,
+            )
+
         planned_observations = []
         for ii in range(len(coverage_struct["ipix"])):
             data = coverage_struct["data"][ii, :]
@@ -190,7 +208,11 @@ def generate_plan(observation_plan_id, request_id, user_id):
                 "overhead_per_exposure"
             ]
 
-            exposure_time, field_id, prob = data[4], data[5], data[6]
+            exposure_time, prob = data[4], data[6]
+            if params["tilesType"] == "galaxy":
+                field_id = field_ids[ii]
+            else:
+                field_id = data[5]
 
             field = InstrumentField.query.filter(
                 InstrumentField.instrument_id == request.instrument.id,
