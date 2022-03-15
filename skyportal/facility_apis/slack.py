@@ -62,8 +62,8 @@ class SLACKRequest:
         target = {
             'name': request.obj.id,
             'instrument_request': request.allocation.instrument.name,
-            'ra': "{:.5f}".format(request.obj.ra),
-            'dec': "{:.5f}".format(request.obj.dec),
+            'ra': f"{request.obj.ra:.5f}",
+            'dec': f"{request.obj.dec:.5f}",
             'filters': ",".join(request.payload["observation_choices"]),
             'exposure_time': request.payload["exposure_time"],
             'exposure_counts': request.payload["exposure_counts"],

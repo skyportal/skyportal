@@ -179,6 +179,9 @@ class GcnEventHandler(BaseHandler):
                         joinedload(GcnEvent.observationplan_requests).joinedload(
                             ObservationPlanRequest.requester
                         ),
+                        joinedload(GcnEvent.observationplan_requests).joinedload(
+                            ObservationPlanRequest.observation_plans
+                        ),
                     ],
                 )
                 .filter_by(dateobs=dateobs)
@@ -193,6 +196,23 @@ class GcnEventHandler(BaseHandler):
                 "lightcurve": event.lightcurve,
             }
 
+            # go through some pain to get probability and area included
+            # as these are properties
+            request_data = []
+            for ii, req in enumerate(data['observationplan_requests']):
+                dat = req.to_dict()
+                plan_data = []
+                for plan in dat["observation_plans"]:
+                    plan_dict = {
+                        **plan.to_dict(),
+                        "probability": plan.probability,
+                        "area": plan.area,
+                        "num_observations": plan.num_observations,
+                    }
+                    plan_data.append(plan_dict)
+                dat["observation_plans"] = plan_data
+                request_data.append(dat)
+            data['observationplan_requests'] = request_data
             return self.success(data=data)
 
         q = GcnEvent.query_records_accessible_by(
@@ -307,6 +327,15 @@ class LocalizationHandler(BaseHandler):
             required: true
             schema:
               type: localization_name
+          - in: query
+            name: include2DMap
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include flatted skymap. Defaults to
+              false.
+
         responses:
           200:
             content:
@@ -317,6 +346,9 @@ class LocalizationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        include_2D_map = self.get_query_argument("include2DMap", False)
+
         localization = (
             Localization.query_records_accessible_by(self.current_user)
             .filter(
@@ -328,11 +360,17 @@ class LocalizationHandler(BaseHandler):
         if localization is None:
             return self.error("Localization not found", status=404)
 
-        data = {
-            **localization.to_dict(),
-            "flat_2d": localization.flat_2d,
-            "contour": localization.contour,
-        }
+        if include_2D_map:
+            data = {
+                **localization.to_dict(),
+                "flat_2d": localization.flat_2d,
+                "contour": localization.contour,
+            }
+        else:
+            data = {
+                **localization.to_dict(),
+                "contour": localization.contour,
+            }
         return self.success(data=data)
 
     @auth_or_token

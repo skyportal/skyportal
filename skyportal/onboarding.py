@@ -69,10 +69,10 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
             return {"is_new": False, "user": user}
 
         # No matching user exists; create a new user
-        fields = dict(
-            (name, kwargs.get(name, details.get(name)))
+        fields = {
+            name: kwargs.get(name, details.get(name))
             for name in backend.setting("USER_FIELDS", USER_FIELDS)
-        )
+        }
         user = strategy.create_user(**fields, **{"oauth_uid": uid})
         DBSession().commit()
         return {"is_new": True, "user": user}

@@ -2,7 +2,10 @@
 
 
 def test_quick_search(
-    driver, super_admin_user, public_source, public_group,
+    driver,
+    super_admin_user,
+    public_source,
+    public_group,
 ):
     driver.get(f"/become_user/{super_admin_user.id}")
     driver.get("/")

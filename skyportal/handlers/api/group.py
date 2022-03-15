@@ -202,7 +202,7 @@ class GroupHandler(BaseHandler):
             list(self.current_user.groups), key=lambda g: g.name.lower()
         )
         info['user_accessible_groups'] = sorted(
-            [g for g in self.current_user.accessible_groups if not g.single_user_group],
+            (g for g in self.current_user.accessible_groups if not g.single_user_group),
             key=lambda g: g.name.lower(),
         )
         all_groups_query = Group.query_records_accessible_by(self.current_user)

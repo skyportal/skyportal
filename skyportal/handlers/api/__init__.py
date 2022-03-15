@@ -4,9 +4,15 @@ from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
+from .annotation_services import IRSAQueryWISEHandler
 from .db_stats import StatsHandler
+from .enum_types import EnumTypesHandler
 from .filter import FilterHandler
-from .followup_request import FollowupRequestHandler, AssignmentHandler
+from .followup_request import (
+    FollowupRequestHandler,
+    FollowupRequestSchedulerHandler,
+    AssignmentHandler,
+)
 from .facility_listener import FacilityMessageHandler
 from .galaxy import GalaxyCatalogHandler
 from .gcn import (
@@ -27,11 +33,20 @@ from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
-from .observation import ObservationHandler, ObservationASCIIFileHandler
+from .observation import (
+    ObservationASCIIFileHandler,
+    ObservationHandler,
+    ObservationGCNHandler,
+    ObservationTreasureMapHandler,
+    ObservationExternalAPIHandler,
+)
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
     ObservationPlanRequestHandler,
+    ObservationPlanTreasureMapHandler,
+    ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
+    ObservationPlanMovieHandler,
 )
 from .photometry import (
     PhotometryHandler,

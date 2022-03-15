@@ -187,7 +187,7 @@ def setup_schema():
                 )
 
 
-class PhotBaseFlexible(object):
+class PhotBaseFlexible:
     """This is the base class for two classes that are used for rendering the
     input data to `PhotometryHandler.post` in redoc. These classes are only
     used for generating documentation and not for validation, serialization,
@@ -498,7 +498,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
     )
 
 
-class PhotBase(object):
+class PhotBase:
     """This is the base class of two classes that are used for deserializing
     and validating the postprocessed input data of `PhotometryHandler.post`
     and `PhotometryHandler.put` and for generating the API docs of
@@ -892,6 +892,22 @@ class ObservationHandlerPost(_Schema):
     )
     observationData = fields.Field(
         metadata={'description': 'Observation data dictionary list'}
+    )
+
+
+class ObservationExternalAPIHandlerPost(_Schema):
+
+    start_date = fields.Field(
+        required=True, metadata={'description': "start date of the request."}
+    )
+
+    end_date = fields.Field(
+        required=True, metadata={'description': "end date of the request."}
+    )
+
+    allocation_id = fields.Integer(
+        required=True,
+        metadata={'description': "Followup request allocation ID."},
     )
 
 
@@ -1496,6 +1512,7 @@ PhotometryRangeQuery = PhotometryRangeQuery()
 SpectrumAsciiFilePostJSON = SpectrumAsciiFilePostJSON()
 FollowupRequestPost = FollowupRequestPost()
 ObservationPlanPost = ObservationPlanPost()
+ObservationExternalAPIHandlerPost = ObservationExternalAPIHandlerPost()
 SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
 GroupIDList = GroupIDList()
