@@ -789,20 +789,19 @@ shifts:
     start_date: "2022-03-18 8:00:00"
     end_date: "2022-03-18 14:00:00"
     name: "the Day Shift"
+    shift_admins:
+      - =testadmin
     =id: dayshift
 
   - group_id: =program_B
     start_date: "2022-03-18 16:00:00"
     end_date: "2022-03-18 22:00:00"
     name: "the Night Shift"
+    shift_admins:
+      - =groupadmin
     =id: nightshift
 
-shifts/=dayshift/users:
-  - userID: =testadmin
-    admin: true
 
 shifts/=nightshift/users:
-  - userID: =groupadmin
-    admin: true
   - userID: =viewonlyuser
     admin: false

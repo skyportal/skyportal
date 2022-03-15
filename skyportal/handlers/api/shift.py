@@ -20,7 +20,7 @@ class ShiftHandler(BaseHandler):
         ---
         description: Add a new shift
         tags:
-          - shift
+          - shifts
         requestBody:
           content:
             application/json:
@@ -73,8 +73,13 @@ class ShiftHandler(BaseHandler):
         """
 
         data = self.get_json()
+        if data.get("name") is None or (
+            isinstance(data.get("name"), str) and data.get("name").strip() == ""
+        ):
+            return self.error("Missing required parameter: `name`")
+
         try:
-            shift_admin_ids = [int(e) for e in data.get('shift_admins', [])]
+            shift_admin_ids = [int(e) for e in data.pop('shift_admins', [])]
         except ValueError:
             return self.error(
                 "Invalid shift_admins field; unable to parse all items to int"
@@ -88,7 +93,6 @@ class ShiftHandler(BaseHandler):
             self.current_user, Token
         ):
             shift_admins.append(self.current_user)
-
         schema = Shift.__schema__()
 
         try:
