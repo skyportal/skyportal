@@ -10,6 +10,8 @@ import { makeStyles } from "@material-ui/core/styles";
 import PropTypes from "prop-types";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import NewInstrument from "./NewInstrument";
+// eslint-disable-next-line import/no-cycle
+import ModifyInstrument from "./ModifyInstrument";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -60,13 +62,24 @@ export function instrumentInfo(instrument, telescopeList) {
 
   let result = "";
 
-  if (instrument?.filters || instrument?.api_classname) {
+  if (
+    instrument?.filters ||
+    instrument?.api_classname ||
+    instrument?.api_classname_obsplan ||
+    instrument?.fields
+  ) {
     result += "( ";
     if (instrument?.filters) {
       result += `filters: ${instrument.filters}`;
     }
     if (instrument?.api_classname) {
       result += ` / API Classname: ${instrument?.api_classname}`;
+    }
+    if (instrument?.api_classname_obsplan) {
+      result += ` / API Observation Plan Classname: ${instrument?.api_classname_obsplan}`;
+    }
+    if (instrument?.fields && instrument?.fields.length > 0) {
+      result += ` / # of Fields: ${instrument?.fields.length}`;
     }
     result += " )";
   }
@@ -122,6 +135,12 @@ const InstrumentPage = () => {
               <NewInstrument />
             </div>
           </Paper>
+          <Paper>
+            <div className={classes.paperContent}>
+              <Typography variant="h6">Modify an Instrument</Typography>
+              <ModifyInstrument />
+            </div>
+          </Paper>
         </Grid>
       )}
     </Grid>
@@ -129,8 +148,8 @@ const InstrumentPage = () => {
 };
 
 InstrumentList.propTypes = {
-  instruments: PropTypes.arrayOf(PropTypes.any).isRequired,
-  telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
+  instruments: PropTypes.arrayOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types
+  telescopes: PropTypes.arrayOf(PropTypes.any).isRequired, // eslint-disable-line react/forbid-prop-types
 };
 
 export default InstrumentPage;

@@ -163,7 +163,7 @@ def commit_photometry(json_response, altdata, request_id, instrument_id):
 
         drop_columns = list(
             set(df.columns.values)
-            - set(['mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'])
+            - {'mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'}
         )
 
         df.drop(
@@ -341,6 +341,24 @@ class ATLASAPI(FollowUpAPI):
         )
 
         DBSession().add(transaction)
+
+    @staticmethod
+    def delete(request):
+
+        """Delete a photometry request from ATLAS API.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to delete from the queue and the SkyPortal database.
+        """
+
+        from ..models import DBSession, FollowupRequest
+
+        DBSession().query(FollowupRequest).filter(
+            FollowupRequest.id == request.id
+        ).delete()
+        DBSession().commit()
 
     form_json_schema = {
         "type": "object",

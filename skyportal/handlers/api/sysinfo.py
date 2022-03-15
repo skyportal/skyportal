@@ -43,7 +43,7 @@ class SysInfoHandler(BaseHandler):
         # if another build system has written a gitlog file, use it
         gitlogs = []
         for gitlog in glob.glob(gitlog_files):
-            with open(gitlog, "r") as f:
+            with open(gitlog) as f:
                 gitlogs.append(json.load(f))
         if not gitlogs:
             gitlogs = [get_gitlog()]

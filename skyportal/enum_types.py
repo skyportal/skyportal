@@ -100,14 +100,16 @@ followup_priorities = sa.Enum(
     *FOLLOWUP_PRIORITIES, name='followup_priorities', validate_strings=True
 )
 
+ALLOWED_API_CLASSNAMES = [
+    k
+    for k, v in facility_apis.__dict__.items()
+    if inspect.isclass(v)
+    and issubclass(v, facility_apis.FollowUpAPI)
+    and v is not facility_apis.FollowUpAPI
+]
+
 api_classnames = sa.Enum(
-    *[
-        k
-        for k, v in facility_apis.__dict__.items()
-        if inspect.isclass(v)
-        and issubclass(v, facility_apis.FollowUpAPI)
-        and v is not facility_apis.FollowUpAPI
-    ],
+    *ALLOWED_API_CLASSNAMES,
     name='followup_apis',
     validate_strings=True,
 )

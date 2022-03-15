@@ -494,21 +494,25 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     telescope_subquery = Telescope.query_records_accessible_by(user).subquery()
     instrument_subquery = Instrument.query_records_accessible_by(user).subquery()
-    data = pd.read_sql(
-        Photometry.query_records_accessible_by(user)
-        .add_columns(
-            telescope_subquery.c.nickname.label("telescope"),
-            instrument_subquery.c.name.label("instrument"),
+    with DBSession() as session:
+        data = pd.read_sql(
+            Photometry.query_records_accessible_by(user)
+            .add_columns(
+                telescope_subquery.c.nickname.label("telescope"),
+                instrument_subquery.c.name.label("instrument"),
+            )
+            .join(
+                instrument_subquery,
+                instrument_subquery.c.id == Photometry.instrument_id,
+            )
+            .join(
+                telescope_subquery,
+                telescope_subquery.c.id == instrument_subquery.c.telescope_id,
+            )
+            .filter(Photometry.obj_id == obj_id)
+            .statement,
+            session.get_bind(),
         )
-        .join(instrument_subquery, instrument_subquery.c.id == Photometry.instrument_id)
-        .join(
-            telescope_subquery,
-            telescope_subquery.c.id == instrument_subquery.c.telescope_id,
-        )
-        .filter(Photometry.obj_id == obj_id)
-        .statement,
-        DBSession().bind,
-    )
 
     if data.empty:
         return None, None, None
@@ -1341,7 +1345,14 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     else:
         # tabs for mag, flux
         tabs = Tabs(tabs=[p2, p1], width=width, height=height + 90, sizing_mode='fixed')
-    return bokeh_embed.json_item(tabs)
+
+    try:
+        return bokeh_embed.json_item(tabs)
+    except ValueError:
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+            print('PHOTOMETRY PLOT FAILED ON THIS DATASET')
+            print(data)
+        return Tabs()
 
 
 def smoothing_function(values, window_size):

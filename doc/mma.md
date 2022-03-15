@@ -19,7 +19,9 @@ The vast majority of follow-up instruments will require some form of authenticat
 * LCO: A user account must be made on https://lco.global/, at which point the authentication takes the form {"PROPOSAL_ID": "your_proposal_ID", "API_TOKEN": "testtoken"}.
 * LT: A proposal ID, username, and password are passed as {"username": "username", "password": "password", "LT_proposalID": "your_proposal_ID"}.
 * SLACK: As discussed further [here](./slack.html), slack information is pass as {"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}.
+* SWIFT: A username and password are passed as {"username": "username", "secret": "password"}.
 * ZTF: An API token for an admin user for [Kowalski](https://github.com/dmitryduev/kowalski) can be passed as {"access_token": "your_token"}.
+
 
 ## Uploading executed observations
 
@@ -31,3 +33,9 @@ observation_id,field_id,obstime,seeing,limmag,exposure_time,filter,processed_fra
 84434696,1,2458598.8469676003,1.6499500000,20.5603000000,30,ztfr,1.00000
 
 where observation_id (the ID of the observations, does not need to be unique), the field_id, the observation time (in JD), the seeing (in arcseconds), the limiting magnitude, the exposure time (in seconds), the filter, and the "processed_fraction" (what fraction of the image was successfully processed) are potential columns. We note that only observation_id, field_id, obstime, filter, and exposure_time required.
+
+## Executed Observations API Upload
+
+As part of the `ObservationPlanRequest` API, it is possible to retrieve `ExecutedObservation`s. We briefly describe the authentication form the available telescopes take below:
+
+* ZTF: Login information for IRSA, which takes the form: {"tap_service": "https://irsa.ipac.caltech.edu/TAP", "tap_username": "your_password", "tap_password": "your_password"}
