@@ -255,9 +255,10 @@ def test_observation_plan_galaxy(
             nretries = nretries + 1
             time.sleep(3)
 
+    catalog_name = str(uuid.uuid4())
     datafile = f'{os.path.dirname(__file__)}/../../../data/CLU_mini.hdf5'
     data = {
-        'catalog_name': 'CLU_mini',
+        'catalog_name': catalog_name,
         'catalog_data': Table.read(datafile).to_pandas().to_dict(orient='list'),
     }
 
@@ -265,11 +266,15 @@ def test_observation_plan_galaxy(
     assert status == 200
     assert data['status'] == 'success'
 
+    params = {'catalog_name': catalog_name}
+
     nretries = 0
     galaxies_loaded = False
     while not galaxies_loaded and nretries < 5:
         try:
-            status, data = api('GET', 'galaxy_catalog', token=view_only_token)
+            status, data = api(
+                'GET', 'galaxy_catalog', token=view_only_token, params=params
+            )
             assert status == 200
             data = data["data"]["sources"]
             assert len(data) == 10
