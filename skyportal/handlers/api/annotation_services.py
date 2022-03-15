@@ -148,7 +148,7 @@ class IRSAQueryWISEHandler(BaseHandler):
         )
         return self.success()
 
-
+      
 class VizierQueryHandler(BaseHandler):
     @auth_or_token
     def post(self, obj_id):
