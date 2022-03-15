@@ -15,7 +15,7 @@ import ListItemIcon from "@material-ui/core/ListItemIcon";
 import ListItemText from "@material-ui/core/ListItemText";
 import IconButton from "@material-ui/core/IconButton";
 import GroupIcon from "@material-ui/icons/Group";
-import AddIcon from "@material-ui/icons/Add";
+import SentimentSatisfiedIcon from "@material-ui/icons/SentimentSatisfied";
 import SettingsIcon from "@material-ui/icons/Settings";
 import AssessmentIcon from '@material-ui/icons/Assessment';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
@@ -24,7 +24,7 @@ import { makeStyles } from "@material-ui/core/styles";
 {% for item in app.sidebar -%}
 import {{ item.icon }}Icon from "@material-ui/icons/{{ item.icon }}";
 {% endfor %}
-{% for item in app.sidebar_add_group -%}
+{% for item in app.sidebar_other_group -%}
 import {{ item.icon }}Icon from "@material-ui/icons/{{ item.icon }}";
 {% endfor %}
 import MenuIcon from "@material-ui/icons/Menu";
@@ -116,13 +116,18 @@ const useStyles = makeStyles((theme) => ({
   accordionPadding: {
     paddingLeft: 5
   },
-  expandIcon: {
+  adminButton: {
     color: theme.palette.info.main,
+    marginLeft: 8,
+    marginRight: 0,
+    paddingRight: 5
   },
-  addText: {
-    color: theme.palette.info.main,
-    marginLeft: 5,
-    marginRight: 10
+  adminText: {
+    paddingRight: 8
+  },
+  expand: {
+    marginRight: 8,
+    color: theme.palette.info.main
   }
 }));
 
@@ -242,20 +247,20 @@ const SidebarAndHeader = () => {
           {%- endfor %}
           <Accordion className={classes.dropdown}>
             <AccordionSummary
-              expandIcon={<ExpandMoreIcon className={classes.expandIcon}/>}
+              expandIcon={<ExpandMoreIcon className={classes.icon}/>}
               aria-controls="panel1a-content"
               id="panel1a-header"
               className={classes.accordionPadding}
             >
               <ListItem button name="addButton">
                 <ListItemIcon>
-                  <AddIcon className={classes.icon} />
+                  <SentimentSatisfiedIcon className={classes.icon} />
                 </ListItemIcon>
-                <Typography className={classes.addText}>Add</Typography>
+                <Typography className={classes.icon}>Other</Typography>
               </ListItem>
             </AccordionSummary>
             <AccordionDetails className={classes.dropdownContainer}>
-              {%- for item in app.sidebar_add_group -%}
+              {%- for item in app.sidebar_other_group -%}
 
               {%- if item.url.startswith('http') %}
               <a href="{{ item.url }}" className={classes.link}>
@@ -284,16 +289,16 @@ const SidebarAndHeader = () => {
           {(currentUser.permissions?.includes("System admin") || currentUser.permissions?.includes("Manage users")) && (
             <Accordion className={classes.dropdown}>
               <AccordionSummary
-                expandIcon={<ExpandMoreIcon className={classes.expandIcon}/>}
+                expandIcon={<ExpandMoreIcon className={classes.expand}/>}
                 aria-controls="panel1a-content"
                 id="panel1a-header"
                 className={classes.accordionPadding}
               >
-                <ListItem button name="adminButton">
+                <ListItem button name="adminButton" className={classes.adminButton}>
                   <ListItemIcon>
                     <SettingsIcon className={classes.icon}/>
                   </ListItemIcon>
-                  <Typography className={classes.icon}>Admin</Typography>
+                  <Typography className={classes.adminText}>Admin</Typography>
                 </ListItem>
               </AccordionSummary>
               <AccordionDetails className={classes.dropdownContainer}>
@@ -323,28 +328,6 @@ const SidebarAndHeader = () => {
                     </ListItem>
                   </Link>
                 )}
-                  <Link to="/telescopes" className={classes.link}>
-                    <ListItem button name="telescopeButton">
-                      <ListItemIcon>
-                        <MyLocationIcon className={classes.icon} />
-                      </ListItemIcon>
-                      <SidebarLinkText
-                        route="/telescopes"
-                        title="Telescopes"
-                      />
-                    </ListItem>
-                  </Link>
-                  <Link to="/instruments" className={classes.link}>
-                    <ListItem button name="instrumentsButton">
-                      <ListItemIcon>
-                        <WifiIcon className={classes.icon} />
-                      </ListItemIcon>
-                      <SidebarLinkText
-                        route="/instruments"
-                        title="Instruments"
-                      />
-                    </ListItem>
-                  </Link>
               </AccordionDetails>
             </Accordion>
           )}

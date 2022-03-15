@@ -162,7 +162,7 @@ app:
       icon: Info
       url: /about
 
-  sidebar_add_group:
+  sidebar_other_group:
     - name: Telescopes
       icon: MyLocation
       url: /telescopes
