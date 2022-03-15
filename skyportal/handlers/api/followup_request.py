@@ -469,7 +469,9 @@ class FollowupRequestHandler(BaseHandler):
             target_groups.append(g)
 
         try:
-            formSchema = instrument.api_class.custom_json_schema(instrument)
+            formSchema = instrument.api_class.custom_json_schema(
+                instrument, self.current_user
+            )
         except AttributeError:
             formSchema = instrument.api_class.form_json_schema
 

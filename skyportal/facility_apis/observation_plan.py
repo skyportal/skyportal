@@ -37,15 +37,14 @@ def generate_plan(observation_plan_id, request_id, user_id):
     from ..models import (
         EventObservationPlan,
         Galaxy,
-        ObservationPlanRequest,
         InstrumentField,
+        ObservationPlanRequest,
         PlannedObservation,
         User,
     )
 
     session = Session()
-    # try:
-    if True:
+    try:
         plan = session.query(EventObservationPlan).get(observation_plan_id)
         request = session.query(ObservationPlanRequest).get(request_id)
         user = session.query(User).get(user_id)
@@ -117,11 +116,11 @@ def generate_plan(observation_plan_id, request_id, user_id):
             ),
         }
 
-        if request.payload["schedule_strategy"] == "catalog":
+        if request.payload["schedule_strategy"] == "galaxy":
             params = {
                 **params,
                 'tilesType': 'galaxy',
-                'galaxy_catalog': 'CLU_mini',
+                'galaxy_catalog': request.payload["galaxy_catalog"],
                 'galaxy_grade': 'S',
                 'writeCatalog': False,
                 'catalog_n': 1.0,
@@ -130,7 +129,7 @@ def generate_plan(observation_plan_id, request_id, user_id):
         elif request.payload["schedule_strategy"] == "tiling":
             params = {**params, 'tilesType': 'moc'}
         else:
-            raise AttributeError('scheduling_strategy should be tiling or catalog')
+            raise AttributeError('scheduling_strategy should be tiling or galaxy')
 
         params = gwemopt.utils.params_checker(params)
         params = gwemopt.segments.get_telescope_segments(params)
@@ -253,12 +252,12 @@ def generate_plan(observation_plan_id, request_id, user_id):
 
         return log(f"Generated plan for observation plan {observation_plan_id}")
 
-    # except Exception as e:
-    #    return log(
-    #        f"Unable to generate plan for observation plan {observation_plan_id}: {e}"
-    #    )
-    # finally:
-    #    Session.remove()
+    except Exception as e:
+        return log(
+            f"Unable to generate plan for observation plan {observation_plan_id}: {e}"
+        )
+    finally:
+        Session.remove()
 
 
 class MMAAPI(FollowUpAPI):
@@ -390,75 +389,88 @@ class MMAAPI(FollowUpAPI):
         DBSession().delete(req)
         DBSession().commit()
 
-    form_json_schema = {
-        "type": "object",
-        "properties": {
-            "start_date": {
-                "type": "string",
-                "default": str(datetime.utcnow()),
-                "title": "Start Date (UT)",
+    def custom_json_schema(instrument, user):
+
+        from ..models import DBSession, Galaxy
+
+        galaxies = [g for g, in DBSession().query(Galaxy.catalog_name).distinct().all()]
+
+        form_json_schema = {
+            "type": "object",
+            "properties": {
+                "start_date": {
+                    "type": "string",
+                    "default": str(datetime.utcnow()),
+                    "title": "Start Date (UT)",
+                },
+                "end_date": {
+                    "type": "string",
+                    "title": "End Date (UT)",
+                    "default": str(datetime.utcnow() + timedelta(days=1)),
+                },
+                "filter_strategy": {
+                    "type": "string",
+                    "enum": ["block", "integrated"],
+                    "default": "block",
+                },
+                "schedule_type": {
+                    "type": "string",
+                    "enum": ["greedy", "greedy_slew", "sear", "airmass_weighted"],
+                    "default": "greedy_slew",
+                },
+                "schedule_strategy": {
+                    "type": "string",
+                    "enum": ["tiling", "galaxy"],
+                    "default": "tiling",
+                },
+                "galaxy_catalog": {
+                    "type": "string",
+                    "enum": galaxies,
+                    "default": galaxies[0] if len(galaxies) > 0 else "",
+                },
+                "exposure_time": {"type": "string", "default": "300"},
+                "filters": {"type": "string", "default": ",".join(default_filters)},
+                "maximum_airmass": {
+                    "title": "Maximum Airmass (1-3)",
+                    "type": "number",
+                    "default": 2.0,
+                    "minimum": 1,
+                    "maximum": 3,
+                },
+                "integrated_probability": {
+                    "title": "Integrated Probability (0-100)",
+                    "type": "number",
+                    "default": 90.0,
+                    "minimum": 0,
+                    "maximum": 100,
+                },
+                "minimum_time_difference": {
+                    "title": "Minimum time difference [min] (0-180)",
+                    "type": "number",
+                    "default": 30.0,
+                    "minimum": 0,
+                    "maximum": 180,
+                },
+                "queue_name": {
+                    "type": "string",
+                    "default": f"ToO_{str(datetime.utcnow()).replace(' ','T')}",
+                },
             },
-            "end_date": {
-                "type": "string",
-                "title": "End Date (UT)",
-                "default": str(datetime.utcnow() + timedelta(days=1)),
-            },
-            "filter_strategy": {
-                "type": "string",
-                "enum": ["block", "integrated"],
-                "default": "block",
-            },
-            "schedule_type": {
-                "type": "string",
-                "enum": ["greedy", "greedy_slew", "sear", "airmass_weighted"],
-                "default": "greedy_slew",
-            },
-            "schedule_strategy": {
-                "type": "string",
-                "enum": ["tiling", "catalog"],
-                "default": "tiling",
-            },
-            "exposure_time": {"type": "string", "default": "300"},
-            "filters": {"type": "string", "default": ",".join(default_filters)},
-            "maximum_airmass": {
-                "title": "Maximum Airmass (1-3)",
-                "type": "number",
-                "default": 2.0,
-                "minimum": 1,
-                "maximum": 3,
-            },
-            "integrated_probability": {
-                "title": "Integrated Probability (0-100)",
-                "type": "number",
-                "default": 90.0,
-                "minimum": 0,
-                "maximum": 100,
-            },
-            "minimum_time_difference": {
-                "title": "Minimum time difference [min] (0-180)",
-                "type": "number",
-                "default": 30.0,
-                "minimum": 0,
-                "maximum": 180,
-            },
-            "queue_name": {
-                "type": "string",
-                "default": f"ToO_{str(datetime.utcnow()).replace(' ','T')}",
-            },
-        },
-        "required": [
-            "start_date",
-            "end_date",
-            "filters",
-            "queue_name",
-            "filter_strategy",
-            "schedule_type",
-            "schedule_strategy",
-            "exposure_time",
-            "maximum_airmass",
-            "integrated_probability",
-            "minimum_time_difference",
-        ],
-    }
+            "required": [
+                "start_date",
+                "end_date",
+                "filters",
+                "queue_name",
+                "filter_strategy",
+                "schedule_type",
+                "schedule_strategy",
+                "exposure_time",
+                "maximum_airmass",
+                "integrated_probability",
+                "minimum_time_difference",
+            ],
+        }
+
+        return form_json_schema
 
     ui_json_schema = {}

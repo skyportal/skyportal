@@ -451,25 +451,28 @@ class ZTFMMAAPI(MMAAPI):
 
         IOLoop.current().run_in_executor(None, fetch_obs)
 
-    form_json_schema = MMAAPI.form_json_schema
+    def custom_json_schema(instrument, user):
+        form_json_schema = MMAAPI.custom_json_schema(instrument, user)
 
-    form_json_schema["properties"] = {
-        **form_json_schema["properties"],
-        "program_id": {
-            "type": "string",
-            "enum": ["Partnership", "Caltech"],
-            "default": "Partnership",
-        },
-        "subprogram_name": {
-            "type": "string",
-            "enum": ["GW", "GRB", "Neutrino", "SolarSystem", "Other"],
-            "default": "GRB",
-        },
-    }
-    form_json_schema["required"] = form_json_schema["required"] + [
-        "subprogram_name",
-        "program_id",
-    ]
+        form_json_schema["properties"] = {
+            **form_json_schema["properties"],
+            "program_id": {
+                "type": "string",
+                "enum": ["Partnership", "Caltech"],
+                "default": "Partnership",
+            },
+            "subprogram_name": {
+                "type": "string",
+                "enum": ["GW", "GRB", "Neutrino", "SolarSystem", "Other"],
+                "default": "GRB",
+            },
+        }
+        form_json_schema["required"] = form_json_schema["required"] + [
+            "subprogram_name",
+            "program_id",
+        ]
+
+        return form_json_schema
 
 
 def fetch_observations(instrument_id, client, request_str):
