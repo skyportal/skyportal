@@ -4,7 +4,7 @@ from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
-from .annotation_services import IRSAQueryWISEHandler
+from .annotation_services import IRSAQueryWISEHandler, VizierQueryHandler
 from .db_stats import StatsHandler
 from .enum_types import EnumTypesHandler
 from .filter import FilterHandler
