@@ -5,7 +5,6 @@ import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
 import { makeStyles } from "@material-ui/core/styles";
 import PropTypes from "prop-types";
-import CircularProgress from "@material-ui/core/CircularProgress";
 
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import NewObservation from "./NewObservation";
@@ -26,12 +25,8 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const ObservationList = ({ observations }) => {
-  if (!observations) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+  if (!observations || observations.length === 0) {
+    return <p>No galaxies available...</p>;
   }
 
   return <ExecutedObservationsTable observations={observations.observations} />;
@@ -89,7 +84,11 @@ ObservationList.propTypes = {
       seeing: PropTypes.number,
       processed_fraction: PropTypes.number,
     })
-  ).isRequired,
+  ),
+};
+
+ObservationList.defaultProps = {
+  observations: null,
 };
 
 export default ObservationPage;

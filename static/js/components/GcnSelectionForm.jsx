@@ -62,9 +62,8 @@ const GcnSelectionForm = ({ gcnEvent }) => {
     "instrument",
     "observations",
   ];
-  const displayOptionsDefault = displayOptions.reduce(
-    (o, key) => Object.assign(o, { [key]: false }),
-    {}
+  const displayOptionsDefault = Object.fromEntries(
+    displayOptions.map((x) => [x, false])
   );
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);

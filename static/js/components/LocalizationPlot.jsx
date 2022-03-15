@@ -53,68 +53,74 @@ LocalizationPlot.propTypes = {
     id: PropTypes.number,
     dateobs: PropTypes.string,
     localization_name: PropTypes.string,
-  }).isRequired,
-  sources: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string,
-      ra: PropTypes.number,
-      dec: PropTypes.number,
-      origin: PropTypes.string,
-      alias: PropTypes.arrayOf(PropTypes.string),
-      redshift: PropTypes.number,
-      classifications: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number,
-          classification: PropTypes.string,
-          created_at: PropTypes.string,
-          groups: PropTypes.arrayOf(
-            PropTypes.shape({
-              id: PropTypes.number,
-              name: PropTypes.string,
-            })
-          ),
-        })
-      ),
-      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
-      altdata: PropTypes.shape({
-        tns: PropTypes.shape({
-          name: PropTypes.string,
+  }),
+  sources: PropTypes.shape({
+    geojson: GeoPropTypes.FeatureCollection,
+    sources: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.string,
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        origin: PropTypes.string,
+        alias: PropTypes.arrayOf(PropTypes.string),
+        redshift: PropTypes.number,
+        classifications: PropTypes.arrayOf(
+          PropTypes.shape({
+            id: PropTypes.number,
+            classification: PropTypes.string,
+            created_at: PropTypes.string,
+            groups: PropTypes.arrayOf(
+              PropTypes.shape({
+                id: PropTypes.number,
+                name: PropTypes.string,
+              })
+            ),
+          })
+        ),
+        recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
+        altdata: PropTypes.shape({
+          tns: PropTypes.shape({
+            name: PropTypes.string,
+          }),
         }),
-      }),
-      spectrum_exists: PropTypes.bool,
-      last_detected_at: PropTypes.string,
-      last_detected_mag: PropTypes.number,
-      peak_detected_at: PropTypes.string,
-      peak_detected_mag: PropTypes.number,
-      groups: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number,
-          name: PropTypes.string,
-        })
-      ),
-    })
-  ).isRequired,
-  galaxies: PropTypes.arrayOf(
-    PropTypes.shape({
-      catalog_name: PropTypes.string,
-      name: PropTypes.string,
-      alt_name: PropTypes.string,
-      ra: PropTypes.number,
-      dec: PropTypes.number,
-      distmpc: PropTypes.number,
-      distmpc_unc: PropTypes.number,
-      redshift: PropTypes.number,
-      redshift_error: PropTypes.number,
-      sfr_fuv: PropTypes.number,
-      mstar: PropTypes.number,
-      magb: PropTypes.number,
-      magk: PropTypes.number,
-      a: PropTypes.number,
-      b2a: PropTypes.number,
-      pa: PropTypes.number,
-      btc: PropTypes.number,
-    })
-  ).isRequired,
+        spectrum_exists: PropTypes.bool,
+        last_detected_at: PropTypes.string,
+        last_detected_mag: PropTypes.number,
+        peak_detected_at: PropTypes.string,
+        peak_detected_mag: PropTypes.number,
+        groups: PropTypes.arrayOf(
+          PropTypes.shape({
+            id: PropTypes.number,
+            name: PropTypes.string,
+          })
+        ),
+      })
+    ),
+  }),
+  galaxies: PropTypes.shape({
+    geojson: GeoPropTypes.FeatureCollection,
+    galaxies: PropTypes.arrayOf(
+      PropTypes.shape({
+        catalog_name: PropTypes.string,
+        name: PropTypes.string,
+        alt_name: PropTypes.string,
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        distmpc: PropTypes.number,
+        distmpc_unc: PropTypes.number,
+        redshift: PropTypes.number,
+        redshift_error: PropTypes.number,
+        sfr_fuv: PropTypes.number,
+        mstar: PropTypes.number,
+        magb: PropTypes.number,
+        magk: PropTypes.number,
+        a: PropTypes.number,
+        b2a: PropTypes.number,
+        pa: PropTypes.number,
+        btc: PropTypes.number,
+      })
+    ),
+  }),
   instrument: PropTypes.shape({
     name: PropTypes.string,
     type: PropTypes.string,
@@ -126,61 +132,54 @@ LocalizationPlot.propTypes = {
         id: PropTypes.number,
       })
     ),
-  }).isRequired,
-  observations: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string,
-      obstime: PropTypes.instanceOf(Date),
-      filt: PropTypes.string,
-      exposure_time: PropTypes.number,
-      airmass: PropTypes.number,
-      limmag: PropTypes.number,
-      seeing: PropTypes.number,
-      processed_fraction: PropTypes.number,
-    })
-  ).isRequired,
-  options: PropTypes.arrayOf(PropTypes.number).isRequired,
+  }),
+  observations: PropTypes.shape({
+    geojson: GeoPropTypes.FeatureCollection,
+    observations: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.string,
+        obstime: PropTypes.instanceOf(Date),
+        filt: PropTypes.string,
+        exposure_time: PropTypes.number,
+        airmass: PropTypes.number,
+        limmag: PropTypes.number,
+        seeing: PropTypes.number,
+        processed_fraction: PropTypes.number,
+      })
+    ),
+  }),
+  options: PropTypes.shape({
+    skymap: PropTypes.bool,
+    sources: PropTypes.bool,
+    galaxies: PropTypes.bool,
+    instrument: PropTypes.bool,
+    observations: PropTypes.bool,
+  }),
 };
 
-const useD3 = (
-  renderer,
-  height,
-  width,
-  skymap,
-  sources,
-  galaxies,
-  instrument,
-  observations,
-  options
-) => {
+LocalizationPlot.defaultProps = {
+  loc: null,
+  sources: null,
+  galaxies: null,
+  instrument: null,
+  observations: null,
+  options: {
+    skymap: false,
+    sources: false,
+    galaxies: false,
+    instrument: false,
+    observations: false,
+  },
+};
+
+const useD3 = (renderer, height, width, data) => {
   const svgRef = useRef();
 
   useEffect(() => {
-    if (skymap || sources || galaxies || instrument || observations) {
-      renderer(
-        d3.select(svgRef.current),
-        height,
-        width,
-        skymap,
-        sources,
-        galaxies,
-        instrument,
-        observations,
-        options
-      );
+    if (data) {
+      renderer(d3.select(svgRef.current), height, width, data);
     }
-  }, [
-    renderer,
-    svgRef,
-    skymap,
-    sources,
-    galaxies,
-    instrument,
-    observations,
-    options,
-    height,
-    width,
-  ]);
+  }, [renderer, svgRef, data, height, width]);
 
   return svgRef;
 };
@@ -193,17 +192,7 @@ const GeoJSONGlobePlot = ({
   observations,
   options,
 }) => {
-  function renderMap(
-    svg,
-    height,
-    width,
-    skymap_geojson,
-    sources_geojson,
-    galaxies_geojson,
-    instrument_geojson,
-    observations_geojson,
-    options_bool
-  ) {
+  function renderMap(svg, height, width, data) {
     const center = [width / 2, height / 2];
     const projection = d3.geoOrthographic().translate(center).scale(100);
     const geoGenerator = d3.geoPath().projection(projection);
@@ -248,10 +237,10 @@ const GeoJSONGlobePlot = ({
         .style("stroke-width", "0.5px")
         .attr("d", geoGenerator);
 
-      if (skymap_geojson?.features && options_bool.localization) {
+      if (data.skymap?.features && data.options.localization) {
         svg
           .selectAll("path")
-          .data(skymap_geojson.features)
+          .data(data.skymap.features)
           .enter()
           .append("path")
           .attr("class", (d) => d.properties.name)
@@ -261,10 +250,10 @@ const GeoJSONGlobePlot = ({
           .style("stroke-width", "0.5px");
       }
 
-      if (sources_geojson?.features && options_bool.sources) {
+      if (data.sources?.features && data.options.sources) {
         svg
           .selectAll(".label")
-          .data(sources_geojson.features)
+          .data(data.sources.features)
           .enter()
           .append("a")
           .attr("xlink:href", (d) => d.properties.url)
@@ -292,10 +281,10 @@ const GeoJSONGlobePlot = ({
           .attr("r", 3);
       }
 
-      if (galaxies_geojson?.features && options_bool.galaxies) {
+      if (data.galaxies?.features && data.options.galaxies) {
         svg
           .selectAll(".label")
-          .data(galaxies_geojson.features)
+          .data(data.galaxies.features)
           .enter()
           .append("a")
           .attr("xlink:href", (d) => d.properties.url)
@@ -323,8 +312,8 @@ const GeoJSONGlobePlot = ({
           .attr("r", 3);
       }
 
-      if (instrument_geojson?.fields && options_bool.instrument) {
-        instrument_geojson.fields.forEach((f) => {
+      if (data.instrument?.fields && data.options.instrument) {
+        data.instrument.fields.forEach((f) => {
           const { field_id } = f.contour_summary.properties;
           const { features } = f.contour_summary;
           svg
@@ -338,8 +327,8 @@ const GeoJSONGlobePlot = ({
         });
       }
 
-      if (observations_geojson && options_bool.observations) {
-        observations_geojson.forEach((f) => {
+      if (data.observations && data.options.observations) {
+        data.observations.forEach((f) => {
           const { field_id } = f.properties;
           const { features } = f;
           svg
@@ -357,25 +346,25 @@ const GeoJSONGlobePlot = ({
     refresh();
     d3GeoZoom().projection(projection).onMove(refresh)(svg.node());
   }
-  const svgRef = useD3(
-    renderMap,
-    600,
-    600,
+
+  const data = {
     skymap,
     sources,
     galaxies,
     instrument,
     observations,
-    options
-  );
+    options,
+  };
+
+  const svgRef = useD3(renderMap, 600, 600, data);
 
   return <svg height={600} width={600} ref={svgRef} />;
 };
 
 GeoJSONGlobePlot.propTypes = {
-  skymap: GeoPropTypes.FeatureCollection.isRequired,
-  sources: GeoPropTypes.FeatureCollection.isRequired,
-  galaxies: GeoPropTypes.FeatureCollection.isRequired,
+  skymap: GeoPropTypes.FeatureCollection,
+  sources: GeoPropTypes.FeatureCollection,
+  galaxies: GeoPropTypes.FeatureCollection,
   instrument: PropTypes.shape({
     name: PropTypes.string,
     type: PropTypes.string,
@@ -389,9 +378,30 @@ GeoJSONGlobePlot.propTypes = {
         contour_summary: GeoPropTypes.FeatureCollection,
       })
     ),
-  }).isRequired,
-  observations: PropTypes.arrayOf(GeoPropTypes.FeatureCollection).isRequired,
-  options: PropTypes.arrayOf(PropTypes.number).isRequired,
+  }),
+  observations: PropTypes.arrayOf(GeoPropTypes.FeatureCollection),
+  options: PropTypes.shape({
+    skymap: PropTypes.bool,
+    sources: PropTypes.bool,
+    galaxies: PropTypes.bool,
+    instrument: PropTypes.bool,
+    observations: PropTypes.bool,
+  }),
+};
+
+GeoJSONGlobePlot.defaultProps = {
+  skymap: null,
+  sources: null,
+  galaxies: null,
+  instrument: null,
+  observations: null,
+  options: {
+    skymap: false,
+    sources: false,
+    galaxies: false,
+    instrument: false,
+    observations: false,
+  },
 };
 
 export default LocalizationPlot;
