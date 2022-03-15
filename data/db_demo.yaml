@@ -786,7 +786,23 @@ galaxy_catalog:
 
 shifts:
   - group_id: =program_A
-    start_date: "2022-03-08 16:00:00"
-    end_date: "2022-03-08 23:00:00"
+    start_date: "2022-03-18 8:00:00"
+    end_date: "2022-03-18 14:00:00"
+    name: "the Day Shift"
+    =id: dayshift
+
+  - group_id: =program_B
+    start_date: "2022-03-18 16:00:00"
+    end_date: "2022-03-18 22:00:00"
     name: "the Night Shift"
     =id: nightshift
+
+shifts/=dayshift/users:
+  - userID: =testadmin
+    admin: true
+
+shifts/=nightshift/users:
+  - userID: =groupadmin
+    admin: true
+  - userID: =viewonlyuser
+    admin: false
