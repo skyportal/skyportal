@@ -2,6 +2,8 @@ user:
   - username: testadmin
     roles:
       - Super admin
+    first_name: Jada
+    last_name: Lilleboe
     =id: testadmin
   - username: groupadmin
     roles:

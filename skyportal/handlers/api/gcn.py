@@ -327,6 +327,15 @@ class LocalizationHandler(BaseHandler):
             required: true
             schema:
               type: localization_name
+          - in: query
+            name: include2DMap
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              Boolean indicating whether to include flatted skymap. Defaults to
+              false.
+
         responses:
           200:
             content:
@@ -337,6 +346,9 @@ class LocalizationHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+
+        include_2D_map = self.get_query_argument("include2DMap", False)
+
         localization = (
             Localization.query_records_accessible_by(self.current_user)
             .filter(
@@ -348,11 +360,17 @@ class LocalizationHandler(BaseHandler):
         if localization is None:
             return self.error("Localization not found", status=404)
 
-        data = {
-            **localization.to_dict(),
-            "flat_2d": localization.flat_2d,
-            "contour": localization.contour,
-        }
+        if include_2D_map:
+            data = {
+                **localization.to_dict(),
+                "flat_2d": localization.flat_2d,
+                "contour": localization.contour,
+            }
+        else:
+            data = {
+                **localization.to_dict(),
+                "contour": localization.contour,
+            }
         return self.success(data=data)
 
     @auth_or_token

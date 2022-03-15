@@ -1,13 +1,15 @@
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.log import make_log
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, undefer
 from sqlalchemy.orm import sessionmaker, scoped_session
+import sqlalchemy as sa
 from tornado.ioloop import IOLoop
 
 from healpix_alchemy import Tile
-from regions import Regions
+from regions import Regions, CircleSkyRegion, RectangleSkyRegion
 from astropy import coordinates
+from astropy.coordinates import SkyCoord
 from astropy import units as u
 import numpy as np
 import pandas as pd
@@ -16,10 +18,13 @@ from io import StringIO
 from ..base import BaseHandler
 from ...models import (
     DBSession,
+    GcnEvent,
     Instrument,
-    Telescope,
     InstrumentField,
     InstrumentFieldTile,
+    Localization,
+    LocalizationTile,
+    Telescope,
 )
 from ...enum_types import ALLOWED_BANDPASSES
 
@@ -42,6 +47,47 @@ class InstrumentHandler(BaseHandler):
 
         field_data = data.pop("field_data", None)
         field_region = data.pop("field_region", None)
+
+        field_fov_type = data.pop("field_fov_type", None)
+        field_fov_attributes = data.pop("field_fov_attributes", None)
+
+        if (field_region is not None) and (field_fov_type is not None):
+            return self.error('must supply only one of field_region or field_fov_type')
+
+        if field_region is not None:
+            regions = Regions.parse(field_region, format='ds9')
+            data['region'] = regions.serialize(format='ds9')
+
+        if field_fov_type is not None:
+            if field_fov_attributes is None:
+                return self.error(
+                    'field_fov_attributes required if field_fov_type supplied'
+                )
+            if not field_fov_type.lower() in ["circle", "rectangle"]:
+                return self.error('field_fov_type must be circle or rectangle')
+            if isinstance(field_fov_attributes, list):
+                field_fov_attributes = [float(x) for x in field_fov_attributes]
+            else:
+                field_fov_attributes = [float(field_fov_attributes)]
+
+            center = SkyCoord(0.0, 0.0, unit='deg', frame='icrs')
+            if field_fov_type.lower() == "circle":
+                if not len(field_fov_attributes) == 1:
+                    return self.error(
+                        'If field_fov_type is circle, then should supply only radius for field_fov_attributes'
+                    )
+                radius = field_fov_attributes[0]
+                regions = CircleSkyRegion(center=center, radius=radius * u.deg)
+            elif field_fov_type.lower() == "rectangle":
+                if not len(field_fov_attributes) == 2:
+                    return self.error(
+                        'If field_fov_type is rectangle, then should supply width and height for field_fov_attributes'
+                    )
+                width, height = field_fov_attributes
+                regions = RectangleSkyRegion(
+                    center=center, width=width * u.deg, height=height * u.deg
+                )
+            data['region'] = regions.serialize(format='ds9')
 
         schema = Instrument.__schema__()
         try:
@@ -70,8 +116,7 @@ class InstrumentHandler(BaseHandler):
 
         if field_data is not None:
             if field_region is None:
-                return self.error('`field_region` is required with field_data')
-            regions = Regions.parse(field_region, format='ds9')
+                return self.error('field_region is required with field_data')
 
             if type(field_data) is str:
                 field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
@@ -111,7 +156,7 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson. Defaults to
+                Boolean indicating whether to include associated GeoJSON. Defaults to
                 false.
             - in: query
               name: includeGeoJSONSummary
@@ -119,8 +164,44 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson summary bounding box. Defaults to
+                Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
                 false.
+            - in: query
+              name: includeRegion
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated DS9 region. Defaults to
+                false.
+            - in: query
+              name: localizationDateobs
+              schema:
+                type: string
+              description: |
+                Include fields within a given localization.
+                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                Each localization is associated with a specific GCNEvent by
+                the date the event happened, and this date is used as a unique
+                identifier. It can be therefore found as Localization.dateobs,
+                queried from the /api/localization endpoint or dateobs in the
+                GcnEvent page table.
+            - in: query
+              name: localizationName
+              schema:
+                type: string
+              description: |
+                Name of localization / skymap to use.
+                Can be found in Localization.localization_name queried from
+                /api/localization endpoint or skymap name in GcnEvent page
+                table.
+            - in: query
+              name: localizationCumprob
+              schema:
+                type: number
+              description: |
+                Cumulative probability up to which to include fields.
+                Defaults to 0.95.
           responses:
             200:
               content:
@@ -146,7 +227,7 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson. Defaults to
+                Boolean indicating whether to include associated GeoJSON. Defaults to
                 false.
             - in: query
               name: includeGeoJSONSummary
@@ -154,8 +235,44 @@ class InstrumentHandler(BaseHandler):
               schema:
                 type: boolean
               description: |
-                Boolean indicating whether to include associated geojson summary bounding box. Defaults to
+                Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
                 false.
+            - in: query
+              name: includeRegion
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated DS9 region. Defaults to
+                false.
+            - in: query
+              name: localizationDateobs
+              schema:
+                type: string
+              description: |
+                Include fields within a given localization.
+                Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+                Each localization is associated with a specific GCNEvent by
+                the date the event happened, and this date is used as a unique
+                identifier. It can be therefore found as Localization.dateobs,
+                queried from the /api/localization endpoint or dateobs in the
+                GcnEvent page table.
+            - in: query
+              name: localizationName
+              schema:
+                type: string
+              description: |
+                Name of localization / skymap to use.
+                Can be found in Localization.localization_name queried from
+                /api/localization endpoint or skymap name in GcnEvent page
+                table.
+            - in: query
+              name: localizationCumprob
+              schema:
+                type: number
+              description: |
+                Cumulative probability up to which to include fields.
+                Defaults to 0.95.
           responses:
             200:
               content:
@@ -166,17 +283,24 @@ class InstrumentHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+
+        localization_dateobs = self.get_query_argument('localizationDateobs', None)
+        localization_name = self.get_query_argument('localizationName', None)
+        localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
+
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
-        options = [joinedload(Instrument.fields)]
+        includeRegion = self.get_query_argument("includeRegion", False)
         if includeGeoJSON:
-            options.append(
-                joinedload(Instrument.fields).undefer(InstrumentField.contour)
-            )
-        if includeGeoJSONSummary:
-            options.append(
+            options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
+        elif includeGeoJSONSummary:
+            options = [
                 joinedload(Instrument.fields).undefer(InstrumentField.contour_summary)
-            )
+            ]
+        else:
+            options = []
+        if includeRegion:
+            options.append(undefer(Instrument.region))
 
         if instrument_id is not None:
             instrument = Instrument.get_if_accessible_by(
@@ -186,18 +310,215 @@ class InstrumentHandler(BaseHandler):
                 mode="read",
                 options=options,
             )
+            data = instrument.to_dict()
 
-            return self.success(data=instrument)
+            # optional: slice by GcnEvent localization
+            if localization_dateobs is not None:
+                if localization_name is not None:
+                    localization = (
+                        Localization.query_records_accessible_by(self.current_user)
+                        .filter(
+                            Localization.dateobs == localization_dateobs,
+                            Localization.localization_name == localization_name,
+                        )
+                        .first()
+                    )
+                    if localization is None:
+                        return self.error("Localization not found", status=404)
+                else:
+                    event = (
+                        GcnEvent.query_records_accessible_by(
+                            self.current_user,
+                            options=[
+                                joinedload(GcnEvent.localizations),
+                            ],
+                        )
+                        .filter(GcnEvent.dateobs == localization_dateobs)
+                        .first()
+                    )
+                    if event is None:
+                        return self.error("GCN event not found", status=404)
+                    localization = event.localizations[-1]
+
+                cum_prob = (
+                    sa.func.sum(
+                        LocalizationTile.probdensity * LocalizationTile.healpix.area
+                    )
+                    .over(order_by=LocalizationTile.probdensity.desc())
+                    .label('cum_prob')
+                )
+                localizationtile_subquery = (
+                    sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                        LocalizationTile.localization_id == localization.id
+                    )
+                ).subquery()
+
+                min_probdensity = (
+                    sa.select(
+                        sa.func.min(localizationtile_subquery.columns.probdensity)
+                    ).filter(
+                        localizationtile_subquery.columns.cum_prob
+                        <= localization_cumprob
+                    )
+                ).scalar_subquery()
+
+                if includeGeoJSON or includeGeoJSONSummary:
+                    if includeGeoJSON:
+                        undefer_column = 'contour'
+                    elif includeGeoJSONSummary:
+                        undefer_column = 'contour_summary'
+                    tiles = (
+                        DBSession()
+                        .execute(
+                            sa.select(InstrumentField)
+                            .filter(
+                                LocalizationTile.localization_id == localization.id,
+                                LocalizationTile.probdensity >= min_probdensity,
+                                InstrumentFieldTile.instrument_id == instrument.id,
+                                InstrumentFieldTile.instrument_field_id
+                                == InstrumentField.id,
+                                InstrumentFieldTile.healpix.overlaps(
+                                    LocalizationTile.healpix
+                                ),
+                            )
+                            .options(undefer(undefer_column))
+                        )
+                        .unique()
+                        .all()
+                    )
+                else:
+                    tiles = (
+                        (
+                            DBSession().execute(
+                                sa.select(InstrumentField).filter(
+                                    LocalizationTile.localization_id == localization.id,
+                                    LocalizationTile.probdensity >= min_probdensity,
+                                    InstrumentFieldTile.instrument_id == instrument.id,
+                                    InstrumentFieldTile.instrument_field_id
+                                    == InstrumentField.id,
+                                    InstrumentFieldTile.healpix.overlaps(
+                                        LocalizationTile.healpix
+                                    ),
+                                )
+                            )
+                        )
+                        .unique()
+                        .all()
+                    )
+                data['fields'] = [tile.to_dict() for tile, in tiles]
+
+            return self.success(data=data)
 
         inst_name = self.get_query_argument("name", None)
+        if includeRegion:
+            options = [undefer(Instrument.region)]
+        else:
+            options = []
         query = Instrument.query_records_accessible_by(
             self.current_user, mode="read", options=options
         )
         if inst_name is not None:
             query = query.filter(Instrument.name == inst_name)
         instruments = query.all()
+        data = [instrument.to_dict() for instrument in instruments]
+
+        # optional: slice by GcnEvent localization
+        if localization_dateobs is not None:
+            if localization_name is not None:
+                localization = (
+                    Localization.query_records_accessible_by(self.current_user)
+                    .filter(
+                        Localization.dateobs == localization_dateobs,
+                        Localization.localization_name == localization_name,
+                    )
+                    .first()
+                )
+                if localization is None:
+                    return self.error("Localization not found", status=404)
+            else:
+                event = (
+                    GcnEvent.query_records_accessible_by(
+                        self.current_user,
+                        options=[
+                            joinedload(GcnEvent.localizations),
+                        ],
+                    )
+                    .filter(GcnEvent.dateobs == localization_dateobs)
+                    .first()
+                )
+                if event is None:
+                    return self.error("GCN event not found", status=404)
+                localization = event.localizations[-1]
+
+            cum_prob = (
+                sa.func.sum(
+                    LocalizationTile.probdensity * LocalizationTile.healpix.area
+                )
+                .over(order_by=LocalizationTile.probdensity.desc())
+                .label('cum_prob')
+            )
+            localizationtile_subquery = (
+                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                    LocalizationTile.localization_id == localization.id
+                )
+            ).subquery()
+
+            min_probdensity = (
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob <= localization_cumprob
+                )
+            ).scalar_subquery()
+
+            for ii, instrument in enumerate(instruments):
+                if includeGeoJSON or includeGeoJSONSummary:
+                    if includeGeoJSON:
+                        undefer_column = 'contour'
+                    elif includeGeoJSONSummary:
+                        undefer_column = 'contour_summary'
+                    tiles = (
+                        DBSession()
+                        .execute(
+                            sa.select(InstrumentField)
+                            .filter(
+                                LocalizationTile.localization_id == localization.id,
+                                LocalizationTile.probdensity >= min_probdensity,
+                                InstrumentFieldTile.instrument_id == instrument.id,
+                                InstrumentFieldTile.instrument_field_id
+                                == InstrumentField.id,
+                                InstrumentFieldTile.healpix.overlaps(
+                                    LocalizationTile.healpix
+                                ),
+                            )
+                            .options(undefer(undefer_column))
+                        )
+                        .unique()
+                        .all()
+                    )
+                else:
+                    tiles = (
+                        (
+                            DBSession().execute(
+                                sa.select(InstrumentField).filter(
+                                    LocalizationTile.localization_id == localization.id,
+                                    LocalizationTile.probdensity >= min_probdensity,
+                                    InstrumentFieldTile.instrument_id == instrument.id,
+                                    InstrumentFieldTile.instrument_field_id
+                                    == InstrumentField.id,
+                                    InstrumentFieldTile.healpix.overlaps(
+                                        LocalizationTile.healpix
+                                    ),
+                                )
+                            )
+                        )
+                        .unique()
+                        .all()
+                    )
+                data[ii]['fields'] = [tile.to_dict() for tile, in tiles]
+
         self.verify_and_commit()
-        return self.success(data=instruments)
+        return self.success(data=data)
 
     @permissions(['System admin'])
     def put(self, instrument_id):
@@ -230,9 +551,55 @@ class InstrumentHandler(BaseHandler):
         data['id'] = int(instrument_id)
 
         # permission check
-        _ = Instrument.get_if_accessible_by(
-            int(instrument_id), self.current_user, raise_if_none=True, mode='update'
+        instrument = Instrument.get_if_accessible_by(
+            int(instrument_id), self.current_user, mode='update'
         )
+        if instrument is None:
+            return self.error(f'Missing instrument with ID {instrument_id}')
+
+        field_data = data.pop("field_data", None)
+        field_region = data.pop("field_region", None)
+
+        field_fov_type = data.pop("field_fov_type", None)
+        field_fov_attributes = data.pop("field_fov_attributes", None)
+
+        if (field_region is not None) and (field_fov_type is not None):
+            return self.error('must supply only one of field_region or field_fov_type')
+
+        if field_region is not None:
+            regions = Regions.parse(field_region, format='ds9')
+            data['region'] = regions.serialize(format='ds9')
+
+        if field_fov_type is not None:
+            if field_fov_attributes is None:
+                return self.error(
+                    'field_fov_attributes required if field_fov_type supplied'
+                )
+            if not field_fov_type.lower() in ["circle", "rectangle"]:
+                return self.error('field_fov_type must be circle or rectangle')
+            if isinstance(field_fov_attributes, list):
+                field_fov_attributes = [float(x) for x in field_fov_attributes]
+            else:
+                field_fov_attributes = [float(field_fov_attributes)]
+
+            center = SkyCoord(0.0, 0.0, unit='deg', frame='icrs')
+            if field_fov_type.lower() == "circle":
+                if not len(field_fov_attributes) == 1:
+                    return self.error(
+                        'If field_fov_type is circle, then should supply only radius for field_fov_attributes'
+                    )
+                radius = field_fov_attributes[0]
+                regions = CircleSkyRegion(center=center, radius=radius * u.deg)
+            elif field_fov_type.lower() == "rectangle":
+                if not len(field_fov_attributes) == 2:
+                    return self.error(
+                        'If field_fov_type is rectangle, then should supply width and height for field_fov_attributes'
+                    )
+                width, height = field_fov_attributes
+                regions = RectangleSkyRegion(
+                    center=center, width=width * u.deg, height=height * u.deg
+                )
+            data['region'] = regions.serialize(format='ds9')
 
         schema = Instrument.__schema__()
         try:
@@ -242,6 +609,25 @@ class InstrumentHandler(BaseHandler):
                 'Invalid/missing parameters: ' f'{exc.normalized_messages()}'
             )
         self.verify_and_commit()
+
+        if field_data is not None:
+            if field_region is None:
+                return self.error('field_region is required with field_data')
+
+            if type(field_data) is str:
+                field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
+                    orient='list'
+                )
+
+            if not {'ID', 'RA', 'Dec'}.issubset(field_data):
+                return self.error("ID, RA, and Dec required in field_data.")
+
+            log(f"Started generating fields for instrument {instrument.id}")
+            # run async
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_tiles(instrument.id, instrument.name, regions, field_data),
+            )
 
         self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
         return self.success()
@@ -302,6 +688,31 @@ InstrumentHandler.post.__doc__ = f"""
                         has no filters (e.g., because it is a spectrograph),
                         leave blank or pass the empty list.
                       default: []
+                    field_data:
+                      type: dict
+                      items:
+                        type: array
+                      description: |
+                        List of ID, RA, and Dec for each field.
+                    field_region:
+                      type: str
+                      description: |
+                        Serialized version of a regions.Region describing
+                        the shape of the instrument field. Note: should
+                        only include field_region or field_fov_type.
+                    field_fov_type:
+                      type: str
+                      description: |
+                        Option for instrument field shape. Must be either
+                        circle or rectangle. Note: should only
+                        include field_region or field_fov_type.
+                    field_fov_attributes:
+                      type: list
+                      description: |
+                        Option for instrument field shape parameters.
+                        Single float radius in degrees in case of circle or
+                        list of two floats (height and width) in case of
+                        a rectangle.
         responses:
           200:
             content:
@@ -324,8 +735,8 @@ InstrumentHandler.post.__doc__ = f"""
         """
 
 
-def add_tiles(instrument_id, instrument_name, regions, field_data):
-    session = Session()
+def add_tiles(instrument_id, instrument_name, regions, field_data, session=Session()):
+    field_ids = []
     try:
         # Loop over the telescope tiles and create fields for each
         skyoffset_frames = coordinates.SkyCoord(
@@ -344,9 +755,24 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
             frame=skyoffset_frames[:, np.newaxis, np.newaxis],
         ).transform_to(coordinates.ICRS)
 
+        if 'ID' in field_data:
+            ids = field_data['ID']
+        else:
+            ids = [-1] * len(field_data['RA'])
+
         for ii, (field_id, ra, dec, coords) in enumerate(
-            zip(field_data['ID'], field_data['RA'], field_data['Dec'], coords_icrs)
+            zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
         ):
+
+            if field_id == -1:
+                field = InstrumentField.query.filter(
+                    InstrumentField.instrument_id == instrument_id,
+                    InstrumentField.ra == ra,
+                    InstrumentField.dec == dec,
+                ).first()
+                if field is not None:
+                    field_ids.append(field.field_id)
+                    continue
 
             # compute full contour
             geometry = []
@@ -377,6 +803,8 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     },
                 ],
             }
+            if field_id == -1:
+                del contour['properties']['field_id']
 
             # compute summary (bounding-box) contour
             geometry = []
@@ -407,23 +835,35 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     {
                         'type': 'Feature',
                         'geometry': {
-                            'type': 'MultiLineString',
+                            'type': 'LineString',
                             'coordinates': geometry_summary,
                         },
                     },
                 ],
             }
+            if field_id == -1:
+                del contour_summary['properties']['field_id']
 
-            field = InstrumentField(
-                instrument_id=instrument_id,
-                field_id=int(field_id),
-                contour=contour,
-                contour_summary=contour_summary,
-                ra=ra,
-                dec=dec,
-            )
+            if field_id == -1:
+                field = InstrumentField(
+                    instrument_id=instrument_id,
+                    contour=contour,
+                    contour_summary=contour_summary,
+                    ra=ra,
+                    dec=dec,
+                )
+            else:
+                field = InstrumentField(
+                    instrument_id=instrument_id,
+                    field_id=int(field_id),
+                    contour=contour,
+                    contour_summary=contour_summary,
+                    ra=ra,
+                    dec=dec,
+                )
             session.add(field)
             session.commit()
+            field_ids.append(field.field_id)
             tiles = []
             for coord in coords:
                 for hpx in Tile.tiles_from_polygon_skycoord(coord):
@@ -436,8 +876,9 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     )
             session.add_all(tiles)
             session.commit()
-        return log(f"Successfully generated fields for instrument {instrument_id}")
+        log(f"Successfully generated fields for instrument {instrument_id}")
     except Exception as e:
-        return log(f"Unable to generate fields for instrument {instrument_id}: {e}")
+        log(f"Unable to generate fields for instrument {instrument_id}: {e}")
     finally:
         Session.remove()
+        return field_ids

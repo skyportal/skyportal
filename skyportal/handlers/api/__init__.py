@@ -6,6 +6,7 @@ from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .annotation_services import IRSAQueryWISEHandler
 from .db_stats import StatsHandler
+from .enum_types import EnumTypesHandler
 from .filter import FilterHandler
 from .followup_request import (
     FollowupRequestHandler,
@@ -36,6 +37,7 @@ from .observation import (
     ObservationASCIIFileHandler,
     ObservationHandler,
     ObservationGCNHandler,
+    ObservationTreasureMapHandler,
     ObservationExternalAPIHandler,
 )
 from .observingrun import ObservingRunHandler

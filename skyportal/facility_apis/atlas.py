@@ -163,7 +163,7 @@ def commit_photometry(json_response, altdata, request_id, instrument_id):
 
         drop_columns = list(
             set(df.columns.values)
-            - set(['mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'])
+            - {'mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'}
         )
 
         df.drop(

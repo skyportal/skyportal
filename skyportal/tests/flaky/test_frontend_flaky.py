@@ -302,9 +302,32 @@ def test_gcnevents_observations(
     )
     assert status == 200
     assert data['status'] == 'success'
+    instrument_id = data['data']['id']
+
+    params = {'includeGeoJSON': True}
 
     # wait for the fields to populate
-    time.sleep(15)
+    nretries = 0
+    fields_loaded = False
+    while not fields_loaded and nretries < 5:
+        try:
+            status, data = api(
+                'GET',
+                f'instrument/{instrument_id}',
+                params=params,
+                token=super_admin_token,
+            )
+            assert status == 200
+            assert data['status'] == 'success'
+            assert data['data']['band'] == 'NIR'
+
+            print(data['data'])
+
+            assert len(data['data']['fields']) == 5
+            fields_loaded = True
+        except AssertionError:
+            nretries = nretries + 1
+            time.sleep(3)
 
     datafile = f'{os.path.dirname(__file__)}/../../../data/sample_observation_data.csv'
     data = {
@@ -319,7 +342,20 @@ def test_gcnevents_observations(
     assert data['status'] == 'success'
 
     # wait for the executed observations to populate
-    time.sleep(15)
+    nretries = 0
+    observations_loaded = False
+    while not observations_loaded and nretries < 5:
+        try:
+            status, data = api(
+                'GET', 'observation', params=data, token=super_admin_token
+            )
+            assert status == 200
+            data = data["data"]
+            assert len(data['observations']) == 10
+            observations_loaded = True
+        except AssertionError:
+            nretries = nretries + 1
+            time.sleep(3)
 
     driver.get(f'/become_user/{user.id}')
     driver.get('/gcn_events/2019-04-25T08:18:05')
@@ -469,13 +505,18 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     assert data['status'] == 'success'
     instrument_id = data['data']['id']
 
+    params = {'includeGeoJSON': True}
+
     # wait for the fields to populate
     nretries = 0
     fields_loaded = False
     while not fields_loaded and nretries < 5:
         try:
             status, data = api(
-                'GET', f'instrument/{instrument_id}', token=super_admin_token
+                'GET',
+                f'instrument/{instrument_id}',
+                token=super_admin_token,
+                params=params,
             )
             assert status == 200
             assert data['status'] == 'success'
@@ -631,17 +672,24 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     assert data['status'] == 'success'
     instrument_id = data['data']['id']
 
+    params = {'includeGeoJSON': True}
+
     # wait for the fields to populate
     nretries = 0
     fields_loaded = False
     while not fields_loaded and nretries < 5:
         try:
             status, data = api(
-                'GET', f'instrument/{instrument_id}', token=super_admin_token
+                'GET',
+                f'instrument/{instrument_id}',
+                params=params,
+                token=super_admin_token,
             )
             assert status == 200
             assert data['status'] == 'success'
             assert data['data']['band'] == 'NIR'
+
+            print(data['data'])
 
             assert len(data['data']['fields']) == 5
             fields_loaded = True
@@ -661,7 +709,7 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     assert status == 200
     assert data['status'] == 'success'
 
-    data = {
+    params = {
         'telescopeName': telescope_name,
         'instrumentName': instrument_name,
         'startDate': "2019-04-25 08:18:05",
@@ -678,7 +726,7 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     while not observations_loaded and nretries < 5:
         try:
             status, data = api(
-                'GET', 'observation', params=data, token=super_admin_token
+                'GET', 'observation', params=params, token=super_admin_token
             )
             assert status == 200
             data = data["data"]
