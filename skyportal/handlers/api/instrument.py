@@ -7,8 +7,9 @@ import sqlalchemy as sa
 from tornado.ioloop import IOLoop
 
 from healpix_alchemy import Tile
-from regions import Regions
+from regions import Regions, CircleSkyRegion, RectangleSkyRegion
 from astropy import coordinates
+from astropy.coordinates import SkyCoord
 from astropy import units as u
 import numpy as np
 import pandas as pd
@@ -47,8 +48,45 @@ class InstrumentHandler(BaseHandler):
         field_data = data.pop("field_data", None)
         field_region = data.pop("field_region", None)
 
+        field_fov_type = data.pop("field_fov_type", None)
+        field_fov_attributes = data.pop("field_fov_attributes", None)
+
+        if (field_region is not None) and (field_fov_type is not None):
+            return self.error('must supply only one of field_region or field_fov_type')
+
         if field_region is not None:
             regions = Regions.parse(field_region, format='ds9')
+            data['region'] = regions.serialize(format='ds9')
+
+        if field_fov_type is not None:
+            if field_fov_attributes is None:
+                return self.error(
+                    'field_fov_attributes required if field_fov_type supplied'
+                )
+            if not field_fov_type.lower() in ["circle", "rectangle"]:
+                return self.error('field_fov_type must be circle or rectangle')
+            if isinstance(field_fov_attributes, list):
+                field_fov_attributes = [float(x) for x in field_fov_attributes]
+            else:
+                field_fov_attributes = [float(field_fov_attributes)]
+
+            center = SkyCoord(0.0, 0.0, unit='deg', frame='icrs')
+            if field_fov_type.lower() == "circle":
+                if not len(field_fov_attributes) == 1:
+                    return self.error(
+                        'If field_fov_type is circle, then should supply only radius for field_fov_attributes'
+                    )
+                radius = field_fov_attributes[0]
+                regions = CircleSkyRegion(center=center, radius=radius * u.deg)
+            elif field_fov_type.lower() == "rectangle":
+                if not len(field_fov_attributes) == 2:
+                    return self.error(
+                        'If field_fov_type is rectangle, then should supply width and height for field_fov_attributes'
+                    )
+                width, height = field_fov_attributes
+                regions = RectangleSkyRegion(
+                    center=center, width=width * u.deg, height=height * u.deg
+                )
             data['region'] = regions.serialize(format='ds9')
 
         schema = Instrument.__schema__()
@@ -129,6 +167,14 @@ class InstrumentHandler(BaseHandler):
                 Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
                 false.
             - in: query
+              name: includeRegion
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated DS9 region. Defaults to
+                false.
+            - in: query
               name: localizationDateobs
               schema:
                 type: string
@@ -192,6 +238,14 @@ class InstrumentHandler(BaseHandler):
                 Boolean indicating whether to include associated GeoJSON summary bounding box. Defaults to
                 false.
             - in: query
+              name: includeRegion
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated DS9 region. Defaults to
+                false.
+            - in: query
               name: localizationDateobs
               schema:
                 type: string
@@ -236,6 +290,7 @@ class InstrumentHandler(BaseHandler):
 
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
         includeGeoJSONSummary = self.get_query_argument("includeGeoJSONSummary", False)
+        includeRegion = self.get_query_argument("includeRegion", False)
         if includeGeoJSON:
             options = [joinedload(Instrument.fields).undefer(InstrumentField.contour)]
         elif includeGeoJSONSummary:
@@ -244,6 +299,8 @@ class InstrumentHandler(BaseHandler):
             ]
         else:
             options = []
+        if includeRegion:
+            options.append(undefer(Instrument.region))
 
         if instrument_id is not None:
             instrument = Instrument.get_if_accessible_by(
@@ -353,7 +410,13 @@ class InstrumentHandler(BaseHandler):
             return self.success(data=data)
 
         inst_name = self.get_query_argument("name", None)
-        query = Instrument.query_records_accessible_by(self.current_user, mode="read")
+        if includeRegion:
+            options = [undefer(Instrument.region)]
+        else:
+            options = []
+        query = Instrument.query_records_accessible_by(
+            self.current_user, mode="read", options=options
+        )
         if inst_name is not None:
             query = query.filter(Instrument.name == inst_name)
         instruments = query.all()
@@ -497,8 +560,45 @@ class InstrumentHandler(BaseHandler):
         field_data = data.pop("field_data", None)
         field_region = data.pop("field_region", None)
 
+        field_fov_type = data.pop("field_fov_type", None)
+        field_fov_attributes = data.pop("field_fov_attributes", None)
+
+        if (field_region is not None) and (field_fov_type is not None):
+            return self.error('must supply only one of field_region or field_fov_type')
+
         if field_region is not None:
             regions = Regions.parse(field_region, format='ds9')
+            data['region'] = regions.serialize(format='ds9')
+
+        if field_fov_type is not None:
+            if field_fov_attributes is None:
+                return self.error(
+                    'field_fov_attributes required if field_fov_type supplied'
+                )
+            if not field_fov_type.lower() in ["circle", "rectangle"]:
+                return self.error('field_fov_type must be circle or rectangle')
+            if isinstance(field_fov_attributes, list):
+                field_fov_attributes = [float(x) for x in field_fov_attributes]
+            else:
+                field_fov_attributes = [float(field_fov_attributes)]
+
+            center = SkyCoord(0.0, 0.0, unit='deg', frame='icrs')
+            if field_fov_type.lower() == "circle":
+                if not len(field_fov_attributes) == 1:
+                    return self.error(
+                        'If field_fov_type is circle, then should supply only radius for field_fov_attributes'
+                    )
+                radius = field_fov_attributes[0]
+                regions = CircleSkyRegion(center=center, radius=radius * u.deg)
+            elif field_fov_type.lower() == "rectangle":
+                if not len(field_fov_attributes) == 2:
+                    return self.error(
+                        'If field_fov_type is rectangle, then should supply width and height for field_fov_attributes'
+                    )
+                width, height = field_fov_attributes
+                regions = RectangleSkyRegion(
+                    center=center, width=width * u.deg, height=height * u.deg
+                )
             data['region'] = regions.serialize(format='ds9')
 
         schema = Instrument.__schema__()
@@ -588,6 +688,31 @@ InstrumentHandler.post.__doc__ = f"""
                         has no filters (e.g., because it is a spectrograph),
                         leave blank or pass the empty list.
                       default: []
+                    field_data:
+                      type: dict
+                      items:
+                        type: array
+                      description: |
+                        List of ID, RA, and Dec for each field.
+                    field_region:
+                      type: str
+                      description: |
+                        Serialized version of a regions.Region describing
+                        the shape of the instrument field. Note: should
+                        only include field_region or field_fov_type.
+                    field_fov_type:
+                      type: str
+                      description: |
+                        Option for instrument field shape. Must be either
+                        circle or rectangle. Note: should only
+                        include field_region or field_fov_type.
+                    field_fov_attributes:
+                      type: list
+                      description: |
+                        Option for instrument field shape parameters.
+                        Single float radius in degrees in case of circle or
+                        list of two floats (height and width) in case of
+                        a rectangle.
         responses:
           200:
             content:
@@ -610,8 +735,8 @@ InstrumentHandler.post.__doc__ = f"""
         """
 
 
-def add_tiles(instrument_id, instrument_name, regions, field_data):
-    session = Session()
+def add_tiles(instrument_id, instrument_name, regions, field_data, session=Session()):
+    field_ids = []
     try:
         # Loop over the telescope tiles and create fields for each
         skyoffset_frames = coordinates.SkyCoord(
@@ -630,9 +755,24 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
             frame=skyoffset_frames[:, np.newaxis, np.newaxis],
         ).transform_to(coordinates.ICRS)
 
+        if 'ID' in field_data:
+            ids = field_data['ID']
+        else:
+            ids = [-1] * len(field_data['RA'])
+
         for ii, (field_id, ra, dec, coords) in enumerate(
-            zip(field_data['ID'], field_data['RA'], field_data['Dec'], coords_icrs)
+            zip(ids, field_data['RA'], field_data['Dec'], coords_icrs)
         ):
+
+            if field_id == -1:
+                field = InstrumentField.query.filter(
+                    InstrumentField.instrument_id == instrument_id,
+                    InstrumentField.ra == ra,
+                    InstrumentField.dec == dec,
+                ).first()
+                if field is not None:
+                    field_ids.append(field.field_id)
+                    continue
 
             # compute full contour
             geometry = []
@@ -663,6 +803,8 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     },
                 ],
             }
+            if field_id == -1:
+                del contour['properties']['field_id']
 
             # compute summary (bounding-box) contour
             geometry = []
@@ -699,17 +841,29 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     },
                 ],
             }
+            if field_id == -1:
+                del contour_summary['properties']['field_id']
 
-            field = InstrumentField(
-                instrument_id=instrument_id,
-                field_id=int(field_id),
-                contour=contour,
-                contour_summary=contour_summary,
-                ra=ra,
-                dec=dec,
-            )
+            if field_id == -1:
+                field = InstrumentField(
+                    instrument_id=instrument_id,
+                    contour=contour,
+                    contour_summary=contour_summary,
+                    ra=ra,
+                    dec=dec,
+                )
+            else:
+                field = InstrumentField(
+                    instrument_id=instrument_id,
+                    field_id=int(field_id),
+                    contour=contour,
+                    contour_summary=contour_summary,
+                    ra=ra,
+                    dec=dec,
+                )
             session.add(field)
             session.commit()
+            field_ids.append(field.field_id)
             tiles = []
             for coord in coords:
                 for hpx in Tile.tiles_from_polygon_skycoord(coord):
@@ -722,8 +876,9 @@ def add_tiles(instrument_id, instrument_name, regions, field_data):
                     )
             session.add_all(tiles)
             session.commit()
-        return log(f"Successfully generated fields for instrument {instrument_id}")
+        log(f"Successfully generated fields for instrument {instrument_id}")
     except Exception as e:
-        return log(f"Unable to generate fields for instrument {instrument_id}: {e}")
+        log(f"Unable to generate fields for instrument {instrument_id}: {e}")
     finally:
         Session.remove()
+        return field_ids

@@ -709,7 +709,7 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     assert status == 200
     assert data['status'] == 'success'
 
-    data = {
+    params = {
         'telescopeName': telescope_name,
         'instrumentName': instrument_name,
         'startDate': "2019-04-25 08:18:05",
@@ -726,7 +726,7 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     while not observations_loaded and nretries < 5:
         try:
             status, data = api(
-                'GET', 'observation', params=data, token=super_admin_token
+                'GET', 'observation', params=params, token=super_admin_token
             )
             assert status == 200
             data = data["data"]
