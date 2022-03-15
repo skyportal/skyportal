@@ -52,7 +52,7 @@ def test_irsa_wise(public_group, upload_data_token):
         ]
     )
 
-    
+
 @pytest.mark.flaky(reruns=2)
 def test_vizier_quasar(
     annotation_token, public_source, public_group, upload_data_token
