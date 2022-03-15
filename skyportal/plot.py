@@ -1350,6 +1350,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         return bokeh_embed.json_item(tabs)
     except ValueError:
         with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+            print('PHOTOMETRY PLOT FAILED ON THIS DATASET')
             print(data)
         return Tabs()
 
