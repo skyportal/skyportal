@@ -28,8 +28,10 @@ _, cfg = load_env()
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
 
-RE_SLASHES = re.compile(r'^[\w_-+\/]*$')
-RE_NO_SLASHES = re.compile(r'^[\w_-+]*$')
+RE_SLASHES = re.compile(r'^[\w_\-\+\/\\]*$')
+RE_NO_SLASHES = re.compile(r'^[\w_\-\+]*$')
+
+MAX_FILEPATH_LENGTH = 255
 
 
 class Photometry(conesearch_alchemy.Point, Base):
@@ -273,7 +275,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             Other datasets can include "fluxerr" or "magerr",
             and any other auxiliary measurements that are stored
             but generally not used by Skyportal like raw counts,
-            backgrounds, fluxes in other apertures, etc.
+            backgrounds, fluxes in other apertures, ra/dec, etc.
             All the datasets must have the same length along
             the mjd dimension.
             Auxiliary data (not mags/fluxes) may have additional
@@ -283,9 +285,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             which this series was extracted. This is useful
             for finding other objects that were observed
             at the same time as this series.
-            Must be an integer or string with only
-            alphanumeric characters (underscores are allowed).
-            The
+            Must be a string with only alphanumeric
+            characters, underscores, plus/minus signs,
+            and slashes (which are respected when
+            using the series_id to build the folder tree).
     - series_obj_id: a unique index or name of the object inside
             this observation series. Can be an index of the
             star in the images, or an official designation.
@@ -294,12 +297,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             a different identifier in different series.
             Must be an integer or string with only
             alphanumeric characters, underscores and "+-".
+            The total length of the folder tree,
+            including the root folder, series_id
+            and series_obj_id must be less than
+            255 characters.
     """
 
     __tablename__ = 'photometric_series'
-
-    # there's a default value but it is best to provide a full path in the config
-    folder = cfg.get('photometric_series_folder', 'phot_series')
 
     def __init__(self, data, series_id, series_obj_id):
         self.series_identifier = str(series_id)
@@ -436,7 +440,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             self._mags = self._data['mags']
             self._fluxes = self.mag2flux(self._mags)
         else:
-            raise KeyError('Cannot find "fluxes" or "mags" in loaded data')
+            raise KeyError('Cannot find "fluxes" or "mags" in photometric data')
 
         if 'fluxerr' in self._data:
             self._fluxerr = self._data['fluxerr']
@@ -460,30 +464,23 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         """
 
         # get the min/max/media for each column of data
-        meds = {}
-        mins = {}
-        maxs = {}
-        stds = {}
+        self.medians = {}
+        self.minima = {}
+        self.maxima = {}
+        self.stds = {}
         for key in self._data:
-            meds[key] = self._data.median('mjds')
-            mins[key] = self._data.min('mjds')
-            maxs[key] = self._data.max('mjds')
-            stds[key] = self._data.std('mjds')
+            self.medians[key] = float(self._data.median('mjds'))
+            self.minima[key] = float(self._data.min('mjds'))
+            self.maxima[key] = float(self._data.max('mjds'))
+            self.stds[key] = float(self._data.std('mjds'))
 
-        self.medians = meds
-        self.minima = mins
-        self.maxima = maxs
-        self.stds = stds
-
-        # get the start/end/mid of the mjds
-        # add half the exposure time, converted to seconds
         self.mjd_first = self.mjds[0]
         self.mjd_last = self.mjds[-1]
         self.mjd_mid = (self.mjd_start + self.mjd_end) / 2
         self.num_exp = len(self.mjds)
 
-        # calculate the median mag, rms and robust rms
-        self.median_mag = np.nanmedian(self.mags)
+        # calculate the mean mag, rms and robust median/rms
+        self.mean_mag = np.nanmean(self.mags)
         self.rms_mag = np.nanstd(self.mags)
         (self.robust_mag, self.robust_rms) = self.sigma_clipping(self.mags)
 
@@ -514,7 +511,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         Calculate a robust estimate of the mean and scatter
         of the values given to it, using a few iterations
         of finding the median and standard deviation from it,
-        and removing any outlier more than "sigma" times
+        and removing any outliers more than "sigma" times
         from that median.
         If the number of samples is less than 5,
         the function returns the nanmedian and nanstd of
@@ -546,19 +543,22 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         values = input_values.copy()
 
-        num_nans = np.sum(np.isnan(values))
         mean_value = np.nanmedian(values)
         scatter = np.nanstd(values)
+        num_values_prev = np.sum(np.isnan(values) == 0)
 
         for i in range(iterations):
             # remove outliers
             values[abs(values - mean_value) / scatter > sigma] = np.nan
 
+            num_values = np.sum(np.isnan(values) == 0)
+
             # check if there are no new outliers removed this iteration
-            if num_nans == np.sum(np.isnan(values)):
+            # OR don't proceed with too few data points
+            if num_values_prev == num_values or num_values < 5:
                 break
 
-            num_nans = np.sum(np.isnan(values))
+            num_values_prev = num_values
             mean_value = np.nanmedian(values)
             scatter = np.nanstd(values)
 
@@ -573,24 +573,49 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         """
         Load the underlying photometric data from disk.
         """
-        self._data = xr.load_dataset(os.path.join(self.folder, self.filename))
+        self._data = xr.load_dataset(self.filename)
 
     def save_data(self):
         """
         Save the underlying photometric data to disk.
         """
-        folder = os.path.join(self.folder, os.path.split(self.filename)[0])
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        self._data.to_netcdf(os.path.join(self.folder, self.filename))
+
+        # there's a default value but it is best to provide a full path in the config
+        root_folder = cfg.get('photometric_series_folder', 'phot_series')
+
+        # the filename can have alphanumeric, underscores, + or -
+        self.check_path_string(self.series_obj_id)
+
+        # we can let series_identifier have slashes, which makes subdirs
+        self.check_path_string(self.series_identifier, allow_slashes=True)
+
+        # make sure to replace windows style slashes
+        subfolder = self.series_identifier.replace("\\", "/")
+
+        filename = f'photo_series_{self.series_obj_id}.nc'
+
+        path = os.path.join(root_folder, subfolder)
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        full_name = os.path.join(path, filename)
+
+        if len(full_name) > MAX_FILEPATH_LENGTH:
+            raise ValueError(
+                f'Full path to file {full_name} is longer than {MAX_FILEPATH_LENGTH} characters.'
+            )
+
+        self._data.to_netcdf(full_name)
+
+        self.filename = full_name
 
     def delete_data(self):
         """
         Delete the underlying photometric data from disk
         """
-        fullfile = os.path.join(self.folder, self.filename)
-        if os.path.exists(fullfile):
-            os.remove(fullfile)
+
+        if os.path.exists(self.filename):
+            os.remove(self.filename)
 
     read = (
         accessible_by_groups_members
@@ -598,6 +623,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         | accessible_by_owner
     )
     update = delete = accessible_by_owner
+
+    filename = sa.Column(
+        sa.String,
+        nullable=False,
+        index=True,
+        doc="Full path and filename, or URI to the netCDF file storing photometric data.",
+    )
 
     mjd_first = sa.Column(
         sa.Float,
@@ -636,12 +668,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         sa.String, nullable=False, default='0', doc='Channel of the photometric series.'
     )
 
-    filename = sa.Column(
-        sa.String,
-        nullable=False,
-        doc='Filename of photometric series, where the actual data is saved',
-    )
-
     filter = sa.Column(
         allowed_bandpasses,
         nullable=False,
@@ -649,11 +675,13 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     )
 
     exp_time = sa.Column(
-        sa.Float, nullable=False, doc='Exposure time of each frame, in seconds.'
+        sa.Float, nullable=False, doc='Median exposure time of each frame, in seconds.'
     )
 
     frame_rate = sa.Column(
-        sa.Float, nullable=False, doc='Frame rate (frequency) of exposures in Hz.'
+        sa.Float,
+        nullable=False,
+        doc='Median frame rate (frequency) of exposures in Hz.',
     )
 
     num_exp = sa.Column(
@@ -750,14 +778,14 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     )
     owner = relationship(
         'User',
-        back_populates='photometry',
+        back_populates='photometric_series',
         foreign_keys=[owner_id],
         passive_deletes=True,
         cascade='save-update, merge, refresh-expire, expunge',
         doc="The User who uploaded the photometric series.",
     )
 
-    median_mag = sa.Column(sa.Float, doc='The average magnitude using nanmedian.')
+    mean_mag = sa.Column(sa.Float, doc='The average magnitude using nanmean.')
     rms_mag = sa.Column(sa.Float, doc='Root Mean Square of the magnitudes. ')
     robust_mag = sa.Column(
         sa.Float,
@@ -769,22 +797,22 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     medians = sa.Column(
         JSONB,
-        doc='Summary statistics on this series. The nanmedian value of each column in data is saved.',
+        doc='Summary statistics on this series. The nanmedian value of each column in data.',
     )
 
     maxima = sa.Column(
         JSONB,
-        doc='Summary statistics on this series. The nanmax value of each column in data is saved.',
+        doc='Summary statistics on this series. The nanmax value of each column in data.',
     )
 
     minima = sa.Column(
         JSONB,
-        doc='Summary statistics on this series. The nanmin value of each column in data is saved.',
+        doc='Summary statistics on this series. The nanmin value of each column in data.',
     )
 
     stds = sa.Column(
         JSONB,
-        doc='Summary statistics on this series. The nanstd value of each column in data is saved.',
+        doc='Summary statistics on this series. The nanstd value of each column in data.',
     )
 
     hash = sa.Column(
@@ -803,28 +831,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         if not reg.match(string):
             raise ValueError(f'Illegal characters in string "{string}". ')
-
-    @hybrid_property
-    def filename(self):
-        """Generate a filename and path to save to. """
-
-        self.check_path_string(self.series_obj_id)
-        return f'photo_series_{self.series_obj_id}.nc'
-
-    @hybrid_property
-    def path(self):
-        """
-        Generate a path to save this file into.
-        The path is defined relative to the config's
-        data root folder.
-        """
-
-        # we can let series_identifier have slashes, which makes subdirs
-        self.series_identifier = self.series_identifier.replace(
-            "\\", "/"
-        )  # handle windows type slashes
-        self.check_path_string(self.series_identifier, allow_slashes=True)
-        return f'{self.series_identifier}'  # do we want anything more complicated?
 
     @hybrid_property
     def data(self):
