@@ -860,10 +860,6 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
         self.verify_and_commit()
 
         observation_plan = observation_plan_request.observation_plans[0]
-        num_observations = observation_plan.num_observations
-        if num_observations == 0:
-            return self.error('Need at least one observation to produce a GCN')
-
         # features are JSON representations that the d3 stuff understands.
         # We use these to render the contours of the sky localization and
         # locations of the transients.
@@ -877,4 +873,4 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
             else:
                 continue
 
-        return self.success(data=geojson)
+        return self.success(data={'geojson': geojson})
