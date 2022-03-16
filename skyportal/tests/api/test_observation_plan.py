@@ -314,7 +314,7 @@ def test_observation_plan_galaxy(
             'end_date': '2019-04-27 01:01:01',
             'filter_strategy': 'block',
             'schedule_strategy': 'galaxy',
-            'galaxy_catalog': 'CLU_mini',
+            'galaxy_catalog': catalog_name,
             'schedule_type': 'greedy_slew',
             'exposure_time': '300',
             'filters': 'ztfg',
