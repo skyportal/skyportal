@@ -820,3 +820,61 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             return self.error(f'TreasureMap delete failed: {request_text}')
         self.push_notification(f'TreasureMap delete succeeded: {request_text}.')
         return self.success()
+
+
+class ObservationPlanGeoJSONHandler(BaseHandler):
+    @auth_or_token
+    def get(self, observation_plan_request_id):
+        """
+        ---
+        description: Get GeoJSON summary of the observation plan.
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleObservationPlanRequest
+        """
+
+        options = [
+            joinedload(ObservationPlanRequest.observation_plans)
+            .joinedload(EventObservationPlan.planned_observations)
+            .joinedload(PlannedObservation.field)
+            .undefer(InstrumentField.contour_summary)
+        ]
+
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="read",
+            raise_if_none=True,
+            options=options,
+        )
+        self.verify_and_commit()
+
+        observation_plan = observation_plan_request.observation_plans[0]
+        num_observations = observation_plan.num_observations
+        if num_observations == 0:
+            return self.error('Need at least one observation to produce a GCN')
+
+        # features are JSON representations that the d3 stuff understands.
+        # We use these to render the contours of the sky localization and
+        # locations of the transients.
+
+        geojson = []
+        fields_in = []
+        for ii, observation in enumerate(observation_plan.planned_observations):
+            if observation.field_id not in fields_in:
+                fields_in.append(observation.field_id)
+                geojson.append(observation.field.contour_summary)
+            else:
+                continue
+
+        return self.success(data=geojson)

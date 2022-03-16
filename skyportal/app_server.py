@@ -41,6 +41,7 @@ from skyportal.handlers.api import (
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
+    ObservationPlanGeoJSONHandler,
     PhotometryHandler,
     BulkDeletePhotometryHandler,
     ObjHandler,
@@ -173,6 +174,10 @@ skyportal_handlers = [
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/movie',
         ObservationPlanMovieHandler,
+    ),
+    (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/geojson',
+        ObservationPlanGeoJSONHandler,
     ),
     (r'/api/objs(/[0-9A-Za-z-_\.\+]+)', ObjHandler),
     (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
