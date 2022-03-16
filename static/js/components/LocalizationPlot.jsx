@@ -374,8 +374,20 @@ GeoJSONGlobePlot.propTypes = {
         ra: PropTypes.number,
         dec: PropTypes.number,
         id: PropTypes.number,
-        contour: GeoPropTypes.FeatureCollection,
-        contour_summary: GeoPropTypes.FeatureCollection,
+        contour: PropTypes.oneOfType([
+          GeoPropTypes.FeatureCollection,
+          PropTypes.shape({
+            type: PropTypes.string,
+            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          }),
+        ]),
+        contour_summary: PropTypes.oneOfType([
+          GeoPropTypes.FeatureCollection,
+          PropTypes.shape({
+            type: PropTypes.string,
+            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          }),
+        ]),
       })
     ),
   }),
