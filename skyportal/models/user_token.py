@@ -115,6 +115,13 @@ User.photometry = relationship(
     passive_deletes=True,
     foreign_keys="Photometry.owner_id",
 )
+User.photometric_series = relationship(
+    'PhotometricSeries',
+    doc='PhotometricSeries uploaded by this User.',
+    back_populates='owner',
+    passive_deletes=True,
+    foreign_keys="PhotometricSeries.owner_id",
+)
 User.spectra = relationship(
     'Spectrum', doc='Spectra uploaded by this User.', back_populates='owner'
 )

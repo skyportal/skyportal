@@ -28,6 +28,9 @@ _, cfg = load_env()
 PHOT_ZP = 23.9
 PHOT_SYS = 'ab'
 
+# The minimum signal-to-noise ratio to consider a photometry point as a detection
+PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
+
 RE_SLASHES = re.compile(r'^[\w_\-\+\/\\]*$')
 RE_NO_SLASHES = re.compile(r'^[\w_\-\+]*$')
 
@@ -477,6 +480,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.mjd_first = self.mjds[0]
         self.mjd_last = self.mjds[-1]
         self.mjd_mid = (self.mjd_start + self.mjd_end) / 2
+        detection_indices = np.where(self.snr > PHOT_DETECTION_THRESHOLD)[0]
+        self.mjd_last_detected = self.mjd[detection_indices[-1]]
         self.num_exp = len(self.mjds)
 
         # calculate the mean mag, rms and robust median/rms
@@ -637,6 +642,14 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         doc='MJD of the first exposure of the series.',
         index=True,
     )
+
+    mjd_mid = sa.Column(
+        sa.Float,
+        nullable=False,
+        doc='MJD of the middle of the observation series.',
+        index=True,
+    )
+
     mjd_last = sa.Column(
         sa.Float,
         nullable=False,
@@ -644,10 +657,17 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         index=True,
     )
 
-    mjd_mid = sa.Column(
+    mjd_last_detected = sa.Column(
         sa.Float,
         nullable=False,
-        doc='MJD of the middle of the observation series.',
+        doc='MJD of the last exposure that was above threshold.',
+        index=True,
+    )
+
+    detected = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        doc='True if any of the data points are above threshold.',
         index=True,
     )
 
@@ -728,7 +748,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     groups = relationship(
         "Group",
-        secondary="group_photometry",
+        secondary="group_photometric_series",
         back_populates="photometric_series",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
@@ -737,7 +757,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     streams = relationship(
         "Stream",
-        secondary="stream_photometry",
+        secondary="stream_photometric_series",
         back_populates="photometric_series",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
@@ -938,6 +958,17 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         """UTC ISO timestamp (ArrowType) of the last exposure of the series. """
         # converts MJD to unix timestamp
         return sa.func.to_timestamp((cls.mjd_last - 40_587) * 86400.0)
+
+    @hybrid_property
+    def iso_last_detected(self):
+        """UTC ISO timestamp (ArrowType) of the last exposure of the series. """
+        return arrow.get((self.mjd_last_detected - 40_587) * 86400.0)
+
+    @iso_last_detected.expression
+    def iso_last_detected(cls):
+        """UTC ISO timestamp (ArrowType) of the last exposure of the series. """
+        # converts MJD to unix timestamp
+        return sa.func.to_timestamp((cls.mjd_last_detected - 40_587) * 86400.0)
 
     @hybrid_property
     def snr(self):

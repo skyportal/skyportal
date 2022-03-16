@@ -337,6 +337,15 @@ class Group(Base):
         doc='The photometry visible to this group.',
     )
 
+    photometric_series = relationship(
+        "PhotometricSeries",
+        secondary="group_photometric_series",
+        back_populates="groups",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc='Photometric series visible to this group.',
+    )
+
     spectra = relationship(
         "Spectrum",
         secondary="group_spectra",

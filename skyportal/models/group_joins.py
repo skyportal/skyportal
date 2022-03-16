@@ -4,6 +4,7 @@ __all__ = [
     'GroupAnnotation',
     'GroupClassification',
     'GroupPhotometry',
+    'GroupPhotometricSeries',
     'GroupSpectrum',
     'GroupCommentOnSpectrum',
     'GroupCommentOnGCN',
@@ -18,7 +19,7 @@ import sqlalchemy as sa
 from baselayer.app.models import join_model, User, AccessibleIfUserMatches
 
 from baselayer.app.models import DBSession, restricted, CustomUserAccessControl
-from .photometry import Photometry
+from .photometry import Photometry, PhotometricSeries
 from .taxonomy import Taxonomy
 from .comment import Comment
 from .annotation import Annotation
@@ -62,6 +63,14 @@ GroupPhotometry = join_model("group_photometry", Group, Photometry)
 GroupPhotometry.__doc__ = "Join table mapping Groups to Photometry."
 GroupPhotometry.delete = GroupPhotometry.update = (
     accessible_by_group_admins & GroupPhotometry.read
+)
+
+GroupPhotometricSeries = join_model(
+    "group_photometric_series", Group, PhotometricSeries
+)
+GroupPhotometricSeries.__doc__ = "Join table mapping Groups to PhotometricSeries."
+GroupPhotometricSeries.delete = GroupPhotometricSeries.update = (
+    accessible_by_group_admins & GroupPhotometricSeries.read
 )
 
 GroupSpectrum = join_model("group_spectra", Group, Spectrum)

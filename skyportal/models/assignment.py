@@ -72,6 +72,11 @@ class ClassicalAssignment(Base):
         back_populates="assignment",
         doc="Photometry produced by the assignment.",
     )
+    photometric_series = relationship(
+        "PhotometricSeries",
+        back_populates="assignment",
+        doc="Photometric series produced by the assignment.",
+    )
 
     run = relationship(
         'ObservingRun',

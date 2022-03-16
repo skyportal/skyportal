@@ -74,6 +74,12 @@ class Instrument(Base):
         passive_deletes=True,
         doc="The Photometry produced by this instrument.",
     )
+    photometric_series = relationship(
+        'PhotometricSeries',
+        back_populates='instrument',
+        passive_deletes=True,
+        doc="PhotometricSeries produced by this instrument.",
+    )
     spectra = relationship(
         'Spectrum',
         back_populates='instrument',
