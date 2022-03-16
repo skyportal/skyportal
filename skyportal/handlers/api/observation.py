@@ -7,6 +7,7 @@ import humanize
 from marshmallow.exceptions import ValidationError
 import numpy as np
 import pandas as pd
+from regions import Regions
 import requests
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
@@ -33,6 +34,7 @@ from ...models import (
 )
 
 from ...models.schema import ObservationExternalAPIHandlerPost
+from .instrument import add_tiles
 
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
@@ -62,13 +64,26 @@ def add_observations(instrument_id, obstable):
      """
 
     session = Session()
+    # if the fields do not yet exist, we need to add them
+    if ('RA' in obstable) and ('Dec' in obstable) and not ('field_id' in obstable):
+        instrument = session.query(Instrument).get(instrument_id)
+        regions = Regions.parse(instrument.region, format='ds9')
+        field_data = obstable[['RA', 'Dec']]
+        field_ids = add_tiles(
+            instrument.id, instrument.name, regions, field_data, session=session
+        )
+        obstable['field_id'] = field_ids
+
     try:
         observations = []
         for index, row in obstable.iterrows():
             field_id = int(row["field_id"])
             field = (
                 session.query(InstrumentField)
-                .filter_by(instrument_id=instrument_id, field_id=field_id)
+                .filter(
+                    InstrumentField.instrument_id == instrument_id,
+                    InstrumentField.field_id == field_id,
+                )
                 .first()
             )
             if field is None:
@@ -462,19 +477,38 @@ class ObservationHandler(BaseHandler):
         if instrument is None:
             return self.error(message=f"Missing instrument {instrument_name}")
 
-        if not all(
-            k in observation_data
-            for k in [
-                'observation_id',
-                'field_id',
-                'obstime',
-                'filter',
-                'exposure_time',
-            ]
+        unique_keys = set(list(observation_data.keys()))
+        field_id_keys = {
+            'observation_id',
+            'field_id',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        radec_keys = {
+            'observation_id',
+            'RA',
+            'Dec',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
+            unique_keys
         ):
             return self.error(
-                "observation_id, field_id, obstime, filter, and exposure_time required in observation_data."
+                "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
             )
+
+        if (
+            ('RA' in observation_data)
+            and ('Dec' in observation_data)
+            and not ('field_id' in observation_data)
+        ):
+            if instrument.region is None:
+                return self.error(
+                    "instrument.region must not be None if providing only RA and Dec."
+                )
 
         for filt in observation_data["filter"]:
             if filt not in instrument.filters:
@@ -713,19 +747,38 @@ class ObservationASCIIFileHandler(BaseHandler):
         except Exception as e:
             return self.error(f"Unable to read in observation file: {e}")
 
-        if not all(
-            k in observation_data
-            for k in [
-                'observation_id',
-                'field_id',
-                'obstime',
-                'filter',
-                'exposure_time',
-            ]
+        unique_keys = set(list(observation_data.keys()))
+        field_id_keys = {
+            'observation_id',
+            'field_id',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        radec_keys = {
+            'observation_id',
+            'RA',
+            'Dec',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
+            unique_keys
         ):
             return self.error(
-                "observation_id, field_id, obstime, filter, and exposure_time required in observation_data."
+                "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
             )
+
+        if (
+            ('RA' in observation_data)
+            and ('Dec' in observation_data)
+            and not ('field_id' in observation_data)
+        ):
+            if instrument.region is None:
+                return self.error(
+                    "instrument.region must not be None if providing only RA and Dec."
+                )
 
         for filt in observation_data["filter"]:
             if filt not in instrument.filters:
