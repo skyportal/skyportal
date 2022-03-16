@@ -191,7 +191,7 @@ AirMassPlotWithEphemURL.propTypes = {
 };
 
 AirmassPlot.propTypes = {
-  ...VegaPlot.propTypes,
+  dataUrl: PropTypes.string.isRequired,
   ephemeris: PropTypes.shape({
     twilight_evening_astronomical_unix_ms: PropTypes.number,
     twilight_morning_astronomical_unix_ms: PropTypes.number,

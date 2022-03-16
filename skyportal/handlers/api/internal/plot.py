@@ -184,19 +184,3 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
 
         self.verify_and_commit()
         return self.success(data=json)
-
-
-class FilterWavelengthHandler(BaseHandler):
-    @auth_or_token
-    def post(self):
-        data = self.get_json()
-        filters = data.pop("filters", None)
-        if filters:
-            wavelengths = []
-            for filter in filters:
-                try:
-                    wavelengths.append(plot.get_effective_wavelength(filter))
-                except ValueError:
-                    return self.error("Invalid filters")
-            return self.success(data={'wavelengths': wavelengths})
-        return self.error("Need to pass in a set of filters")

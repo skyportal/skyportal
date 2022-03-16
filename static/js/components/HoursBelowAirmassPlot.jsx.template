@@ -73,7 +73,7 @@ const HoursBelowAirmassPlot = React.memo((props) => {
 });
 
 HoursBelowAirmassPlot.propTypes = {
-  ...VegaPlot.propTypes,
+  dataUrl: PropTypes.string.isRequired,
 };
 
 HoursBelowAirmassPlot.displayName = "HoursBelowAirmassPlot";

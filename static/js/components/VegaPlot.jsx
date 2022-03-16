@@ -1,11 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import React from "react";
 import { isMobileOnly } from "react-device-detect";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
-import * as photometryActions from "../ducks/photometry";
-import * as filterActions from "../ducks/filter";
-import wavelengthsToHex from "../wavelengthConverter";
 
 const mjdNow = Date.now() / 86400000.0 + 40587.0;
 
@@ -196,42 +192,7 @@ const spec = (url, colorScale) => ({
 });
 
 const VegaPlot = React.memo((props) => {
-  const { dataUrl, sourceId } = props;
-  const dispatch = useDispatch();
-  const photometry = useSelector((state) => state.photometry[sourceId]);
-
-  useEffect(() => {
-    if (!photometry) {
-      dispatch(photometryActions.fetchSourcePhotometry(sourceId));
-    }
-  }, [sourceId, photometry, dispatch]);
-
-  const filters = photometry
-    ? [...new Set(photometry.map((datum) => datum.filter))]
-    : null;
-  const [wavelengths, setWavelengths] = useState([]);
-  useEffect(() => {
-    const getWavelengths = async () => {
-      const result = await dispatch(
-        filterActions.fetchFilterWavelengths(filters)
-      );
-      if (result.status === "success") {
-        setWavelengths(
-          wavelengthsToHex(
-            // divide by 10 to convert angstrom -> nm
-            result.data.wavelengths.map((wavelength) => wavelength / 10)
-          )
-        );
-      }
-    };
-    if (filters) {
-      getWavelengths();
-    }
-  }, [photometry]);
-  const colorScale = {
-    domain: filters,
-    range: wavelengths,
-  };
+  const { dataUrl, colorScale } = props;
   return (
     <div
       ref={(node) => {
@@ -247,7 +208,10 @@ const VegaPlot = React.memo((props) => {
 
 VegaPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,
-  sourceId: PropTypes.string.isRequired,
+  colorScale: PropTypes.shape({
+    domain: PropTypes.arrayOf(PropTypes.number),
+    range: PropTypes.arrayOf(PropTypes.number),
+  }).isRequired,
 };
 
 VegaPlot.displayName = "VegaPlot";

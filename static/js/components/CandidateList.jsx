@@ -37,10 +37,7 @@ import ScanningPageCandidateAnnotations, {
 import EditSourceGroups from "./EditSourceGroups";
 import { ra_to_hours, dec_to_dms } from "../units";
 import RejectButton from "./RejectButton";
-
-const VegaPlot = React.lazy(() =>
-  import(/* webpackChunkName: "VegaPlot" */ "./VegaPlot")
-);
+import VegaPlotWrapper from "./VegaPlotWrapper";
 
 const useStyles = makeStyles((theme) => ({
   candidateListContainer: {
@@ -758,7 +755,7 @@ const CandidateList = () => {
     const candidateObj = candidates[dataIndex];
     return (
       <Suspense fallback={<CircularProgress />}>
-        <VegaPlot dataUrl={`/api/sources/${candidateObj.id}/photometry`} />
+        <VegaPlotWrapper sourceId={candidateObj.id} type="normal" />
       </Suspense>
     );
   };
