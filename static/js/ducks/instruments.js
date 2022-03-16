@@ -17,7 +17,7 @@ const FETCH_GCNEVENT_INSTRUMENTS_OK = "skyportal/FETCH_GCNEVENT_INSTRUMENTS_OK";
 export function fetchGcnEventInstruments(dateobs, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
   filterParams.includeGeoJSONSummary = true;
-
+  filterParams.includeGeoJSON = false;
   return API.GET("/api/instrument", FETCH_GCNEVENT_INSTRUMENTS, filterParams);
 }
 

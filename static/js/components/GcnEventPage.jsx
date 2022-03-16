@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
@@ -23,7 +23,6 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
-import * as localizationActions from "../ducks/localization";
 import * as sourcesActions from "../ducks/sources";
 import * as observationsActions from "../ducks/observations";
 import * as galaxiesActions from "../ducks/galaxies";
@@ -33,7 +32,6 @@ import SourceTable from "./SourceTable";
 import GalaxyTable from "./GalaxyTable";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import GcnSelectionForm from "./GcnSelectionForm";
-import GeoJSONGlobePlot from "./GeoJSONGlobePlot";
 
 import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
@@ -85,140 +83,6 @@ DownloadXMLButton.propTypes = {
     content: PropTypes.string,
     ivorn: PropTypes.string,
   }).isRequired,
-};
-
-const Localization = ({ loc, sources, galaxies, instruments }) => {
-  const cachedLocalization = useSelector((state) => state.localization);
-  const dispatch = useDispatch();
-
-  useEffect(() => {
-    dispatch(
-      localizationActions.fetchLocalization(loc.dateobs, loc.localization_name)
-    );
-  }, [loc, dispatch]);
-
-  const localization =
-    loc.id === cachedLocalization?.id ? cachedLocalization : null;
-
-  if (!localization || !instruments) {
-    return <CircularProgress />;
-  }
-
-  const instruments_with_contour = [];
-  instruments?.forEach((instrument) => {
-    if (instrument?.fields.length > 0) {
-      if (instrument.fields[0].contour_summary) {
-        instruments_with_contour.push(instrument);
-      }
-    }
-  });
-
-  return (
-    <>
-      <Chip
-        size="small"
-        label={localization.localization_name}
-        key={localization.localization_name}
-      />
-      {instruments_with_contour.length === 0 ? (
-        <GeoJSONGlobePlot
-          skymap={localization.contour}
-          sources={sources.geojson}
-          galaxies={galaxies.geojson}
-        />
-      ) : (
-        <GeoJSONGlobePlot
-          skymap={localization.contour}
-          sources={sources.geojson}
-          galaxies={galaxies.geojson}
-          instrument={instruments_with_contour[0]}
-        />
-      )}
-    </>
-  );
-};
-
-Localization.propTypes = {
-  loc: PropTypes.shape({
-    id: PropTypes.number,
-    dateobs: PropTypes.string,
-    localization_name: PropTypes.string,
-  }).isRequired,
-  sources: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string,
-      ra: PropTypes.number,
-      dec: PropTypes.number,
-      origin: PropTypes.string,
-      alias: PropTypes.arrayOf(PropTypes.string),
-      redshift: PropTypes.number,
-      classifications: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number,
-          classification: PropTypes.string,
-          created_at: PropTypes.string,
-          groups: PropTypes.arrayOf(
-            PropTypes.shape({
-              id: PropTypes.number,
-              name: PropTypes.string,
-            })
-          ),
-        })
-      ),
-      recent_comments: PropTypes.arrayOf(PropTypes.shape({})),
-      altdata: PropTypes.shape({
-        tns: PropTypes.shape({
-          name: PropTypes.string,
-        }),
-      }),
-      spectrum_exists: PropTypes.bool,
-      last_detected_at: PropTypes.string,
-      last_detected_mag: PropTypes.number,
-      peak_detected_at: PropTypes.string,
-      peak_detected_mag: PropTypes.number,
-      groups: PropTypes.arrayOf(
-        PropTypes.shape({
-          id: PropTypes.number,
-          name: PropTypes.string,
-        })
-      ),
-    })
-  ).isRequired,
-  galaxies: PropTypes.arrayOf(
-    PropTypes.shape({
-      catalog_name: PropTypes.string,
-      name: PropTypes.String,
-      alt_name: PropTypes.String,
-      ra: PropTypes.number,
-      dec: PropTypes.number,
-      distmpc: PropTypes.number,
-      distmpc_unc: PropTypes.number,
-      redshift: PropTypes.number,
-      redshift_error: PropTypes.number,
-      sfr_fuv: PropTypes.number,
-      mstar: PropTypes.number,
-      magb: PropTypes.number,
-      magk: PropTypes.number,
-      a: PropTypes.number,
-      b2a: PropTypes.number,
-      pa: PropTypes.number,
-      btc: PropTypes.number,
-    })
-  ).isRequired,
-  instruments: PropTypes.arrayOf(
-    PropTypes.shape({
-      name: PropTypes.String,
-      type: PropTypes.String,
-      band: PropTypes.String,
-      fields: PropTypes.arrayOf(
-        PropTypes.shape({
-          ra: PropTypes.number,
-          dec: PropTypes.number,
-          id: PropTypes.number,
-        })
-      ),
-    })
-  ).isRequired,
 };
 
 const GcnEventSourcesPage = ({ route, sources }) => {
@@ -349,7 +213,6 @@ GcnEventSourcesPage.defaultProps = {
 };
 
 const GcnEventPage = ({ route }) => {
-  const mapRef = useRef();
   const gcnEvent = useSelector((state) => state.gcnEvent);
   const dispatch = useDispatch();
   const styles = useStyles();
@@ -489,36 +352,9 @@ const GcnEventPage = ({ route }) => {
       </div>
       <div className={styles.columnItem}>
         <Accordion defaultExpanded>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="gcnEvent-content"
-            id="skymap-header"
-          >
-            <Typography className={styles.accordionHeading}>Skymaps</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <div className={styles.gcnEventContainer}>
-              {gcnEvent.localizations?.map((localization) => (
-                <li key={localization.localization_name}>
-                  <div id="map" ref={mapRef}>
-                    <Localization
-                      loc={localization}
-                      sources={gcnEventSources}
-                      galaxies={gcnEventGalaxies}
-                      instruments={gcnEventInstruments}
-                    />
-                  </div>
-                </li>
-              ))}
-            </div>
-          </AccordionDetails>
-        </Accordion>
-      </div>
-      <div className={styles.columnItem}>
-        <Accordion defaultExpanded>
           <AccordionSummary>
             <Typography className={styles.accordionHeading}>
-              Modify Skymap Selection
+              Skymap Display
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
@@ -564,13 +400,13 @@ const GcnEventPage = ({ route }) => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            {gcnEventObservations?.length === 0 ? (
+            {gcnEventObservations?.observations.length === 0 ? (
               <Typography variant="h5">None             </Typography>
             ) : (
               <div className={styles.gcnEventContainer}>
                              {" "}
                 <ExecutedObservationsTable
-                  observations={gcnEventObservations}
+                  observations={gcnEventObservations.observations}
                 />
                            {" "}
               </div>
