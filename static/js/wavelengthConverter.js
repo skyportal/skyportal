@@ -1,7 +1,4 @@
-const componentToHex = (c) => {
-  const hex = c.toString(16);
-  return hex.length === 1 ? `0${hex}` : hex;
-};
+const hex = (d) => Number(d).toString(16).padStart(2, "0");
 const wavelengthToHex = (wavelength) => {
   const Gamma = 0.8;
   const IntensityMax = 255;
@@ -57,9 +54,7 @@ const wavelengthToHex = (wavelength) => {
   if (blue !== 0) {
     blue = Math.round(IntensityMax * (blue * factor) ** Gamma);
   }
-  return `#${componentToHex(red)}${componentToHex(green)}${componentToHex(
-    blue
-  )}`;
+  return `#${hex(red)}${hex(green)}${hex(blue)}`;
 };
 
 const wavelengthsToHex = (wavelengths) =>
