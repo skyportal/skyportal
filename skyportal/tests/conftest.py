@@ -177,7 +177,7 @@ def take_screenshot_and_page_source(webdriver, nodeid):
     )
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
-    with open(file_name, 'w') as f, open('geckodriver.log', 'r') as gl:
+    with open(file_name, 'w') as f, open('geckodriver.log') as gl:
         lines = gl.readlines()
         revlines = list(reversed(lines))
         istart = revlines.index(f'BEGIN {nodeid}\n')
@@ -350,6 +350,15 @@ def public_ZTF20acgrjqm(public_group):
 @pytest.fixture()
 def public_ZTF21aaeyldq(public_group):
     obj = ObjFactory(groups=[public_group], ra=123.813909, dec=-5.867007)
+    DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
+    DBSession().commit()
+    yield obj
+    ObjFactory.teardown(obj)
+
+
+@pytest.fixture()
+def public_ZTFe028h94k(public_group):
+    obj = ObjFactory(groups=[public_group], ra=229.9620403, dec=34.8442757)
     DBSession().add(Source(obj_id=obj.id, group_id=public_group.id))
     DBSession().commit()
     yield obj

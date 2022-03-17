@@ -148,7 +148,7 @@ def test_spectrum_plot(upload_data_token, public_source, public_group, lris):
 def test_spectrum_smooth_nan(upload_data_token, public_source, public_group, lris):
     observed_at = str(datetime.datetime.now())
     filename = f'{os.path.dirname(__file__)}/../data/spectrum_with_nan.txt'
-    with open(filename, 'r') as f:
+    with open(filename) as f:
         status, data = api(
             'POST',
             'spectrum/ascii',
