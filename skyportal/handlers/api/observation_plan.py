@@ -112,10 +112,15 @@ class ObservationPlanRequestHandler(BaseHandler):
             )
             target_groups.append(g)
 
+        try:
+            formSchema = instrument.api_class_obsplan.custom_json_schema(
+                instrument, self.current_user
+            )
+        except AttributeError:
+            formSchema = instrument.api_class_obsplan.form_json_schema
+
         # validate the payload
-        jsonschema.validate(
-            data['payload'], instrument.api_class_obsplan.form_json_schema
-        )
+        jsonschema.validate(data['payload'], formSchema)
 
         observation_plan_request = ObservationPlanRequest.__schema__().load(data)
         observation_plan_request.target_groups = target_groups
@@ -199,9 +204,9 @@ class ObservationPlanRequestHandler(BaseHandler):
         )
         if include_planned_observations:
             options = [
-                joinedload(ObservationPlanRequest.observation_plans).joinedload(
-                    EventObservationPlan.planned_observations
-                )
+                joinedload(ObservationPlanRequest.observation_plans)
+                .joinedload(EventObservationPlan.planned_observations)
+                .joinedload(PlannedObservation.field)
             ]
         else:
             options = [joinedload(ObservationPlanRequest.observation_plans)]
@@ -830,6 +835,63 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         self.push_notification(f'TreasureMap delete succeeded: {request_text}.')
         return self.success()
 
+      
+class ObservationPlanGeoJSONHandler(BaseHandler):
+    @auth_or_token
+    def get(self, observation_plan_request_id):
+        """
+        ---
+        description: Get GeoJSON summary of the observation plan.
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleObservationPlanRequest
+        """
+
+        options = [
+            joinedload(ObservationPlanRequest.observation_plans)
+            .joinedload(EventObservationPlan.planned_observations)
+            .joinedload(PlannedObservation.field)
+            .undefer(InstrumentField.contour_summary)
+        ]
+
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="read",
+            options=options,
+        )
+        if observation_plan_request is None:
+            return self.error(
+                f'No observation plan with ID: {observation_plan_request_id}'
+            )
+        self.verify_and_commit()
+
+        observation_plan = observation_plan_request.observation_plans[0]
+        # features are JSON representations that the d3 stuff understands.
+        # We use these to render the contours of the sky localization and
+        # locations of the transients.
+
+        geojson = []
+        fields_in = []
+        for ii, observation in enumerate(observation_plan.planned_observations):
+            if observation.field_id not in fields_in:
+                fields_in.append(observation.field_id)
+                geojson.append(observation.field.contour_summary)
+            else:
+                continue
+
+        return self.success(data={'geojson': geojson})
+      
 
 def observation_simsurvey(
     observations,
@@ -1023,8 +1085,7 @@ def observation_simsurvey(
         "data": buf.read(),
         "reason": "",
     }
-
-
+  
 class ObservationPlanSimSurveyHandler(BaseHandler):
     @auth_or_token
     async def get(self, observation_plan_request_id):
