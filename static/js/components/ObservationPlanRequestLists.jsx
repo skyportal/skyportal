@@ -17,7 +17,6 @@ import {
 import MUIDataTable from "mui-datatables";
 
 import * as Actions from "../ducks/gcnEvent";
-import { GET } from "../API";
 
 import LocalizationPlot from "./LocalizationPlot";
 
@@ -499,27 +498,28 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
       displayOptionsDefault.observations = true;
 
       // eslint-disable-next-line react-hooks/rules-of-hooks
-      const [obsList, setObsList] = useState(null);
+      // const [obsList, setObsList] = useState(null);
       // eslint-disable-next-line react-hooks/rules-of-hooks
-      useEffect(() => {
-        const fetchObsList = async () => {
-          const response = await dispatch(
-            GET(
-              `/api/observation_plan/${observationplanRequest.id}/geojson`,
-              "skyportal/FETCH_OBSERVATION_PLAN_GEOJSON"
-            )
-          );
-          setObsList(response.data);
-        };
-        fetchObsList();
-      }, [setObsList, observationplanRequest]);
+      // useEffect(() => {
+      //  const fetchObsList = async () => {
+      //    const response = await dispatch(
+      //      GET(
+      //        `/api/observation_plan/${observationplanRequest.id}/geojson`,
+      //        "skyportal/FETCH_OBSERVATION_PLAN_GEOJSON"
+      //      )
+      //    );
+      //    setObsList(response.data);
+      //  };
+      //  fetchObsList();
+      // }, [setObsList, observationplanRequest]);
 
-      // const response = dispatch(
-      //  GET(
-      //    `/api/observation_plan/${observationplanRequest.id}/geojson`,
-      //    "skyportal/FETCH_OBSERVATION_PLAN_GEOJSON"
-      //  )
-      //  );
+      let obsList = null;
+      fetch(`/api/observation_plan/${observationplanRequest.id}/geojson`)
+        .then((result) => result.json())
+        .then((data) => {
+          obsList = data.data;
+        })
+        .then(() => console.log("obsListInside", obsList));
 
       return (
         <div>
@@ -543,7 +543,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     };
     columns.push({
       name: "skymap",
-      $abel: "Skymap",
+      label: "Skymap",
       options: {
         customBodyRenderLite: renderLocalization,
       },
