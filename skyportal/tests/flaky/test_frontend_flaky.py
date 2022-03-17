@@ -321,8 +321,6 @@ def test_gcnevents_observations(
             assert data['status'] == 'success'
             assert data['data']['band'] == 'NIR'
 
-            print(data['data'])
-
             assert len(data['data']['fields']) == 5
             fields_loaded = True
         except AssertionError:

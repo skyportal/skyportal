@@ -7,7 +7,7 @@ import sqlalchemy as sa
 from tornado.ioloop import IOLoop
 
 from healpix_alchemy import Tile
-from regions import Regions, CircleSkyRegion, RectangleSkyRegion
+from regions import Regions, CircleSkyRegion, RectangleSkyRegion, PolygonSkyRegion
 from astropy import coordinates
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -737,15 +737,43 @@ InstrumentHandler.post.__doc__ = f"""
 
 def add_tiles(instrument_id, instrument_name, regions, field_data, session=Session()):
     field_ids = []
+
     try:
         # Loop over the telescope tiles and create fields for each
         skyoffset_frames = coordinates.SkyCoord(
             field_data['RA'], field_data['Dec'], unit=u.deg
         ).skyoffset_frame()
 
-        ra = np.array([reg.vertices.ra for reg in regions])
-        dec = np.array([reg.vertices.dec for reg in regions])
-        coords = np.stack([ra, dec])
+        ra, dec = [], []
+        for ii, reg in enumerate(regions):
+            if type(reg) == RectangleSkyRegion:
+                height = reg.height.value
+                width = reg.width.value
+
+                geometry = np.array(
+                    [
+                        (-width / 2.0, -height / 2.0),
+                        (width / 2.0, -height / 2.0),
+                        (width / 2.0, height / 2.0),
+                        (-width / 2.0, height / 2.0),
+                        (-width / 2.0, -height / 2.0),
+                    ]
+                )
+                ra_tmp = geometry[:, 0]
+                dec_tmp = geometry[:, 1]
+            elif type(reg) == CircleSkyRegion:
+                radius = reg.radius.value
+                N = 10
+                phi = np.linspace(0, 2 * np.pi, N)
+                ra_tmp = radius * np.cos(phi)
+                dec_tmp = radius * np.sin(phi)
+            elif type(reg) == PolygonSkyRegion:
+                ra_tmp = reg.vertices.ra
+                dec_tmp = reg.vertices.dec
+
+            ra.append(ra_tmp)
+            dec.append(dec_tmp)
+        coords = np.stack([np.array(ra), np.array(dec)])
 
         # Copy the tile coordinates such that there is one per field
         # in the grid

@@ -103,10 +103,15 @@ class ObservationPlanRequestHandler(BaseHandler):
             )
             target_groups.append(g)
 
+        try:
+            formSchema = instrument.api_class_obsplan.custom_json_schema(
+                instrument, self.current_user
+            )
+        except AttributeError:
+            formSchema = instrument.api_class_obsplan.form_json_schema
+
         # validate the payload
-        jsonschema.validate(
-            data['payload'], instrument.api_class_obsplan.form_json_schema
-        )
+        jsonschema.validate(data['payload'], formSchema)
 
         observation_plan_request = ObservationPlanRequest.__schema__().load(data)
         observation_plan_request.target_groups = target_groups
@@ -190,9 +195,9 @@ class ObservationPlanRequestHandler(BaseHandler):
         )
         if include_planned_observations:
             options = [
-                joinedload(ObservationPlanRequest.observation_plans).joinedload(
-                    EventObservationPlan.planned_observations
-                )
+                joinedload(ObservationPlanRequest.observation_plans)
+                .joinedload(EventObservationPlan.planned_observations)
+                .joinedload(PlannedObservation.field)
             ]
         else:
             options = [joinedload(ObservationPlanRequest.observation_plans)]
