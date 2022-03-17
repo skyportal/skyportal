@@ -114,20 +114,12 @@ const useStyles = makeStyles((theme) => ({
     paddingLeft: 0
   },
   accordionPadding: {
-    paddingLeft: 5
+    paddingLeft: "0.4rem"
   },
   adminButton: {
     color: theme.palette.info.main,
-    marginLeft: 8,
     marginRight: 0,
-    paddingRight: 5
-  },
-  adminText: {
-    paddingRight: 8
-  },
-  expand: {
-    marginRight: 8,
-    color: theme.palette.info.main
+    paddingRight: "0.6rem"
   }
 }));
 
@@ -289,7 +281,7 @@ const SidebarAndHeader = () => {
           {(currentUser.permissions?.includes("System admin") || currentUser.permissions?.includes("Manage users")) && (
             <Accordion className={classes.dropdown}>
               <AccordionSummary
-                expandIcon={<ExpandMoreIcon className={classes.expand}/>}
+                expandIcon={<ExpandMoreIcon className={classes.icon}/>}
                 aria-controls="panel1a-content"
                 id="panel1a-header"
                 className={classes.accordionPadding}
@@ -298,7 +290,7 @@ const SidebarAndHeader = () => {
                   <ListItemIcon>
                     <SettingsIcon className={classes.icon}/>
                   </ListItemIcon>
-                  <Typography className={classes.adminText}>Admin</Typography>
+                  <Typography>Admin</Typography>
                 </ListItem>
               </AccordionSummary>
               <AccordionDetails className={classes.dropdownContainer}>
