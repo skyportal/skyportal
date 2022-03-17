@@ -84,6 +84,7 @@ const FollowupRequestLists = ({
   followupRequests,
   instrumentList,
   instrumentFormParams,
+  showObject = false,
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -140,6 +141,39 @@ const FollowupRequestLists = ({
       { name: "requester.username", label: "Requester" },
       { name: "allocation.group.name", label: "Allocation" },
     ];
+
+    if (showObject) {
+      const renderObj = (dataIndex) => {
+        const followupRequest =
+          requestsGroupedByInstId[instrument_id][dataIndex];
+        return (
+          <div>
+            {followupRequest.obj ? (
+              <Button
+                size="small"
+                data-testid={`link_${followupRequest.obj.id}`}
+              >
+                <a href={`/source/${followupRequest.obj.id}`}>
+                  {followupRequest.obj.id}&nbsp;
+                </a>
+              </Button>
+            ) : (
+              <CircularProgress />
+            )}
+          </div>
+        );
+      };
+      columns.push({
+        name: "obj",
+        label: "Object",
+        options: {
+          sort: true,
+          sortThirdClickReset: true,
+          customBodyRenderLite: renderObj,
+        },
+      });
+    }
+
     keys?.forEach((key) => {
       const renderKey = (value) =>
         Array.isArray(value) ? value.join(",") : value;
@@ -342,11 +376,19 @@ FollowupRequestLists.propTypes = {
     })
   ).isRequired,
   instrumentFormParams: PropTypes.shape({
+    // eslint-disable-next-line react/forbid-prop-types
     formSchema: PropTypes.objectOf(PropTypes.any),
+    // eslint-disable-next-line react/forbid-prop-types
     uiSchema: PropTypes.objectOf(PropTypes.any),
+    // eslint-disable-next-line react/forbid-prop-types
     methodsImplemented: PropTypes.objectOf(PropTypes.any),
+    // eslint-disable-next-line react/forbid-prop-types
     aliasLookup: PropTypes.objectOf(PropTypes.any),
   }).isRequired,
+  showObject: PropTypes.bool,
 };
 
+FollowupRequestLists.defaultProps = {
+  showObject: false,
+};
 export default FollowupRequestLists;

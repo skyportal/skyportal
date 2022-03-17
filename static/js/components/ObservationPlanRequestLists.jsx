@@ -90,6 +90,20 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
     setIsDeleting(null);
   };
 
+  const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] = useState(null);
+  const handleSubmitTreasureMap = async (id) => {
+    setIsSubmittingTreasureMap(id);
+    await dispatch(Actions.submitObservationPlanRequestTreasureMap(id));
+    setIsSubmittingTreasureMap(null);
+  };
+
+  const [isDeletingTreasureMap, setIsDeletingTreasureMap] = useState(null);
+  const handleDeleteTreasureMap = async (id) => {
+    setIsDeletingTreasureMap(id);
+    await dispatch(Actions.deleteObservationPlanRequestTreasureMap(id));
+    setIsDeletingTreasureMap(null);
+  };
+
   const [isSending, setIsSending] = useState(null);
   const handleSend = async (id) => {
     setIsSending(id);
@@ -378,6 +392,62 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
         },
       });
     }
+
+    const renderTreasureMap = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div className={classes.actionButtons}>
+          {isSubmittingTreasureMap === observationplanRequest.id ? (
+            <div>
+              <CircularProgress />
+            </div>
+          ) : (
+            <div>
+              <Button
+                onClick={() => {
+                  handleSubmitTreasureMap(observationplanRequest.id);
+                }}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`treasuremapRequest_${observationplanRequest.id}`}
+              >
+                Send to Treasure Map
+              </Button>
+            </div>
+          )}
+          {isDeletingTreasureMap === observationplanRequest.id ? (
+            <div>
+              <CircularProgress />
+            </div>
+          ) : (
+            <div>
+              <Button
+                onClick={() => {
+                  handleDeleteTreasureMap(observationplanRequest.id);
+                }}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`treasuremapDelete_${observationplanRequest.id}`}
+              >
+                Retract from Treasure Map
+              </Button>
+            </div>
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "treasuremap",
+      label: "Treasure Map",
+      options: {
+        customBodyRenderLite: renderTreasureMap,
+      },
+    });
 
     return columns;
   };

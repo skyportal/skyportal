@@ -16,6 +16,11 @@ const EDIT_OBSERVATION_PLAN_REQUEST = "skyportal/EDIT_OBSERVATION_PLAN_REQUEST";
 const DELETE_OBSERVATION_PLAN_REQUEST =
   "skyportal/DELETE_OBSERVATION_PLAN_REQUEST";
 
+const SUBMIT_OBSERVATION_PLAN_REQUEST_TREASUREMAP =
+  "skyportal/SUBMIT_OBSERVATION_PLAN_REQUEST_TREASUREMAP";
+const DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP =
+  "skyportal/DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP";
+
 const SEND_OBSERVATION_PLAN_REQUEST = "skyportal/SEND_OBSERVATION_PLAN_REQUEST";
 const REMOVE_OBSERVATION_PLAN_REQUEST =
   "skyportal/REMOVE_OBSERVATION_PLAN_REQUEST";
@@ -77,5 +82,17 @@ export const removeObservationPlanRequest = (id) =>
 
 export const deleteObservationPlanRequest = (id) =>
   API.DELETE(`/api/observation_plan/${id}`, DELETE_OBSERVATION_PLAN_REQUEST);
+
+export const submitObservationPlanRequestTreasureMap = (id) =>
+  API.POST(
+    `/api/observation_plan/${id}/treasuremap`,
+    SUBMIT_OBSERVATION_PLAN_REQUEST_TREASUREMAP
+  );
+
+export const deleteObservationPlanRequestTreasureMap = (id) =>
+  API.DELETE(
+    `/api/observation_plan/${id}/treasuremap`,
+    DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP
+  );
 
 store.injectReducer("gcnEvent", reducer);
