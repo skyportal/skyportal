@@ -174,7 +174,9 @@ def serialize(phot, outsys, format):
             )
     except ValueError as e:
         raise ValueError(
-            f"Could not serialize with filter: {filter},  due to error: {e}"
+            f"Could not serialize phot_id: {phot.id} "
+            f"on obj {phot.obj_id} with filter: {filter},  "
+            f"due to error: {e}"
         )
     return return_value
 
