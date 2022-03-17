@@ -132,8 +132,10 @@ class Instrument(Base):
         doc="treasuremap.space API ID for this instrument",
     )
 
-    region = sa.Column(
-        sa.String, nullable=True, doc="Instrument astropy.regions representation."
+    region = deferred(
+        sa.Column(
+            sa.String, nullable=True, doc="Instrument astropy.regions representation."
+        )
     )
 
     @property
@@ -185,9 +187,10 @@ class InstrumentField(Base):
 
     field_id = sa.Column(
         sa.Integer,
+        sa.Sequence('seq_field_id', start=1, increment=1),
+        autoincrement=True,
         index=True,
         doc='The Field ID for the tile (can be repeated between instruments).',
-        nullable=False,
     )
 
     ra = sa.Column(

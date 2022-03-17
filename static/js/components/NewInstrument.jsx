@@ -28,6 +28,14 @@ const NewInstrument = () => {
     if (Object.keys(formData).includes("field_region")) {
       formData.field_region = dataUriToBuffer(formData.field_region).toString();
     }
+    if (Object.keys(formData).includes("field_fov_type")) {
+      // eslint-disable-next-line prefer-destructuring
+      formData.field_fov_type = formData.field_fov_type[0];
+    }
+    if (Object.keys(formData).includes("field_fov_attributes")) {
+      // eslint-disable-next-line prefer-destructuring
+      formData.field_fov_attributes = formData.field_fov_attributes.split(",");
+    }
     const result = await dispatch(submitInstrument(formData));
     if (result.status === "success") {
       dispatch(showNotification("Instrument saved"));
@@ -62,6 +70,33 @@ const NewInstrument = () => {
       formData.api_classname_obsplan.length > 1
     ) {
       errors.api_classname_obsplan.addError("Must only choose one API class.");
+    }
+    if (
+      errors &&
+      formData.field_fov_type &&
+      formData.field_fov_type.length > 1
+    ) {
+      errors.field_fov_type.addError("Must only choose one FOV type.");
+    }
+    if (errors && formData.field_region && formData.field_fov_type) {
+      errors.field_region.addError(
+        "Must only choose either field_region or field_fov_type."
+      );
+    }
+    if (errors && formData.field_fov_type && formData.field_fov_attributes) {
+      if (formData.field_fov_type[0] === "circle") {
+        if (formData.field_fov_attributes.split(",").length !== 1) {
+          errors.field_fov_attributes.addError(
+            "For the circle option, field_fov_attributes should be a single number (radius in degrees)."
+          );
+        }
+      } else if (formData.field_fov_type[0] === "rectangle") {
+        if (formData.field_fov_attributes.split(",").length !== 2) {
+          errors.field_fov_attributes.addError(
+            "For the rectangle option, field_fov_attributes should be two numbers (width and height in degrees)."
+          );
+        }
+      }
     }
     return errors;
   }
@@ -133,6 +168,21 @@ const NewInstrument = () => {
         format: "data-url",
         title: "Field region file",
         description: "Field region file",
+      },
+      field_fov_type: {
+        type: "array",
+        items: {
+          type: "string",
+          enum: ["rectangle", "circle"],
+        },
+        uniqueItems: true,
+        title: "FOV Type",
+        description: "Rectangle or Circle",
+      },
+      field_fov_attributes: {
+        type: "string",
+        title: "FOV Attributes",
+        description: "Rectangle [width,height]; Circle [radius]",
       },
     },
     required: ["name", "type", "band", "telescope_id"],

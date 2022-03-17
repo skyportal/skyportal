@@ -14,14 +14,14 @@ To evaluate the efficacy of the executed observation plans, we have the `Execute
 
 The vast majority of follow-up instruments will require some form of authentication. All such information is passed through the `altdata` variable of the `Allocation`s API. We briefly describe the authentication form the available telescopes take below:
 
-* ATLAS Forced Photometry: A user account must be made on https://fallingstar-data.com/forcedphot/, at which point the authentication takes the form {"api_token": "testtoken"}.
-* KAIT: A username and password are passed as {"username": "username", "password": "password"}.
-* LCO: A user account must be made on https://lco.global/, at which point the authentication takes the form {"PROPOSAL_ID": "your_proposal_ID", "API_TOKEN": "testtoken"}.
-* LT: A proposal ID, username, and password are passed as {"username": "username", "password": "password", "LT_proposalID": "your_proposal_ID"}.
-* SLACK: As discussed further [here](./slack.html), slack information is pass as {"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}.
-* SWIFT: A username and password are passed as {"username": "username", "secret": "password"}.
-* ZTF: An API token for an admin user for [Kowalski](https://github.com/dmitryduev/kowalski) can be passed as {"access_token": "your_token"}.
-
+* ATLAS Forced Photometry: A user account must be made on https://fallingstar-data.com/forcedphot/, at which point the authentication takes the form `{"api_token": "testtoken"}`.
+* KAIT: A username and password are passed as `{"username": "username", "password": "password"}`.
+* LCO: A user account must be made on https://lco.global/, at which point the authentication takes the form `{"PROPOSAL_ID": "your_proposal_ID", "API_TOKEN": "testtoken"}`.
+* LT: A proposal ID, username, and password are passed as `{"username": "username", "password": "password", "LT_proposalID": "your_proposal_ID"}`.
+* SLACK: As discussed further [here](./slack.html), slack information is pass as `{"slack_workspace": "XXX", "slack_channel": "YYY", "slack_token": "ZZZ"}`.
+* SWIFT: A username and password are passed as `{"username": "username", "secret": "password"}`.
+* ZTF Triggering: An API token for an admin user for [Kowalski](https://github.com/dmitryduev/kowalski) can be passed as `{"access_token": "your_token"}`.
+* ZTF Forced Photometry: A user account must be made with the ZTF forced photometry service (see https://zwicky.tf/vgt). The authentication then takes the form `{"ipac_http_user": "http_user", "ipac_http_password": "http_password", "ipac_email": "email", "ipac_userpass": "password"}` where http_user and http_password are provided in the documentation and ipac_email and ipac_userpass are provided for the specific account. Note that IPAC's forced photometry database is updated once per hour, on the hour, and requests will only be available after this update.
 
 ## Uploading executed observations
 

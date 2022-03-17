@@ -16,6 +16,7 @@ from skyportal.handlers.api import (
     CommentAttachmentHandler,
     EnumTypesHandler,
     AnnotationHandler,
+    IRSAQueryWISEHandler,
     FilterHandler,
     FollowupRequestHandler,
     FollowupRequestSchedulerHandler,
@@ -79,6 +80,7 @@ from skyportal.handlers.api import (
     UserHandler,
     UnsourcedFinderHandler,
     WeatherHandler,
+    VizierQueryHandler,
     PS1ThumbnailHandler,
 )
 from skyportal.handlers.api.internal import (
@@ -200,6 +202,8 @@ skyportal_handlers = [
         r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
         CommentAttachmentHandler,
     ),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/irsa', IRSAQueryWISEHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/vizier', VizierQueryHandler),
     (
         r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations',
         AnnotationHandler,

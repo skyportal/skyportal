@@ -7,6 +7,7 @@ import humanize
 from marshmallow.exceptions import ValidationError
 import numpy as np
 import pandas as pd
+from regions import Regions
 import requests
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
@@ -33,6 +34,7 @@ from ...models import (
 )
 
 from ...models.schema import ObservationExternalAPIHandlerPost
+from .instrument import add_tiles
 
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
@@ -62,13 +64,26 @@ def add_observations(instrument_id, obstable):
      """
 
     session = Session()
+    # if the fields do not yet exist, we need to add them
+    if ('RA' in obstable) and ('Dec' in obstable) and not ('field_id' in obstable):
+        instrument = session.query(Instrument).get(instrument_id)
+        regions = Regions.parse(instrument.region, format='ds9')
+        field_data = obstable[['RA', 'Dec']]
+        field_ids = add_tiles(
+            instrument.id, instrument.name, regions, field_data, session=session
+        )
+        obstable['field_id'] = field_ids
+
     try:
         observations = []
         for index, row in obstable.iterrows():
             field_id = int(row["field_id"])
             field = (
                 session.query(InstrumentField)
-                .filter_by(instrument_id=instrument_id, field_id=field_id)
+                .filter(
+                    InstrumentField.instrument_id == instrument_id,
+                    InstrumentField.field_id == field_id,
+                )
                 .first()
             )
             if field is None:
@@ -125,6 +140,7 @@ def get_observations(
     localization_name=None,
     localization_cumprob=0.95,
     return_statistics=False,
+    includeGeoJSON=False,
 ):
     """Query
     Parameters
@@ -156,6 +172,8 @@ def get_observations(
     return_statistics: bool
         Boolean indicating whether to include integrated probability and area.
         Defaults to false.
+    includeGeoJSON: bool
+                Boolean indicating whether to include associated GeoJSON fields. Defaults to false.
     Returns
     -------
     dict
@@ -167,13 +185,36 @@ def get_observations(
             Area covered in square degrees
     """
 
+    if return_statistics and localization_dateobs is None:
+        raise ValueError(
+            'localization_dateobs must be specified if return_statistics=True'
+        )
+
+    if includeGeoJSON:
+        options = (
+            [
+                joinedload(ExecutedObservation.instrument).joinedload(
+                    Instrument.telescope
+                ),
+                joinedload(ExecutedObservation.field).undefer(
+                    InstrumentField.contour_summary
+                ),
+            ],
+        )
+    else:
+        options = (
+            [
+                joinedload(ExecutedObservation.instrument).joinedload(
+                    Instrument.telescope
+                ),
+                joinedload(ExecutedObservation.field),
+            ],
+        )
+
     obs_query = ExecutedObservation.query_records_accessible_by(
         user,
         mode="read",
-        options=[
-            joinedload(ExecutedObservation.instrument).joinedload(Instrument.telescope),
-            joinedload(ExecutedObservation.field),
-        ],
+        options=options,
     )
 
     obs_query = obs_query.filter(ExecutedObservation.obstime >= start_date)
@@ -330,16 +371,49 @@ def get_observations(
             intprob = DBSession().execute(query_prob).scalar_one()
             intarea = DBSession().execute(query_area).scalar_one()
 
+            if intprob is None:
+                intprob = 0.0
+            if intarea is None:
+                intarea = 0.0
+
     observations = obs_query.all()
 
-    if return_statistics:
-        data = {
-            "observations": [o.to_dict() for o in observations],
-            "probability": intprob,
-            "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees
-        }
+    if includeGeoJSON:
+        # features are JSON representations that the d3 stuff understands.
+        # We use these to render the contours of the sky localization and
+        # locations of the transients.
+
+        geojson = []
+        fields_in = []
+        for ii, observation in enumerate(observations):
+            if observation.instrument_field_id not in fields_in:
+                fields_in.append(observation.instrument_field_id)
+                geojson.append(observation.field.contour_summary)
+            else:
+                continue
+
+        if return_statistics:
+            data = {
+                "observations": [o.to_dict() for o in observations],
+                "probability": intprob,
+                "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees,
+                "geojson": geojson,
+            }
+        else:
+            data = {
+                "observations": [o.to_dict() for o in observations],
+                "geojson": geojson,
+            }
+
     else:
-        data = observations
+        if return_statistics:
+            data = {
+                "observations": [o.to_dict() for o in observations],
+                "probability": intprob,
+                "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees
+            }
+        else:
+            data = {"observations": [o.to_dict() for o in observations]}
 
     return data
 
@@ -403,19 +477,38 @@ class ObservationHandler(BaseHandler):
         if instrument is None:
             return self.error(message=f"Missing instrument {instrument_name}")
 
-        if not all(
-            k in observation_data
-            for k in [
-                'observation_id',
-                'field_id',
-                'obstime',
-                'filter',
-                'exposure_time',
-            ]
+        unique_keys = set(list(observation_data.keys()))
+        field_id_keys = {
+            'observation_id',
+            'field_id',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        radec_keys = {
+            'observation_id',
+            'RA',
+            'Dec',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
+            unique_keys
         ):
             return self.error(
-                "observation_id, field_id, obstime, filter, and exposure_time required in observation_data."
+                "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
             )
+
+        if (
+            ('RA' in observation_data)
+            and ('Dec' in observation_data)
+            and not ('field_id' in observation_data)
+        ):
+            if instrument.region is None:
+                return self.error(
+                    "instrument.region must not be None if providing only RA and Dec."
+                )
 
         for filt in observation_data["filter"]:
             if filt not in instrument.filters:
@@ -509,6 +602,14 @@ class ObservationHandler(BaseHandler):
                 type: boolean
               description: |
                 Boolean indicating whether to include integrated probability and area. Defaults to false.
+            - in: query
+              name: includeGeoJSON
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated GeoJSON. Defaults to
+                false.
           responses:
             200:
               content:
@@ -529,6 +630,8 @@ class ObservationHandler(BaseHandler):
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         return_statistics = self.get_query_argument("returnStatistics", False)
 
+        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+
         if start_date is None:
             return self.error(message="Missing start_date")
 
@@ -548,6 +651,7 @@ class ObservationHandler(BaseHandler):
             localization_name=localization_name,
             localization_cumprob=localization_cumprob,
             return_statistics=return_statistics,
+            includeGeoJSON=includeGeoJSON,
         )
 
         return self.success(data=data)
@@ -643,19 +747,38 @@ class ObservationASCIIFileHandler(BaseHandler):
         except Exception as e:
             return self.error(f"Unable to read in observation file: {e}")
 
-        if not all(
-            k in observation_data
-            for k in [
-                'observation_id',
-                'field_id',
-                'obstime',
-                'filter',
-                'exposure_time',
-            ]
+        unique_keys = set(list(observation_data.keys()))
+        field_id_keys = {
+            'observation_id',
+            'field_id',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        radec_keys = {
+            'observation_id',
+            'RA',
+            'Dec',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
+            unique_keys
         ):
             return self.error(
-                "observation_id, field_id, obstime, filter, and exposure_time required in observation_data."
+                "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
             )
+
+        if (
+            ('RA' in observation_data)
+            and ('Dec' in observation_data)
+            and not ('field_id' in observation_data)
+        ):
+            if instrument.region is None:
+                return self.error(
+                    "instrument.region must not be None if providing only RA and Dec."
+                )
 
         for filt in observation_data["filter"]:
             if filt not in instrument.filters:

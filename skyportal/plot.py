@@ -1345,7 +1345,14 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     else:
         # tabs for mag, flux
         tabs = Tabs(tabs=[p2, p1], width=width, height=height + 90, sizing_mode='fixed')
-    return bokeh_embed.json_item(tabs)
+
+    try:
+        return bokeh_embed.json_item(tabs)
+    except ValueError:
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+            print('PHOTOMETRY PLOT FAILED ON THIS DATASET')
+            print(data)
+        return Tabs()
 
 
 def smoothing_function(values, window_size):
@@ -1935,22 +1942,56 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
         column_checkboxes.js_on_click(callback_toggle_lines)
 
+    second_to_last_column = all_column_checkboxes[-2]
+    clear_all_spectra = Button(name="Clear Spectra", label="Clear Spectra", width=100)
+    callback_clear_all_spectra = CustomJS(
+        args={'model_dict': model_dict},
+        code="""
+            for (const[key, value] of Object.entries(model_dict)) {
+                value.visible = false
+            }
+        """,
+    )
+    clear_all_spectra.js_on_click(callback_clear_all_spectra)
+    all_column_checkboxes[-2] = column(second_to_last_column, clear_all_spectra)
+
+    third_to_last_column = all_column_checkboxes[-3]
+    add_all_spectra = Button(name="Add All Spectra", label="Add All Spectra", width=30)
+    callback_add_all_spectra = CustomJS(
+        args={'model_dict': model_dict},
+        code="""
+            for (const[key, value] of Object.entries(model_dict)) {
+                if (!key.startsWith('element_')) {
+                    value.visible = true
+                }
+            }
+        """,
+    )
+    add_all_spectra.js_on_click(callback_add_all_spectra)
+    all_column_checkboxes[-3] = column(third_to_last_column, add_all_spectra)
+
     last_column = all_column_checkboxes[-1]
-    reset_button = Button(name="Reset", label="Reset", width=30, align="end")
+    reset_checkboxes_button = Button(
+        name="Reset Checkboxes", label="Reset Checkboxes", width=30
+    )
     callback_reset_specs = CustomJS(
         args={
             'all_column_checkboxes': all_column_checkboxes,
             'last_column': last_column,
+            'second_to_last_column': second_to_last_column,
+            'third_to_last_column': third_to_last_column,
         },
         code=f"""
-            for (let i = 0; i < {len(all_column_checkboxes) - 1}; i++) {{
+            for (let i = 0; i < {len(all_column_checkboxes) - 3}; i++) {{
                 all_column_checkboxes[i].active = [];
             }}
             last_column.active = [];
+            second_to_last_column.active = [];
+            third_to_last_column.active = [];
         """,
     )
-    reset_button.js_on_click(callback_reset_specs)
-    all_column_checkboxes[-1] = column(last_column, reset_button)
+    reset_checkboxes_button.js_on_click(callback_reset_specs)
+    all_column_checkboxes[-1] = column(last_column, reset_checkboxes_button)
 
     # Move spectral lines when redshift or velocity changes
     speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
@@ -1994,7 +2035,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
                 """,
         ),
     )
-
     row2 = row(all_column_checkboxes)
     row3 = (
         column(z, v_exp, smooth_column)
