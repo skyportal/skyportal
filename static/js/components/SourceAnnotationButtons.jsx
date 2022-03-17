@@ -18,6 +18,14 @@ const SourceAnnotationButtons = ({ source }) => {
     setIsSubmittingAnnotationWise(null);
   };
 
+  const [isSubmittingAnnotationVizier, setIsSubmittingAnnotationVizier] =
+    useState(null);
+  const handleAnnotationVizier = async (id) => {
+    setIsSubmittingAnnotationVizier(id);
+    await dispatch(sourceActions.fetchVizier(id));
+    setIsSubmittingAnnotationVizier(null);
+  };
+
   return (
     <div>
       {isSubmittingAnnotationWise === source.id ? (
@@ -36,6 +44,24 @@ const SourceAnnotationButtons = ({ source }) => {
           data-testid={`wiseRequest_${source.id}`}
         >
           WISE Colors
+        </Button>
+      )}
+      {isSubmittingAnnotationVizier === source.id ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <Button
+          onClick={() => {
+            handleAnnotationVizier(source.id);
+          }}
+          size="small"
+          color="primary"
+          type="submit"
+          variant="outlined"
+          data-testid={`vizierRequest_${source.id}`}
+        >
+          Million Quasar
         </Button>
       )}
     </div>

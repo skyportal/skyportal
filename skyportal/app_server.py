@@ -80,6 +80,7 @@ from skyportal.handlers.api import (
     UserHandler,
     UnsourcedFinderHandler,
     WeatherHandler,
+    VizierQueryHandler,
     PS1ThumbnailHandler,
 )
 from skyportal.handlers.api.internal import (
@@ -202,6 +203,7 @@ skyportal_handlers = [
         CommentAttachmentHandler,
     ),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/irsa', IRSAQueryWISEHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/vizier', VizierQueryHandler),
     (
         r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations',
         AnnotationHandler,
