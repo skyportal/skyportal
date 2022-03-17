@@ -229,6 +229,10 @@ def upgrade():
         unique=False,
     )
     # ### end Alembic commands ###
+    op.execute(
+        'CREATE INDEX ix_photometric_series_point ON public.photometric_series '
+        'USING btree (((cosd(ra) * cosd("dec"))), ((sind(ra) * cosd("dec"))), sind("dec"));'
+    )
 
 
 def downgrade():
