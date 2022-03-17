@@ -138,7 +138,15 @@ LocalizationPlot.propTypes = {
     ),
   }),
   observations: PropTypes.shape({
-    geojson: GeoPropTypes.FeatureCollection,
+    geojson: PropTypes.arrayOf(
+      PropTypes.oneOfType([
+        GeoPropTypes.FeatureCollection,
+        PropTypes.shape({
+          type: PropTypes.string,
+          features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+        }),
+      ])
+    ),
     observations: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.string,
@@ -401,7 +409,15 @@ GeoJSONGlobePlot.propTypes = {
       })
     ),
   }),
-  observations: PropTypes.arrayOf(GeoPropTypes.FeatureCollection),
+  observations: PropTypes.arrayOf(
+    PropTypes.oneOfType([
+      GeoPropTypes.FeatureCollection,
+      PropTypes.shape({
+        type: PropTypes.string,
+        features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+      }),
+    ])
+  ),
   options: PropTypes.shape({
     skymap: PropTypes.bool,
     sources: PropTypes.bool,

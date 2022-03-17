@@ -17,6 +17,7 @@ import {
 import MUIDataTable from "mui-datatables";
 
 import * as Actions from "../ducks/gcnEvent";
+import { GET } from "../API";
 
 import LocalizationPlot from "./LocalizationPlot";
 
@@ -79,6 +80,82 @@ const getMuiTheme = (theme) =>
       },
     },
   });
+
+const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
+  const dispatch = useDispatch();
+
+  const displayOptions = [
+    "localization",
+    "sources",
+    "galaxies",
+    "instrument",
+    "observations",
+  ];
+  const displayOptionsDefault = Object.fromEntries(
+    displayOptions.map((x) => [x, false])
+  );
+  displayOptionsDefault.localization = true;
+  displayOptionsDefault.observations = true;
+
+  const [obsList, setObsList] = useState(null);
+  useEffect(() => {
+    const fetchObsList = async () => {
+      const response = await dispatch(
+        GET(
+          `/api/observation_plan/${observationplanRequest.id}/geojson`,
+          "skyportal/FETCH_OBSERVATION_PLAN_GEOJSON"
+        )
+      );
+      setObsList(response.data);
+    };
+    fetchObsList();
+  }, [dispatch, setObsList, observationplanRequest]);
+
+  return (
+    <div>
+      {!obsList ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <div>
+          <LocalizationPlot
+            loc={loc}
+            observations={obsList}
+            options={displayOptionsDefault}
+            height={300}
+            width={300}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+ObservationPlanGlobe.propTypes = {
+  loc: PropTypes.shape({
+    id: PropTypes.number,
+    dateobs: PropTypes.string,
+    localization_name: PropTypes.string,
+  }).isRequired,
+  observationplanRequest: PropTypes.shape({
+    id: PropTypes.number,
+    requester: PropTypes.shape({
+      id: PropTypes.number,
+      username: PropTypes.string,
+    }),
+    instrument: PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string,
+    }),
+    status: PropTypes.string,
+    allocation: PropTypes.shape({
+      group: PropTypes.shape({
+        name: PropTypes.string,
+      }),
+    }),
+  }).isRequired,
+};
 
 const ObservationPlanRequestLists = ({ gcnEvent }) => {
   const classes = useStyles();
@@ -484,60 +561,13 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     const renderLocalization = (dataIndex) => {
       const observationplanRequest =
         requestsGroupedByInstId[instrument_id][dataIndex];
-      const displayOptions = [
-        "localization",
-        "sources",
-        "galaxies",
-        "instrument",
-        "observations",
-      ];
-      const displayOptionsDefault = Object.fromEntries(
-        displayOptions.map((x) => [x, false])
-      );
-      displayOptionsDefault.localization = true;
-      displayOptionsDefault.observations = true;
-
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      // const [obsList, setObsList] = useState(null);
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      // useEffect(() => {
-      //  const fetchObsList = async () => {
-      //    const response = await dispatch(
-      //      GET(
-      //        `/api/observation_plan/${observationplanRequest.id}/geojson`,
-      //        "skyportal/FETCH_OBSERVATION_PLAN_GEOJSON"
-      //      )
-      //    );
-      //    setObsList(response.data);
-      //  };
-      //  fetchObsList();
-      // }, [setObsList, observationplanRequest]);
-
-      let obsList = null;
-      fetch(`/api/observation_plan/${observationplanRequest.id}/geojson`)
-        .then((result) => result.json())
-        .then((data) => {
-          obsList = data.data;
-        })
-        .then(() => console.log("obsListInside", obsList));
 
       return (
         <div>
-          {!obsList ? (
-            <div>
-              <CircularProgress />
-            </div>
-          ) : (
-            <div>
-              <LocalizationPlot
-                loc={locLookUp[selectedLocalizationId]}
-                observations={obsList}
-                options={displayOptionsDefault}
-                height={300}
-                width={300}
-              />
-            </div>
-          )}
+          <ObservationPlanGlobe
+            loc={locLookUp[selectedLocalizationId]}
+            observationplanRequest={observationplanRequest}
+          />
         </div>
       );
     };
