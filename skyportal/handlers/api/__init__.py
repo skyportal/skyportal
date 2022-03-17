@@ -47,6 +47,7 @@ from .observation_plan import (
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
+    ObservationPlanSimSurveyHandler,
 )
 from .photometry import (
     PhotometryHandler,

@@ -323,6 +323,19 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
                 GIF
               </Button>
             </div>
+            <div>
+              <Button
+                href={`/api/observation_plan/${observationplanRequest.id}/simsurvey`}
+                download={`observation-plan-simsurvey-${observationplanRequest.id}`}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`simsurveyRequest_${observationplanRequest.id}`}
+              >
+                SimSurvey
+              </Button>
+            </div>
           </div>
         );
       };
