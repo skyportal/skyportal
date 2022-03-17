@@ -54,9 +54,7 @@ def test_irsa_wise(public_group, upload_data_token):
 
 
 @pytest.mark.flaky(reruns=2)
-def test_vizier_quasar(
-    annotation_token, public_source, public_group, upload_data_token
-):
+def test_vizier_quasar(public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -73,7 +71,7 @@ def test_vizier_quasar(
     status, data = api(
         'POST',
         f'sources/{obj_id}/annotations/vizier',
-        token=annotation_token,
+        token=upload_data_token,
         data={'crossmatchRadius': 2},
     )
     assert status == 200
@@ -81,7 +79,7 @@ def test_vizier_quasar(
     status, data = api(
         'GET',
         f'sources/{obj_id}/annotations',
-        token=annotation_token,
+        token=upload_data_token,
     )
 
     assert status == 200

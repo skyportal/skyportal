@@ -164,7 +164,7 @@ class VizierQueryHandler(BaseHandler):
             required: true
             schema:
               type: string
-            description: ID of the object to retrieve WISE colors for
+            description: ID of the object to retrieve the Vizier crossmatch for
         requestBody:
           content:
             application/json:
@@ -264,7 +264,7 @@ class VizierQueryHandler(BaseHandler):
             annotations.append(annotation)
 
         if len(annotations) == 0:
-            return self.error("No QSO flag available.")
+            return self.error("No crossmatch annotation available.")
 
         DBSession().add_all(annotations)
         try:
