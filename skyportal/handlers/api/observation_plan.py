@@ -854,9 +854,12 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
             observation_plan_request_id,
             self.current_user,
             mode="read",
-            raise_if_none=True,
             options=options,
         )
+        if observation_plan_request is None:
+            return self.error(
+                f'No observation plan with ID: {observation_plan_request_id}'
+            )
         self.verify_and_commit()
 
         observation_plan = observation_plan_request.observation_plans[0]
