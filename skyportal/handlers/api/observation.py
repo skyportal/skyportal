@@ -140,6 +140,7 @@ def get_observations(
     localization_name=None,
     localization_cumprob=0.95,
     return_statistics=False,
+    includeGeoJSON=False,
 ):
     """Query
     Parameters
@@ -171,6 +172,8 @@ def get_observations(
     return_statistics: bool
         Boolean indicating whether to include integrated probability and area.
         Defaults to false.
+    includeGeoJSON: bool
+                Boolean indicating whether to include associated GeoJSON fields. Defaults to false.
     Returns
     -------
     dict
@@ -182,13 +185,36 @@ def get_observations(
             Area covered in square degrees
     """
 
+    if return_statistics and localization_dateobs is None:
+        raise ValueError(
+            'localization_dateobs must be specified if return_statistics=True'
+        )
+
+    if includeGeoJSON:
+        options = (
+            [
+                joinedload(ExecutedObservation.instrument).joinedload(
+                    Instrument.telescope
+                ),
+                joinedload(ExecutedObservation.field).undefer(
+                    InstrumentField.contour_summary
+                ),
+            ],
+        )
+    else:
+        options = (
+            [
+                joinedload(ExecutedObservation.instrument).joinedload(
+                    Instrument.telescope
+                ),
+                joinedload(ExecutedObservation.field),
+            ],
+        )
+
     obs_query = ExecutedObservation.query_records_accessible_by(
         user,
         mode="read",
-        options=[
-            joinedload(ExecutedObservation.instrument).joinedload(Instrument.telescope),
-            joinedload(ExecutedObservation.field),
-        ],
+        options=options,
     )
 
     obs_query = obs_query.filter(ExecutedObservation.obstime >= start_date)
@@ -345,16 +371,49 @@ def get_observations(
             intprob = DBSession().execute(query_prob).scalar_one()
             intarea = DBSession().execute(query_area).scalar_one()
 
+            if intprob is None:
+                intprob = 0.0
+            if intarea is None:
+                intarea = 0.0
+
     observations = obs_query.all()
 
-    if return_statistics:
-        data = {
-            "observations": [o.to_dict() for o in observations],
-            "probability": intprob,
-            "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees
-        }
+    if includeGeoJSON:
+        # features are JSON representations that the d3 stuff understands.
+        # We use these to render the contours of the sky localization and
+        # locations of the transients.
+
+        geojson = []
+        fields_in = []
+        for ii, observation in enumerate(observations):
+            if observation.instrument_field_id not in fields_in:
+                fields_in.append(observation.instrument_field_id)
+                geojson.append(observation.field.contour_summary)
+            else:
+                continue
+
+        if return_statistics:
+            data = {
+                "observations": [o.to_dict() for o in observations],
+                "probability": intprob,
+                "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees,
+                "geojson": geojson,
+            }
+        else:
+            data = {
+                "observations": [o.to_dict() for o in observations],
+                "geojson": geojson,
+            }
+
     else:
-        data = observations
+        if return_statistics:
+            data = {
+                "observations": [o.to_dict() for o in observations],
+                "probability": intprob,
+                "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees
+            }
+        else:
+            data = {"observations": [o.to_dict() for o in observations]}
 
     return data
 
@@ -543,6 +602,14 @@ class ObservationHandler(BaseHandler):
                 type: boolean
               description: |
                 Boolean indicating whether to include integrated probability and area. Defaults to false.
+            - in: query
+              name: includeGeoJSON
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated GeoJSON. Defaults to
+                false.
           responses:
             200:
               content:
@@ -563,6 +630,8 @@ class ObservationHandler(BaseHandler):
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         return_statistics = self.get_query_argument("returnStatistics", False)
 
+        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+
         if start_date is None:
             return self.error(message="Missing start_date")
 
@@ -582,6 +651,7 @@ class ObservationHandler(BaseHandler):
             localization_name=localization_name,
             localization_cumprob=localization_cumprob,
             return_statistics=return_statistics,
+            includeGeoJSON=includeGeoJSON,
         )
 
         return self.success(data=data)

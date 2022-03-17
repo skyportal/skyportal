@@ -1,4 +1,6 @@
 from astropy.time import Time
+import pandas as pd
+from regions import Regions
 from datetime import datetime, timedelta
 import numpy as np
 
@@ -19,10 +21,11 @@ env, cfg = load_env()
 default_filters = cfg.get('app.observation_plan.default_filters', ['g', 'r', 'i'])
 
 
-def generate_plan(observation_plan_id, request_id):
+def generate_plan(observation_plan_id, request_id, user_id):
     """Use gwemopt to construct observing plan."""
 
     from ..models import DBSession
+    from skyportal.handlers.api.instrument import add_tiles
 
     Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
@@ -33,15 +36,18 @@ def generate_plan(observation_plan_id, request_id):
 
     from ..models import (
         EventObservationPlan,
-        ObservationPlanRequest,
+        Galaxy,
         InstrumentField,
+        ObservationPlanRequest,
         PlannedObservation,
+        User,
     )
 
     session = Session()
     try:
         plan = session.query(EventObservationPlan).get(observation_plan_id)
         request = session.query(ObservationPlanRequest).get(request_id)
+        user = session.query(User).get(user_id)
 
         event_time = Time(request.gcnevent.dateobs, format='datetime', scale='utc')
         start_time = Time(request.payload["start_date"], format='iso', scale='utc')
@@ -110,11 +116,11 @@ def generate_plan(observation_plan_id, request_id):
             ),
         }
 
-        if request.payload["schedule_strategy"] == "catalog":
+        if request.payload["schedule_strategy"] == "galaxy":
             params = {
                 **params,
                 'tilesType': 'galaxy',
-                'galaxy_catalog': 'CLU',
+                'galaxy_catalog': request.payload["galaxy_catalog"],
                 'galaxy_grade': 'S',
                 'writeCatalog': False,
                 'catalog_n': 1.0,
@@ -123,7 +129,7 @@ def generate_plan(observation_plan_id, request_id):
         elif request.payload["schedule_strategy"] == "tiling":
             params = {**params, 'tilesType': 'moc'}
         else:
-            raise AttributeError('scheduling_strategy should be tiling or catalog')
+            raise AttributeError('scheduling_strategy should be tiling or galaxy')
 
         params = gwemopt.utils.params_checker(params)
         params = gwemopt.segments.get_telescope_segments(params)
@@ -144,14 +150,51 @@ def generate_plan(observation_plan_id, request_id):
             params, is3D=params["do3D"], map_struct=params['map_struct']
         )
 
-        moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
-            params, map_struct=map_struct
-        )
-        tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
+        if params["tilesType"] == "galaxy":
+            query = Galaxy.query_records_accessible_by(user, mode="read")
+            query = query.filter(Galaxy.catalog_name == params["galaxy_catalog"])
+            galaxies = query.all()
+            catalog_struct = {}
+            catalog_struct["ra"] = np.array([g.ra for g in galaxies])
+            catalog_struct["dec"] = np.array([g.dec for g in galaxies])
+            catalog_struct["S"] = np.array([1.0 for g in galaxies])
+            catalog_struct["Sloc"] = np.array([1.0 for g in galaxies])
+            catalog_struct["Smass"] = np.array([1.0 for g in galaxies])
+
+        if params["tilesType"] == "moc":
+            moc_structs = gwemopt.skyportal.create_moc_from_skyportal(
+                params, map_struct=map_struct
+            )
+            tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
+        elif params["tilesType"] == "galaxy":
+            if request.instrument.region is None:
+                raise ValueError(
+                    'Must define the instrument region in the case of galaxy requests'
+                )
+            regions = Regions.parse(request.instrument.region, format='ds9')
+            tile_structs = gwemopt.skyportal.create_galaxy_from_skyportal(
+                params, map_struct, catalog_struct, regions=regions
+            )
 
         tile_structs, coverage_struct = gwemopt.coverage.timeallocation(
             params, map_struct, tile_structs
         )
+
+        # if the fields do not yet exist, we need to add them
+        if params["tilesType"] == "galaxy":
+            regions = Regions.parse(request.instrument.region, format='ds9')
+            data = {
+                'RA': coverage_struct["data"][:, 0],
+                'Dec': coverage_struct["data"][:, 1],
+            }
+            field_data = pd.DataFrame.from_dict(data)
+            field_ids = add_tiles(
+                request.instrument.id,
+                request.instrument.name,
+                regions,
+                field_data,
+                session=session,
+            )
 
         planned_observations = []
         for ii in range(len(coverage_struct["ipix"])):
@@ -164,7 +207,11 @@ def generate_plan(observation_plan_id, request_id):
                 "overhead_per_exposure"
             ]
 
-            exposure_time, field_id, prob = data[4], data[5], data[6]
+            exposure_time, prob = data[4], data[6]
+            if params["tilesType"] == "galaxy":
+                field_id = field_ids[ii]
+            else:
+                field_id = data[5]
 
             field = InstrumentField.query.filter(
                 InstrumentField.instrument_id == request.instrument.id,
@@ -301,7 +348,7 @@ class MMAAPI(FollowUpAPI):
 
             log(f"Generating schedule for observation plan {plan.id}")
             IOLoop.current().run_in_executor(
-                None, lambda: generate_plan(plan.id, request.id)
+                None, lambda: generate_plan(plan.id, request.id, request.requester.id)
             )
         else:
             raise ValueError(
@@ -342,75 +389,88 @@ class MMAAPI(FollowUpAPI):
         DBSession().delete(req)
         DBSession().commit()
 
-    form_json_schema = {
-        "type": "object",
-        "properties": {
-            "start_date": {
-                "type": "string",
-                "default": str(datetime.utcnow()),
-                "title": "Start Date (UT)",
+    def custom_json_schema(instrument, user):
+
+        from ..models import DBSession, Galaxy
+
+        galaxies = [g for g, in DBSession().query(Galaxy.catalog_name).distinct().all()]
+
+        form_json_schema = {
+            "type": "object",
+            "properties": {
+                "start_date": {
+                    "type": "string",
+                    "default": str(datetime.utcnow()),
+                    "title": "Start Date (UT)",
+                },
+                "end_date": {
+                    "type": "string",
+                    "title": "End Date (UT)",
+                    "default": str(datetime.utcnow() + timedelta(days=1)),
+                },
+                "filter_strategy": {
+                    "type": "string",
+                    "enum": ["block", "integrated"],
+                    "default": "block",
+                },
+                "schedule_type": {
+                    "type": "string",
+                    "enum": ["greedy", "greedy_slew", "sear", "airmass_weighted"],
+                    "default": "greedy_slew",
+                },
+                "schedule_strategy": {
+                    "type": "string",
+                    "enum": ["tiling", "galaxy"],
+                    "default": "tiling",
+                },
+                "galaxy_catalog": {
+                    "type": "string",
+                    "enum": galaxies,
+                    "default": galaxies[0] if len(galaxies) > 0 else "",
+                },
+                "exposure_time": {"type": "string", "default": "300"},
+                "filters": {"type": "string", "default": ",".join(default_filters)},
+                "maximum_airmass": {
+                    "title": "Maximum Airmass (1-3)",
+                    "type": "number",
+                    "default": 2.0,
+                    "minimum": 1,
+                    "maximum": 3,
+                },
+                "integrated_probability": {
+                    "title": "Integrated Probability (0-100)",
+                    "type": "number",
+                    "default": 90.0,
+                    "minimum": 0,
+                    "maximum": 100,
+                },
+                "minimum_time_difference": {
+                    "title": "Minimum time difference [min] (0-180)",
+                    "type": "number",
+                    "default": 30.0,
+                    "minimum": 0,
+                    "maximum": 180,
+                },
+                "queue_name": {
+                    "type": "string",
+                    "default": f"ToO_{str(datetime.utcnow()).replace(' ','T')}",
+                },
             },
-            "end_date": {
-                "type": "string",
-                "title": "End Date (UT)",
-                "default": str(datetime.utcnow() + timedelta(days=1)),
-            },
-            "filter_strategy": {
-                "type": "string",
-                "enum": ["block", "integrated"],
-                "default": "block",
-            },
-            "schedule_type": {
-                "type": "string",
-                "enum": ["greedy", "greedy_slew", "sear", "airmass_weighted"],
-                "default": "greedy_slew",
-            },
-            "schedule_strategy": {
-                "type": "string",
-                "enum": ["tiling", "catalog"],
-                "default": "tiling",
-            },
-            "exposure_time": {"type": "string", "default": "300"},
-            "filters": {"type": "string", "default": ",".join(default_filters)},
-            "maximum_airmass": {
-                "title": "Maximum Airmass (1-3)",
-                "type": "number",
-                "default": 2.0,
-                "minimum": 1,
-                "maximum": 3,
-            },
-            "integrated_probability": {
-                "title": "Integrated Probability (0-100)",
-                "type": "number",
-                "default": 90.0,
-                "minimum": 0,
-                "maximum": 100,
-            },
-            "minimum_time_difference": {
-                "title": "Minimum time difference [min] (0-180)",
-                "type": "number",
-                "default": 30.0,
-                "minimum": 0,
-                "maximum": 180,
-            },
-            "queue_name": {
-                "type": "string",
-                "default": f"ToO_{str(datetime.utcnow()).replace(' ','T')}",
-            },
-        },
-        "required": [
-            "start_date",
-            "end_date",
-            "filters",
-            "queue_name",
-            "filter_strategy",
-            "schedule_type",
-            "schedule_strategy",
-            "exposure_time",
-            "maximum_airmass",
-            "integrated_probability",
-            "minimum_time_difference",
-        ],
-    }
+            "required": [
+                "start_date",
+                "end_date",
+                "filters",
+                "queue_name",
+                "filter_strategy",
+                "schedule_type",
+                "schedule_strategy",
+                "exposure_time",
+                "maximum_airmass",
+                "integrated_probability",
+                "minimum_time_difference",
+            ],
+        }
+
+        return form_json_schema
 
     ui_json_schema = {}

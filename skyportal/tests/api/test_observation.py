@@ -237,6 +237,6 @@ def test_observation_radec(super_admin_token, view_only_token):
         [
             d['obstime'] == '2019-04-25T08:18:18.002909'
             and d['observation_id'] == 94434604
-            for d in data
+            for d in data['observations']
         ]
     )
