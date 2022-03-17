@@ -17,6 +17,8 @@ const LocalizationPlot = ({
   instrument,
   observations,
   options,
+  height,
+  width,
 }) => {
   const cachedLocalization = useSelector((state) => state.localization);
   const dispatch = useDispatch();
@@ -30,19 +32,21 @@ const LocalizationPlot = ({
   const localization =
     loc.id === cachedLocalization?.id ? cachedLocalization : null;
 
-  if (!localization || !instrument) {
+  if (!localization) {
     return <CircularProgress />;
   }
 
   return (
     <>
       <GeoJSONGlobePlot
-        skymap={localization.contour}
-        sources={sources.geojson}
-        galaxies={galaxies.geojson}
+        skymap={localization?.contour}
+        sources={sources?.geojson}
+        galaxies={galaxies?.geojson}
         instrument={instrument}
-        observations={observations.geojson}
+        observations={observations?.geojson}
         options={options}
+        height={height}
+        width={width}
       />
     </>
   );
@@ -134,7 +138,15 @@ LocalizationPlot.propTypes = {
     ),
   }),
   observations: PropTypes.shape({
-    geojson: GeoPropTypes.FeatureCollection,
+    geojson: PropTypes.arrayOf(
+      PropTypes.oneOfType([
+        GeoPropTypes.FeatureCollection,
+        PropTypes.shape({
+          type: PropTypes.string,
+          features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+        }),
+      ])
+    ),
     observations: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.string,
@@ -155,6 +167,8 @@ LocalizationPlot.propTypes = {
     instrument: PropTypes.bool,
     observations: PropTypes.bool,
   }),
+  height: PropTypes.number,
+  width: PropTypes.number,
 };
 
 LocalizationPlot.defaultProps = {
@@ -170,6 +184,8 @@ LocalizationPlot.defaultProps = {
     instrument: false,
     observations: false,
   },
+  height: 600,
+  width: 600,
 };
 
 const useD3 = (renderer, height, width, data) => {
@@ -191,9 +207,11 @@ const GeoJSONGlobePlot = ({
   instrument,
   observations,
   options,
+  height,
+  width,
 }) => {
-  function renderMap(svg, height, width, data) {
-    const center = [width / 2, height / 2];
+  function renderMap(svg, svgheight, svgwidth, data) {
+    const center = [svgwidth / 2, svgheight / 2];
     const projection = d3.geoOrthographic().translate(center).scale(100);
     const geoGenerator = d3.geoPath().projection(projection);
     const graticule = d3.geoGraticule();
@@ -356,9 +374,9 @@ const GeoJSONGlobePlot = ({
     options,
   };
 
-  const svgRef = useD3(renderMap, 600, 600, data);
+  const svgRef = useD3(renderMap, height, width, data);
 
-  return <svg height={600} width={600} ref={svgRef} />;
+  return <svg height={height} width={width} ref={svgRef} />;
 };
 
 GeoJSONGlobePlot.propTypes = {
@@ -391,7 +409,15 @@ GeoJSONGlobePlot.propTypes = {
       })
     ),
   }),
-  observations: PropTypes.arrayOf(GeoPropTypes.FeatureCollection),
+  observations: PropTypes.arrayOf(
+    PropTypes.oneOfType([
+      GeoPropTypes.FeatureCollection,
+      PropTypes.shape({
+        type: PropTypes.string,
+        features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+      }),
+    ])
+  ),
   options: PropTypes.shape({
     skymap: PropTypes.bool,
     sources: PropTypes.bool,
@@ -399,6 +425,8 @@ GeoJSONGlobePlot.propTypes = {
     instrument: PropTypes.bool,
     observations: PropTypes.bool,
   }),
+  height: PropTypes.number,
+  width: PropTypes.number,
 };
 
 GeoJSONGlobePlot.defaultProps = {
@@ -414,6 +442,8 @@ GeoJSONGlobePlot.defaultProps = {
     instrument: false,
     observations: false,
   },
+  height: 600,
+  width: 600,
 };
 
 export default LocalizationPlot;

@@ -454,9 +454,7 @@ const GcnEventPage = ({ route }) => {
                 gcnevent={gcnEvent}
                 action="createNew"
               />
-              <ObservationPlanRequestLists
-                observationplanRequests={gcnEvent.observationplan_requests}
-              />
+              <ObservationPlanRequestLists gcnEvent={gcnEvent} />
             </div>
           </AccordionDetails>
         </Accordion>
