@@ -29,8 +29,6 @@ const ObservationList = ({ observations }) => {
     return <p>No observations available...</p>;
   }
 
-  console.log("observations", observations);
-
   return <ExecutedObservationsTable observations={observations} />;
 };
 
