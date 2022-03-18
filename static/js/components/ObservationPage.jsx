@@ -25,11 +25,13 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const ObservationList = ({ observations }) => {
-  if (!observations || observations.length === 0) {
-    return <p>No galaxies available...</p>;
+  if (!observations.observations || observations.observations.length === 0) {
+    return <p>No observations available...</p>;
   }
 
-  return <ExecutedObservationsTable observations={observations.observations} />;
+  console.log("observations", observations);
+
+  return <ExecutedObservationsTable observations={observations} />;
 };
 
 const ObservationPage = () => {
@@ -41,6 +43,10 @@ const ObservationPage = () => {
   useEffect(() => {
     dispatch(observationsActions.fetchObservations());
   }, [dispatch]);
+
+  if (!observations) {
+    return <p>No observations available...</p>;
+  }
 
   return (
     <Grid container spacing={3}>
@@ -73,18 +79,20 @@ const ObservationPage = () => {
 };
 
 ObservationList.propTypes = {
-  observations: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string,
-      obstime: PropTypes.instanceOf(Date),
-      filt: PropTypes.string,
-      exposure_time: PropTypes.number,
-      airmass: PropTypes.number,
-      limmag: PropTypes.number,
-      seeing: PropTypes.number,
-      processed_fraction: PropTypes.number,
-    })
-  ),
+  observations: PropTypes.shape({
+    observations: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.string,
+        obstime: PropTypes.instanceOf(Date),
+        filt: PropTypes.string,
+        exposure_time: PropTypes.number,
+        airmass: PropTypes.number,
+        limmag: PropTypes.number,
+        seeing: PropTypes.number,
+        processed_fraction: PropTypes.number,
+      })
+    ),
+  }),
 };
 
 ObservationList.defaultProps = {
