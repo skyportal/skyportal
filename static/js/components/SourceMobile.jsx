@@ -47,6 +47,7 @@ import AnnotationsTable from "./AnnotationsTable";
 import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
+import SourceAnnotationButtons from "./SourceAnnotationButtons";
 
 import * as spectraActions from "../ducks/spectra";
 
@@ -448,6 +449,9 @@ const SourceMobile = WidthProvider(
                   spectrumAnnotations={spectrumAnnotations}
                 />
               </AccordionDetails>
+              <AccordionDetails>
+                <SourceAnnotationButtons source={source} />
+              </AccordionDetails>
             </Accordion>
           </div>
           <div>
@@ -727,9 +731,9 @@ SourceMobile.propTypes = {
         created_at: PropTypes.string,
       })
     ),
-    followup_requests: PropTypes.arrayOf(PropTypes.any),
-    assignments: PropTypes.arrayOf(PropTypes.any),
-    redshift_history: PropTypes.arrayOf(PropTypes.any),
+    followup_requests: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    assignments: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    redshift_history: PropTypes.arrayOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
     duplicates: PropTypes.arrayOf(PropTypes.string),
     color_magnitude: PropTypes.arrayOf(
       PropTypes.shape({

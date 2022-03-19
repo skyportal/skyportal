@@ -339,7 +339,10 @@ instrument:
     telescope_id: =KPNO2m
     filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: SEDMV2API
+    api_classname_obsplan: MMAAPI
     =id: SEDMv2
+    field_fov_type: rectangle
+    field_fov_attributes: [0.08, 0.08]
   - band: optical
     name: T80CAM
     telescope_id: =JAST
