@@ -186,11 +186,14 @@ class GroupHandler(BaseHandler):
         group_name = self.get_query_argument("name", None)
         if group_name is not None:
             with DBSession() as session:
-                groups = session.execute(
-                    Group.query_records_accessible_by(self.current_user).where(
-                        Group.name == group_name
-                    )
-                ).all()
+                groups = [
+                    g
+                    for g, in session.execute(
+                        Group.query_records_accessible_by(self.current_user).where(
+                            Group.name == group_name
+                        )
+                    ).all()
+                ]
             # Ensure access
             self.verify_and_commit()
             return self.success(data=groups)
