@@ -74,7 +74,8 @@ def add_observations(instrument_id, obstable):
         )
         obstable['field_id'] = field_ids
 
-    try:
+    # try:
+    if True:
         observations = []
         for index, row in obstable.iterrows():
             field_id = int(row["field_id"])
@@ -104,12 +105,20 @@ def add_observations(instrument_id, obstable):
                 )
                 continue
 
+            # enable multiple obstime formats
+            try:
+                # can catch iso and isot this way
+                obstime = Time(row["obstime"])
+            except ValueError:
+                # otherwise catch jd as the numerical example
+                obstime = Time(row["obstime"], format='jd')
+
             observations.append(
                 ExecutedObservation(
                     instrument_id=instrument_id,
                     observation_id=row["observation_id"],
                     instrument_field_id=field.id,
-                    obstime=Time(row["obstime"], format='jd').datetime,
+                    obstime=obstime.datetime,
                     seeing=row["seeing"],
                     limmag=row["limmag"],
                     exposure_time=row["exposure_time"],
@@ -124,10 +133,10 @@ def add_observations(instrument_id, obstable):
         flow.push('*', "skyportal/REFRESH_OBSERVATIONS")
 
         return log(f"Successfully added observations for instrument {instrument_id}")
-    except Exception as e:
-        return log(f"Unable to add observations for instrument {instrument_id}: {e}")
-    finally:
-        Session.remove()
+    # except Exception as e:
+    #    return log(f"Unable to add observations for instrument {instrument_id}: {e}")
+    # finally:
+    #    Session.remove()
 
 
 def get_observations(
