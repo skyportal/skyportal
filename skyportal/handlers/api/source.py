@@ -109,11 +109,17 @@ def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
 
 
 def paginate_summary_query(query, page, num_per_page, total_matches):
-    if total_matches is None:
-        total_matches = query.count()
-    query = query.offset((page - 1) * num_per_page)
-    query = query.limit(num_per_page)
-    return {"sources": query.all(), "total_matches": total_matches}
+    with DBSession() as session:
+        if total_matches is None:
+            total_matches = session.scalar(
+                sa.select(sa.func.count()).select_from(query)
+            )
+        query = query.offset((page - 1) * num_per_page)
+        query = query.limit(num_per_page)
+        return {
+            "sources": [s for s, in session.execute(query).unique().all()],
+            "total_matches": total_matches,
+        }
 
 
 class SourceHandler(BaseHandler):
@@ -750,234 +756,250 @@ class SourceHandler(BaseHandler):
         total_matches = self.get_query_argument('totalMatches', None)
         is_token_request = isinstance(self.current_user, Token)
         if obj_id is not None:
-            if include_thumbnails:
-                s = Obj.get_if_accessible_by(
-                    obj_id, self.current_user, options=[joinedload(Obj.thumbnails)]
-                )
-            else:
-                s = Obj.get_if_accessible_by(obj_id, self.current_user)
-            if s is None:
-                return self.error("Source not found", status=404)
-            source_info = s.to_dict()
-            source_info["followup_requests"] = (
-                FollowupRequest.query_records_accessible_by(
-                    self.current_user,
-                    options=[
-                        joinedload(FollowupRequest.allocation).joinedload(
-                            Allocation.instrument
-                        ),
-                        joinedload(FollowupRequest.allocation).joinedload(
-                            Allocation.group
-                        ),
-                        joinedload(FollowupRequest.requester),
-                    ],
-                )
-                .filter(FollowupRequest.obj_id == obj_id)
-                .filter(FollowupRequest.status != "deleted")
-                .all()
-            )
-            source_info["assignments"] = (
-                ClassicalAssignment.query_records_accessible_by(
-                    self.current_user,
-                    options=[
-                        joinedload(ClassicalAssignment.run)
-                        .joinedload(ObservingRun.instrument)
-                        .joinedload(Instrument.telescope)
-                    ],
-                )
-                .filter(ClassicalAssignment.obj_id == obj_id)
-                .all()
-            )
-            point = ca.Point(ra=s.ra, dec=s.dec)
-            # Check for duplicates (within 4 arcsecs)
-            duplicates = (
-                Obj.query_records_accessible_by(self.current_user)
-                .filter(Obj.within(point, 4 / 3600))
-                .filter(Obj.id != s.id)
-                .all()
-            )
-            if len(duplicates) > 0:
-                source_info["duplicates"] = [dup.id for dup in duplicates]
-            else:
-                source_info["duplicates"] = None
+            with DBSession() as session:
 
-            if is_token_request:
-                # Logic determining whether to register front-end request as view lives in front-end
-                sv = SourceView(
-                    obj_id=obj_id,
-                    username_or_token_id=self.current_user.id,
-                    is_token=True,
-                )
-                DBSession.add(sv)
-                # To keep loaded relationships from being cleared in verify_and_commit:
-                source_info = recursive_to_dict(source_info)
-                self.verify_and_commit()
-
-            if include_thumbnails:
-                existing_thumbnail_types = [thumb.type for thumb in s.thumbnails]
-                if "ps1" not in existing_thumbnail_types:
-                    IOLoop.current().run_in_executor(
-                        None,
-                        lambda: add_ps1_thumbnail_and_push_ws_msg(
-                            obj_id, self.associated_user_object.id
-                        ),
+                if include_thumbnails:
+                    s = Obj.get_if_accessible_by(
+                        obj_id, self.current_user, options=[joinedload(Obj.thumbnails)]
                     )
-                if (
-                    "sdss" not in existing_thumbnail_types
-                    or "dr8" not in existing_thumbnail_types
-                ):
-                    IOLoop.current().run_in_executor(
-                        None,
-                        lambda: add_linked_thumbnails_and_push_ws_msg(
-                            obj_id, self.associated_user_object.id
-                        ),
-                    )
-            if include_comments:
-                comments = (
-                    Comment.query_records_accessible_by(
+                else:
+                    s = Obj.get_if_accessible_by(obj_id, self.current_user)
+                if s is None:
+                    return self.error("Source not found", status=404)
+                source_info = s.to_dict()
+                source_info["followup_requests"] = session.execute(
+                    FollowupRequest.query_records_accessible_by(
                         self.current_user,
                         options=[
-                            joinedload(Comment.author),
-                            joinedload(Comment.groups),
+                            joinedload(FollowupRequest.allocation).joinedload(
+                                Allocation.instrument
+                            ),
+                            joinedload(FollowupRequest.allocation).joinedload(
+                                Allocation.group
+                            ),
+                            joinedload(FollowupRequest.requester),
                         ],
                     )
-                    .filter(Comment.obj_id == obj_id)
-                    .all()
-                )
-                source_info["comments"] = sorted(
+                    .where(FollowupRequest.obj_id == obj_id)
+                    .where(FollowupRequest.status != "deleted")
+                ).all()
+                source_info["assignments"] = session.execute(
+                    ClassicalAssignment.query_records_accessible_by(
+                        self.current_user,
+                        options=[
+                            joinedload(ClassicalAssignment.run)
+                            .joinedload(ObservingRun.instrument)
+                            .joinedload(Instrument.telescope)
+                        ],
+                    ).where(ClassicalAssignment.obj_id == obj_id)
+                ).all()
+                point = ca.Point(ra=s.ra, dec=s.dec)
+                # Check for duplicates (within 4 arcsecs)
+                duplicates = session.execute(
+                    Obj.query_records_accessible_by(self.current_user)
+                    .where(Obj.within(point, 4 / 3600))
+                    .where(Obj.id != s.id)
+                ).all()
+                if len(duplicates) > 0:
+                    source_info["duplicates"] = [dup.id for dup in duplicates]
+                else:
+                    source_info["duplicates"] = None
+
+                if is_token_request:
+                    # Logic determining whether to register front-end request as view lives in front-end
+                    sv = SourceView(
+                        obj_id=obj_id,
+                        username_or_token_id=self.current_user.id,
+                        is_token=True,
+                    )
+                    session.add(sv)
+                    # To keep loaded relationships from being cleared in verify_and_commit:
+                    source_info = recursive_to_dict(source_info)
+                    self.verify_and_commit()
+
+                if include_thumbnails:
+                    existing_thumbnail_types = [thumb.type for thumb in s.thumbnails]
+                    if "ps1" not in existing_thumbnail_types:
+                        IOLoop.current().run_in_executor(
+                            None,
+                            lambda: add_ps1_thumbnail_and_push_ws_msg(
+                                obj_id, self.associated_user_object.id
+                            ),
+                        )
+                    if (
+                        "sdss" not in existing_thumbnail_types
+                        or "dr8" not in existing_thumbnail_types
+                    ):
+                        IOLoop.current().run_in_executor(
+                            None,
+                            lambda: add_linked_thumbnails_and_push_ws_msg(
+                                obj_id, self.associated_user_object.id
+                            ),
+                        )
+                if include_comments:
+                    comments = (
+                        session.execute(
+                            Comment.query_records_accessible_by(
+                                self.current_user,
+                                options=[
+                                    joinedload(Comment.author),
+                                    joinedload(Comment.groups),
+                                ],
+                            ).where(Comment.obj_id == obj_id)
+                        )
+                        .unique()
+                        .all()
+                    )
+                    source_info["comments"] = sorted(
+                        (
+                            {
+                                **{
+                                    k: v
+                                    for k, v in c.to_dict().items()
+                                    if k != "attachment_bytes"
+                                },
+                                "author": {
+                                    **c.author.to_dict(),
+                                    "gravatar_url": c.author.gravatar_url,
+                                },
+                            }
+                            for c, in comments
+                        ),
+                        key=lambda x: x["created_at"],
+                        reverse=True,
+                    )
+                if include_period_exists:
+                    annotations = session.execute(
+                        Annotation.query_records_accessible_by(self.current_user).where(
+                            Annotation.obj_id == obj_id
+                        )
+                    ).all()
+                    period_str_options = ['period', 'Period', 'PERIOD']
+                    source_info["period_exists"] = any(
+                        [
+                            isinstance(an.data, dict) and period_str in an.data
+                            for an, in annotations
+                            for period_str in period_str_options
+                        ]
+                    )
+
+                source_info["annotations"] = sorted(
                     (
-                        {
-                            **{
-                                k: v
-                                for k, v in c.to_dict().items()
-                                if k != "attachment_bytes"
-                            },
-                            "author": {
-                                **c.author.to_dict(),
-                                "gravatar_url": c.author.gravatar_url,
-                            },
-                        }
-                        for c in comments
+                        x
+                        for x, in session.execute(
+                            Annotation.query_records_accessible_by(
+                                self.current_user,
+                                options=[joinedload(Annotation.author)],
+                            ).where(Annotation.obj_id == obj_id)
+                        ).all()
                     ),
-                    key=lambda x: x["created_at"],
-                    reverse=True,
+                    key=lambda x: x.origin,
                 )
-            if include_period_exists:
-                annotations = (
-                    Annotation.query_records_accessible_by(self.current_user)
-                    .filter(Annotation.obj_id == obj_id)
-                    .all()
+                readable_classifications = session.execute(
+                    Classification.query_records_accessible_by(self.current_user).where(
+                        Classification.obj_id == obj_id
+                    )
                 )
-                period_str_options = ['period', 'Period', 'PERIOD']
-                source_info["period_exists"] = any(
-                    [
-                        isinstance(an.data, dict) and period_str in an.data
-                        for an in annotations
-                        for period_str in period_str_options
+
+                readable_classifications_json = []
+                for (classification,) in readable_classifications:
+                    classification_dict = classification.to_dict()
+                    classification_dict['groups'] = [
+                        g.to_dict() for g in classification.groups
                     ]
-                )
+                    readable_classifications_json.append(classification_dict)
 
-            source_info["annotations"] = sorted(
-                Annotation.query_records_accessible_by(
-                    self.current_user, options=[joinedload(Annotation.author)]
-                )
-                .filter(Annotation.obj_id == obj_id)
-                .all(),
-                key=lambda x: x.origin,
-            )
-            readable_classifications = (
-                Classification.query_records_accessible_by(self.current_user)
-                .filter(Classification.obj_id == obj_id)
-                .all()
-            )
+                source_info["classifications"] = readable_classifications_json
+                if include_detection_stats:
+                    source_info["last_detected_at"] = s.last_detected_at(
+                        self.current_user
+                    )
+                    source_info["last_detected_mag"] = s.last_detected_mag(
+                        self.current_user
+                    )
+                    source_info["peak_detected_at"] = s.peak_detected_at(
+                        self.current_user
+                    )
+                    source_info["peak_detected_mag"] = s.peak_detected_mag(
+                        self.current_user
+                    )
+                source_info["gal_lat"] = s.gal_lat_deg
+                source_info["gal_lon"] = s.gal_lon_deg
+                source_info["luminosity_distance"] = s.luminosity_distance
+                source_info["dm"] = s.dm
+                source_info["angular_diameter_distance"] = s.angular_diameter_distance
 
-            readable_classifications_json = []
-            for classification in readable_classifications:
-                classification_dict = classification.to_dict()
-                classification_dict['groups'] = [
-                    g.to_dict() for g in classification.groups
-                ]
-                readable_classifications_json.append(classification_dict)
-
-            source_info["classifications"] = readable_classifications_json
-            if include_detection_stats:
-                source_info["last_detected_at"] = s.last_detected_at(self.current_user)
-                source_info["last_detected_mag"] = s.last_detected_mag(
+                if include_photometry:
+                    with DBSession() as session:
+                        photometry = session.execute(
+                            Photometry.query_records_accessible_by(
+                                self.current_user
+                            ).where(Photometry.obj_id == obj_id)
+                        ).all()
+                    source_info["photometry"] = [
+                        serialize(phot, 'ab', 'flux') for phot, in photometry
+                    ]
+                if include_photometry_exists:
+                    with DBSession() as session:
+                        source_info["photometry_exists"] = (
+                            len(
+                                session.execute(
+                                    Photometry.query_records_accessible_by(
+                                        self.current_user
+                                    ).where(Photometry.obj_id == obj_id)
+                                ).all()
+                            )
+                            > 0
+                        )
+                if include_spectrum_exists:
+                    with DBSession() as session:
+                        source_info["spectrum_exists"] = (
+                            len(
+                                session.execute(
+                                    Spectrum.query_records_accessible_by(
+                                        self.current_user
+                                    ).where(Spectrum.obj_id == obj_id)
+                                ).all()
+                            )
+                            > 0
+                        )
+                source_query = Source.query_records_accessible_by(
                     self.current_user
+                ).filter(Source.obj_id == source_info["id"])
+                source_query = apply_active_or_requested_filtering(
+                    source_query, include_requested, requested_only
                 )
-                source_info["peak_detected_at"] = s.peak_detected_at(self.current_user)
-                source_info["peak_detected_mag"] = s.peak_detected_mag(
-                    self.current_user
-                )
-            source_info["gal_lat"] = s.gal_lat_deg
-            source_info["gal_lon"] = s.gal_lon_deg
-            source_info["luminosity_distance"] = s.luminosity_distance
-            source_info["dm"] = s.dm
-            source_info["angular_diameter_distance"] = s.angular_diameter_distance
+                source_subquery = source_query.subquery()
+                groups = session.execute(
+                    Group.query_records_accessible_by(self.current_user).join(
+                        source_subquery, Group.id == source_subquery.c.group_id
+                    )
+                ).all()
+                source_info["groups"] = [g.to_dict() for g, in groups]
 
-            if include_photometry:
-                photometry = (
-                    Photometry.query_records_accessible_by(self.current_user)
-                    .filter(Photometry.obj_id == obj_id)
-                    .all()
-                )
-                source_info["photometry"] = [
-                    serialize(phot, 'ab', 'flux') for phot in photometry
-                ]
-            if include_photometry_exists:
-                source_info["photometry_exists"] = (
-                    len(
-                        Photometry.query_records_accessible_by(self.current_user)
-                        .filter(Photometry.obj_id == obj_id)
-                        .all()
+                for group in source_info["groups"]:
+                    (source_table_row,) = session.execute(
+                        Source.query_records_accessible_by(self.current_user).where(
+                            Source.obj_id == s.id, Source.group_id == group["id"]
+                        )
+                    ).first()
+                    if source_table_row is not None:
+                        group["active"] = source_table_row.active
+                        group["requested"] = source_table_row.requested
+                        group["saved_at"] = source_table_row.saved_at
+                        group["saved_by"] = (
+                            source_table_row.saved_by.to_dict()
+                            if source_table_row.saved_by is not None
+                            else None
+                        )
+                if include_color_mag:
+                    source_info["color_magnitude"] = get_color_mag(
+                        source_info["annotations"]
                     )
-                    > 0
-                )
-            if include_spectrum_exists:
-                source_info["spectrum_exists"] = (
-                    len(
-                        Spectrum.query_records_accessible_by(self.current_user)
-                        .filter(Spectrum.obj_id == obj_id)
-                        .all()
-                    )
-                    > 0
-                )
-            source_query = Source.query_records_accessible_by(self.current_user).filter(
-                Source.obj_id == source_info["id"]
-            )
-            source_query = apply_active_or_requested_filtering(
-                source_query, include_requested, requested_only
-            )
-            source_subquery = source_query.subquery()
-            groups = (
-                Group.query_records_accessible_by(self.current_user)
-                .join(source_subquery, Group.id == source_subquery.c.group_id)
-                .all()
-            )
-            source_info["groups"] = [g.to_dict() for g in groups]
-            for group in source_info["groups"]:
-                source_table_row = (
-                    Source.query_records_accessible_by(self.current_user)
-                    .filter(Source.obj_id == s.id, Source.group_id == group["id"])
-                    .first()
-                )
-                if source_table_row is not None:
-                    group["active"] = source_table_row.active
-                    group["requested"] = source_table_row.requested
-                    group["saved_at"] = source_table_row.saved_at
-                    group["saved_by"] = (
-                        source_table_row.saved_by.to_dict()
-                        if source_table_row.saved_by is not None
-                        else None
-                    )
-            if include_color_mag:
-                source_info["color_magnitude"] = get_color_mag(
-                    source_info["annotations"]
-                )
 
-            source_info = recursive_to_dict(source_info)
-            self.verify_and_commit()
-            return self.success(data=source_info)
+                source_info = recursive_to_dict(source_info)
+                self.verify_and_commit()
+                return self.success(data=source_info)
 
         # Fetch multiple sources
         obj_query_options = (
@@ -992,7 +1014,7 @@ class SourceHandler(BaseHandler):
         source_query = Source.query_records_accessible_by(self.current_user)
 
         if sourceID:
-            obj_query = obj_query.filter(Obj.id.contains(sourceID.strip()))
+            obj_query = obj_query.where(Obj.id.contains(sourceID.strip()))
         if any([ra, dec, radius]):
             if not all([ra, dec, radius]):
                 return self.error(
@@ -1011,12 +1033,12 @@ class SourceHandler(BaseHandler):
             obj_query = obj_query.filter(Obj.within(other, radius))
 
         if start_date:
-            start_date = str(arrow.get(start_date.strip()).datetime)
+            start_date = arrow.get(start_date.strip()).datetime
             obj_query = obj_query.filter(
                 Obj.last_detected_at(self.current_user) >= start_date
             )
         if end_date:
-            end_date = str(arrow.get(end_date.strip()).datetime)
+            end_date = arrow.get(end_date.strip()).datetime
             obj_query = obj_query.filter(
                 Obj.last_detected_at(self.current_user) <= end_date
             )
@@ -1246,29 +1268,31 @@ class SourceHandler(BaseHandler):
                 )
 
         if localization_dateobs is not None:
-            if localization_name is not None:
-                localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(Localization.dateobs == localization_dateobs)
-                    .filter(Localization.localization_name == localization_name)
-                    .first()
-                )
-            else:
-                localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(Localization.dateobs == localization_dateobs)
-                    .first()
-                )
-            if localization is None:
+            with DBSession() as session:
                 if localization_name is not None:
-                    return self.error(
-                        f"Localization {localization_dateobs} with name {localization_name} not found",
-                        status=404,
-                    )
+                    localization = session.execute(
+                        Localization.query_records_accessible_by(self.current_user)
+                        .where(Localization.dateobs == localization_dateobs)
+                        .where(Localization.localization_name == localization_name)
+                    ).first()
                 else:
-                    return self.error(
-                        f"Localization {localization_dateobs} not found", status=404
-                    )
+                    localization = session.execute(
+                        Localization.query_records_accessible_by(
+                            self.current_user
+                        ).where(Localization.dateobs == localization_dateobs)
+                    ).first()
+                if localization is None:
+                    if localization_name is not None:
+                        return self.error(
+                            f"Localization {localization_dateobs} with name {localization_name} not found",
+                            status=404,
+                        )
+                    else:
+                        return self.error(
+                            f"Localization {localization_dateobs} not found", status=404
+                        )
+                else:
+                    (localization,) = localization
 
             cum_prob = (
                 sa.func.sum(
@@ -1278,7 +1302,7 @@ class SourceHandler(BaseHandler):
                 .label('cum_prob')
             )
             localizationtile_subquery = (
-                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                sa.select(LocalizationTile.probdensity, cum_prob).where(
                     LocalizationTile.localization_id == localization.id
                 )
             ).subquery()
@@ -1286,14 +1310,14 @@ class SourceHandler(BaseHandler):
             min_probdensity = (
                 sa.select(
                     sa.func.min(localizationtile_subquery.columns.probdensity)
-                ).filter(
+                ).where(
                     localizationtile_subquery.columns.cum_prob <= localization_cumprob
                 )
             ).scalar_subquery()
 
             tiles_subquery = (
                 sa.select(Obj.id)
-                .filter(
+                .where(
                     LocalizationTile.localization_id == localization.id,
                     LocalizationTile.healpix.contains(Obj.healpix),
                     LocalizationTile.probdensity >= min_probdensity,
@@ -1314,7 +1338,7 @@ class SourceHandler(BaseHandler):
                 return self.error(
                     f"One of the requested groups in '{group_ids}' is inaccessible to user."
                 )
-            source_query = source_query.filter(Source.group_id.in_(group_ids))
+            source_query = source_query.where(Source.group_id.in_(group_ids))
 
         source_subquery = source_query.subquery()
         query = obj_query.join(source_subquery, Obj.id == source_subquery.c.obj_id)
@@ -1504,21 +1528,23 @@ class SourceHandler(BaseHandler):
                     )
 
                 if include_thumbnails and not remove_nested:
-                    obj_list[-1]["thumbnails"] = (
-                        Thumbnail.query_records_accessible_by(self.current_user)
-                        .filter(Thumbnail.obj_id == obj.id)
-                        .all()
-                    )
+                    with DBSession() as session:
+                        obj_list[-1]["thumbnails"] = session.execute(
+                            Thumbnail.query_records_accessible_by(
+                                self.current_user
+                            ).where(Thumbnail.obj_id == obj.id)
+                        ).all()
 
                 if not remove_nested:
-                    readable_classifications = (
-                        Classification.query_records_accessible_by(self.current_user)
-                        .filter(Classification.obj_id == obj.id)
-                        .all()
-                    )
+                    with DBSession() as session:
+                        readable_classifications = session.execute(
+                            Classification.query_records_accessible_by(
+                                self.current_user
+                            ).where(Classification.obj_id == obj.id)
+                        ).all()
 
                     readable_classifications_json = []
-                    for classification in readable_classifications:
+                    for (classification,) in readable_classifications:
                         classification_dict = classification.to_dict()
                         classification_dict['groups'] = [
                             g.to_dict() for g in classification.groups
@@ -1527,12 +1553,18 @@ class SourceHandler(BaseHandler):
 
                     obj_list[-1]["classifications"] = readable_classifications_json
 
-                    obj_list[-1]["annotations"] = sorted(
-                        Annotation.query_records_accessible_by(
-                            self.current_user
-                        ).filter(Annotation.obj_id == obj.id),
-                        key=lambda x: x.origin,
-                    )
+                    with DBSession() as session:
+                        obj_list[-1]["annotations"] = sorted(
+                            (
+                                x
+                                for x, in session.execute(
+                                    Annotation.query_records_accessible_by(
+                                        self.current_user
+                                    ).where(Annotation.obj_id == obj.id)
+                                )
+                            ),
+                            key=lambda x: x.origin,
+                        )
                 if include_detection_stats:
                     obj_list[-1]["last_detected_at"] = (
                         (last_detected_at - last_detected_at.utcoffset()).replace(
@@ -1560,77 +1592,89 @@ class SourceHandler(BaseHandler):
                 ] = obj.angular_diameter_distance
 
                 if include_photometry:
-                    photometry = Photometry.query_records_accessible_by(
-                        self.current_user
-                    ).filter(Photometry.obj_id == obj.id)
-                    obj_list[-1]["photometry"] = [
-                        serialize(phot, 'ab', 'flux') for phot in photometry
-                    ]
+                    with DBSession() as session:
+                        photometry = session.execute(
+                            Photometry.query_records_accessible_by(
+                                self.current_user
+                            ).where(Photometry.obj_id == obj.id)
+                        ).all()
+                        obj_list[-1]["photometry"] = [
+                            serialize(phot, 'ab', 'flux') for phot, in photometry
+                        ]
                 if include_photometry_exists:
-                    obj_list[-1]["photometry_exists"] = (
-                        len(
-                            Photometry.query_records_accessible_by(self.current_user)
-                            .filter(Photometry.obj_id == obj.id)
-                            .all()
+                    with DBSession() as session:
+                        obj_list[-1]["photometry_exists"] = (
+                            len(
+                                session.execute(
+                                    Photometry.query_records_accessible_by(
+                                        self.current_user
+                                    ).where(Photometry.obj_id == obj.id)
+                                ).all()
+                            )
+                            > 0
                         )
-                        > 0
-                    )
                 if include_spectrum_exists:
-                    obj_list[-1]["spectrum_exists"] = (
-                        len(
-                            Spectrum.query_records_accessible_by(self.current_user)
-                            .filter(Spectrum.obj_id == obj.id)
-                            .all()
+                    with DBSession() as session:
+                        obj_list[-1]["spectrum_exists"] = (
+                            len(
+                                session.execute(
+                                    Spectrum.query_records_accessible_by(
+                                        self.current_user
+                                    ).where(Spectrum.obj_id == obj.id)
+                                ).all()
+                            )
+                            > 0
                         )
-                        > 0
-                    )
                 if include_period_exists:
-                    annotations = (
-                        Annotation.query_records_accessible_by(self.current_user)
-                        .filter(Annotation.obj_id == obj.id)
-                        .all()
-                    )
+                    with DBSession() as session:
+                        annotations = session.execute(
+                            Annotation.query_records_accessible_by(
+                                self.current_user
+                            ).where(Annotation.obj_id == obj.id)
+                        ).all()
                     period_str_options = ['period', 'Period', 'PERIOD']
                     obj_list[-1]["period_exists"] = any(
                         [
                             isinstance(an.data, dict) and 'period' in an.data
-                            for an in annotations
+                            for an, in annotations
                             for period_str in period_str_options
                         ]
                     )
                 if not remove_nested:
-                    source_query = Source.query_records_accessible_by(
-                        self.current_user
-                    ).filter(Source.obj_id == obj_list[-1]["id"])
-                    source_query = apply_active_or_requested_filtering(
-                        source_query, include_requested, requested_only
-                    )
-                    source_subquery = source_query.subquery()
-                    groups = (
-                        Group.query_records_accessible_by(self.current_user)
-                        .join(source_subquery, Group.id == source_subquery.c.group_id)
-                        .all()
-                    )
-                    obj_list[-1]["groups"] = [g.to_dict() for g in groups]
+                    with DBSession() as session:
 
-                    for group in obj_list[-1]["groups"]:
-                        source_table_row = (
-                            Source.query_records_accessible_by(self.current_user)
-                            .filter(
-                                Source.obj_id == obj_list[-1]["id"],
-                                Source.group_id == group["id"],
-                            )
-                            .first()
+                        source_query = Source.query_records_accessible_by(
+                            self.current_user
+                        ).where(Source.obj_id == obj_list[-1]["id"])
+                        source_query = apply_active_or_requested_filtering(
+                            source_query, include_requested, requested_only
                         )
-                        if source_table_row is not None:
-                            group["active"] = source_table_row.active
-                            group["requested"] = source_table_row.requested
-                            group["saved_at"] = source_table_row.saved_at
-                            group["saved_by"] = (
-                                source_table_row.saved_by.to_dict()
-                                if source_table_row.saved_by is not None
-                                else None
+                        source_subquery = source_query.subquery()
+                        groups = session.execute(
+                            Group.query_records_accessible_by(self.current_user).join(
+                                source_subquery, Group.id == source_subquery.c.group_id
                             )
+                        ).all()
+                        obj_list[-1]["groups"] = [g.to_dict() for g, in groups]
+
+                        for group in obj_list[-1]["groups"]:
+                            (source_table_row,) = session.execute(
+                                Source.query_records_accessible_by(
+                                    self.current_user
+                                ).where(
+                                    Source.obj_id == obj_list[-1]["id"],
+                                    Source.group_id == group["id"],
+                                )
+                            ).first()
+                            if source_table_row is not None:
+                                group["active"] = source_table_row.active
+                                group["requested"] = source_table_row.requested
+                                group["saved_at"] = source_table_row.saved_at
+                                group["saved_by"] = (
+                                    source_table_row.saved_by.to_dict()
+                                    if source_table_row.saved_by is not None
+                                    else None
+                                )
 
                 if include_color_mag:
                     obj_list[-1]["color_magnitude"] = get_color_mag(
@@ -1773,11 +1817,12 @@ class SourceHandler(BaseHandler):
             # This adds a healpix index for a new object being created
             obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
 
-        groups = (
-            Group.query_records_accessible_by(self.current_user)
-            .filter(Group.id.in_(group_ids))
-            .all()
-        )
+        with DBSession() as session:
+            groups = session.execute(
+                Group.query_records_accessible_by(self.current_user).filter(
+                    Group.id.in_(group_ids)
+                )
+            ).all()
         if not groups:
             return self.error(
                 "Invalid group_ids field. Please specify at least "
@@ -1786,41 +1831,46 @@ class SourceHandler(BaseHandler):
 
         update_redshift_history_if_relevant(data, obj, self.associated_user_object)
 
-        DBSession().add(obj)
-        for group in groups:
-            source = (
-                Source.query_records_accessible_by(self.current_user)
-                .filter(Source.obj_id == obj.id)
-                .filter(Source.group_id == group.id)
-                .first()
-            )
-            if source is not None:
-                source.active = True
-                source.saved_by = self.associated_user_object
-            else:
-                DBSession().add(
-                    Source(
-                        obj=obj, group=group, saved_by_id=self.associated_user_object.id
+        with DBSession() as session:
+            session.add(obj)
+            for (group,) in groups:
+                source = session.execute(
+                    Source.query_records_accessible_by(self.current_user)
+                    .where(Source.obj_id == obj.id)
+                    .where(Source.group_id == group.id)
+                ).first()
+                if source is not None:
+                    (source,) = source
+                    source.active = True
+                    source.saved_by = self.associated_user_object
+                else:
+                    session.add(
+                        Source(
+                            obj=obj,
+                            group=group,
+                            saved_by_id=self.associated_user_object.id,
+                        )
                     )
+            self.verify_and_commit()
+
+            if not obj_already_exists:
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: add_linked_thumbnails_and_push_ws_msg(
+                        obj.id, self.associated_user_object.id
+                    ),
                 )
-        self.verify_and_commit()
+            else:
+                self.push_all(
+                    action="skyportal/REFRESH_SOURCE",
+                    payload={"obj_key": obj.internal_key},
+                )
+                self.push_all(
+                    action="skyportal/REFRESH_CANDIDATE",
+                    payload={"id": obj.internal_key},
+                )
 
-        if not obj_already_exists:
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj.id, self.associated_user_object.id
-                ),
-            )
-        else:
-            self.push_all(
-                action="skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-            )
-            self.push_all(
-                action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
-            )
-
-        return self.success(data={"id": obj.id})
+            return self.success(data={"id": obj.id})
 
     @permissions(['Upload data'])
     def patch(self, obj_id):
@@ -1894,14 +1944,15 @@ class SourceHandler(BaseHandler):
         """
         if group_id not in [g.id for g in self.current_user.accessible_groups]:
             return self.error("Inadequate permissions.")
-        s = (
-            Source.query_records_accessible_by(self.current_user, mode="update")
-            .filter(Source.obj_id == obj_id)
-            .filter(Source.group_id == group_id)
-            .first()
-        )
-        s.active = False
-        s.unsaved_by = self.current_user
+
+        with DBSession() as session:
+            (s,) = session.execute(
+                Source.query_records_accessible_by(self.current_user, mode="update")
+                .where(Source.obj_id == obj_id)
+                .where(Source.group_id == group_id)
+            ).first()
+            s.active = False
+            s.unsaved_by = self.current_user
         self.verify_and_commit()
 
         return self.success()

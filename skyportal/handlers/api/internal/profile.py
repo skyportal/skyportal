@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
 from ...base import BaseHandler
-from ....models import User
+from ....models import DBSession, User
 
 
 class ProfileHandler(BaseHandler):
@@ -71,33 +71,34 @@ class ProfileHandler(BaseHandler):
                             preferences:
                               type: object
         """
-        user = (
-            User.query_records_accessible_by(self.current_user)
-            .filter(User.username == self.associated_user_object.username)
-            .first()
-        )
-        user_roles = sorted(role.id for role in user.roles)
-        user_acls = sorted(acl.id for acl in user.acls)
-        user_permissions = sorted(user.permissions)
-        user_tokens = [
-            {
-                "id": token.id,
-                "name": token.name,
-                "acls": sorted(acl.id for acl in token.acls),
-                "created_at": token.created_at,
-            }
-            for token in user.tokens
-        ]
-        user_info = user.to_dict()
-        user_info["roles"] = user_roles
-        user_info["permissions"] = user_permissions
-        user_info["acls"] = user_acls
-        user_info["tokens"] = user_tokens
-        user_info["gravatar_url"] = user.gravatar_url or None
-        user_info["preferences"] = user.preferences or {}
-        user_info["groupAdmissionRequests"] = user.group_admission_requests
-        self.verify_and_commit()
-        return self.success(data=user_info)
+        with DBSession() as session:
+            (user,) = session.execute(
+                User.query_records_accessible_by(self.current_user).where(
+                    User.username == self.associated_user_object.username
+                )
+            ).first()
+            user_roles = sorted(role.id for role in user.roles)
+            user_acls = sorted(acl.id for acl in user.acls)
+            user_permissions = sorted(user.permissions)
+            user_tokens = [
+                {
+                    "id": token.id,
+                    "name": token.name,
+                    "acls": sorted(acl.id for acl in token.acls),
+                    "created_at": token.created_at,
+                }
+                for token in user.tokens
+            ]
+            user_info = user.to_dict()
+            user_info["roles"] = user_roles
+            user_info["permissions"] = user_permissions
+            user_info["acls"] = user_acls
+            user_info["tokens"] = user_tokens
+            user_info["gravatar_url"] = user.gravatar_url or None
+            user_info["preferences"] = user.preferences or {}
+            user_info["groupAdmissionRequests"] = user.group_admission_requests
+            self.verify_and_commit()
+            return self.success(data=user_info)
 
     @auth_or_token
     def patch(self):

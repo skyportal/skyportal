@@ -59,11 +59,12 @@ class ObservingRunHandler(BaseHandler):
         run = ObservingRun(**rund)
         run.owner_id = self.associated_user_object.id
 
-        DBSession().add(run)
-        self.verify_and_commit()
+        with DBSession() as session:
+            session.add(run)
+            self.verify_and_commit()
 
-        self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
-        return self.success(data={"id": run.id})
+            self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
+            return self.success(data={"id": run.id})
 
     @auth_or_token
     def get(self, run_id=None):
@@ -156,13 +157,15 @@ class ObservingRunHandler(BaseHandler):
             self.verify_and_commit()
             return self.success(data=data)
 
-        runs = (
-            ObservingRun.query_records_accessible_by(self.current_user, mode="read")
-            .order_by(ObservingRun.calendar_date.asc())
-            .all()
-        )
+        with DBSession() as session:
+            runs = session.execute(
+                ObservingRun.query_records_accessible_by(
+                    self.current_user, mode="read"
+                ).order_by(ObservingRun.calendar_date.asc())
+            ).all()
+
         runs_list = []
-        for run in runs:
+        for (run,) in runs:
             runs_list.append(run.to_dict())
             runs_list[-1]["run_end_utc"] = run.instrument.telescope.next_sunrise(
                 run.calendar_noon
@@ -221,8 +224,9 @@ class ObservingRunHandler(BaseHandler):
         for param in new_params:
             setattr(orun, param, new_params[param])
 
-        DBSession().add(orun)
-        self.verify_and_commit()
+        with DBSession() as session:
+            session.add(orun)
+            self.verify_and_commit()
 
         self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success()
@@ -261,8 +265,9 @@ class ObservingRunHandler(BaseHandler):
                 f"Only the owner of an observing run can delete the run. Original error: {e}"
             )
 
-        DBSession().delete(run)
-        self.verify_and_commit()
+        with DBSession() as session:
+            session.delete(run)
+            self.verify_and_commit()
 
         self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success()

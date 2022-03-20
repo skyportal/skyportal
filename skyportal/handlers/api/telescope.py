@@ -1,4 +1,6 @@
 from marshmallow.exceptions import ValidationError
+import sqlalchemy as sa
+
 from baselayer.app.access import permissions, auth_or_token
 
 from ..base import BaseHandler
@@ -96,18 +98,26 @@ class TelescopeHandler(BaseHandler):
                   schema: Error
         """
         if telescope_id is not None:
-            t = Telescope.query.get(int(telescope_id))
-            if t is None:
-                return self.error(f"Could not load telescope with ID {telescope_id}")
-            self.verify_and_commit()
-            return self.success(data=t)
+            with DBSession() as session:
+                t = session.execute(
+                    sa.select(Telescope).where(Telescope.id == int(telescope_id))
+                ).first()
+                if t is None:
+                    return self.error(
+                        f"Could not load telescope with ID {telescope_id}"
+                    )
+                else:
+                    (t,) = t
+                self.verify_and_commit()
+                return self.success(data=t)
         tel_name = self.get_query_argument("name", None)
-        query = Telescope.query
+        query = sa.select(Telescope)
         if tel_name is not None:
-            query = query.filter(Telescope.name == tel_name)
-        data = query.all()
-        self.verify_and_commit()
-        return self.success(data=data)
+            query = query.where(Telescope.name == tel_name)
+        with DBSession() as session:
+            data = [t.to_dict() for t, in session.execute(query).all()]
+            self.verify_and_commit()
+            return self.success(data=data)
 
     @permissions(['Manage sources'])
     def put(self, telescope_id):
@@ -136,9 +146,14 @@ class TelescopeHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        t = Telescope.query.get(int(telescope_id))
-        if t is None:
-            return self.error('Invalid telescope ID.')
+        with DBSession() as session:
+            t = session.execute(
+                sa.select(Telescope).where(Telescope.id == int(telescope_id))
+            ).first()
+            if t is None:
+                return self.error('Invalid telescope ID.')
+            else:
+                (t,) = t
         data = self.get_json()
         data['id'] = int(telescope_id)
 

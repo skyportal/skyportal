@@ -228,19 +228,19 @@ class StreamUserHandler(BaseHandler):
             return self.error("User ID must be specified")
 
         stream_id = int(stream_id)
-        su = (
-            StreamUser.query_records_accessible_by(self.current_user)
-            .filter(StreamUser.stream_id == stream_id)
-            .filter(StreamUser.user_id == user_id)
-            .first()
-        )
-        if su is None:
-            DBSession.add(StreamUser(stream_id=stream_id, user_id=user_id))
-        else:
-            return self.error("Specified user already has access to this stream.")
-        self.verify_and_commit()
+        with DBSession() as session:
+            su = session.execute(
+                StreamUser.query_records_accessible_by(self.current_user)
+                .where(StreamUser.stream_id == stream_id)
+                .where(StreamUser.user_id == user_id)
+            ).first()
+            if su is None:
+                session.add(StreamUser(stream_id=stream_id, user_id=user_id))
+            else:
+                return self.error("Specified user already has access to this stream.")
+            self.verify_and_commit()
 
-        return self.success(data={'stream_id': stream_id, 'user_id': user_id})
+            return self.success(data={'stream_id': stream_id, 'user_id': user_id})
 
     @permissions(["System admin"])
     def delete(self, stream_id, user_id):

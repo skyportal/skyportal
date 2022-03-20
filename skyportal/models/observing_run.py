@@ -30,6 +30,7 @@ class ObservingRun(Base):
         uselist=False,
         back_populates='observing_runs',
         doc="The Instrument for this run.",
+        lazy='subquery',
     )
 
     # name of the PI

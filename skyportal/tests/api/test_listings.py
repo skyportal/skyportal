@@ -127,7 +127,7 @@ def test_add_remove_objects(user, public_candidate, public_candidate2):
     item2 = data["data"]["id"]  # get the list item ID
 
     status, data = api('DELETE', f'listing/{item1}', token=token_id)
-
+    print(item1)
     assert status == 200
 
     # get the list back, should include only one item

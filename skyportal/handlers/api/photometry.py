@@ -1065,24 +1065,29 @@ class ObjPhotometryHandler(BaseHandler):
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
 
         Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
-        photometry = Photometry.query_records_accessible_by(self.current_user).filter(
-            Photometry.obj_id == obj_id
-        )
+
+        with DBSession() as session:
+            photometry = session.execute(
+                Photometry.query_records_accessible_by(self.current_user).where(
+                    Photometry.obj_id == obj_id
+                )
+            ).all()
         format = self.get_query_argument('format', 'mag')
         outsys = self.get_query_argument('magsys', 'ab')
 
         self.verify_and_commit()
-        data = [serialize(phot, outsys, format) for phot in photometry]
+        data = [serialize(phot, outsys, format) for phot, in photometry]
 
         if phase_fold_data:
             period, modified = None, arrow.Arrow(1, 1, 1)
-            annotations = (
-                Annotation.query_records_accessible_by(self.current_user)
-                .filter(Annotation.obj_id == obj_id)
-                .all()
-            )
+            with DBSession() as session:
+                annotations = session.execute(
+                    Annotation.query_records_accessible_by(self.current_user).where(
+                        Annotation.obj_id == obj_id
+                    )
+                )
             period_str_options = ['period', 'Period', 'PERIOD']
-            for an in annotations:
+            for (an,) in annotations:
                 if not isinstance(an.data, dict):
                     continue
                 for period_str in period_str_options:
@@ -1121,21 +1126,22 @@ class BulkDeletePhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        photometry_to_delete = (
-            Photometry.query_records_accessible_by(self.current_user, mode="delete")
-            .filter(Photometry.upload_id == upload_id)
-            .all()
-        )
+        with DBSession() as session:
+            photometry_to_delete = session.execute(
+                Photometry.query_records_accessible_by(
+                    self.current_user, mode="delete"
+                ).filter(Photometry.upload_id == upload_id)
+            ).all()
 
-        n = len(photometry_to_delete)
-        if n == 0:
-            return self.error('Invalid bulk upload id.')
+            n = len(photometry_to_delete)
+            if n == 0:
+                return self.error('Invalid bulk upload id.')
 
-        for phot in photometry_to_delete:
-            DBSession().delete(phot)
+            for (phot,) in photometry_to_delete:
+                session.delete(phot)
 
-        self.verify_and_commit()
-        return self.success(f"Deleted {n} photometry points.")
+            self.verify_and_commit()
+            return self.success(f"Deleted {n} photometry points.")
 
 
 class PhotometryRangeHandler(BaseHandler):

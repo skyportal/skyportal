@@ -20,21 +20,23 @@ class SourceViewsHandler(BaseHandler):
         max_num_sources = int(top_sources_prefs['maxNumSources'])
         since_days_ago = int(top_sources_prefs['sinceDaysAgo'])
         cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
-        q = (
-            SourceView.query_records_accessible_by(
-                current_user,
-                columns=[
-                    func.count(SourceView.obj_id).label('views'),
-                    SourceView.obj_id,
-                ],
-            )
-            .group_by(SourceView.obj_id)
-            .filter(SourceView.created_at >= cutoff_day)
-            .order_by(desc('views'))
-            .limit(max_num_sources)
-        )
 
-        return q.all()
+        with DBSession() as session:
+            q = session.execute(
+                SourceView.query_records_accessible_by(
+                    current_user,
+                    columns=[
+                        func.count(SourceView.obj_id).label('views'),
+                        SourceView.obj_id,
+                    ],
+                )
+                .group_by(SourceView.obj_id)
+                .where(SourceView.created_at >= cutoff_day)
+                .order_by(desc('views'))
+                .limit(max_num_sources)
+            )
+
+            return q.all()
 
     @auth_or_token
     def get(self):

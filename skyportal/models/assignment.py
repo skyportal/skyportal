@@ -37,7 +37,12 @@ class ClassicalAssignment(Base):
     )
     last_modified_by = relationship("User", foreign_keys=[last_modified_by_id])
 
-    obj = relationship('Obj', back_populates='assignments', doc='The assigned Obj.')
+    obj = relationship(
+        'Obj',
+        back_populates='assignments',
+        doc='The assigned Obj.',
+        lazy='subquery',
+    )
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
         nullable=False,
@@ -77,6 +82,7 @@ class ClassicalAssignment(Base):
         'ObservingRun',
         back_populates='assignments',
         doc="The ObservingRun this target was assigned to.",
+        lazy='subquery',
     )
     run_id = sa.Column(
         sa.ForeignKey('observingruns.id', ondelete='CASCADE'),

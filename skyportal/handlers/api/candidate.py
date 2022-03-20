@@ -118,17 +118,17 @@ class CandidateHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
-        num_c = (
-            Candidate.query_records_accessible_by(self.current_user)
-            .filter(Candidate.obj_id == obj_id)
-            .count()
-        )
-        self.verify_and_commit()
-        if num_c > 0:
-            return self.success()
-        else:
-            self.set_status(404)
-            self.finish()
+        with DBSession() as session:
+            query = Candidate.query_records_accessible_by(self.current_user).where(
+                Candidate.obj_id == obj_id
+            )
+            num_c = session.scalar(sa.select(sa.func.count()).select_from(query))
+            self.verify_and_commit()
+            if num_c > 0:
+                return self.success()
+            else:
+                self.set_status(404)
+                self.finish()
 
     @auth_or_token
     def get(self, obj_id=None):
@@ -401,95 +401,125 @@ class CandidateHandler(BaseHandler):
             )
             if c is None:
                 return self.error("Invalid ID")
-            accessible_candidates = (
-                Candidate.query_records_accessible_by(self.current_user)
-                .filter(Candidate.obj_id == obj_id)
-                .all()
-            )
-            filter_ids = [cand.filter_id for cand in accessible_candidates]
 
-            passing_alerts = [
-                {
-                    "filter_id": cand.filter_id,
-                    "passing_alert_id": cand.passing_alert_id,
-                    "passed_at": cand.passed_at,
-                }
-                for cand in accessible_candidates
-            ]
+            with DBSession() as session:
 
-            candidate_info = recursive_to_dict(c)
-            candidate_info["filter_ids"] = filter_ids
-            candidate_info["passing_alerts"] = passing_alerts
-            if include_comments:
-                candidate_info["comments"] = sorted(
-                    Comment.query_records_accessible_by(self.current_user)
-                    .filter(Comment.obj_id == obj_id)
-                    .all(),
-                    key=lambda x: x.created_at,
-                    reverse=True,
-                )
-
-            if include_photometry:
-                candidate_info['photometry'] = (
-                    Photometry.query_records_accessible_by(
-                        self.current_user,
-                        mode='read',
-                        options=[joinedload(Photometry.instrument)],
+                accessible_candidates = session.execute(
+                    Candidate.query_records_accessible_by(self.current_user).where(
+                        Candidate.obj_id == obj_id
                     )
-                    .filter(Photometry.obj_id == obj_id)
-                    .all()
-                )
+                ).all()
+                filter_ids = [cand.filter_id for cand, in accessible_candidates]
 
-            if include_spectra:
-                candidate_info['spectra'] = (
-                    Spectrum.query_records_accessible_by(
-                        self.current_user,
-                        mode='read',
-                        options=[joinedload(Spectrum.instrument)],
+                passing_alerts = [
+                    {
+                        "filter_id": cand.filter_id,
+                        "passing_alert_id": cand.passing_alert_id,
+                        "passed_at": cand.passed_at,
+                    }
+                    for cand, in accessible_candidates
+                ]
+
+                candidate_info = recursive_to_dict(c)
+                candidate_info["filter_ids"] = filter_ids
+                candidate_info["passing_alerts"] = passing_alerts
+                if include_comments:
+                    candidate_info["comments"] = sorted(
+                        (
+                            c
+                            for c, in session.execute(
+                                Comment.query_records_accessible_by(
+                                    self.current_user
+                                ).filter(Comment.obj_id == obj_id)
+                            ).all()
+                        ),
+                        key=lambda x: x.created_at,
+                        reverse=True,
                     )
-                    .filter(Spectrum.obj_id == obj_id)
-                    .all()
+
+                if include_photometry:
+                    candidate_info['photometry'] = [
+                        p
+                        for p, in session.execute(
+                            Photometry.query_records_accessible_by(
+                                self.current_user,
+                                mode='read',
+                                options=[joinedload(Photometry.instrument)],
+                            ).where(Photometry.obj_id == obj_id)
+                        ).all()
+                    ]
+
+                if include_spectra:
+                    candidate_info['spectra'] = [
+                        s
+                        for s, in session.execute(
+                            Spectrum.query_records_accessible_by(
+                                self.current_user,
+                                mode='read',
+                                options=[joinedload(Spectrum.instrument)],
+                            ).where(Spectrum.obj_id == obj_id)
+                        ).all()
+                    ]
+
+                candidate_info["annotations"] = sorted(
+                    (
+                        a
+                        for a, in session.execute(
+                            Annotation.query_records_accessible_by(
+                                self.current_user
+                            ).where(Annotation.obj_id == obj_id)
+                        ).all()
+                    ),
+                    key=lambda x: x.origin,
                 )
 
-            candidate_info["annotations"] = sorted(
-                Annotation.query_records_accessible_by(self.current_user).filter(
-                    Annotation.obj_id == obj_id
-                ),
-                key=lambda x: x.origin,
-            )
-            candidate_info["is_source"] = (
-                Source.query_records_accessible_by(self.current_user)
-                .filter(Source.obj_id == obj_id)
-                .count()
-                > 0
-            )
-            if candidate_info["is_source"]:
                 source_subquery = (
                     Source.query_records_accessible_by(self.current_user)
-                    .filter(Source.obj_id == obj_id)
-                    .filter(Source.active.is_(True))
+                    .where(Source.obj_id == obj_id)
                     .subquery()
                 )
-                candidate_info["saved_groups"] = (
-                    Group.query_records_accessible_by(self.current_user)
-                    .join(source_subquery, Group.id == source_subquery.c.group_id)
-                    .all()
-                )
-                candidate_info["classifications"] = (
-                    Classification.query_records_accessible_by(self.current_user)
-                    .filter(Classification.obj_id == obj_id)
-                    .all()
-                )
-            candidate_info["last_detected_at"] = c.last_detected_at(self.current_user)
-            candidate_info["gal_lon"] = c.gal_lon_deg
-            candidate_info["gal_lat"] = c.gal_lat_deg
-            candidate_info["luminosity_distance"] = c.luminosity_distance
-            candidate_info["dm"] = c.dm
-            candidate_info["angular_diameter_distance"] = c.angular_diameter_distance
 
-            candidate_info = recursive_to_dict(candidate_info)
-            self.verify_and_commit()
-            return self.success(data=candidate_info)
+                candidate_info["is_source"] = (
+                    session.scalar(sa.select(func.count()).select_from(source_subquery))
+                    > 0
+                )
+                if candidate_info["is_source"]:
+                    source_subquery = (
+                        Source.query_records_accessible_by(self.current_user)
+                        .where(Source.obj_id == obj_id)
+                        .where(Source.active.is_(True))
+                        .subquery()
+                    )
+                    candidate_info["saved_groups"] = [
+                        g
+                        for g, in session.execute(
+                            Group.query_records_accessible_by(self.current_user).join(
+                                source_subquery, Group.id == source_subquery.c.group_id
+                            )
+                        ).all()
+                    ]
+                    candidate_info["classifications"] = [
+                        c
+                        for c, in session.execute(
+                            Classification.query_records_accessible_by(
+                                self.current_user
+                            ).where(Classification.obj_id == obj_id)
+                        ).all()
+                    ]
+                candidate_info["last_detected_at"] = c.last_detected_at(
+                    self.current_user
+                )
+                candidate_info["gal_lon"] = c.gal_lon_deg
+                candidate_info["gal_lat"] = c.gal_lat_deg
+                candidate_info["luminosity_distance"] = c.luminosity_distance
+                candidate_info["dm"] = c.dm
+                candidate_info[
+                    "angular_diameter_distance"
+                ] = c.angular_diameter_distance
+
+                candidate_info = recursive_to_dict(candidate_info)
+                self.verify_and_commit()
+                return self.success(data=candidate_info)
 
         page_number = self.get_query_argument("pageNumber", None) or 1
         n_per_page = self.get_query_argument("numPerPage", None) or 25
@@ -523,36 +553,43 @@ class CandidateHandler(BaseHandler):
             for filtr in g.filters
             if g.filters is not None
         ]
-        if group_ids is not None:
-            if isinstance(group_ids, str) and "," in group_ids:
-                group_ids = [int(g_id) for g_id in group_ids.split(",")]
-            elif isinstance(group_ids, str) and group_ids.isdigit():
-                group_ids = [int(group_ids)]
+        with DBSession() as session:
+            if group_ids is not None:
+                if isinstance(group_ids, str) and "," in group_ids:
+                    group_ids = [int(g_id) for g_id in group_ids.split(",")]
+                elif isinstance(group_ids, str) and group_ids.isdigit():
+                    group_ids = [int(group_ids)]
+                else:
+                    return self.error(
+                        "Invalid groupIDs value -- select at least one group"
+                    )
+                filter_ids = [
+                    f.id
+                    for f, in session.execute(
+                        Filter.query_records_accessible_by(self.current_user).filter(
+                            Filter.group_id.in_(group_ids)
+                        )
+                    ).all()
+                ]
+            elif filter_ids is not None:
+                if "," in filter_ids:
+                    filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
+                elif filter_ids.isdigit():
+                    filter_ids = [int(filter_ids)]
+                else:
+                    return self.error("Invalid filterIDs paramter value.")
+                group_ids = [
+                    f.group_id
+                    for f, in session.execute(
+                        Filter.query_records_accessible_by(self.current_user).filter(
+                            Filter.id.in_(filter_ids)
+                        )
+                    ).all()
+                ]
             else:
-                return self.error("Invalid groupIDs value -- select at least one group")
-            filter_ids = [
-                f.id
-                for f in Filter.query_records_accessible_by(self.current_user).filter(
-                    Filter.group_id.in_(group_ids)
-                )
-            ]
-        elif filter_ids is not None:
-            if "," in filter_ids:
-                filter_ids = [int(f_id) for f_id in filter_ids.split(",")]
-            elif filter_ids.isdigit():
-                filter_ids = [int(filter_ids)]
-            else:
-                return self.error("Invalid filterIDs paramter value.")
-            group_ids = [
-                f.group_id
-                for f in Filter.query_records_accessible_by(self.current_user).filter(
-                    Filter.id.in_(filter_ids)
-                )
-            ]
-        else:
-            # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
-            group_ids = user_accessible_group_ids
-            filter_ids = user_accessible_filter_ids
+                # If 'groupIDs' & 'filterIDs' params not present in request, use all user groups
+                group_ids = user_accessible_group_ids
+                filter_ids = user_accessible_filter_ids
 
         try:
             page = int(page_number)
@@ -689,13 +726,12 @@ class CandidateHandler(BaseHandler):
                 right = (
                     Obj.query_records_accessible_by(self.current_user, columns=[Obj.id])
                     .join(Annotation)
-                    .filter(
+                    .where(
                         Annotation.origin == annotation_exclude_origin,
-                        Annotation.modified >= expire_date,
+                        Annotation.modified < expire_date,
                     )
                     .subquery()
                 )
-
             q = q.outerjoin(right, Obj.id == right.c.id).filter(right.c.id.is_(None))
 
         if list_name is not None:
@@ -824,16 +860,22 @@ class CandidateHandler(BaseHandler):
                 return self.error("Page number out of range.")
             raise
 
-        matching_source_ids = (
-            Source.query_records_accessible_by(
-                self.current_user, columns=[Source.obj_id]
-            )
-            .filter(Source.obj_id.in_([obj.id for obj, in query_results["candidates"]]))
-            .all()
-        )
+        with DBSession() as session:
+            matching_source_ids = [
+                i
+                for i, in session.execute(
+                    Source.query_records_accessible_by(
+                        self.current_user, columns=[Source.obj_id]
+                    ).where(
+                        Source.obj_id.in_(
+                            [obj.id for obj, in query_results["candidates"]]
+                        )
+                    )
+                ).all()
+            ]
         candidate_list = []
         for (obj,) in query_results["candidates"]:
-            with DBSession().no_autoflush:
+            with DBSession().no_autoflush as session:
                 obj.is_source = (obj.id,) in matching_source_ids
                 if obj.is_source:
                     source_subquery = (
@@ -842,63 +884,90 @@ class CandidateHandler(BaseHandler):
                         .filter(Source.active.is_(True))
                         .subquery()
                     )
-                    obj.saved_groups = (
-                        Group.query_records_accessible_by(self.current_user)
-                        .join(source_subquery, Group.id == source_subquery.c.group_id)
-                        .all()
-                    )
-                    obj.classifications = (
-                        Classification.query_records_accessible_by(self.current_user)
-                        .filter(Classification.obj_id == obj.id)
-                        .all()
-                    )
+                    obj.saved_groups = [
+                        g
+                        for g, in (
+                            session.execute(
+                                Group.query_records_accessible_by(
+                                    self.current_user
+                                ).join(
+                                    source_subquery,
+                                    Group.id == source_subquery.c.group_id,
+                                )
+                            ).all()
+                        )
+                    ]
+                    obj.classifications = [
+                        c
+                        for c, in session.execute(
+                            Classification.query_records_accessible_by(
+                                self.current_user
+                            ).where(Classification.obj_id == obj.id)
+                        ).all()
+                    ]
                 obj.passing_group_ids = [
                     f.group_id
-                    for f in (
-                        Filter.query_records_accessible_by(self.current_user).filter(
-                            Filter.id.in_(
-                                Candidate.query_records_accessible_by(
-                                    self.current_user, columns=[Candidate.filter_id]
-                                ).filter(Candidate.obj_id == obj.id)
+                    for f, in (
+                        session.execute(
+                            Filter.query_records_accessible_by(
+                                self.current_user
+                            ).filter(
+                                Filter.id.in_(
+                                    Candidate.query_records_accessible_by(
+                                        self.current_user, columns=[Candidate.filter_id]
+                                    ).filter(Candidate.obj_id == obj.id)
+                                )
                             )
-                        )
+                        ).all()
                     )
                 ]
                 candidate_list.append(recursive_to_dict(obj))
                 if include_photometry:
-                    candidate_list[-1]["photometry"] = (
-                        Photometry.query_records_accessible_by(
-                            self.current_user,
-                            mode='read',
-                            options=[joinedload(Photometry.instrument)],
-                        )
-                        .filter(Photometry.obj_id == obj.id)
-                        .all()
-                    )
+                    candidate_list[-1]["photometry"] = [
+                        p
+                        for p, in session.execute(
+                            Photometry.query_records_accessible_by(
+                                self.current_user,
+                                mode='read',
+                                options=[joinedload(Photometry.instrument)],
+                            ).filter(Photometry.obj_id == obj.id)
+                        ).all()
+                    ]
 
                 if include_spectra:
-                    candidate_list[-1]["spectra"] = (
-                        Spectrum.query_records_accessible_by(
-                            self.current_user,
-                            mode='read',
-                            options=[joinedload(Spectrum.instrument)],
-                        )
-                        .filter(Spectrum.obj_id == obj.id)
-                        .all()
-                    )
+                    candidate_list[-1]["spectra"] = [
+                        s
+                        for s, in session.execute(
+                            Spectrum.query_records_accessible_by(
+                                self.current_user,
+                                mode='read',
+                                options=[joinedload(Spectrum.instrument)],
+                            ).filter(Spectrum.obj_id == obj.id)
+                        ).all()
+                    ]
 
                 if include_comments:
                     candidate_list[-1]["comments"] = sorted(
-                        Comment.query_records_accessible_by(self.current_user)
-                        .filter(Comment.obj_id == obj.id)
-                        .all(),
+                        (
+                            c
+                            for c, in session.execute(
+                                Comment.query_records_accessible_by(
+                                    self.current_user
+                                ).filter(Comment.obj_id == obj.id)
+                            ).all()
+                        ),
                         key=lambda x: x.created_at,
                         reverse=True,
                     )
                 unordered_annotations = sorted(
-                    Annotation.query_records_accessible_by(self.current_user)
-                    .filter(Annotation.obj_id == obj.id)
-                    .all(),
+                    (
+                        a
+                        for a, in session.execute(
+                            Annotation.query_records_accessible_by(
+                                self.current_user
+                            ).filter(Annotation.obj_id == obj.id)
+                        ).all()
+                    ),
                     key=lambda x: x.origin,
                 )
                 selected_groups_annotations = []
@@ -1069,21 +1138,21 @@ class CandidateHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        cands_to_delete = (
-            Candidate.query_records_accessible_by(self.current_user, mode="delete")
-            .filter(Candidate.obj_id == obj_id)
-            .filter(Candidate.filter_id == filter_id)
-            .all()
-        )
-        if len(cands_to_delete) == 0:
-            return self.error(
-                "Invalid (obj_id, filter_id) pairing - no matching candidates"
-            )
-        for cand in cands_to_delete:
-            DBSession().delete(cand)
-        self.verify_and_commit()
+        with DBSession() as session:
+            cands_to_delete = session.execute(
+                Candidate.query_records_accessible_by(self.current_user, mode="delete")
+                .filter(Candidate.obj_id == obj_id)
+                .filter(Candidate.filter_id == filter_id)
+            ).all()
+            if len(cands_to_delete) == 0:
+                return self.error(
+                    "Invalid (obj_id, filter_id) pairing - no matching candidates"
+                )
+            for (cand,) in cands_to_delete:
+                session.delete(cand)
+            self.verify_and_commit()
 
-        return self.success()
+            return self.success()
 
 
 def get_obj_id_values(obj_ids):
@@ -1154,7 +1223,7 @@ def grab_query_results(
     # from. This is because subqueries provide a set of results to query from,
     # losing any order_by information.
     row = func.row_number().over(order_by=order_by).label("row_num")
-    full_query = q.add_column(row)
+    full_query = q.add_columns(row)
 
     info = {}
     full_query = full_query.subquery()

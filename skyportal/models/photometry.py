@@ -97,6 +97,7 @@ class Photometry(conesearch_alchemy.Point, Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="Groups that can access this Photometry.",
+        lazy='subquery',
     )
     streams = relationship(
         "Stream",
@@ -116,6 +117,7 @@ class Photometry(conesearch_alchemy.Point, Base):
         'Instrument',
         back_populates='photometry',
         doc="Instrument that took this Photometry.",
+        lazy='subquery',
     )
 
     followup_request_id = sa.Column(

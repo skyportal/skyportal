@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 import datetime
 
 from baselayer.app.access import auth_or_token
@@ -68,11 +69,12 @@ class WeatherHandler(BaseHandler):
                               type: string
                               description: Weather fetching error message
         """
-        user = (
-            User.query_records_accessible_by(self.current_user)
-            .filter(User.username == self.associated_user_object.username)
-            .first()
-        )
+        with DBSession() as session:
+            (user,) = session.execute(
+                User.query_records_accessible_by(self.current_user).where(
+                    User.username == self.associated_user_object.username
+                )
+            ).first()
         user_prefs = getattr(user, 'preferences', None) or {}
         weather_prefs = user_prefs.get('weather', {})
         weather_prefs = {**default_prefs, **weather_prefs}
@@ -93,10 +95,15 @@ class WeatherHandler(BaseHandler):
             return self.error(
                 f"Could not load telescope with ID {weather_prefs['telescopeID']}"
             )
-        weather = Weather.query.filter(Weather.telescope_id == telescope_id).first()
-        if weather is None:
-            weather = Weather(telescope=telescope)
-            DBSession().add(weather)
+        with DBSession() as session:
+            weather = session.execute(
+                sa.select(Weather).where(Weather.telescope_id == telescope_id)
+            ).first()
+            if weather is None:
+                weather = Weather(telescope=telescope)
+                session.add(weather)
+            else:
+                (weather,) = weather
 
         # Should we call the API again?
         refresh = weather_refresh is not None

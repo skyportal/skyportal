@@ -66,6 +66,7 @@ class Instrument(Base):
         'Telescope',
         back_populates='instruments',
         doc="The Telescope that hosts the Instrument.",
+        lazy='subquery',
     )
 
     photometry = relationship(

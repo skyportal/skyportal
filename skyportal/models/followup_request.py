@@ -25,30 +25,30 @@ def updatable_by_token_with_listener_acl(cls, user_or_token):
     if user_or_token.is_admin:
         return public.query_accessible_rows(cls, user_or_token)
 
-    instruments_with_apis = (
-        Instrument.query_records_accessible_by(user_or_token)
-        .filter(Instrument.listener_classname.isnot(None))
-        .all()
-    )
+    with DBSession() as session:
+        instruments_with_apis = session.execute(
+            Instrument.query_records_accessible_by(user_or_token).filter(
+                Instrument.listener_classname.isnot(None)
+            )
+        ).all()
 
-    api_map = {
-        instrument.id: instrument.listener_class.get_acl_id()
-        for instrument in instruments_with_apis
-    }
+        api_map = {
+            instrument.id: instrument.listener_class.get_acl_id()
+            for instrument, in instruments_with_apis
+        }
 
-    accessible_instrument_ids = [
-        instrument_id
-        for instrument_id, acl_id in api_map.items()
-        if acl_id in user_or_token.permissions
-    ]
+        accessible_instrument_ids = [
+            instrument_id
+            for instrument_id, acl_id in api_map.items()
+            if acl_id in user_or_token.permissions
+        ]
 
-    return (
-        DBSession()
-        .query(cls)
-        .join(Allocation)
-        .join(Instrument)
-        .filter(Instrument.id.in_(accessible_instrument_ids))
-    )
+        return (
+            session.query(cls)
+            .join(Allocation)
+            .join(Instrument)
+            .filter(Instrument.id.in_(accessible_instrument_ids))
+        )
 
 
 class FollowupRequest(Base):
@@ -77,6 +77,7 @@ class FollowupRequest(Base):
         back_populates='followup_requests',
         doc="The User who requested the follow-up.",
         foreign_keys=[requester_id],
+        lazy='subquery',
     )
 
     last_modified_by_id = sa.Column(
@@ -91,7 +92,12 @@ class FollowupRequest(Base):
         foreign_keys=[last_modified_by_id],
     )
 
-    obj = relationship('Obj', back_populates='followup_requests', doc="The target Obj.")
+    obj = relationship(
+        'Obj',
+        back_populates='followup_requests',
+        doc="The target Obj.",
+        lazy='subquery',
+    )
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
         nullable=False,
@@ -114,7 +120,11 @@ class FollowupRequest(Base):
     allocation_id = sa.Column(
         sa.ForeignKey('allocations.id', ondelete='CASCADE'), nullable=False, index=True
     )
-    allocation = relationship('Allocation', back_populates='requests')
+    allocation = relationship(
+        'Allocation',
+        back_populates='requests',
+        lazy='subquery',
+    )
 
     transactions = relationship(
         'FacilityTransaction',

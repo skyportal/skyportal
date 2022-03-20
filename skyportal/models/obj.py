@@ -287,6 +287,7 @@ class Obj(Base, conesearch_alchemy.Point):
         passive_deletes=True,
         order_by="Photometry.mjd",
         doc="Photometry of the object.",
+        lazy='subquery',
     )
 
     detect_photometry_count = sa.Column(
@@ -338,14 +339,17 @@ class Obj(Base, conesearch_alchemy.Point):
     @hybrid_method
     def last_detected_at(self, user):
         """UTC ISO date at which the object was last detected above a given S/N (3.0 by default)."""
-        detections = [
-            phot.iso
-            for phot in Photometry.query_records_accessible_by(user)
-            .filter(Photometry.obj_id == self.id)
-            .all()
-            if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
-        ]
-        return max(detections) if detections else None
+        with DBSession() as session:
+            detections = [
+                phot.iso
+                for phot, in session.execute(
+                    Photometry.query_records_accessible_by(user).where(
+                        Photometry.obj_id == self.id
+                    )
+                ).all()
+                if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
+            ]
+            return max(detections) if detections else None
 
     @last_detected_at.expression
     def last_detected_at(cls, user):

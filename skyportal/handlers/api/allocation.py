@@ -59,20 +59,27 @@ class AllocationHandler(BaseHandler):
                 allocation_id = int(allocation_id)
             except ValueError:
                 return self.error("Allocation ID must be an integer.")
-            allocations = allocations.filter(Allocation.id == allocation_id).all()
-            if len(allocations) == 0:
-                return self.error("Could not retrieve allocation.")
-            return self.success(data=allocations[0])
+            with DBSession() as session:
+                allocation = session.execute(
+                    allocations.where(Allocation.id == allocation_id)
+                ).first()
+                if allocation is None:
+                    return self.error("Could not retrieve allocation.")
+                else:
+                    (allocation,) = allocation
+            return self.success(data=allocation)
 
         instrument_id = self.get_query_argument('instrument_id', None)
         if instrument_id is not None:
-            allocations = allocations.filter(Allocation.instrument_id == instrument_id)
+            allocations = allocations.where(Allocation.instrument_id == instrument_id)
 
         apitype = self.get_query_argument('apiType', None)
         if apitype is not None:
             if apitype == "api_classname":
-                instruments_subquery = sa.select(Instrument.id).filter(
-                    Instrument.api_classname.isnot(None)
+                instruments_subquery = (
+                    sa.select(Instrument.id)
+                    .filter(Instrument.api_classname.isnot(None))
+                    .subquery()
                 )
 
                 allocations = allocations.join(
@@ -80,8 +87,10 @@ class AllocationHandler(BaseHandler):
                     Allocation.instrument_id == instruments_subquery.c.id,
                 )
             elif apitype == "api_classname_obsplan":
-                instruments_subquery = sa.select(Instrument.id).filter(
-                    Instrument.api_classname_obsplan.isnot(None)
+                instruments_subquery = (
+                    sa.select(Instrument.id)
+                    .where(Instrument.api_classname_obsplan.isnot(None))
+                    .subquery()
                 )
 
                 allocations = allocations.join(
@@ -93,7 +102,8 @@ class AllocationHandler(BaseHandler):
                     f"apitype can only be api_classname or api_classname_obsplan, not {apitype}"
                 )
 
-        allocations = allocations.all()
+        with DBSession() as session:
+            allocations = [a for a, in session.execute(allocations).all()]
         self.verify_and_commit()
         return self.success(data=allocations)
 

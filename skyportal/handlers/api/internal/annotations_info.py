@@ -2,7 +2,7 @@ from collections import defaultdict
 from sqlalchemy import func, literal
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
-from ....models import Annotation
+from ....models import DBSession, Annotation
 
 
 class AnnotationsInfoHandler(BaseHandler):
@@ -36,16 +36,18 @@ class AnnotationsInfoHandler(BaseHandler):
 
         # Objs are read-public, so no need to check that annotations belong to an unreadable obj
         # Instead, just check for annotation group membership
-        q = (
-            Annotation.query_records_accessible_by(
-                self.current_user, columns=[Annotation.origin]
+        with DBSession() as session:
+            q = session.execute(
+                Annotation.query_records_accessible_by(
+                    self.current_user, columns=[Annotation.origin]
+                )
+                .add_columns(
+                    annotations.c.key,
+                    func.jsonb_typeof(annotations.c.value).label("type"),
+                )
+                .outerjoin(annotations, literal(True))
+                .distinct()
             )
-            .add_columns(
-                annotations.c.key, func.jsonb_typeof(annotations.c.value).label("type")
-            )
-            .outerjoin(annotations, literal(True))
-            .distinct()
-        )
 
         # Restructure query results so that records are grouped by origin in a
         # nice, nested dictionary

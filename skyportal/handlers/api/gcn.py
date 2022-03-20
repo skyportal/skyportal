@@ -7,6 +7,7 @@ import xmlschema
 from urllib.parse import urlparse
 from tornado.ioloop import IOLoop
 
+import sqlalchemy as sa
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -79,72 +80,77 @@ class GcnEventHandler(BaseHandler):
 
         dateobs = get_dateobs(root)
 
-        try:
-            event = GcnEvent.query.filter_by(dateobs=dateobs).one()
+        with DBSession() as session:
 
-            if not event.is_accessible_by(self.current_user, mode="update"):
-                return self.error(
-                    "Insufficient permissions: GCN event can only be updated by original poster"
+            try:
+                (event,) = session.execute(
+                    sa.select(GcnEvent).where(GcnEvent.dateobs == dateobs)
+                ).one()
+                if not event.is_accessible_by(self.current_user, mode="update"):
+                    return self.error(
+                        "Insufficient permissions: GCN event can only be updated by original poster"
+                    )
+
+            except NoResultFound:
+                event = GcnEvent(
+                    dateobs=dateobs, sent_by_id=self.associated_user_object.id
                 )
+                session.add(event)
 
-        except NoResultFound:
-            event = GcnEvent(dateobs=dateobs, sent_by_id=self.associated_user_object.id)
-            DBSession().add(event)
+            tags = [
+                GcnTag(
+                    dateobs=event.dateobs,
+                    text=text,
+                    sent_by_id=self.associated_user_object.id,
+                )
+                for text in get_tags(root)
+            ]
 
-        tags = [
-            GcnTag(
+            gcn_notice = GcnNotice(
+                content=payload.encode('ascii'),
+                ivorn=root.attrib['ivorn'],
+                notice_type=gcn.get_notice_type(root),
+                stream=urlparse(root.attrib['ivorn']).path.lstrip('/'),
+                date=root.find('./Who/Date').text,
                 dateobs=event.dateobs,
-                text=text,
                 sent_by_id=self.associated_user_object.id,
             )
-            for text in get_tags(root)
-        ]
 
-        gcn_notice = GcnNotice(
-            content=payload.encode('ascii'),
-            ivorn=root.attrib['ivorn'],
-            notice_type=gcn.get_notice_type(root),
-            stream=urlparse(root.attrib['ivorn']).path.lstrip('/'),
-            date=root.find('./Who/Date').text,
-            dateobs=event.dateobs,
-            sent_by_id=self.associated_user_object.id,
-        )
+            for tag in tags:
+                session.add(tag)
+            session.add(gcn_notice)
 
-        for tag in tags:
-            DBSession().add(tag)
-        DBSession().add(gcn_notice)
-
-        skymap = get_skymap(root, gcn_notice)
-        if skymap is None:
-            return self.success(
-                f"Event {event.dateobs} does not have skymap. Returning."
-            )
-
-        skymap["dateobs"] = event.dateobs
-        skymap["sent_by_id"] = self.associated_user_object.id
-
-        try:
-            localization = (
-                Localization.query_records_accessible_by(
-                    self.current_user,
+            skymap = get_skymap(root, gcn_notice)
+            if skymap is None:
+                return self.success(
+                    f"Event {event.dateobs} does not have skymap. Returning."
                 )
-                .filter_by(
-                    dateobs=dateobs,
-                    localization_name=skymap["localization_name"],
+
+            skymap["dateobs"] = event.dateobs
+            skymap["sent_by_id"] = self.associated_user_object.id
+
+            try:
+                localization = session.execute(
+                    Localization.query_records_accessible_by(self.current_user,).where(
+                        Localization.dateobs == dateobs,
+                        Localization.localization_name == skymap["localization_name"],
+                    )
+                ).one()
+            except NoResultFound:
+                localization = Localization(**skymap)
+                session.add(localization)
+                session.commit()
+
+                log(f"Generating tiles/contours for localization {localization.id}")
+
+                IOLoop.current().run_in_executor(
+                    None, lambda: add_tiles(localization.id)
                 )
-                .one()
-            )
-        except NoResultFound:
-            localization = Localization(**skymap)
-            DBSession().add(localization)
-            DBSession().commit()
+                IOLoop.current().run_in_executor(
+                    None, lambda: add_contour(localization.id)
+                )
 
-            log(f"Generating tiles/contours for localization {localization.id}")
-
-            IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
-            IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
-
-        return self.success(data={'gcnevent_id': event.id})
+            return self.success(data={'gcnevent_id': event.id})
 
     @auth_or_token
     def get(self, dateobs=None):
@@ -164,71 +170,75 @@ class GcnEventHandler(BaseHandler):
                 schema: Error
         """
         if dateobs is not None:
-            event = (
-                GcnEvent.query_records_accessible_by(
-                    self.current_user,
-                    options=[
-                        joinedload(GcnEvent.localizations),
-                        joinedload(GcnEvent.gcn_notices),
-                        joinedload(GcnEvent.observationplan_requests)
-                        .joinedload(ObservationPlanRequest.allocation)
-                        .joinedload(Allocation.instrument),
-                        joinedload(GcnEvent.observationplan_requests)
-                        .joinedload(ObservationPlanRequest.allocation)
-                        .joinedload(Allocation.group),
-                        joinedload(GcnEvent.observationplan_requests).joinedload(
-                            ObservationPlanRequest.requester
-                        ),
-                        joinedload(GcnEvent.observationplan_requests).joinedload(
-                            ObservationPlanRequest.observation_plans
-                        ),
-                    ],
-                )
-                .filter_by(dateobs=dateobs)
-                .first()
-            )
-            if event is None:
-                return self.error("GCN event not found", status=404)
+            with DBSession() as session:
+                event = session.execute(
+                    GcnEvent.query_records_accessible_by(
+                        self.current_user,
+                        options=[
+                            joinedload(GcnEvent.localizations),
+                            joinedload(GcnEvent.gcn_notices),
+                            joinedload(GcnEvent.observationplan_requests)
+                            .joinedload(ObservationPlanRequest.allocation)
+                            .joinedload(Allocation.instrument),
+                            joinedload(GcnEvent.observationplan_requests)
+                            .joinedload(ObservationPlanRequest.allocation)
+                            .joinedload(Allocation.group),
+                            joinedload(GcnEvent.observationplan_requests).joinedload(
+                                ObservationPlanRequest.requester
+                            ),
+                            joinedload(GcnEvent.observationplan_requests).joinedload(
+                                ObservationPlanRequest.observation_plans
+                            ),
+                        ],
+                    ).where(GcnEvent.dateobs == dateobs)
+                ).first()
+                if event is None:
+                    return self.error("GCN event not found", status=404)
+                (event,) = event
 
-            data = {
-                **event.to_dict(),
-                "tags": event.tags,
-                "lightcurve": event.lightcurve,
-            }
+                data = {
+                    **event.to_dict(),
+                    "tags": event.tags,
+                    "lightcurve": event.lightcurve,
+                }
 
-            # go through some pain to get probability and area included
-            # as these are properties
-            request_data = []
-            for ii, req in enumerate(data['observationplan_requests']):
-                dat = req.to_dict()
-                plan_data = []
-                for plan in dat["observation_plans"]:
-                    plan_dict = {
-                        **plan.to_dict(),
-                        "probability": plan.probability,
-                        "area": plan.area,
-                        "num_observations": plan.num_observations,
-                    }
-                    plan_data.append(plan_dict)
-                dat["observation_plans"] = plan_data
-                request_data.append(dat)
-            data['observationplan_requests'] = request_data
-            return self.success(data=data)
+                # go through some pain to get probability and area included
+                # as these are properties
+                request_data = []
+                for ii, req in enumerate(data['observationplan_requests']):
+                    dat = req.to_dict()
+                    plan_data = []
+                    for plan in dat["observation_plans"]:
+                        plan_dict = {
+                            **plan.to_dict(),
+                            "probability": plan.probability,
+                            "area": plan.area,
+                            "num_observations": plan.num_observations,
+                        }
+                        plan_data.append(plan_dict)
+                    dat["observation_plans"] = plan_data
+                    request_data.append(dat)
+                data['observationplan_requests'] = request_data
+                return self.success(data=data)
 
-        q = GcnEvent.query_records_accessible_by(
-            self.current_user,
-            options=[
-                joinedload(GcnEvent.localizations),
-                joinedload(GcnEvent.gcn_notices),
-                joinedload(GcnEvent.observationplan_requests),
-            ],
-        )
+        else:
+            with DBSession() as session:
+                q = session.execute(
+                    GcnEvent.query_records_accessible_by(
+                        self.current_user,
+                        options=[
+                            joinedload(GcnEvent.localizations),
+                            joinedload(GcnEvent.gcn_notices),
+                            joinedload(GcnEvent.observationplan_requests),
+                        ],
+                    )
+                ).unique()
 
-        events = []
-        for event in q.all():
-            events.append({**event.to_dict(), "tags": event.tags})
+                events = []
+                for (event,) in q.all():
+                    events.append({**event.to_dict(), "tags": event.tags})
 
-        return self.success(data=events)
+                return self.success(data=events)
 
     @auth_or_token
     def delete(self, dateobs):
@@ -253,7 +263,7 @@ class GcnEventHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        event = GcnEvent.query.filter_by(dateobs=dateobs).first()
+        event = GcnEvent.query.where(GcnEvent.dateobs == dateobs).first()
         if event is None:
             return self.error("GCN event not found", status=404)
 
@@ -349,29 +359,30 @@ class LocalizationHandler(BaseHandler):
 
         include_2D_map = self.get_query_argument("include2DMap", False)
 
-        localization = (
-            Localization.query_records_accessible_by(self.current_user)
-            .filter(
-                Localization.dateobs == dateobs,
-                Localization.localization_name == localization_name,
-            )
-            .first()
-        )
-        if localization is None:
-            return self.error("Localization not found", status=404)
+        with DBSession() as session:
+            localization = session.execute(
+                Localization.query_records_accessible_by(self.current_user).where(
+                    Localization.dateobs == dateobs,
+                    Localization.localization_name == localization_name,
+                )
+            ).first()
+            if localization is None:
+                return self.error("Localization not found", status=404)
+            else:
+                (localization,) = localization
 
-        if include_2D_map:
-            data = {
-                **localization.to_dict(),
-                "flat_2d": localization.flat_2d,
-                "contour": localization.contour,
-            }
-        else:
-            data = {
-                **localization.to_dict(),
-                "contour": localization.contour,
-            }
-        return self.success(data=data)
+            if include_2D_map:
+                data = {
+                    **localization.to_dict(),
+                    "flat_2d": localization.flat_2d,
+                    "contour": localization.contour,
+                }
+            else:
+                data = {
+                    **localization.to_dict(),
+                    "contour": localization.contour,
+                }
+            return self.success(data=data)
 
     @auth_or_token
     def delete(self, dateobs, localization_name):
@@ -402,19 +413,26 @@ class LocalizationHandler(BaseHandler):
                 schema: Error
         """
 
-        localization = Localization.query.filter_by(
-            dateobs=dateobs, localization_name=localization_name
-        ).first()
+        with DBSession() as session:
+            localization = session.execute(
+                Localization.query.where(
+                    Localization.dateobs == dateobs,
+                    Localization.localization_name == localization_name,
+                )
+            ).first()
 
-        if localization is None:
-            return self.error("Localization not found", status=404)
+            if localization is None:
+                return self.error("Localization not found", status=404)
+            else:
+                (localization,) = localization
 
-        if not localization.is_accessible_by(self.current_user, mode="delete"):
-            return self.error(
-                "Insufficient permissions: Localization can only be deleted by original poster"
-            )
+            if not localization.is_accessible_by(self.current_user, mode="delete"):
+                return self.error(
+                    "Insufficient permissions: Localization can only be deleted by original poster"
+                )
 
-        DBSession().delete(localization)
-        self.verify_and_commit()
+            with DBSession() as session:
+                session.delete(localization)
+            self.verify_and_commit()
 
-        return self.success()
+            return self.success()

@@ -4,7 +4,7 @@ from collections import defaultdict
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 from ...base import BaseHandler
-from ....models import Obj, Source
+from ....models import DBSession, Obj, Source
 from .source_views import t_index
 
 
@@ -21,14 +21,20 @@ class RecentSourcesHandler(BaseHandler):
         recent_sources_prefs = {**default_prefs, **recent_sources_prefs}
 
         max_num_sources = int(recent_sources_prefs['maxNumSources'])
-        query_results = (
-            Source.query_records_accessible_by(current_user)
-            .filter(Source.active.is_(True))
-            .order_by(desc(Source.created_at))
-            .distinct(Source.obj_id, Source.created_at)
-            .limit(max_num_sources)
-            .all()
-        )
+        with DBSession() as session:
+            query_results = [
+                s
+                for s, in (
+                    session.execute(
+                        Source.query_records_accessible_by(current_user)
+                        .where(Source.active.is_(True))
+                        .order_by(desc(Source.created_at))
+                        .distinct(Source.obj_id, Source.created_at)
+                        .limit(max_num_sources)
+                    ).all()
+                )
+            ]
+
         ids = map(lambda src: src.obj_id, query_results)
         return ids
 
@@ -54,32 +60,33 @@ class RecentSourcesHandler(BaseHandler):
             )
 
             # Get the entry in the Source table to get the accurate saved_at time
-            source_entry = (
-                Source.query_records_accessible_by(self.current_user)
-                .filter(Source.obj_id == obj_id)
-                .order_by(desc(Source.created_at))
-                .offset(recency_index)
-                .first()
-            )
+            with DBSession() as session:
+                (source_entry,) = session.execute(
+                    Source.query_records_accessible_by(self.current_user)
+                    .where(Source.obj_id == obj_id)
+                    .order_by(desc(Source.created_at))
+                    .offset(recency_index)
+                ).first()
+                print(source_entry)
 
-            sources.append(
-                {
-                    'obj_id': s.id,
-                    'ra': s.ra,
-                    'dec': s.dec,
-                    'created_at': source_entry.created_at,
-                    'thumbnails': [
-                        {
-                            "type": t.type,
-                            "is_grayscale": t.is_grayscale,
-                            "public_url": t.public_url,
-                        }
-                        for t in sorted(s.thumbnails, key=lambda t: t_index(t.type))
-                    ],
-                    'classifications': s.classifications,
-                    'recency_index': recency_index,
-                }
-            )
+                sources.append(
+                    {
+                        'obj_id': s.id,
+                        'ra': s.ra,
+                        'dec': s.dec,
+                        'created_at': source_entry.created_at,
+                        'thumbnails': [
+                            {
+                                "type": t.type,
+                                "is_grayscale": t.is_grayscale,
+                                "public_url": t.public_url,
+                            }
+                            for t in sorted(s.thumbnails, key=lambda t: t_index(t.type))
+                        ],
+                        'classifications': s.classifications,
+                        'recency_index': recency_index,
+                    }
+                )
 
         for source in sources:
             num_times_seen = sources_seen[source["obj_id"]]

@@ -78,26 +78,25 @@ def add_observations(instrument_id, obstable):
         observations = []
         for index, row in obstable.iterrows():
             field_id = int(row["field_id"])
-            field = (
-                session.query(InstrumentField)
-                .filter(
+            field = session.execute(
+                sa.select(InstrumentField).where(
                     InstrumentField.instrument_id == instrument_id,
                     InstrumentField.field_id == field_id,
                 )
-                .first()
-            )
+            ).first()
             if field is None:
                 return log(
                     f"Unable to add observations for instrument {instrument_id}: Missing field {field_id}"
                 )
+            else:
+                (field,) = field
 
-            observation = (
-                session.query(ExecutedObservation)
-                .filter_by(
-                    instrument_id=instrument_id, observation_id=row["observation_id"]
+            observation = session.execute(
+                sa.select(ExecutedObservation).where(
+                    ExecutedObservation.instrument_id == instrument_id,
+                    ExecutedObservation.observation_id == row["observation_id"],
                 )
-                .first()
-            )
+            ).first()
             if observation is not None:
                 log(
                     f"Observation {row['observation_id']} for instrument {instrument_id} already exists... continuing."
@@ -190,193 +189,188 @@ def get_observations(
             'localization_dateobs must be specified if return_statistics=True'
         )
 
-    if includeGeoJSON:
-        options = (
-            [
-                joinedload(ExecutedObservation.instrument).joinedload(
-                    Instrument.telescope
-                ),
-                joinedload(ExecutedObservation.field).undefer(
-                    InstrumentField.contour_summary
-                ),
-            ],
-        )
-    else:
-        options = (
-            [
-                joinedload(ExecutedObservation.instrument).joinedload(
-                    Instrument.telescope
-                ),
-                joinedload(ExecutedObservation.field),
-            ],
-        )
-
     obs_query = ExecutedObservation.query_records_accessible_by(
         user,
         mode="read",
-        options=options,
     )
-
+    if includeGeoJSON:
+        obs_query = obs_query.options(
+            joinedload(ExecutedObservation.instrument).joinedload(Instrument.telescope)
+        ).options(
+            joinedload(ExecutedObservation.field).undefer(
+                InstrumentField.contour_summary
+            )
+        )
+    else:
+        obs_query = obs_query.options(
+            joinedload(ExecutedObservation.instrument).joinedload(Instrument.telescope)
+        ).options(joinedload(ExecutedObservation.field))
     obs_query = obs_query.filter(ExecutedObservation.obstime >= start_date)
     obs_query = obs_query.filter(ExecutedObservation.obstime <= end_date)
 
-    # optional: slice by Instrument
-    if telescope_name is not None and instrument_name is not None:
-        telescope = (
-            Telescope.query_records_accessible_by(
-                user,
-            )
-            .filter(
-                Telescope.name == telescope_name,
-            )
-            .first()
-        )
-        if telescope is None:
-            raise ValueError(f"Missing telescope {telescope_name}")
+    with DBSession() as session:
 
-        instrument = (
-            Instrument.query_records_accessible_by(
-                user,
-                options=[
-                    joinedload(Instrument.fields),
-                ],
-            )
-            .filter(
-                Instrument.telescope == telescope,
-                Instrument.name == instrument_name,
-            )
-            .first()
-        )
-        if instrument is None:
-            return ValueError(f"Missing instrument {instrument_name}")
-
-        obs_query = obs_query.filter(ExecutedObservation.instrument_id == instrument.id)
-
-    # optional: slice by GcnEvent localization
-    if localization_dateobs is not None:
-        if localization_name is not None:
-            localization = (
-                Localization.query_records_accessible_by(user)
-                .filter(
-                    Localization.dateobs == localization_dateobs,
-                    Localization.localization_name == localization_name,
+        # optional: slice by Instrument
+        if telescope_name is not None and instrument_name is not None:
+            telescope = session.execute(
+                Telescope.query_records_accessible_by(user,).where(
+                    Telescope.name == telescope_name,
                 )
-                .first()
-            )
-            if localization is None:
-                raise ValueError("Localization not found")
-        else:
-            event = (
-                GcnEvent.query_records_accessible_by(
+            ).first()
+            if telescope is None:
+                raise ValueError(f"Missing telescope {telescope_name}")
+            else:
+                (telescope,) = telescope
+
+            instrument = session.execute(
+                Instrument.query_records_accessible_by(
                     user,
                     options=[
-                        joinedload(GcnEvent.localizations),
+                        joinedload(Instrument.fields),
                     ],
+                ).where(
+                    Instrument.telescope == telescope,
+                    Instrument.name == instrument_name,
                 )
-                .filter(GcnEvent.dateobs == localization_dateobs)
-                .first()
-            )
-            if event is None:
-                raise ValueError("GCN event not found")
-            localization = event.localizations[-1]
+            ).first()
+            if instrument is None:
+                return ValueError(f"Missing instrument {instrument_name}")
+            else:
+                (instrument,) = instrument
 
-        cum_prob = (
-            sa.func.sum(LocalizationTile.probdensity * LocalizationTile.healpix.area)
-            .over(order_by=LocalizationTile.probdensity.desc())
-            .label('cum_prob')
-        )
-        localizationtile_subquery = (
-            sa.select(LocalizationTile.probdensity, cum_prob).filter(
-                LocalizationTile.localization_id == localization.id
-            )
-        ).subquery()
-
-        min_probdensity = (
-            sa.select(
-                sa.func.min(localizationtile_subquery.columns.probdensity)
-            ).filter(localizationtile_subquery.columns.cum_prob <= localization_cumprob)
-        ).scalar_subquery()
-
-        if telescope_name is not None and instrument_name is not None:
-            tiles_subquery = (
-                sa.select(InstrumentField.id)
-                .filter(
-                    LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
-                    InstrumentFieldTile.instrument_id == instrument.id,
-                    InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                    InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
-                )
-                .subquery()
-            )
-        else:
-            tiles_subquery = (
-                sa.select(InstrumentField.id)
-                .filter(
-                    LocalizationTile.localization_id == localization.id,
-                    LocalizationTile.probdensity >= min_probdensity,
-                    InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-                    InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
-                )
-                .subquery()
+            obs_query = obs_query.where(
+                ExecutedObservation.instrument_id == instrument.id
             )
 
-        obs_query = obs_query.join(
-            tiles_subquery,
-            ExecutedObservation.instrument_field_id == tiles_subquery.c.id,
-        )
-
-        if return_statistics:
-            if telescope_name is not None and instrument_name is not None:
-                union = (
-                    sa.select(
-                        ha.func.union(InstrumentFieldTile.healpix).label('healpix')
+        # optional: slice by GcnEvent localization
+        if localization_dateobs is not None:
+            if localization_name is not None:
+                localization = session.execute(
+                    Localization.query_records_accessible_by(user).where(
+                        Localization.dateobs == localization_dateobs,
+                        Localization.localization_name == localization_name,
                     )
+                ).first()
+                if localization is None:
+                    raise ValueError("Localization not found")
+                else:
+                    (localization,) = localization
+            else:
+                event = session.execute(
+                    GcnEvent.query_records_accessible_by(
+                        user,
+                        options=[
+                            joinedload(GcnEvent.localizations),
+                        ],
+                    ).where(GcnEvent.dateobs == localization_dateobs)
+                ).first()
+                if event is None:
+                    raise ValueError("GCN event not found")
+                else:
+                    (event,) = event
+                localization = event.localizations[-1]
+
+            cum_prob = (
+                sa.func.sum(
+                    LocalizationTile.probdensity * LocalizationTile.healpix.area
+                )
+                .over(order_by=LocalizationTile.probdensity.desc())
+                .label('cum_prob')
+            )
+            localizationtile_subquery = (
+                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                    LocalizationTile.localization_id == localization.id
+                )
+            ).subquery()
+
+            min_probdensity = (
+                sa.select(
+                    sa.func.min(localizationtile_subquery.columns.probdensity)
+                ).filter(
+                    localizationtile_subquery.columns.cum_prob <= localization_cumprob
+                )
+            ).scalar_subquery()
+
+            if telescope_name is not None and instrument_name is not None:
+                tiles_subquery = (
+                    sa.select(InstrumentField.id)
                     .filter(
+                        LocalizationTile.localization_id == localization.id,
+                        LocalizationTile.probdensity >= min_probdensity,
                         InstrumentFieldTile.instrument_id == instrument.id,
-                        InstrumentFieldTile.instrument_field_id
-                        == ExecutedObservation.instrument_field_id,
-                        ExecutedObservation.obstime >= start_date,
-                        ExecutedObservation.obstime <= end_date,
+                        InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                        InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
                     )
                     .subquery()
                 )
             else:
-                union = (
-                    sa.select(
-                        ha.func.union(InstrumentFieldTile.healpix).label('healpix')
-                    )
+                tiles_subquery = (
+                    sa.select(InstrumentField.id)
                     .filter(
-                        InstrumentFieldTile.instrument_field_id
-                        == ExecutedObservation.instrument_field_id,
-                        ExecutedObservation.obstime >= start_date,
-                        ExecutedObservation.obstime <= end_date,
+                        LocalizationTile.localization_id == localization.id,
+                        LocalizationTile.probdensity >= min_probdensity,
+                        InstrumentFieldTile.instrument_field_id == InstrumentField.id,
+                        InstrumentFieldTile.healpix.overlaps(LocalizationTile.healpix),
                     )
                     .subquery()
                 )
 
-            area = sa.func.sum(union.columns.healpix.area)
-            prob = sa.func.sum(
-                LocalizationTile.probdensity
-                * (union.columns.healpix * LocalizationTile.healpix).area
+            obs_query = obs_query.join(
+                tiles_subquery,
+                ExecutedObservation.instrument_field_id == tiles_subquery.c.id,
             )
-            query_area = sa.select(area).filter(
-                LocalizationTile.localization_id == localization.id,
-                union.columns.healpix.overlaps(LocalizationTile.healpix),
-            )
-            query_prob = sa.select(prob).filter(
-                LocalizationTile.localization_id == localization.id,
-                union.columns.healpix.overlaps(LocalizationTile.healpix),
-            )
-            intprob = DBSession().execute(query_prob).scalar_one()
-            intarea = DBSession().execute(query_area).scalar_one()
 
-            if intprob is None:
-                intprob = 0.0
-            if intarea is None:
-                intarea = 0.0
+            if return_statistics:
+                if telescope_name is not None and instrument_name is not None:
+                    union = (
+                        sa.select(
+                            ha.func.union(InstrumentFieldTile.healpix).label('healpix')
+                        )
+                        .filter(
+                            InstrumentFieldTile.instrument_id == instrument.id,
+                            InstrumentFieldTile.instrument_field_id
+                            == ExecutedObservation.instrument_field_id,
+                            ExecutedObservation.obstime >= start_date,
+                            ExecutedObservation.obstime <= end_date,
+                        )
+                        .subquery()
+                    )
+                else:
+                    union = (
+                        sa.select(
+                            ha.func.union(InstrumentFieldTile.healpix).label('healpix')
+                        )
+                        .filter(
+                            InstrumentFieldTile.instrument_field_id
+                            == ExecutedObservation.instrument_field_id,
+                            ExecutedObservation.obstime >= start_date,
+                            ExecutedObservation.obstime <= end_date,
+                        )
+                        .subquery()
+                    )
 
-    observations = obs_query.all()
+                area = sa.func.sum(union.columns.healpix.area)
+                prob = sa.func.sum(
+                    LocalizationTile.probdensity
+                    * (union.columns.healpix * LocalizationTile.healpix).area
+                )
+                query_area = sa.select(area).filter(
+                    LocalizationTile.localization_id == localization.id,
+                    union.columns.healpix.overlaps(LocalizationTile.healpix),
+                )
+                query_prob = sa.select(prob).filter(
+                    LocalizationTile.localization_id == localization.id,
+                    union.columns.healpix.overlaps(LocalizationTile.healpix),
+                )
+                intprob = DBSession().execute(query_prob).scalar_one()
+                intarea = DBSession().execute(query_area).scalar_one()
+
+                if intprob is None:
+                    intprob = 0.0
+                if intarea is None:
+                    intarea = 0.0
+
+        observations = [o for o, in session.execute(obs_query).unique().all()]
 
     if includeGeoJSON:
         # features are JSON representations that the d3 stuff understands.
@@ -449,94 +443,97 @@ class ObservationHandler(BaseHandler):
         if observation_data is None:
             return self.error(message="Missing observation_data")
 
-        telescope = (
-            Telescope.query_records_accessible_by(
-                self.current_user,
-            )
-            .filter(
-                Telescope.name == telescope_name,
-            )
-            .first()
-        )
-        if telescope is None:
-            return self.error(message=f"Missing telescope {telescope_name}")
+        with DBSession() as session:
+            telescope = session.execute(
+                Telescope.query_records_accessible_by(self.current_user,).where(
+                    Telescope.name == telescope_name,
+                )
+            ).first()
+            if telescope is None:
+                return self.error(message=f"Missing telescope {telescope_name}")
+            else:
+                (telescope,) = telescope
 
-        instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(Instrument.fields, InstrumentField.tiles),
-                ],
-            )
-            .filter(
-                Instrument.telescope == telescope,
-                Instrument.name == instrument_name,
-            )
-            .first()
-        )
-        if instrument is None:
-            return self.error(message=f"Missing instrument {instrument_name}")
+            instrument = session.execute(
+                Instrument.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(Instrument.fields, InstrumentField.tiles),
+                    ],
+                ).where(
+                    Instrument.telescope == telescope,
+                    Instrument.name == instrument_name,
+                )
+            ).first()
+            if instrument is None:
+                return self.error(message=f"Missing instrument {instrument_name}")
+            else:
+                (instrument,) = instrument
 
-        unique_keys = set(list(observation_data.keys()))
-        field_id_keys = {
-            'observation_id',
-            'field_id',
-            'obstime',
-            'filter',
-            'exposure_time',
-        }
-        radec_keys = {
-            'observation_id',
-            'RA',
-            'Dec',
-            'obstime',
-            'filter',
-            'exposure_time',
-        }
-        if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
-            unique_keys
-        ):
-            return self.error(
-                "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
-            )
-
-        if (
-            ('RA' in observation_data)
-            and ('Dec' in observation_data)
-            and not ('field_id' in observation_data)
-        ):
-            if instrument.region is None:
+            unique_keys = set(list(observation_data.keys()))
+            field_id_keys = {
+                'observation_id',
+                'field_id',
+                'obstime',
+                'filter',
+                'exposure_time',
+            }
+            radec_keys = {
+                'observation_id',
+                'RA',
+                'Dec',
+                'obstime',
+                'filter',
+                'exposure_time',
+            }
+            if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
+                unique_keys
+            ):
                 return self.error(
-                    "instrument.region must not be None if providing only RA and Dec."
+                    "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
                 )
 
-        for filt in observation_data["filter"]:
-            if filt not in instrument.filters:
-                return self.error(f"Filter {filt} not present in {instrument.filters}")
+            if (
+                ('RA' in observation_data)
+                and ('Dec' in observation_data)
+                and not ('field_id' in observation_data)
+            ):
+                if instrument.region is None:
+                    return self.error(
+                        "instrument.region must not be None if providing only RA and Dec."
+                    )
 
-        # fill in any missing optional parameters
-        optional_parameters = [
-            'airmass',
-            'seeing',
-            'limmag',
-        ]
-        for key in optional_parameters:
-            if key not in observation_data:
-                observation_data[key] = [None] * len(observation_data['observation_id'])
+            for filt in observation_data["filter"]:
+                if filt not in instrument.filters:
+                    return self.error(
+                        f"Filter {filt} not present in {instrument.filters}"
+                    )
 
-        if "processed_fraction" not in observation_data:
-            observation_data["processed_fraction"] = [1] * len(
-                observation_data['observation_id']
+            # fill in any missing optional parameters
+            optional_parameters = [
+                'airmass',
+                'seeing',
+                'limmag',
+            ]
+            for key in optional_parameters:
+                if key not in observation_data:
+                    observation_data[key] = [None] * len(
+                        observation_data['observation_id']
+                    )
+
+            if "processed_fraction" not in observation_data:
+                observation_data["processed_fraction"] = [1] * len(
+                    observation_data['observation_id']
+                )
+
+            obstable = pd.DataFrame.from_dict(observation_data)
+            # run async
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_observations(instrument.id, obstable),
             )
 
-        obstable = pd.DataFrame.from_dict(observation_data)
-        # run async
-        IOLoop.current().run_in_executor(
-            None,
-            lambda: add_observations(instrument.id, obstable),
-        )
-
-        return self.success()
+            return self.success()
 
     @auth_or_token
     def get(self):
@@ -680,20 +677,27 @@ class ObservationHandler(BaseHandler):
                 schema: Error
         """
 
-        observation = ExecutedObservation.query.filter_by(id=observation_id).first()
+        with DBSession() as session:
+            observation = session.execute(
+                sa.select(ExecutedObservation).where(
+                    ExecutedObservation.id == observation_id
+                )
+            ).first()
 
-        if observation is None:
-            return self.error("ExecutedObservation not found", status=404)
+            if observation is None:
+                return self.error("ExecutedObservation not found", status=404)
+            else:
+                (observation,) = observation
 
-        if not observation.is_accessible_by(self.current_user, mode="delete"):
-            return self.error(
-                "Insufficient permissions: ExecutedObservation can only be deleted by original poster"
-            )
+            if not observation.is_accessible_by(self.current_user, mode="delete"):
+                return self.error(
+                    "Insufficient permissions: ExecutedObservation can only be deleted by original poster"
+                )
 
-        DBSession().delete(observation)
-        self.verify_and_commit()
+            session.delete(observation)
+            self.verify_and_commit()
 
-        return self.success()
+            return self.success()
 
 
 class ObservationASCIIFileHandler(BaseHandler):
@@ -726,87 +730,93 @@ class ObservationASCIIFileHandler(BaseHandler):
         if observation_data is None:
             return self.error(message="Missing observation_data")
 
-        instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-                options=[
-                    joinedload(Instrument.fields, InstrumentField.tiles),
-                ],
-            )
-            .filter(
-                Instrument.id == instrument_id,
-            )
-            .first()
-        )
-        if instrument is None:
-            return self.error(message=f"Missing instrument with ID {instrument_id}")
-        try:
-            observation_data = pd.read_table(
-                StringIO(observation_data), sep=","
-            ).to_dict(orient='list')
-        except Exception as e:
-            return self.error(f"Unable to read in observation file: {e}")
+        with DBSession() as session:
+            instrument = session.execute(
+                Instrument.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(Instrument.fields, InstrumentField.tiles),
+                    ],
+                ).where(
+                    Instrument.id == instrument_id,
+                )
+            ).first()
+            if instrument is None:
+                return self.error(message=f"Missing instrument with ID {instrument_id}")
+            else:
+                (instrument,) = instrument
 
-        unique_keys = set(list(observation_data.keys()))
-        field_id_keys = {
-            'observation_id',
-            'field_id',
-            'obstime',
-            'filter',
-            'exposure_time',
-        }
-        radec_keys = {
-            'observation_id',
-            'RA',
-            'Dec',
-            'obstime',
-            'filter',
-            'exposure_time',
-        }
-        if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
-            unique_keys
-        ):
-            return self.error(
-                "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
-            )
+            try:
+                observation_data = pd.read_table(
+                    StringIO(observation_data), sep=","
+                ).to_dict(orient='list')
+            except Exception as e:
+                return self.error(f"Unable to read in observation file: {e}")
 
-        if (
-            ('RA' in observation_data)
-            and ('Dec' in observation_data)
-            and not ('field_id' in observation_data)
-        ):
-            if instrument.region is None:
+            unique_keys = set(list(observation_data.keys()))
+            field_id_keys = {
+                'observation_id',
+                'field_id',
+                'obstime',
+                'filter',
+                'exposure_time',
+            }
+            radec_keys = {
+                'observation_id',
+                'RA',
+                'Dec',
+                'obstime',
+                'filter',
+                'exposure_time',
+            }
+            if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
+                unique_keys
+            ):
                 return self.error(
-                    "instrument.region must not be None if providing only RA and Dec."
+                    "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
                 )
 
-        for filt in observation_data["filter"]:
-            if filt not in instrument.filters:
-                return self.error(f"Filter {filt} not present in {instrument.filters}")
+            if (
+                ('RA' in observation_data)
+                and ('Dec' in observation_data)
+                and not ('field_id' in observation_data)
+            ):
+                if instrument.region is None:
+                    return self.error(
+                        "instrument.region must not be None if providing only RA and Dec."
+                    )
 
-        # fill in any missing optional parameters
-        optional_parameters = [
-            'airmass',
-            'seeing',
-            'limmag',
-        ]
-        for key in optional_parameters:
-            if key not in observation_data:
-                observation_data[key] = [None] * len(observation_data['observation_id'])
+            for filt in observation_data["filter"]:
+                if filt not in instrument.filters:
+                    return self.error(
+                        f"Filter {filt} not present in {instrument.filters}"
+                    )
 
-        if "processed_fraction" not in observation_data:
-            observation_data["processed_fraction"] = [1] * len(
-                observation_data['observation_id']
+            # fill in any missing optional parameters
+            optional_parameters = [
+                'airmass',
+                'seeing',
+                'limmag',
+            ]
+            for key in optional_parameters:
+                if key not in observation_data:
+                    observation_data[key] = [None] * len(
+                        observation_data['observation_id']
+                    )
+
+            if "processed_fraction" not in observation_data:
+                observation_data["processed_fraction"] = [1] * len(
+                    observation_data['observation_id']
+                )
+
+            obstable = pd.DataFrame.from_dict(observation_data)
+            # run async
+            IOLoop.current().run_in_executor(
+                None,
+                lambda: add_observations(instrument.id, obstable),
             )
 
-        obstable = pd.DataFrame.from_dict(observation_data)
-        # run async
-        IOLoop.current().run_in_executor(
-            None,
-            lambda: add_observations(instrument.id, obstable),
-        )
-
-        return self.success()
+            return self.success()
 
 
 class ObservationGCNHandler(BaseHandler):

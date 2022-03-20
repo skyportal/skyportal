@@ -29,9 +29,9 @@ _, cfg = load_env()
 def groupuser_update_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = DBSession().query(cls).join(aliased, cls.group_id == aliased.group_id)
+    query = sa.select(cls).join(aliased, cls.group_id == aliased.group_id)
     if not user_or_token.is_system_admin:
-        query = query.filter(aliased.user_id == user_id, aliased.admin.is_(True))
+        query = query.where(aliased.user_id == user_id, aliased.admin.is_(True))
     return query
 
 
@@ -111,9 +111,9 @@ class AccessibleIfGroupUserMatches(AccessibleIfUserMatches):
 
         # return only selected columns if requested
         if columns is not None:
-            query = DBSession().query(*columns).select_from(cls)
+            query = sa.select(*columns).select_from(cls)
         else:
-            query = DBSession().query(cls).select_from(cls)
+            query = sa.select(cls)
 
         # traverse the relationship chain via sequential JOINs
         for relationship_name in self.relationship_names:
@@ -133,7 +133,7 @@ class AccessibleIfGroupUserMatches(AccessibleIfUserMatches):
 
         # filter for records with at least one matching user
         user_id = self.user_id_from_user_or_token(user_or_token)
-        query = query.filter(GroupUser.user_id == user_id)
+        query = query.where(GroupUser.user_id == user_id)
         return query
 
 
@@ -213,10 +213,7 @@ class AccessibleIfGroupUserIsAdminAndUserMatches(AccessibleIfUserMatches):
         if not user_or_token.is_admin:
             # this avoids name collisions
             group_user_subq = (
-                DBSession()
-                .query(GroupUser)
-                .filter(GroupUser.admin.is_(True))
-                .subquery()
+                sa.select(GroupUser).where(GroupUser.admin.is_(True)).subquery()
             )
             query = query.join(
                 group_user_subq,
@@ -244,14 +241,13 @@ def delete_group_access_logic(cls, user_or_token):
     a single user group, and that they are an admin member of."""
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
     query = (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .join(GroupUser)
-        .filter(cls.name != cfg['misc']['public_group_name'])
-        .filter(cls.single_user_group.is_(False))
+        .where(cls.name != cfg['misc']['public_group_name'])
+        .where(cls.single_user_group.is_(False))
     )
     if not user_or_token.is_system_admin:
-        query = query.filter(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
+        query = query.where(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
     return query
 
 
@@ -407,8 +403,7 @@ def group_create_logic(cls, user_or_token):
     from .stream import Stream, StreamUser
 
     return (
-        DBSession()
-        .query(cls)
+        sa.select(cls)
         .join(Group)
         .outerjoin(Stream, Group.streams)
         .outerjoin(
@@ -418,7 +413,7 @@ def group_create_logic(cls, user_or_token):
                 StreamUser.stream_id == Stream.id,
             ),
         )
-        .filter(Group.single_user_group.is_(False))
+        .where(Group.single_user_group.is_(False))
         .group_by(cls.id)
         .having(
             sa.or_(

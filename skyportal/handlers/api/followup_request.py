@@ -102,7 +102,8 @@ class AssignmentHandler(BaseHandler):
                 joinedload(ClassicalAssignment.obj),
             )
 
-        assignments = assignments.all()
+        with DBSession() as session:
+            assignments = [a for a, in session.execute(assignments).unique().all()]
 
         if len(assignments) == 0 and assignment_id is not None:
             return self.error("Could not retrieve assignment.")
@@ -162,32 +163,33 @@ class AssignmentHandler(BaseHandler):
         data['priority'] = assignment.priority.name
         ObservingRun.get_if_accessible_by(run_id, self.current_user, raise_if_none=True)
 
-        predecessor = (
-            ClassicalAssignment.query_records_accessible_by(self.current_user)
-            .filter(
-                ClassicalAssignment.obj_id == assignment.obj_id,
-                ClassicalAssignment.run_id == run_id,
+        with DBSession() as session:
+            predecessor = session.execute(
+                ClassicalAssignment.query_records_accessible_by(
+                    self.current_user
+                ).where(
+                    ClassicalAssignment.obj_id == assignment.obj_id,
+                    ClassicalAssignment.run_id == run_id,
+                )
+            ).first()
+
+            if predecessor is not None:
+                return self.error('Object is already assigned to this run.')
+
+            assignment = ClassicalAssignment(**data)
+
+            assignment.requester_id = self.associated_user_object.id
+            session.add(assignment)
+            self.verify_and_commit()
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": assignment.obj.internal_key},
             )
-            .first()
-        )
-
-        if predecessor is not None:
-            return self.error('Object is already assigned to this run.')
-
-        assignment = ClassicalAssignment(**data)
-
-        assignment.requester_id = self.associated_user_object.id
-        DBSession().add(assignment)
-        self.verify_and_commit()
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": assignment.obj.internal_key},
-        )
-        self.push_all(
-            action="skyportal/REFRESH_OBSERVING_RUN",
-            payload={"run_id": assignment.run_id},
-        )
-        return self.success(data={"id": assignment.id})
+            self.push_all(
+                action="skyportal/REFRESH_OBSERVING_RUN",
+                payload={"run_id": assignment.run_id},
+            )
+            return self.success(data={"id": assignment.id})
 
     @permissions(["Upload data"])
     def put(self, assignment_id):
@@ -365,18 +367,21 @@ class FollowupRequestHandler(BaseHandler):
             except ValueError:
                 return self.error("Assignment ID must be an integer.")
 
-            followup_requests = followup_requests.filter(
+            followup_requests = followup_requests.where(
                 FollowupRequest.id == followup_request_id
             ).options(
                 joinedload(FollowupRequest.obj).joinedload(Obj.thumbnails),
                 joinedload(FollowupRequest.requester),
                 joinedload(FollowupRequest.obj),
             )
-            followup_request = followup_requests.first()
-            if followup_request is None:
-                return self.error("Could not retrieve followup request.")
-            self.verify_and_commit()
-            return self.success(data=followup_request)
+            with DBSession() as session:
+                followup_request = session.execute(followup_requests).first()
+                if followup_request is None:
+                    return self.error("Could not retrieve followup request.")
+                else:
+                    (followup_request,) = followup_request
+                self.verify_and_commit()
+                return self.success(data=followup_request)
 
         if start_date:
             start_date = str(arrow.get(start_date.strip()).datetime)
@@ -406,9 +411,11 @@ class FollowupRequestHandler(BaseHandler):
             joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
             joinedload(FollowupRequest.obj),
             joinedload(FollowupRequest.requester),
-        ).all()
-        self.verify_and_commit()
-        return self.success(data=followup_requests)
+        )
+        with DBSession() as session:
+            data = [r for r, in session.execute(followup_requests).all()]
+            self.verify_and_commit()
+            return self.success(data=data)
 
     @permissions(["Upload data"])
     def post(self):

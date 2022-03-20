@@ -1,5 +1,7 @@
 import phonenumbers
 from phonenumbers.phonenumberutil import NumberParseException
+import sqlalchemy as sa
+from sqlalchemy.orm import joinedload
 from validate_email import validate_email
 import arrow
 
@@ -34,6 +36,7 @@ def add_user_and_setup_groups(
     oauth_uid=None,
     expiration_date=None,
 ):
+
     # Add user
     user = User(
         username=username.lower(),
@@ -217,42 +220,47 @@ class UserHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid numPerPage value.")
 
-        query = User.query.order_by(User.username)
+        query = sa.select(User).options(joinedload(User.acls)).order_by(User.username)
 
         if first_name is not None:
-            query = query.filter(User.first_name.contains(first_name))
+            query = query.where(User.first_name.contains(first_name))
         if last_name is not None:
-            query = query.filter(User.last_name.contains(last_name))
+            query = query.where(User.last_name.contains(last_name))
         if username is not None:
-            query = query.filter(User.username.contains(username))
+            query = query.where(User.username.contains(username))
         if email_address is not None:
-            query = query.filter(User.contact_email.contains(email_address))
+            query = query.where(User.contact_email.contains(email_address))
         if role is not None:
-            query = query.join(UserRole).join(Role).filter(Role.id == role)
+            query = query.join(UserRole).join(Role).where(Role.id == role)
         if acl is not None:
-            query = query.join(UserACL).join(ACL).filter(ACL.id == acl)
+            query = query.join(UserACL).join(ACL).where(ACL.id == acl)
         if group is not None:
-            query = query.join(GroupUser).join(Group).filter(Group.name == group)
+            query = query.join(GroupUser).join(Group).where(Group.name == group)
         if stream is not None:
-            query = query.join(StreamUser).join(Stream).filter(Stream.name == stream)
+            query = query.join(StreamUser).join(Stream).where(Stream.name == stream)
 
-        total_matches = query.count()
+        with DBSession() as session:
+            total_matches = session.scalar(
+                sa.select(sa.func.count()).select_from(query)
+            )
         if n_per_page is not None:
             query = query.limit(n_per_page).offset((page_number - 1) * n_per_page)
         info = {}
         return_values = []
-        for user in query.all():
-            return_values.append(user.to_dict())
-            return_values[-1]["permissions"] = sorted(user.permissions)
-            return_values[-1]["roles"] = sorted(role.id for role in user.roles)
-            return_values[-1]["acls"] = sorted(acl.id for acl in user.acls)
-            if user.contact_phone:
-                return_values[-1]["contact_phone"] = user.contact_phone.e164
-            return_values[-1]["contact_email"] = user.contact_email
-            # Only Sys admins can see other users' group memberships
-            if self.current_user.is_system_admin:
-                return_values[-1]["groups"] = user.groups
-                return_values[-1]["streams"] = user.streams
+
+        with DBSession() as session:
+            for (user,) in session.execute(query).unique().all():
+                return_values.append(user.to_dict())
+                return_values[-1]["permissions"] = sorted(user.permissions)
+                return_values[-1]["roles"] = sorted(role.id for role in user.roles)
+                return_values[-1]["acls"] = sorted(acl.id for acl in user.acls)
+                if user.contact_phone:
+                    return_values[-1]["contact_phone"] = user.contact_phone.e164
+                return_values[-1]["contact_email"] = user.contact_email
+                # Only Sys admins can see other users' group memberships
+                if self.current_user.is_system_admin:
+                    return_values[-1]["groups"] = user.groups
+                    return_values[-1]["streams"] = user.streams
 
         info["users"] = return_values
         info["totalMatches"] = int(total_matches)

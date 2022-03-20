@@ -291,10 +291,14 @@ class ObjClassificationHandler(BaseHandler):
                 schema: Error
         """
 
-        classifications = (
-            Classification.query_records_accessible_by(self.current_user)
-            .filter(Classification.obj_id == obj_id)
-            .all()
-        )
-        self.verify_and_commit()
-        return self.success(data=classifications)
+        with DBSession() as session:
+            classifications = [
+                c
+                for c, in session.execute(
+                    Classification.query_records_accessible_by(
+                        self.current_user
+                    ).filter(Classification.obj_id == obj_id)
+                ).all()
+            ]
+            self.verify_and_commit()
+            return self.success(data=classifications)

@@ -155,23 +155,23 @@ class GalaxyCatalogHandler(BaseHandler):
 
         query = Galaxy.query_records_accessible_by(self.current_user, mode="read")
         if catalog_name is not None:
-            query = query.filter(Galaxy.catalog_name == catalog_name)
+            query = query.where(Galaxy.catalog_name == catalog_name)
 
         if localization_dateobs is not None:
 
-            if localization_name is not None:
-                localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(Localization.dateobs == localization_dateobs)
-                    .filter(Localization.localization_name == localization_name)
-                    .first()
-                )
-            else:
-                localization = (
-                    Localization.query_records_accessible_by(self.current_user)
-                    .filter(Localization.dateobs == localization_dateobs)
-                    .first()
-                )
+            with DBSession() as session:
+                if localization_name is not None:
+                    localization = session.execute(
+                        Localization.query_records_accessible_by(self.current_user)
+                        .where(Localization.dateobs == localization_dateobs)
+                        .where(Localization.localization_name == localization_name)
+                    ).first()
+                else:
+                    localization = session.execute(
+                        Localization.query_records_accessible_by(
+                            self.current_user
+                        ).where(Localization.dateobs == localization_dateobs)
+                    ).first()
             if localization is None:
                 if localization_name is not None:
                     return self.error(
@@ -182,6 +182,8 @@ class GalaxyCatalogHandler(BaseHandler):
                     return self.error(
                         f"Localization {localization_dateobs} not found", status=404
                     )
+            else:
+                (localization,) = localization
 
             cum_prob = (
                 sa.func.sum(
@@ -191,7 +193,7 @@ class GalaxyCatalogHandler(BaseHandler):
                 .label('cum_prob')
             )
             localizationtile_subquery = (
-                sa.select(LocalizationTile.probdensity, cum_prob).filter(
+                sa.select(LocalizationTile.probdensity, cum_prob).where(
                     LocalizationTile.localization_id == localization.id
                 )
             ).subquery()
@@ -199,14 +201,14 @@ class GalaxyCatalogHandler(BaseHandler):
             min_probdensity = (
                 sa.select(
                     sa.func.min(localizationtile_subquery.columns.probdensity)
-                ).filter(
+                ).where(
                     localizationtile_subquery.columns.cum_prob <= localization_cumprob
                 )
             ).scalar_subquery()
 
             tiles_subquery = (
                 sa.select(Galaxy.id)
-                .filter(
+                .where(
                     LocalizationTile.localization_id == localization.id,
                     LocalizationTile.healpix.contains(Galaxy.healpix),
                     LocalizationTile.probdensity >= min_probdensity,
@@ -219,7 +221,8 @@ class GalaxyCatalogHandler(BaseHandler):
                 Galaxy.id == tiles_subquery.c.id,
             )
 
-        galaxies = query.all()
+        with DBSession() as session:
+            galaxies = [g for g, in session.execute(query).all()]
         query_results = {'sources': galaxies}
 
         if includeGeoJSON:

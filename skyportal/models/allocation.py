@@ -57,6 +57,7 @@ class Allocation(Base):
         'Group',
         back_populates='allocations',
         doc='The Group the allocation is associated with.',
+        lazy='subquery',
     )
 
     instrument_id = sa.Column(
@@ -69,6 +70,7 @@ class Allocation(Base):
         'Instrument',
         back_populates='allocations',
         doc="The Instrument the allocation is associated with.",
+        lazy='subquery',
     )
 
     _altdata = sa.Column(

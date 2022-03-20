@@ -509,8 +509,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                 telescope_subquery,
                 telescope_subquery.c.id == instrument_subquery.c.telescope_id,
             )
-            .filter(Photometry.obj_id == obj_id)
-            .statement,
+            .where(Photometry.obj_id == obj_id),
             session.get_bind(),
         )
 
@@ -518,11 +517,15 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         return None, None, None
 
     # get spectra to annotate on phot plots
-    spectra = (
-        Spectrum.query_records_accessible_by(user)
-        .filter(Spectrum.obj_id == obj_id)
-        .all()
-    )
+    with DBSession() as session:
+        spectra = [
+            s
+            for s, in session.execute(
+                Spectrum.query_records_accessible_by(user).where(
+                    Spectrum.obj_id == obj_id
+                )
+            ).all()
+        ]
 
     data['effwave'] = [get_effective_wavelength(f) for f in data['filter']]
     data['color'] = [get_color(w) for w in data['effwave']]
@@ -1108,14 +1111,15 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     # now make period plot
 
     # get periods from annotations
-    annotation_list = (
-        Annotation.query_records_accessible_by(user)
-        .filter(Annotation.obj_id == obj.id)
-        .all()
-    )
+    with DBSession() as session:
+        annotation_list = session.execute(
+            Annotation.query_records_accessible_by(user).where(
+                Annotation.obj_id == obj.id
+            )
+        ).all()
     period_labels = []
     period_list = []
-    for an in annotation_list:
+    for (an,) in annotation_list:
         if 'period' in an.data:
             period_list.append(an.data['period'])
             period_labels.append(an.origin + ": %.9f" % an.data['period'])
@@ -1445,11 +1449,15 @@ def spectroscopy_plot(
     """
 
     obj = Obj.get_if_accessible_by(obj_id, user)
-    spectra = (
-        Spectrum.query_records_accessible_by(user)
-        .filter(Spectrum.obj_id == obj_id)
-        .all()
-    )
+    with DBSession() as session:
+        spectra = [
+            s
+            for s, in session.execute(
+                Spectrum.query_records_accessible_by(user).where(
+                    Spectrum.obj_id == obj_id
+                )
+            ).all()
+        ]
 
     # Accept a string with a single spectrum ID
     # or a comma separated list of IDs.
@@ -1541,47 +1549,50 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     palette = list(map(rgb2hex, rainbow(range(len(spectra)))))
     color_map = dict(zip([s.id for s in spectra], palette))
 
-    data = []
-    for i, s in enumerate(spectra):
-        # normalize spectra to a median flux of 1 for easy comparison
-        normfac = np.nanmedian(np.abs(s.fluxes))
-        normfac = normfac if normfac != 0.0 else 1e-20
-        altdata = json.dumps(s.altdata) if s.altdata is not None else ""
-        annotations = (
-            AnnotationOnSpectrum.query_records_accessible_by(user)
-            .filter(AnnotationOnSpectrum.spectrum_id == s.id)
-            .all()
-        )
-        annotations = (
-            json.dumps([{a.origin: a.data} for a in annotations])
-            if len(annotations)
-            else ""
-        )
+    with DBSession() as session:
+        data = []
+        for i, s in enumerate(spectra):
+            # normalize spectra to a median flux of 1 for easy comparison
+            normfac = np.nanmedian(np.abs(s.fluxes))
+            normfac = normfac if normfac != 0.0 else 1e-20
+            altdata = json.dumps(s.altdata) if s.altdata is not None else ""
+            annotations = session.execute(
+                AnnotationOnSpectrum.query_records_accessible_by(user).where(
+                    AnnotationOnSpectrum.spectrum_id == s.id
+                )
+            ).all()
+            annotations = (
+                json.dumps([{a.origin: a.data} for a, in annotations])
+                if len(annotations)
+                else ""
+            )
 
-        df = pd.DataFrame(
-            {
-                'wavelength': s.wavelengths,
-                'flux': s.fluxes / normfac,
-                'flux_original': s.fluxes / normfac,
-                'id': s.id,
-                'telescope': s.instrument.telescope.name,
-                'instrument': s.instrument.name,
-                'date_observed': s.observed_at.isoformat(sep=' ', timespec='seconds'),
-                'pi': (
-                    s.assignment.run.pi
-                    if s.assignment is not None
-                    else (
-                        s.followup_request.allocation.pi
-                        if s.followup_request is not None
-                        else ""
-                    )
-                ),
-                'origin': s.origin,
-                'altdata': altdata[:20] + "..." if len(altdata) > 20 else altdata,
-                'annotations': annotations,
-            }
-        )
-        data.append(df)
+            df = pd.DataFrame(
+                {
+                    'wavelength': s.wavelengths,
+                    'flux': s.fluxes / normfac,
+                    'flux_original': s.fluxes / normfac,
+                    'id': s.id,
+                    'telescope': s.instrument.telescope.name,
+                    'instrument': s.instrument.name,
+                    'date_observed': s.observed_at.isoformat(
+                        sep=' ', timespec='seconds'
+                    ),
+                    'pi': (
+                        s.assignment.run.pi
+                        if s.assignment is not None
+                        else (
+                            s.followup_request.allocation.pi
+                            if s.followup_request is not None
+                            else ""
+                        )
+                    ),
+                    'origin': s.origin,
+                    'altdata': altdata[:20] + "..." if len(altdata) > 20 else altdata,
+                    'annotations': annotations,
+                }
+            )
+            data.append(df)
 
     data = pd.concat(data)
     data.sort_values(by=['date_observed', 'wavelength'], inplace=True)

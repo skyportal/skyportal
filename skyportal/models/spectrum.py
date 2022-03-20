@@ -96,6 +96,7 @@ class Spectrum(Base):
         'Instrument',
         back_populates='spectra',
         doc="The Instrument that acquired the Spectrum.",
+        lazy='subquery',
     )
     groups = relationship(
         "Group",
@@ -120,12 +121,20 @@ class Spectrum(Base):
     followup_request_id = sa.Column(
         sa.ForeignKey('followuprequests.id', ondelete='SET NULL'), nullable=True
     )
-    followup_request = relationship('FollowupRequest', back_populates='spectra')
+    followup_request = relationship(
+        'FollowupRequest',
+        back_populates='spectra',
+        lazy='subquery',
+    )
 
     assignment_id = sa.Column(
         sa.ForeignKey('classicalassignments.id', ondelete='SET NULL'), nullable=True
     )
-    assignment = relationship('ClassicalAssignment', back_populates='spectra')
+    assignment = relationship(
+        'ClassicalAssignment',
+        back_populates='spectra',
+        lazy='subquery',
+    )
 
     altdata = sa.Column(
         psql.JSONB, doc="Miscellaneous alternative metadata.", nullable=True

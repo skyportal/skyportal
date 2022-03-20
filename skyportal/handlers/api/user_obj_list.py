@@ -59,15 +59,19 @@ class UserObjListHandler(BaseHandler):
 
         list_name = self.get_query_argument("listName", None)
 
-        query = Listing.query_records_accessible_by(self.current_user).filter(
+        query = Listing.query_records_accessible_by(self.current_user).where(
             Listing.user_id == user_id
         )
 
         if list_name is not None:
-            query = query.filter(Listing.list_name == list_name)
+            query = query.where(Listing.list_name == list_name)
 
         self.verify_and_commit()
-        return self.success(data=query.all())
+
+        with DBSession() as session:
+            data = [ls for ls, in session.execute(query).all()]
+
+            return self.success(data=data)
 
     @auth_or_token
     def post(self):
@@ -142,29 +146,32 @@ class UserObjListHandler(BaseHandler):
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
 
-        query = Listing.query_records_accessible_by(self.current_user).filter(
-            Listing.user_id == int(user_id),
-            Listing.obj_id == obj_id,
-            Listing.list_name == list_name,
-        )
-
-        # what to do if listing already exists...
-        if query.first() is not None:
-            return self.error(
-                f'Listing already exists with user_id={user_id}, obj_id={obj_id} and list_name={list_name}'
+        with DBSession() as session:
+            query = session.execute(
+                Listing.query_records_accessible_by(self.current_user).where(
+                    Listing.user_id == int(user_id),
+                    Listing.obj_id == obj_id,
+                    Listing.list_name == list_name,
+                )
             )
 
-        listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
-        DBSession().add(listing)
-        self.verify_and_commit()
+            # what to do if listing already exists...
+            if query.first() is not None:
+                return self.error(
+                    f'Listing already exists with user_id={user_id}, obj_id={obj_id} and list_name={list_name}'
+                )
 
-        if list_name == "favorites":
-            self.push(action='skyportal/REFRESH_FAVORITES')
-            self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
-        if list_name == "rejected_candidates":
-            self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
+            listing = Listing(user_id=user_id, obj_id=obj_id, list_name=list_name)
+            session.add(listing)
+            self.verify_and_commit()
 
-        return self.success(data={'id': listing.id})
+            if list_name == "favorites":
+                self.push(action='skyportal/REFRESH_FAVORITES')
+                self.push(action='skyportal/REFRESH_FAVORITE_SOURCES')
+            if list_name == "rejected_candidates":
+                self.push(action='skyportal/REFRESH_REJECTED_CANDIDATES')
+
+            return self.success(data={'id': listing.id})
 
     @auth_or_token
     def patch(self, listing_id):

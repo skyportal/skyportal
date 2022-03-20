@@ -2,6 +2,7 @@ import io
 from pathlib import Path
 from astropy.time import Time
 import numpy as np
+import sqlalchemy as sa
 
 from sqlalchemy.orm import joinedload
 
@@ -137,32 +138,33 @@ class SpectrumHandler(BaseHandler):
                 "At least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
             )
 
-        spec = Spectrum(**data)
-        spec.instrument = instrument
-        spec.groups = groups
-        spec.owner_id = owner_id
-        if spec.type is None:
-            spec.type = default_spectrum_type
-        DBSession().add(spec)
-        for reducer in reducers:
-            reducer.spectrum = spec
-            DBSession().add(reducer)
-        for observer in observers:
-            observer.spectrum = spec
-            DBSession().add(observer)
-        self.verify_and_commit()
+        with DBSession() as session:
+            spec = Spectrum(**data)
+            spec.instrument = instrument
+            spec.groups = groups
+            spec.owner_id = owner_id
+            if spec.type is None:
+                spec.type = default_spectrum_type
+            session.add(spec)
+            for reducer in reducers:
+                reducer.spectrum = spec
+                session.add(reducer)
+            for observer in observers:
+                observer.spectrum = spec
+                session.add(observer)
+            self.verify_and_commit()
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE',
-            payload={'obj_key': spec.obj.internal_key},
-        )
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': spec.obj.internal_key},
+            )
 
-        self.push_all(
-            action='skyportal/REFRESH_SOURCE_SPECTRA',
-            payload={'obj_internal_key': spec.obj.internal_key},
-        )
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_internal_key': spec.obj.internal_key},
+            )
 
-        return self.success(data={"id": spec.id})
+            return self.success(data={"id": spec.id})
 
     @auth_or_token
     def get(self, spectrum_id):
@@ -193,49 +195,46 @@ class SpectrumHandler(BaseHandler):
             self.current_user,
             raise_if_none=True,
         )
-        comments = (
-            CommentOnSpectrum.query_records_accessible_by(
-                self.current_user,
-                options=[joinedload(CommentOnSpectrum.groups)],
-            )
-            .filter(CommentOnSpectrum.spectrum_id == spectrum_id)
-            .all()
-        )
-        annotations = (
-            AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
-            .filter(AnnotationOnSpectrum.spectrum_id == spectrum_id)
-            .all()
-        )
+        with DBSession() as session:
+            comments = session.execute(
+                CommentOnSpectrum.query_records_accessible_by(
+                    self.current_user,
+                    options=[joinedload(CommentOnSpectrum.groups)],
+                ).where(CommentOnSpectrum.spectrum_id == spectrum_id)
+            ).all()
+            annotations = session.execute(
+                AnnotationOnSpectrum.query_records_accessible_by(
+                    self.current_user
+                ).where(AnnotationOnSpectrum.spectrum_id == spectrum_id)
+            ).all()
 
-        spec_dict = recursive_to_dict(spectrum)
-        spec_dict["instrument_name"] = spectrum.instrument.name
-        spec_dict["groups"] = spectrum.groups
-        spec_dict["reducers"] = spectrum.reducers
-        spec_dict["observers"] = spectrum.observers
-        spec_dict["owner"] = spectrum.owner
-        spec_dict["comments"] = comments
-        spec_dict["annotations"] = annotations
+            spec_dict = recursive_to_dict(spectrum)
+            spec_dict["instrument_name"] = spectrum.instrument.name
+            spec_dict["groups"] = spectrum.groups
+            spec_dict["reducers"] = spectrum.reducers
+            spec_dict["observers"] = spectrum.observers
+            spec_dict["owner"] = spectrum.owner
+            spec_dict["comments"] = comments
+            spec_dict["annotations"] = annotations
 
-        external_reducer = (
-            DBSession()
-            .query(SpectrumReducer.external_reducer)
-            .filter(SpectrumReducer.spectr_id == spectrum_id)
-            .first()
-        )
-        if external_reducer is not None:
-            spec_dict["external_reducer"] = external_reducer[0]
+            external_reducer = session.execute(
+                sa.select(SpectrumReducer.external_reducer).where(
+                    SpectrumReducer.spectr_id == spectrum_id
+                )
+            ).first()
+            if external_reducer is not None:
+                spec_dict["external_reducer"] = external_reducer[0]
 
-        external_observer = (
-            DBSession()
-            .query(SpectrumObserver.external_observer)
-            .filter(SpectrumObserver.spectr_id == spectrum_id)
-            .first()
-        )
-        if external_observer is not None:
-            spec_dict["external_observer"] = external_observer[0]
+            external_observer = session.execute(
+                sa.select(SpectrumObserver.external_observer).where(
+                    SpectrumObserver.spectr_id == spectrum_id
+                )
+            ).first()
+            if external_observer is not None:
+                spec_dict["external_observer"] = external_observer[0]
 
-        self.verify_and_commit()
-        return self.success(data=spec_dict)
+            self.verify_and_commit()
+            return self.success(data=spec_dict)
 
     @permissions(['Upload data'])
     def put(self, spectrum_id):
@@ -618,97 +617,94 @@ class ObjSpectraHandler(BaseHandler):
         if obj is None:
             return self.error('Invalid object ID.')
 
-        spectra = (
-            Spectrum.query_records_accessible_by(self.current_user)
-            .filter(Spectrum.obj_id == obj_id)
-            .all()
-        )
-
-        return_values = []
-        for spec in spectra:
-            spec_dict = recursive_to_dict(spec)
-            comments = (
-                CommentOnSpectrum.query_records_accessible_by(
-                    self.current_user,
+        with DBSession() as session:
+            spectra = session.execute(
+                Spectrum.query_records_accessible_by(self.current_user).where(
+                    Spectrum.obj_id == obj_id
                 )
-                .filter(CommentOnSpectrum.spectrum_id == spec.id)
-                .all()
-            )
-            annotations = (
-                AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
-                .filter(AnnotationOnSpectrum.spectrum_id == spec.id)
-                .all()
-            )
+            ).all()
 
-            spec_dict["comments"] = sorted(
-                (
-                    {
-                        **{
-                            k: v
-                            for k, v in c.to_dict().items()
-                            if k != "attachment_bytes"
-                        },
-                        "author": {
-                            **c.author.to_dict(),
-                            "gravatar_url": c.author.gravatar_url,
-                        },
-                    }
-                    for c in comments
-                ),
-                key=lambda x: x["created_at"],
-                reverse=True,
-            )
-            annotations = [
-                {**a.to_dict(), 'author': a.author.to_dict()} for a in annotations
-            ]
-            spec_dict["annotations"] = annotations
-            spec_dict["instrument_name"] = spec.instrument.name
-            spec_dict["groups"] = spec.groups
-            spec_dict["reducers"] = spec.reducers
-            spec_dict["observers"] = spec.observers
-            external_reducer = (
-                DBSession()
-                .query(SpectrumReducer.external_reducer)
-                .filter(SpectrumReducer.spectr_id == spec.id)
-                .first()
-            )
-            if external_reducer is not None:
-                spec_dict["external_reducer"] = external_reducer[0]
-            external_observer = (
-                DBSession()
-                .query(SpectrumObserver.external_observer)
-                .filter(SpectrumObserver.spectr_id == spec.id)
-                .first()
-            )
-            if external_observer is not None:
-                spec_dict["external_observer"] = external_observer[0]
-            spec_dict["owner"] = spec.owner
-            spec_dict["obj_internal_key"] = obj.internal_key
+            return_values = []
+            for (spec,) in spectra:
+                spec_dict = recursive_to_dict(spec)
+                comments = session.execute(
+                    CommentOnSpectrum.query_records_accessible_by(
+                        self.current_user,
+                    ).where(CommentOnSpectrum.spectrum_id == spec.id)
+                ).all()
+                annotations = session.execute(
+                    AnnotationOnSpectrum.query_records_accessible_by(
+                        self.current_user
+                    ).where(AnnotationOnSpectrum.spectrum_id == spec.id)
+                ).all()
 
-            return_values.append(spec_dict)
-
-        normalization = self.get_query_argument('normalization', None)
-
-        if normalization is not None:
-            if normalization == "median":
-                for s in return_values:
-                    norm = np.median(np.abs(s["fluxes"]))
-                    norm = norm if norm != 0.0 else 1e-20
-                    if not (np.isfinite(norm) and norm > 0):
-                        # otherwise normalize the value at the median wavelength to 1
-                        median_wave_index = np.argmin(
-                            np.abs(s["wavelengths"] - np.median(s["wavelengths"]))
-                        )
-                        norm = s["fluxes"][median_wave_index]
-
-                    s["fluxes"] = s["fluxes"] / norm
-            else:
-                return self.error(
-                    f'Invalid "normalization" value "{normalization}, use '
-                    '"median" or None'
+                spec_dict["comments"] = sorted(
+                    (
+                        {
+                            **{
+                                k: v
+                                for k, v in c.to_dict().items()
+                                if k != "attachment_bytes"
+                            },
+                            "author": {
+                                **c.author.to_dict(),
+                                "gravatar_url": c.author.gravatar_url,
+                            },
+                        }
+                        for c, in comments
+                    ),
+                    key=lambda x: x["created_at"],
+                    reverse=True,
                 )
-        self.verify_and_commit()
-        return self.success(data={'obj_id': obj.id, 'spectra': return_values})
+                annotations = [
+                    {**a.to_dict(), 'author': a.author.to_dict()} for a, in annotations
+                ]
+                spec_dict["annotations"] = annotations
+                spec_dict["instrument_name"] = spec.instrument.name
+                spec_dict["groups"] = spec.groups
+                spec_dict["reducers"] = spec.reducers
+                spec_dict["observers"] = spec.observers
+                external_reducer = session.execute(
+                    sa.select(SpectrumReducer.external_reducer).where(
+                        SpectrumReducer.spectr_id == spec.id
+                    )
+                ).first()
+                if external_reducer is not None:
+                    spec_dict["external_reducer"] = external_reducer[0]
+                external_observer = session.execute(
+                    sa.select(SpectrumObserver.external_observer).where(
+                        SpectrumObserver.spectr_id == spec.id
+                    )
+                ).first()
+                if external_observer is not None:
+                    spec_dict["external_observer"] = external_observer[0]
+                spec_dict["owner"] = spec.owner
+                spec_dict["obj_internal_key"] = obj.internal_key
+
+                return_values.append(spec_dict)
+
+            normalization = self.get_query_argument('normalization', None)
+
+            if normalization is not None:
+                if normalization == "median":
+                    for s in return_values:
+                        norm = np.median(np.abs(s["fluxes"]))
+                        norm = norm if norm != 0.0 else 1e-20
+                        if not (np.isfinite(norm) and norm > 0):
+                            # otherwise normalize the value at the median wavelength to 1
+                            median_wave_index = np.argmin(
+                                np.abs(s["wavelengths"] - np.median(s["wavelengths"]))
+                            )
+                            norm = s["fluxes"][median_wave_index]
+
+                        s["fluxes"] = s["fluxes"] / norm
+                else:
+                    return self.error(
+                        f'Invalid "normalization" value "{normalization}, use '
+                        '"median" or None'
+                    )
+            self.verify_and_commit()
+            return self.success(data={'obj_id': obj.id, 'spectra': return_values})
 
 
 class SpectrumRangeHandler(BaseHandler):
@@ -775,7 +771,7 @@ class SpectrumRangeHandler(BaseHandler):
         max_date = self.get_query_argument('max_date', None)
 
         if len(instrument_ids) > 0:
-            query = Spectrum.query_records_accessible_by(self.current_user).filter(
+            query = Spectrum.query_records_accessible_by(self.current_user).where(
                 Spectrum.instrument_id.in_(instrument_ids)
             )
         else:
@@ -783,10 +779,12 @@ class SpectrumRangeHandler(BaseHandler):
 
         if min_date is not None:
             utc = Time(min_date, format='isot', scale='utc')
-            query = query.filter(Spectrum.observed_at >= utc.isot)
+            query = query.where(Spectrum.observed_at >= utc.datetime)
         if max_date is not None:
             utc = Time(max_date, format='isot', scale='utc')
-            query = query.filter(Spectrum.observed_at <= utc.isot)
+            query = query.where(Spectrum.observed_at <= utc.datetime)
 
         self.verify_and_commit()
-        return self.success(data=query.all())
+        with DBSession() as session:
+            data = [s for s, in session.execute(query).unique().all()]
+        return self.success(data=data)

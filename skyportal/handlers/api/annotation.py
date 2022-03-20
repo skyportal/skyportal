@@ -111,19 +111,25 @@ class AnnotationHandler(BaseHandler):
         associated_resource = self.get_associated_resource(associated_resource_type)
 
         if annotation_id is None:
-            annotations = (
-                associated_resource['class']
-                .query_records_accessible_by(self.current_user)
-                .filter(
-                    getattr(
-                        associated_resource['class'], associated_resource['id_attr']
+            with DBSession() as session:
+                annotations = [
+                    a
+                    for a, in (
+                        session.execute(
+                            associated_resource['class']
+                            .query_records_accessible_by(self.current_user)
+                            .filter(
+                                getattr(
+                                    associated_resource['class'],
+                                    associated_resource['id_attr'],
+                                )
+                                == resource_id
+                            )
+                        ).all()
                     )
-                    == resource_id
-                )
-                .all()
-            )
-            self.verify_and_commit()
-            return self.success(data=annotations)
+                ]
+                self.verify_and_commit()
+                return self.success(data=annotations)
 
         try:
             annotation_id = int(annotation_id)

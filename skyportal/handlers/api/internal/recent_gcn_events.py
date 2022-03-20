@@ -1,7 +1,7 @@
 from sqlalchemy.orm import joinedload
 from baselayer.app.access import auth_or_token
 from ...base import BaseHandler
-from ....models import GcnEvent
+from ....models import DBSession, GcnEvent
 
 default_prefs = {'maxNumGcnEvents': 10}
 
@@ -33,17 +33,19 @@ class RecentGcnEventsHandler(BaseHandler):
             if 'maxNumEvents' in recent_events_prefs
             else 5
         )
-        q = (
-            GcnEvent.query_records_accessible_by(
-                self.current_user,
-                options=[joinedload(GcnEvent.localizations)],
-            )
-            .order_by(GcnEvent.dateobs.desc())
-            .limit(max_num_events)
-        )
 
-        events = []
-        for event in q.all():
-            events.append({**event.to_dict(), "tags": event.tags})
+        with DBSession() as session:
+            q = session.execute(
+                GcnEvent.query_records_accessible_by(
+                    self.current_user,
+                    options=[joinedload(GcnEvent.localizations)],
+                )
+                .order_by(GcnEvent.dateobs.desc())
+                .limit(max_num_events)
+            ).unique()
+
+            events = []
+            for (event,) in q.all():
+                events.append({**event.to_dict(), "tags": event.tags})
 
         return self.success(data=events)

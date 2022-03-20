@@ -64,4 +64,5 @@ class Classification(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="Groups that can access this Classification.",
+        lazy='subquery',
     )
