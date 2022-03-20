@@ -1,5 +1,6 @@
 from tdtax import schema, validate
 from jsonschema.exceptions import ValidationError as JSONValidationError
+import sqlalchemy as sa
 
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -55,13 +56,14 @@ class TaxonomyHandler(BaseHandler):
 
             return self.success(data=taxonomy[0])
 
-        query = Taxonomy.query.filter(
-            Taxonomy.groups.any(
-                Group.id.in_([g.id for g in self.current_user.accessible_groups])
+        with DBSession() as session:
+            query = sa.select(Taxonomy).where(
+                Taxonomy.groups.any(
+                    Group.id.in_([g.id for g in self.current_user.accessible_groups])
+                )
             )
-        )
-        self.verify_and_commit()
-        return self.success(data=query.all())
+            self.verify_and_commit()
+            return self.success(data=[t for t, in session.execute(query).all()])
 
     @permissions(['Post taxonomy'])
     def post(self):

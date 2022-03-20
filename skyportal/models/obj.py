@@ -399,8 +399,12 @@ class Obj(Base, conesearch_alchemy.Point):
         """UTC ISO date at which the object was detected at peak magnitude above a given S/N (3.0 by default)."""
         detections = [
             (phot.iso, phot.mag)
-            for phot in Photometry.query_records_accessible_by(user)
-            .filter(Photometry.obj_id == self.id)
+            for phot, in DBSession()
+            .execute(
+                Photometry.query_records_accessible_by(user).filter(
+                    Photometry.obj_id == self.id
+                )
+            )
             .all()
             if phot.snr is not None and phot.snr > PHOT_DETECTION_THRESHOLD
         ]

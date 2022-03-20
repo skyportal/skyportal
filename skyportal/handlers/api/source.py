@@ -801,7 +801,7 @@ class SourceHandler(BaseHandler):
                     .where(Obj.id != s.id)
                 ).all()
                 if len(duplicates) > 0:
-                    source_info["duplicates"] = [dup.id for dup in duplicates]
+                    source_info["duplicates"] = [dup.id for dup, in duplicates]
                 else:
                     source_info["duplicates"] = None
 
@@ -1438,75 +1438,91 @@ class SourceHandler(BaseHandler):
                     (obj,) = result
 
                 if annotations_filter is not None:
-                    if annotations_filter_origin is not None:
-                        annotations = (
-                            Annotation.query_records_accessible_by(self.current_user)
-                            .filter(Annotation.obj_id == obj.id)
-                            .filter(Annotation.origin.in_(annotations_filter_origin))
-                            .all()
-                        )
-                    else:
-                        annotations = (
-                            Annotation.query_records_accessible_by(self.current_user)
-                            .filter(Annotation.obj_id == obj.id)
-                            .all()
-                        )
-
-                    passes_filter = True
-                    for ann_filt in annotations_filter:
-                        ann_split = ann_filt.split(":")
-                        if not (len(ann_split) == 1 or len(ann_split) == 3):
-                            return self.error(
-                                "Invalid annotationsFilter value -- annotation filter must have 1 or 3 values"
-                            )
-                        name = ann_split[0].strip()
-                        if len(ann_split) == 3:
-                            value = ann_split[1].strip()
-                            try:
-                                value = float(value)
-                            except ValueError as e:
-                                return self.error(
-                                    f"Invalid annotation filter value: {e}"
+                    with DBSession() as session:
+                        if annotations_filter_origin is not None:
+                            annotations = [
+                                a
+                                for a, in (
+                                    session.execute(
+                                        Annotation.query_records_accessible_by(
+                                            self.current_user
+                                        )
+                                        .where(Annotation.obj_id == obj.id)
+                                        .where(
+                                            Annotation.origin.in_(
+                                                annotations_filter_origin
+                                            )
+                                        )
+                                    ).all()
                                 )
-                            op = ann_split[2].strip()
-                        # first check that the name is present
-                        name_present = [
-                            isinstance(an.data, dict) and name in an.data
-                            for an in annotations
-                        ]
-                        name_check = any(name_present)
+                            ]
+                        else:
+                            annotations = [
+                                a
+                                for a, in (
+                                    session.execute(
+                                        Annotation.query_records_accessible_by(
+                                            self.current_user
+                                        ).where(Annotation.obj_id == obj.id)
+                                    ).all()
+                                )
+                            ]
 
-                        # fails the filter if name is not present
-                        if not name_check:
-                            passes_filter = False
-                            break
-                        if len(ann_split) == 3:
-                            index = name_present.index(True)
-                            data_value = annotations[index].data[name]
+                        passes_filter = True
+                        for ann_filt in annotations_filter:
+                            ann_split = ann_filt.split(":")
+                            if not (len(ann_split) == 1 or len(ann_split) == 3):
+                                return self.error(
+                                    "Invalid annotationsFilter value -- annotation filter must have 1 or 3 values"
+                                )
+                            name = ann_split[0].strip()
+                            if len(ann_split) == 3:
+                                value = ann_split[1].strip()
+                                try:
+                                    value = float(value)
+                                except ValueError as e:
+                                    return self.error(
+                                        f"Invalid annotation filter value: {e}"
+                                    )
+                                op = ann_split[2].strip()
+                            # first check that the name is present
+                            name_present = [
+                                isinstance(an.data, dict) and name in an.data
+                                for an in annotations
+                            ]
+                            name_check = any(name_present)
 
-                            op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
-                            if op not in op_options:
-                                return self.error(f"Invalid operator: {op}")
-
-                            if op == "lt":
-                                comp_function = operator.lt
-                            elif op == "le":
-                                comp_function = operator.le
-                            elif op == "eq":
-                                comp_function = operator.eq
-                            elif op == "ne":
-                                comp_function = operator.ne
-                            elif op == "ge":
-                                comp_function = operator.ge
-                            elif op == "gt":
-                                comp_function = operator.gt
-                            comp_check = comp_function(data_value, value)
-                            if not comp_check:
+                            # fails the filter if name is not present
+                            if not name_check:
                                 passes_filter = False
                                 break
+                            if len(ann_split) == 3:
+                                index = name_present.index(True)
+                                data_value = annotations[index].data[name]
 
-                    if not passes_filter:
-                        continue
+                                op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                                if op not in op_options:
+                                    return self.error(f"Invalid operator: {op}")
+
+                                if op == "lt":
+                                    comp_function = operator.lt
+                                elif op == "le":
+                                    comp_function = operator.le
+                                elif op == "eq":
+                                    comp_function = operator.eq
+                                elif op == "ne":
+                                    comp_function = operator.ne
+                                elif op == "ge":
+                                    comp_function = operator.ge
+                                elif op == "gt":
+                                    comp_function = operator.gt
+                                comp_check = comp_function(data_value, value)
+                                if not comp_check:
+                                    passes_filter = False
+                                    break
+
+                        if not passes_filter:
+                            continue
                 obj_list.append(obj.to_dict())
 
                 if include_comments:
@@ -2088,13 +2104,19 @@ class SourceOffsetsHandler(BaseHandler):
         initial_pos = (source.ra, source.dec)
 
         try:
-            best_ra, best_dec = _calculate_best_position_for_offset_stars(
-                Photometry.query_records_accessible_by(self.current_user)
-                .filter(Photometry.obj_id == source.id)
-                .all(),
-                fallback=(initial_pos[0], initial_pos[1]),
-                how="snr2",
-            )
+            with DBSession() as session:
+                best_ra, best_dec = _calculate_best_position_for_offset_stars(
+                    [
+                        p
+                        for p, in session.execute(
+                            Photometry.query_records_accessible_by(
+                                self.current_user
+                            ).filter(Photometry.obj_id == source.id)
+                        ).all()
+                    ],
+                    fallback=(initial_pos[0], initial_pos[1]),
+                    how="snr2",
+                )
         except JSONDecodeError:
             self.push_notification(
                 'Source position using photometry points failed.'

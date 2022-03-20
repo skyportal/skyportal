@@ -2,7 +2,7 @@ from skyportal.handlers import BaseHandler
 from baselayer.app.access import auth_or_token
 import jsonschema
 
-from ...models import FollowupRequest, Instrument, Allocation
+from ...models import DBSession, FollowupRequest, Instrument, Allocation
 from ... import facility_apis, enum_types
 
 
@@ -22,27 +22,34 @@ class FacilityMessageHandler(BaseHandler):
             raise_if_none=True,
             mode='update',
         )
-        instrument = (
-            Instrument.query_records_accessible_by(self.current_user)
-            .join(Allocation)
-            .join(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .first()
-        )
+        with DBSession() as session:
+            instrument = session.execute(
+                Instrument.query_records_accessible_by(self.current_user)
+                .join(Allocation)
+                .join(FollowupRequest)
+                .where(FollowupRequest.id == request.id)
+            ).first()
 
-        if instrument.listener_classname is None:
-            return self.error(
-                'The instrument associated with this request does not have a Listener API.'
-            )
+            if instrument is None:
+                return self.error(
+                    'The instrument associated with this request does not exist.'
+                )
+            else:
+                (instrument,) = instrument
 
-        acl_id = instrument.listener_class.get_acl_id()
+            if instrument.listener_classname is None:
+                return self.error(
+                    'The instrument associated with this request does not have a Listener API.'
+                )
 
-        if acl_id not in user.permissions and acl_id is not None:
-            return self.error('Insufficient permissions.')
+            acl_id = instrument.listener_class.get_acl_id()
 
-        jsonschema.validate(data, instrument.listener_class.complete_schema())
-        instrument.listener_class.process_message(self)
-        self.verify_and_commit()
+            if acl_id not in user.permissions and acl_id is not None:
+                return self.error('Insufficient permissions.')
+
+            jsonschema.validate(data, instrument.listener_class.complete_schema())
+            instrument.listener_class.process_message(self)
+            self.verify_and_commit()
 
         self.push_all(
             action="skyportal/REFRESH_SOURCE",

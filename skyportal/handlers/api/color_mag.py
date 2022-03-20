@@ -3,6 +3,7 @@ from baselayer.app.access import auth_or_token
 from ..base import BaseHandler
 
 from ...models import (
+    DBSession,
     Obj,
     Annotation,
 )
@@ -237,33 +238,37 @@ class ObjColorMagHandler(BaseHandler):
         if obj is None:
             return self.error('Invalid object id.')
 
-        annotations = (
-            Annotation.query_records_accessible_by(self.current_user)
-            .filter(Annotation.obj_id == obj_id)
-            .all()
-        )
+        with DBSession() as session:
+            annotations = [
+                a
+                for a, in session.execute(
+                    Annotation.query_records_accessible_by(self.current_user).where(
+                        Annotation.obj_id == obj_id
+                    )
+                ).all()
+            ]
 
-        catalog = self.get_query_argument('catalog', None)  # "GAIA"
-        mag_key = self.get_query_argument('apparentMagKey', None)  # "Mag_G"
-        parallax_key = self.get_query_argument('parallaxKey', None)  # "Plx"
-        absorption_key = self.get_query_argument('absorptionKey', None)  # "A_G"
-        abs_mag_key = self.get_query_argument('absoluteMagKey', None)  # None
-        blue_mag_key = self.get_query_argument('blueMagKey', None)  # "Mag_Bp"
-        red_mag_key = self.get_query_argument('redMagKey', None)  # "Mag_Rp"
-        color_key = self.get_query_argument('colorKey', None)  # None
+            catalog = self.get_query_argument('catalog', None)  # "GAIA"
+            mag_key = self.get_query_argument('apparentMagKey', None)  # "Mag_G"
+            parallax_key = self.get_query_argument('parallaxKey', None)  # "Plx"
+            absorption_key = self.get_query_argument('absorptionKey', None)  # "A_G"
+            abs_mag_key = self.get_query_argument('absoluteMagKey', None)  # None
+            blue_mag_key = self.get_query_argument('blueMagKey', None)  # "Mag_Bp"
+            red_mag_key = self.get_query_argument('redMagKey', None)  # "Mag_Rp"
+            color_key = self.get_query_argument('colorKey', None)  # None
 
-        output = get_color_mag(
-            annotations,
-            catalog=catalog,
-            apparentMagKey=mag_key,
-            parallaxKey=parallax_key,
-            absorptionKey=absorption_key,
-            absoluteMagKey=abs_mag_key,
-            blueMagKey=blue_mag_key,
-            redMagKey=red_mag_key,
-            colorKey=color_key,
-        )
+            output = get_color_mag(
+                annotations,
+                catalog=catalog,
+                apparentMagKey=mag_key,
+                parallaxKey=parallax_key,
+                absorptionKey=absorption_key,
+                absoluteMagKey=abs_mag_key,
+                blueMagKey=blue_mag_key,
+                redMagKey=red_mag_key,
+                colorKey=color_key,
+            )
 
-        self.verify_and_commit()
+            self.verify_and_commit()
 
-        return self.success(data=output)
+            return self.success(data=output)
