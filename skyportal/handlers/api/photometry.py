@@ -830,10 +830,14 @@ class PhotometryHandler(BaseHandler):
                 session.execute(
                     f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
                 )
-                new_photometry_query = session.execute(
-                    sa.select(values_table.c.pdidx)
-                    .outerjoin(Photometry, condition)
-                    .filter(Photometry.id.is_(None))
+                new_photometry_query = (
+                    session.execute(
+                        sa.select(values_table.c.pdidx)
+                        .outerjoin(Photometry, condition)
+                        .filter(Photometry.id.is_(None))
+                    )
+                    .unique()
+                    .all()
                 )
 
                 new_photometry_df_idxs = [g[0] for g in new_photometry_query]
@@ -1191,9 +1195,13 @@ class PhotometryRangeHandler(BaseHandler):
             group_phot_subquery, Photometry.id == group_phot_subquery.c.photometr_id
         )
 
-        output = [serialize(p, magsys, format) for p in query]
-        self.verify_and_commit()
-        return self.success(data=output)
+        with DBSession() as session:
+            output = [
+                serialize(p, magsys, format)
+                for p, in session.execute(query).unique().all()
+            ]
+            self.verify_and_commit()
+            return self.success(data=output)
 
 
 PhotometryHandler.get.__doc__ = f"""

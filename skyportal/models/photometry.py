@@ -106,6 +106,7 @@ class Photometry(conesearch_alchemy.Point, Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc="Streams associated with this Photometry.",
+        lazy='subquery',
     )
     instrument_id = sa.Column(
         sa.ForeignKey('instruments.id', ondelete='CASCADE'),
