@@ -22,8 +22,6 @@ def test_super_user_post_allocation(sedm, public_group, super_admin_token):
     assert status == 200
     assert data['status'] == 'success'
 
-    print(data['data'])
-
     for key in request_data:
         assert data['data'][key] == request_data[key]
 
