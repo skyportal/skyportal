@@ -7,14 +7,18 @@ import humanize
 from marshmallow.exceptions import ValidationError
 import numpy as np
 import pandas as pd
+from regions import Regions
+import requests
 import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
+import urllib
 from astropy.time import Time
 from io import StringIO
 
 from baselayer.app.flow import Flow
+from baselayer.app.env import load_env
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -30,6 +34,10 @@ from ...models import (
 )
 
 from ...models.schema import ObservationExternalAPIHandlerPost
+from .instrument import add_tiles
+
+env, cfg = load_env()
+TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
 log = make_log('api/observation')
 
@@ -56,13 +64,26 @@ def add_observations(instrument_id, obstable):
      """
 
     session = Session()
+    # if the fields do not yet exist, we need to add them
+    if ('RA' in obstable) and ('Dec' in obstable) and not ('field_id' in obstable):
+        instrument = session.query(Instrument).get(instrument_id)
+        regions = Regions.parse(instrument.region, format='ds9')
+        field_data = obstable[['RA', 'Dec']]
+        field_ids = add_tiles(
+            instrument.id, instrument.name, regions, field_data, session=session
+        )
+        obstable['field_id'] = field_ids
+
     try:
         observations = []
         for index, row in obstable.iterrows():
             field_id = int(row["field_id"])
             field = (
                 session.query(InstrumentField)
-                .filter_by(instrument_id=instrument_id, field_id=field_id)
+                .filter(
+                    InstrumentField.instrument_id == instrument_id,
+                    InstrumentField.field_id == field_id,
+                )
                 .first()
             )
             if field is None:
@@ -119,6 +140,7 @@ def get_observations(
     localization_name=None,
     localization_cumprob=0.95,
     return_statistics=False,
+    includeGeoJSON=False,
 ):
     """Query
     Parameters
@@ -150,6 +172,8 @@ def get_observations(
     return_statistics: bool
         Boolean indicating whether to include integrated probability and area.
         Defaults to false.
+    includeGeoJSON: bool
+                Boolean indicating whether to include associated GeoJSON fields. Defaults to false.
     Returns
     -------
     dict
@@ -161,12 +185,36 @@ def get_observations(
             Area covered in square degrees
     """
 
+    if return_statistics and localization_dateobs is None:
+        raise ValueError(
+            'localization_dateobs must be specified if return_statistics=True'
+        )
+
+    if includeGeoJSON:
+        options = (
+            [
+                joinedload(ExecutedObservation.instrument).joinedload(
+                    Instrument.telescope
+                ),
+                joinedload(ExecutedObservation.field).undefer(
+                    InstrumentField.contour_summary
+                ),
+            ],
+        )
+    else:
+        options = (
+            [
+                joinedload(ExecutedObservation.instrument).joinedload(
+                    Instrument.telescope
+                ),
+                joinedload(ExecutedObservation.field),
+            ],
+        )
+
     obs_query = ExecutedObservation.query_records_accessible_by(
         user,
         mode="read",
-        options=[
-            joinedload(ExecutedObservation.instrument).joinedload(Instrument.telescope)
-        ],
+        options=options,
     )
 
     obs_query = obs_query.filter(ExecutedObservation.obstime >= start_date)
@@ -323,16 +371,49 @@ def get_observations(
             intprob = DBSession().execute(query_prob).scalar_one()
             intarea = DBSession().execute(query_area).scalar_one()
 
+            if intprob is None:
+                intprob = 0.0
+            if intarea is None:
+                intarea = 0.0
+
     observations = obs_query.all()
 
-    if return_statistics:
-        data = {
-            "observations": [o.to_dict() for o in observations],
-            "probability": intprob,
-            "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees
-        }
+    if includeGeoJSON:
+        # features are JSON representations that the d3 stuff understands.
+        # We use these to render the contours of the sky localization and
+        # locations of the transients.
+
+        geojson = []
+        fields_in = []
+        for ii, observation in enumerate(observations):
+            if observation.instrument_field_id not in fields_in:
+                fields_in.append(observation.instrument_field_id)
+                geojson.append(observation.field.contour_summary)
+            else:
+                continue
+
+        if return_statistics:
+            data = {
+                "observations": [o.to_dict() for o in observations],
+                "probability": intprob,
+                "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees,
+                "geojson": geojson,
+            }
+        else:
+            data = {
+                "observations": [o.to_dict() for o in observations],
+                "geojson": geojson,
+            }
+
     else:
-        data = observations
+        if return_statistics:
+            data = {
+                "observations": [o.to_dict() for o in observations],
+                "probability": intprob,
+                "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees
+            }
+        else:
+            data = {"observations": [o.to_dict() for o in observations]}
 
     return data
 
@@ -396,19 +477,38 @@ class ObservationHandler(BaseHandler):
         if instrument is None:
             return self.error(message=f"Missing instrument {instrument_name}")
 
-        if not all(
-            k in observation_data
-            for k in [
-                'observation_id',
-                'field_id',
-                'obstime',
-                'filter',
-                'exposure_time',
-            ]
+        unique_keys = set(list(observation_data.keys()))
+        field_id_keys = {
+            'observation_id',
+            'field_id',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        radec_keys = {
+            'observation_id',
+            'RA',
+            'Dec',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
+            unique_keys
         ):
             return self.error(
-                "observation_id, field_id, obstime, filter, and exposure_time required in observation_data."
+                "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
             )
+
+        if (
+            ('RA' in observation_data)
+            and ('Dec' in observation_data)
+            and not ('field_id' in observation_data)
+        ):
+            if instrument.region is None:
+                return self.error(
+                    "instrument.region must not be None if providing only RA and Dec."
+                )
 
         for filt in observation_data["filter"]:
             if filt not in instrument.filters:
@@ -502,6 +602,14 @@ class ObservationHandler(BaseHandler):
                 type: boolean
               description: |
                 Boolean indicating whether to include integrated probability and area. Defaults to false.
+            - in: query
+              name: includeGeoJSON
+              nullable: true
+              schema:
+                type: boolean
+              description: |
+                Boolean indicating whether to include associated GeoJSON. Defaults to
+                false.
           responses:
             200:
               content:
@@ -522,6 +630,8 @@ class ObservationHandler(BaseHandler):
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         return_statistics = self.get_query_argument("returnStatistics", False)
 
+        includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+
         if start_date is None:
             return self.error(message="Missing start_date")
 
@@ -541,6 +651,7 @@ class ObservationHandler(BaseHandler):
             localization_name=localization_name,
             localization_cumprob=localization_cumprob,
             return_statistics=return_statistics,
+            includeGeoJSON=includeGeoJSON,
         )
 
         return self.success(data=data)
@@ -636,19 +747,38 @@ class ObservationASCIIFileHandler(BaseHandler):
         except Exception as e:
             return self.error(f"Unable to read in observation file: {e}")
 
-        if not all(
-            k in observation_data
-            for k in [
-                'observation_id',
-                'field_id',
-                'obstime',
-                'filter',
-                'exposure_time',
-            ]
+        unique_keys = set(list(observation_data.keys()))
+        field_id_keys = {
+            'observation_id',
+            'field_id',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        radec_keys = {
+            'observation_id',
+            'RA',
+            'Dec',
+            'obstime',
+            'filter',
+            'exposure_time',
+        }
+        if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
+            unique_keys
         ):
             return self.error(
-                "observation_id, field_id, obstime, filter, and exposure_time required in observation_data."
+                "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
             )
+
+        if (
+            ('RA' in observation_data)
+            and ('Dec' in observation_data)
+            and not ('field_id' in observation_data)
+        ):
+            if instrument.region is None:
+                return self.error(
+                    "instrument.region must not be None if providing only RA and Dec."
+                )
 
         for filt in observation_data["filter"]:
             if filt not in instrument.filters:
@@ -688,6 +818,13 @@ class ObservationGCNHandler(BaseHandler):
           tags:
             - observations
           parameters:
+            - in: path
+              name: instrument_id
+              required: true
+              schema:
+                type: string
+              description: |
+                ID for the instrument to submit
             - in: query
               name: startDate
               required: true
@@ -786,9 +923,9 @@ class ObservationGCNHandler(BaseHandler):
             return self.error('Need at least one observation to produce a GCN')
 
         start_observation = astropy.time.Time(
-            min([obs["obstime"] for obs in observations]), format='datetime'
+            min(obs["obstime"] for obs in observations), format='datetime'
         )
-        unique_filters = list(set([obs["filt"] for obs in observations]))
+        unique_filters = list({obs["filt"] for obs in observations})
         total_time = sum(obs["exposure_time"] for obs in observations)
         probability = data["probability"]
         area = data["area"]
@@ -874,3 +1011,270 @@ class ObservationExternalAPIHandler(BaseHandler):
             )
         except Exception as e:
             return self.error(f"Error in querying instrument API: {e}")
+
+
+class ObservationTreasureMapHandler(BaseHandler):
+    @auth_or_token
+    def post(self, instrument_id):
+        """
+        ---
+        description: Submit the observation plan to treasuremap.space
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: instrument_id
+            required: true
+            schema:
+              type: string
+            description: |
+              ID for the instrument to submit
+          - in: query
+            name: startDate
+            required: true
+            schema:
+              type: string
+            description: Filter by start date
+          - in: query
+            name: endDate
+            required: true
+            schema:
+              type: string
+            description: Filter by end date
+          - in: query
+            name: localizationDateobs
+            schema:
+              type: string
+            description: |
+              Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+              Each localization is associated with a specific GCNEvent by
+              the date the event happened, and this date is used as a unique
+              identifier. It can be therefore found as Localization.dateobs,
+              queried from the /api/localization endpoint or dateobs in the
+              GcnEvent page table.
+          - in: query
+            name: localizationName
+            schema:
+              type: string
+            description: |
+              Name of localization / skymap to use.
+              Can be found in Localization.localization_name queried from
+              /api/localization endpoint or skymap name in GcnEvent page
+              table.
+          - in: query
+            name: localizationCumprob
+            schema:
+              type: number
+            description: |
+              Cumulative probability up to which to include fields.
+              Defaults to 0.95.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        start_date = data.get('startDate')
+        end_date = data.get('endDate')
+        localization_dateobs = data.get('localizationDateobs', None)
+        localization_name = data.get('localizationName', None)
+        localization_cumprob = data.get("localizationCumprob", 0.95)
+
+        if start_date is None:
+            return self.error(message="Missing start_date")
+
+        if end_date is None:
+            return self.error(message="Missing end_date")
+
+        start_date = arrow.get(start_date.strip()).datetime
+        end_date = arrow.get(end_date.strip()).datetime
+
+        instrument = (
+            Instrument.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(Instrument.telescope),
+                ],
+            )
+            .filter(
+                Instrument.id == instrument_id,
+            )
+            .first()
+        )
+        if instrument is None:
+            return self.error(message=f"Invalid instrument ID {instrument_id}")
+
+        data = get_observations(
+            self.current_user,
+            start_date,
+            end_date,
+            telescope_name=instrument.telescope.name,
+            instrument_name=instrument.name,
+            localization_dateobs=localization_dateobs,
+            localization_name=localization_name,
+            localization_cumprob=localization_cumprob,
+            return_statistics=True,
+        )
+
+        observations = data["observations"]
+        if len(observations) == 0:
+            return self.error('Need at least one observation to send to Treasure Map')
+
+        event = (
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(GcnEvent.gcn_notices),
+                ],
+            )
+            .filter(GcnEvent.dateobs == localization_dateobs)
+            .first()
+        )
+        if event is None:
+            return self.error(
+                message=f"Invalid GcnEvent dateobs: {localization_dateobs}"
+            )
+
+        allocations = (
+            Allocation.query_records_accessible_by(self.current_user)
+            .filter(Allocation.instrument_id == instrument.id)
+            .all()
+        )
+
+        api_token = None
+        for allocation in allocations:
+            altdata = allocation.altdata
+            if altdata and 'TREASUREMAP_API_TOKEN' in altdata:
+                api_token = altdata['TREASUREMAP_API_TOKEN']
+        if not api_token:
+            raise self.error('Missing allocation information.')
+
+        graceid = event.graceid
+        payload = {"graceid": graceid, "api_token": api_token}
+
+        pointings = []
+        for obs in observations:
+            pointing = {}
+            pointing["ra"] = obs["field"].ra
+            pointing["dec"] = obs["field"].dec
+            pointing["band"] = obs["filt"]
+            pointing["instrumentid"] = 47  # str(instrument.treasuremap_id)
+            pointing["status"] = "completed"
+            pointing["time"] = Time(obs["obstime"], format='datetime').isot
+            pointing["depth"] = obs["limmag"]
+            pointing["depth_unit"] = "ab_mag"
+            pointings.append(pointing)
+        payload["pointings"] = pointings
+
+        url = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/pointings')
+        r = requests.post(url=url, json=payload)
+        r.raise_for_status()
+        request_json = r.json()
+        errors = request_json["ERRORS"]
+        if len(errors) > 0:
+            return self.error(f'TreasureMap upload failed: {errors}')
+        self.push_notification('TreasureMap upload succeeded')
+        return self.success()
+
+    @auth_or_token
+    def delete(self, instrument_id):
+        """
+        ---
+        description: Remove observations from treasuremap.space.
+        tags:
+          - observationplan_requests
+        parameters:
+          - in: path
+            name: instrument_id
+            required: true
+            schema:
+              type: string
+            description: |
+              ID for the instrument to submit
+          - in: query
+            name: localizationDateobs
+            schema:
+              type: string
+            description: |
+              Event time in ISO 8601 format (`YYYY-MM-DDTHH:MM:SS.sss`).
+              Each localization is associated with a specific GCNEvent by
+              the date the event happened, and this date is used as a unique
+              identifier. It can be therefore found as Localization.dateobs,
+              queried from the /api/localization endpoint or dateobs in the
+              GcnEvent page table.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        data = self.get_json()
+        localization_dateobs = data.get('localizationDateobs', None)
+
+        instrument = (
+            Instrument.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(Instrument.telescope),
+                ],
+            )
+            .filter(
+                Instrument.id == instrument_id,
+            )
+            .first()
+        )
+        if instrument is None:
+            return self.error(message=f"Invalid instrument ID {instrument_id}")
+
+        event = (
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+                options=[
+                    joinedload(GcnEvent.gcn_notices),
+                ],
+            )
+            .filter(GcnEvent.dateobs == localization_dateobs)
+            .first()
+        )
+        if event is None:
+            return self.error(
+                message=f"Invalid GcnEvent dateobs: {localization_dateobs}"
+            )
+
+        allocations = (
+            Allocation.query_records_accessible_by(self.current_user)
+            .filter(Allocation.instrument_id == instrument.id)
+            .all()
+        )
+
+        api_token = None
+        for allocation in allocations:
+            altdata = allocation.altdata
+            if altdata and 'TREASUREMAP_API_TOKEN' in altdata:
+                api_token = altdata['TREASUREMAP_API_TOKEN']
+        if not api_token:
+            raise self.error('Missing allocation information.')
+
+        graceid = event.graceid
+        payload = {
+            "graceid": graceid,
+            "api_token": api_token,
+            "instrumentid": instrument.treasuremap_id,
+        }
+
+        baseurl = urllib.parse.urljoin(TREASUREMAP_URL, 'api/v0/cancel_all')
+        url = f"{baseurl}?{urllib.parse.urlencode(payload)}"
+        r = requests.post(url=url)
+        r.raise_for_status()
+        request_text = r.text
+        if "successfully" not in request_text:
+            return self.error(f'TreasureMap delete failed: {request_text}')
+        self.push_notification(f'TreasureMap delete succeeded: {request_text}.')
+        return self.success()

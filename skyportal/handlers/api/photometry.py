@@ -853,8 +853,8 @@ class PhotometryHandler(BaseHandler):
 
                 for df_index, duplicate in duplicated_photometry:
                     id_map[df_index] = duplicate.id
-                    duplicate_group_ids = set([g.id for g in duplicate.groups])
-                    duplicate_stream_ids = set([s.id for s in duplicate.streams])
+                    duplicate_group_ids = {g.id for g in duplicate.groups}
+                    duplicate_stream_ids = {s.id for s in duplicate.streams}
 
                     # posting to new groups?
                     if len(set(group_ids) - duplicate_group_ids) > 0:

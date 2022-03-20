@@ -14,8 +14,10 @@ from skyportal.handlers.api import (
     ClassificationHandler,
     CommentHandler,
     CommentAttachmentHandler,
+    EnumTypesHandler,
     AnnotationHandler,
     DatalabQueryHandler,
+    IRSAQueryWISEHandler,
     FilterHandler,
     FollowupRequestHandler,
     FollowupRequestSchedulerHandler,
@@ -40,6 +42,7 @@ from skyportal.handlers.api import (
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
+    ObservationPlanGeoJSONHandler,
     PhotometryHandler,
     BulkDeletePhotometryHandler,
     ObjHandler,
@@ -47,6 +50,7 @@ from skyportal.handlers.api import (
     ObjClassificationHandler,
     ObservationHandler,
     ObservationGCNHandler,
+    ObservationTreasureMapHandler,
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
     PhotometryRangeHandler,
@@ -78,6 +82,7 @@ from skyportal.handlers.api import (
     UserHandler,
     UnsourcedFinderHandler,
     WeatherHandler,
+    VizierQueryHandler,
     PS1ThumbnailHandler,
 )
 from skyportal.handlers.api.internal import (
@@ -127,6 +132,7 @@ skyportal_handlers = [
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
+    (r'/api/enum_types(/.*)?', EnumTypesHandler),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
     (r'/api/followup_request/schedule(/[0-9]+)', FollowupRequestSchedulerHandler),
@@ -151,6 +157,7 @@ skyportal_handlers = [
     (r'/api/observation(/[0-9]+)?', ObservationHandler),
     (r'/api/observation/ascii(/[0-9]+)?', ObservationASCIIFileHandler),
     (r'/api/observation/gcn(/[0-9]+)', ObservationGCNHandler),
+    (r'/api/observation/treasuremap(/[0-9]+)', ObservationTreasureMapHandler),
     (r'/api/observation/external_api(/[0-9]+)?', ObservationExternalAPIHandler),
     (r'/api/observing_run(/[0-9]+)?', ObservingRunHandler),
     (r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)?', ObservationPlanRequestHandler),
@@ -169,6 +176,10 @@ skyportal_handlers = [
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/movie',
         ObservationPlanMovieHandler,
+    ),
+    (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/geojson',
+        ObservationPlanGeoJSONHandler,
     ),
     (r'/api/objs(/[0-9A-Za-z-_\.\+]+)', ObjHandler),
     (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
@@ -198,6 +209,8 @@ skyportal_handlers = [
         CommentAttachmentHandler,
     ),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/datalab', DatalabQueryHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/irsa', IRSAQueryWISEHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/vizier', VizierQueryHandler),
     (
         r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/annotations',
         AnnotationHandler,
@@ -353,7 +366,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     admin_token = model_util.provision_token()
     with open('.tokens.yaml', 'w') as f:
         f.write(f'INITIAL_ADMIN: {admin_token.id}\n')
-    with open('.tokens.yaml', 'r') as f:
+    with open('.tokens.yaml') as f:
         print('-' * 78)
         print('Tokens in .tokens.yaml:')
         print('\n'.join(f.readlines()), end='')

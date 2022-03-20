@@ -239,7 +239,10 @@ class GalaxyCatalogHandler(BaseHandler):
                     Feature(geometry=point, properties={"name": source_name})
                 )
 
-            query_results["geojson"] = features
+            query_results["geojson"] = {
+                'type': 'FeatureCollection',
+                'features': features,
+            }
 
         self.verify_and_commit()
         return self.success(data=query_results)
