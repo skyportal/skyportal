@@ -6,7 +6,6 @@ import dayjs from "dayjs";
 
 import CircularProgress from "@material-ui/core/CircularProgress";
 
-import VegaPlot from "./VegaPlot";
 import * as ephemerisActions from "../ducks/ephemeris";
 
 const airmassSpec = (url, ephemeris) => ({
@@ -186,7 +185,7 @@ export const AirMassPlotWithEphemURL = ({ dataUrl, ephemerisUrl }) => {
 };
 
 AirMassPlotWithEphemURL.propTypes = {
-  ...VegaPlot.propTypes,
+  dataUrl: PropTypes.string.isRequired,
   ephemerisUrl: PropTypes.string.isRequired,
 };
 

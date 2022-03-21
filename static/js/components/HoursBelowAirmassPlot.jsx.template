@@ -2,8 +2,6 @@ import React from "react";
 import embed from "vega-embed";
 import PropTypes from "prop-types";
 
-import VegaPlot from "./VegaPlot";
-
 const airmassSpec = (url) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   background: "transparent",
