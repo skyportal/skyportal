@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import * as photometryActions from "../ducks/photometry";
@@ -20,12 +20,23 @@ const VegaPlotWrapper = ({ sourceId, type }) => {
   const filters = photometry
     ? [...new Set(photometry.map((datum) => datum.filter))]
     : null;
-  const wavelengths = photometry
-    ? [...new Set(photometry.map((datum) => datum.filter_wavelength))]
-    : null;
+  const [wavelengths, setWavelengths] = useState([]);
+  useEffect(() => {
+    const getWavelengths = async () => {
+      const result = await dispatch(
+        photometryActions.fetchFilterWavelengths(filters)
+      );
+      if (result.status === "success") {
+        setWavelengths(wavelengthsToHex(result.data.wavelengths));
+      }
+    };
+    if (filters) {
+      getWavelengths();
+    }
+  }, [photometry]);
   const colorScale = {
     domain: filters,
-    range: wavelengths ? wavelengthsToHex(wavelengths) : [0, 1],
+    range: wavelengths,
   };
   const plot =
     type === "folded" ? (

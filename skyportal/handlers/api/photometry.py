@@ -34,8 +34,6 @@ from ...models import (
     StreamPhotometry,
 )
 
-from ... import plot
-
 from ...models.schema import (
     PhotometryMag,
     PhotometryFlux,
@@ -102,7 +100,6 @@ def serialize(phot, outsys, format):
         'ra': phot.ra,
         'dec': phot.dec,
         'filter': phot.filter,
-        'filter_wavelength': plot.get_effective_wavelength(phot.filter) / 10,
         'mjd': phot.mjd,
         'instrument_id': phot.instrument_id,
         'instrument_name': phot.instrument.name,
