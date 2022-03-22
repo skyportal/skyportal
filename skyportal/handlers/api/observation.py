@@ -74,8 +74,7 @@ def add_observations(instrument_id, obstable):
         )
         obstable['field_id'] = field_ids
 
-    # try:
-    if True:
+    try:
         observations = []
         for index, row in obstable.iterrows():
             field_id = int(row["field_id"])
@@ -133,10 +132,10 @@ def add_observations(instrument_id, obstable):
         flow.push('*', "skyportal/REFRESH_OBSERVATIONS")
 
         return log(f"Successfully added observations for instrument {instrument_id}")
-    # except Exception as e:
-    #    return log(f"Unable to add observations for instrument {instrument_id}: {e}")
-    # finally:
-    #    Session.remove()
+    except Exception as e:
+        return log(f"Unable to add observations for instrument {instrument_id}: {e}")
+    finally:
+        Session.remove()
 
 
 def get_observations(
