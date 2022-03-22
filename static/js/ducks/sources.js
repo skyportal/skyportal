@@ -48,6 +48,7 @@ const addFilterParamDefaults = (filterParams) => {
 
 export function fetchSources(filterParams = {}) {
   addFilterParamDefaults(filterParams);
+  console.log("filterParams", filterParams);
   return API.GET("/api/sources", FETCH_SOURCES, filterParams);
 }
 
