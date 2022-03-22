@@ -2089,3 +2089,30 @@ def test_token_user_retrieving_source_with_annotation_filter(
     assert status == 200
     assert data["status"] == "success"
     assert len(data["data"]["sources"]) == 0
+
+
+def test_add_source_redshift_provenance(
+    upload_data_token, view_only_token, public_group
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "redshift_provenance": "host-spectrum",
+            "transient": False,
+            "ra_dis": 2.3,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    assert np.isclose(data["data"]["redshift"], 3)
+    assert data["data"]["redshift_provenance"] == "host-spectrum"

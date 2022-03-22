@@ -82,14 +82,18 @@ def update_redshift_history_if_relevant(request_data, obj, user):
             redshift_history = []
         else:
             redshift_history = copy(obj.redshift_history)
-        redshift_history.append(
-            {
-                "set_by_user_id": user.id,
-                "set_at_utc": datetime.datetime.utcnow().isoformat(),
-                "value": request_data["redshift"],
-                "uncertainty": request_data.get("redshift_error", None),
-            }
-        )
+
+        history_params = {
+            "set_by_user_id": user.id,
+            "set_at_utc": datetime.datetime.utcnow().isoformat(),
+            "value": request_data["redshift"],
+            "uncertainty": request_data.get("redshift_error", None),
+        }
+
+        if "redshift_provenance" in request_data:
+            history_params["provenance"] = request_data["redshift_provenance"]
+
+        redshift_history.append(history_params)
         obj.redshift_history = redshift_history
 
 
