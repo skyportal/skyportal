@@ -338,8 +338,6 @@ def test_observation_isot(super_admin_token, view_only_token):
             nretries = nretries + 1
             time.sleep(3)
 
-    print(data['observations'])
-
     assert any(
         [
             d['obstime'] == '2019-04-25T08:18:18' and d['observation_id'] == 94434604
