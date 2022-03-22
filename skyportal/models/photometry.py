@@ -312,8 +312,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.series_identifier = str(series_id)
         self.series_obj_id = str(series_obj_id)
 
-        if len(data) == 0:
-            raise ValueError('Must supply a non-empty data structure.')
+        if len(data) == 0 or not isinstance(data, xr.Dataset):
+            raise ValueError('Must supply a non-empty Dataset.')
 
         # verify data has all required fields
         if 'fluxes' not in data and 'mags' not in data or 'mjds' not in data:
@@ -490,7 +490,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         (self.robust_mag, self.robust_rms) = self.sigma_clipping(self.mags)
 
         # if RA, Dec or exposure time are given in the auxiliary data:
-        for key in ['RA', 'ra']:
+        for key in ['RA', 'ra', 'Ra']:
             if key in self._data:
                 self.ra = self._data[key].median()
                 break
@@ -718,7 +718,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
     dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
 
-    altdata = sa.Column(JSONB, doc="Arbitrary metadata in JSON format..")
+    altdata = sa.Column(JSONB, doc="Arbitrary metadata in JSON format.")
 
     upload_id = sa.Column(
         sa.String,
