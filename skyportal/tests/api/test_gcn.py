@@ -16,6 +16,8 @@ def test_gcn_GW(super_admin_token, view_only_token):
     assert data['status'] == 'success'
 
     dateobs = "2019-04-25 08:18:05"
+    params = {"include2DMap": True}
+
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
     assert status == 200
     data = data["data"]
@@ -27,6 +29,7 @@ def test_gcn_GW(super_admin_token, view_only_token):
         'GET',
         f'localization/{dateobs}/name/{skymap}',
         token=super_admin_token,
+        params=params,
     )
 
     data = data["data"]
@@ -61,6 +64,8 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
     assert data['status'] == 'success'
 
     dateobs = "2018-01-16 00:36:53"
+    params = {"include2DMap": True}
+
     status, data = api('GET', f'gcn_event/{dateobs}', token=super_admin_token)
     assert status == 200
     data = data["data"]
@@ -72,6 +77,7 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
         'GET',
         f'localization/{dateobs}/name/{skymap}',
         token=super_admin_token,
+        params=params,
     )
 
     data = data["data"]

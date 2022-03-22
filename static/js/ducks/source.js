@@ -56,6 +56,10 @@ const SHARE_DATA = "skyportal/SHARE_DATA";
 
 const SEND_ALERT = "skyportal/SEND_ALERT";
 
+const FETCH_WISE = "skyportal/FETCH_WISE";
+
+const FETCH_VIZIER = "skyportal/FETCH_VIZIER";
+
 const CHECK_SOURCE = "skyportal/CHECK_SOURCE";
 
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
@@ -226,6 +230,12 @@ export const deleteAssignment = (id) =>
 
 export const sendAlert = (params) =>
   API.POST(`/api/source_notifications`, SEND_ALERT, params);
+
+export const fetchWise = (sourceID) =>
+  API.POST(`/api/sources/${sourceID}/annotations/irsa`, FETCH_WISE);
+
+export const fetchVizier = (sourceID) =>
+  API.POST(`/api/sources/${sourceID}/annotations/vizier`, FETCH_VIZIER);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

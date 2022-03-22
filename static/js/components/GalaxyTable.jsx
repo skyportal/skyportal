@@ -62,6 +62,10 @@ const GalaxyTable = ({ galaxies }) => {
   const classes = useStyles();
   const theme = useTheme();
 
+  if (!galaxies || galaxies.length === 0) {
+    return <p>No galaxies available...</p>;
+  }
+
   const renderRA = (dataIndex) => {
     const galaxy = galaxies[dataIndex];
     return galaxy.ra.toFixed(6);
@@ -249,8 +253,8 @@ GalaxyTable.propTypes = {
   galaxies: PropTypes.arrayOf(
     PropTypes.shape({
       catalog_name: PropTypes.string,
-      name: PropTypes.String,
-      alt_name: PropTypes.String,
+      name: PropTypes.string,
+      alt_name: PropTypes.string,
       ra: PropTypes.number,
       dec: PropTypes.number,
       distmpc: PropTypes.number,
@@ -266,7 +270,11 @@ GalaxyTable.propTypes = {
       pa: PropTypes.number,
       btc: PropTypes.number,
     })
-  ).isRequired,
+  ),
+};
+
+GalaxyTable.defaultProps = {
+  galaxies: null,
 };
 
 export default GalaxyTable;
