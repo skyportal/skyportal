@@ -10,12 +10,14 @@ import numpy as np
 import io
 from tornado.ioloop import IOLoop
 import functools
+import ligo.skymap
+from ligo.skymap.tool.ligo_skymap_plot_airmass import main as plot_airmass
+from ligo.skymap import plot  # noqa: F401
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.patches as mpatches
 import tempfile
-from ligo.skymap import plot  # noqa: F401
 import random
 
 from baselayer.app.access import auth_or_token
@@ -27,10 +29,11 @@ from ...models import (
     EventObservationPlan,
     GcnEvent,
     Group,
+    InstrumentField,
     Localization,
     ObservationPlanRequest,
     PlannedObservation,
-    InstrumentField,
+    Telescope,
 )
 
 from ...models.schema import ObservationPlanPost
@@ -882,3 +885,83 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
                 continue
 
         return self.success(data={'geojson': geojson})
+
+
+class ObservationPlanAirmassChartHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, localization_id, telescope_id):
+        """
+        ---
+        description: Get an airmass chart for the GcnEvent
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: localization_id
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: telescope_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        telescope = Telescope.get_if_accessible_by(
+            telescope_id,
+            self.current_user,
+            mode="read",
+            raise_if_none=True,
+        )
+        self.verify_and_commit()
+
+        localization = (
+            Localization.query_records_accessible_by(
+                self.current_user,
+            )
+            .filter(Localization.id == localization_id)
+            .first()
+        )
+
+        trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
+
+        output_format = 'pdf'
+        with tempfile.NamedTemporaryFile(
+            suffix='.fits'
+        ) as fitsfile, tempfile.NamedTemporaryFile(
+            suffix=f'.{output_format}'
+        ) as imgfile, matplotlib.style.context(
+            'default'
+        ):
+            ligo.skymap.io.write_sky_map(fitsfile.name, localization.table_2d, moc=True)
+            plot_airmass(
+                [
+                    '--site-longitude',
+                    str(telescope.lon),
+                    '--site-latitude',
+                    str(telescope.lat),
+                    '--site-height',
+                    str(telescope.elevation),
+                    '--time',
+                    trigger_time.isot,
+                    fitsfile.name,
+                    '-o',
+                    imgfile.name,
+                ]
+            )
+
+            with open(imgfile.name, mode='rb') as g:
+                content = g.read()
+
+        data = io.BytesIO(content)
+        filename = (
+            f"{localization.localization_name}-{telescope.nickname}.{output_format}"
+        )
+
+        await self.send_file(data, filename, output_type=output_format)
