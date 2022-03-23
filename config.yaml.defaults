@@ -184,14 +184,15 @@ app:
           url: /observations
 
     - name: Admin
+      permissions: ["Manage users", "System admin"]
       subitems:
         - name: DB Stats
           icon: Assessment
-          permissions: "System admin"
+          permissions: ["System admin"]
           url: /db_stats
         - name: User Management
           icon: Group
-          permissions: "Manage users"
+          permissions: ["Manage users", "System admin"]
           url: /user_management
 
 

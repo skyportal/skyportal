@@ -110,6 +110,7 @@ const useStyles = makeStyles((theme) => ({
   },
   menuTextContainer: {
     width: '8rem',
+    marginLeft: '0.4rem',
     overflow: 'hidden',
   }
 }));
@@ -180,12 +181,11 @@ const SidebarAndHeader = () => {
   {% macro add_items_to_menu(group) -%}
     {% for item in group.subitems -%}
     {% if item.permissions %}
-      {% if item.permissions.startswith("System admin") %}
-        {currentUser.permissions?.includes("System admin") && (
-      {% endif %}
-      {% if item.permissions.startswith("Manage users") %}
-        {(currentUser.permissions?.includes("System admin") || currentUser.permissions?.includes("Manage users")) && (
-      {% endif %}
+      {(
+      {% for permission in item.permissions %}
+        currentUser.permissions?.includes("{{ permission }}") ||
+      {% endfor %}
+      false) && (
     {% endif %}
     {% if item.url.startswith('http') -%}
     <a href="{{ item.url }}" className={classes.link}>
@@ -212,9 +212,13 @@ const SidebarAndHeader = () => {
     {%- endfor %}
   {%- endmacro %}
 
-  {% macro make_foldable_menu(group, display_only_for_admin) -%}
-    {% if display_only_for_admin %}
-    {(currentUser.permissions?.includes("System admin") || currentUser.permissions?.includes("Manage users")) && (
+  {% macro make_foldable_menu(group) -%}
+    {% if group.permissions %}
+      {(
+      {% for permission in group.permissions %}
+        currentUser.permissions?.includes("{{ permission }}") ||
+      {% endfor %}
+      false) && (
     {% endif %}
     <Accordion className={classes.dropdown}>
       <AccordionSummary
@@ -230,7 +234,7 @@ const SidebarAndHeader = () => {
         {{ add_items_to_menu(group) }}
       </AccordionDetails>
     </Accordion>
-    {% if display_only_for_admin %}
+    {% if group.permissions %}
     )}
     {% endif %}
   {%- endmacro %}
@@ -267,7 +271,7 @@ const SidebarAndHeader = () => {
           {% if group.name.startswith('main') %}
             {{ add_items_to_menu(group) }}
           {% else %}
-            {{ make_foldable_menu(group, group.name.startswith('Admin')) }}
+            {{ make_foldable_menu(group) }}
           {% endif %}
         {%- endfor %}
         </List>
