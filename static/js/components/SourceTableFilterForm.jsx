@@ -69,9 +69,6 @@ const useStyles = makeStyles((theme) => ({
   title: {
     margin: "0.5rem 0rem 0rem 0rem",
   },
-  spinner: {
-    marginTop: "1rem",
-  },
   multiSelect: {
     maxWidth: "100%",
     "& > div": {
