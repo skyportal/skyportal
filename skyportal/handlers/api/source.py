@@ -493,6 +493,18 @@ class SourceHandler(BaseHandler):
               Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching
               that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
           - in: query
+            name: nonclassifications
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: string
+            explode: false
+            style: simple
+            description: |
+              Comma-separated string of "taxonomy: classification" pair(s) to filter for sources NOT matching
+              that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
+          - in: query
             name: annotationsFilter
             nullable: true
             schema:
@@ -662,6 +674,7 @@ class SourceHandler(BaseHandler):
             "includeDetectionStats", False
         )
         classifications = self.get_query_argument("classifications", None)
+        nonclassifications = self.get_query_argument("nonclassifications", None)
         annotations_filter = self.get_query_argument("annotationsFilter", None)
         annotations_filter_origin = self.get_query_argument(
             "annotationsFilterOrigin", None
@@ -1221,6 +1234,56 @@ class SourceHandler(BaseHandler):
                     Obj.id == classification_subquery.c.obj_id,
                     isouter=True,
                 )
+        if nonclassifications is not None:
+            if isinstance(nonclassifications, str) and "," in nonclassifications:
+                nonclassifications = [c.strip() for c in nonclassifications.split(",")]
+            elif isinstance(nonclassifications, str):
+                nonclassifications = [nonclassifications]
+            else:
+                return self.error(
+                    "Invalid non-classifications value -- must provide at least one string value"
+                )
+            taxonomy_names, nonclassifications = list(
+                zip(
+                    *list(
+                        map(
+                            lambda c: (
+                                c.split(":")[0].strip(),
+                                c.split(":")[1].strip(),
+                            ),
+                            nonclassifications,
+                        )
+                    )
+                )
+            )
+            classification_accessible_query = (
+                Classification.query_records_accessible_by(self.current_user).subquery()
+            )
+
+            classification_query = (
+                DBSession()
+                .query(
+                    distinct(Classification.obj_id).label("obj_id"),
+                    Classification.classification,
+                )
+                .join(Taxonomy)
+                .filter(Classification.classification.notin_(nonclassifications))
+                .filter(Taxonomy.name.in_(taxonomy_names))
+            )
+            classification_subquery = classification_query.subquery()
+
+            # We join in the nonclassifications being filtered for first before
+            # the filter for accessible classifications to speed up the query
+            # (this way seems to help the query planner come to more optimal join
+            # strategies)
+            obj_query = obj_query.join(
+                classification_subquery,
+                Obj.id == classification_subquery.c.obj_id,
+            )
+            obj_query = obj_query.join(
+                classification_accessible_query,
+                Obj.id == classification_accessible_query.c.obj_id,
+            )
         if annotations_filter is not None:
             if isinstance(annotations_filter, str) and "," in annotations_filter:
                 annotations_filter = [c.strip() for c in annotations_filter.split(",")]

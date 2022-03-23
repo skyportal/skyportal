@@ -121,6 +121,9 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
   classifications = Array.from(new Set(classifications)).sort();
 
   const [selectedClassifications, setSelectedClassifications] = useState([]);
+  const [selectedNonClassifications, setSelectedNonClassifications] = useState(
+    []
+  );
 
   const { handleSubmit, register, control, reset } = useForm();
 
@@ -287,6 +290,60 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
               </Select>
             )}
             name="classifications"
+            control={control}
+            defaultValue={[]}
+          />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Non-Classifications
+          </Typography>
+          <Controller
+            render={({ onChange, value }) => (
+              <Select
+                labelId="classifications-select-label"
+                data-testid="classifications-select"
+                multiple
+                value={value}
+                onChange={(event) => {
+                  setSelectedNonClassifications(event.target.value);
+                  onChange(event.target.value);
+                }}
+                input={
+                  <Input
+                    className={classes.multiSelect}
+                    id="classifications-select"
+                  />
+                }
+                renderValue={(selected) => (
+                  <div className={classes.chips}>
+                    {selected.map((classification) => (
+                      <Chip
+                        key={classification}
+                        label={classification}
+                        className={classes.chip}
+                      />
+                    ))}
+                  </div>
+                )}
+                MenuProps={MenuProps}
+              >
+                {classifications.map((classification) => (
+                  <MenuItem
+                    key={classification}
+                    value={classification}
+                    style={getMultiselectStyles(
+                      classification,
+                      selectedNonClassifications,
+                      theme
+                    )}
+                  >
+                    {classification}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+            name="nonclassifications"
             control={control}
             defaultValue={[]}
           />

@@ -1416,6 +1416,20 @@ def test_sources_filter_by_classifications(
     )
     assert status == 200
 
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": obj_id2,
+            "classification": "AGN",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
     # Filter for sources with classification "Algol" - should only get obj_id1 back
     status, data = api(
         "GET",
@@ -1429,6 +1443,19 @@ def test_sources_filter_by_classifications(
     assert status == 200
     assert len(data["data"]["sources"]) == 1
     assert data["data"]["sources"][0]["id"] == obj_id1
+
+    # Filter for sources with nonclassification "Algol" - should at least get obj_id2 back
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "nonclassifications": f"{taxonomy_name}: Algol",
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert any([source["id"] == obj_id2 for source in data["data"]["sources"]])
 
 
 def test_sources_filter_by_redshift(upload_data_token, view_only_token, public_group):
