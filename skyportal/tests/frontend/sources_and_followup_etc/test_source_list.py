@@ -474,7 +474,8 @@ def test_filter_by_alias_and_origin(
     )
     origin_field.send_keys(str(uuid.uuid4()))
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        scroll_parent=True,
     )
 
     # Should no longer see the source
