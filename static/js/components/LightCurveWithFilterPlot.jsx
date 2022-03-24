@@ -7,7 +7,7 @@ import wavelengthsToHex from "../wavelengthConverter";
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
 
-const VegaPlotWrapper = ({ sourceId, type }) => {
+const LightCurveWithFilterPlot = ({ sourceId, type }) => {
   const dispatch = useDispatch();
   const photometry = useSelector((state) => state.photometry[sourceId]);
 
@@ -53,9 +53,9 @@ const VegaPlotWrapper = ({ sourceId, type }) => {
   return plot;
 };
 
-VegaPlotWrapper.propTypes = {
+LightCurveWithFilterPlot.propTypes = {
   sourceId: PropTypes.string.isRequired,
   type: PropTypes.string.isRequired,
 };
 
-export default VegaPlotWrapper;
+export default LightCurveWithFilterPlot;
