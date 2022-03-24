@@ -332,7 +332,7 @@ instrument:
     telescope_id: =PS1
     type: imager
     api_classname: PS1API
-    =id: PS1c
+    =id: PS1
     filters: ['ps1::open', 'ps1::g', 'ps1::r', 'ps1::i', 'ps1::z', 'ps1::y', 'ps1::w']
   - band: optical
     name: KAIT
