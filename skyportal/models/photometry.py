@@ -338,7 +338,23 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         # save an MD5 hash of the data to avoid duplications
         self.calc_hash()
 
-        keys = ['exp_time', 'frame_rate']
+        keys = [
+            'obj_id',
+            'instrument_id',
+            'filter',
+            'exp_time',
+            'frame_rate',
+            'ra',
+            'dec',
+            'ra_unc',
+            'dec_unc',
+            'channel_id',
+            'time_stamp_alignment',
+            'upload_id',
+            'followup_request_id',
+            'assignment_id',
+            'owner_id',
+        ]
         for k in keys:
             if k in kwargs:
                 setattr(self, k, kwargs[k])
