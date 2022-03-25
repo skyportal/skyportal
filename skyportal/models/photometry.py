@@ -1,4 +1,4 @@
-__all__ = ['Photometry', 'PHOT_ZP', 'PHOT_SYS']
+__all__ = ['Photometry', 'PhotometricSeries', 'PHOT_ZP', 'PHOT_SYS']
 import os
 import uuid
 import hashlib
@@ -19,7 +19,6 @@ from baselayer.app.env import load_env
 
 from ..enum_types import allowed_bandpasses, time_stamp_alignment_types
 from .group import accessible_by_groups_members, accessible_by_streams_members
-from ..utils.cache import array_to_bytes
 
 _, cfg = load_env()
 
@@ -269,7 +268,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     """
     A series of photometric measurements taken
     of the same object with the same telescope and filter,
-    continuously from mjd_start to mjd_end.
+    continuously from mjd_first to mjd_last.
 
     To initialize this function user must provide:
     - data: an xarray dataset.
@@ -308,11 +307,12 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     __tablename__ = 'photometric_series'
 
-    def __init__(self, data, series_id, series_obj_id):
-        self.series_identifier = str(series_id)
+    def __init__(self, data, series_identifier, series_obj_id, **kwargs):
+
+        self.series_identifier = str(series_identifier)
         self.series_obj_id = str(series_obj_id)
 
-        if len(data) == 0 or not isinstance(data, xr.Dataset):
+        if not isinstance(data, xr.Dataset) or len(data) == 0:
             raise ValueError('Must supply a non-empty Dataset.')
 
         # verify data has all required fields
@@ -320,11 +320,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             raise KeyError(
                 'Data input to photometric series must contain at least ["fluxes"|"mags"] and "mjds". '
             )
-
-        self.calc_hash()
-
-        # should we save at the intialization point or only when the row is added to the DB?
-        # self.save_data()
 
         # these can be lazy loaded from file
         self._data = data
@@ -339,6 +334,14 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         # figure out some of the summary statistics saved in the DB
         self.calculate_stats()
+
+        # save an MD5 hash of the data to avoid duplications
+        self.calc_hash()
+
+        keys = ['exp_time', 'frame_rate']
+        for k in keys:
+            if k in kwargs:
+                setattr(self, k, kwargs[k])
 
     @staticmethod
     def flux2mag(fluxes):
@@ -451,6 +454,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         elif 'magerr' in self._data:
             self._magerr = self._data['magerr']
             self._fluxerr = self.magerr2fluxerr(self._mags, self._magerr)
+        else:
+            self._magerr = np.array([])
+            self._fluxerr = np.array([])
+        self._mjds = self._data['mjds']
 
     def calculate_stats(self):
         """
@@ -465,6 +472,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         series MJD, the mean magnitude, the magnitude RMS,
         and the robust RMS using sigma-clipping.
         """
+        # calculate the mean mag, rms and robust median/rms
+        self.mean_mag = np.nanmean(self.mags)
+        self.rms_mag = np.nanstd(self.mags)
+        (self.robust_mag, self.robust_rms) = self.sigma_clipping(self.mags)
 
         # get the min/max/media for each column of data
         self.medians = {}
@@ -472,22 +483,18 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         self.maxima = {}
         self.stds = {}
         for key in self._data:
-            self.medians[key] = float(self._data.median('mjds'))
-            self.minima[key] = float(self._data.min('mjds'))
-            self.maxima[key] = float(self._data.max('mjds'))
-            self.stds[key] = float(self._data.std('mjds'))
+            self.medians[key] = float(self._data.mjds.median())
+            self.minima[key] = float(self._data.mjds.min())
+            self.maxima[key] = float(self._data.mjds.max())
+            self.stds[key] = float(self._data.mjds.std())
 
         self.mjd_first = self.mjds[0]
         self.mjd_last = self.mjds[-1]
-        self.mjd_mid = (self.mjd_start + self.mjd_end) / 2
+        self.mjd_mid = (self.mjd_first + self.mjd_last) / 2
         detection_indices = np.where(self.snr > PHOT_DETECTION_THRESHOLD)[0]
-        self.mjd_last_detected = self.mjd[detection_indices[-1]]
+        self.mjd_last_detected = self.mjds[detection_indices[-1]]
+        self.is_detected = len(detection_indices) > 0
         self.num_exp = len(self.mjds)
-
-        # calculate the mean mag, rms and robust median/rms
-        self.mean_mag = np.nanmean(self.mags)
-        self.rms_mag = np.nanstd(self.mags)
-        (self.robust_mag, self.robust_rms) = self.sigma_clipping(self.mags)
 
         # if RA, Dec or exposure time are given in the auxiliary data:
         for key in ['RA', 'ra', 'Ra']:
@@ -509,6 +516,11 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             if key in self._data:
                 self.exp_time = self._data[key].median()
                 break
+
+        dt = (
+            np.nanmedian(np.diff(self.mjds)) * 24 * 3600
+        )  # time between exposures, in seconds
+        self.frame_rate = 1 / dt
 
     @staticmethod
     def sigma_clipping(input_values, iterations=3, sigma=3.0):
@@ -571,7 +583,8 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
     def calc_hash(self):
         md5_hash = hashlib.md5()
-        md5_hash.update(array_to_bytes(np.array(self._data)))
+
+        md5_hash.update(self._data.to_netcdf())
         self.hash = md5_hash.hexdigest()
 
     def load_data(self):
@@ -664,7 +677,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
         index=True,
     )
 
-    detected = sa.Column(
+    is_detected = sa.Column(
         sa.Boolean,
         nullable=False,
         doc='True if any of the data points are above threshold.',
@@ -973,10 +986,10 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     @hybrid_property
     def snr(self):
         """Signal-to-noise ratio of each measurement"""
-        if self.fluxerr is not None and len(self.fluxerr) == len(self.flux):
+        if self.fluxerr is not None and np.all(self.fluxerr.shape == self.fluxes.shape):
             err = np.maximum(
                 self.fluxerr, self.robust_rms
             )  # assume the worst of the two errors
-            return self.flux / err
+            return self.fluxes / err
 
-        return self.flux / self.robust_rms
+        return self.fluxes / self.robust_rms
