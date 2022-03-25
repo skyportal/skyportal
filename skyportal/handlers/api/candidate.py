@@ -90,8 +90,8 @@ def update_redshift_history_if_relevant(request_data, obj, user):
             "uncertainty": request_data.get("redshift_error", None),
         }
 
-        if "redshift_provenance" in request_data:
-            history_params["provenance"] = request_data["redshift_provenance"]
+        if "redshift_origin" in request_data:
+            history_params["origin"] = request_data["redshift_origin"]
 
         redshift_history.append(history_params)
         obj.redshift_history = redshift_history

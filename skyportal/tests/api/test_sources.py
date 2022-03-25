@@ -2091,9 +2091,7 @@ def test_token_user_retrieving_source_with_annotation_filter(
     assert len(data["data"]["sources"]) == 0
 
 
-def test_add_source_redshift_provenance(
-    upload_data_token, view_only_token, public_group
-):
+def test_add_source_redshift_origin(upload_data_token, view_only_token, public_group):
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -2103,7 +2101,7 @@ def test_add_source_redshift_provenance(
             "ra": 234.22,
             "dec": -22.33,
             "redshift": 3,
-            "redshift_provenance": "host-spectrum",
+            "redshift_origin": "host-spectrum",
             "transient": False,
             "ra_dis": 2.3,
         },
@@ -2115,4 +2113,4 @@ def test_add_source_redshift_provenance(
     assert data["data"]["id"] == obj_id
 
     assert np.isclose(data["data"]["redshift"], 3)
-    assert data["data"]["redshift_provenance"] == "host-spectrum"
+    assert data["data"]["redshift_origin"] == "host-spectrum"
