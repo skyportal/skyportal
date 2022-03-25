@@ -221,6 +221,9 @@ class AnnotationHandler(BaseHandler):
         data = self.get_json()
         origin = data.get("origin")
 
+        if origin is None:
+            return self.error("origin must be specified")
+
         if not re.search(r'^\w+', origin):
             return self.error("Input `origin` must begin with alphanumeric/underscore")
 

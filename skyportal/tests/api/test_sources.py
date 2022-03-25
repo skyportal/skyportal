@@ -2114,3 +2114,51 @@ def test_add_source_redshift_origin(upload_data_token, view_only_token, public_g
 
     assert np.isclose(data["data"]["redshift"], 3)
     assert data["data"]["redshift_origin"] == "host-spectrum"
+
+
+def test_token_user_retrieving_source_with_comment_filter(
+    super_admin_token, public_source, public_source_two_groups, comment_token
+):
+
+    comment_text = str(uuid.uuid4())
+    comment_text_less = comment_text[:-4]
+
+    status, data = api(
+        'POST',
+        f'sources/{public_source.id}/comments',
+        data={
+            'text': comment_text,
+        },
+        token=comment_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'POST',
+        f'sources/{public_source_two_groups.id}/comments',
+        data={
+            'text': comment_text_less,
+        },
+        token=comment_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"commentsFilter": f"{comment_text_less}"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 2
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"commentsFilter": f"{comment_text}"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 1
