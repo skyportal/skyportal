@@ -15,8 +15,8 @@ def test_post_without_origin_fails(annotation_token, public_source, public_group
         token=annotation_token,
     )
 
-    assert status in [500, 401]
-    assert 'expected string or bytes-like object' in data["message"]
+    assert status in [400]
+    assert 'origin must be specified' in data["message"]
 
     # this should not work, since "origin" is empty
     status, data = api(

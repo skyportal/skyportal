@@ -368,6 +368,96 @@ const SourceTableFilterForm = ({ handleFilterSubmit }) => {
         </div>
         <div className={classes.formItem}>
           <Typography variant="subtitle2" className={classes.title}>
+            Comment
+          </Typography>
+          <TextField
+            size="small"
+            label="Comment"
+            type="text"
+            name="commentsFilter"
+            inputRef={register}
+            data-testid="comment-text"
+          />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Annotation
+          </Typography>
+          <TextField
+            size="small"
+            label="Annotation"
+            type="text"
+            name="annotationsFilter"
+            inputRef={register}
+            data-testid="annotation-text"
+          />
+        </div>
+        <div className={classes.formItem}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Comment Author
+          </Typography>
+          <TextField
+            size="small"
+            label="Comment Author"
+            type="text"
+            name="commentsFilterAuthor"
+            inputRef={register}
+            data-testid="comment-author-text"
+          />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Annotation Origin
+          </Typography>
+          <TextField
+            size="small"
+            label="Annotation Origin"
+            type="text"
+            name="annotationsFilterOrigin"
+            inputRef={register}
+            data-testid="annotation-origin-text"
+          />
+        </div>
+        <div className={classes.formItemRightColumn}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Comment Created (UTC)
+          </Typography>
+          <TextField
+            size="small"
+            label="Comment After"
+            name="commentsFilterAfter"
+            inputRef={register}
+            placeholder="2021-01-01T00:00:00"
+          />
+          <TextField
+            size="small"
+            label="Comment Before"
+            name="commentsFilterBefore"
+            inputRef={register}
+            placeholder="2021-01-01T00:00:00"
+          />
+        </div>
+        <div className={classes.formItem}>
+          <Typography variant="subtitle2" className={classes.title}>
+            Annotation Created (UTC)
+          </Typography>
+          <TextField
+            size="small"
+            label="Annotation After"
+            name="annotationsFilterAfter"
+            inputRef={register}
+            placeholder="2021-01-01T00:00:00"
+          />
+          <TextField
+            size="small"
+            label="Annotation Before"
+            name="annotationsFilterBefore"
+            inputRef={register}
+            placeholder="2021-01-01T00:00:00"
+          />
+        </div>
+        <div className={classes.formItem}>
+          <Typography variant="subtitle2" className={classes.title}>
             Latest Magnitude
           </Typography>
           <TextField
