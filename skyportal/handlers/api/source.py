@@ -1256,11 +1256,11 @@ class SourceHandler(BaseHandler):
                     )
                 )
             )
-            classification_accessible_query = (
+            classification_accessible_subquery = (
                 Classification.query_records_accessible_by(self.current_user).subquery()
             )
 
-            classification_query = (
+            nonclassification_query = (
                 DBSession()
                 .query(
                     distinct(Classification.obj_id).label("obj_id"),
@@ -1270,19 +1270,19 @@ class SourceHandler(BaseHandler):
                 .filter(Classification.classification.notin_(nonclassifications))
                 .filter(Taxonomy.name.in_(taxonomy_names))
             )
-            classification_subquery = classification_query.subquery()
+            nonclassification_subquery = nonclassification_query.subquery()
 
             # We join in the nonclassifications being filtered for first before
             # the filter for accessible classifications to speed up the query
             # (this way seems to help the query planner come to more optimal join
             # strategies)
             obj_query = obj_query.join(
-                classification_subquery,
-                Obj.id == classification_subquery.c.obj_id,
+                nonclassification_subquery,
+                Obj.id == nonclassification_subquery.c.obj_id,
             )
             obj_query = obj_query.join(
-                classification_accessible_query,
-                Obj.id == classification_accessible_query.c.obj_id,
+                classification_accessible_subquery,
+                Obj.id == classification_accessible_subquery.c.obj_id,
             )
         if annotations_filter is not None:
             if isinstance(annotations_filter, str) and "," in annotations_filter:
