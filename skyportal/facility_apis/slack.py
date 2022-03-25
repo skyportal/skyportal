@@ -143,7 +143,7 @@ class SLACKAPI(FollowUpAPI):
 
         DBSession().add(transaction)
 
-    def custom_json_schema(instrument):
+    def custom_json_schema(instrument, user):
 
         form_json_schema = {
             "type": "object",
