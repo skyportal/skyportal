@@ -534,7 +534,7 @@ class SourceHandler(BaseHandler):
             explode: false
             style: simple
             description: |
-              Comma-separated string of comments to filter for sources matching.
+              Comma-separated string of comment text to filter for sources matching.
           - in: query
             name: commentsFilterAuthor
             nullable: true
