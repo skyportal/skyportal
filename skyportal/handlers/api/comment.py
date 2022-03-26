@@ -1,5 +1,6 @@
 import string
 import base64
+from distutils.util import strtobool
 from marshmallow.exceptions import ValidationError
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import permissions, auth_or_token
@@ -8,7 +9,9 @@ from ...models import (
     DBSession,
     Comment,
     CommentOnSpectrum,
+    CommentOnGCN,
     Spectrum,
+    GcnEvent,
     Group,
     User,
     UserNotification,
@@ -46,18 +49,18 @@ class CommentHandler(BaseHandler):
                 type: string
               description: |
                  What underlying data the comment is on:
-                 "sources" or "spectra".
+                 "sources" or "spectra" or "gcn_event".
             - in: path
               name: resource_id
               required: true
               schema:
                 type: string
-                enum: [sources, spectra]
+                enum: [sources, spectra, gcn_event]
               description: |
-                 The ID of the source or spectrum
+                 The ID of the source, spectrum, or gcn_event
                  that the comment is posted to.
                  This would be a string for a source ID
-                 or an integer for a spectrum.
+                 or an integer for a spectrum or gcn_event
             - in: path
               name: comment_id
               required: true
@@ -79,6 +82,7 @@ class CommentHandler(BaseHandler):
             - comments
             - spectra
             - sources
+            - gcn_event
           parameters:
             - in: path
               name: associated_resource_type
@@ -88,7 +92,7 @@ class CommentHandler(BaseHandler):
                 enum: [sources]
               description: |
                  What underlying data the comment is on, e.g., "sources"
-                 or "spectra".
+                 or "spectra" or "gcn_event".
             - in: path
               name: resource_id
               required: true
@@ -97,7 +101,7 @@ class CommentHandler(BaseHandler):
               description: |
                  The ID of the underlying data.
                  This would be a string for a source ID
-                 or an integer for other data types like spectrum.
+                 or an integer for other data types like spectrum or gcn_event.
           responses:
             200:
               content:
@@ -119,6 +123,12 @@ class CommentHandler(BaseHandler):
                 comments = (
                     CommentOnSpectrum.query_records_accessible_by(self.current_user)
                     .filter(CommentOnSpectrum.spectrum_id == resource_id)
+                    .all()
+                )
+            elif associated_resource_type.lower() == "gcn_event":
+                comments = (
+                    CommentOnGCN.query_records_accessible_by(self.current_user)
+                    .filter(CommentOnGCN.gcn_id == resource_id)
                     .all()
                 )
             else:
@@ -151,7 +161,14 @@ class CommentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(comment.spectrum_id)
-
+        elif associated_resource_type.lower() == "gcn_event":
+            try:
+                comment = CommentOnGCN.get_if_accessible_by(
+                    comment_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(comment.gcn_id)
         # add more options using elif
         else:
             return self.error(
@@ -177,16 +194,16 @@ class CommentHandler(BaseHandler):
             required: true
             schema:
               type: string
-              enum: [sources, spectrum]
+              enum: [sources, spectrum, gcn_event]
             description: |
                What underlying data the comment is on:
-               "source" or "spectrum".
+               "source" or "spectrum" or "gcn_event".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
-              enum: [sources, spectra]
+              enum: [sources, spectra, gcn_event]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
@@ -300,6 +317,25 @@ class CommentHandler(BaseHandler):
                 bot=is_bot_request,
                 obj_id=spectrum.obj_id,
             )
+        elif associated_resource_type.lower() == "gcn_event":
+            gcnevent_id = resource_id
+            try:
+                gcn_event = GcnEvent.get_if_accessible_by(
+                    gcnevent_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error(
+                    f'Could not access GcnEvent {gcn_event.id}.', status=403
+                )
+            comment = CommentOnGCN(
+                text=comment_text,
+                gcn_id=gcn_event.id,
+                attachment_bytes=attachment_bytes,
+                attachment_name=attachment_name,
+                author=author,
+                groups=groups,
+                bot=is_bot_request,
+            )
         else:
             return self.error(f'Unknown resource type "{associated_resource_type}".')
 
@@ -320,17 +356,23 @@ class CommentHandler(BaseHandler):
             for user_mentioned in users_mentioned_in_comment:
                 self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
-        if comment.obj.id:  # comment on object, or object related resources
+        if isinstance(comment, CommentOnGCN):
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': comment.obj.internal_key},
+                action='skyportal/REFRESH_GCNEVENT',
+                payload={'gcnEvent_dateobs': comment.gcn.dateobs},
             )
+        else:
+            if comment.obj.id:  # comment on object, or object related resources
+                self.push_all(
+                    action='skyportal/REFRESH_SOURCE',
+                    payload={'obj_key': comment.obj.internal_key},
+                )
 
-        if isinstance(comment, CommentOnSpectrum):
-            self.push_all(
-                action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_internal_key': comment.obj.internal_key},
-            )
+            if isinstance(comment, CommentOnSpectrum):
+                self.push_all(
+                    action='skyportal/REFRESH_SOURCE_SPECTRA',
+                    payload={'obj_internal_key': comment.obj.internal_key},
+                )
 
         return self.success(data={'comment_id': comment.id})
 
@@ -347,21 +389,21 @@ class CommentHandler(BaseHandler):
             required: true
             schema:
               type: string
-              enum: [sources, spectrum]
+              enum: [sources, spectrum, gcn_event]
             description: |
                What underlying data the comment is on:
-               "sources" or "spectra".
+               "sources" or "spectra" or "gcn_event".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
-              enum: [sources, spectra]
+              enum: [sources, spectra, gcn_event]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
                This would be a string for an object ID
-               or an integer for a spectrum.
+               or an integer for a spectrum or gcn_event.
           - in: path
             name: comment_id
             required: true
@@ -417,6 +459,16 @@ class CommentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(c.spectrum_id)
+
+        elif associated_resource_type.lower() == "gcn_event":
+            schema = CommentOnGCN.__schema__()
+            try:
+                c = CommentOnGCN.get_if_accessible_by(
+                    comment_id, self.current_user, mode="update", raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(c.gcn_id)
 
         # add more options using elif
         else:
@@ -474,6 +526,11 @@ class CommentHandler(BaseHandler):
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_internal_key': c.obj.internal_key},
             )
+        if isinstance(c, CommentOnGCN):  # also update the spectrum
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE_GCN',
+                payload={'obj_internal_key': c.obj.internal_key},
+            )
 
         return self.success()
 
@@ -498,12 +555,12 @@ class CommentHandler(BaseHandler):
             required: true
             schema:
               type: string
-              enum: [sources, spectra]
+              enum: [sources, spectra, gcn_event]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
                This would be a string for a source ID
-               or an integer for a spectrum.
+               or an integer for a spectrum or gcn_event.
           - in: path
             name: comment_id
             required: true
@@ -538,6 +595,14 @@ class CommentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(c.spectrum_id)
+        elif associated_resource_type.lower() == "gcn_event":
+            try:
+                c = CommentOnGCN.get_if_accessible_by(
+                    comment_id, self.current_user, mode="delete", raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(c.gcn_id)
 
         # add more options using elif
         else:
@@ -545,7 +610,10 @@ class CommentHandler(BaseHandler):
                 f'Unsupported associated_resource_type "{associated_resource_type}".'
             )
 
-        obj_key = c.obj.internal_key
+        if isinstance(c, CommentOnGCN):
+            gcnevent_dateobs = c.gcn.dateobs
+        else:
+            obj_key = c.obj.internal_key
 
         if comment_resource_id_str != resource_id:
             return self.error(
@@ -555,16 +623,22 @@ class CommentHandler(BaseHandler):
         DBSession().delete(c)
         self.verify_and_commit()
 
-        if c.obj.id:  # comment on object, or object related resources
+        if isinstance(c, CommentOnGCN):  # also update the GcnEvent
             self.push_all(
-                action='skyportal/REFRESH_SOURCE',
-                payload={'obj_key': obj_key},
+                action='skyportal/REFRESH_GCNEVENT',
+                payload={'gcnEvent_dateobs': gcnevent_dateobs},
             )
-        if isinstance(c, CommentOnSpectrum):  # also update the spectrum
-            self.push_all(
-                action='skyportal/REFRESH_SOURCE_SPECTRA',
-                payload={'obj_internal_key': obj_key},
-            )
+        else:
+            if c.obj.id:  # comment on object, or object related resources
+                self.push_all(
+                    action='skyportal/REFRESH_SOURCE',
+                    payload={'obj_key': obj_key},
+                )
+            if isinstance(c, CommentOnSpectrum):  # also update the spectrum
+                self.push_all(
+                    action='skyportal/REFRESH_SOURCE_SPECTRA',
+                    payload={'obj_internal_key': obj_key},
+                )
 
         return self.success()
 
@@ -583,7 +657,7 @@ class CommentAttachmentHandler(BaseHandler):
             required: true
             schema:
               type: string
-              enum: [sources, spectrum]
+              enum: [sources, spectrum, gcn_event]
             description: |
                What underlying data the comment is on:
                "sources" or "spectra".
@@ -592,7 +666,7 @@ class CommentAttachmentHandler(BaseHandler):
             required: true
             schema:
               type: string
-              enum: [sources, spectra]
+              enum: [sources, spectra, gcn_event]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
@@ -640,7 +714,7 @@ class CommentAttachmentHandler(BaseHandler):
         except (TypeError, ValueError):
             return self.error("Must provide a valid (scalar integer) comment ID. ")
 
-        download = self.get_query_argument('download', True)
+        download = strtobool(self.get_query_argument('download', "True").lower())
 
         if associated_resource_type.lower() == "sources":
             try:
@@ -659,6 +733,16 @@ class CommentAttachmentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(comment.spectrum_id)
+
+        elif associated_resource_type.lower() == "gcn_event":
+            try:
+                comment = CommentOnGCN.get_if_accessible_by(
+                    comment_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(comment.gcn_id)
+
         # add more options using elif
         else:
             return self.error(

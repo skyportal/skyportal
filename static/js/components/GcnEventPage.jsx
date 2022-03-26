@@ -36,6 +36,7 @@ import Spinner from "./Spinner";
 import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 
+import CommentList from "./CommentList";
 import GcnTags from "./GcnTags";
 
 dayjs.extend(relativeTime);
@@ -59,6 +60,9 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     overflow: "hidden",
     flexDirection: "column",
+  },
+  comments: {
+    width: "100%",
   },
   columnItem: {
     marginBottom: theme.spacing(2),
@@ -456,6 +460,29 @@ const GcnEventPage = ({ route }) => {
               />
               <ObservationPlanRequestLists gcnEvent={gcnEvent} />
             </div>
+          </AccordionDetails>
+        </Accordion>
+      </div>
+      <div className={styles.columnItem}>
+        <Accordion
+          defaultExpanded
+          className={styles.comments}
+          data-testid="comments-accordion"
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            aria-controls="comments-content"
+            id="comments-header"
+          >
+            <Typography className={styles.accordionHeading}>
+              Comments
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <CommentList
+              associatedResourceType="gcn_event"
+              gcnEventID={gcnEvent.id}
+            />
           </AccordionDetails>
         </Accordion>
       </div>
