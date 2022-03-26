@@ -549,18 +549,18 @@ const CommentListMobile = ({
                         />
                       </div>
                       <span>
-                        {((attachment_name &&
-                          associatedResourceType === "object") ||
-                          associatedResourceType === "spectra") && (
-                          <CommentAttachmentPreview
-                            filename={attachment_name}
-                            objectID={spectrum_id || objID}
-                            commentId={id}
-                            associatedResourceType={
-                              spectrum_id ? "spectra" : "sources"
-                            }
-                          />
-                        )}
+                        {attachment_name &&
+                          (associatedResourceType === "object" ||
+                            associatedResourceType === "spectra") && (
+                            <CommentAttachmentPreview
+                              filename={attachment_name}
+                              objectID={spectrum_id || objID}
+                              commentId={id}
+                              associatedResourceType={
+                                spectrum_id ? "spectra" : "sources"
+                              }
+                            />
+                          )}
                         {attachment_name &&
                           associatedResourceType === "gcn_event" && (
                             <CommentAttachmentPreview
