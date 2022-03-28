@@ -90,8 +90,7 @@ class ShiftHandler(BaseHandler):
             .all()
         )
         # get the list of ids from the shift_admins list
-        shift_admins_ids = [e.id for e in shift_admins]
-        if self.current_user.id not in shift_admins_ids and not isinstance(
+        if self.current_user.id not in [e.id for e in shift_admins] and not isinstance(
             self.current_user, Token
         ):
             shift_admins.append(self.current_user)
