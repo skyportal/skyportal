@@ -1,7 +1,7 @@
 """shift users
 
 Revision ID: 7c814f8b0c31
-Revises: 7c814f8b0c31
+Revises: 1a43ee08a734
 Create Date: 2022-03-28 17:37:37.981454
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '7c814f8b0c31'
-down_revision = '7c814f8b0c31'
+down_revision = '1a43ee08a734'
 branch_labels = None
 depends_on = None
 
