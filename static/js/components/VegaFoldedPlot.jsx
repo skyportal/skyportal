@@ -202,8 +202,8 @@ const VegaFoldedPlot = React.memo((props) => {
 VegaFoldedPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,
   colorScale: PropTypes.shape({
-    domain: PropTypes.arrayOf(PropTypes.number),
-    range: PropTypes.arrayOf(PropTypes.number),
+    domain: PropTypes.arrayOf(PropTypes.string),
+    range: PropTypes.arrayOf(PropTypes.string),
   }).isRequired,
 };
 

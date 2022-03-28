@@ -56,7 +56,7 @@ const VegaPhotometry = ({ sourceId, folded = false }) => {
 
 VegaPhotometry.propTypes = {
   sourceId: PropTypes.string.isRequired,
-  type: PropTypes.string.isRequired,
+  folded: PropTypes.bool,
 };
 
 export default VegaPhotometry;
