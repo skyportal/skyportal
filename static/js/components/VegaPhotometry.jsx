@@ -7,7 +7,7 @@ import wavelengthsToHex from "../wavelengthConverter";
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
 
-const LightCurveWithFilterPlot = ({ sourceId, type }) => {
+const VegaPhotometry = ({ sourceId, folded = false }) => {
   const dispatch = useDispatch();
   const photometry = useSelector((state) => state.photometry[sourceId]);
 
@@ -24,7 +24,7 @@ const LightCurveWithFilterPlot = ({ sourceId, type }) => {
   useEffect(() => {
     const getWavelengths = async () => {
       const result = await dispatch(
-        photometryActions.fetchFilterWavelengths(filters)
+        photometryActions.fetchFilterWavelengths({ filters })
       );
       if (result.status === "success") {
         setWavelengths(wavelengthsToHex(result.data.wavelengths));
@@ -34,28 +34,29 @@ const LightCurveWithFilterPlot = ({ sourceId, type }) => {
       getWavelengths();
     }
   }, [photometry]);
+
   const colorScale = {
     domain: filters,
     range: wavelengths,
   };
-  const plot =
-    type === "folded" ? (
-      <VegaFoldedPlot
-        dataUrl={`/api/sources/${sourceId}/photometry?phaseFoldData=True`}
-        colorScale={colorScale}
-      />
-    ) : (
-      <VegaPlot
-        dataUrl={`/api/sources/${sourceId}/photometry`}
-        colorScale={colorScale}
-      />
-    );
+
+  const plot = folded ? (
+    <VegaFoldedPlot
+      dataUrl={`/api/sources/${sourceId}/photometry?phaseFoldData=True`}
+      colorScale={colorScale}
+    />
+  ) : (
+    <VegaPlot
+      dataUrl={`/api/sources/${sourceId}/photometry`}
+      colorScale={colorScale}
+    />
+  );
   return plot;
 };
 
-LightCurveWithFilterPlot.propTypes = {
+VegaPhotometry.propTypes = {
   sourceId: PropTypes.string.isRequired,
   type: PropTypes.string.isRequired,
 };
 
-export default LightCurveWithFilterPlot;
+export default VegaPhotometry;

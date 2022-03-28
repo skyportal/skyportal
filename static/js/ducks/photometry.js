@@ -12,10 +12,12 @@ export function fetchSourcePhotometry(id) {
   return API.GET(`/api/sources/${id}/photometry`, FETCH_SOURCE_PHOTOMETRY);
 }
 
-export function fetchFilterWavelengths(filters) {
-  return API.POST(`/api/internal/wavelengths`, FETCH_FILTER_WAVELENGTHS, {
-    filters,
-  });
+export function fetchFilterWavelengths(filterParams = {}) {
+  return API.GET(
+    `/api/internal/wavelengths`,
+    FETCH_FILTER_WAVELENGTHS,
+    filterParams
+  );
 }
 
 // Websocket message handler

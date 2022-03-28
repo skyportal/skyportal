@@ -37,7 +37,7 @@ import ScanningPageCandidateAnnotations, {
 import EditSourceGroups from "./EditSourceGroups";
 import { ra_to_hours, dec_to_dms } from "../units";
 import RejectButton from "./RejectButton";
-import LightCurveWithFilterPlot from "./LightCurveWithFilterPlot";
+import VegaPhotometry from "./VegaPhotometry";
 
 const useStyles = makeStyles((theme) => ({
   candidateListContainer: {
@@ -755,7 +755,7 @@ const CandidateList = () => {
     const candidateObj = candidates[dataIndex];
     return (
       <Suspense fallback={<CircularProgress />}>
-        <LightCurveWithFilterPlot sourceId={candidateObj.id} type="normal" />
+        <VegaPhotometry sourceId={candidateObj.id} />
       </Suspense>
     );
   };

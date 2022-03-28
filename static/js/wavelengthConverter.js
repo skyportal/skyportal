@@ -58,6 +58,7 @@ const wavelengthToHex = (wavelength) => {
 };
 
 const wavelengthsToHex = (wavelengths) =>
-  wavelengths.map((wavelength) => wavelengthToHex(wavelength));
+  // divide by 10 to convert angstrom -> nm
+  wavelengths.map((wavelength) => wavelengthToHex(wavelength / 10));
 
 export default wavelengthsToHex;

@@ -36,7 +36,7 @@ import { ra_to_hours, dec_to_dms } from "../units";
 import ThumbnailList from "./ThumbnailList";
 import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
-import LightCurveWithFilterPlot from "./LightCurveWithFilterPlot";
+import VegaPhotometry from "./VegaPhotometry";
 import FavoritesButton from "./FavoritesButton";
 import MultipleClassificationsForm from "./MultipleClassificationsForm";
 import * as sourceActions from "../ducks/source";
@@ -444,10 +444,7 @@ const SourceTable = ({
                     </div>
                   }
                 >
-                  <LightCurveWithFilterPlot
-                    sourceId={source.id}
-                    type="normal"
-                  />
+                  <VegaPhotometry sourceId={source.id} />
                 </Suspense>
               )}
               {!source.photometry_exists && <div> no photometry exists </div>}
@@ -461,10 +458,7 @@ const SourceTable = ({
                     </div>
                   }
                 >
-                  <LightCurveWithFilterPlot
-                    sourceId={source.id}
-                    type="folded"
-                  />
+                  <VegaPhotometry sourceId={source.id} folded />
                 </Suspense>
               )}
               {!source.photometry_exists && <div> no photometry exists </div>}

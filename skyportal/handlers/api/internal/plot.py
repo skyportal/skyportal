@@ -188,15 +188,14 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
 
 class FilterWavelengthHandler(BaseHandler):
     @auth_or_token
-    def post(self):
-        data = self.get_json()
-        filters = data.pop("filters", None)
+    def get(self):
+        filters = self.get_query_argument('filters', None)
         if filters:
+            filters = filters.split(',')
             wavelengths = []
             for filter in filters:
                 try:
-                    # divide by 10 to convert angstrom -> nm
-                    wavelengths.append(plot.get_effective_wavelength(filter) / 10)
+                    wavelengths.append(plot.get_effective_wavelength(filter))
                 except ValueError:
                     return self.error("Invalid filters")
             return self.success(data={'wavelengths': wavelengths})
