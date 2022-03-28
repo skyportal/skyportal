@@ -8,8 +8,6 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
     name = str(uuid.uuid4())
     start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
     end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
-    print(start_date)
-    print(end_date)
     request_data = {
         'name': name,
         'group_id': public_group.id,
