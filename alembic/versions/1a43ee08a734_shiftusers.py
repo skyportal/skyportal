@@ -1,13 +1,12 @@
 """ShiftUsers
 
-Revision ID: 50a31d3d5a1a
+Revision ID: 1a43ee08a734
 Revises: 1a43ee08a734
 Create Date: 2022-03-28 17:28:06.123633
 
 """
 from alembic import op
 import sqlalchemy as sa
-import sqlalchemy_utils
 
 
 # revision identifiers, used by Alembic.
