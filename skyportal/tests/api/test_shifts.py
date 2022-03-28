@@ -33,5 +33,7 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
     assert any([request_data['name'] == s['name'] for s in data["data"]])
     assert any([request_data['start_date'] == s['start_date'] for s in data["data"]])
     assert any([request_data['end_date'] == s['end_date'] for s in data["data"]])
-    assert len([s for s in data['data'][0]['users'] if s['id'] == super_admin_user.id]) == 1
-
+    assert (
+        len([s for s in data['data'][0]['users'] if s['id'] == super_admin_user.id])
+        == 1
+    )
