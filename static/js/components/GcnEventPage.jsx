@@ -347,8 +347,7 @@ const GcnEventPage = ({ route }) => {
               <div className={styles.gcnEventContainer}>
                 {gcnEvent.lightcurve && (
                   <div>
-                    {" "}
-                    <img src={gcnEvent.lightcurve} alt="loading..." />{" "}
+                    <img src={gcnEvent.lightcurve} alt="loading..." />
                   </div>
                 )}
               </div>
@@ -411,12 +410,10 @@ const GcnEventPage = ({ route }) => {
                 <Typography variant="h5">None             </Typography>
               ) : (
                 <div className={styles.gcnEventContainer}>
-                               {" "}
                   <GcnEventSourcesPage
                     route={route}
                     sources={gcnEventSources}
                   />
-                             {" "}
                 </div>
               )}
             </AccordionDetails>
@@ -438,11 +435,9 @@ const GcnEventPage = ({ route }) => {
                 <Typography variant="h5">None             </Typography>
               ) : (
                 <div className={styles.gcnEventContainer}>
-                               {" "}
                   <ExecutedObservationsTable
                     observations={gcnEventObservations.observations}
                   />
-                             {" "}
                 </div>
               )}
             </AccordionDetails>
@@ -464,8 +459,7 @@ const GcnEventPage = ({ route }) => {
                 <Typography variant="h5">None             </Typography>
               ) : (
                 <div className={styles.gcnEventContainer}>
-                               {" "}
-                  <GalaxyTable galaxies={gcnEventGalaxies.sources} />           {" "}
+                  <GalaxyTable galaxies={gcnEventGalaxies.sources} />
                 </div>
               )}
             </AccordionDetails>
