@@ -123,62 +123,78 @@ app:
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
+    - name: main
+      subitems:
+        - name: Dashboard
+          icon: Home
+          url: /
 
-    - name: Dashboard
-      icon: Home
-      url: /
+        - name: Sources
+          icon: Storage
+          url: /sources
 
-    - name: Sources
-      icon: Storage
-      url: /sources
+        - name: Candidates
+          icon: Search
+          url: /candidates
 
-    - name: Candidates
-      icon: Search
-      url: /candidates
+        - name: Favorites
+          icon: Star
+          url: /favorites
 
-    - name: Favorites
-      icon: Star
-      url: /favorites
+        - name: Groups
+          icon: GroupWork
+          url: /groups
 
-    - name: Groups
-      icon: GroupWork
-      url: /groups
+        - name: Observing Runs
+          icon: LocalCafe
+          url: /runs
 
-    - name: Observing Runs
-      icon: LocalCafe
-      url: /runs
+        - name: GCN Events
+          icon: SettingsInputAntenna
+          url: /gcn_events
 
-    - name: GCN Events
-      icon: SettingsInputAntenna
-      url: /gcn_events
+        - name: Followup Requests
+          icon: WorkOutlined
+          url: /followup_requests
 
-    - name: Telescopes
-      icon: MyLocation
-      url: /telescopes
+        - name: Shifts
+          icon: SubwayRounded
+          url: /shifts
 
-    - name: Instruments
-      icon: Wifi
-      url: /instruments
+        - name: About
+          icon: Info
+          url: /about
 
-    - name: Allocations
-      icon: HourglassEmptyOutlined
-      url: /allocations
+    - name: Other
+      subitems:
+        - name: Telescopes
+          icon: MyLocation
+          url: /telescopes
 
-    - name: Observations
-      icon: ZoomInOutlined
-      url: /observations
+        - name: Instruments
+          icon: Wifi
+          url: /instruments
 
-    - name: Followup Requests
-      icon: WorkOutlined
-      url: /followup_requests
+        - name: Allocations
+          icon: HourglassEmptyOutlined
+          url: /allocations
 
-    - name: Shifts
-      icon: SubwayRounded
-      url: /shifts
+        - name: Observations
+          icon: ZoomInOutlined
+          url: /observations
 
-    - name: About
-      icon: Info
-      url: /about
+    - name: Admin
+      permissions: ["Manage users", "System admin"]
+      subitems:
+        - name: DB Stats
+          icon: Assessment
+          permissions: ["System admin"]
+          url: /db_stats
+        - name: User Management
+          icon: Group
+          permissions: ["Manage users", "System admin"]
+          url: /user_management
+
 
   # See https://github.com/STRML/react-grid-layout for more on the grid package
   homepage_grid:
@@ -485,14 +501,14 @@ spectrum_types:
 # length that defines the full Quantum Efficiency at each wavelength.
 # must have at least two elements in the arrays
 # `wavelength` and `transmission`.
-additional_bandpasses:
-  - name: 'atlasc'
-    filterset: 'atlas'
-    wavelength: [4150, 4157, 6556, 6560]
-    transmission: [0, 1, 1, 0]
-    description: "basic ATLAS C filter - tophat transmission"
-  - name: 'atlaso'
-    filterset: 'atlas'
-    wavelength: [5580, 5582, 8249, 8250]
-    transmission: [0, 1, 1, 0]
-    description: "basic ATLAS O filter - tophat transmission"
+# additional_bandpasses:
+#  - name: 'atlasc'
+#    filterset: 'atlas'
+#    wavelength: [4150, 4157, 6556, 6560]
+#    transmission: [0, 1, 1, 0]
+#    description: "basic ATLAS C filter - tophat transmission"
+#  - name: 'atlaso'
+#    filterset: 'atlas'
+#    wavelength: [5580, 5582, 8249, 8250]
+#    transmission: [0, 1, 1, 0]
+#    description: "basic ATLAS O filter - tophat transmission"

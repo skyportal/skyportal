@@ -13,7 +13,6 @@ import {
 import useMediaQuery from "@material-ui/core/useMediaQuery";
 import Button from "@material-ui/core/Button";
 import IconButton from "@material-ui/core/IconButton";
-import CircularProgress from "@material-ui/core/CircularProgress";
 import OpenInNewIcon from "@material-ui/icons/OpenInNew";
 import ArrowUpward from "@material-ui/icons/ArrowUpward";
 import ArrowDownward from "@material-ui/icons/ArrowDownward";
@@ -38,6 +37,7 @@ import EditSourceGroups from "./EditSourceGroups";
 import { ra_to_hours, dec_to_dms } from "../units";
 import RejectButton from "./RejectButton";
 import VegaPhotometry from "./VegaPhotometry";
+import Spinner from "./Spinner";
 
 const useStyles = makeStyles((theme) => ({
   candidateListContainer: {
@@ -754,7 +754,7 @@ const CandidateList = () => {
   const renderPhotometry = (dataIndex) => {
     const candidateObj = candidates[dataIndex];
     return (
-      <Suspense fallback={<CircularProgress />}>
+      <Suspense fallback={<Spinner />}>
         <VegaPhotometry sourceId={candidateObj.id} />
       </Suspense>
     );
@@ -1098,7 +1098,7 @@ const CandidateList = () => {
           display={queryInProgress ? "block" : "none"}
           className={classes.spinnerDiv}
         >
-          <CircularProgress />
+          <Spinner />
         </Box>
         <Box display={queryInProgress ? "none" : "block"}>
           <MuiThemeProvider theme={getMuiTheme(theme)}>

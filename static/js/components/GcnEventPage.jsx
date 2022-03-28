@@ -9,7 +9,6 @@ import AccordionDetails from "@material-ui/core/AccordionDetails";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
 import { makeStyles } from "@material-ui/core/styles";
-import CircularProgress from "@material-ui/core/CircularProgress";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 import IconButton from "@material-ui/core/IconButton";
 import GetAppIcon from "@material-ui/icons/GetApp";
@@ -32,6 +31,7 @@ import SourceTable from "./SourceTable";
 import GalaxyTable from "./GalaxyTable";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import GcnSelectionForm from "./GcnSelectionForm";
+import Spinner from "./Spinner";
 
 import ObservationPlanRequestForm from "./ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
@@ -259,7 +259,7 @@ const GcnEventPage = ({ route }) => {
     !gcnEventGalaxies ||
     !gcnEventInstruments
   ) {
-    return <CircularProgress />;
+    return <Spinner />;
   }
 
   return (
@@ -454,9 +454,7 @@ const GcnEventPage = ({ route }) => {
                 gcnevent={gcnEvent}
                 action="createNew"
               />
-              <ObservationPlanRequestLists
-                observationplanRequests={gcnEvent.observationplan_requests}
-              />
+              <ObservationPlanRequestLists gcnEvent={gcnEvent} />
             </div>
           </AccordionDetails>
         </Accordion>
