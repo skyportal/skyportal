@@ -355,23 +355,22 @@ class CommentHandler(BaseHandler):
             for user_mentioned in users_mentioned_in_comment:
                 self.flow.push(user_mentioned.id, "skyportal/FETCH_NOTIFICATIONS", {})
 
+        if hasattr(comment, 'obj'):  # comment on object, or object related resources
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': comment.obj.internal_key},
+            )
+
         if isinstance(comment, CommentOnGCN):
             self.push_all(
                 action='skyportal/REFRESH_GCNEVENT',
                 payload={'gcnEvent_dateobs': comment.gcn.dateobs},
             )
-        else:
-            if comment.obj.id:  # comment on object, or object related resources
-                self.push_all(
-                    action='skyportal/REFRESH_SOURCE',
-                    payload={'obj_key': comment.obj.internal_key},
-                )
-
-            if isinstance(comment, CommentOnSpectrum):
-                self.push_all(
-                    action='skyportal/REFRESH_SOURCE_SPECTRA',
-                    payload={'obj_internal_key': comment.obj.internal_key},
-                )
+        elif isinstance(comment, CommentOnSpectrum):
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_internal_key': comment.obj.internal_key},
+            )
 
         return self.success(data={'comment_id': comment.id})
 
@@ -515,7 +514,7 @@ class CommentHandler(BaseHandler):
 
         self.verify_and_commit()
 
-        if c.obj.id:  # comment on object, or object related resources
+        if hasattr(c, 'obj'):  # comment on object, or object related resources
             self.push_all(
                 action='skyportal/REFRESH_SOURCE',
                 payload={'obj_key': c.obj.internal_key},
@@ -525,7 +524,7 @@ class CommentHandler(BaseHandler):
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_internal_key': c.obj.internal_key},
             )
-        if isinstance(c, CommentOnGCN):  # also update the spectrum
+        elif isinstance(c, CommentOnGCN):  # also update the spectrum
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_GCN',
                 payload={'obj_internal_key': c.obj.internal_key},
@@ -622,22 +621,22 @@ class CommentHandler(BaseHandler):
         DBSession().delete(c)
         self.verify_and_commit()
 
+        if hasattr(c, 'obj'):  # comment on object, or object related resources
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE',
+                payload={'obj_key': obj_key},
+            )
+
         if isinstance(c, CommentOnGCN):  # also update the GcnEvent
             self.push_all(
                 action='skyportal/REFRESH_GCNEVENT',
                 payload={'gcnEvent_dateobs': gcnevent_dateobs},
             )
-        else:
-            if c.obj.id:  # comment on object, or object related resources
-                self.push_all(
-                    action='skyportal/REFRESH_SOURCE',
-                    payload={'obj_key': obj_key},
-                )
-            if isinstance(c, CommentOnSpectrum):  # also update the spectrum
-                self.push_all(
-                    action='skyportal/REFRESH_SOURCE_SPECTRA',
-                    payload={'obj_internal_key': obj_key},
-                )
+        elif isinstance(c, CommentOnSpectrum):  # also update the spectrum
+            self.push_all(
+                action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_internal_key': obj_key},
+            )
 
         return self.success()
 
