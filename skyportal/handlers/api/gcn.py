@@ -182,6 +182,7 @@ class GcnEventHandler(BaseHandler):
                         joinedload(GcnEvent.observationplan_requests).joinedload(
                             ObservationPlanRequest.observation_plans
                         ),
+                        joinedload(GcnEvent.comments),
                     ],
                 )
                 .filter_by(dateobs=dateobs)
@@ -194,6 +195,24 @@ class GcnEventHandler(BaseHandler):
                 **event.to_dict(),
                 "tags": event.tags,
                 "lightcurve": event.lightcurve,
+                "comments": sorted(
+                    (
+                        {
+                            **{
+                                k: v
+                                for k, v in c.to_dict().items()
+                                if k != "attachment_bytes"
+                            },
+                            "author": {
+                                **c.author.to_dict(),
+                                "gravatar_url": c.author.gravatar_url,
+                            },
+                        }
+                        for c in event.comments
+                    ),
+                    key=lambda x: x["created_at"],
+                    reverse=True,
+                ),
             }
 
             # go through some pain to get probability and area included
