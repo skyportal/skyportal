@@ -9,13 +9,13 @@ import {
   MuiThemeProvider,
   useTheme,
 } from "@material-ui/core/styles";
-import CircularProgress from "@material-ui/core/CircularProgress";
 import Chip from "@material-ui/core/Chip";
 import Button from "@material-ui/core/Button";
 
 import MUIDataTable from "mui-datatables";
 
 import * as gcnEventsActions from "../ducks/gcnEvents";
+import Spinner from "./Spinner";
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -171,7 +171,7 @@ const GcnEvents = () => {
           </MuiThemeProvider>
         </Paper>
       ) : (
-        <CircularProgress />
+        <Spinner />
       )}
     </div>
   );

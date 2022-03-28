@@ -48,6 +48,7 @@ from .observation_plan import (
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
     ObservationPlanGeoJSONHandler,
+    ObservationPlanAirmassChartHandler,
 )
 from .photometry import (
     PhotometryHandler,

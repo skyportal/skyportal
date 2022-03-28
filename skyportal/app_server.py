@@ -42,6 +42,7 @@ from skyportal.handlers.api import (
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
     ObservationPlanGeoJSONHandler,
+    ObservationPlanAirmassChartHandler,
     PhotometryHandler,
     BulkDeletePhotometryHandler,
     ObjHandler,
@@ -140,6 +141,10 @@ skyportal_handlers = [
     (r'/api/photometry_request(/.*)', PhotometryRequestHandler),
     (r'/api/galaxy_catalog(/[0-9]+)?', GalaxyCatalogHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
+    (
+        r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
+        ObservationPlanAirmassChartHandler,
+    ),
     (r'/api/localization(/.*)/name(/.*)?', LocalizationHandler),
     (r'/api/groups/public', PublicGroupHandler),
     (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
