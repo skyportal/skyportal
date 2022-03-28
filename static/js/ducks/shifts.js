@@ -29,7 +29,6 @@ export const updateShiftUser = (shiftID, params) =>
   API.PATCH(`/api/shifts/${shiftID}/users`, UPDATE_SHIFT_USER, params);
 
 export function deleteShiftUser({ userID, shift_id }) {
-  console.log(userID, shift_id);
   return API.DELETE(
     `/api/shifts/${shift_id}/users/${userID}`,
     DELETE_SHIFT_USER,

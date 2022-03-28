@@ -1,13 +1,20 @@
 from skyportal.tests import api
+from datetime import date, timedelta
+import uuid
 
 
 def test_shift(public_group, super_admin_token, view_only_token, super_admin_user):
 
+    name = str(uuid.uuid4())
+    start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
+    end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    print(start_date)
+    print(end_date)
     request_data = {
-        'name': 'night shift',
+        'name': name,
         'group_id': public_group.id,
-        'start_date': '3021-02-27T00:00:00',
-        'end_date': '3021-07-20T00:00:00',
+        'start_date': start_date,
+        'end_date': end_date,
         'description': 'the Night Shift',
         'shift_admins': [super_admin_user.id],
     }
@@ -23,6 +30,8 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
     assert status == 200
     assert data['status'] == 'success'
 
+    assert any([request_data['name'] == s['name'] for s in data["data"]])
     assert any([request_data['start_date'] == s['start_date'] for s in data["data"]])
-
     assert any([request_data['end_date'] == s['end_date'] for s in data["data"]])
+    assert len([s for s in data['data'][0]['users'] if s['id'] == super_admin_user.id]) == 1
+
