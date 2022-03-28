@@ -89,9 +89,9 @@ class ShiftHandler(BaseHandler):
             .filter(User.id.in_(shift_admin_ids))
             .all()
         )
-        if self.current_user not in shift_admins and not isinstance(
-            self.current_user, Token
-        ):
+        # get the list of ids from the shift_admins list
+        shift_admins_ids = [e.id for e in shift_admins]
+        if self.current_user.id not in shift_admins_ids and not isinstance(self.current_user, Token):
             shift_admins.append(self.current_user)
         schema = Shift.__schema__()
 
