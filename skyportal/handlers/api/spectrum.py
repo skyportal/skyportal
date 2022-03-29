@@ -2,13 +2,16 @@ import io
 from pathlib import Path
 from astropy.time import Time
 import numpy as np
-
+import pandas as pd
+import sncosmo
 from sqlalchemy.orm import joinedload
 
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
+
+from .photometry import add_external_photometry
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -790,3 +793,87 @@ class SpectrumRangeHandler(BaseHandler):
 
         self.verify_and_commit()
         return self.success(data=query.all())
+
+
+class SyntheticPhotometryHandler(BaseHandler):
+    @auth_or_token
+    def post(self, spectrum_id):
+        """
+        ---
+        description: Create synthetic photometry from a spectrum
+        tags:
+          - spectra
+        parameters:
+          - in: path
+            name: spectrum_id
+            required: true
+            schema:
+              type: integer
+          - in: query
+            name: filters
+            schema:
+              type: list
+            required: true
+            description: |
+                List of filters
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleSpectrum
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        filters = data.get('filters')
+
+        spectrum = Spectrum.get_if_accessible_by(
+            spectrum_id,
+            self.current_user,
+            raise_if_none=True,
+        )
+
+        spec_dict = recursive_to_dict(spectrum)
+        wav = spec_dict['wavelengths']
+        flux = spec_dict['fluxes']
+        err = spec_dict['errors']
+        obstime = spec_dict['observed_at']
+
+        try:
+            spec = sncosmo.Spectrum(wav, flux, err)
+        except ValueError:
+            spec = sncosmo.Spectrum(wav, flux)
+
+        data_out = []
+        for filt in filters:
+            try:
+                mag = spec.bandmag(filt, magsys='ab')
+                magerr = 0
+            except ValueError:
+                continue
+
+            data_out.append(
+                {
+                    'mjd': Time(obstime, format='datetime').mjd,
+                    'ra': spectrum.obj.ra,
+                    'dec': spectrum.obj.dec,
+                    'mag': mag,
+                    'magerr': magerr,
+                    'filter': filt,
+                    'limiting_mag': 25.0,
+                }
+            )
+        df = pd.DataFrame.from_dict(data_out)
+        df['magsys'] = 'ab'
+        data_out = {
+            'obj_id': spectrum.obj.id,
+            'instrument_id': spectrum.instrument.id,
+            'group_ids': [g.id for g in self.current_user.accessible_groups],
+            **df.to_dict(orient='list'),
+        }
+        add_external_photometry(data_out, self.current_user)
+
+        return self.success()

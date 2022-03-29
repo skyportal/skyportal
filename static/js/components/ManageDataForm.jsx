@@ -26,6 +26,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import FormValidationError from "./FormValidationError";
 import CommentList from "./CommentList";
 import AnnotationsTable from "./AnnotationsTable";
+import SyntheticPhotometryForm from "./SyntheticPhotometryForm";
 
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
@@ -186,6 +187,10 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
           <Grid item sm={6}>
             <Typography variant="h6">Annotations</Typography>
             <AnnotationsTable annotations={annotations} />
+          </Grid>
+          <Grid item sm={6}>
+            <Typography variant="h6">TNS</Typography>
+            <SyntheticPhotometryForm spectrum_id={rowData[0]} />
           </Grid>
         </Grid>
       </TableCell>
