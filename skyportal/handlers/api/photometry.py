@@ -116,58 +116,67 @@ def serialize(phot, outsys, format):
     magsys_db = sncosmo.get_magsystem('ab')
     outsys = sncosmo.get_magsystem(outsys)
 
-    relzp_out = 2.5 * np.log10(outsys.zpbandflux(filter))
+    try:
+        relzp_out = 2.5 * np.log10(outsys.zpbandflux(filter))
 
-    # note: these are not the actual zeropoints for magnitudes in the db or
-    # packet, just ones that can be used to derive corrections when
-    # compared to relzp_out
+        # note: these are not the actual zeropoints for magnitudes in the db or
+        # packet, just ones that can be used to derive corrections when
+        # compared to relzp_out
 
-    relzp_db = 2.5 * np.log10(magsys_db.zpbandflux(filter))
-    db_correction = relzp_out - relzp_db
+        relzp_db = 2.5 * np.log10(magsys_db.zpbandflux(filter))
+        db_correction = relzp_out - relzp_db
 
-    # this is the zeropoint for fluxes in the database that is tied
-    # to the new magnitude system
-    corrected_db_zp = PHOT_ZP + db_correction
+        # this is the zeropoint for fluxes in the database that is tied
+        # to the new magnitude system
+        corrected_db_zp = PHOT_ZP + db_correction
 
-    if format == 'mag':
-        if (
-            phot.original_user_data is not None
-            and 'limiting_mag' in phot.original_user_data
-        ):
-            magsys_packet = sncosmo.get_magsystem(phot.original_user_data['magsys'])
-            relzp_packet = 2.5 * np.log10(magsys_packet.zpbandflux(filter))
-            packet_correction = relzp_out - relzp_packet
-            maglimit = phot.original_user_data['limiting_mag']
-            maglimit_out = maglimit + packet_correction
+        if format == 'mag':
+            if (
+                phot.original_user_data is not None
+                and 'limiting_mag' in phot.original_user_data
+            ):
+                magsys_packet = sncosmo.get_magsystem(phot.original_user_data['magsys'])
+                relzp_packet = 2.5 * np.log10(magsys_packet.zpbandflux(filter))
+                packet_correction = relzp_out - relzp_packet
+                maglimit = phot.original_user_data['limiting_mag']
+                maglimit_out = maglimit + packet_correction
+            else:
+                # calculate the limiting mag
+                fluxerr = phot.fluxerr
+                fivesigma = 5 * fluxerr
+                maglimit_out = -2.5 * np.log10(fivesigma) + corrected_db_zp
+
+            return_value.update(
+                {
+                    'mag': phot.mag + db_correction
+                    if nan_to_none(phot.mag) is not None
+                    else None,
+                    'magerr': phot.e_mag
+                    if nan_to_none(phot.e_mag) is not None
+                    else None,
+                    'magsys': outsys.name,
+                    'limiting_mag': maglimit_out,
+                }
+            )
+        elif format == 'flux':
+            return_value.update(
+                {
+                    'flux': nan_to_none(phot.flux),
+                    'magsys': outsys.name,
+                    'zp': corrected_db_zp,
+                    'fluxerr': phot.fluxerr,
+                }
+            )
         else:
-            # calculate the limiting mag
-            fluxerr = phot.fluxerr
-            fivesigma = 5 * fluxerr
-            maglimit_out = -2.5 * np.log10(fivesigma) + corrected_db_zp
-
-        return_value.update(
-            {
-                'mag': phot.mag + db_correction
-                if nan_to_none(phot.mag) is not None
-                else None,
-                'magerr': phot.e_mag if nan_to_none(phot.e_mag) is not None else None,
-                'magsys': outsys.name,
-                'limiting_mag': maglimit_out,
-            }
-        )
-    elif format == 'flux':
-        return_value.update(
-            {
-                'flux': nan_to_none(phot.flux),
-                'magsys': outsys.name,
-                'zp': corrected_db_zp,
-                'fluxerr': phot.fluxerr,
-            }
-        )
-    else:
+            raise ValueError(
+                'Invalid output format specified. Must be one of '
+                f"['flux', 'mag'], got '{format}'."
+            )
+    except ValueError as e:
         raise ValueError(
-            'Invalid output format specified. Must be one of '
-            f"['flux', 'mag'], got '{format}'."
+            f"Could not serialize phot_id: {phot.id} "
+            f"on obj {phot.obj_id} with filter: {filter},  "
+            f"due to error: {e}"
         )
     return return_value
 

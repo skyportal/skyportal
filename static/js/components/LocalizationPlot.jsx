@@ -29,6 +29,10 @@ const LocalizationPlot = ({
     );
   }, [loc, dispatch]);
 
+  if (!loc) {
+    return <CircularProgress />;
+  }
+
   const localization =
     loc.id === cachedLocalization?.id ? cachedLocalization : null;
 

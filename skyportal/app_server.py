@@ -43,6 +43,7 @@ from skyportal.handlers.api import (
     ObservationPlanMovieHandler,
     ObservationPlanSimSurveyHandler,
     ObservationPlanGeoJSONHandler,
+    ObservationPlanAirmassChartHandler,
     PhotometryHandler,
     BulkDeletePhotometryHandler,
     ObjHandler,
@@ -139,7 +140,27 @@ skyportal_handlers = [
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
     (r'/api/photometry_request(/.*)', PhotometryRequestHandler),
     (r'/api/galaxy_catalog(/[0-9]+)?', GalaxyCatalogHandler),
+    (r'/api/(sources|spectra|gcn_event)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
+    (
+        r'/api/(sources|spectra|gcn_event)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?',
+        CommentHandler,
+    ),
+    (
+        r'/api/(sources|spectra|gcn_event)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment',
+        CommentAttachmentHandler,
+    ),
+    # Allow the '.pdf' suffix for the attachment route, as the
+    # react-file-previewer package expects URLs ending with '.pdf' to
+    # load PDF files.
+    (
+        r'/api/(sources|spectra|gcn_event)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
+        CommentAttachmentHandler,
+    ),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
+    (
+        r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
+        ObservationPlanAirmassChartHandler,
+    ),
     (r'/api/localization(/.*)/name(/.*)?', LocalizationHandler),
     (r'/api/groups/public', PublicGroupHandler),
     (r'/api/groups(/[0-9]+)/streams(/[0-9]+)?', GroupStreamHandler),
@@ -199,19 +220,6 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
-    (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
-    (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?', CommentHandler),
-    (
-        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment',
-        CommentAttachmentHandler,
-    ),
-    # Allow the '.pdf' suffix for the attachment route, as the
-    # react-file-previewer package expects URLs ending with '.pdf' to
-    # load PDF files.
-    (
-        r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
-        CommentAttachmentHandler,
-    ),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/irsa', IRSAQueryWISEHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/vizier', VizierQueryHandler),
     (

@@ -19,6 +19,7 @@ import FilePreviewer, { FilePreviewerThumbnail } from "react-file-previewer";
 import ReactJson from "react-json-view";
 
 import * as sourceActions from "../ducks/source";
+import * as gcnEventActions from "../ducks/gcnEvent";
 
 const useStyles = makeStyles((theme) => ({
   linkButton: {
@@ -115,8 +116,9 @@ export const shortenFilename = (filename) => {
 const CommentAttachmentPreview = ({
   filename,
   commentId,
-  objectID,
   associatedResourceType,
+  objectID = null,
+  gcnEventID = null,
 }) => {
   const classes = useStyles();
   const theme = useTheme();
@@ -160,6 +162,10 @@ const CommentAttachmentPreview = ({
     } else if (associatedResourceType === "spectra") {
       dispatch(
         sourceActions.getCommentOnSpectrumAttachment(objectID, commentId)
+      );
+    } else if (associatedResourceType === "gcn_event") {
+      dispatch(
+        gcnEventActions.getCommentOnGcnEventAttachment(gcnEventID, commentId)
       );
     }
   }
@@ -245,9 +251,15 @@ const CommentAttachmentPreview = ({
 
 CommentAttachmentPreview.propTypes = {
   filename: PropTypes.string.isRequired,
-  objectID: PropTypes.string.isRequired,
+  objectID: PropTypes.string,
+  gcnEventID: PropTypes.number,
   commentId: PropTypes.number.isRequired,
   associatedResourceType: PropTypes.string.isRequired,
+};
+
+CommentAttachmentPreview.defaultProps = {
+  objectID: null,
+  gcnEventID: null,
 };
 
 export default CommentAttachmentPreview;

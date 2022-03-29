@@ -33,8 +33,8 @@ def test_add_and_retrieve_annotation_group_id(
         },
         token=annotation_token,
     )
-    assert status in [401, 500]
-    assert 'expected string or bytes-like object' in data["message"]
+    assert status in [400]
+    assert 'origin must be specified' in data["message"]
 
     # this should not work, since "origin" is empty
     status, data = api(
