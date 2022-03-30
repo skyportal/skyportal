@@ -10,6 +10,7 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 from .photometry import add_external_photometry
 from ..base import BaseHandler
@@ -36,6 +37,7 @@ from ...models.schema import (
 from ...enum_types import default_spectrum_type
 
 _, cfg = load_env()
+log = make_log('api/spectrum')
 
 
 class SpectrumHandler(BaseHandler):
@@ -837,14 +839,15 @@ class SyntheticPhotometryHandler(BaseHandler):
         spectrum = Spectrum.get_if_accessible_by(
             spectrum_id,
             self.current_user,
-            raise_if_none=True,
+            raise_if_none=False,
         )
+        if spectrum is None:
+            return self.error(f'No spectrum with id {spectrum_id}')
 
         spec_dict = recursive_to_dict(spectrum)
         wav = spec_dict['wavelengths']
         flux = spec_dict['fluxes']
         err = spec_dict['errors']
-        print(spectrum.astropy_units)
         obstime = spec_dict['observed_at']
 
         try:
@@ -854,15 +857,17 @@ class SyntheticPhotometryHandler(BaseHandler):
         except TypeError:
             spec = sncosmo.Spectrum(wav, flux * spectrum.astropy_units)
 
-        data_out = []
+        data_list = []
         for filt in filters:
             try:
                 mag = spec.bandmag(filt, magsys='ab')
                 magerr = 0
-            except ValueError:
-                continue
+            except ValueError as e:
+                return self.error(
+                    f"Unable to generate synthetic photometry for filter {filt}: {e}"
+                )
 
-            data_out.append(
+            data_list.append(
                 {
                     'mjd': Time(obstime, format='datetime').mjd,
                     'ra': spectrum.obj.ra,
@@ -873,14 +878,18 @@ class SyntheticPhotometryHandler(BaseHandler):
                     'limiting_mag': 25.0,
                 }
             )
-        df = pd.DataFrame.from_dict(data_out)
-        df['magsys'] = 'ab'
-        data_out = {
-            'obj_id': spectrum.obj.id,
-            'instrument_id': spectrum.instrument.id,
-            'group_ids': [g.id for g in self.current_user.accessible_groups],
-            **df.to_dict(orient='list'),
-        }
-        add_external_photometry(data_out, self.current_user)
 
+        if len(data_list) > 0:
+            df = pd.DataFrame.from_dict(data_list)
+            df['magsys'] = 'ab'
+            data_out = {
+                'obj_id': spectrum.obj.id,
+                'instrument_id': spectrum.instrument.id,
+                'group_ids': [g.id for g in self.current_user.accessible_groups],
+                **df.to_dict(orient='list'),
+            }
+            print(self.current_user)
+            add_external_photometry(data_out, self.current_user)
+
+            return self.success()
         return self.success()

@@ -1375,7 +1375,7 @@ class SpectrumPost(_Schema):
 
     units = fields.String(
         metadata={
-            'description': "Units of the fluxes/errors in astropy notation (e.g. erg/s/cm/cm/AA).",
+            'description': "Units of the fluxes/errors. Options are Jy, AB, or erg/s/cm/cm/AA).",
         },
     )
 

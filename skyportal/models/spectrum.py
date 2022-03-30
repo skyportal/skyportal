@@ -64,7 +64,7 @@ class Spectrum(Base):
     units = sa.Column(
         sa.String,
         nullable=True,
-        doc="Units of the fluxes/errors in astropy notation (e.g. erg/s/cm/cm/AA).",
+        doc="Units of the fluxes/errors. Options are Jy, AB, or erg/s/cm/cm/AA.",
     )
 
     obj_id = sa.Column(
