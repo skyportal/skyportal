@@ -5,9 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import MUIDataTable from "mui-datatables";
 import Paper from "@material-ui/core/Paper";
 import Chip from "@material-ui/core/Chip";
-import CircularProgress from "@material-ui/core/CircularProgress";
 import Typography from "@material-ui/core/Typography";
-import Box from "@material-ui/core/Box";
 import Autocomplete from "@material-ui/lab/Autocomplete";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
@@ -41,6 +39,7 @@ import * as streamsActions from "../ducks/streams";
 import * as invitationsActions from "../ducks/invitations";
 import * as aclsActions from "../ducks/acls";
 import * as rolesActions from "../ducks/roles";
+import Spinner from "./Spinner";
 
 dayjs.extend(utc);
 
@@ -132,14 +131,7 @@ const UserManagement = () => {
     !acls?.length ||
     !roles?.length
   ) {
-    return (
-      <Box
-        display={queryInProgress ? "block" : "none"}
-        className={classes.spinnerDiv}
-      >
-        <CircularProgress />
-      </Box>
-    );
+    return <Spinner />;
   }
 
   if (

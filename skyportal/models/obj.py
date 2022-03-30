@@ -192,6 +192,7 @@ class Obj(Base, conesearch_alchemy.Point):
     )
     redshift = sa.Column(sa.Float, nullable=True, index=True, doc="Redshift.")
     redshift_error = sa.Column(sa.Float, nullable=True, doc="Redshift error.")
+    redshift_origin = sa.Column(sa.String, nullable=True, doc="Redshift source.")
     redshift_history = sa.Column(
         JSONB,
         nullable=True,
