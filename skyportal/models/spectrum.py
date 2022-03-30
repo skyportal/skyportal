@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 
+import astropy.units as u  # noqa: F401
 import numpy as np
 import yaml
 from astropy.utils.exceptions import AstropyWarning

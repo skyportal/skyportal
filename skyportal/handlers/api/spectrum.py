@@ -856,12 +856,15 @@ class SyntheticPhotometryHandler(BaseHandler):
         wav = spec_dict['wavelengths']
         flux = spec_dict['fluxes']
         err = spec_dict['errors']
+        print(spectrum.astropy_units)
         obstime = spec_dict['observed_at']
 
         try:
-            spec = sncosmo.Spectrum(wav, flux, err)
-        except ValueError:
-            spec = sncosmo.Spectrum(wav, flux)
+            spec = sncosmo.Spectrum(
+                wav, flux * spectrum.astropy_units, err * spectrum.astropy_units
+            )
+        except TypeError:
+            spec = sncosmo.Spectrum(wav, flux * spectrum.astropy_units)
 
         data_out = []
         for filt in filters:
