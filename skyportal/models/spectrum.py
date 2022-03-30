@@ -180,7 +180,14 @@ class Spectrum(Base):
 
     @property
     def astropy_units(self):
-        return eval('/'.join([f"u.{unit}" for unit in self.units.split("/")]))
+        if self.units == "Jy":
+            return u.Jy
+        elif self.units == "AB":
+            return u.AB
+        elif self.units == "erg/s/cm/cm/AA":
+            return u.erg / u.s / u.cm / u.cm / u.AA
+        else:
+            return None
 
     @classmethod
     def from_ascii(

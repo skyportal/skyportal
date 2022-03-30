@@ -1,6 +1,5 @@
 import io
 from pathlib import Path
-import astropy.units as u
 from astropy.time import Time
 import numpy as np
 import pandas as pd
@@ -142,19 +141,8 @@ class SpectrumHandler(BaseHandler):
             )
 
         if "units" in data:
-            units_split = data["units"].split("/")
-            for unit in units_split:
-                try:
-                    unit = eval(f'u.{unit}')
-                except AttributeError:
-                    return self.error(f'{unit} is not a valid astropy unit')
-            try:
-                units = eval('/'.join([f"u.{unit}" for unit in units_split]))
-                u.equivalencies.spectral_density(1 * units)
-            except AttributeError:
-                return self.error(
-                    f'{data["units"]} not a valid astropy spectral_density'
-                )
+            if not data["units"] in ["Jy", "AB", "erg/s/cm/cm/AA"]:
+                return self.error("units must be Jy, AB, or erg/s/cm/cm/AA")
 
         spec = Spectrum(**data)
         spec.instrument = instrument
