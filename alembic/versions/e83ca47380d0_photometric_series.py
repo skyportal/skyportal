@@ -49,6 +49,8 @@ def upgrade():
         ),
         sa.Column('ra_unc', sa.Float(), nullable=True),
         sa.Column('dec_unc', sa.Float(), nullable=True),
+        sa.Column('magref', sa.Float(), nullable=True),
+        sa.Column('magref_unc', sa.Float(), nullable=True),
         sa.Column('altdata', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column('upload_id', sa.String(), nullable=False),
         sa.Column('origin', sa.String(), server_default='', nullable=False),
