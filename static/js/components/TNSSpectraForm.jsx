@@ -68,9 +68,9 @@ const TNSSpectraForm = ({ spectrum_id }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedTNSRobotId]);
 
-  // need to check both of these conditions as selectedAllocationId is
+  // need to check both of these conditions as selectedTNSRobotId is
   // initialized to be null and useEffect is not called on the first
-  // render to update it, so it can be null even if allocationList is not
+  // render to update it, so it can be null even if tnsrobotList is not
   // empty.
   if (tnsrobotList.length === 0 || !selectedTNSRobotId) {
     return <h3>No TNS robots available...</h3>;
@@ -157,7 +157,9 @@ const TNSSpectraForm = ({ spectrum_id }) => {
     // Get the classification without the context
     formData.classificationID = classificationOptions[formData.classification];
     formData.tnsrobotID = selectedTNSRobotId;
-    const result = await dispatch(spectraActions.addTNS(spectrum_id, formData));
+    const result = await dispatch(
+      spectraActions.addSpectrumTNS(spectrum_id, formData)
+    );
     setSubmissionRequestInProcess(false);
     if (result.status === "success") {
       dispatch(showNotification("TNS saved"));

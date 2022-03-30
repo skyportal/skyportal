@@ -14,7 +14,7 @@ const ADD_CLASSIFICATION = "skyportal/ADD_CLASSIFICATION";
 
 const DELETE_CLASSIFICATION = "skyportal/DELETE_CLASSIFICATION";
 
-const ADD_TNS = "skyportal/ADD_TNS";
+const ADD_SOURCE_TNS = "skyportal/ADD_SOURCE_TNS";
 
 const ADD_COMMENT = "skyportal/ADD_COMMENT";
 
@@ -71,8 +71,8 @@ export function addClassification(formData) {
   return API.POST(`/api/classification`, ADD_CLASSIFICATION, formData);
 }
 
-export function addTNS(id, formData) {
-  return API.POST(`/api/sources/${id}/tns`, ADD_TNS, formData);
+export function addSourceTNS(id, formData) {
+  return API.POST(`/api/sources/${id}/tns`, ADD_SOURCE_TNS, formData);
 }
 
 export function deleteClassification(classification_id) {

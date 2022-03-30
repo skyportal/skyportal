@@ -152,9 +152,15 @@ class TNSRobotHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        try:
+            tnsrobot_id = int(tnsrobot_id)
+        except ValueError:
+            return self.error("TNSRobot ID must be an integer.")
         tnsrobot = TNSRobot.get_if_accessible_by(
-            int(tnsrobot_id), self.current_user, mode='delete'
+            tnsrobot_id, self.current_user, mode='delete'
         )
+        if tnsrobot is None:
+            return self.error(f'No TNS robot with ID {tnsrobot_id}')
         DBSession().delete(tnsrobot)
         self.verify_and_commit()
         return self.success()
@@ -213,33 +219,14 @@ class ObjTNSHandler(BaseHandler):
             raise ValueError('Missing TNS information.')
 
         tns_headers = {
-            'User-Agent': 'tns_marker{"tns_id":'
-            + str(tnsrobot.bot_id)
-            + ', "type":"bot", "name":"'
-            + tnsrobot.bot_name
-            + '"}'
+            'User-Agent': f'tns_marker{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}'
         }
 
-        time_first, mag_first, magerr_first, filt_first, instrument_first = (
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
-        time_last, mag_last, magerr_last, filt_last, instrument_last = (
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
-        (
-            time_last_nondetection,
-            limmag_last_nondetection,
-            filt_last_nondetection,
-            instrument_last_nondetection,
-        ) = (None, None, None, None)
+        time_first = mag_first = magerr_first = filt_first = instrument_first = None
+        time_last = mag_last = magerr_last = filt_last = instrument_last = None
+        time_last_nondetection = (
+            limmag_last_nondetection
+        ) = filt_last_nondetection = instrument_last_nondetection = None
 
         for phot in photometry:
             if phot['mag'] is None:
@@ -304,13 +291,13 @@ class ObjTNSHandler(BaseHandler):
             "dec": {"value": obj.dec},
             "groupid": tnsrobot.source_group_id,
             "internal_name_format": {
-                "prefix": "ZTF",
+                "prefix": instrument_first,
                 "year_format": "YY",
                 "postfix": "",
             },
             "internal_name": obj.id,
             "reporter": reporters,
-            "discovery_datetime": astropy.time.Time(time_first, format='mjd').jd,
+            "discovery_datetime": astropy.time.Time(time_first, format='mjd').datetime,
             "at_type": 1,  # allow other options?
             "proprietary_period_groups": [tnsrobot.source_group_id],
             "proprietary_period": proprietary_period,
@@ -419,8 +406,9 @@ class SpectrumTNSHandler(BaseHandler):
         spectrum = Spectrum.get_if_accessible_by(
             spectrum_id,
             self.current_user,
-            raise_if_none=True,
         )
+        if spectrum is None:
+            return self.error(f'No spectrum with ID {spectrum_id}')
 
         spec_dict = recursive_to_dict(spectrum)
         spec_dict["instrument_name"] = spectrum.instrument.name
@@ -447,14 +435,8 @@ class SpectrumTNSHandler(BaseHandler):
         if external_observer is not None:
             spec_dict["external_observer"] = external_observer[0]
 
-        self.verify_and_commit()
-
         tns_headers = {
-            'User-Agent': 'tns_marker{"tns_id":'
-            + str(tnsrobot.bot_id)
-            + ', "type":"bot", "name":"'
-            + tnsrobot.bot_name
-            + '"}'
+            'User-Agent': f'tns_marker{"tns_id":{tnsrobot.bot_id},"type":"bot", "name":"{tnsrobot.bot_name}"}'
         }
 
         tns_prefix, tns_name = get_IAUname(
@@ -472,14 +454,8 @@ class SpectrumTNSHandler(BaseHandler):
 
         if spec_dict["altdata"] is not None:
             header = spec_dict["altdata"]
-            observation_date = (
-                str(header['OBSDATE'].split('T')[0])
-                + ' '
-                + str(header['OBSDATE'].split('T')[1])
-            )
             exposure_time = header['EXPTIME']
         else:
-            observation_date = None
             exposure_time = None
 
         wav = spec_dict['wavelengths']
@@ -524,10 +500,8 @@ class SpectrumTNSHandler(BaseHandler):
                 'fits_file': '',
                 'remarks': spectrum_comment,
                 'spec_proprietary_period': 0.0,
+                'obsdate': spec_dict['observed_at'],
             }
-
-            if observation_date is not None:
-                spectrumdict['obsdate'] = observation_date
             if exposure_time is not None:
                 spectrumdict['exptime'] = exposure_time
 
