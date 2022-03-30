@@ -190,6 +190,12 @@ const GcnSelectionForm = ({ gcnEvent }) => {
     setIsSubmitting(false);
   };
 
+  const handleSendToObservationPlan = (instrument) => {
+    const selectedFields = instrument?.fields.filter((f) => f?.selected);
+    const selectedIds = selectedFields.map((f) => f?.field_id);
+    console.log(selectedIds);
+  };
+
   if (telescopeList.length === 0) {
     return <p>No robotic followup requests for this source...</p>;
   }
@@ -212,6 +218,9 @@ const GcnSelectionForm = ({ gcnEvent }) => {
   const instruments_with_contour = [];
   gcnEventInstruments?.forEach((instrument) => {
     if (instrument?.fields && instrument?.fields.length > 0) {
+      instrument.fields.forEach((f) => {
+        f.selected = false;
+      });
       if (instrument.fields[0].contour_summary) {
         instruments_with_contour.push(instrument);
         instLookUp[instrument.id] = instrument;
@@ -304,6 +313,14 @@ const GcnSelectionForm = ({ gcnEvent }) => {
         />
       </div>
       <div>
+        <Button
+          variant="outlined"
+          onClick={() =>
+            handleSendToObservationPlan(instLookUp[selectedInstrumentId])
+          }
+        >
+          Send selected to observation plan
+        </Button>
         <InputLabel id="allocationSelectLabel">Localization</InputLabel>
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}
