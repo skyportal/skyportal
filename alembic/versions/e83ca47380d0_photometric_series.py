@@ -97,6 +97,12 @@ def upgrade():
         unique=False,
     )
     op.create_index(
+        op.f('ix_photometric_series_magref'),
+        'photometric_series',
+        ['magref'],
+        unique=False,
+    )
+    op.create_index(
         op.f('ix_photometric_series_filename'),
         'photometric_series',
         ['filename'],
@@ -294,6 +300,7 @@ def downgrade():
     op.drop_index(
         op.f('ix_photometric_series_filename'), table_name='photometric_series'
     )
+    op.drop_index(op.f('ix_photometric_series_magref'), table_name='photometric_series')
     op.drop_index(
         op.f('ix_photometric_series_created_at'), table_name='photometric_series'
     )

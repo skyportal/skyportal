@@ -750,6 +750,7 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
     magref = sa.Column(
         sa.Float,
         nullable=True,
+        index=True,
         doc="Reference magnitude. E.g., "
         "magnitude of source before transient started, "
         "or the mean magnitude of a variable source.",
