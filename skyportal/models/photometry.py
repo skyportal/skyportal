@@ -57,6 +57,19 @@ class Photometry(conesearch_alchemy.Point, Base):
     ra_unc = sa.Column(sa.Float, doc="Uncertainty of ra position [arcsec]")
     dec_unc = sa.Column(sa.Float, doc="Uncertainty of dec position [arcsec]")
 
+    magref = sa.Column(
+        sa.Float,
+        nullable=True,
+        index=True,
+        doc="Reference magnitude. E.g., "
+        "magnitude of source before transient started, "
+        "or the mean magnitude of a variable source.",
+    )
+
+    magref_unc = sa.Column(
+        sa.Float, nullable=True, doc="Uncertainty on the reference mag."
+    )
+
     original_user_data = sa.Column(
         JSONB,
         doc='Original data passed by the user '
