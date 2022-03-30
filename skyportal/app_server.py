@@ -105,6 +105,7 @@ from skyportal.handlers.api.internal import (
     NotificationHandler,
     BulkNotificationHandler,
     RecentGcnEventsHandler,
+    FilterWavelengthHandler,
 )
 
 from . import model_util, openapi
@@ -139,6 +140,22 @@ skyportal_handlers = [
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
     (r'/api/photometry_request(/.*)', PhotometryRequestHandler),
     (r'/api/galaxy_catalog(/[0-9]+)?', GalaxyCatalogHandler),
+    (r'/api/(sources|spectra|gcn_event)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
+    (
+        r'/api/(sources|spectra|gcn_event)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?',
+        CommentHandler,
+    ),
+    (
+        r'/api/(sources|spectra|gcn_event)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment',
+        CommentAttachmentHandler,
+    ),
+    # Allow the '.pdf' suffix for the attachment route, as the
+    # react-file-previewer package expects URLs ending with '.pdf' to
+    # load PDF files.
+    (
+        r'/api/(sources|spectra|gcn_event)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
+        CommentAttachmentHandler,
+    ),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
     (
         r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
@@ -199,19 +216,6 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
-    (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
-    (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?', CommentHandler),
-    (
-        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment',
-        CommentAttachmentHandler,
-    ),
-    # Allow the '.pdf' suffix for the attachment route, as the
-    # react-file-previewer package expects URLs ending with '.pdf' to
-    # load PDF files.
-    (
-        r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
-        CommentAttachmentHandler,
-    ),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/irsa', IRSAQueryWISEHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/vizier', VizierQueryHandler),
     (
@@ -257,6 +261,7 @@ skyportal_handlers = [
     (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
     (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
     (r'/api/internal/standards', StandardsHandler),
+    (r'/api/internal/wavelengths(/.*)?', FilterWavelengthHandler),
     (r'/api/internal/plot/airmass/assignment/(.*)', PlotAssignmentAirmassHandler),
     (
         r'/api/internal/plot/airmass/objtel/(.*)/([0-9]+)',
