@@ -1373,6 +1373,12 @@ class SpectrumPost(_Schema):
         },
     )
 
+    units = fields.String(
+        metadata={
+            'description': "Units of the fluxes/errors in astropy notation (e.g. erg/s/cm/cm/AA).",
+        },
+    )
+
     obj_id = fields.String(
         required=True,
         metadata={'description': "ID of this Spectrum's Obj."},

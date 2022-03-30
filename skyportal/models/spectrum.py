@@ -60,6 +60,12 @@ class Spectrum(Base):
         doc="Errors on the fluxes of the spectrum [F_lambda, same units as `fluxes`.]",
     )
 
+    units = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Units of the fluxes/errors in astropy notation (e.g. erg/s/cm/cm/AA).",
+    )
+
     obj_id = sa.Column(
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
         nullable=False,
@@ -170,6 +176,10 @@ class Spectrum(Base):
         order_by="AnnotationOnSpectrum.created_at",
         doc="Annotations posted about this spectrum.",
     )
+
+    @property
+    def astropy_units(self):
+        return eval('/'.join([f"u.{unit}" for unit in self.units.split("/")]))
 
     @classmethod
     def from_ascii(
