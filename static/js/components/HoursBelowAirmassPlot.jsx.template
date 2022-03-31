@@ -1,7 +1,6 @@
 import React from "react";
 import embed from "vega-embed";
-
-import VegaPlot from "./VegaPlot";
+import PropTypes from "prop-types";
 
 const airmassSpec = (url) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
@@ -73,7 +72,7 @@ const HoursBelowAirmassPlot = React.memo((props) => {
 });
 
 HoursBelowAirmassPlot.propTypes = {
-  ...VegaPlot.propTypes,
+  dataUrl: PropTypes.string.isRequired,
 };
 
 HoursBelowAirmassPlot.displayName = "HoursBelowAirmassPlot";

@@ -1,11 +1,11 @@
 import React from "react";
+import { isMobileOnly } from "react-device-detect";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
-import { isMobileOnly } from "react-device-detect";
 
 const mjdNow = Date.now() / 86400000.0 + 40587.0;
 
-const spec = (url) => ({
+const spec = (url, colorScale) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   data: {
     url,
@@ -68,6 +68,7 @@ const spec = (url) => ({
         color: {
           field: "filter",
           type: "nominal",
+          scale: colorScale,
         },
         tooltip: [
           { field: "magAndErr", title: "mag", type: "nominal" },
@@ -191,12 +192,12 @@ const spec = (url) => ({
 });
 
 const VegaPlot = React.memo((props) => {
-  const { dataUrl } = props;
+  const { dataUrl, colorScale } = props;
   return (
     <div
       ref={(node) => {
         if (node) {
-          embed(node, spec(dataUrl), {
+          embed(node, spec(dataUrl, colorScale), {
             actions: false,
           });
         }
@@ -207,6 +208,10 @@ const VegaPlot = React.memo((props) => {
 
 VegaPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,
+  colorScale: PropTypes.shape({
+    domain: PropTypes.arrayOf(PropTypes.string),
+    range: PropTypes.arrayOf(PropTypes.string),
+  }).isRequired,
 };
 
 VegaPlot.displayName = "VegaPlot";

@@ -28,7 +28,7 @@ def black_body(la, temp):
     amp = 1.1910429526245744e-25  # 2*h*c**2 * (nm / m) = 2*6.62607004e-34 * 299792458**2 / 1e9 the last term is units
     la = la * 1e-9  # convert wavelength from nm to m
 
-    return amp / (la ** 5 * (np.exp(const / (la * temp)) - 1))
+    return amp / (la**5 * (np.exp(const / (la * temp)) - 1))
 
 
 def get_plot_data(data):
@@ -79,7 +79,6 @@ def get_plot_data(data):
                     new_obj[key] = doc['attributes']['data'][key][0]
 
             if 'telescope' in new_obj:
-
                 objects.append(new_obj)
 
     return objects
@@ -148,6 +147,7 @@ def test_spectrum_plot(upload_data_token, public_source, public_group, lris):
 def test_spectrum_smooth_nan(upload_data_token, public_source, public_group, lris):
     observed_at = str(datetime.datetime.now())
     filename = f'{os.path.dirname(__file__)}/../data/spectrum_with_nan.txt'
+
     with open(filename) as f:
         status, data = api(
             'POST',
