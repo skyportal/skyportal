@@ -56,6 +56,8 @@ app:
 
   treasuremap_endpoint: http://treasuremap.space
 
+  tns_endpoint: https://sandbox.wis-tns.org
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
