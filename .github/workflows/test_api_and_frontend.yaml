@@ -53,7 +53,7 @@ jobs:
         with:
           path: |
             ~/.cache/pip
-          key: ${{ runner.os }}-v2-${{ hashFiles('**/requirements*.txt') }}
+          key: ${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
 
       - name: Write SkyPortal configs
         run: |
