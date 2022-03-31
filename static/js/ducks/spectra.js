@@ -19,6 +19,8 @@ export const RESET_PARSED_SPECTRUM = "skyportal/RESET_PARSED_SPECTRUM";
 
 const ADD_SYNTHETIC_PHOTOMETRY = "skyportal/ADD_SYNTHETIC_PHOTOMETRY";
 
+const ADD_SPECTRUM_TNS = "skyportal/ADD_SPECTRUM_TNS";
+
 export function fetchSourceSpectra(id) {
   return API.GET(`/api/sources/${id}/spectra`, FETCH_SOURCE_SPECTRA);
 }
@@ -37,6 +39,10 @@ export function addSyntheticPhotometry(id, formData = {}) {
     ADD_SYNTHETIC_PHOTOMETRY,
     formData
   );
+}
+
+export function addSpectrumTNS(id, formData = {}) {
+  return API.POST(`/api/spectrum/tns/${id}`, ADD_SPECTRUM_TNS, formData);
 }
 
 export function deleteSpectrum(id) {
