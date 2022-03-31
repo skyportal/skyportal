@@ -1,14 +1,18 @@
 import io
 from pathlib import Path
 from astropy.time import Time
+import arrow
+from arrow import ParserError
 import numpy as np
 
 from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
 
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
+from baselayer.app.custom_exceptions import AccessError
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -47,6 +51,61 @@ class SpectrumHandler(BaseHandler):
                 group_ids, self.current_user, raise_if_none=True
             )
         return groups
+
+    def parse_id_list(self, id_list, model_class):
+        """
+        Return a list of integer IDs from the comma separated
+        string of IDs given by the query argument, and the
+        model/table to be queried.
+
+        Parameters
+        ----------
+        id_list: string
+            Comma separated list of integer values.
+        model_class: class
+            A skyportal data model class, e.g., Group, Instrument.
+        """
+
+        if id_list is None:
+            return  # silently pass through any None values
+
+        try:
+            accessible_ids = model_class.query_records_accessible_by(self.current_user)
+            validated_ids = []
+            for id in id_list.split(','):
+                id = int(id)
+                if id not in accessible_ids:
+                    raise AccessError(
+                        f'Invalid {str(model_class)} IDs field ({id_list}); '
+                        f'Not all {str(model_class)} IDs are valid/accessible'
+                    )
+                validated_ids.append(id)
+        except ValueError:
+            raise ValueError(
+                f'Invalid {str(model_class)} IDs field ({id_list}; '
+                f'Could not parse all elements to integers'
+            )
+
+        return validated_ids
+
+    @staticmethod
+    def parse_string_list(str_list):
+        """
+        Parse a string that is either a single value,
+        or a comma separated list of values.
+        Returns a list of strings in either case.
+        If input is an empty string returns an
+        empty list.
+        """
+        if isinstance(str_list, str):
+            if len(str_list) == 0:
+                return []
+            elif "," in str_list:
+                return [c.strip() for c in str_list.split(",")]
+            else:
+                return [str_list.strip()]
+        else:
+            raise TypeError('Must input a string!')
 
     @permissions(['Upload data'])
     def post(self):
@@ -163,6 +222,409 @@ class SpectrumHandler(BaseHandler):
         )
 
         return self.success(data={"id": spec.id})
+
+    @auth_or_token
+    def head(self, spectrum_id=None):
+        """
+        ---
+        single:
+          description: Retrieve metadata for a spectrum
+          tags:
+            - spectra
+          parameters:
+            - in: path
+              name: spectrum_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    application/json:
+                      schema: SpectrumHead
+            403:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve metadata for all spectra with given criteria
+          tags:
+            - spectra
+          parameters:
+            - in: query
+              name: observedBefore
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided,
+                return only spectra observed before this time.
+            - in: query
+              name: observedAfter
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided,
+                return only spectra observed after this time.
+            - in: query
+              name: objID
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Return any spectra on an object with ID that has a (partial) match
+                to this argument (i.e., the given argument is "in" the object's ID).
+            - in: query
+              name: instrumentIDs
+              nullable: true
+              type: list
+              items:
+                type: integer
+              description: |
+                If provided, filter only spectra observed with one of these instrument IDs.
+            - in: query
+              name: groupIDs
+              nullable: true
+              schema:
+                type: list
+                items:
+                  type: integer
+              description: |
+                If provided, filter only spectra saved to one of these group IDs.
+            - in: query
+              name: followupRequestIDs
+              nullable: true
+              schema:
+                type: list
+                items:
+                  type: integer
+              description: |
+                If provided, filter only spectra associate with these
+                followup request IDs.
+            - in: query
+              name: assignmentIDs
+              nullable: true
+              schema:
+                type: list
+                items:
+                  type: integer
+              description: |
+                If provided, filter only spectra associate with these
+                assignment request IDs.
+            - in: query
+              name: origin
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Return any spectra that have an origin with a (partial) match
+                to any of the values in this comma separated list.
+            - in: query
+              name: label
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Return any spectra that have an origin with a (partial) match
+                to any of the values in this comma separated list.
+            - in: query
+              name: type
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Return spectra of the given type or types
+                (match multiple values using a comma separated list).
+                Types of spectra are defined in the config,
+                e.g., source, host or host_center.
+            - in: query
+              name: commentsFilter
+              nullable: true
+              schema:
+                type: array
+                items:
+                  type: string
+              explode: false
+              style: simple
+              description: |
+                Comma-separated string of comment text to filter for spectra matching.
+            - in: query
+              name: commentsFilterAuthor
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Comma separated string of authors.
+                Only comments from these authors are used
+                when filtering with the commentsFilter.
+            - in: query
+              name: commentsFilterBefore
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided,
+                only return sources that have comments before this time.
+            - in: query
+              name: commentsFilterAfter
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided,
+                only return sources that have comments after this time.
+
+        """
+
+        # single spectrum:
+        if spectrum_id is not None:
+            try:
+                spectrum = Spectrum.get_if_accessible_by(
+                    spectrum_id,
+                    self.current_user,
+                    raise_if_none=True,
+                )
+            except AccessError:
+                return self.error(
+                    f'Could not access spectrum {spectrum_id}.', status=403
+                )
+
+            external_reducer = (
+                DBSession()
+                .query(SpectrumReducer.external_reducer)
+                .filter(SpectrumReducer.spectr_id == spectrum_id)
+                .first()
+            )
+
+            external_observer = (
+                DBSession()
+                .query(SpectrumObserver.external_observer)
+                .filter(SpectrumObserver.spectr_id == spectrum_id)
+                .first()
+            )
+
+            spec_dict = {
+                "obj_id": spectrum.obj_id,
+                "observed_at": spectrum.observed_at,
+                "reducers": spectrum.reducers,
+                "external_reducer": external_reducer[0] or "",
+                "observers": spectrum.observers,
+                "external_observer": external_observer[0] or "",
+                "origin": spectrum.origin,
+                "type": spectrum.type,
+                "label": spectrum.label,
+                "instrument_id": spectrum.instrument_id,
+                "instrument_name": spectrum.instrument.name,
+                "group_ids": spectrum.group_ids,
+                "followup_request_id": spectrum.followup_request_id,
+                "assignment_id": spectrum.assignment_id,
+                "altdata": spectrum.altdata,
+            }
+
+            self.verify_and_commit()
+            return self.success(data=spec_dict)
+
+        # multiple spectra
+        observed_before = self.get_query_argument('observedBefore', None)
+        observed_after = self.get_query_argument('observedAfter', None)
+        obj_id = self.get_query_argument('objID', None)
+        instrument_ids = self.get_query_argument('instrumentIDs', None)
+        group_ids = self.get_query_argument('groupIDs', None)
+        followup_ids = self.get_query_argument('followupRequestIDs', None)
+        assignments_ids = self.get_query_argument('assignmentsIDs', None)
+        spec_origin = self.get_query_argument('origin', None)
+        spec_label = self.get_query_argument('label', None)
+        spec_type = self.get_query_argument('type', None)
+        comments_filter = self.get_query_argument('commentsFilter', None)
+        comments_filter_author = self.get_query_argument('commentsFilterAuthor', None)
+        comments_filter_before = self.get_query_argument('commentsFilterBefore', None)
+        comments_filter_after = self.get_query_argument('commentsFilterAfter', None)
+
+        # validate inputs
+        try:
+            observed_before = (
+                arrow.get(observed_before).datetime if observed_before else None
+            )
+        except (TypeError, ParserError):
+            return self.error(f'Cannot parse time input value "{observed_before}".')
+
+        try:
+            observed_after = (
+                arrow.get(observed_after).datetime if observed_after else None
+            )
+        except (TypeError, ParserError):
+            return self.error(f'Cannot parse time input value "{observed_after}".')
+
+        try:
+            instrument_ids = self.parse_id_list(instrument_ids, Instrument)
+            group_ids = self.parse_id_list(group_ids, Group)
+            followup_ids = self.parse_id_list(followup_ids, FollowupRequest)
+            assignments_ids = self.parse_id_list(assignments_ids, ClassicalAssignment)
+
+        except (ValueError, AccessError) as e:
+            return self.error(str(e))
+
+        if obj_id is not None:
+            try:
+                Obj.get_if_readable_by(obj_id, self.current_user)
+            except AccessError:
+                return self.error(f'Cannot find object with ID "{obj_id}"')
+
+        if spec_origin is not None:
+            try:
+                spec_origin = self.parse_string_list(spec_origin)
+            except TypeError:
+                return self.error(f'Cannot parse "origin" argument "{spec_origin}".')
+
+        if spec_label is not None:
+            try:
+                spec_label = self.parse_string_list(spec_label)
+            except TypeError:
+                return self.error(f'Cannot parse "label" argument "{spec_label}".')
+
+        if spec_type is not None:
+            try:
+                spec_type = self.parse_string_list(spec_type)
+            except TypeError:
+                return self.error(f'Cannot parse "type" argument "{spec_type}".')
+
+        if comments_filter is not None:
+            try:
+                comments_filter = self.parse_string_list(comments_filter)
+            except TypeError:
+                return self.error(
+                    f'Cannot parse "commentsFilter" argument "{comments_filter}".'
+                )
+
+        if comments_filter_author is not None:
+            try:
+                comments_filter_author = self.parse_string_list(comments_filter_author)
+            except TypeError:
+                return self.error(
+                    f'Cannot parse "commentsFilterAuthor" argument "{comments_filter_author}".'
+                )
+
+        if comments_filter_before is not None:
+            try:
+                comments_filter_before = arrow.get(comments_filter_before).datetime
+            except (TypeError, ParserError):
+                return self.error(
+                    f'Cannot parse time input value "{comments_filter_before}".'
+                )
+
+        if comments_filter_after is not None:
+            try:
+                comments_filter_after = arrow.get(comments_filter_after).datetime
+            except (TypeError, ParserError):
+                return self.error(
+                    f'Cannot parse time input value "{comments_filter_after}".'
+                )
+
+        # filter the spectra
+        columns = [
+            'obj_id',
+            'observed_at',
+            'reducers',
+            'external_reducer',
+            'observers',
+            'external_observer',
+            'origin',
+            'type',
+            'label',
+            'instrument_id',
+            'instrument',
+            'group_ids',
+            'followup_request_id',
+            'assignment_id',
+            'altdata',
+        ]
+
+        spec_query = Spectrum.query_records_accessible_by(
+            self.current_user, columns=columns
+        )
+
+        if instrument_ids:
+            spec_query = spec_query.filter(Spectrum.instrument_id.in_(instrument_ids))
+
+        if group_ids:
+            spec_query = spec_query.filter(
+                or_(*[Spectrum.group_ids.any(gid) for gid in group_ids])
+            )
+
+        if followup_ids:
+            spec_query = spec_query.filter(
+                Spectrum.followup_request_id.in_(followup_ids)
+            )
+
+        if assignments_ids:
+            spec_query = spec_query.filter(Spectrum.assignment_id.in_(assignments_ids))
+
+        if obj_id:
+            spec_query = spec_query.filter(Spectrum.obj_id.contains(obj_id.strip()))
+
+        if observed_before:
+            spec_query = spec_query.filter(Spectrum.observed_at <= observed_before)
+
+        if observed_after:
+            spec_query = spec_query.filter(Spectrum.observed_at >= observed_after)
+
+        if spec_origin:
+            spec_query = spec_query.filter(
+                or_(*[Spectrum.origin.contains(value) for value in spec_origin])
+            )
+
+        result_spectra = spec_query.all()
+
+        if (
+            (comments_filter is not None)
+            or (comments_filter_author is not None)
+            or (comments_filter_before is not None)
+            or (comments_filter_after is not None)
+        ):
+            new_result_spectra = []
+            for spec in result_spectra:
+                comments_query = CommentOnSpectrum.query_records_accessible_by(
+                    self.current_user
+                ).filter(CommentOnSpectrum.spectrum_id == spec.id)
+                if comments_filter_before:
+                    comments_query = comments_query.filter(
+                        CommentOnSpectrum.created_at <= comments_filter_before
+                    )
+                if comments_filter_after:
+                    comments_query = comments_query.filter(
+                        CommentOnSpectrum.created_at >= comments_filter_after
+                    )
+                comments = comments_query.all()
+
+                if len(comments) == 0:
+                    continue
+
+                author_check = np.zeros(len(comments), dtype=bool)
+                text_check = np.zeros(len(comments), dtype=bool)
+
+                for i, com in enumerate(comments):
+                    if (
+                        comments_filter_author is None
+                        or com.author in comments_filter_author
+                    ):
+                        author_check[i] = True
+                    if comments_filter is None or any(
+                        [cf in com.text for cf in comments_filter]
+                    ):
+                        text_check[i] = True
+                if not np.any(author_check & text_check):
+                    continue
+
+                new_result_spectra.append(spec)  # only append what passed all the cuts
+
+            result_spectra = new_result_spectra
+            spec_dict = [s.to_dict() for s in result_spectra]
+
+        self.verify_and_commit()
+        return self.success(data=spec_dict)
 
     @auth_or_token
     def get(self, spectrum_id):

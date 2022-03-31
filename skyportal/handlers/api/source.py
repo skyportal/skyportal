@@ -1383,7 +1383,7 @@ class SourceHandler(BaseHandler):
                 comments_filter_author = [comments_filter_author]
             else:
                 return self.error(
-                    "Invalid commentsFilterOrigin value -- must provide at least one string value"
+                    "Invalid commentsFilterAuthor value -- must provide at least one string value"
                 )
         if localization_dateobs is not None:
             if localization_name is not None:
