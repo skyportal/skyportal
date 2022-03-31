@@ -48,6 +48,7 @@ import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
+import TNSATForm from "./TNSATForm";
 
 import * as spectraActions from "../ducks/spectra";
 
@@ -128,6 +129,12 @@ export const useSourceStyles = makeStyles((theme) => ({
     width: "100%",
   },
   classifications: {
+    display: "flex",
+    flexDirection: "column",
+    margin: "auto",
+    width: "100%",
+  },
+  tns: {
     display: "flex",
     flexDirection: "column",
     margin: "auto",
@@ -646,6 +653,24 @@ const SourceMobile = WidthProvider(
                   taxonomyList={taxonomyList}
                 />
               </div>
+            </AccordionDetails>
+          </Accordion>
+          <Accordion
+            defaultExpanded
+            className={classes.tns}
+            data-testid="tns-accordion"
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="tns-content"
+              id="tns-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                TNS Form
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <TNSATForm obj_id={source.id} />
             </AccordionDetails>
           </Accordion>
           <Accordion defaultExpanded>

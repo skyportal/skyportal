@@ -24,6 +24,7 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 import { showNotification } from "baselayer/components/Notifications";
 
 import FormValidationError from "./FormValidationError";
+import TNSSpectraForm from "./TNSSpectraForm";
 import CommentList from "./CommentList";
 import AnnotationsTable from "./AnnotationsTable";
 
@@ -155,6 +156,7 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
           direction="row"
           justifyContent="center"
           alignItems="center"
+          spacing={3}
         >
           <Grid item className={styles.photometryContainer} sm={6}>
             <Suspense
@@ -186,6 +188,10 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
           <Grid item sm={6}>
             <Typography variant="h6">Annotations</Typography>
             <AnnotationsTable annotations={annotations} />
+          </Grid>
+          <Grid item sm={6}>
+            <Typography variant="h6">TNS</Typography>
+            <TNSSpectraForm obj_id={route.id} spectrum_id={rowData[0]} />
           </Grid>
         </Grid>
       </TableCell>
