@@ -262,11 +262,11 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
 
   const getDataTableColumns = (keys, instrument_id) => {
     const implementsDelete =
-      instrumentFormParams[instrument_id].methodsImplemented.delete;
+      instrumentFormParams[instrument_id]?.methodsImplemented.delete;
     const implementsSend =
-      instrumentFormParams[instrument_id].methodsImplemented.send;
+      instrumentFormParams[instrument_id]?.methodsImplemented.send;
     const implementsRemove =
-      instrumentFormParams[instrument_id].methodsImplemented.remove;
+      instrumentFormParams[instrument_id]?.methodsImplemented.remove;
     const modifiable = implementsDelete;
     const queuable = implementsSend || implementsRemove;
 
@@ -278,18 +278,20 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
       const renderKey = (value) =>
         Array.isArray(value) ? value.join(",") : value;
 
-      const field = Object.keys(
-        instrumentFormParams[instrument_id].aliasLookup
-      ).includes(key)
-        ? instrumentFormParams[instrument_id].aliasLookup[key]
-        : key;
-      columns.push({
-        name: `payload.${key}`,
-        label: field,
-        options: {
-          customBodyRender: renderKey,
-        },
-      });
+      if (instrumentFormParams[instrument_id]) {
+        const field = Object.keys(
+          instrumentFormParams[instrument_id].aliasLookup
+        ).includes(key)
+          ? instrumentFormParams[instrument_id].aliasLookup[key]
+          : key;
+        columns.push({
+          name: `payload.${key}`,
+          label: field,
+          options: {
+            customBodyRender: renderKey,
+          },
+        });
+      }
     });
     columns.push({ name: "status", label: "Status" });
 
