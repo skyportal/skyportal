@@ -227,7 +227,6 @@ const GeoJSONGlobePlot = ({
     const projection = d3.geoOrthographic().translate(center).scale(100);
     const geoGenerator = d3.geoPath().projection(projection);
     const graticule = d3.geoGraticule();
-
     // Draw text labels
     const translate = (d) => {
       const coord = projection(d.geometry.coordinates);
@@ -383,10 +382,18 @@ const GeoJSONGlobePlot = ({
             .data(features)
             .append("path")
             .attr("class", field_id)
-            .style("fill", "none")
+            .style("fill", f.selected ? "red" : "white")
             .style("stroke", "blue")
             .style("stroke-width", "0.5px")
-            .attr("d", geoGenerator);
+            .attr("d", geoGenerator)
+            .on("click", () => {
+              if (f.selected) {
+                f.selected = false;
+              } else {
+                f.selected = true;
+              }
+              refresh();
+            });
         });
       }
     }

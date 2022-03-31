@@ -75,10 +75,10 @@ const GcnSelectionForm = ({ gcnEvent }) => {
     displayOptionsDefault
   );
 
-  const defaultStartDate = dayjs(gcnEvent.dateobs).format(
+  const defaultStartDate = dayjs(gcnEvent?.dateobs).format(
     "YYYY-MM-DDTHH:mm:ssZ"
   );
-  const defaultEndDate = dayjs(gcnEvent.dateobs)
+  const defaultEndDate = dayjs(gcnEvent?.dateobs)
     .add(7, "day")
     .format("YYYY-MM-DDTHH:mm:ssZ");
   const [formDataState, setFormDataState] = useState({
@@ -110,7 +110,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
       // update
 
       const result = await dispatch(
-        instrumentsActions.fetchGcnEventInstruments(gcnEvent.dateobs)
+        instrumentsActions.fetchGcnEventInstruments(gcnEvent?.dateobs)
       );
 
       const { data } = result;
