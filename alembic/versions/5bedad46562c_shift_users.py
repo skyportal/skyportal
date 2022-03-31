@@ -1,7 +1,7 @@
 """shift users
 
 Revision ID: 5bedad46562c
-Revises: 1a43ee08a734
+Revises: 0bc55992eb50
 Create Date: 2022-03-29 16:25:21.812526
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '5bedad46562c'
-down_revision = '1a43ee08a734'
+down_revision = '0bc55992eb50'
 branch_labels = None
 depends_on = None
 
