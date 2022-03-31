@@ -9,6 +9,215 @@ import datetime
 from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 
 
+def test_head_spectrum(
+    upload_data_token,
+    comment_token,
+    comment_token_two_groups,
+    public_source,
+    public_source_two_groups,
+    public_group,
+    public_group2,
+    lris,
+    sedm,
+):
+    # post two spectra with very different properties
+    custom_label = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': public_source.id,
+            'observed_at': '2020-01-10T00:00:00',
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.3, 232.1, 235.3],
+            'group_ids': [public_group.id],
+            'label': custom_label,
+            'origin': 'Keck telescope',
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    spectrum_id1 = data['data']['id']
+
+    comment_text = str(uuid.uuid4())
+    status, data = api(
+        'POST',
+        f'spectra/{spectrum_id1}/comments',
+        data={'text': comment_text, 'group_ids': [public_group.id]},
+        token=comment_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    time_after_posting_first_spec = str(datetime.datetime.now())
+
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': public_source_two_groups.id,
+            'observed_at': time_after_posting_first_spec,
+            'instrument_id': sedm.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [434.7, 432.1, 435.3],
+            'group_ids': [public_group.id, public_group2.id],
+            'type': 'host',
+            'origin': 'Palomar 60 inch',
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    spectrum_id2 = data['data']['id']
+
+    status, data = api(
+        'POST',
+        f'spectra/{spectrum_id2}/comments',
+        data={
+            'text': "looks like Ia.",
+            'group_ids': [public_group.id, public_group2.id],
+        },
+        token=comment_token_two_groups,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # filter on groups:
+    status, data = api(
+        'GET',
+        'spectra',
+        params={'groupIDs': [public_group.id]},  # should get both spectra
+        token=upload_data_token,
+    )
+    print(data)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 2
+    assert data['data'][0]['id'] == spectrum_id1
+    assert data['data'][1]['id'] == spectrum_id2
+    assert data['data'][0]['fluxes'][0] == 234.3
+    assert data['data'][1]['fluxes'][0] == 434.7
+
+    status, data = api(
+        'GET',
+        'spectrum',
+        params={
+            'groupIDs': [public_group.id, public_group2.id]  # should get both spectra
+        },
+        token=upload_data_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 2
+    assert data['data'][0]['id'] == spectrum_id1
+    assert data['data'][1]['id'] == spectrum_id2
+
+    status, data = api(
+        'GET',
+        'spectrum',
+        params={'groupIDs': [public_group2.id]},  # should get only second spectrum
+        token=upload_data_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id2
+
+    return
+
+    # test time ranges:
+    status, data = api(
+        'HEAD',
+        'spectrum',
+        params={
+            '' 'observedBefore': time_after_posting_first_spec,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 234.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # test open ended range that includes second spectrum
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 434.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # test open ended range that includes both spectra
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-01T00:00:00',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 2
+    assert data['status'] == 'success'
+
+    # test legal variations on input isot format
+    # 2020-01-15
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 434.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # 2020-01-15T00:00:00+00:00
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00&plus;00:00',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 434.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # 2020-01-15T00:00:00Z
+    status, data = api(
+        'GET',
+        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00Z',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 434.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+    # test with no instrument ids
+    status, data = api(
+        'GET',
+        'spectrum/range?min_date=2020-01-01T00:00:00&max_date=2020-02-01',
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert len(data['data']) == 1
+    assert data['status'] == 'success'
+    assert data['data'][0]['fluxes'][0] == 234.2
+    assert data['data'][0]['obj_id'] == public_source.id
+
+
 def test_token_user_get_range_spectrum(
     upload_data_token, public_source, public_group, lris
 ):

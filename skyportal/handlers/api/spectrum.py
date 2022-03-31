@@ -6,7 +6,7 @@ from arrow import ParserError
 import numpy as np
 
 from sqlalchemy.orm import joinedload
-from sqlalchemy import or_
+from sqlalchemy import or_, Column
 
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
@@ -70,19 +70,19 @@ class SpectrumHandler(BaseHandler):
             return  # silently pass through any None values
 
         try:
-            accessible_ids = model_class.query_records_accessible_by(self.current_user)
+            accessible_rows = model_class.get_records_accessible_by(self.current_user)
             validated_ids = []
             for id in id_list.split(','):
                 id = int(id)
-                if id not in accessible_ids:
+                if id not in [row.id for row in accessible_rows]:
                     raise AccessError(
-                        f'Invalid {str(model_class)} IDs field ({id_list}); '
-                        f'Not all {str(model_class)} IDs are valid/accessible'
+                        f'Invalid {model_class.__name__} IDs field ({id_list}); '
+                        f'Not all {model_class.__name__} IDs are valid/accessible'
                     )
                 validated_ids.append(id)
         except ValueError:
             raise ValueError(
-                f'Invalid {str(model_class)} IDs field ({id_list}; '
+                f'Invalid {model_class.__name__} IDs field ({id_list}; '
                 f'Could not parse all elements to integers'
             )
 
@@ -427,7 +427,231 @@ class SpectrumHandler(BaseHandler):
             self.verify_and_commit()
             return self.success(data=spec_dict)
 
+    @auth_or_token
+    def get(self, spectrum_id=None):
+        """
+        ---
+        single:
+          description: Retrieve a spectrum
+          tags:
+            - spectra
+          parameters:
+            - in: path
+              name: spectrum_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleSpectrum
+            403:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve multiple spectra with given criteria
+          tags:
+            - spectra
+          parameters:
+            - in: query
+              name: minimal
+              nullable: true
+              default: false
+              schema:
+                type: boolean
+              description: |
+                If true, return only the minimal metadata
+                about each spectrum, instead of passing
+                the potentially large dataset that includes
+                wavelength/flux and also comments and annotations.
+                The metadata that is always included is:
+                spectrum_id, obj_id, observed_at, created_at, modified,
+                origin, type, label, instrument_id, instrument_name,
+                followup_request_id, assignment_id, and altdata.
+            - in: query
+              name: observedBefore
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided,
+                return only spectra observed before this time.
+            - in: query
+              name: observedAfter
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided,
+                return only spectra observed after this time.
+            - in: query
+              name: objID
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Return any spectra on an object with ID that has a (partial) match
+                to this argument (i.e., the given argument is "in" the object's ID).
+            - in: query
+              name: instrumentIDs
+              nullable: true
+              type: list
+              items:
+                type: integer
+              description: |
+                If provided, filter only spectra observed with one of these instrument IDs.
+            - in: query
+              name: groupIDs
+              nullable: true
+              schema:
+                type: list
+                items:
+                  type: integer
+              description: |
+                If provided, filter only spectra saved to one of these group IDs.
+            - in: query
+              name: followupRequestIDs
+              nullable: true
+              schema:
+                type: list
+                items:
+                  type: integer
+              description: |
+                If provided, filter only spectra associate with these
+                followup request IDs.
+            - in: query
+              name: assignmentIDs
+              nullable: true
+              schema:
+                type: list
+                items:
+                  type: integer
+              description: |
+                If provided, filter only spectra associate with these
+                assignment request IDs.
+            - in: query
+              name: origin
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Return any spectra that have an origin with a (partial) match
+                to any of the values in this comma separated list.
+            - in: query
+              name: label
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Return any spectra that have an origin with a (partial) match
+                to any of the values in this comma separated list.
+            - in: query
+              name: type
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Return spectra of the given type or types
+                (match multiple values using a comma separated list).
+                Types of spectra are defined in the config,
+                e.g., source, host or host_center.
+            - in: query
+              name: commentsFilter
+              nullable: true
+              schema:
+                type: array
+                items:
+                  type: string
+              explode: false
+              style: simple
+              description: |
+                Comma-separated string of comment text to filter for spectra matching.
+            - in: query
+              name: commentsFilterAuthor
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Comma separated string of authors.
+                Only comments from these authors are used
+                when filtering with the commentsFilter.
+            - in: query
+              name: commentsFilterBefore
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided,
+                only return sources that have comments before this time.
+            - in: query
+              name: commentsFilterAfter
+              nullable: true
+              schema:
+                type: string
+              description: |
+                Arrow-parseable date string (e.g. 2020-01-01). If provided,
+                only return sources that have comments after this time.
+        """
+
+        if spectrum_id is not None:
+            try:
+                spectrum = Spectrum.get_if_accessible_by(
+                    spectrum_id,
+                    self.current_user,
+                    raise_if_none=True,
+                )
+            except AccessError:
+                return self.error(
+                    f'Could not access spectrum {spectrum_id}.', status=403
+                )
+            comments = (
+                CommentOnSpectrum.query_records_accessible_by(
+                    self.current_user,
+                    options=[joinedload(CommentOnSpectrum.groups)],
+                )
+                .filter(CommentOnSpectrum.spectrum_id == spectrum_id)
+                .all()
+            )
+            annotations = (
+                AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
+                .filter(AnnotationOnSpectrum.spectrum_id == spectrum_id)
+                .all()
+            )
+
+            spec_dict = recursive_to_dict(spectrum)
+            spec_dict["instrument_name"] = spectrum.instrument.name
+            spec_dict["groups"] = spectrum.groups
+            spec_dict["reducers"] = spectrum.reducers
+            spec_dict["observers"] = spectrum.observers
+            spec_dict["owner"] = spectrum.owner
+            spec_dict["comments"] = comments
+            spec_dict["annotations"] = annotations
+
+            external_reducer = (
+                DBSession()
+                .query(SpectrumReducer.external_reducer)
+                .filter(SpectrumReducer.spectr_id == spectrum_id)
+                .first()
+            )
+            if external_reducer is not None:
+                spec_dict["external_reducer"] = external_reducer[0]
+
+            external_observer = (
+                DBSession()
+                .query(SpectrumObserver.external_observer)
+                .filter(SpectrumObserver.spectr_id == spectrum_id)
+                .first()
+            )
+            if external_observer is not None:
+                spec_dict["external_observer"] = external_observer[0]
+
+            self.verify_and_commit()
+            return self.success(data=spec_dict)
+
         # multiple spectra
+        minimal = self.get_query_argument('minimal', False)
         observed_before = self.get_query_argument('observedBefore', None)
         observed_after = self.get_query_argument('observedAfter', None)
         obj_id = self.get_query_argument('objID', None)
@@ -524,34 +748,35 @@ class SpectrumHandler(BaseHandler):
                 )
 
         # filter the spectra
-        columns = [
-            'obj_id',
-            'observed_at',
-            'reducers',
-            'external_reducer',
-            'observers',
-            'external_observer',
-            'origin',
-            'type',
-            'label',
-            'instrument_id',
-            'instrument',
-            'group_ids',
-            'followup_request_id',
-            'assignment_id',
-            'altdata',
-        ]
+        if minimal:
+            columns = [
+                'obj_id',
+                'observed_at',
+                'created_at',
+                'modified',
+                'origin',
+                'type',
+                'label',
+                'instrument_id',
+                'followup_request_id',
+                'assignment_id',
+                'altdata',
+            ]
+            columns = [Column(c) for c in columns]
 
-        spec_query = Spectrum.query_records_accessible_by(
-            self.current_user, columns=columns
-        )
+            spec_query = Spectrum.query_records_accessible_by(
+                self.current_user,
+                columns=columns,
+            )
+        else:
+            spec_query = Spectrum.query_records_accessible_by(self.current_user)
 
         if instrument_ids:
             spec_query = spec_query.filter(Spectrum.instrument_id.in_(instrument_ids))
 
         if group_ids:
-            spec_query = spec_query.filter(
-                or_(*[Spectrum.group_ids.any(gid) for gid in group_ids])
+            spec_query = spec_query.join(Group, aliased=True).filter(
+                Group.id.in_(group_ids)
             )
 
         if followup_ids:
@@ -576,10 +801,11 @@ class SpectrumHandler(BaseHandler):
                 or_(*[Spectrum.origin.contains(value) for value in spec_origin])
             )
 
-        result_spectra = spec_query.all()
+        result_spectra = recursive_to_dict(spec_query.all())
 
         if (
-            (comments_filter is not None)
+            not minimal
+            or (comments_filter is not None)
             or (comments_filter_author is not None)
             or (comments_filter_before is not None)
             or (comments_filter_after is not None)
@@ -588,7 +814,11 @@ class SpectrumHandler(BaseHandler):
             for spec in result_spectra:
                 comments_query = CommentOnSpectrum.query_records_accessible_by(
                     self.current_user
-                ).filter(CommentOnSpectrum.spectrum_id == spec.id)
+                ).filter(CommentOnSpectrum.spectrum_id == spec['id'])
+
+                if not minimal:  # grab these before further filtering
+                    spec['comments'] = comments_query.all()
+
                 if comments_filter_before:
                     comments_query = comments_query.filter(
                         CommentOnSpectrum.created_at <= comments_filter_before
@@ -621,83 +851,37 @@ class SpectrumHandler(BaseHandler):
                 new_result_spectra.append(spec)  # only append what passed all the cuts
 
             result_spectra = new_result_spectra
-            spec_dict = [s.to_dict() for s in result_spectra]
+
+        if not minimal:  # add other data to each spectrum
+            for spec in result_spectra:
+                annotations = (
+                    AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
+                    .filter(AnnotationOnSpectrum.spectrum_id == spec['id'])
+                    .all()
+                )
+                spec['annotations'] = annotations
+                external_reducer = (
+                    DBSession()
+                    .query(SpectrumReducer.external_reducer)
+                    .filter(SpectrumReducer.spectr_id == spec['id'])
+                    .first()
+                )
+                if external_reducer is not None:
+                    spec['external_reducer'] = external_reducer[0]
+
+                external_observer = (
+                    DBSession()
+                    .query(SpectrumObserver.external_observer)
+                    .filter(SpectrumObserver.spectr_id == spec['id'])
+                    .first()
+                )
+                if external_observer is not None:
+                    spec['external_observer'] = external_observer[0]
+
+        result_spectra = sorted(result_spectra, key=lambda x: x['observed_at'])
 
         self.verify_and_commit()
-        return self.success(data=spec_dict)
-
-    @auth_or_token
-    def get(self, spectrum_id):
-        """
-        ---
-        description: Retrieve a spectrum
-        tags:
-          - spectra
-        parameters:
-          - in: path
-            name: spectrum_id
-            required: true
-            schema:
-              type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleSpectrum
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-
-        spectrum = Spectrum.get_if_accessible_by(
-            spectrum_id,
-            self.current_user,
-            raise_if_none=True,
-        )
-        comments = (
-            CommentOnSpectrum.query_records_accessible_by(
-                self.current_user,
-                options=[joinedload(CommentOnSpectrum.groups)],
-            )
-            .filter(CommentOnSpectrum.spectrum_id == spectrum_id)
-            .all()
-        )
-        annotations = (
-            AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
-            .filter(AnnotationOnSpectrum.spectrum_id == spectrum_id)
-            .all()
-        )
-
-        spec_dict = recursive_to_dict(spectrum)
-        spec_dict["instrument_name"] = spectrum.instrument.name
-        spec_dict["groups"] = spectrum.groups
-        spec_dict["reducers"] = spectrum.reducers
-        spec_dict["observers"] = spectrum.observers
-        spec_dict["owner"] = spectrum.owner
-        spec_dict["comments"] = comments
-        spec_dict["annotations"] = annotations
-
-        external_reducer = (
-            DBSession()
-            .query(SpectrumReducer.external_reducer)
-            .filter(SpectrumReducer.spectr_id == spectrum_id)
-            .first()
-        )
-        if external_reducer is not None:
-            spec_dict["external_reducer"] = external_reducer[0]
-
-        external_observer = (
-            DBSession()
-            .query(SpectrumObserver.external_observer)
-            .filter(SpectrumObserver.spectr_id == spectrum_id)
-            .first()
-        )
-        if external_observer is not None:
-            spec_dict["external_observer"] = external_observer[0]
-
-        self.verify_and_commit()
-        return self.success(data=spec_dict)
+        return self.success(data=result_spectra)
 
     @permissions(['Upload data'])
     def put(self, spectrum_id):
