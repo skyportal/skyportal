@@ -47,7 +47,7 @@ def test_synthetic_photometry(
             'obj_id': str(public_source.id),
             'observed_at': str(datetime.datetime.now()),
             'instrument_id': instrument_id,
-            'wavelengths': [100, 300, 500, 700, 900],
+            'wavelengths': [1000, 3000, 5000, 7000, 9000],
             'fluxes': [232.1, 234.2, 232.1, 235.3, 232.1],
             'units': 'erg/s/cm/cm/AA',
             'group_ids': [public_group.id],
