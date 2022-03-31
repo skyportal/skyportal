@@ -28,7 +28,7 @@ def black_body(la, temp):
     amp = 1.1910429526245744e-25  # 2*h*c**2 * (nm / m) = 2*6.62607004e-34 * 299792458**2 / 1e9 the last term is units
     la = la * 1e-9  # convert wavelength from nm to m
 
-    return amp / (la ** 5 * (np.exp(const / (la * temp)) - 1))
+    return amp / (la**5 * (np.exp(const / (la * temp)) - 1))
 
 
 def get_plot_data(data):
