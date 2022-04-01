@@ -34,7 +34,7 @@ from ...models.schema import (
     SpectrumAsciiFileParseJSON,
 )
 
-from ...enum_types import default_spectrum_type
+from ...enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 
 _, cfg = load_env()
 
@@ -76,13 +76,13 @@ class SpectrumHandler(BaseHandler):
                 id = int(id)
                 if id not in [row.id for row in accessible_rows]:
                     raise AccessError(
-                        f'Invalid {model_class.__name__} IDs field ({id_list}); '
+                        f'Invalid {model_class.__name__} IDs field ("{id_list}"); '
                         f'Not all {model_class.__name__} IDs are valid/accessible'
                     )
                 validated_ids.append(id)
         except ValueError:
             raise ValueError(
-                f'Invalid {model_class.__name__} IDs field ({id_list}; '
+                f'Invalid {model_class.__name__} IDs field ("{id_list}"); '
                 f'Could not parse all elements to integers'
             )
 
@@ -193,7 +193,8 @@ class SpectrumHandler(BaseHandler):
 
         if len(observers) == 0 and external_observer is not None:
             self.error(
-                "At least one valid user must be provided as an observer point of contact via the 'observed_by' parameter."
+                "At least one valid user must be provided as an "
+                "observer point of contact via the 'observed_by' parameter."
             )
 
         spec = Spectrum(**data)
@@ -467,8 +468,9 @@ class SpectrumHandler(BaseHandler):
                 the potentially large dataset that includes
                 wavelength/flux and also comments and annotations.
                 The metadata that is always included is:
-                spectrum_id, obj_id, observed_at, created_at, modified,
-                origin, type, label, instrument_id, instrument_name,
+                id, obj_id, owner_id, origin, type, label,
+                observed_at, created_at, modified,
+                instrument_id, instrument_name, original_file_name,
                 followup_request_id, assignment_id, and altdata.
             - in: query
               name: observedBefore
@@ -658,7 +660,7 @@ class SpectrumHandler(BaseHandler):
         instrument_ids = self.get_query_argument('instrumentIDs', None)
         group_ids = self.get_query_argument('groupIDs', None)
         followup_ids = self.get_query_argument('followupRequestIDs', None)
-        assignments_ids = self.get_query_argument('assignmentsIDs', None)
+        assignment_ids = self.get_query_argument('assignmentIDs', None)
         spec_origin = self.get_query_argument('origin', None)
         spec_label = self.get_query_argument('label', None)
         spec_type = self.get_query_argument('type', None)
@@ -686,14 +688,14 @@ class SpectrumHandler(BaseHandler):
             instrument_ids = self.parse_id_list(instrument_ids, Instrument)
             group_ids = self.parse_id_list(group_ids, Group)
             followup_ids = self.parse_id_list(followup_ids, FollowupRequest)
-            assignments_ids = self.parse_id_list(assignments_ids, ClassicalAssignment)
+            assignment_ids = self.parse_id_list(assignment_ids, ClassicalAssignment)
 
         except (ValueError, AccessError) as e:
             return self.error(str(e))
 
         if obj_id is not None:
             try:
-                Obj.get_if_readable_by(obj_id, self.current_user)
+                Obj.get_if_accessible_by(obj_id, self.current_user)
             except AccessError:
                 return self.error(f'Cannot find object with ID "{obj_id}"')
 
@@ -714,6 +716,12 @@ class SpectrumHandler(BaseHandler):
                 spec_type = self.parse_string_list(spec_type)
             except TypeError:
                 return self.error(f'Cannot parse "type" argument "{spec_type}".')
+            for t in spec_type:
+                if t not in ALLOWED_SPECTRUM_TYPES:
+                    return self.error(
+                        f'Spectrum type "{t}" is not in list of allowed '
+                        f'spectrum types: {ALLOWED_SPECTRUM_TYPES}.'
+                    )
 
         if comments_filter is not None:
             try:
@@ -750,6 +758,8 @@ class SpectrumHandler(BaseHandler):
         # filter the spectra
         if minimal:
             columns = [
+                'id',
+                'owner_id',
                 'obj_id',
                 'observed_at',
                 'created_at',
@@ -761,6 +771,7 @@ class SpectrumHandler(BaseHandler):
                 'followup_request_id',
                 'assignment_id',
                 'altdata',
+                'original_file_string',
             ]
             columns = [Column(c) for c in columns]
 
@@ -775,8 +786,8 @@ class SpectrumHandler(BaseHandler):
             spec_query = spec_query.filter(Spectrum.instrument_id.in_(instrument_ids))
 
         if group_ids:
-            spec_query = spec_query.join(Group, aliased=True).filter(
-                Group.id.in_(group_ids)
+            spec_query = spec_query.filter(
+                or_(*[Spectrum.groups.any(Group.id == gid) for gid in group_ids])
             )
 
         if followup_ids:
@@ -784,8 +795,8 @@ class SpectrumHandler(BaseHandler):
                 Spectrum.followup_request_id.in_(followup_ids)
             )
 
-        if assignments_ids:
-            spec_query = spec_query.filter(Spectrum.assignment_id.in_(assignments_ids))
+        if assignment_ids:
+            spec_query = spec_query.filter(Spectrum.assignment_id.in_(assignment_ids))
 
         if obj_id:
             spec_query = spec_query.filter(Spectrum.obj_id.contains(obj_id.strip()))
@@ -800,6 +811,13 @@ class SpectrumHandler(BaseHandler):
             spec_query = spec_query.filter(
                 or_(*[Spectrum.origin.contains(value) for value in spec_origin])
             )
+        if spec_label:
+            spec_query = spec_query.filter(
+                or_(*[Spectrum.label.contains(value) for value in spec_label])
+            )
+
+        if spec_type:
+            spec_query = spec_query.filter(Spectrum.type.in_(spec_type))
 
         result_spectra = recursive_to_dict(spec_query.all())
 
@@ -836,9 +854,8 @@ class SpectrumHandler(BaseHandler):
                 text_check = np.zeros(len(comments), dtype=bool)
 
                 for i, com in enumerate(comments):
-                    if (
-                        comments_filter_author is None
-                        or com.author in comments_filter_author
+                    if comments_filter_author is None or any(
+                        [cf in com.author.username for cf in comments_filter_author]
                     ):
                         author_check[i] = True
                     if comments_filter is None or any(

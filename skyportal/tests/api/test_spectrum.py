@@ -1,5 +1,7 @@
 import os
 import uuid
+import time
+import arrow
 from skyportal.tests import api
 from glob import glob
 import yaml
@@ -10,7 +12,7 @@ from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 
 
 def test_head_spectrum(
-    upload_data_token,
+    super_admin_token,
     comment_token,
     comment_token_two_groups,
     public_source,
@@ -19,6 +21,9 @@ def test_head_spectrum(
     public_group2,
     lris,
     sedm,
+    public_source_followup_request,
+    public_source_group2_followup_request,
+    public_assignment,
 ):
     # post two spectra with very different properties
     custom_label = str(uuid.uuid4())
@@ -34,8 +39,10 @@ def test_head_spectrum(
             'group_ids': [public_group.id],
             'label': custom_label,
             'origin': 'Keck telescope',
+            'followup_request_id': public_source_followup_request.id,
+            'assignment_id': public_assignment.id,
         },
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -52,6 +59,7 @@ def test_head_spectrum(
     assert status == 200
     assert data['status'] == 'success'
 
+    time.sleep(2)
     time_after_posting_first_spec = str(datetime.datetime.now())
 
     status, data = api(
@@ -66,8 +74,9 @@ def test_head_spectrum(
             'group_ids': [public_group.id, public_group2.id],
             'type': 'host',
             'origin': 'Palomar 60 inch',
+            'followup_request_id': public_source_group2_followup_request.id,
         },
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -85,15 +94,35 @@ def test_head_spectrum(
 
     assert status == 200
     assert data['status'] == 'success'
+    comment_id = data['data']['comment_id']
+
+    # retrive the comment and author name
+    status, data = api(
+        'GET',
+        f'spectra/{spectrum_id2}/comments/{comment_id}',
+        token=comment_token_two_groups,
+    )
+    assert status == 200
+    comment_author_id = data['data']['author_id']
+    comment_created_time = data['data']['created_at']
+
+    status, data = api(
+        'GET',
+        f'user/{comment_author_id}',
+        token=comment_token_two_groups,
+    )
+
+    assert status == 200
+    comment_author_username = data['data']['username']
 
     # filter on groups:
     status, data = api(
         'GET',
         'spectra',
-        params={'groupIDs': [public_group.id]},  # should get both spectra
-        token=upload_data_token,
+        params={'groupIDs': public_group.id},  # should get both spectra
+        token=super_admin_token,
     )
-    print(data)
+
     assert status == 200
     assert data['status'] == 'success'
     assert len(data['data']) == 2
@@ -104,11 +133,11 @@ def test_head_spectrum(
 
     status, data = api(
         'GET',
-        'spectrum',
+        'spectra',
         params={
-            'groupIDs': [public_group.id, public_group2.id]  # should get both spectra
+            'groupIDs': f'{public_group.id}, {public_group2.id}'  # should get both spectra
         },
-        token=upload_data_token,
+        token=super_admin_token,
     )
 
     assert status == 200
@@ -119,9 +148,9 @@ def test_head_spectrum(
 
     status, data = api(
         'GET',
-        'spectrum',
-        params={'groupIDs': [public_group2.id]},  # should get only second spectrum
-        token=upload_data_token,
+        'spectra',
+        params={'groupIDs': public_group2.id},  # should get only second spectrum
+        token=super_admin_token,
     )
 
     assert status == 200
@@ -129,93 +158,479 @@ def test_head_spectrum(
     assert len(data['data']) == 1
     assert data['data'][0]['id'] == spectrum_id2
 
-    return
-
     # test time ranges:
     status, data = api(
-        'HEAD',
-        'spectrum',
+        'GET',
+        'spectra',
         params={
-            '' 'observedBefore': time_after_posting_first_spec,
+            'groupIDs': public_group.id,
+            'observedBefore': time_after_posting_first_spec,
         },
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
-    assert len(data['data']) == 1
     assert data['status'] == 'success'
-    assert data['data'][0]['fluxes'][0] == 234.2
+    assert len(data['data']) == 1
+    assert data['data'][0]['fluxes'][0] == 234.3
     assert data['data'][0]['obj_id'] == public_source.id
 
     # test open ended range that includes second spectrum
     status, data = api(
         'GET',
-        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00',
-        token=upload_data_token,
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'observedAfter': time_after_posting_first_spec,
+        },
+        token=super_admin_token,
     )
     assert status == 200
-    assert len(data['data']) == 1
     assert data['status'] == 'success'
-    assert data['data'][0]['fluxes'][0] == 434.2
-    assert data['data'][0]['obj_id'] == public_source.id
+    assert len(data['data']) == 1
+    assert data['data'][0]['fluxes'][0] == 434.7
+    assert data['data'][0]['obj_id'] == public_source_two_groups.id
 
     # test open ended range that includes both spectra
     status, data = api(
         'GET',
-        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-01T00:00:00',
-        token=upload_data_token,
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'observedAfter': '2020-01-01T00:00:00',
+        },
+        token=super_admin_token,
     )
+
     assert status == 200
+    assert data['status'] == 'success'
     assert len(data['data']) == 2
-    assert data['status'] == 'success'
 
-    # test legal variations on input isot format
-    # 2020-01-15
+    # test various date formats
+    # can't parse this: 'T00:00:00&plus;00:00'
+    dates = ['', 'T00:00:00+00:00', 'T00:00:00Z']
+    for d in dates:
+        status, data = api(
+            'GET',
+            'spectra',
+            params={
+                'groupIDs': public_group.id,
+                'observedAfter': f'2020-01-15{d}',  # should get only second spectrum
+            },
+            token=super_admin_token,
+        )
+
+        assert status == 200
+        assert data['status'] == 'success'
+        assert len(data['data']) == 1
+        assert data['data'][0]['id'] == spectrum_id2
+
+    # test objID
     status, data = api(
         'GET',
-        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15',
-        token=upload_data_token,
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'objID': public_source.id,  # should get only first spectrum
+        },
+        token=super_admin_token,
     )
-    assert status == 200
-    assert len(data['data']) == 1
-    assert data['status'] == 'success'
-    assert data['data'][0]['fluxes'][0] == 434.2
-    assert data['data'][0]['obj_id'] == public_source.id
 
-    # 2020-01-15T00:00:00+00:00
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id1
+
     status, data = api(
         'GET',
-        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00&plus;00:00',
-        token=upload_data_token,
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            # partial match to second spectrum
+            'objID': public_source_two_groups.id[5:15],
+        },
+        token=super_admin_token,
     )
-    assert status == 200
-    assert len(data['data']) == 1
-    assert data['status'] == 'success'
-    assert data['data'][0]['fluxes'][0] == 434.2
-    assert data['data'][0]['obj_id'] == public_source.id
 
-    # 2020-01-15T00:00:00Z
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id2
+
     status, data = api(
         'GET',
-        f'spectrum/range?instrument_ids={lris.id}&min_date=2020-01-15T00:00:00Z',
-        token=upload_data_token,
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'objID': 'ZTF2022abcdef',  # should not match anything
+        },
+        token=super_admin_token,
     )
-    assert status == 200
-    assert len(data['data']) == 1
-    assert data['status'] == 'success'
-    assert data['data'][0]['fluxes'][0] == 434.2
-    assert data['data'][0]['obj_id'] == public_source.id
 
-    # test with no instrument ids
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 0
+
+    # test instrument IDs
     status, data = api(
         'GET',
-        'spectrum/range?min_date=2020-01-01T00:00:00&max_date=2020-02-01',
-        token=upload_data_token,
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'instrumentIDs': lris.id,  # should get only first spectrum
+        },
+        token=super_admin_token,
     )
+
     assert status == 200
-    assert len(data['data']) == 1
     assert data['status'] == 'success'
-    assert data['data'][0]['fluxes'][0] == 234.2
-    assert data['data'][0]['obj_id'] == public_source.id
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id1
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'instrumentIDs': sedm.id,  # should get only second spectrum
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id2
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'instrumentIDs': f'{lris.id}, {sedm.id}',  # should get both
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 2
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'instrumentIDs': f'{lris.id}, {sedm.id}, {lris.id * sedm.id}',  # should fail
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 400
+    assert data['status'] == 'error'
+    assert 'Not all Instrument IDs' in data['message']
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'instrumentIDs': 'free text',  # should fail
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 400
+    assert data['status'] == 'error'
+    assert 'Could not parse all elements to integers' in data['message']
+
+    # test followup request IDs
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'followupRequestIDs': public_source_followup_request.id,  # should get only first spectrum
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id1
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'followupRequestIDs': public_source_group2_followup_request.id,  # should only get second spectrum
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id2
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            # should get error
+            'followupRequestIDs': public_source_group2_followup_request.id * 10,
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 400
+    assert data['status'] == 'error'
+    assert 'Not all FollowupRequest IDs' in data['message']
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'followupRequestIDs': public_source_group2_followup_request.id,
+        },
+        token=comment_token,  # should fail due to permission to see followup request
+    )
+
+    assert status == 400
+    assert data['status'] == 'error'
+    assert 'Not all FollowupRequest IDs' in data['message']
+
+    # test assignments
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'assignmentIDs': public_assignment.id,  # should get only first spectrum
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id1
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'assignmentIDs': public_assignment.id * 10,  # should fail
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 400
+    assert data['status'] == 'error'
+    assert 'Not all ClassicalAssignment IDs' in data['message']
+
+    # test origin
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'origin': 'Keck',  # should get only first spectrum
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id1
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'origin': ['Gemini', 'VLT'],  # should get nothing
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 0
+
+    # test label
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'label': custom_label,  # should get only first spectrum
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id1
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'label': ['one', 'two', 'three'],  # should get nothing
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 0
+
+    # test type
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'type': 'source',  # should get only first spectrum (default type)
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id1
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'type': 'host',  # should get only second spectrum
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id2
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'type': 'host_center',  # should get nothing
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 0
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'type': 'rainbow',  # should get error, (allowed enum)
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 400
+    assert data['status'] == 'error'
+    assert 'not in list of allowed spectrum types' in data['message']
+
+    # test comments
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'commentsFilter': comment_text[10:20],  # should get first spectrum
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id1
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            # should get second spectrum
+            'commentsFilterAuthor': comment_author_username[8:16],
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id2
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'commentsFilterAuthor': str(uuid.uuid4()),  # should get nothing
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 0
+    comment_created_time = str(
+        arrow.get(comment_created_time + '-07:00').shift(seconds=-1)
+    )
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'commentsFilterBefore': comment_created_time,  # should get first spectrum
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id1
+
+    status, data = api(
+        'GET',
+        'spectra',
+        params={
+            'groupIDs': public_group.id,
+            'commentsFilterAfter': comment_created_time,  # should get second spectrum
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert len(data['data']) == 1
+    assert data['data'][0]['id'] == spectrum_id2
+
+    # test minimal outputs
 
 
 def test_token_user_get_range_spectrum(
