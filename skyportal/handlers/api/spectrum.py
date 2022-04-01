@@ -199,6 +199,7 @@ class SpectrumHandler(BaseHandler):
 
         spec = Spectrum(**data)
         spec.instrument = instrument
+
         spec.groups = groups
         spec.owner_id = owner_id
         if spec.type is None:
@@ -223,210 +224,6 @@ class SpectrumHandler(BaseHandler):
         )
 
         return self.success(data={"id": spec.id})
-
-    @auth_or_token
-    def head(self, spectrum_id=None):
-        """
-        ---
-        single:
-          description: Retrieve metadata for a spectrum
-          tags:
-            - spectra
-          parameters:
-            - in: path
-              name: spectrum_id
-              required: true
-              schema:
-                type: integer
-          responses:
-            200:
-              content:
-                application/json:
-                  schema:
-                    application/json:
-                      schema: SpectrumHead
-            403:
-              content:
-                application/json:
-                  schema: Error
-        multiple:
-          description: Retrieve metadata for all spectra with given criteria
-          tags:
-            - spectra
-          parameters:
-            - in: query
-              name: observedBefore
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                return only spectra observed before this time.
-            - in: query
-              name: observedAfter
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                return only spectra observed after this time.
-            - in: query
-              name: objID
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Return any spectra on an object with ID that has a (partial) match
-                to this argument (i.e., the given argument is "in" the object's ID).
-            - in: query
-              name: instrumentIDs
-              nullable: true
-              type: list
-              items:
-                type: integer
-              description: |
-                If provided, filter only spectra observed with one of these instrument IDs.
-            - in: query
-              name: groupIDs
-              nullable: true
-              schema:
-                type: list
-                items:
-                  type: integer
-              description: |
-                If provided, filter only spectra saved to one of these group IDs.
-            - in: query
-              name: followupRequestIDs
-              nullable: true
-              schema:
-                type: list
-                items:
-                  type: integer
-              description: |
-                If provided, filter only spectra associate with these
-                followup request IDs.
-            - in: query
-              name: assignmentIDs
-              nullable: true
-              schema:
-                type: list
-                items:
-                  type: integer
-              description: |
-                If provided, filter only spectra associate with these
-                assignment request IDs.
-            - in: query
-              name: origin
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Return any spectra that have an origin with a (partial) match
-                to any of the values in this comma separated list.
-            - in: query
-              name: label
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Return any spectra that have an origin with a (partial) match
-                to any of the values in this comma separated list.
-            - in: query
-              name: type
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Return spectra of the given type or types
-                (match multiple values using a comma separated list).
-                Types of spectra are defined in the config,
-                e.g., source, host or host_center.
-            - in: query
-              name: commentsFilter
-              nullable: true
-              schema:
-                type: array
-                items:
-                  type: string
-              explode: false
-              style: simple
-              description: |
-                Comma-separated string of comment text to filter for spectra matching.
-            - in: query
-              name: commentsFilterAuthor
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Comma separated string of authors.
-                Only comments from these authors are used
-                when filtering with the commentsFilter.
-            - in: query
-              name: commentsFilterBefore
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                only return sources that have comments before this time.
-            - in: query
-              name: commentsFilterAfter
-              nullable: true
-              schema:
-                type: string
-              description: |
-                Arrow-parseable date string (e.g. 2020-01-01). If provided,
-                only return sources that have comments after this time.
-
-        """
-
-        # single spectrum:
-        if spectrum_id is not None:
-            try:
-                spectrum = Spectrum.get_if_accessible_by(
-                    spectrum_id,
-                    self.current_user,
-                    raise_if_none=True,
-                )
-            except AccessError:
-                return self.error(
-                    f'Could not access spectrum {spectrum_id}.', status=403
-                )
-
-            external_reducer = (
-                DBSession()
-                .query(SpectrumReducer.external_reducer)
-                .filter(SpectrumReducer.spectr_id == spectrum_id)
-                .first()
-            )
-
-            external_observer = (
-                DBSession()
-                .query(SpectrumObserver.external_observer)
-                .filter(SpectrumObserver.spectr_id == spectrum_id)
-                .first()
-            )
-
-            spec_dict = {
-                "obj_id": spectrum.obj_id,
-                "observed_at": spectrum.observed_at,
-                "reducers": spectrum.reducers,
-                "external_reducer": external_reducer[0] or "",
-                "observers": spectrum.observers,
-                "external_observer": external_observer[0] or "",
-                "origin": spectrum.origin,
-                "type": spectrum.type,
-                "label": spectrum.label,
-                "instrument_id": spectrum.instrument_id,
-                "instrument_name": spectrum.instrument.name,
-                "group_ids": spectrum.group_ids,
-                "followup_request_id": spectrum.followup_request_id,
-                "assignment_id": spectrum.assignment_id,
-                "altdata": spectrum.altdata,
-            }
-
-            self.verify_and_commit()
-            return self.success(data=spec_dict)
 
     @auth_or_token
     def get(self, spectrum_id=None):
@@ -689,7 +486,6 @@ class SpectrumHandler(BaseHandler):
             group_ids = self.parse_id_list(group_ids, Group)
             followup_ids = self.parse_id_list(followup_ids, FollowupRequest)
             assignment_ids = self.parse_id_list(assignment_ids, ClassicalAssignment)
-
         except (ValueError, AccessError) as e:
             return self.error(str(e))
 
@@ -758,12 +554,9 @@ class SpectrumHandler(BaseHandler):
         # filter the spectra
         if minimal:
             columns = [
-                'id',
                 'owner_id',
                 'obj_id',
                 'observed_at',
-                'created_at',
-                'modified',
                 'origin',
                 'type',
                 'label',
@@ -771,7 +564,7 @@ class SpectrumHandler(BaseHandler):
                 'followup_request_id',
                 'assignment_id',
                 'altdata',
-                'original_file_string',
+                'original_file_filename',
             ]
             columns = [Column(c) for c in columns]
 
@@ -780,7 +573,9 @@ class SpectrumHandler(BaseHandler):
                 columns=columns,
             )
         else:
-            spec_query = Spectrum.query_records_accessible_by(self.current_user)
+            spec_query = Spectrum.query_records_accessible_by(
+                self.current_user,
+            )
 
         if instrument_ids:
             spec_query = spec_query.filter(Spectrum.instrument_id.in_(instrument_ids))
@@ -811,6 +606,7 @@ class SpectrumHandler(BaseHandler):
             spec_query = spec_query.filter(
                 or_(*[Spectrum.origin.contains(value) for value in spec_origin])
             )
+
         if spec_label:
             spec_query = spec_query.filter(
                 or_(*[Spectrum.label.contains(value) for value in spec_label])
@@ -819,7 +615,9 @@ class SpectrumHandler(BaseHandler):
         if spec_type:
             spec_query = spec_query.filter(Spectrum.type.in_(spec_type))
 
-        result_spectra = recursive_to_dict(spec_query.all())
+        spectra = spec_query.all()
+
+        result_spectra = recursive_to_dict(spectra)
 
         if (
             not minimal
@@ -829,71 +627,96 @@ class SpectrumHandler(BaseHandler):
             or (comments_filter_after is not None)
         ):
             new_result_spectra = []
-            for spec in result_spectra:
+            for spec_dict in result_spectra:
                 comments_query = CommentOnSpectrum.query_records_accessible_by(
-                    self.current_user
-                ).filter(CommentOnSpectrum.spectrum_id == spec['id'])
+                    self.current_user,
+                    options=[joinedload(CommentOnSpectrum.groups)],
+                ).filter(CommentOnSpectrum.spectrum_id == spec_dict['id'])
 
                 if not minimal:  # grab these before further filtering
-                    spec['comments'] = comments_query.all()
+                    spec_dict['comments'] = recursive_to_dict(comments_query.all())
 
-                if comments_filter_before:
-                    comments_query = comments_query.filter(
-                        CommentOnSpectrum.created_at <= comments_filter_before
-                    )
-                if comments_filter_after:
-                    comments_query = comments_query.filter(
-                        CommentOnSpectrum.created_at >= comments_filter_after
-                    )
-                comments = comments_query.all()
+                if (
+                    (comments_filter is not None)
+                    or (comments_filter_author is not None)
+                    or (comments_filter_before is not None)
+                    or (comments_filter_after is not None)
+                ):
+                    if comments_filter_before:
+                        comments_query = comments_query.filter(
+                            CommentOnSpectrum.created_at <= comments_filter_before
+                        )
+                    if comments_filter_after:
+                        comments_query = comments_query.filter(
+                            CommentOnSpectrum.created_at >= comments_filter_after
+                        )
 
-                if len(comments) == 0:
-                    continue
+                    comments = comments_query.all()
+                    if not comments:  # if nothing passed, this spectrum is rejected
+                        continue
 
-                author_check = np.zeros(len(comments), dtype=bool)
-                text_check = np.zeros(len(comments), dtype=bool)
+                    # check the author and free text also match at least one comment
+                    author_check = np.zeros(len(comments), dtype=bool)
+                    text_check = np.zeros(len(comments), dtype=bool)
 
-                for i, com in enumerate(comments):
-                    if comments_filter_author is None or any(
-                        [cf in com.author.username for cf in comments_filter_author]
-                    ):
-                        author_check[i] = True
-                    if comments_filter is None or any(
-                        [cf in com.text for cf in comments_filter]
-                    ):
-                        text_check[i] = True
-                if not np.any(author_check & text_check):
-                    continue
+                    for i, com in enumerate(comments):
+                        if comments_filter_author is None or any(
+                            [cf in com.author.username for cf in comments_filter_author]
+                        ):
+                            author_check[i] = True
+                        if comments_filter is None or any(
+                            [cf in com.text for cf in comments_filter]
+                        ):
+                            text_check[i] = True
 
-                new_result_spectra.append(spec)  # only append what passed all the cuts
+                    # none of the comments have both author and free text match
+                    if not np.any(author_check & text_check):
+                        continue
+
+                new_result_spectra.append(
+                    spec_dict
+                )  # only append what passed all the cuts
 
             result_spectra = new_result_spectra
 
         if not minimal:  # add other data to each spectrum
-            for spec in result_spectra:
+            for (spec, spec_dict) in zip(spectra, result_spectra):
                 annotations = (
                     AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
-                    .filter(AnnotationOnSpectrum.spectrum_id == spec['id'])
+                    .filter(AnnotationOnSpectrum.spectrum_id == spec.id)
                     .all()
                 )
-                spec['annotations'] = annotations
+                spec_dict['annotations'] = recursive_to_dict(annotations)
                 external_reducer = (
                     DBSession()
                     .query(SpectrumReducer.external_reducer)
-                    .filter(SpectrumReducer.spectr_id == spec['id'])
+                    .filter(SpectrumReducer.spectr_id == spec.id)
                     .first()
                 )
                 if external_reducer is not None:
-                    spec['external_reducer'] = external_reducer[0]
+                    spec_dict['external_reducer'] = recursive_to_dict(
+                        external_reducer[0]
+                    )
+
+                spec_dict['reducers'] = recursive_to_dict(spec.reducers)
 
                 external_observer = (
                     DBSession()
                     .query(SpectrumObserver.external_observer)
-                    .filter(SpectrumObserver.spectr_id == spec['id'])
+                    .filter(SpectrumObserver.spectr_id == spec.id)
                     .first()
                 )
                 if external_observer is not None:
-                    spec['external_observer'] = external_observer[0]
+                    spec_dict['external_observer'] = recursive_to_dict(
+                        external_observer[0]
+                    )
+
+                spec_dict['observers'] = recursive_to_dict(spec.observers)
+
+                spec_dict['instrument_name'] = spec.instrument.name
+
+                spec_dict['groups'] = recursive_to_dict(spec.groups)
+                spec_dict['owner'] = recursive_to_dict(spec.owner)
 
         result_spectra = sorted(result_spectra, key=lambda x: x['observed_at'])
 
