@@ -235,7 +235,7 @@ def test_spectrum_filtering_time_ranges(
         'spectra',
         params={
             'groupIDs': group_id,
-            'observedBefore': time_after_posting_first_spec,
+            'observedBefore': '2021-01-10T00:00:00',  # one year after 1st spectrum
         },
         token=super_admin_token,
     )
@@ -839,10 +839,11 @@ def test_spectrum_filtering_comments(
     time_offset = (
         datetime.datetime.utcnow() - datetime.datetime.now()
     ) / datetime.timedelta(hours=1)
-    print(f'time_offset= {time_offset}')
 
     comment_created_time = str(
-        arrow.get(time_after_posting_first_spec).shift(seconds=-1)
+        arrow.get(time_after_posting_first_spec)
+        .shift(seconds=-1)
+        .shift(hours=time_offset)
     )
     status, data = api(
         'GET',
