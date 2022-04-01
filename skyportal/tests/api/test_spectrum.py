@@ -597,9 +597,7 @@ def test_head_spectrum(
     assert status == 200
     assert data['status'] == 'success'
     assert len(data['data']) == 0
-    comment_created_time = str(
-        arrow.get(comment_created_time + '-07:00').shift(seconds=-1)
-    )
+    comment_created_time = str(arrow.get(comment_created_time).shift(seconds=-1))
     status, data = api(
         'GET',
         'spectra',
@@ -1087,7 +1085,7 @@ def test_user_can_delete_owned_spectrum_data(
     assert status == 200
 
     status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
-    assert status == 400
+    assert status == 403
 
 
 def test_admin_can_delete_unowned_spectrum_data(
@@ -1120,7 +1118,7 @@ def test_admin_can_delete_unowned_spectrum_data(
     assert status == 200
 
     status, data = api('GET', f'spectrum/{spectrum_id}', token=upload_data_token)
-    assert status == 400
+    assert status == 403
 
 
 def test_jsonify_spectrum_header(
