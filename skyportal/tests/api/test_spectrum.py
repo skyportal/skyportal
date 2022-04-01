@@ -839,12 +839,10 @@ def test_spectrum_filtering_comments(
     time_offset = (
         datetime.datetime.utcnow() - datetime.datetime.now()
     ) / datetime.timedelta(hours=1)
-    print(time_offset)
+    print(f'time_offset= {time_offset}')
 
     comment_created_time = str(
-        arrow.get(time_after_posting_first_spec)
-        .shift(seconds=-1)
-        .shift(hours=time_offset)
+        arrow.get(time_after_posting_first_spec).shift(seconds=-1)
     )
     status, data = api(
         'GET',
