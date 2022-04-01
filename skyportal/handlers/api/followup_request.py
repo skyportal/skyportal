@@ -1,11 +1,14 @@
 import arrow
+import healpy as hp
 import jsonschema
 from marshmallow.exceptions import ValidationError
+import numpy as np
 import io
 from tornado.ioloop import IOLoop
 import pandas as pd
 import tempfile
 import functools
+from scipy.stats import norm
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -29,16 +32,19 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
     DBSession,
     FollowupRequest,
     Instrument,
     ClassicalAssignment,
+    Localization,
     ObservingRun,
     Obj,
     Group,
     Allocation,
+    cosmo,
 )
 
 from sqlalchemy.orm import joinedload
@@ -1027,3 +1033,193 @@ class FollowupRequestSchedulerHandler(BaseHandler):
         data = io.BytesIO(rez["data"])
 
         await self.send_file(data, filename, output_type=output_format)
+
+
+class FollowupRequestPrioritizationHandler(BaseHandler):
+    @auth_or_token
+    async def put(self):
+        """
+        ---
+        description: Reprioritize followup requests schedule
+        tags:
+            - followup_requests
+        parameters:
+        - in: query
+          name: observationStartDate
+          nullable: true
+          schema:
+            type: string
+          description: |
+            Arrow-parseable date string (e.g. 2020-01-01). If provided, start time
+            of observation window, otherwise now.
+        - in: query
+          name: observationEndDate
+          nullable: true
+          schema:
+            type: string
+          description: |
+            Arrow-parseable date string (e.g. 2020-01-01). If provided, end time
+            of observation window, otherwise 12 hours from now.
+        - in: query
+          name: instrumentId
+          schema:
+            type: string
+          description: Filter by instrument ID
+        - in: query
+          name: localizationId
+          schema:
+            type: integer
+          description: Filter by localization ID
+        - in: query
+          name: requestIds
+          schema:
+            type: List[integer]
+          description: List of follow-up request IDs
+        - in: query
+          name: minimumPriority
+          schema:
+            type: string
+          description: Minimum priority for the instrument. Defaults to 1.
+        - in: query
+          name: maximumPriority
+          schema:
+            type: string
+          description: Maximum priority for the instrument. Defaults to 5.
+        responses:
+          200:
+            description: A PDF/PNG schedule file
+            content:
+              application/pdf:
+                schema:
+                  type: string
+                  format: binary
+              image/png:
+                schema:
+                  type: string
+                  format: binary
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        observation_start_date = data.get('observationStartDate', None)
+        observation_end_date = data.get('observationEndDate', None)
+        instrument_id = data.get('instrumentId', None)
+        request_ids = data.get('requestIds', None)
+        minimum_priority = data.get('minimumPriority', 1)
+        maximum_priority = data.get('maximumPriority', 5)
+
+        if instrument_id is None:
+            return self.error('instrumentId is required')
+        localization_id = data.get('localizationId', None)
+        if localization_id is None:
+            return self.error('localizationId is required')
+        if request_ids is None:
+            return self.error('requestIds is required')
+
+        instrument = (
+            Instrument.query_records_accessible_by(
+                self.current_user,
+            )
+            .filter(
+                Instrument.id == instrument_id,
+            )
+            .first()
+        )
+        if instrument is None:
+            return self.error(message=f"Missing instrument with id {instrument_id}")
+
+        localization = (
+            Localization.query_records_accessible_by(self.current_user)
+            .filter(
+                Localization.id == localization_id,
+            )
+            .first()
+        )
+        if localization is None:
+            return self.error(message=f"Missing localization with id {localization_id}")
+
+        followup_requests = []
+        for request_id in request_ids:
+            # get owned assignments
+            followup_request = FollowupRequest.get_if_accessible_by(
+                request_id, self.current_user, mode="update", raise_if_none=False
+            )
+            if followup_request is None:
+                return self.error(
+                    message=f"Missing FollowUpRequest with id {request_id}"
+                )
+            followup_requests.append(followup_request)
+
+        if len(followup_requests) == 0:
+            return self.error('Need at least one observation to modify.')
+
+        if not observation_start_date:
+            observation_start = Time.now()
+        else:
+            observation_start = Time(arrow.get(observation_start_date.strip()).datetime)
+        if not observation_end_date:
+            observation_end = Time.now() + TimeDelta(12 * u.hour)
+        else:
+            observation_end = Time(arrow.get(observation_end_date.strip()).datetime)
+        print(observation_start, observation_end)
+
+        ras = np.array(
+            [followup_request.obj.ra for followup_request in followup_requests]
+        )
+        decs = np.array(
+            [followup_request.obj.dec for followup_request in followup_requests]
+        )
+        dists = np.array(
+            [
+                cosmo.luminosity_distance(followup_request.obj.redshift).value
+                if followup_request.obj.redshift is not None
+                else -1
+                for followup_request in followup_requests
+            ]
+        )
+
+        tab = localization.flat
+        ipix = hp.ang2pix(Localization.nside, ras, decs, lonlat=True)
+        if localization.is_3d:
+            prob, distmu, distsigma, distnorm = tab
+            if not all([dist > 0 for dist in dists]):
+                weights = prob[ipix]
+            else:
+                weights = prob[ipix] * (
+                    distnorm[ipix] * norm(distmu[ipix], distsigma[ipix]).pdf(dists)
+                )
+        else:
+            weights = prob[ipix]
+        weights = weights / np.max(weights)
+        priorities = [
+            int(
+                np.round(
+                    weight * (maximum_priority - minimum_priority) + minimum_priority
+                )
+            )
+            for weight in weights
+        ]
+
+        for followup_request, priority in zip(followup_requests, priorities):
+            api = followup_request.instrument.api_class
+            if not api.implements()['update']:
+                return self.error('Cannot update requests on this instrument.')
+
+            payload = followup_request.payload
+            payload["priority"] = 5
+            setattr(followup_request, "payload", payload)
+            followup_request.instrument.api_class.update(followup_request)
+            DBSession().merge(followup_request)
+            DBSession().commit()
+        self.verify_and_commit()
+
+        flow = Flow()
+        flow.push(
+            '*',
+            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+        )
+
+        return self.success()

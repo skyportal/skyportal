@@ -79,6 +79,7 @@ const FollowupRequestSelectionForm = () => {
   if (
     instrumentList.length === 0 ||
     telescopeList.length === 0 ||
+    followupRequestList.length === 0 ||
     !selectedInstrumentId ||
     Object.keys(instrumentFormParams).length === 0
   ) {

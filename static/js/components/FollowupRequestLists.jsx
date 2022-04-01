@@ -106,6 +106,7 @@ const FollowupRequestLists = ({
 
   if (
     instrumentList.length === 0 ||
+    followupRequests.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
     return <p>No robotic followup requests for this source...</p>;
