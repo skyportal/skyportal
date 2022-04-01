@@ -94,7 +94,7 @@
     "eslint": "7.27.0",
     "eslint-config-airbnb": "18.2.1",
     "eslint-config-prettier": "8.4.0",
-    "eslint-import-resolver-webpack": "0.12.2",
+    "eslint-import-resolver-webpack": "0.13.2",
     "eslint-loader": "4.0.2",
     "eslint-plugin-import": "2.25.4",
     "eslint-plugin-jsx-a11y": "6.5.1",
