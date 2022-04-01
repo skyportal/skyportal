@@ -32,6 +32,7 @@ from .spectrum import *
 from .stream import *
 from .taxonomy import *
 from .telescope import *
+from .tns import *
 from .thumbnail import *
 from .user_notification import *
 from .user_token import *
