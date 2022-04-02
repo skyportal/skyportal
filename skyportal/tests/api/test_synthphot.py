@@ -4,9 +4,7 @@ import uuid
 from skyportal.tests import api
 
 
-def test_synthetic_photometry(
-    super_admin_token, public_source, public_group, upload_data_token
-):
+def test_synthetic_photometry(super_admin_token, public_source, public_group):
     name = str(uuid.uuid4())
     status, data = api(
         'POST',
@@ -52,7 +50,7 @@ def test_synthetic_photometry(
             'units': 'erg/s/cm/cm/AA',
             'group_ids': [public_group.id],
         },
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
@@ -64,7 +62,7 @@ def test_synthetic_photometry(
         data={
             'filters': ['ztfg', 'ztfr', 'ztfi'],
         },
-        token=upload_data_token,
+        token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'

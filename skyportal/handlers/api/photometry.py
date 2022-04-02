@@ -631,10 +631,6 @@ def get_group_ids(data, user):
         )
 
     # always add the single user group
-    try:
-        group_ids.append(user.single_user_group.id)
-    except AttributeError:
-        log('Posting from Token so no single_user_group.')
     group_ids = list(set(group_ids))
     return group_ids
 
