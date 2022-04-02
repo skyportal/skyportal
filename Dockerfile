@@ -2,6 +2,8 @@ FROM ubuntu:20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# add a comment so GA triggers
+
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common && \
     curl -sL https://deb.nodesource.com/setup_17.x | bash - && \
