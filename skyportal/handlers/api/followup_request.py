@@ -1106,30 +1106,15 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
         data = self.get_json()
         observation_start_date = data.get('observationStartDate', None)
         observation_end_date = data.get('observationEndDate', None)
-        instrument_id = data.get('instrumentId', None)
+        localization_id = data.get('localizationId', None)
         request_ids = data.get('requestIds', None)
         minimum_priority = data.get('minimumPriority', 1)
         maximum_priority = data.get('maximumPriority', 5)
 
-        if instrument_id is None:
-            return self.error('instrumentId is required')
-        localization_id = data.get('localizationId', None)
         if localization_id is None:
             return self.error('localizationId is required')
         if request_ids is None:
             return self.error('requestIds is required')
-
-        instrument = (
-            Instrument.query_records_accessible_by(
-                self.current_user,
-            )
-            .filter(
-                Instrument.id == instrument_id,
-            )
-            .first()
-        )
-        if instrument is None:
-            return self.error(message=f"Missing instrument with id {instrument_id}")
 
         localization = (
             Localization.query_records_accessible_by(self.current_user)
@@ -1203,18 +1188,22 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
             for weight in weights
         ]
 
-        for followup_request, priority in zip(followup_requests, priorities):
-            api = followup_request.instrument.api_class
-            if not api.implements()['update']:
-                return self.error('Cannot update requests on this instrument.')
+        with DBSession() as session:
+            for request_id, priority in zip(request_ids, priorities):
+                # get owned assignments
+                followup_request = session.query(FollowupRequest).get(request_id)
+                api = followup_request.instrument.api_class
+                if not api.implements()['update']:
+                    return self.error('Cannot update requests on this instrument.')
+                payload = followup_request.payload
+                payload["priority"] = priority
+                session.query(FollowupRequest).filter(
+                    FollowupRequest.id == request_id
+                ).update({'payload': payload})
+                session.commit()
 
-            payload = followup_request.payload
-            payload["priority"] = 5
-            setattr(followup_request, "payload", payload)
-            followup_request.instrument.api_class.update(followup_request)
-            DBSession().merge(followup_request)
-            DBSession().commit()
-        self.verify_and_commit()
+                followup_request.payload = payload
+                followup_request.instrument.api_class.update(followup_request)
 
         flow = Flow()
         flow.push(

@@ -11,7 +11,6 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import * as followupRequestActions from "../ducks/followup_requests";
-import * as instrumentActions from "../ducks/instruments";
 import * as gcnEventsActions from "../ducks/gcnEvents";
 
 dayjs.extend(utc);
@@ -50,26 +49,8 @@ const FollowupRequestPrioritizationForm = () => {
 
   const [isSubmittingPrioritization, setIsSubmittingPrioritization] =
     useState(false);
-  const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState(null);
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
-
-  useEffect(() => {
-    const getInstruments = async () => {
-      // Wait for the instruments to update before setting
-      // the new default form fields, so that the allocations list can
-      // update
-
-      const result = await dispatch(instrumentActions.fetchInstruments());
-      const { data } = result;
-      setSelectedInstrumentId(data[0]?.id);
-    };
-    getInstruments();
-
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, setSelectedInstrumentId]);
 
   useEffect(() => {
     const getGcnEvents = async () => {
@@ -88,11 +69,14 @@ const FollowupRequestPrioritizationForm = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedGcnEventId]);
 
+  if (!Array.isArray(followupRequestList)) {
+    return <p>Waiting for followup requests to load...</p>;
+  }
+
   if (
     instrumentList.length === 0 ||
     telescopeList.length === 0 ||
     followupRequestList.length === 0 ||
-    !selectedInstrumentId ||
     Object.keys(instrumentFormParams).length === 0
   ) {
     return <p>No robotic followup requests for this source...</p>;
@@ -126,10 +110,6 @@ const FollowupRequestPrioritizationForm = () => {
     value.sort();
   });
 
-  const handleSelectedInstrumentChange = (e) => {
-    setSelectedInstrumentId(e.target.value);
-  };
-
   const handleSelectedGcnEventChange = (e) => {
     setSelectedGcnEventId(e.target.value);
   };
@@ -142,12 +122,10 @@ const FollowupRequestPrioritizationForm = () => {
     setIsSubmittingPrioritization(true);
     formData.gcnEventId = selectedGcnEventId;
     formData.localizationId = selectedLocalizationId;
-    formData.instrumentId = selectedInstrumentId;
     formData.requestIds = [];
-    requestsGroupedByInstId[selectedInstrumentId].forEach((request) => {
+    requestsGroupedByInstId[formData.instrumentId].forEach((request) => {
       formData.requestIds.push(request.id);
     });
-    console.log("formData", formData);
     await dispatch(followupRequestActions.prioritizeFollowupRequests(formData));
     setIsSubmittingPrioritization(false);
   };
@@ -158,12 +136,28 @@ const FollowupRequestPrioritizationForm = () => {
         "Start date must be before end date, please fix."
       );
     }
+    if (!requestsGroupedByInstId[formData.instrumentId]) {
+      errors.instrumentId.addError(
+        "This instrument does not have any requests, please fix."
+      );
+    }
     return errors;
   }
 
   const FollowupRequestPrioritizationFormSchema = {
     type: "object",
     properties: {
+      instrumentId: {
+        type: "integer",
+        oneOf: instrumentList.map((instrument) => ({
+          enum: [instrument.id],
+          title: `${instrument.name} / ${
+            telLookUp[instrument.telescope_id].name
+          }`,
+        })),
+        title: "Instrument",
+        default: instrumentList[0]?.id,
+      },
       observationStartDate: {
         type: "string",
         format: "date-time",
@@ -230,27 +224,6 @@ const FollowupRequestPrioritizationForm = () => {
               </MenuItem>
             )
           )}
-        </Select>
-        <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="instrumentSelectLabel"
-          value={selectedInstrumentId}
-          onChange={handleSelectedInstrumentChange}
-          name="followupRequestInstrumentSelect"
-          className={classes.select}
-        >
-          {instrumentList?.map((instrument) => (
-            <MenuItem
-              value={instrument.id}
-              key={instrument.id}
-              className={classes.selectItem}
-            >
-              {`${telLookUp[instrument.telescope_id].name} / ${
-                instrument.name
-              }`}
-            </MenuItem>
-          ))}
         </Select>
       </div>
       <div data-testid="gcnsource-selection-form">

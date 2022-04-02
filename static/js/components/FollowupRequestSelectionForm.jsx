@@ -76,6 +76,10 @@ const FollowupRequestSelectionForm = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedInstrumentId]);
 
+  if (!Array.isArray(followupRequestList)) {
+    return <p>Waiting for followup requests to load...</p>;
+  }
+
   if (
     instrumentList.length === 0 ||
     telescopeList.length === 0 ||

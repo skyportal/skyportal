@@ -117,6 +117,10 @@ const FollowupRequestLists = ({
     return r;
   }, {});
 
+  if (!Array.isArray(followupRequests)) {
+    return <p>Waiting for followup requests to load...</p>;
+  }
+
   const requestsGroupedByInstId = followupRequests.reduce((r, a) => {
     r[a.allocation.instrument.id] = [
       ...(r[a.allocation.instrument.id] || []),
