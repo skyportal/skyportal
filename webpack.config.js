@@ -115,7 +115,7 @@ const config = {
     fallback: {
       path: path.resolve(__dirname, "node_modules/path-browserify"),
       buffer: path.resolve(__dirname, "node_modules/buffer"),
-      url: path.resolve(__dirname, "node_modules/url"),
+      url: false,
     },
   },
 
