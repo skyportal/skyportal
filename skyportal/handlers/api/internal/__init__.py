@@ -4,6 +4,7 @@ from .plot import (
     PlotAssignmentAirmassHandler,
     PlotObjTelAirmassHandler,
     PlotHoursBelowAirmassHandler,
+    FilterWavelengthHandler,
 )
 from .token import TokenHandler
 from .dbinfo import DBInfoHandler
