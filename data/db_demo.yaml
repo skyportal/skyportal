@@ -239,10 +239,10 @@ instrument:
     api_classname: ZTFAPI
     api_classname_obsplan: ZTFMMAAPI
     treasuremap_id: 47
-    field_data:
-      file: ../data/ZTF_Fields.csv
-    field_region:
-      file: ../data/ZTF_Region.reg
+    # field_data:
+    #   file: ../data/ZTF_Fields.csv
+    # field_region:
+    #   file: ../data/ZTF_Region.reg
   - name: ALFOSC
     type: imaging spectrograph
     band: V
@@ -316,10 +316,10 @@ instrument:
     telescope_id: =CTIO-4m
     type: imager
     filters: ['sdssu', 'desg', 'desr', 'desi', 'desz', 'desy']
-    field_data:
-      file: ../data/DECam_Fields.csv
-    field_region:
-      file: ../data/DECam_Region.reg
+    # field_data:
+    #   file: ../data/DECam_Fields.csv
+    # field_region:
+    #   file: ../data/DECam_Region.reg
   - band: optical
     name: UVOTXRT
     api_classname: UVOTXRTAPI
@@ -372,8 +372,8 @@ instrument:
     =id: LSST
     api_classname_obsplan: MMAAPI
     filters: ["lsstu", "lsstg", "lsstr", "lssti", "lsstz", "lssty"]
-    field_data:
-      file: ../data/LSST_Fields.csv
+    # field_data:
+    #   file: ../data/LSST_Fields.csv
     field_fov_type: circle
     field_fov_attributes: 1.75
 
