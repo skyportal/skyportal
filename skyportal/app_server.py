@@ -48,6 +48,7 @@ from skyportal.handlers.api import (
     ObjHandler,
     ObjPhotometryHandler,
     ObjClassificationHandler,
+    ObjTNSHandler,
     ObservationHandler,
     ObservationGCNHandler,
     ObservationTreasureMapHandler,
@@ -70,7 +71,9 @@ from skyportal.handlers.api import (
     SpectrumASCIIFileParser,
     SpectrumRangeHandler,
     ObjSpectraHandler,
+    SpectrumTNSHandler,
     ShiftHandler,
+    ShiftUserHandler,
     StatsHandler,
     StreamHandler,
     StreamUserHandler,
@@ -79,6 +82,7 @@ from skyportal.handlers.api import (
     TaxonomyHandler,
     TelescopeHandler,
     ThumbnailHandler,
+    TNSRobotHandler,
     UserHandler,
     UnsourcedFinderHandler,
     WeatherHandler,
@@ -105,6 +109,7 @@ from skyportal.handlers.api.internal import (
     NotificationHandler,
     BulkNotificationHandler,
     RecentGcnEventsHandler,
+    FilterWavelengthHandler,
 )
 
 from . import model_util, openapi
@@ -204,7 +209,8 @@ skyportal_handlers = [
     (r'/api/objs(/[0-9A-Za-z-_\.\+]+)', ObjHandler),
     (r'/api/photometry(/[0-9]+)?', PhotometryHandler),
     (r'/api/sharing', SharingHandler),
-    (r'/api/shift(/.*)?', ShiftHandler),
+    (r'/api/shifts(/[0-9]+)?', ShiftHandler),
+    (r'/api/shifts(/[0-9]+)/users(/[0-9]+)?', ShiftUserHandler),
     (r'/api/photometry/bulk_delete/(.*)', BulkDeletePhotometryHandler),
     (r'/api/photometry/range(/.*)?', PhotometryRangeHandler),
     (r'/api/roles', RoleHandler),
@@ -215,6 +221,20 @@ skyportal_handlers = [
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/classifications', ObjClassificationHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/groups', ObjGroupsHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag', ObjColorMagHandler),
+    (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/tns', ObjTNSHandler),
+    (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments', CommentHandler),
+    (r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)?', CommentHandler),
+    (
+        r'/api/(sources|spectra)(/[0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment',
+        CommentAttachmentHandler,
+    ),
+    # Allow the '.pdf' suffix for the attachment route, as the
+    # react-file-previewer package expects URLs ending with '.pdf' to
+    # load PDF files.
+    (
+        r'/api/(sources|spectra)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
+        CommentAttachmentHandler,
+    ),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/irsa', IRSAQueryWISEHandler),
     (r'/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/vizier', VizierQueryHandler),
     (
@@ -237,6 +257,7 @@ skyportal_handlers = [
     (r'/api/spectrum/parse/ascii', SpectrumASCIIFileParser),
     (r'/api/spectrum/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
     (r'/api/spectrum/range(/.*)?', SpectrumRangeHandler),
+    (r'/api/spectrum/tns(/[0-9]+)?', SpectrumTNSHandler),
     # End deprecated
     (r'/api/streams(/[0-9]+)/users(/.*)?', StreamUserHandler),
     (r'/api/streams(/[0-9]+)?', StreamHandler),
@@ -246,6 +267,7 @@ skyportal_handlers = [
     (r'/api/taxonomy(/.*)?', TaxonomyHandler),
     (r'/api/telescope(/[0-9]+)?', TelescopeHandler),
     (r'/api/thumbnail(/[0-9]+)?', ThumbnailHandler),
+    (r'/api/tns_robot(/.*)?', TNSRobotHandler),
     (r'/api/unsourced_finder', UnsourcedFinderHandler),
     (r'/api/user(/[0-9]+)/acls(/.*)?', UserACLHandler),
     (r'/api/user(/[0-9]+)/roles(/.*)?', UserRoleHandler),
@@ -260,6 +282,7 @@ skyportal_handlers = [
     (r'/api/internal/plot/spectroscopy/(.*)', PlotSpectroscopyHandler),
     (r'/api/internal/instrument_forms', RoboticInstrumentsHandler),
     (r'/api/internal/standards', StandardsHandler),
+    (r'/api/internal/wavelengths(/.*)?', FilterWavelengthHandler),
     (r'/api/internal/plot/airmass/assignment/(.*)', PlotAssignmentAirmassHandler),
     (
         r'/api/internal/plot/airmass/objtel/(.*)/([0-9]+)',

@@ -64,6 +64,15 @@ class PlotSpectroscopyHandler(BaseHandler):
         except Exception as e:
             return self.error(f'Exception in photometry plot: {e}')
 
+        json = plot.spectroscopy_plot(
+            obj_id,
+            self.associated_user_object,
+            spec_id,
+            width=int(width),
+            device=device,
+            smoothing=smoothing,
+            smooth_number=smooth_number,
+        )
         self.verify_and_commit()
         self.success(data={'bokehJSON': json, 'url': self.request.uri})
 
@@ -184,3 +193,19 @@ class PlotHoursBelowAirmassHandler(AirmassHandler):
 
         self.verify_and_commit()
         return self.success(data=json)
+
+
+class FilterWavelengthHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        filters = self.get_query_argument('filters', None)
+        if filters:
+            filters = filters.split(',')
+            wavelengths = []
+            for filter in filters:
+                try:
+                    wavelengths.append(plot.get_effective_wavelength(filter))
+                except ValueError:
+                    return self.error("Invalid filters")
+            return self.success(data={'wavelengths': wavelengths})
+        return self.error("Need to pass in a set of filters")
