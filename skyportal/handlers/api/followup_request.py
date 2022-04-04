@@ -1073,7 +1073,9 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
         - in: query
           name: requestIds
           schema:
-            type: List[integer]
+            type: list
+              items:
+                type: integer
           description: List of follow-up request IDs
         - in: query
           name: minimumPriority
