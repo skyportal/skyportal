@@ -1054,9 +1054,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
         - in: body
           name: requestIds
           schema:
-            type: list
-              items:
-                type: integer
+            type: list of integers
           description: List of follow-up request IDs
         - in: body
           name: minimumPriority
