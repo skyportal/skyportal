@@ -1040,65 +1040,39 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
     async def put(self):
         """
         ---
-        description: Reprioritize followup requests schedule
+        description: |
+          Reprioritize followup requests schedule automatically based on
+          location within skymap.
         tags:
             - followup_requests
         parameters:
-        - in: query
-          name: observationStartDate
-          nullable: true
-          schema:
-            type: string
-          description: |
-            Arrow-parseable date string (e.g. 2020-01-01). If provided, start time
-            of observation window, otherwise now.
-        - in: query
-          name: observationEndDate
-          nullable: true
-          schema:
-            type: string
-          description: |
-            Arrow-parseable date string (e.g. 2020-01-01). If provided, end time
-            of observation window, otherwise 12 hours from now.
-        - in: query
-          name: instrumentId
-          schema:
-            type: string
-          description: Filter by instrument ID
-        - in: query
+        - in: body
           name: localizationId
           schema:
             type: integer
           description: Filter by localization ID
-        - in: query
+        - in: body
           name: requestIds
           schema:
             type: list
               items:
                 type: integer
           description: List of follow-up request IDs
-        - in: query
+        - in: body
           name: minimumPriority
           schema:
             type: string
           description: Minimum priority for the instrument. Defaults to 1.
-        - in: query
+        - in: body
           name: maximumPriority
           schema:
             type: string
           description: Maximum priority for the instrument. Defaults to 5.
         responses:
           200:
-            description: A PDF/PNG schedule file
             content:
-              application/pdf:
-                schema:
-                  type: string
-                  format: binary
-              image/png:
-                schema:
-                  type: string
-                  format: binary
+              application/json:
+                schema: Success
           400:
             content:
               application/json:
@@ -1106,8 +1080,6 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
         """
 
         data = self.get_json()
-        observation_start_date = data.get('observationStartDate', None)
-        observation_end_date = data.get('observationEndDate', None)
         localization_id = data.get('localizationId', None)
         request_ids = data.get('requestIds', None)
         minimum_priority = data.get('minimumPriority', 1)
@@ -1142,15 +1114,6 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
 
         if len(followup_requests) == 0:
             return self.error('Need at least one observation to modify.')
-
-        if not observation_start_date:
-            observation_start = Time.now()
-        else:
-            observation_start = Time(arrow.get(observation_start_date.strip()).datetime)
-        if not observation_end_date:
-            observation_end = Time.now() + TimeDelta(12 * u.hour)
-        else:
-            observation_end = Time(arrow.get(observation_end_date.strip()).datetime)
 
         ras = np.array(
             [followup_request.obj.ra for followup_request in followup_requests]
