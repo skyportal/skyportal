@@ -27,12 +27,37 @@ const NewShift = () => {
   }
 
   const handleSubmit = async ({ formData }) => {
-    formData.start_date = formData.start_date.replace("+00:00", "");
-    formData.end_date = formData.end_date.replace("+00:00", "");
-    const result = await dispatch(submitShift(formData));
-    if (result.status === "success") {
-      dispatch(showNotification("Shift saved"));
-      dispatch(fetchShifts());
+    if (!formData.multipleDays) {
+      formData.start_date = formData.start_date.replace("+00:00", "");
+      formData.end_date = formData.end_date.replace("+00:00", "");
+      delete formData.multipleDays;
+      const result = await dispatch(submitShift(formData));
+      if (result.status === "success") {
+        dispatch(showNotification("Shift saved"));
+        dispatch(fetchShifts());
+      }
+    } else {
+      delete formData.multipleDays;
+      const startDate = dayjs(formData.start_date).utc();
+      const endDate = dayjs(formData.end_date).utc();
+      const days = endDate.diff(startDate, "days");
+      for (let i = 0; i <= days; i += 1) {
+        const newFormData = { ...formData };
+        newFormData.name = `${newFormData.name} ${i}`;
+        newFormData.start_date = startDate
+          .add(i, "day")
+          .format("YYYY-MM-DDTHH:mm:ssZ")
+          .replace("+00:00", "");
+        newFormData.end_date = endDate
+          .subtract(days - i, "day")
+          .format("YYYY-MM-DDTHH:mm:ssZ")
+          .replace("+00:00", "");
+        const result = dispatch(submitShift(newFormData));
+        if (result.status === "success") {
+          dispatch(showNotification("Shift saved"));
+          dispatch(fetchShifts());
+        }
+      }
     }
   };
 
@@ -81,6 +106,11 @@ const NewShift = () => {
       description: {
         type: "string",
         title: "Shift's description",
+      },
+      multipleDays: {
+        type: "boolean",
+        title: "Shift repeats everyday",
+        default: false,
       },
     },
     required: ["group_id", "name", "start_date", "end_date"],

@@ -81,6 +81,11 @@ const config = {
         include: /node_modules\/react-resizable\/css/,
         use: ["style-loader", "css-loader"],
       },
+      {
+        test: /\.css$/,
+        include: /node_modules\/react-big-calendar\/lib\/css/,
+        use: ["style-loader", "css-loader"],
+      },
     ],
   },
   plugins: [
