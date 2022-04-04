@@ -545,10 +545,6 @@ def make_custom_buttons_div(panel_name):
     return Div(css_classes=[f'custom_buttons_{panel_name}'], width=300)
 
 
-def make_error_div(panel_name):
-    return Div(css_classes=[f'error_{panel_name}'], width=500, height=0)
-
-
 def photometry_plot(obj_id, user, width=600, device="browser"):
     """Create object photometry scatter plot.
 
@@ -774,7 +770,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
-        key = label + '~obserr' + str(i)
+        key = f'{label}~obserr{str(i)}'
         y_err_x = []
         y_err_y = []
 
@@ -882,7 +878,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         slider,
         plot,
         make_clear_and_add_buttons(model_dict),
-        make_error_div('flux'),
         row(
             make_add_filter_group_form(split, model_dict, 'flux'),
             make_custom_buttons_div('flux'),
@@ -1050,7 +1045,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
-        key = label + '~obserr' + str(i)
+        key = f'{label}~obserr{str(i)}'
         y_err_x = []
         y_err_y = []
 
@@ -1185,7 +1180,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         top_layout,
         plot,
         make_clear_and_add_buttons(model_dict),
-        make_error_div('mag'),
         row(
             make_add_filter_group_form(split, model_dict, 'mag'),
             make_custom_buttons_div('mag'),
@@ -1269,7 +1263,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
             # phase plotting
             for ph in ['a', 'b']:
-                key = label + '~fold' + ph + f'{i}'
+                key = f'{label}~fold{ph}{i}'
                 period_model_dict[key] = period_plot.scatter(
                     x='mjd_fold' + ph,
                     y='mag',
@@ -1430,7 +1424,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             period_plot,
             make_clear_and_add_buttons(period_model_dict),
             period_controls,
-            make_error_div('period'),
             row(
                 make_add_filter_group_form(split, period_model_dict, 'period'),
                 make_custom_buttons_div('period'),

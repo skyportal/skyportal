@@ -16,6 +16,7 @@ if (checkboxes.active.length != 0 && name.value_input !== "") {
   btn.type = "button";
   btn.style = "width: fit-content";
   btn.innerHTML = `Add ${name.value_input} only`;
+  name.value_input = "";
   let div = document.createElement("div");
   div.className = "bk bk-btn-group";
   div.appendChild(btn);
