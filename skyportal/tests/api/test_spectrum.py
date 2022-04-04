@@ -88,7 +88,7 @@ def test_spectrum_filtering_obj_groups(
     status, data = api(
         'GET',
         'spectra',
-        params={'groupIDs': group_id1, 'minimal': False},  # should get both spectra
+        params={'groupIDs': group_id1},  # should get both spectra
         token=super_admin_token,
     )
 
@@ -968,7 +968,7 @@ def test_minimal_spectrum(
         'spectra',
         params={
             'groupIDs': group_id,
-            'minimal': False,
+            'minimalPayload': False,
         },
         token=super_admin_token,
     )
@@ -983,7 +983,7 @@ def test_minimal_spectrum(
         'spectra',
         params={
             'groupIDs': group_id,
-            'minimal': True,
+            'minimalPayload': True,
         },
         token=super_admin_token,
     )

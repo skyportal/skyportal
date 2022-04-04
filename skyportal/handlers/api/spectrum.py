@@ -254,15 +254,15 @@ class SpectrumHandler(BaseHandler):
             - spectra
           parameters:
             - in: query
-              name: minimal
+              name: minimalPayload
               nullable: true
               default: false
               schema:
                 type: boolean
               description: |
                 If true, return only the minimal metadata
-                about each spectrum, instead of passing
-                the potentially large dataset that includes
+                about each spectrum, instead of returning
+                the potentially large payload that includes
                 wavelength/flux and also comments and annotations.
                 The metadata that is always included is:
                 id, obj_id, owner_id, origin, type, label,
@@ -450,7 +450,7 @@ class SpectrumHandler(BaseHandler):
             return self.success(data=spec_dict)
 
         # multiple spectra
-        minimal = self.get_query_argument('minimal', False)
+        minimal_payload = self.get_query_argument('minimalPayload', False)
         observed_before = self.get_query_argument('observedBefore', None)
         observed_after = self.get_query_argument('observedAfter', None)
         obj_id = self.get_query_argument('objID', None)
@@ -552,7 +552,7 @@ class SpectrumHandler(BaseHandler):
                 )
 
         # filter the spectra
-        if minimal:
+        if minimal_payload:
             columns = [
                 'owner_id',
                 'obj_id',
@@ -620,7 +620,7 @@ class SpectrumHandler(BaseHandler):
         result_spectra = recursive_to_dict(spectra)
 
         if (
-            not minimal
+            not minimal_payload
             or (comments_filter is not None)
             or (comments_filter_author is not None)
             or (comments_filter_before is not None)
@@ -633,7 +633,7 @@ class SpectrumHandler(BaseHandler):
                     options=[joinedload(CommentOnSpectrum.groups)],
                 ).filter(CommentOnSpectrum.spectrum_id == spec_dict['id'])
 
-                if not minimal:  # grab these before further filtering
+                if not minimal_payload:  # grab these before further filtering
                     spec_dict['comments'] = recursive_to_dict(comments_query.all())
 
                 if (
@@ -679,7 +679,7 @@ class SpectrumHandler(BaseHandler):
 
             result_spectra = new_result_spectra
 
-        if not minimal:  # add other data to each spectrum
+        if not minimal_payload:  # add other data to each spectrum
             for (spec, spec_dict) in zip(spectra, result_spectra):
                 annotations = (
                     AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
