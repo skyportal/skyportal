@@ -74,7 +74,7 @@ class ObservationPlanRequestHandler(BaseHandler):
         if 'observation_plans' in data:
             observation_plans = data['observation_plans']
         else:
-            observation_plans = data
+            observation_plans = [data]
 
         for plan in observation_plans:
             try:
