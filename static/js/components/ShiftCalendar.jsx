@@ -57,9 +57,12 @@ function setCurrentShift(event) {
 
 function Event({ event }) {
   return (
-    <span>
-      <strong>{event.name}</strong>
-    </span>
+    <div id={`event_${event.id}`} >
+      <span>
+        <strong>{event.name}</strong>
+        <p>{event.group.name}</p>
+      </span>
+    </div>
   );
 }
 

@@ -12,6 +12,11 @@ const useStyles = makeStyles((theme) => ({
         padding: '0',
 
     },
+    shiftgroup: {
+        margin: '0',
+        padding: '0',
+
+    },
     content: {
         padding: "1rem",
         marginBottom:'1.5rem',
@@ -88,18 +93,19 @@ function CurrentShiftMenu() {
     }
 
     return (
-
         currentShift.name != null && (
-            <div className={classes.content}>
+            <div id='current_shift' className={classes.content}>
                 <div>
+                    
                     {currentShift.description ? (
-                    <h3 key='shift_info' className={classes.shiftinfo} >
+                    <h2 id='current_shift_title' className={classes.shiftinfo} >
                         {currentShift.name}: {currentShift.description}
-                    </h3>
+                    </h2>
                     ) : (
-                    <h3 className={classes.shiftinfo} key='shift_info'>{currentShift.name}</h3>
+                    <h2 id='current_shift_title' className={classes.shiftinfo} key='shift_info'>{currentShift.name}</h2>
                     )}
-                    <i>{`\n Members : ${members.join(",")}`}</i>
+                    <h3 id='current_shift_group' className={classes.shiftgroup}> Group: {currentShift.group.name}</h3>
+                    <i id='current_shift_members'>{`\n Members : ${members.join(",")}`}</i>
                 </div>
                 <div className={classes.buttons}>
                     {!participating && (
