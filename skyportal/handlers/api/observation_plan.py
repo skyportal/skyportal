@@ -71,72 +71,77 @@ class ObservationPlanRequestHandler(BaseHandler):
                               description: New observation plan request ID
         """
         data = self.get_json()
+        if 'observation_plans' in data:
+            observation_plans = data['observation_plans']
+        else:
+            observation_plans = data
 
-        try:
-            data = ObservationPlanPost.load(data)
-        except ValidationError as e:
-            return self.error(
-                f'Invalid / missing parameters: {e.normalized_messages()}'
+        for plan in observation_plans:
+            try:
+                data = ObservationPlanPost.load(plan)
+            except ValidationError as e:
+                return self.error(
+                    f'Invalid / missing parameters: {e.normalized_messages()}'
+                )
+
+            data["requester_id"] = self.associated_user_object.id
+            data["last_modified_by_id"] = self.associated_user_object.id
+            data['allocation_id'] = int(data['allocation_id'])
+            data['localization_id'] = int(data['localization_id'])
+
+            allocation = Allocation.get_if_accessible_by(
+                data['allocation_id'],
+                self.current_user,
+                raise_if_none=True,
             )
 
-        data["requester_id"] = self.associated_user_object.id
-        data["last_modified_by_id"] = self.associated_user_object.id
-        data['allocation_id'] = int(data['allocation_id'])
-        data['localization_id'] = int(data['localization_id'])
+            instrument = allocation.instrument
+            if instrument.api_classname_obsplan is None:
+                return self.error('Instrument has no remote API.')
 
-        allocation = Allocation.get_if_accessible_by(
-            data['allocation_id'],
-            self.current_user,
-            raise_if_none=True,
-        )
+            if not instrument.api_class_obsplan.implements()['submit']:
+                return self.error(
+                    'Cannot submit observation plan requests for this Instrument.'
+                )
 
-        instrument = allocation.instrument
-        if instrument.api_classname_obsplan is None:
-            return self.error('Instrument has no remote API.')
+            target_groups = []
+            for group_id in data.pop('target_group_ids', []):
+                g = Group.get_if_accessible_by(
+                    group_id, self.current_user, raise_if_none=True
+                )
+                target_groups.append(g)
 
-        if not instrument.api_class_obsplan.implements()['submit']:
-            return self.error(
-                'Cannot submit observation plan requests for this Instrument.'
-            )
+            try:
+                formSchema = instrument.api_class_obsplan.custom_json_schema(
+                    instrument, self.current_user
+                )
+            except AttributeError:
+                formSchema = instrument.api_class_obsplan.form_json_schema
 
-        target_groups = []
-        for group_id in data.pop('target_group_ids', []):
-            g = Group.get_if_accessible_by(
-                group_id, self.current_user, raise_if_none=True
-            )
-            target_groups.append(g)
+            # validate the payload
+            jsonschema.validate(data['payload'], formSchema)
 
-        try:
-            formSchema = instrument.api_class_obsplan.custom_json_schema(
-                instrument, self.current_user
-            )
-        except AttributeError:
-            formSchema = instrument.api_class_obsplan.form_json_schema
-
-        # validate the payload
-        jsonschema.validate(data['payload'], formSchema)
-
-        observation_plan_request = ObservationPlanRequest.__schema__().load(data)
-        observation_plan_request.target_groups = target_groups
-        DBSession().add(observation_plan_request)
-        self.verify_and_commit()
-
-        self.push_all(
-            action="skyportal/REFRESH_GCNEVENT",
-            payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
-        )
-
-        try:
-            instrument.api_class_obsplan.submit(observation_plan_request)
-        except Exception as e:
-            observation_plan_request.status = 'failed to submit'
-            return self.error(f'Error submitting observation plan: {e.args[0]}')
-        finally:
+            observation_plan_request = ObservationPlanRequest.__schema__().load(data)
+            observation_plan_request.target_groups = target_groups
+            DBSession().add(observation_plan_request)
             self.verify_and_commit()
-        self.push_all(
-            action="skyportal/REFRESH_GCNEVENT",
-            payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
-        )
+
+            self.push_all(
+                action="skyportal/REFRESH_GCNEVENT",
+                payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
+            )
+
+            try:
+                instrument.api_class_obsplan.submit(observation_plan_request)
+            except Exception as e:
+                observation_plan_request.status = 'failed to submit'
+                return self.error(f'Error submitting observation plan: {e.args[0]}')
+            finally:
+                self.verify_and_commit()
+            self.push_all(
+                action="skyportal/REFRESH_GCNEVENT",
+                payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
+            )
 
         return self.success(data={"id": observation_plan_request.id})
 
@@ -870,21 +875,24 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
             )
         self.verify_and_commit()
 
-        observation_plan = observation_plan_request.observation_plans[0]
-        # features are JSON representations that the d3 stuff understands.
-        # We use these to render the contours of the sky localization and
-        # locations of the transients.
+        if len(observation_plan_request.observation_plans) > 0:
+            observation_plan = observation_plan_request.observation_plans[0]
+            # features are JSON representations that the d3 stuff understands.
+            # We use these to render the contours of the sky localization and
+            # locations of the transients.
 
-        geojson = []
-        fields_in = []
-        for ii, observation in enumerate(observation_plan.planned_observations):
-            if observation.field_id not in fields_in:
-                fields_in.append(observation.field_id)
-                geojson.append(observation.field.contour_summary)
-            else:
-                continue
+            geojson = []
+            fields_in = []
+            for ii, observation in enumerate(observation_plan.planned_observations):
+                if observation.field_id not in fields_in:
+                    fields_in.append(observation.field_id)
+                    geojson.append(observation.field.contour_summary)
+                else:
+                    continue
 
-        return self.success(data={'geojson': geojson})
+            return self.success(data={'geojson': geojson})
+        else:
+            return self.error('Observation plan not yet available.')
 
 
 class ObservationPlanAirmassChartHandler(BaseHandler):

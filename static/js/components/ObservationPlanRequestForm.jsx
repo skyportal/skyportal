@@ -56,6 +56,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [planQueues, setPlanQueues] = useState([]);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
@@ -159,8 +160,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     setSelectedLocalizationId(e.target.value);
   };
 
-  const handleSubmit = async ({ formData }) => {
-    setIsSubmitting(true);
+  const handleQueueSubmit = async ({ formData }) => {
     const json = {
       gcnevent_id: gcnevent.id,
       allocation_id: selectedAllocationId,
@@ -168,7 +168,16 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       target_group_ids: selectedGroupIds,
       payload: formData,
     };
+    setPlanQueues([...planQueues, json]);
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    const json = {
+      observation_plans: planQueues,
+    };
     await dispatch(gcnEventActions.submitObservationPlanRequest(json));
+    setPlanQueues([]);
     setIsSubmitting(false);
   };
 
@@ -235,22 +244,55 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         groupIDs={selectedGroupIds}
       />
       <div data-testid="observationplan-request-form">
-        <Form
-          schema={
-            instrumentFormParams[
-              allocationLookUp[selectedAllocationId].instrument_id
-            ].formSchema
-          }
-          uiSchema={
-            instrumentFormParams[
-              allocationLookUp[selectedAllocationId].instrument_id
-            ].uiSchema
-          }
-          liveValidate
-          validate={validate}
-          onSubmit={handleSubmit}
-          disabled={isSubmitting}
-        />
+        <div>
+          <Form
+            schema={
+              instrumentFormParams[
+                allocationLookUp[selectedAllocationId].instrument_id
+              ].formSchema
+            }
+            uiSchema={
+              instrumentFormParams[
+                allocationLookUp[selectedAllocationId].instrument_id
+              ].uiSchema
+            }
+            liveValidate
+            validate={validate}
+            onSubmit={handleQueueSubmit}
+            disabled={isSubmitting}
+          />
+        </div>
+        {isSubmitting && (
+          <div className={classes.marginTop}>
+            <CircularProgress />
+          </div>
+        )}
+      </div>
+      <div>
+        {planQueues?.map((plan) => (
+          <Button
+            size="small"
+            color="primary"
+            variant="outlined"
+            key={plan.payload.queue_name}
+          >
+            {`${
+              instLookUp[allocationLookUp[plan.allocation_id].instrument_id]
+                .name
+            }: ${plan.payload.queue_name}`}
+          </Button>
+        ))}
+      </div>
+      <div>
+        <Button
+          size="small"
+          color="primary"
+          type="submit"
+          variant="outlined"
+          onClick={handleSubmit}
+        >
+          Generate Observation Plans
+        </Button>
         {isSubmitting && (
           <div className={classes.marginTop}>
             <CircularProgress />
