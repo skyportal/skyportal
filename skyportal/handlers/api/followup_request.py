@@ -1151,7 +1151,6 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
             observation_end = Time.now() + TimeDelta(12 * u.hour)
         else:
             observation_end = Time(arrow.get(observation_end_date.strip()).datetime)
-        print(observation_start, observation_end)
 
         ras = np.array(
             [followup_request.obj.ra for followup_request in followup_requests]
