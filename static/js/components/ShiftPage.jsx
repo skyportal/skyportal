@@ -48,21 +48,20 @@ const ShiftPage = () => {
           <MyCalendar shifts={shiftList} />
         </Paper>
       </Grid>
-      
+
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
-            <CurrentShiftMenu />
+          <CurrentShiftMenu />
         </Paper>
         {permission && (
-        <Paper>
-          <div className={classes.paperContent}>
-            <Typography variant="h6">Add a New Shift</Typography>
-            <NewShift />
-          </div>
-        </Paper>
+          <Paper>
+            <div className={classes.paperContent}>
+              <Typography variant="h6">Add a New Shift</Typography>
+              <NewShift />
+            </div>
+          </Paper>
         )}
       </Grid>
-      
     </Grid>
   );
 };

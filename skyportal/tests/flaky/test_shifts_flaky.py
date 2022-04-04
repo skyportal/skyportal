@@ -1,4 +1,3 @@
-from sniffio import current_async_library
 from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
 from datetime import date, timedelta
@@ -61,31 +60,21 @@ def test_super_user_post_shift(
     driver.click_xpath(event_shift_xpath)
 
     # check for leave shift button
-    leave_button_xpath = (
-        f'//*[@id="leave_button"]'
-    )
+    leave_button_xpath = '//*[@id="leave_button"]'
     driver.wait_for_xpath(leave_button_xpath)
     driver.click_xpath(leave_button_xpath)
 
-    driver.wait_for_xpath_to_disappear(
-        f'//*[@id="leave_button"]'
-    )
+    driver.wait_for_xpath_to_disappear(leave_button_xpath)
 
     # check for join shift button
-    join_button_xpath = (
-        f'//*[@id="join_button"]'
-    )
+    join_button_xpath = '//*[@id="join_button"]'
     driver.wait_for_xpath(join_button_xpath)
     driver.click_xpath(join_button_xpath)
 
-    driver.wait_for_xpath_to_disappear(
-        f'//*[@id="join_button"]'
-    )
+    driver.wait_for_xpath_to_disappear(join_button_xpath)
 
     # check for delete shift button
-    delete_button_xpath = (
-        f'//*[@id="delete_button"]'
-    )
+    delete_button_xpath = '//*[@id="delete_button"]'
     driver.wait_for_xpath(delete_button_xpath)
     driver.click_xpath(delete_button_xpath)
     driver.wait_for_xpath_to_disappear(f'//*[text()[contains(.,"{form_name}")]]')
