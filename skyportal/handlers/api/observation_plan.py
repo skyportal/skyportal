@@ -883,7 +883,7 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
 
             geojson = []
             fields_in = []
-            for ii, observation in enumerate(observation_plan.planned_observations):
+            for observation in observation_plan.planned_observations:
                 if observation.field_id not in fields_in:
                     fields_in.append(observation.field_id)
                     geojson.append(observation.field.contour_summary)

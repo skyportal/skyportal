@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Button from "@material-ui/core/Button";
+import Chip from "@material-ui/core/Chip";
 import PropTypes from "prop-types";
 import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
@@ -8,6 +9,8 @@ import MenuItem from "@material-ui/core/MenuItem";
 import Form from "@rjsf/material-ui";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { makeStyles } from "@material-ui/core/styles";
+import { showNotification } from "baselayer/components/Notifications";
+
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as allocationActions from "../ducks/allocations";
 import * as instrumentActions from "../ducks/instruments";
@@ -173,11 +176,15 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    const json = {
-      observation_plans: planQueues,
-    };
-    await dispatch(gcnEventActions.submitObservationPlanRequest(json));
-    setPlanQueues([]);
+    if (planQueues.length === 0) {
+      dispatch(showNotification("Need at least one queue to submit.", "error"));
+    } else {
+      const json = {
+        observation_plans: planQueues,
+      };
+      await dispatch(gcnEventActions.submitObservationPlanRequest(json));
+      setPlanQueues([]);
+    }
     setIsSubmitting(false);
   };
 
@@ -270,17 +277,14 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       </div>
       <div>
         {planQueues?.map((plan) => (
-          <Button
-            size="small"
-            color="primary"
-            variant="outlined"
+          <Chip
             key={plan.payload.queue_name}
-          >
-            {`${
+            label={`${
               instLookUp[allocationLookUp[plan.allocation_id].instrument_id]
                 .name
             }: ${plan.payload.queue_name}`}
-          </Button>
+            data-testid={`queueName_${plan.payload.queue_name}`}
+          />
         ))}
       </div>
       <div>
