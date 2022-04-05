@@ -30,8 +30,8 @@ import * as Action from "../ducks/observingRun";
 import { ra_to_hours, dec_to_dms } from "../units";
 
 import SkyCam from "./SkyCam";
+import VegaPhotometry from "./VegaPhotometry";
 
-const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const AirmassPlot = React.lazy(() => import("./AirmassPlot"));
 
 const useStyles = makeStyles((theme) => ({
@@ -217,9 +217,7 @@ const RunSummary = ({ route }) => {
             </Grid>
             <Grid item>
               <Suspense fallback={<div>Loading plot...</div>}>
-                <VegaPlot
-                  dataUrl={`/api/sources/${assignment.obj.id}/photometry`}
-                />
+                <VegaPhotometry sourceId={assignment.obj.id} />
               </Suspense>
             </Grid>
           </Grid>
