@@ -54,7 +54,6 @@ class SourceExistsHandler(BaseHandler):
 
         if obj_id is not None:
             s = Obj.get_if_accessible_by(obj_id, self.current_user)
-            print(obj_id)
             if s is not None:
                 return self.success("A source of that name already exists.")
         obj_query = Obj.query_records_accessible_by(self.current_user)
