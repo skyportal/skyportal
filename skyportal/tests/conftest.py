@@ -177,7 +177,7 @@ def take_screenshot_and_page_source(webdriver, nodeid):
     )
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
-    with open(file_name, 'w') as f, open('geckodriver.log', 'r') as gl:
+    with open(file_name, 'w') as f, open('geckodriver.log') as gl:
         lines = gl.readlines()
         revlines = list(reversed(lines))
         istart = revlines.index(f'BEGIN {nodeid}\n')

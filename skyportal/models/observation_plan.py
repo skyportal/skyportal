@@ -248,10 +248,8 @@ class EventObservationPlan(Base):
         """Time of the first planned observation."""
         if self.planned_observations:
             return min(
-                [
-                    planned_observation.obstime
-                    for planned_observation in self.planned_observations
-                ]
+                planned_observation.obstime
+                for planned_observation in self.planned_observations
             )
         else:
             return None
@@ -261,12 +259,10 @@ class EventObservationPlan(Base):
         """List of filters used in the observations."""
         if self.planned_observations:
             return list(
-                set(
-                    [
-                        planned_observation.filt
-                        for planned_observation in self.planned_observations
-                    ]
-                )
+                {
+                    planned_observation.filt
+                    for planned_observation in self.planned_observations
+                }
             )
         else:
             return None

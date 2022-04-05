@@ -4,11 +4,11 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { useTheme } from "@material-ui/core/styles";
 import Paper from "@material-ui/core/Paper";
-import CircularProgress from "@material-ui/core/CircularProgress";
 
 import * as Action from "../ducks/source";
 import SourceDesktop from "./SourceDesktop";
 import SourceMobile from "./SourceMobile";
+import Spinner from "./Spinner";
 
 const sidebarWidth = 190;
 
@@ -51,7 +51,7 @@ const Source = ({ route }) => {
   if (!isCached) {
     return (
       <div>
-        <CircularProgress color="secondary" />
+        <Spinner />
       </div>
     );
   }

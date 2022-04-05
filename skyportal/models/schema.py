@@ -187,7 +187,7 @@ def setup_schema():
                 )
 
 
-class PhotBaseFlexible(object):
+class PhotBaseFlexible:
     """This is the base class for two classes that are used for rendering the
     input data to `PhotometryHandler.post` in redoc. These classes are only
     used for generating documentation and not for validation, serialization,
@@ -498,7 +498,7 @@ class PhotMagFlexible(_Schema, PhotBaseFlexible):
     )
 
 
-class PhotBase(object):
+class PhotBase:
     """This is the base class of two classes that are used for deserializing
     and validating the postprocessed input data of `PhotometryHandler.post`
     and `PhotometryHandler.put` and for generating the API docs of
@@ -1465,6 +1465,106 @@ class SpectrumPost(_Schema):
     )
 
 
+class SpectrumHead(_Schema):
+
+    obj_id = fields.String(
+        required=True,
+        metadata={'description': "ID of this Spectrum's Obj."},
+    )
+
+    observed_at = fields.DateTime(
+        metadata={'description': 'The ISO UTC time the spectrum was taken.'},
+        required=True,
+    )
+
+    reducers = fields.List(
+        fields.Integer,
+        metadata={
+            'description': "IDs of the Users who reduced this Spectrum, "
+            "or to use as points of contact given an external reducer."
+        },
+        missing=[],
+    )
+
+    external_reducer = fields.String(
+        metadata={'description': "Free text provided as an external reducer"},
+        required=False,
+        missing=None,
+    )
+
+    observers = fields.List(
+        fields.Integer,
+        metadata={
+            'description': "IDs of the Users who observed this Spectrum, "
+            "or to use as points of contact given an external observer."
+        },
+        missing=[],
+    )
+
+    external_observer = fields.String(
+        metadata={'description': "Free text provided as an external observer"},
+        required=False,
+        missing=None,
+    )
+
+    origin = fields.String(
+        required=False, metadata={'description': "Origin of the spectrum."}
+    )
+
+    type = fields.String(
+        validate=validate.OneOf(ALLOWED_SPECTRUM_TYPES),
+        required=False,
+        metadata={
+            "description": f'''Type of spectrum. One of: {''.join(f"'{t}'" for t in ALLOWED_SPECTRUM_TYPES)}.
+                         Defaults to 'f{default_spectrum_type}'.'''
+        },
+    )
+
+    label = fields.String(
+        required=False,
+        metadata={
+            'description': "User defined label (can be used to replace default instrument/date labeling on plot legends)."
+        },
+    )
+
+    instrument_id = fields.Integer(
+        required=True,
+        metadata={'description': "ID of the Instrument that acquired the Spectrum."},
+    )
+    instrument_name = fields.String(
+        required=True,
+        metadata={'description': "Name of the Instrument that acquired the Spectrum."},
+    )
+
+    group_ids = fields.Field(
+        missing=[],
+        metadata={
+            'description': 'IDs of the Groups to share this spectrum with. Set to "all"'
+            ' to make this spectrum visible to all users.'
+        },
+    )
+
+    followup_request_id = fields.Integer(
+        required=False,
+        metadata={
+            'description': 'ID of the Followup request that generated this spectrum, '
+            'if any.'
+        },
+    )
+
+    assignment_id = fields.Integer(
+        required=False,
+        metadata={
+            'description': 'ID of the classical assignment that generated this spectrum, '
+            'if any.'
+        },
+    )
+
+    altdata = fields.Field(
+        metadata={'description': 'Miscellaneous alternative metadata.'}
+    )
+
+
 class GroupIDList(_Schema):
 
     group_ids = fields.List(fields.Integer, required=True)
@@ -1515,4 +1615,5 @@ ObservationPlanPost = ObservationPlanPost()
 ObservationExternalAPIHandlerPost = ObservationExternalAPIHandlerPost()
 SpectrumAsciiFileParseJSON = SpectrumAsciiFileParseJSON()
 SpectrumPost = SpectrumPost()
+SpectrumHead = SpectrumHead()
 GroupIDList = GroupIDList()

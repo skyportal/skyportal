@@ -38,6 +38,7 @@ import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
+import TNSATForm from "./TNSATForm";
 
 import * as spectraActions from "../ducks/spectra";
 
@@ -63,7 +64,9 @@ export const useSourceStyles = makeStyles((theme) => ({
     overflowX: "scroll",
     flexDirection: "column",
     padding: "0.5rem",
-    "& div button": {
+  },
+  buttonContainer: {
+    "& button": {
       margin: "0.5rem",
     },
   },
@@ -85,6 +88,9 @@ export const useSourceStyles = makeStyles((theme) => ({
     overflow: "auto",
   },
   comments: {
+    width: "100%",
+  },
+  tns: {
     width: "100%",
   },
   classifications: {
@@ -376,19 +382,21 @@ const SourceDesktop = ({ source }) => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <div className={classes.photometryContainer}>
-                <Suspense
-                  fallback={
-                    <div>
-                      <CircularProgress color="secondary" />
-                    </div>
-                  }
-                >
-                  <Plot
-                    url={`/api/internal/plot/photometry/${source.id}?width=800&height=500`}
-                  />
-                </Suspense>
-                <div>
+              <Grid container>
+                <div className={classes.photometryContainer}>
+                  <Suspense
+                    fallback={
+                      <div>
+                        <CircularProgress color="secondary" />
+                      </div>
+                    }
+                  >
+                    <Plot
+                      url={`/api/internal/plot/photometry/${source.id}?width=800&height=500`}
+                    />
+                  </Suspense>
+                </div>
+                <div className={classes.buttonContainer}>
                   <Link to={`/upload_photometry/${source.id}`} role="link">
                     <Button variant="contained">
                       Upload additional photometry
@@ -412,7 +420,7 @@ const SourceDesktop = ({ source }) => {
                     </Link>
                   )}
                 </div>
-              </div>
+              </Grid>
             </AccordionDetails>
           </Accordion>
         </div>
@@ -442,7 +450,7 @@ const SourceDesktop = ({ source }) => {
                     />
                   </Suspense>
                 </div>
-                <div>
+                <div className={classes.buttonContainer}>
                   <Link to={`/upload_spectrum/${source.id}`} role="link">
                     <Button variant="contained">
                       Upload additional spectroscopy
@@ -562,6 +570,26 @@ const SourceDesktop = ({ source }) => {
                   taxonomyList={taxonomyList}
                 />
               </div>
+            </AccordionDetails>
+          </Accordion>
+        </div>
+        <div className={classes.columnItem}>
+          <Accordion
+            defaultExpanded
+            className={classes.tns}
+            data-testid="tns-accordion"
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="tns-content"
+              id="tns-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                TNS Form
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <TNSATForm obj_id={source.id} />
             </AccordionDetails>
           </Accordion>
         </div>

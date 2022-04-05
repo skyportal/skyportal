@@ -2,6 +2,8 @@ user:
   - username: testadmin
     roles:
       - Super admin
+    first_name: Jada
+    last_name: Lilleboe
     =id: testadmin
   - username: groupadmin
     roles:
@@ -218,6 +220,14 @@ telescope:
     nickname: ATLAS-0.5m
     skycam_link: null
     =id: ATLAS-0p5m
+  - diameter: 8.4
+    elevation: 2207.0
+    lat: -30.1716
+    lon: -70.8009
+    name: Rubin Observatory Simonyi Survey Telescope
+    nickname: Rubin
+    skycam_link: null
+    =id: Rubin
 
 instrument:
   - name: ZTF
@@ -337,7 +347,10 @@ instrument:
     telescope_id: =KPNO2m
     filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: SEDMV2API
+    api_classname_obsplan: MMAAPI
     =id: SEDMv2
+    field_fov_type: rectangle
+    field_fov_attributes: [0.08, 0.08]
   - band: optical
     name: T80CAM
     telescope_id: =JAST
@@ -352,6 +365,17 @@ instrument:
     =id: ATLAS
     api_classname: ATLASAPI
     filters: ["atlasc", "atlaso"]
+  - band: optical
+    name: LSST
+    telescope_id: =Rubin
+    type: imager
+    =id: LSST
+    api_classname_obsplan: MMAAPI
+    filters: ["lsstu", "lsstg", "lsstr", "lssti", "lsstz", "lssty"]
+    # field_data:
+    #   file: ../data/LSST_Fields.csv
+    field_fov_type: circle
+    field_fov_attributes: 1.75
 
 allocation:
   - pi: Michael Coughlin
@@ -463,6 +487,13 @@ allocation:
     hours_allocated: 100
     group_id: =program_A
     instrument_id: =T80CAM
+  - pi: Michael Coughlin
+    proposal_id: LSST-001
+    start_date: "3020-02-12T00:00:00"
+    end_date: "3020-07-12T00:00:00"
+    hours_allocated: 100
+    group_id: =program_A
+    instrument_id: =LSST
 
 candidates:
   - id: ZTF21aaqjmps
@@ -550,6 +581,14 @@ sources:
       - =program_A
       - =program_B
     alias: [""]
+  - id: ZTFinGCN
+    ra: 229.9620403
+    dec: 34.8442757
+    group_ids:
+      - =public_group_id
+      - =program_A
+      - =program_B
+    redshift: 3
 
 sources/ZTF21aaqjmps/comments:
   - obj_id: ZTF21aaqjmps
@@ -683,6 +722,16 @@ photometry:
     stream_ids:
       - =ztf_public
       - =ztf_partnership
+  - obj_id: ZTFinGCN
+    instrument_id: =ZTF
+    assignment_id: 2
+    file: ZTFinGCN_phot.csv
+    group_ids:
+      - =program_A
+      - =program_B
+    stream_ids:
+      - =ztf_public
+      - =ztf_partnership
 
 spectrum:
   - obj_id: ZTFrlh6cyjh
@@ -782,8 +831,24 @@ galaxy_catalog:
     catalog_data:
       file: ../data/CLU_mini.hdf5
 
-shift:
+shifts:
   - group_id: =program_A
-    start_date: "2022-02-16 00:00:00"
-    end_date: "2020-02-17 12:00:00"
+    start_date: "2022-03-18 8:00:00"
+    end_date: "2022-03-18 14:00:00"
+    name: "the Day Shift"
+    shift_admins:
+      - =testadmin
+    =id: dayshift
+
+  - group_id: =program_B
+    start_date: "2022-03-18 16:00:00"
+    end_date: "2022-03-18 22:00:00"
     name: "the Night Shift"
+    shift_admins:
+      - =groupadmin
+    =id: nightshift
+
+
+shifts/=nightshift/users:
+  - userID: =viewonlyuser
+    admin: false

@@ -478,6 +478,73 @@ def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
         )
 
 
+def make_clear_photometry_button(model_dict):
+    button = Button(name="Clear Photometry", label="Clear Photometry", width=112)
+    callback_clear_photometry = CustomJS(
+        args={'model_dict': model_dict},
+        code="""
+        for (const [key, value] of Object.entries(model_dict)) {
+            value.visible = false
+        }
+        """,
+    )
+    button.js_on_click(callback_clear_photometry)
+    return button
+
+
+def make_add_all_photometry_button(model_dict):
+    button = Button(name="Add All Photometry", label="Add All Photometry", width=120)
+    callback_add_photometry = CustomJS(
+        args={'model_dict': model_dict},
+        code="""
+        for (const [key, value] of Object.entries(model_dict)) {
+            value.visible = true
+        }
+        """,
+    )
+    button.js_on_click(callback_add_photometry)
+    return button
+
+
+def make_clear_and_add_buttons(model_dict):
+    return row(
+        css_classes=["clear_and_add_buttons"],
+        children=[
+            make_add_all_photometry_button(model_dict),
+            make_clear_photometry_button(model_dict),
+        ],
+    )
+
+
+def make_add_filter_group_form(split, model_dict, panel_name):
+    labels = [label for label, sdf in split]
+    checkboxes = CheckboxGroup(labels=labels, active=[], width=100)
+    name_input = TextInput(width=100, title="Name", name="Name", value_input="")
+    add_filter_group_button = Button(label="Add Filter Group", width=100)
+    callback_add_button = CustomJS(
+        args={
+            'model_dict': model_dict,
+            'name': name_input,
+            'checkboxes': checkboxes,
+            'panel_name': panel_name,
+        },
+        code=open(
+            os.path.join(
+                os.path.dirname(__file__), '../static/js/plotjs', "custom_button.js"
+            )
+        ).read(),
+    )
+    add_filter_group_button.js_on_click(callback_add_button)
+    add_filter_group = column(
+        width=200, children=[checkboxes, name_input, add_filter_group_button]
+    )
+    return add_filter_group
+
+
+def make_custom_buttons_div(panel_name):
+    return Div(css_classes=[f'custom_buttons_{panel_name}'], width=300)
+
+
 def photometry_plot(obj_id, user, width=600, device="browser"):
     """Create object photometry scatter plot.
 
@@ -665,7 +732,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         # for the flux plot, we only show things that have a flux value
         df = sdf[sdf['hasflux']]
 
-        key = f'obs{i}'
+        key = f'{label}~obs{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
             y='flux',
@@ -678,7 +745,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
-        key = f'bin{i}'
+        key = f'{label}~bin{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
             y='flux',
@@ -703,7 +770,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
-        key = 'obserr' + str(i)
+        key = f'{label}~obserr{str(i)}'
         y_err_x = []
         y_err_y = []
 
@@ -728,7 +795,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         )
         renderers.append(model_dict[key])
 
-        key = f'binerr{i}'
+        key = f'{label}~binerr{i}'
         model_dict[key] = plot.multi_line(
             xs='xs',
             ys='ys',
@@ -739,7 +806,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
 
         legend_items.append(LegendItem(label=label, renderers=renderers))
-
     if device == "mobile_portrait":
         plot.xaxis.ticker.desired_num_ticks = 5
     plot.yaxis.axis_label = 'Flux (μJy)'
@@ -808,7 +874,17 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     # Mark when spectra were taken
     annotate_spec(plot, spectra, lower, upper)
-    layout = column(slider, plot, width=width, height=height)
+    layout = column(
+        slider,
+        plot,
+        make_clear_and_add_buttons(model_dict),
+        row(
+            make_add_filter_group_form(split, model_dict, 'flux'),
+            make_custom_buttons_div('flux'),
+        ),
+        width=width,
+        height=height,
+    )
 
     p1 = Panel(child=layout, title='Flux')
 
@@ -917,7 +993,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         unobs_source = df[~df['obs']].copy()
         unobs_source.loc[:, 'alpha'] = 0.8
 
-        key = f'unobs{i}'
+        key = f'{label}~unobs{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
             y='lim_mag',
@@ -931,7 +1007,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
-        key = f'obs{i}'
+        key = f'{label}~obs{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
             y='mag',
@@ -944,7 +1020,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
-        key = f'bin{i}'
+        key = f'{label}~bin{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
             y='mag',
@@ -969,7 +1045,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
-        key = 'obserr' + str(i)
+        key = f'{label}~obserr{str(i)}'
         y_err_x = []
         y_err_y = []
 
@@ -997,7 +1073,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         )
         renderers.append(model_dict[key])
 
-        key = f'binerr{i}'
+        key = f'{label}~binerr{i}'
         model_dict[key] = plot.multi_line(
             xs='xs',
             ys='ys',
@@ -1006,7 +1082,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         )
         renderers.append(model_dict[key])
 
-        key = f'unobsbin{i}'
+        key = f'{label}~unobsbin{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
             y='lim_mag',
@@ -1057,7 +1133,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         legend_items.append(LegendItem(label=label, renderers=renderers))
 
     add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
-
     plot.yaxis.axis_label = 'AB mag'
     plot.toolbar.logo = None
 
@@ -1101,7 +1176,17 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         .replace('detect_thresh', str(PHOT_DETECTION_THRESHOLD)),
     )
     slider.js_on_change('value', callback)
-    layout = column(top_layout, plot, width=width, height=height)
+    layout = column(
+        top_layout,
+        plot,
+        make_clear_and_add_buttons(model_dict),
+        row(
+            make_add_filter_group_form(split, model_dict, 'mag'),
+            make_custom_buttons_div('mag'),
+        ),
+        width=width,
+        height=height,
+    )
 
     p2 = Panel(child=layout, title='Mag')
 
@@ -1178,7 +1263,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
             # phase plotting
             for ph in ['a', 'b']:
-                key = 'fold' + ph + f'{i}'
+                key = f'{label}~fold{ph}{i}'
                 period_model_dict[key] = period_plot.scatter(
                     x='mjd_fold' + ph,
                     y='mag',
@@ -1194,7 +1279,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                 renderers.append(period_model_dict[key])
 
                 # errorbars for phases
-                key = 'fold' + ph + f'err{i}'
+                key = label + '~fold' + ph + f'err{i}'
                 y_err_x = []
                 y_err_y = []
 
@@ -1335,7 +1420,17 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             # Numbers are derived in similar manner to the "mobile_portrait" case above
             height += 90 + 18 * len(period_labels)
 
-        period_layout = column(period_plot, period_controls, width=width, height=height)
+        period_layout = column(
+            period_plot,
+            make_clear_and_add_buttons(period_model_dict),
+            period_controls,
+            row(
+                make_add_filter_group_form(split, period_model_dict, 'period'),
+                make_custom_buttons_div('period'),
+            ),
+            width=width,
+            height=height,
+        )
 
         # Period panel
         p3 = Panel(child=period_layout, title='Period')
@@ -1345,7 +1440,14 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     else:
         # tabs for mag, flux
         tabs = Tabs(tabs=[p2, p1], width=width, height=height + 90, sizing_mode='fixed')
-    return bokeh_embed.json_item(tabs)
+
+    try:
+        return bokeh_embed.json_item(tabs)
+    except ValueError:
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+            print('PHOTOMETRY PLOT FAILED ON THIS DATASET')
+            print(data)
+        return Tabs()
 
 
 def smoothing_function(values, window_size):
@@ -1935,22 +2037,58 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
         column_checkboxes.js_on_click(callback_toggle_lines)
 
+    second_to_last_column = all_column_checkboxes[-2]
+    clear_all_spectra = Button(name="Clear Spectra", label="Clear Spectra", width=100)
+    callback_clear_all_spectra = CustomJS(
+        args={'model_dict': model_dict},
+        code="""
+            for (const[key, value] of Object.entries(model_dict)) {
+                if (!key.startsWith('element_')) {
+                    value.visible = false
+                }
+            }
+        """,
+    )
+    clear_all_spectra.js_on_click(callback_clear_all_spectra)
+    all_column_checkboxes[-2] = column(second_to_last_column, clear_all_spectra)
+
+    third_to_last_column = all_column_checkboxes[-3]
+    add_all_spectra = Button(name="Add All Spectra", label="Add All Spectra", width=30)
+    callback_add_all_spectra = CustomJS(
+        args={'model_dict': model_dict},
+        code="""
+            for (const[key, value] of Object.entries(model_dict)) {
+                if (!key.startsWith('element_')) {
+                    value.visible = true
+                }
+            }
+        """,
+    )
+    add_all_spectra.js_on_click(callback_add_all_spectra)
+    all_column_checkboxes[-3] = column(third_to_last_column, add_all_spectra)
+
     last_column = all_column_checkboxes[-1]
-    reset_button = Button(name="Reset", label="Reset", width=30, align="end")
+    reset_checkboxes_button = Button(
+        name="Reset Checkboxes", label="Reset Checkboxes", width=30
+    )
     callback_reset_specs = CustomJS(
         args={
             'all_column_checkboxes': all_column_checkboxes,
             'last_column': last_column,
+            'second_to_last_column': second_to_last_column,
+            'third_to_last_column': third_to_last_column,
         },
         code=f"""
-            for (let i = 0; i < {len(all_column_checkboxes) - 1}; i++) {{
+            for (let i = 0; i < {len(all_column_checkboxes) - 3}; i++) {{
                 all_column_checkboxes[i].active = [];
             }}
             last_column.active = [];
+            second_to_last_column.active = [];
+            third_to_last_column.active = [];
         """,
     )
-    reset_button.js_on_click(callback_reset_specs)
-    all_column_checkboxes[-1] = column(last_column, reset_button)
+    reset_checkboxes_button.js_on_click(callback_reset_specs)
+    all_column_checkboxes[-1] = column(last_column, reset_checkboxes_button)
 
     # Move spectral lines when redshift or velocity changes
     speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
@@ -1994,7 +2132,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
                 """,
         ),
     )
-
     row2 = row(all_column_checkboxes)
     row3 = (
         column(z, v_exp, smooth_column)
