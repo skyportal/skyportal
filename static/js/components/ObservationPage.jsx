@@ -5,7 +5,6 @@ import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
 import { makeStyles } from "@material-ui/core/styles";
 import PropTypes from "prop-types";
-import CircularProgress from "@material-ui/core/CircularProgress";
 
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import NewObservation from "./NewObservation";
@@ -26,15 +25,11 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const ObservationList = ({ observations }) => {
-  if (!observations) {
-    return (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
+  if (!observations.observations || observations.observations.length === 0) {
+    return <p>No observations available...</p>;
   }
 
-  return <ExecutedObservationsTable observations={observations.observations} />;
+  return <ExecutedObservationsTable observations={observations} />;
 };
 
 const ObservationPage = () => {
@@ -47,13 +42,17 @@ const ObservationPage = () => {
     dispatch(observationsActions.fetchObservations());
   }, [dispatch]);
 
+  if (!observations) {
+    return <p>No observations available...</p>;
+  }
+
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Observations</Typography>
-            <ObservationList observations={observations} />
+            <ObservationList observations={observations.observations} />
           </div>
         </Paper>
       </Grid>
@@ -78,18 +77,24 @@ const ObservationPage = () => {
 };
 
 ObservationList.propTypes = {
-  observations: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string,
-      obstime: PropTypes.instanceOf(Date),
-      filt: PropTypes.string,
-      exposure_time: PropTypes.number,
-      airmass: PropTypes.number,
-      limmag: PropTypes.number,
-      seeing: PropTypes.number,
-      processed_fraction: PropTypes.number,
-    })
-  ).isRequired,
+  observations: PropTypes.shape({
+    observations: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.string,
+        obstime: PropTypes.instanceOf(Date),
+        filt: PropTypes.string,
+        exposure_time: PropTypes.number,
+        airmass: PropTypes.number,
+        limmag: PropTypes.number,
+        seeing: PropTypes.number,
+        processed_fraction: PropTypes.number,
+      })
+    ),
+  }),
+};
+
+ObservationList.defaultProps = {
+  observations: null,
 };
 
 export default ObservationPage;

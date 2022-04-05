@@ -57,7 +57,7 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
         'version': __version__,
         'openapi_version': '3.0.2',
         'info': {
-            'description': open(api_description, 'r').read(),
+            'description': open(api_description).read(),
             'x-logo': {
                 'url': 'https://raw.githubusercontent.com/skyportal/skyportal/master/static/images/skyportal_logo.png',
                 'backgroundColor': '#FFFFFF',

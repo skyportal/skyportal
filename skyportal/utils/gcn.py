@@ -158,7 +158,7 @@ def get_skymap(root, gcn_notice):
 
 
 def from_cone(ra, dec, error):
-    localization_name = "%.5f_%.5f_%.5f" % (ra, dec, error)
+    localization_name = f"{ra:.5f}_{dec:.5f}_{error:.5f}"
 
     center = SkyCoord(ra * u.deg, dec * u.deg)
     radius = error * u.deg

@@ -10,11 +10,17 @@ const FETCH_ALLOCATION_OK = "skyportal/FETCH_ALLOCATION_OK";
 
 const SUBMIT_ALLOCATION = "skyportal/SUBMIT_ALLOCATION";
 
+const DELETE_ALLOCATION = "skyportal/DELETE_ALLOCATION";
+
 export const fetchAllocation = (id) =>
   API.GET(`/api/allocation/${id}`, FETCH_ALLOCATION);
 
 export const submitAllocation = (run) =>
   API.POST(`/api/allocation`, SUBMIT_ALLOCATION, run);
+
+export function deleteAllocation(allocationID) {
+  return API.DELETE(`/api/allocation/${allocationID}`, DELETE_ALLOCATION);
+}
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

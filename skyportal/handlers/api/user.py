@@ -191,8 +191,8 @@ class UserHandler(BaseHandler):
                 user_info["contact_phone"] = user_info["contact_phone"].e164
 
             user_info["permissions"] = sorted(user.permissions)
-            user_info["roles"] = sorted([role.id for role in user.roles])
-            user_info["acls"] = sorted([acl.id for acl in user.acls])
+            user_info["roles"] = sorted(role.id for role in user.roles)
+            user_info["acls"] = sorted(acl.id for acl in user.acls)
             self.verify_and_commit()
             return self.success(data=user_info)
 
@@ -244,8 +244,8 @@ class UserHandler(BaseHandler):
         for user in query.all():
             return_values.append(user.to_dict())
             return_values[-1]["permissions"] = sorted(user.permissions)
-            return_values[-1]["roles"] = sorted([role.id for role in user.roles])
-            return_values[-1]["acls"] = sorted([acl.id for acl in user.acls])
+            return_values[-1]["roles"] = sorted(role.id for role in user.roles)
+            return_values[-1]["acls"] = sorted(acl.id for acl in user.acls)
             if user.contact_phone:
                 return_values[-1]["contact_phone"] = user.contact_phone.e164
             return_values[-1]["contact_email"] = user.contact_email

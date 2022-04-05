@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import Button from "@material-ui/core/Button";
 import PropTypes from "prop-types";
 import Select from "@material-ui/core/Select";
 import InputLabel from "@material-ui/core/InputLabel";
@@ -256,6 +257,22 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           </div>
         )}
       </div>
+      <div>
+        <Button
+          href={`/api/localization/${selectedLocalizationId}/airmass/${
+            instLookUp[allocationLookUp[selectedAllocationId].instrument_id]
+              .telescope_id
+          }`}
+          download={`airmassChartRequest-${selectedAllocationId}`}
+          size="small"
+          color="primary"
+          type="submit"
+          variant="outlined"
+          data-testid={`airmassChartRequest_${selectedAllocationId}`}
+        >
+          Airmass Chart
+        </Button>
+      </div>
     </div>
   );
 };
@@ -272,9 +289,9 @@ ObservationPlanRequestForm.propTypes = {
     id: PropTypes.number,
   }).isRequired,
   instrumentFormParams: PropTypes.shape({
-    formSchema: PropTypes.objectOf(PropTypes.any),
-    uiSchema: PropTypes.objectOf(PropTypes.any),
-    implementedMethods: PropTypes.objectOf(PropTypes.any),
+    formSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    uiSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    implementedMethods: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
   }),
 };
 

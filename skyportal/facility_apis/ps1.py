@@ -18,7 +18,7 @@ PS1_URL = cfg['app.ps1_endpoint']
 log = make_log('facility_apis/ps1')
 
 
-def commit_photometry(text_response, request_id, instrument_id):
+def commit_photometry(text_response, request_id, instrument_id, user_id):
     """
     Commits PS1 DR2 photometry to the database
 
@@ -30,12 +30,15 @@ def commit_photometry(text_response, request_id, instrument_id):
         FollowupRequest SkyPortal ID
     instrument_id : int
         Instrument SkyPortal ID
+    user_id: int
+        User SkyPortal ID
     """
 
     from ..models import (
         DBSession,
         FollowupRequest,
         Instrument,
+        User,
     )
 
     Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
@@ -44,6 +47,7 @@ def commit_photometry(text_response, request_id, instrument_id):
     try:
         request = session.query(FollowupRequest).get(request_id)
         instrument = session.query(Instrument).get(instrument_id)
+        user = session.query(User).get(user_id)
 
         tab = astropy.io.ascii.read(text_response)
         # good data only
@@ -76,7 +80,7 @@ def commit_photometry(text_response, request_id, instrument_id):
         data_out = {
             'obj_id': request.obj_id,
             'instrument_id': instrument.id,
-            'group_ids': 'all',
+            'group_ids': [g.id for g in user.accessible_groups],
             **df.to_dict(orient='list'),
         }
 
@@ -166,17 +170,18 @@ class PS1API(FollowUpAPI):
 
         url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/detections.csv"
         r = requests.get(url, params=params)
-        r.raise_for_status()
 
         if r.status_code == 200:
             try:
                 text_response = r.text
             except Exception:
-                raise ('No text data returned in request')
+                raise ValueError('No text data returned in request')
 
             IOLoop.current().run_in_executor(
                 None,
-                lambda: commit_photometry(text_response, req.id, instrument.id),
+                lambda: commit_photometry(
+                    text_response, req.id, instrument.id, request.requester.id
+                ),
             )
             req.status = "Committing photometry to database"
         else:
@@ -226,13 +231,15 @@ class PS1API(FollowUpAPI):
 
         url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/mean.csv"
         r = requests.get(url, params=params)
-        r.raise_for_status()
-        tab = astropy.io.ascii.read(r.text)
+        if r.status_code == 200:
+            tab = astropy.io.ascii.read(r.text)
 
-        if len(tab) == 0:
-            request.status = 'No DR2 source'
+            if len(tab) == 0:
+                request.status = 'No DR2 source'
+            else:
+                request.status = 'Source available'
         else:
-            request.status = 'Source available'
+            request.status = f'rejected: {r.content}'
 
         transaction = FacilityTransaction(
             request=http.serialize_requests_request(r.request),

@@ -10,12 +10,14 @@ import numpy as np
 import io
 from tornado.ioloop import IOLoop
 import functools
+import ligo.skymap
+from ligo.skymap.tool.ligo_skymap_plot_airmass import main as plot_airmass
+from ligo.skymap import plot  # noqa: F401
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.patches as mpatches
 import tempfile
-from ligo.skymap import plot  # noqa: F401
 import random
 
 from baselayer.app.access import auth_or_token
@@ -27,10 +29,11 @@ from ...models import (
     EventObservationPlan,
     GcnEvent,
     Group,
+    InstrumentField,
     Localization,
     ObservationPlanRequest,
     PlannedObservation,
-    InstrumentField,
+    Telescope,
 )
 
 from ...models.schema import ObservationPlanPost
@@ -103,10 +106,15 @@ class ObservationPlanRequestHandler(BaseHandler):
             )
             target_groups.append(g)
 
+        try:
+            formSchema = instrument.api_class_obsplan.custom_json_schema(
+                instrument, self.current_user
+            )
+        except AttributeError:
+            formSchema = instrument.api_class_obsplan.form_json_schema
+
         # validate the payload
-        jsonschema.validate(
-            data['payload'], instrument.api_class_obsplan.form_json_schema
-        )
+        jsonschema.validate(data['payload'], formSchema)
 
         observation_plan_request = ObservationPlanRequest.__schema__().load(data)
         observation_plan_request.target_groups = target_groups
@@ -190,9 +198,9 @@ class ObservationPlanRequestHandler(BaseHandler):
         )
         if include_planned_observations:
             options = [
-                joinedload(ObservationPlanRequest.observation_plans).joinedload(
-                    EventObservationPlan.planned_observations
-                )
+                joinedload(ObservationPlanRequest.observation_plans)
+                .joinedload(EventObservationPlan.planned_observations)
+                .joinedload(PlannedObservation.field)
             ]
         else:
             options = [joinedload(ObservationPlanRequest.observation_plans)]
@@ -503,7 +511,7 @@ def observation_animations(
         "TNS": "#ED6CF6",
     }
 
-    filters = list(set(obs.filt for obs in observations))
+    filters = list({obs.filt for obs in observations})
     for filt in filters:
         if filt in surveyColors:
             continue
@@ -820,3 +828,140 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
             return self.error(f'TreasureMap delete failed: {request_text}')
         self.push_notification(f'TreasureMap delete succeeded: {request_text}.')
         return self.success()
+
+
+class ObservationPlanGeoJSONHandler(BaseHandler):
+    @auth_or_token
+    def get(self, observation_plan_request_id):
+        """
+        ---
+        description: Get GeoJSON summary of the observation plan.
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleObservationPlanRequest
+        """
+
+        options = [
+            joinedload(ObservationPlanRequest.observation_plans)
+            .joinedload(EventObservationPlan.planned_observations)
+            .joinedload(PlannedObservation.field)
+            .undefer(InstrumentField.contour_summary)
+        ]
+
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="read",
+            options=options,
+        )
+        if observation_plan_request is None:
+            return self.error(
+                f'No observation plan with ID: {observation_plan_request_id}'
+            )
+        self.verify_and_commit()
+
+        observation_plan = observation_plan_request.observation_plans[0]
+        # features are JSON representations that the d3 stuff understands.
+        # We use these to render the contours of the sky localization and
+        # locations of the transients.
+
+        geojson = []
+        fields_in = []
+        for ii, observation in enumerate(observation_plan.planned_observations):
+            if observation.field_id not in fields_in:
+                fields_in.append(observation.field_id)
+                geojson.append(observation.field.contour_summary)
+            else:
+                continue
+
+        return self.success(data={'geojson': geojson})
+
+
+class ObservationPlanAirmassChartHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, localization_id, telescope_id):
+        """
+        ---
+        description: Get an airmass chart for the GcnEvent
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: localization_id
+            required: true
+            schema:
+              type: string
+          - in: path
+            name: telescope_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        telescope = Telescope.get_if_accessible_by(
+            telescope_id,
+            self.current_user,
+            mode="read",
+            raise_if_none=True,
+        )
+        self.verify_and_commit()
+
+        localization = (
+            Localization.query_records_accessible_by(
+                self.current_user,
+            )
+            .filter(Localization.id == localization_id)
+            .first()
+        )
+
+        trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
+
+        output_format = 'pdf'
+        with tempfile.NamedTemporaryFile(
+            suffix='.fits'
+        ) as fitsfile, tempfile.NamedTemporaryFile(
+            suffix=f'.{output_format}'
+        ) as imgfile, matplotlib.style.context(
+            'default'
+        ):
+            ligo.skymap.io.write_sky_map(fitsfile.name, localization.table_2d, moc=True)
+            plot_airmass(
+                [
+                    '--site-longitude',
+                    str(telescope.lon),
+                    '--site-latitude',
+                    str(telescope.lat),
+                    '--site-height',
+                    str(telescope.elevation),
+                    '--time',
+                    trigger_time.isot,
+                    fitsfile.name,
+                    '-o',
+                    imgfile.name,
+                ]
+            )
+
+            with open(imgfile.name, mode='rb') as g:
+                content = g.read()
+
+        data = io.BytesIO(content)
+        filename = (
+            f"{localization.localization_name}-{telescope.nickname}.{output_format}"
+        )
+
+        await self.send_file(data, filename, output_type=output_format)
