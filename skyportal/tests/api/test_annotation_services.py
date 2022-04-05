@@ -91,7 +91,7 @@ def test_vizier_quasar(public_group, upload_data_token):
         ]
     )
 
-    
+
 @pytest.mark.flaky(reruns=2)
 def test_datalab_photoz(annotation_token, public_source, public_group):
     status, data = api(

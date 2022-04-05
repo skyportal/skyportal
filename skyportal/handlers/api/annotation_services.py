@@ -280,7 +280,8 @@ class VizierQueryHandler(BaseHandler):
             payload={'obj_key': obj.internal_key},
         )
         return self.success()
-      
+
+
 class DatalabQueryHandler(BaseHandler):
     """
     ---
@@ -400,5 +401,4 @@ class DatalabQueryHandler(BaseHandler):
             action='skyportal/REFRESH_SOURCE',
             payload={'obj_key': obj.internal_key},
         )
-        return self.success()      
-
+        return self.success()
