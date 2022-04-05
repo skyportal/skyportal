@@ -5,10 +5,19 @@ import store from "../store";
 
 const FETCH_SOURCE_PHOTOMETRY = "skyportal/FETCH_SOURCE_PHOTOMETRY";
 const FETCH_SOURCE_PHOTOMETRY_OK = "skyportal/FETCH_SOURCE_PHOTOMETRY_OK";
+const FETCH_FILTER_WAVELENGTHS = "skyportal/FETCH_FILTER_WAVELENGTHS";
 
 // eslint-disable-next-line import/prefer-default-export
 export function fetchSourcePhotometry(id) {
   return API.GET(`/api/sources/${id}/photometry`, FETCH_SOURCE_PHOTOMETRY);
+}
+
+export function fetchFilterWavelengths(filterParams = {}) {
+  return API.GET(
+    `/api/internal/wavelengths`,
+    FETCH_FILTER_WAVELENGTHS,
+    filterParams
+  );
 }
 
 // Websocket message handler

@@ -25,11 +25,11 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const ObservationList = ({ observations }) => {
-  if (!observations.observations || observations.observations.length === 0) {
+  if (!observations?.observations || observations.observations.length === 0) {
     return <p>No observations available...</p>;
   }
 
-  return <ExecutedObservationsTable observations={observations} />;
+  return <ExecutedObservationsTable observations={observations.observations} />;
 };
 
 const ObservationPage = () => {

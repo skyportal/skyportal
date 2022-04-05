@@ -48,6 +48,7 @@ from .observation_plan import (
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
     ObservationPlanGeoJSONHandler,
+    ObservationPlanAirmassChartHandler,
 )
 from .photometry import (
     PhotometryHandler,
@@ -61,7 +62,10 @@ from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
 from .sharing import SharingHandler
-from .shift import ShiftHandler
+from .shift import (
+    ShiftHandler,
+    ShiftUserHandler,
+)
 from .source import (
     SourceHandler,
     SourceOffsetsHandler,
@@ -82,6 +86,7 @@ from .sysinfo import SysInfoHandler
 from .config_handler import ConfigHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
+from .tns import ObjTNSHandler, SpectrumTNSHandler, TNSRobotHandler
 from .thumbnail import ThumbnailHandler
 from .user import UserHandler
 from .unsourced_finder import UnsourcedFinderHandler

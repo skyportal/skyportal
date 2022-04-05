@@ -167,7 +167,8 @@ def test_add_sources_two_groups(
     obj_button.clear()
     obj_button.send_keys(obj_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        scroll_parent=True,
     )
 
     # make sure the new classification, made to group 2, shows up
@@ -459,7 +460,8 @@ def test_filter_by_alias_and_origin(
     )
     alias_field.send_keys(origin)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        scroll_parent=True,
     )
 
     # Should see the posted source
@@ -472,7 +474,8 @@ def test_filter_by_alias_and_origin(
     )
     origin_field.send_keys(str(uuid.uuid4()))
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        scroll_parent=True,
     )
 
     # Should no longer see the source
