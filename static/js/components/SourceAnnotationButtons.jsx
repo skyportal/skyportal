@@ -17,7 +17,7 @@ const SourceAnnotationButtons = ({ source }) => {
     await dispatch(sourceActions.fetchPhotoz(id));
     setIsSubmittingAnnotationPhotoz(null);
   };
-    
+
   const [isSubmittingAnnotationWise, setIsSubmittingAnnotationWise] =
     useState(null);
   const handleAnnotationWise = async (id) => {
