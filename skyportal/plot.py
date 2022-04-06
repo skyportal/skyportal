@@ -479,7 +479,9 @@ def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
 
 
 def make_clear_photometry_button(model_dict):
-    button = Button(name="Clear Photometry", label="Clear Photometry", width=112)
+    button = Button(
+        name="Clear Photometry", label="Clear Photometry", width_policy="min"
+    )
     callback_clear_photometry = CustomJS(
         args={'model_dict': model_dict},
         code="""
@@ -493,7 +495,9 @@ def make_clear_photometry_button(model_dict):
 
 
 def make_add_all_photometry_button(model_dict):
-    button = Button(name="Add All Photometry", label="Add All Photometry", width=120)
+    button = Button(
+        name="Add All Photometry", label="Add All Photometry", width_policy="min"
+    )
     callback_add_photometry = CustomJS(
         args={'model_dict': model_dict},
         code="""
@@ -516,33 +520,81 @@ def make_clear_and_add_buttons(model_dict):
     )
 
 
-def make_add_filter_group_form(split, model_dict, panel_name):
+def make_add_filter_group_form(split, model_dict, panel_name, user):
     labels = [label for label, sdf in split]
-    checkboxes = CheckboxGroup(labels=labels, active=[], width=100)
+    checkboxes = CheckboxGroup(labels=labels, active=[])
     name_input = TextInput(width=100, title="Name", name="Name", value_input="")
-    add_filter_group_button = Button(label="Add Filter Group", width=100)
+    add_filter_group_button = Button(label="Add Filter Group", width_policy="min")
     callback_add_button = CustomJS(
         args={
-            'model_dict': model_dict,
             'name': name_input,
             'checkboxes': checkboxes,
             'panel_name': panel_name,
+            'preferences': user.preferences,
         },
         code=open(
             os.path.join(
-                os.path.dirname(__file__), '../static/js/plotjs', "custom_button.js"
+                os.path.dirname(__file__), '../static/js/plotjs', "add_filter_group.js"
             )
         ).read(),
     )
     add_filter_group_button.js_on_click(callback_add_button)
+    error_div = Div(css_classes=[f"error_{panel_name}"], width=150)
     add_filter_group = column(
-        width=200, children=[checkboxes, name_input, add_filter_group_button]
+        width=120, children=[checkboxes, name_input, add_filter_group_button]
     )
-    return add_filter_group
+    return row(add_filter_group, error_div)
 
 
-def make_custom_buttons_div(panel_name):
-    return Div(css_classes=[f'custom_buttons_{panel_name}'], width=300)
+def make_custom_filter_group_button_callback(labels, model_dict):
+    return CustomJS(
+        args={'labels': labels, 'model_dict': model_dict},
+        code="""
+        for (const [key, value] of Object.entries(model_dict)) {
+          const [label, extra] = key.split("~");
+          if (labels.includes(label)) {
+            value.visible = true;
+          } else {
+              value.visible = false;
+          }
+        }
+        """,
+    )
+
+
+def make_custom_filter_group_buttons(user, panel_name, model_dict):
+    custom_buttons_row = row(css_classes=[f'custom_buttons_{panel_name}'])
+    if "custom_filter_groups" in user.preferences:
+        filter_groups = list(user.preferences["custom_filter_groups"].items())
+        # display row of buttons in columns with 4 items each
+        split = [filter_groups[i : i + 4] for i in range(0, len(filter_groups), 4)]
+        for grouping in split:
+            custom_button_column = column()
+            for name, labels in grouping:
+                btn = Button(label=f"Add {name} only", width_policy="min")
+                btn.js_on_click(
+                    make_custom_filter_group_button_callback(labels, model_dict)
+                )
+                delete_button = Button(label="Delete", width_policy="min")
+                delete_button.js_on_click(
+                    CustomJS(
+                        args={
+                            'panel_name': panel_name,
+                            'name': name,
+                            'preferences': user.preferences,
+                        },
+                        code=open(
+                            os.path.join(
+                                os.path.dirname(__file__),
+                                '../static/js/plotjs',
+                                "delete_filter_group.js",
+                            )
+                        ).read(),
+                    )
+                )
+                custom_button_column.children.append(row(btn, delete_button))
+            custom_buttons_row.children.append(custom_button_column)
+    return custom_buttons_row
 
 
 def photometry_plot(obj_id, user, width=600, device="browser"):
@@ -879,8 +931,8 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         plot,
         make_clear_and_add_buttons(model_dict),
         row(
-            make_add_filter_group_form(split, model_dict, 'flux'),
-            make_custom_buttons_div('flux'),
+            make_add_filter_group_form(split, model_dict, 'flux', user),
+            make_custom_filter_group_buttons(user, 'flux', model_dict),
         ),
         width=width,
         height=height,
@@ -1181,8 +1233,8 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         plot,
         make_clear_and_add_buttons(model_dict),
         row(
-            make_add_filter_group_form(split, model_dict, 'mag'),
-            make_custom_buttons_div('mag'),
+            make_add_filter_group_form(split, model_dict, 'mag', user),
+            make_custom_filter_group_buttons(user, 'mag', model_dict),
         ),
         width=width,
         height=height,
@@ -1425,8 +1477,8 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             make_clear_and_add_buttons(period_model_dict),
             period_controls,
             row(
-                make_add_filter_group_form(split, period_model_dict, 'period'),
-                make_custom_buttons_div('period'),
+                make_add_filter_group_form(split, period_model_dict, 'period', user),
+                make_custom_filter_group_buttons(user, 'period', period_model_dict),
             ),
             width=width,
             height=height,
