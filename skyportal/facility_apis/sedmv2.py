@@ -1,9 +1,11 @@
-from . import FollowUpAPI
-from baselayer.app.env import load_env
 from datetime import datetime, timedelta
 import json
 import requests
 
+from baselayer.app.flow import Flow
+from baselayer.app.env import load_env
+
+from . import FollowUpAPI
 from ..utils import http
 
 env, cfg = load_env()
@@ -115,6 +117,12 @@ class SEDMV2API(FollowUpAPI):
 
         DBSession().add(transaction)
 
+        flow = Flow()
+        flow.push(
+            '*',
+            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+        )
+
     @staticmethod
     def delete(request):
         """Delete a follow-up request from SEDMv2 queue.
@@ -171,6 +179,73 @@ class SEDMV2API(FollowUpAPI):
             )
 
         DBSession().add(transaction)
+
+        flow = Flow()
+        flow.push(
+            '*',
+            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+        )
+
+    @staticmethod
+    def update(request):
+        """Update a request in the SEDMv2 queue.
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The updated request.
+        """
+
+        from ..models import FacilityTransaction, DBSession
+
+        validate_request_to_sedmv2(request)
+
+        if cfg['app.sedmv2_endpoint'] is not None:
+            altdata = request.allocation.altdata
+
+            if not altdata:
+                raise ValueError('Missing allocation information.')
+
+            payload = {
+                'obj_id': request.obj_id,
+                'allocation_id': request.allocation.id,
+                'payload': request.payload,
+            }
+
+            r = requests.post(
+                cfg['app.sedmv2_endpoint'],
+                json=payload,
+                headers={"Authorization": f"token {altdata['api_token']}"},
+            )
+
+            if r.status_code == 200:
+                request.status = 'submitted'
+            else:
+                request.status = f'rejected: {r.content}'
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                response=http.serialize_requests_response(r),
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+        else:
+            request.status = 'submitted'
+
+            transaction = FacilityTransaction(
+                request=None,
+                response=None,
+                followup_request=request,
+                initiator_id=request.last_modified_by_id,
+            )
+
+        DBSession().add(transaction)
+
+        flow = Flow()
+        flow.push(
+            '*',
+            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+        )
 
     form_json_schema = {
         "type": "object",

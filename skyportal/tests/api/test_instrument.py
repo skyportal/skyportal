@@ -86,7 +86,7 @@ def test_token_user_post_get_instrument(super_admin_token):
         [
             d['field_id'] == 1
             and d['contour']['features'][0]['geometry']['coordinates'][0][0]
-            == [110.84784299030288, -87.01522509948724]
+            == [110.84791974982103, -87.01522999646508]
             for d in data['data']['fields']
         ]
     )
@@ -107,7 +107,7 @@ def test_token_user_post_get_instrument(super_admin_token):
         [
             d['field_id'] == 1
             and d['contour_summary']['features'][0]['geometry']['coordinates'][0]
-            == [1.0239199794587863, -89.93778080237439]
+            == [1.0238351746164418, -89.93777511600825]
             for d in data['data']['fields']
         ]
     )
@@ -346,12 +346,12 @@ def test_post_instrument_fov(super_admin_token):
 
     assert status == 200
     assert data['status'] == 'success'
-    print(data['data'])
 
-    assert (
-        data['data']['region']
-        == '# Region file format: DS9 astropy/regions\nfk5\ncircle(0.000006,0.000003,3.000000)\n'
-    )
+    region_str = """# Region file format: DS9 astropy/regions
+icrs
+circle(0.00000000,0.00000000,3.00000000)"""
+
+    assert data['data']['region'].strip() == region_str.strip()
 
 
 def test_token_user_post_sensitivity_data(super_admin_token):

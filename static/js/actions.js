@@ -16,6 +16,7 @@ import * as favoritesActions from "./ducks/favorites";
 import * as followupRequestActions from "./ducks/followup_requests";
 import * as rejectedActions from "./ducks/rejected_candidates";
 import * as shiftsActions from "./ducks/shifts";
+import * as tnsrobotsActions from "./ducks/tnsrobots";
 import * as enumTypesActions from "./ducks/enum_types";
 
 export default function hydrate() {
@@ -39,6 +40,7 @@ export default function hydrate() {
     dispatch(favoritesActions.fetchFavorites());
     dispatch(rejectedActions.fetchRejected());
     dispatch(shiftsActions.fetchShifts());
+    dispatch(tnsrobotsActions.fetchTNSRobots());
     dispatch(enumTypesActions.fetchEnumTypes());
   };
 }
