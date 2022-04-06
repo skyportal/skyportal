@@ -613,8 +613,10 @@ class InstrumentHandler(BaseHandler):
         self.verify_and_commit()
 
         if field_data is not None:
-            if field_region is None:
-                return self.error('field_region is required with field_data')
+            if (field_region is None) and (field_fov_type is None):
+                return self.error(
+                    'field_region or field_fov_type is required with field_data'
+                )
 
             if type(field_data) is str:
                 field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
