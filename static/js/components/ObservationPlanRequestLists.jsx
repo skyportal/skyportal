@@ -114,7 +114,7 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
         f.selected = false;
       });
     }
-  }, [dispatch, setObsList, obsList, observationplanRequest]);
+  }, [dispatch, setObsList, observationplanRequest]);
 
   return (
     <div>

@@ -70,11 +70,11 @@ class ObservationPlanRequestHandler(BaseHandler):
                               type: integer
                               description: New observation plan request ID
         """
-        data = self.get_json()
-        if 'observation_plans' in data:
-            observation_plans = data['observation_plans']
+        json_data = self.get_json()
+        if 'observation_plans' in json_data:
+            observation_plans = json_data['observation_plans']
         else:
-            observation_plans = [data]
+            observation_plans = [json_data]
 
         for plan in observation_plans:
             try:
@@ -92,8 +92,12 @@ class ObservationPlanRequestHandler(BaseHandler):
             allocation = Allocation.get_if_accessible_by(
                 data['allocation_id'],
                 self.current_user,
-                raise_if_none=True,
+                raise_if_none=False,
             )
+            if allocation is None:
+                return self.error(
+                    f"Missing allocation with ID: {data['allocation_id']}"
+                )
 
             instrument = allocation.instrument
             if instrument.api_classname_obsplan is None:
@@ -107,8 +111,10 @@ class ObservationPlanRequestHandler(BaseHandler):
             target_groups = []
             for group_id in data.pop('target_group_ids', []):
                 g = Group.get_if_accessible_by(
-                    group_id, self.current_user, raise_if_none=True
+                    group_id, self.current_user, raise_if_none=False
                 )
+                if g is None:
+                    return self.error(f"Missing group with ID: {group_id}")
                 target_groups.append(g)
 
             try:
@@ -119,7 +125,10 @@ class ObservationPlanRequestHandler(BaseHandler):
                 formSchema = instrument.api_class_obsplan.form_json_schema
 
             # validate the payload
-            jsonschema.validate(data['payload'], formSchema)
+            try:
+                jsonschema.validate(data['payload'], formSchema)
+            except jsonschema.exceptions.ValidationError as e:
+                return self.error(f'Payload failed to validate: {e}')
 
             observation_plan_request = ObservationPlanRequest.__schema__().load(data)
             observation_plan_request.target_groups = target_groups
