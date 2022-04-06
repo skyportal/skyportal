@@ -83,4 +83,4 @@ class SourceExistsHandler(BaseHandler):
                     f"Sources at that location already exist: {','.join([obj.id for obj in objs])}."
                 )
 
-        return self.success(False)
+        return self.success("A source of that name does not exist.")

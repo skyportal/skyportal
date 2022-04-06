@@ -26,7 +26,7 @@ const NewSource = ({ classes }) => {
   const handleSubmit = async ({ formData }) => {
     let data = null;
     data = await dispatch(checkSource(formData.id, formData));
-    if (data.data) {
+    if (data.data !== "A source of that name does not exist.") {
       dispatch(showNotification(data.data, "error"));
     } else {
       const result = await dispatch(saveSource(formData));
@@ -85,6 +85,7 @@ const NewSource = ({ classes }) => {
               onSubmit={handleSubmit}
               // eslint-disable-next-line react/jsx-no-bind
               validate={validate}
+              liveValidate
             />
           </div>
         </div>
