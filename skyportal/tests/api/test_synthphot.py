@@ -5,13 +5,13 @@ from skyportal.tests import api
 
 
 def test_synthetic_photometry(super_admin_token, public_source, public_group):
-    name = str(uuid.uuid4())
+    telescope_name = str(uuid.uuid4())
     status, data = api(
         'POST',
         'telescope',
         data={
-            'name': name,
-            'nickname': name,
+            'name': telescope_name,
+            'nickname': telescope_name,
             'lat': 0.0,
             'lon': 0.0,
             'elevation': 0.0,
@@ -42,7 +42,7 @@ def test_synthetic_photometry(super_admin_token, public_source, public_group):
         'POST',
         'spectrum',
         data={
-            'obj_id': str(public_source.id),
+            'obj_id': public_source.id,
             'observed_at': str(datetime.datetime.now()),
             'instrument_id': instrument_id,
             'wavelengths': [1000, 3000, 5000, 7000, 9000],
@@ -56,13 +56,39 @@ def test_synthetic_photometry(super_admin_token, public_source, public_group):
     assert data['status'] == 'success'
     spectrum_id = data['data']['id']
 
+    filters = ['ztfg', 'ztfr', 'ztfi']
     status, data = api(
         'POST',
         f'spectra/synthphot/{spectrum_id}',
         data={
-            'filters': ['ztfg', 'ztfr', 'ztfi'],
+            'filters': filters,
         },
         token=super_admin_token,
     )
     assert status == 200
     assert data['status'] == 'success'
+
+    # Check for single GET call as well
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}",
+        params={"includePhotometry": "true"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == public_source.id
+    for filt in filters:
+        assert any([p["filter"] == filt for p in data["data"]["photometry"]])
+
+    filters = ['f140w', 'f153m', 'f160w']
+    status, data = api(
+        'POST',
+        f'spectra/synthphot/{spectrum_id}',
+        data={
+            'filters': filters,
+        },
+        token=super_admin_token,
+    )
+    assert status == 400
+    data['status'] == 'error'
+    assert 'outside spectral range' in data['message']
