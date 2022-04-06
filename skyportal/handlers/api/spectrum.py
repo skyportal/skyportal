@@ -554,6 +554,7 @@ class SpectrumHandler(BaseHandler):
         # filter the spectra
         if minimal_payload:
             columns = [
+                'id',
                 'owner_id',
                 'obj_id',
                 'observed_at',
@@ -616,7 +617,6 @@ class SpectrumHandler(BaseHandler):
             spec_query = spec_query.filter(Spectrum.type.in_(spec_type))
 
         spectra = spec_query.all()
-
         result_spectra = recursive_to_dict(spectra)
 
         if (
