@@ -197,7 +197,8 @@ class ProfileHandler(BaseHandler):
             if isinstance(v, dict):
                 preferences[k] = {key: val for key, val in v.items() if val != ""}
         user_prefs = deepcopy(user.preferences)
-        user_prefs["custom_filter_groups"] = preferences["custom_filter_groups"]
+        if "custom_filter_groups" in preferences:
+            user_prefs["custom_filter_groups"] = preferences["custom_filter_groups"]
         if not user_prefs:
             user_prefs = preferences
         else:
