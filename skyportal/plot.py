@@ -564,36 +564,37 @@ def make_custom_filter_group_button_callback(labels, model_dict):
 
 def make_custom_filter_group_buttons(user, panel_name, model_dict):
     custom_buttons_row = row(css_classes=[f'custom_buttons_{panel_name}'])
-    if "custom_filter_groups" in user.preferences:
-        filter_groups = list(user.preferences["custom_filter_groups"].items())
-        # display row of buttons in columns with 4 items each
-        split = [filter_groups[i : i + 4] for i in range(0, len(filter_groups), 4)]
-        for grouping in split:
-            custom_button_column = column()
-            for name, labels in grouping:
-                btn = Button(label=f"Add {name} only", width_policy="min")
-                btn.js_on_click(
-                    make_custom_filter_group_button_callback(labels, model_dict)
-                )
-                delete_button = Button(label="Delete", width_policy="min")
-                delete_button.js_on_click(
-                    CustomJS(
-                        args={
-                            'panel_name': panel_name,
-                            'name': name,
-                            'preferences': user.preferences,
-                        },
-                        code=open(
-                            os.path.join(
-                                os.path.dirname(__file__),
-                                '../static/js/plotjs',
-                                "delete_filter_group.js",
-                            )
-                        ).read(),
+    if user.preferences:
+        if "custom_filter_groups" in user.preferences:
+            filter_groups = list(user.preferences["custom_filter_groups"].items())
+            # display row of buttons in columns with 4 items each
+            split = [filter_groups[i : i + 4] for i in range(0, len(filter_groups), 4)]
+            for grouping in split:
+                custom_button_column = column()
+                for name, labels in grouping:
+                    btn = Button(label=f"Add {name} only", width_policy="min")
+                    btn.js_on_click(
+                        make_custom_filter_group_button_callback(labels, model_dict)
                     )
-                )
-                custom_button_column.children.append(row(btn, delete_button))
-            custom_buttons_row.children.append(custom_button_column)
+                    delete_button = Button(label="Delete", width_policy="min")
+                    delete_button.js_on_click(
+                        CustomJS(
+                            args={
+                                'panel_name': panel_name,
+                                'name': name,
+                                'preferences': user.preferences,
+                            },
+                            code=open(
+                                os.path.join(
+                                    os.path.dirname(__file__),
+                                    '../static/js/plotjs',
+                                    "delete_filter_group.js",
+                                )
+                            ).read(),
+                        )
+                    )
+                    custom_button_column.children.append(row(btn, delete_button))
+                custom_buttons_row.children.append(custom_button_column)
     return custom_buttons_row
 
 
