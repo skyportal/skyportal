@@ -267,7 +267,16 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
             validate={validate}
             onSubmit={handleQueueSubmit}
             disabled={isSubmitting}
-          />
+          >
+            <Button
+              size="small"
+              color="primary"
+              type="submit"
+              variant="outlined"
+            >
+              Add to Queue
+            </Button>
+          </Form>
         </div>
         {isSubmitting && (
           <div className={classes.marginTop}>
@@ -288,15 +297,17 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         ))}
       </div>
       <div>
-        <Button
-          size="small"
-          color="primary"
-          type="submit"
-          variant="outlined"
-          onClick={handleSubmit}
-        >
-          Generate Observation Plans
-        </Button>
+        {planQueues.length !== 0 && (
+          <Button
+            size="small"
+            color="primary"
+            type="submit"
+            variant="outlined"
+            onClick={handleSubmit}
+          >
+            Generate Observation Plans
+          </Button>
+        )}
         {isSubmitting && (
           <div className={classes.marginTop}>
             <CircularProgress />
