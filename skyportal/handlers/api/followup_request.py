@@ -1,11 +1,14 @@
 import arrow
+import healpy as hp
 import jsonschema
 from marshmallow.exceptions import ValidationError
+import numpy as np
 import io
 from tornado.ioloop import IOLoop
 import pandas as pd
 import tempfile
 import functools
+from scipy.stats import norm
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -29,16 +32,19 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
     DBSession,
     FollowupRequest,
     Instrument,
     ClassicalAssignment,
+    Localization,
     ObservingRun,
     Obj,
     Group,
     Allocation,
+    cosmo,
 )
 
 from sqlalchemy.orm import joinedload
@@ -1027,3 +1033,144 @@ class FollowupRequestSchedulerHandler(BaseHandler):
         data = io.BytesIO(rez["data"])
 
         await self.send_file(data, filename, output_type=output_format)
+
+
+class FollowupRequestPrioritizationHandler(BaseHandler):
+    @auth_or_token
+    async def put(self):
+        """
+        ---
+        description: |
+          Reprioritize followup requests schedule automatically based on
+          location within skymap.
+        tags:
+            - followup_requests
+        parameters:
+        - in: body
+          name: localizationId
+          schema:
+            type: integer
+          description: Filter by localization ID
+        - in: body
+          name: requestIds
+          schema:
+            type: list of integers
+          description: List of follow-up request IDs
+        - in: body
+          name: minimumPriority
+          schema:
+            type: string
+          description: Minimum priority for the instrument. Defaults to 1.
+        - in: body
+          name: maximumPriority
+          schema:
+            type: string
+          description: Maximum priority for the instrument. Defaults to 5.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        localization_id = data.get('localizationId', None)
+        request_ids = data.get('requestIds', None)
+        minimum_priority = data.get('minimumPriority', 1)
+        maximum_priority = data.get('maximumPriority', 5)
+
+        if localization_id is None:
+            return self.error('localizationId is required')
+        if request_ids is None:
+            return self.error('requestIds is required')
+
+        localization = (
+            Localization.query_records_accessible_by(self.current_user)
+            .filter(
+                Localization.id == localization_id,
+            )
+            .first()
+        )
+        if localization is None:
+            return self.error(message=f"Missing localization with id {localization_id}")
+
+        followup_requests = []
+        for request_id in request_ids:
+            # get owned assignments
+            followup_request = FollowupRequest.get_if_accessible_by(
+                request_id, self.current_user, mode="update", raise_if_none=False
+            )
+            if followup_request is None:
+                return self.error(
+                    message=f"Missing FollowUpRequest with id {request_id}"
+                )
+            followup_requests.append(followup_request)
+
+        if len(followup_requests) == 0:
+            return self.error('Need at least one observation to modify.')
+
+        ras = np.array(
+            [followup_request.obj.ra for followup_request in followup_requests]
+        )
+        decs = np.array(
+            [followup_request.obj.dec for followup_request in followup_requests]
+        )
+        dists = np.array(
+            [
+                cosmo.luminosity_distance(followup_request.obj.redshift).value
+                if followup_request.obj.redshift is not None
+                else -1
+                for followup_request in followup_requests
+            ]
+        )
+
+        tab = localization.flat
+        ipix = hp.ang2pix(Localization.nside, ras, decs, lonlat=True)
+        if localization.is_3d:
+            prob, distmu, distsigma, distnorm = tab
+            if not all([dist > 0 for dist in dists]):
+                weights = prob[ipix]
+            else:
+                weights = prob[ipix] * (
+                    distnorm[ipix] * norm(distmu[ipix], distsigma[ipix]).pdf(dists)
+                )
+        else:
+            weights = prob[ipix]
+        weights = weights / np.max(weights)
+        priorities = [
+            int(
+                np.round(
+                    weight * (maximum_priority - minimum_priority) + minimum_priority
+                )
+            )
+            for weight in weights
+        ]
+
+        with DBSession() as session:
+            for request_id, priority in zip(request_ids, priorities):
+                # get owned assignments
+                followup_request = session.query(FollowupRequest).get(request_id)
+                api = followup_request.instrument.api_class
+                if not api.implements()['update']:
+                    return self.error('Cannot update requests on this instrument.')
+                payload = followup_request.payload
+                payload["priority"] = priority
+                session.query(FollowupRequest).filter(
+                    FollowupRequest.id == request_id
+                ).update({'payload': payload})
+                session.commit()
+
+                followup_request.payload = payload
+                followup_request.instrument.api_class.update(followup_request)
+
+        flow = Flow()
+        flow.push(
+            '*',
+            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+        )
+
+        return self.success()

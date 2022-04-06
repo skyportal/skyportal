@@ -115,13 +115,13 @@ export const useSourceStyles = makeStyles((theme) => ({
     flexDirection: "column",
     paddingBottom: "0.5rem",
     overflowX: "scroll",
-    "& div button": {
-      margin: "0.5rem",
-    },
   },
   plotButtons: {
     display: "flex",
     flexFlow: "row wrap",
+    "& button": {
+      margin: "0.5rem",
+    },
   },
   comments: {
     marginLeft: "1rem",
@@ -473,18 +473,20 @@ const SourceMobile = WidthProvider(
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <div className={classes.photometryContainer}>
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
-                    <Plot
-                      url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
-                    />
-                  </Suspense>
+                <Grid container>
+                  <div className={classes.photometryContainer}>
+                    <Suspense
+                      fallback={
+                        <div>
+                          <CircularProgress color="secondary" />
+                        </div>
+                      }
+                    >
+                      <Plot
+                        url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
+                      />
+                    </Suspense>
+                  </div>
                   <div className={classes.plotButtons}>
                     {isBrowser && (
                       <Link to={`/upload_photometry/${source.id}`} role="link">
@@ -505,7 +507,7 @@ const SourceMobile = WidthProvider(
                       Show Photometry Table
                     </Button>
                   </div>
-                </div>
+                </Grid>
               </AccordionDetails>
             </Accordion>
           </div>
