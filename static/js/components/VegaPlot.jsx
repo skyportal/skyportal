@@ -5,7 +5,7 @@ import embed from "vega-embed";
 
 const mjdNow = Date.now() / 86400000.0 + 40587.0;
 
-const spec = (url, colorScale, titleFontSize = 15) => ({
+const spec = (url, colorScale, titleFontSize = 15, labelFontSize = 15) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   data: {
     url,
@@ -53,6 +53,7 @@ const spec = (url, colorScale, titleFontSize = 15) => ({
           axis: {
             title: "days ago",
             titleFontSize,
+            labelFontSize,
           },
         },
         y: {
@@ -65,6 +66,7 @@ const spec = (url, colorScale, titleFontSize = 15) => ({
           axis: {
             title: "mag",
             titleFontSize,
+            labelFontSize,
           },
         },
         color: {
@@ -116,6 +118,7 @@ const spec = (url, colorScale, titleFontSize = 15) => ({
           axis: {
             title: "days ago",
             titleFontSize,
+            labelFontSize,
           },
         },
         y: {
@@ -139,6 +142,8 @@ const spec = (url, colorScale, titleFontSize = 15) => ({
           type: "nominal",
           legend: {
             orient: isMobileOnly ? "bottom" : "right",
+            titleFontSize,
+            labelFontSize,
           },
         },
         opacity: {
@@ -176,6 +181,7 @@ const spec = (url, colorScale, titleFontSize = 15) => ({
           axis: {
             title: "days ago",
             titleFontSize,
+            labelFontSize,
           },
         },
         y: {

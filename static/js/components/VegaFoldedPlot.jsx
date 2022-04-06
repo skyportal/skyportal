@@ -3,7 +3,7 @@ import { isMobileOnly } from "react-device-detect";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
 
-const spec = (url, colorScale, titleFontSize = 15) => ({
+const spec = (url, colorScale, titleFontSize = 15, labelFontSize = 15) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v4.json",
   data: {
     url,
@@ -50,6 +50,7 @@ const spec = (url, colorScale, titleFontSize = 15) => ({
           axis: {
             title: "Phase",
             titleFontSize,
+            labelFontSize,
           },
         },
         y: {
@@ -58,10 +59,12 @@ const spec = (url, colorScale, titleFontSize = 15) => ({
           scale: {
             zero: false,
             reverse: true,
+            titleFontSize,
           },
           axis: {
             title: "mag",
             titleFontSize,
+            labelFontSize,
           },
         },
         color: {
@@ -112,6 +115,7 @@ const spec = (url, colorScale, titleFontSize = 15) => ({
           axis: {
             title: "Phase",
             titleFontSize,
+            labelFontSize,
           },
         },
         y: {
@@ -135,6 +139,8 @@ const spec = (url, colorScale, titleFontSize = 15) => ({
           type: "nominal",
           legend: {
             orient: isMobileOnly ? "bottom" : "right",
+            titleFontSize,
+            labelFontSize,
           },
         },
         opacity: {
@@ -169,6 +175,7 @@ const spec = (url, colorScale, titleFontSize = 15) => ({
           axis: {
             title: "Phase",
             titleFontSize,
+            labelFontSize,
           },
         },
         y: {
