@@ -563,6 +563,7 @@ class SpectrumHandler(BaseHandler):
         # filter the spectra
         if minimal_payload:
             columns = [
+                'id',
                 'owner_id',
                 'obj_id',
                 'observed_at',
