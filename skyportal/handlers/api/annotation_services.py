@@ -358,23 +358,14 @@ class DatalabQueryHandler(BaseHandler):
         radius_arcsec = data.pop('crossmatchRadius', 2.0)
         radius_deg = radius_arcsec / 3600.0
 
-        candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
         sql_query = f"""SELECT {catalog}.photo_z.ls_id, z_phot_median, z_phot_std, ra, dec, type, z_phot_l95, flux_z from {catalog}.photo_z
                       INNER JOIN {catalog}.tractor
                       ON {catalog}.tractor.ls_id = {catalog}.photo_z.ls_id
-                      where ra > ({obj.ra-radius_deg}) and
-                            ra < ({obj.ra+radius_deg}) and
-                            dec > ({obj.dec-radius_deg}) and
-                            dec < ({obj.dec+radius_deg})"""
+                      where 't' = Q3C_RADIAL_QUERY(ra, dec, {obj.ra}, {obj.dec}, {radius_deg})"""
         query = qc.query(sql=sql_query)
         df = pd.read_table(StringIO(query), sep=",")
         annotations = []
         for index, row in df.iterrows():
-            galaxy_coord = SkyCoord(ra=row["ra"] * u.deg, dec=row["dec"] * u.deg)
-            sep = candidate_coord.separation(galaxy_coord)
-            if float(sep.arcsec) > radius_arcsec:
-                continue
-
             ls_id = row['ls_id']
             origin = f"{catalog}-{ls_id}"
             row.drop(index=['ls_id'], inplace=True)
