@@ -10,6 +10,7 @@ from .enum_types import EnumTypesHandler
 from .filter import FilterHandler
 from .followup_request import (
     FollowupRequestHandler,
+    FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,
     AssignmentHandler,
 )

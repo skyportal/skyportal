@@ -20,6 +20,7 @@ from skyportal.handlers.api import (
     FilterHandler,
     FollowupRequestHandler,
     FollowupRequestSchedulerHandler,
+    FollowupRequestPrioritizationHandler,
     FacilityMessageHandler,
     GalaxyCatalogHandler,
     GcnEventHandler,
@@ -141,6 +142,10 @@ skyportal_handlers = [
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
     (r'/api/followup_request/schedule(/[0-9]+)', FollowupRequestSchedulerHandler),
+    (
+        r'/api/followup_request/prioritization(/.*)?',
+        FollowupRequestPrioritizationHandler,
+    ),
     (r'/api/followup_request(/.*)?', FollowupRequestHandler),
     (r'/api/photometry_request(/.*)', PhotometryRequestHandler),
     (r'/api/galaxy_catalog(/[0-9]+)?', GalaxyCatalogHandler),
