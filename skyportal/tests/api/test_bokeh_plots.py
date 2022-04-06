@@ -9,7 +9,6 @@ def black_body(la, temp):
     """
     get the amount of radiation expected from a black body
     of the given temperature "temp", at the given wavelengths "la".
-<<<<<<< HEAD
 
     Parameters
     ----------
@@ -21,13 +20,6 @@ def black_body(la, temp):
     Returns
     -------
     float array
-=======
-    :param la: float array or scalar
-        wavelength(s) where the radiation should be calculated.
-    :param temp: float scalar
-        temperature of the black body.
-    :return:
->>>>>>> Bokeh plot tests (#2640)
         return the radiation (in units of Watts per steradian per m^2 per nm)
     """
     const = (
@@ -36,7 +28,7 @@ def black_body(la, temp):
     amp = 1.1910429526245744e-25  # 2*h*c**2 * (nm / m) = 2*6.62607004e-34 * 299792458**2 / 1e9 the last term is units
     la = la * 1e-9  # convert wavelength from nm to m
 
-    return amp / (la ** 5 * (np.exp(const / (la * temp)) - 1))
+    return amp / (la**5 * (np.exp(const / (la * temp)) - 1))
 
 
 def get_plot_data(data):
@@ -155,16 +147,8 @@ def test_spectrum_plot(upload_data_token, public_source, public_group, lris):
 def test_spectrum_smooth_nan(upload_data_token, public_source, public_group, lris):
     observed_at = str(datetime.datetime.now())
     filename = f'{os.path.dirname(__file__)}/../data/spectrum_with_nan.txt'
-<<<<<<< HEAD
-<<<<<<< HEAD
 
     with open(filename) as f:
-=======
-    with open(filename, 'r') as f:
->>>>>>> Bokeh plot tests (#2640)
-=======
-    with open(filename, 'r') as f:
->>>>>>> Bokeh plot tests (#2640)
         status, data = api(
             'POST',
             'spectrum/ascii',
