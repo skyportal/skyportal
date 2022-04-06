@@ -109,6 +109,11 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
       setObsList(response.data);
     };
     fetchObsList();
+    if (obsList) {
+      obsList.forEach((f) => {
+        f.selected = false;
+      });
+    }
   }, [dispatch, setObsList, observationplanRequest]);
 
   return (
