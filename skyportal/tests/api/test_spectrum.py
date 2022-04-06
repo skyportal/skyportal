@@ -995,6 +995,7 @@ def test_minimal_spectrum(
     minimal_spec = data['data'][0]
 
     list_of_keys = [
+        'id',
         'altdata',
         'assignment_id',
         'followup_request_id',
