@@ -72,6 +72,7 @@ from skyportal.handlers.api import (
     SpectrumASCIIFileHandler,
     SpectrumASCIIFileParser,
     SpectrumRangeHandler,
+    SyntheticPhotometryHandler,
     ObjSpectraHandler,
     SpectrumTNSHandler,
     ShiftHandler,
@@ -258,6 +259,7 @@ skyportal_handlers = [
     (r'/api/spectra(/[0-9]+)?', SpectrumHandler),
     (r'/api/spectra/parse/ascii', SpectrumASCIIFileParser),
     (r'/api/spectra/ascii(/[0-9]+)?', SpectrumASCIIFileHandler),
+    (r'/api/spectra/synthphot(/[0-9]+)?', SyntheticPhotometryHandler),
     (r'/api/spectra/range(/.*)?', SpectrumRangeHandler),
     # FIXME: TODO: Deprecated, to be removed in an upcoming release
     (r'/api/spectrum(/[0-9]+)?', SpectrumHandler),

@@ -85,6 +85,7 @@ from .spectrum import (
     SpectrumASCIIFileParser,
     SpectrumASCIIFileHandler,
     SpectrumRangeHandler,
+    SyntheticPhotometryHandler,
 )
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler

@@ -4,7 +4,8 @@ from astropy.time import Time
 import arrow
 from arrow import ParserError
 import numpy as np
-
+import pandas as pd
+import sncosmo
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, Column
 
@@ -12,7 +13,10 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 from baselayer.app.custom_exceptions import AccessError
+
+from .photometry import add_external_photometry
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -37,6 +41,7 @@ from ...models.schema import (
 from ...enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 
 _, cfg = load_env()
+log = make_log('api/spectrum')
 
 
 class SpectrumHandler(BaseHandler):
@@ -196,6 +201,10 @@ class SpectrumHandler(BaseHandler):
                 "At least one valid user must be provided as an "
                 "observer point of contact via the 'observed_by' parameter."
             )
+
+        if "units" in data:
+            if not data["units"] in ["Jy", "AB", "erg/s/cm/cm/AA"]:
+                return self.error("units must be Jy, AB, or erg/s/cm/cm/AA")
 
         spec = Spectrum(**data)
         spec.instrument = instrument
@@ -1276,3 +1285,96 @@ class SpectrumRangeHandler(BaseHandler):
 
         self.verify_and_commit()
         return self.success(data=query.all())
+
+
+class SyntheticPhotometryHandler(BaseHandler):
+    @auth_or_token
+    def post(self, spectrum_id):
+        """
+        ---
+        description: Create synthetic photometry from a spectrum
+        tags:
+          - spectra
+        parameters:
+          - in: path
+            name: spectrum_id
+            required: true
+            schema:
+              type: integer
+          - in: query
+            name: filters
+            schema:
+              type: list
+            required: true
+            description: |
+                List of filters
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleSpectrum
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        data = self.get_json()
+        filters = data.get('filters')
+
+        spectrum = Spectrum.get_if_accessible_by(
+            spectrum_id,
+            self.current_user,
+            raise_if_none=False,
+        )
+        if spectrum is None:
+            return self.error(f'No spectrum with id {spectrum_id}')
+
+        spec_dict = recursive_to_dict(spectrum)
+        wav = spec_dict['wavelengths']
+        flux = spec_dict['fluxes']
+        err = spec_dict['errors']
+        obstime = spec_dict['observed_at']
+
+        try:
+            spec = sncosmo.Spectrum(
+                wav, flux * spectrum.astropy_units, err * spectrum.astropy_units
+            )
+        except TypeError:
+            spec = sncosmo.Spectrum(wav, flux * spectrum.astropy_units)
+
+        data_list = []
+        for filt in filters:
+            try:
+                mag = spec.bandmag(filt, magsys='ab')
+                magerr = 0
+            except ValueError as e:
+                return self.error(
+                    f"Unable to generate synthetic photometry for filter {filt}: {e}"
+                )
+
+            data_list.append(
+                {
+                    'mjd': Time(obstime, format='datetime').mjd,
+                    'ra': spectrum.obj.ra,
+                    'dec': spectrum.obj.dec,
+                    'mag': mag,
+                    'magerr': magerr,
+                    'filter': filt,
+                    'limiting_mag': 25.0,
+                }
+            )
+
+        if len(data_list) > 0:
+            df = pd.DataFrame.from_dict(data_list)
+            df['magsys'] = 'ab'
+            data_out = {
+                'obj_id': spectrum.obj.id,
+                'instrument_id': spectrum.instrument.id,
+                'group_ids': [g.id for g in self.current_user.accessible_groups],
+                **df.to_dict(orient='list'),
+            }
+            add_external_photometry(data_out, self.associated_user_object)
+
+            return self.success()
+        return self.success()
