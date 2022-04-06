@@ -74,7 +74,7 @@ class IRSAQueryWISEHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        obj = Obj.query.get(obj_id)
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj is None:
             return self.error('Invalid object id.')
 
@@ -207,7 +207,7 @@ class VizierQueryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        obj = Obj.query.get(obj_id)
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj is None:
             return self.error('Invalid object id.')
 
@@ -335,7 +335,7 @@ class DatalabQueryHandler(BaseHandler):
 
     @auth_or_token
     def post(self, obj_id):
-        obj = Obj.query.get(obj_id)
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj is None:
             return self.error('Invalid object id.')
 
