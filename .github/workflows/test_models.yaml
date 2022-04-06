@@ -78,7 +78,7 @@ jobs:
         run: |
           curl -sL https://deb.nodesource.com/setup_17.x | sudo -E bash -
 
-          sudo apt install -y wget nodejs unzip firefox nginx
+          sudo apt install -y wget nodejs unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
           pip install pip==21.3.1
           pip install wheel numpy

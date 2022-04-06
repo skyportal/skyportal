@@ -58,6 +58,8 @@ const SHARE_DATA = "skyportal/SHARE_DATA";
 
 const SEND_ALERT = "skyportal/SEND_ALERT";
 
+const FETCH_PHOTOZ = "skyportal/FETCH_PHOTOZ";
+
 const FETCH_WISE = "skyportal/FETCH_WISE";
 
 const FETCH_VIZIER = "skyportal/FETCH_VIZIER";
@@ -227,6 +229,9 @@ export const deleteAssignment = (id) =>
 
 export const sendAlert = (params) =>
   API.POST(`/api/source_notifications`, SEND_ALERT, params);
+
+export const fetchPhotoz = (sourceID) =>
+  API.POST(`/api/sources/${sourceID}/annotations/datalab`, FETCH_PHOTOZ);
 
 export const fetchWise = (sourceID) =>
   API.POST(`/api/sources/${sourceID}/annotations/irsa`, FETCH_WISE);
