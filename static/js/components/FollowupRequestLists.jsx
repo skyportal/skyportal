@@ -106,6 +106,7 @@ const FollowupRequestLists = ({
 
   if (
     instrumentList.length === 0 ||
+    followupRequests.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
     return <p>No robotic followup requests for this source...</p>;
@@ -115,6 +116,10 @@ const FollowupRequestLists = ({
     r[a.id] = a;
     return r;
   }, {});
+
+  if (!Array.isArray(followupRequests)) {
+    return <p>Waiting for followup requests to load...</p>;
+  }
 
   const requestsGroupedByInstId = followupRequests.reduce((r, a) => {
     r[a.allocation.instrument.id] = [
