@@ -58,7 +58,6 @@ function MyCalendar({ shifts }) {
   currentUser = useSelector((state) => state.profile);
   dispatch = useDispatch();
   groups = useSelector((state) => state.groups.userAccessible);
-  console.log(shifts);
   return (
     <Calendar
       events={shifts}
