@@ -85,7 +85,6 @@ const NewSource = ({ classes }) => {
               onSubmit={handleSubmit}
               // eslint-disable-next-line react/jsx-no-bind
               validate={validate}
-              liveValidate
             />
           </div>
         </div>
