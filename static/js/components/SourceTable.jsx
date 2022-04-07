@@ -1,7 +1,7 @@
 import React, { Suspense, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
-import { Link, useHistory } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import TableCell from "@material-ui/core/TableCell";
 import TableRow from "@material-ui/core/TableRow";
@@ -673,7 +673,7 @@ const SourceTable = ({
 
   // helper function to get the source groups
   const getGroups = (source) => source.groups?.filter((group) => group.active);
-  const history = useHistory();
+  const navigate = useNavigate();
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderGroups = (dataIndex) => {
@@ -687,7 +687,7 @@ const SourceTable = ({
               key={group.id}
               size="small"
               className={classes.chip}
-              onClick={() => history.push(`/group/${group.id}`)}
+              onClick={() => navigate(`/group/${group.id}`)}
             />
             <br />
           </div>
