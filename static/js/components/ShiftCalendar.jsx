@@ -34,7 +34,7 @@ async function handleSelectSlot({ start, end }) {
     })
   ).then((result) => {
     if (result.status === "success") {
-      showNotification("Shift saved");
+      dispatch(showNotification("Shift saved"));
     }
   });
 }
