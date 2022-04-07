@@ -25,7 +25,7 @@ tdtax==0.1.4
 healpix-alchemy==1.0.1
 mocpy==0.11.0
 conesearch-alchemy==1.0.0
-regions==0.5
+regions==0.6
 jsonschema==3.2.0
 jsonpath_ng==1.5.3
 pytest-rerunfailures==10.2
@@ -56,5 +56,6 @@ swifttools==2.4.2
 pip==22.0.3
 gwemopt==0.0.76
 humanize==4.0.0
+noaodatalab==2.20.0
 black==22.3.0
 click==8.1.2

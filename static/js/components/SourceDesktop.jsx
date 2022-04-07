@@ -384,17 +384,21 @@ const SourceDesktop = ({ source }) => {
             <AccordionDetails>
               <Grid container>
                 <div className={classes.photometryContainer}>
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
-                    <Plot
-                      url={`/api/internal/plot/photometry/${source.id}?width=800&height=500`}
-                    />
-                  </Suspense>
+                  {!source.photometry_exists ? (
+                    <div> No photometry exists </div>
+                  ) : (
+                    <Suspense
+                      fallback={
+                        <div>
+                          <CircularProgress color="secondary" />
+                        </div>
+                      }
+                    >
+                      <Plot
+                        url={`/api/internal/plot/photometry/${source.id}?width=800&height=500`}
+                      />
+                    </Suspense>
+                  )}
                 </div>
                 <div className={classes.buttonContainer}>
                   <Link to={`/upload_photometry/${source.id}`} role="link">
@@ -438,17 +442,21 @@ const SourceDesktop = ({ source }) => {
             <AccordionDetails>
               <Grid container>
                 <div className={classes.photometryContainer}>
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
-                    <Plot
-                      url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&cacheID=${specIDs}`}
-                    />
-                  </Suspense>
+                  {!source.spectrum_exists ? (
+                    <div> No spectra exist </div>
+                  ) : (
+                    <Suspense
+                      fallback={
+                        <div>
+                          <CircularProgress color="secondary" />
+                        </div>
+                      }
+                    >
+                      <Plot
+                        url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&cacheID=${specIDs}`}
+                      />
+                    </Suspense>
+                  )}
                 </div>
                 <div className={classes.buttonContainer}>
                   <Link to={`/upload_spectrum/${source.id}`} role="link">
@@ -722,6 +730,8 @@ SourceDesktop.propTypes = {
     ),
     duplicates: PropTypes.arrayOf(PropTypes.string),
     alias: PropTypes.arrayOf(PropTypes.string),
+    photometry_exists: PropTypes.bool,
+    spectrum_exists: PropTypes.bool,
   }).isRequired,
 };
 

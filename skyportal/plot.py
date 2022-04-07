@@ -506,20 +506,43 @@ def make_add_all_photometry_button(model_dict):
     return button
 
 
-def make_ztf_only_button(model_dict):
-    button = Button(name="Add ZTF Only", label="Add ZTF Only", width=110)
-    callback_add_photometry = CustomJS(
-        args={'model_dict': model_dict},
-        code="""
-        for (const [key, value] of Object.entries(model_dict)) {
-            if (key.startsWith('ZTF')) {
-                value.visible = true
-            }
-        }
-        """,
+def make_clear_and_add_buttons(model_dict):
+    return row(
+        css_classes=["clear_and_add_buttons"],
+        children=[
+            make_add_all_photometry_button(model_dict),
+            make_clear_photometry_button(model_dict),
+        ],
     )
-    button.js_on_click(callback_add_photometry)
-    return button
+
+
+def make_add_filter_group_form(split, model_dict, panel_name):
+    labels = [label for label, sdf in split]
+    checkboxes = CheckboxGroup(labels=labels, active=[], width=100)
+    name_input = TextInput(width=100, title="Name", name="Name", value_input="")
+    add_filter_group_button = Button(label="Add Filter Group", width=100)
+    callback_add_button = CustomJS(
+        args={
+            'model_dict': model_dict,
+            'name': name_input,
+            'checkboxes': checkboxes,
+            'panel_name': panel_name,
+        },
+        code=open(
+            os.path.join(
+                os.path.dirname(__file__), '../static/js/plotjs', "custom_button.js"
+            )
+        ).read(),
+    )
+    add_filter_group_button.js_on_click(callback_add_button)
+    add_filter_group = column(
+        width=200, children=[checkboxes, name_input, add_filter_group_button]
+    )
+    return add_filter_group
+
+
+def make_custom_buttons_div(panel_name):
+    return Div(css_classes=[f'custom_buttons_{panel_name}'], width=300)
 
 
 def photometry_plot(obj_id, user, width=600, device="browser"):
@@ -709,7 +732,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         # for the flux plot, we only show things that have a flux value
         df = sdf[sdf['hasflux']]
 
-        key = f'{label}obs{i}'
+        key = f'{label}~obs{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
             y='flux',
@@ -722,7 +745,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
-        key = f'{label}bin{i}'
+        key = f'{label}~bin{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
             y='flux',
@@ -747,7 +770,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
-        key = label + 'obserr' + str(i)
+        key = f'{label}~obserr{str(i)}'
         y_err_x = []
         y_err_y = []
 
@@ -772,7 +795,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         )
         renderers.append(model_dict[key])
 
-        key = f'{label}binerr{i}'
+        key = f'{label}~binerr{i}'
         model_dict[key] = plot.multi_line(
             xs='xs',
             ys='ys',
@@ -787,10 +810,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         plot.xaxis.ticker.desired_num_ticks = 5
     plot.yaxis.axis_label = 'Flux (μJy)'
     plot.toolbar.logo = None
-
-    add_phot_flux_button = make_add_all_photometry_button(model_dict)
-    clear_phot_flux_button = make_clear_photometry_button(model_dict)
-    flux_ztf_only_button = make_ztf_only_button(model_dict)
 
     add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
     slider = Slider(
@@ -858,7 +877,11 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     layout = column(
         slider,
         plot,
-        row(clear_phot_flux_button, add_phot_flux_button, flux_ztf_only_button),
+        make_clear_and_add_buttons(model_dict),
+        row(
+            make_add_filter_group_form(split, model_dict, 'flux'),
+            make_custom_buttons_div('flux'),
+        ),
         width=width,
         height=height,
     )
@@ -970,7 +993,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         unobs_source = df[~df['obs']].copy()
         unobs_source.loc[:, 'alpha'] = 0.8
 
-        key = f'{label}unobs{i}'
+        key = f'{label}~unobs{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
             y='lim_mag',
@@ -984,7 +1007,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
-        key = f'{label}obs{i}'
+        key = f'{label}~obs{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
             y='mag',
@@ -997,7 +1020,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
-        key = f'{label}bin{i}'
+        key = f'{label}~bin{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
             y='mag',
@@ -1022,7 +1045,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
 
-        key = label + 'obserr' + str(i)
+        key = f'{label}~obserr{str(i)}'
         y_err_x = []
         y_err_y = []
 
@@ -1050,7 +1073,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         )
         renderers.append(model_dict[key])
 
-        key = f'{label}binerr{i}'
+        key = f'{label}~binerr{i}'
         model_dict[key] = plot.multi_line(
             xs='xs',
             ys='ys',
@@ -1059,7 +1082,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         )
         renderers.append(model_dict[key])
 
-        key = f'{label}unobsbin{i}'
+        key = f'{label}~unobsbin{i}'
         model_dict[key] = plot.scatter(
             x='mjd',
             y='lim_mag',
@@ -1123,10 +1146,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         margin=(4, 10, 0, 10),
     )
 
-    add_phot_mag_button = make_add_all_photometry_button(model_dict)
-    clear_phot_mag_button = make_clear_photometry_button(model_dict)
-    mag_ztf_only_button = make_ztf_only_button(model_dict)
-
     button = Button(label="Export Bold Light Curve to CSV")
     button.js_on_click(
         CustomJS(
@@ -1160,7 +1179,11 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     layout = column(
         top_layout,
         plot,
-        row(clear_phot_mag_button, add_phot_mag_button, mag_ztf_only_button),
+        make_clear_and_add_buttons(model_dict),
+        row(
+            make_add_filter_group_form(split, model_dict, 'mag'),
+            make_custom_buttons_div('mag'),
+        ),
         width=width,
         height=height,
     )
@@ -1240,7 +1263,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
             # phase plotting
             for ph in ['a', 'b']:
-                key = label + 'fold' + ph + f'{i}'
+                key = f'{label}~fold{ph}{i}'
                 period_model_dict[key] = period_plot.scatter(
                     x='mjd_fold' + ph,
                     y='mag',
@@ -1256,7 +1279,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                 renderers.append(period_model_dict[key])
 
                 # errorbars for phases
-                key = label + 'fold' + ph + f'err{i}'
+                key = label + '~fold' + ph + f'err{i}'
                 y_err_x = []
                 y_err_y = []
 
@@ -1291,10 +1314,6 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         add_plot_legend(
             period_plot, legend_items, width, legend_orientation, legend_loc
         )
-
-        add_phot_period_button = make_add_all_photometry_button(period_model_dict)
-        clear_phot_period_button = make_clear_photometry_button(period_model_dict)
-        period_ztf_only_button = make_ztf_only_button(period_model_dict)
 
         # set up period adjustment text box
         period_title = Div(text="Period (days): ")
@@ -1403,10 +1422,12 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
         period_layout = column(
             period_plot,
-            row(
-                clear_phot_period_button, add_phot_period_button, period_ztf_only_button
-            ),
+            make_clear_and_add_buttons(period_model_dict),
             period_controls,
+            row(
+                make_add_filter_group_form(split, period_model_dict, 'period'),
+                make_custom_buttons_div('period'),
+            ),
             width=width,
             height=height,
         )

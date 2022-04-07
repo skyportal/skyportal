@@ -6,6 +6,7 @@ import Grid from "@material-ui/core/Grid";
 import { makeStyles } from "@material-ui/core/styles";
 import FollowupRequestLists from "./FollowupRequestLists";
 import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
+import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -48,6 +49,12 @@ const FollowupRequestPage = () => {
           <div className={classes.paperContent}>
             <Typography variant="h6">Filter Followup Requests</Typography>
             <FollowupRequestSelectionForm />
+          </div>
+        </Paper>
+        <Paper>
+          <div className={classes.paperContent}>
+            <Typography variant="h6">Prioritize Followup Requests</Typography>
+            <FollowupRequestPrioritizationForm />
           </div>
         </Paper>
       </Grid>

@@ -120,6 +120,7 @@ const config = {
     fallback: {
       path: path.resolve(__dirname, "node_modules/path-browserify"),
       buffer: path.resolve(__dirname, "node_modules/buffer"),
+      url: false,
     },
   },
 
