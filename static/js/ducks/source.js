@@ -64,6 +64,8 @@ const FETCH_WISE = "skyportal/FETCH_WISE";
 
 const FETCH_VIZIER = "skyportal/FETCH_VIZIER";
 
+const CHECK_SOURCE = "skyportal/CHECK_SOURCE";
+
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
 export const uploadPhotometry = (data) =>
@@ -163,6 +165,13 @@ export function getCommentOnSpectrumAttachment(spectrumID, commentID) {
 export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
   return API.GET(
     `/api/sources/${id}?includeComments=true&includeColorMagnitude=true&includeThumbnails=true&includePhotometryExists=true&includeSpectrumExists=true`,
+    actionType
+  );
+}
+
+export function checkSource(id, params, actionType = CHECK_SOURCE) {
+  return API.GET(
+    `/api/source_exists/${id}?ra=${params.ra}&dec=${params.dec}&radius=1`,
     actionType
   );
 }
