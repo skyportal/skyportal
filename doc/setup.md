@@ -10,8 +10,6 @@ how to install them on MacOS and Debian-based systems below.
 - NGINX (v>=1.7)
 - PostgreSQL (v>=9.6)
 - Node.JS/npm (v>=5.8.0)
-- libcurl4-gnutls-dev
-- libgnutls28-dev
 
 ## Source download, Python environment
 
@@ -36,7 +34,7 @@ These instructions assume that you have [Homebrew](http://brew.sh/) installed.
 1. Install dependencies
 
 ```
-brew install supervisor nginx postgresql node libcurl4-gnutls-dev libgnutls28-dev
+brew install supervisor nginx postgresql node
 ```
 
 2. Start the PostgreSQL server:
