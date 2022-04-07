@@ -27,17 +27,17 @@ const NewShift = () => {
   }
 
   const handleSubmit = async ({ formData }) => {
-    if (!formData.multipleDays) {
+    if (!formData.repeatsDaily) {
       formData.start_date = formData.start_date.replace("+00:00", "");
       formData.end_date = formData.end_date.replace("+00:00", "");
-      delete formData.multipleDays;
+      delete formData.repeatsDaily;
       const result = await dispatch(submitShift(formData));
       if (result.status === "success") {
         dispatch(showNotification("Shift saved"));
         dispatch(fetchShifts());
       }
     } else {
-      delete formData.multipleDays;
+      delete formData.repeatsDaily;
       const startDate = dayjs(formData.start_date).utc();
       const endDate = dayjs(formData.end_date).utc();
       const days = endDate.diff(startDate, "days");
@@ -75,6 +75,13 @@ const NewShift = () => {
     return errors;
   }
 
+  const uiSchema = {
+    repeatsDaily: {
+      "ui:widget": "radio",
+      "ui:labels": ["Yes", "No"],
+    },
+  };
+
   const shiftFormSchema = {
     type: "object",
     properties: {
@@ -107,10 +114,11 @@ const NewShift = () => {
         type: "string",
         title: "Shift's description",
       },
-      multipleDays: {
+      repeatsDaily: {
         type: "boolean",
-        title: "Shift repeats everyday",
-        default: false,
+        title: "Do you want to create daily shifts over the selected period ?",
+        description:
+          "If checked, shifts will be created for each day between start and end date, each of them starting at the start time and ending at the end time.",
       },
     },
     required: ["group_id", "name", "start_date", "end_date"],
@@ -119,6 +127,7 @@ const NewShift = () => {
   return (
     <Form
       schema={shiftFormSchema}
+      uiSchema={uiSchema}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
       validate={validate}
