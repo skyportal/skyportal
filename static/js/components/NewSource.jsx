@@ -20,7 +20,7 @@ dayjs.extend(utc);
 const NewSource = ({ classes }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const allGroups = useSelector((state) => state.groups.all);
+  const allGroups = useSelector((state) => state.groups.userAccessible);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
 
   const handleSubmit = async ({ formData }) => {
