@@ -32,16 +32,15 @@ const useStyles = makeStyles((theme) => ({
     marginTop: "0.5rem",
     padding: "0",
     margin: "0",
-    },
+  },
   a: {
     textAlign: "left",
     fontSize: "0.8rem",
     marginTop: "1rem",
     padding: "0",
     margin: "0",
-    }
+  },
 }));
-
 
 const TelescopeInfo = () => {
   const classes = useStyles();
@@ -49,32 +48,36 @@ const TelescopeInfo = () => {
     (state) => state.telescope.currentTelescopes
   );
   // return a list of telescopes with their information
-  return (
-    currentTelescopes ? (
-      <List className={classes.root}>
+  return currentTelescopes ? (
+    <List className={classes.root}>
       {currentTelescopes.telescopes.map((telescope) => (
         <>
-        <ListItem className={classes.listItem} key={telescope.id}>
-          <h2 className={classes.h2}> {telescope.name} ({telescope.nickname})</h2>
-          {telescope.robotic ? (
-                <h3 className={classes.h3}>Robotic : Yes</h3>
+          <ListItem className={classes.listItem} key={telescope.id}>
+            <h2 className={classes.h2}>
+              {" "}
+              {telescope.name} ({telescope.nickname})
+            </h2>
+            {telescope.robotic ? (
+              <h3 className={classes.h3}>Robotic : Yes</h3>
             ) : (
-                <h3 className={classes.h3}>Robotic : No</h3>
+              <h3 className={classes.h3}>Robotic : No</h3>
             )}
-          <h3 className={classes.h3}>Diameter : {telescope.diameter} </h3>
-          <h3 className={classes.h3}>Location : {telescope.lat}, {telescope.lon}</h3>
-          <h3 className={classes.h3}>Elevation : {telescope.elevation}</h3>
+            <h3 className={classes.h3}>Diameter : {telescope.diameter} </h3>
+            <h3 className={classes.h3}>
+              Location : {telescope.lat}, {telescope.lon}
+            </h3>
+            <h3 className={classes.h3}>Elevation : {telescope.elevation}</h3>
 
-          <a className={classes.a} href={telescope.skycam_link}>skycam link</a>
-        </ListItem>
-        <Divider />
+            <a className={classes.a} href={telescope.skycam_link}>
+              skycam link
+            </a>
+          </ListItem>
+          <Divider />
         </>
-        
       ))}
     </List>
-    ) : (
-      <h2 className={classes.h2}>No telescope selected</h2>
-    )
+  ) : (
+    <h2 className={classes.h2}>No telescope selected</h2>
   );
 };
 

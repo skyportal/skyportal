@@ -55,7 +55,9 @@ function telescopelabel(nestedTelescope) {
   if (nestedTelescope.telescopes.length === 1) {
     return nestedTelescope.telescopes[0].name;
   } else {
-    return `${nestedTelescope.telescopes[0].name} and ${nestedTelescope.telescopes.length - 1} others`
+    return `${nestedTelescope.telescopes[0].name} and ${
+      nestedTelescope.telescopes.length - 1
+    } others`;
   }
 }
 
@@ -90,10 +92,12 @@ function normalizeLatitude(latitude) {
 
 const TelescopeMap = ({ telescopes }) => {
   //remove telescopes that have fixed location to false
-  const filteredTelescopes = telescopes.filter((telescope) => telescope.fixed_location);
+  const filteredTelescopes = telescopes.filter(
+    (telescope) => telescope.fixed_location
+  );
   // create a nested list of telescopes using how close they are to each other
   let nestedTelescopes = [];
-  for(let i = 0; i < filteredTelescopes.length; i++) {
+  for (let i = 0; i < filteredTelescopes.length; i++) {
     if (i === 0) {
       nestedTelescopes.push({
         lat: filteredTelescopes[i].lat,
@@ -101,18 +105,27 @@ const TelescopeMap = ({ telescopes }) => {
         telescopes: [filteredTelescopes[i]],
       });
     } else {
-    for(let j = 0; j < nestedTelescopes.length; j++) {
-      if (Math.abs(normalizeLatitude(filteredTelescopes[i].lat) - normalizeLatitude(nestedTelescopes[j].lat)) < 1 && Math.abs(normalizeLongitude(filteredTelescopes[i].lon) - normalizeLongitude(nestedTelescopes[j].lon)) < 2) {
-        nestedTelescopes[j].telescopes.push(filteredTelescopes[i]);
-        break;
-      } else if (j === nestedTelescopes.length - 1) {
-        nestedTelescopes.push({
-          lat: filteredTelescopes[i].lat,
-          lon: filteredTelescopes[i].lon,
-          telescopes: [filteredTelescopes[i]],
-        });
-        break;
-      }
+      for (let j = 0; j < nestedTelescopes.length; j++) {
+        if (
+          Math.abs(
+            normalizeLatitude(filteredTelescopes[i].lat) -
+              normalizeLatitude(nestedTelescopes[j].lat)
+          ) < 1 &&
+          Math.abs(
+            normalizeLongitude(filteredTelescopes[i].lon) -
+              normalizeLongitude(nestedTelescopes[j].lon)
+          ) < 2
+        ) {
+          nestedTelescopes[j].telescopes.push(filteredTelescopes[i]);
+          break;
+        } else if (j === nestedTelescopes.length - 1) {
+          nestedTelescopes.push({
+            lat: filteredTelescopes[i].lat,
+            lon: filteredTelescopes[i].lon,
+            telescopes: [filteredTelescopes[i]],
+          });
+          break;
+        }
       }
     }
   }
@@ -142,8 +155,8 @@ const TelescopeMap = ({ telescopes }) => {
                   </Geographies>
                   {nestedTelescopes.map(
                     (nestedTelescope) =>
-                    nestedTelescope.lon &&
-                    nestedTelescope.lat && (
+                      nestedTelescope.lon &&
+                      nestedTelescope.lat && (
                         <TelescopeMarker
                           nestedTelescope={nestedTelescope}
                           position={position}
