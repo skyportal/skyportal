@@ -301,16 +301,29 @@ const GcnSelectionForm = ({ gcnEvent }) => {
 
   return (
     <div>
-      <div>
-        <LocalizationPlot
-          loc={locLookUp[selectedLocalizationId]}
-          sources={gcnEventSources}
-          galaxies={gcnEventGalaxies}
-          instrument={instLookUp[selectedInstrumentId]}
-          observations={gcnEventObservations}
-          options={checkedDisplayState}
-        />
-      </div>
+      {!(selectedLocalizationId in Object.entries(locLookUp)) ? (
+        <div>
+          <LocalizationPlot
+            loc={gcnEvent.localizations[0]}
+            sources={gcnEventSources}
+            galaxies={gcnEventGalaxies}
+            instrument={instLookUp[selectedInstrumentId]}
+            observations={gcnEventObservations}
+            options={checkedDisplayState}
+          />
+        </div>
+      ) : (
+        <div>
+          <LocalizationPlot
+            loc={locLookUp[selectedLocalizationId]}
+            sources={gcnEventSources}
+            galaxies={gcnEventGalaxies}
+            instrument={instLookUp[selectedInstrumentId]}
+            observations={gcnEventObservations}
+            options={checkedDisplayState}
+          />
+        </div>
+      )}
       <div>
         <Button
           variant="outlined"
