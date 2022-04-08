@@ -24,7 +24,7 @@ import * as gcnEventActions from "../ducks/gcnEvent";
 const useStyles = makeStyles((theme) => ({
   linkButton: {
     textDecoration: "none",
-    color: theme.palette.info.main,
+    color: theme.palette.info.dark,
     fontWeight: "bold",
     verticalAlign: "baseline",
     backgroundColor: "transparent",
