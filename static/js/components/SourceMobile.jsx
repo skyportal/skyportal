@@ -475,17 +475,21 @@ const SourceMobile = WidthProvider(
               <AccordionDetails>
                 <Grid container>
                   <div className={classes.photometryContainer}>
-                    <Suspense
-                      fallback={
-                        <div>
-                          <CircularProgress color="secondary" />
-                        </div>
-                      }
-                    >
-                      <Plot
-                        url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
-                      />
-                    </Suspense>
+                    {!source.photometry_exists ? (
+                      <div> No photometry exists </div>
+                    ) : (
+                      <Suspense
+                        fallback={
+                          <div>
+                            <CircularProgress color="secondary" />
+                          </div>
+                        }
+                      >
+                        <Plot
+                          url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
+                        />
+                      </Suspense>
+                    )}
                   </div>
                   <div className={classes.plotButtons}>
                     {isBrowser && (
@@ -525,17 +529,21 @@ const SourceMobile = WidthProvider(
               <AccordionDetails>
                 <Grid container>
                   <div className={classes.photometryContainer}>
-                    <Suspense
-                      fallback={
-                        <div>
-                          <CircularProgress color="secondary" />
-                        </div>
-                      }
-                    >
-                      <Plot
-                        url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
-                      />
-                    </Suspense>
+                    {!source.spectrum_exists ? (
+                      <div> No spectra exist </div>
+                    ) : (
+                      <Suspense
+                        fallback={
+                          <div>
+                            <CircularProgress color="secondary" />
+                          </div>
+                        }
+                      >
+                        <Plot
+                          url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
+                        />
+                      </Suspense>
+                    )}
                   </div>
                   <div className={classes.plotButtons}>
                     {isBrowser && (
@@ -770,6 +778,8 @@ SourceMobile.propTypes = {
       })
     ),
     alias: PropTypes.arrayOf(PropTypes.string),
+    photometry_exists: PropTypes.bool,
+    spectrum_exists: PropTypes.bool,
   }).isRequired,
 };
 

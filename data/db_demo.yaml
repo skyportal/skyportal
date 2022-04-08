@@ -745,6 +745,7 @@ spectrum:
       - =program_A
       - =program_B
     =id: "spectrum1"
+    units: erg/s/cm/cm/AA
   - obj_id: ZTFe028h94k
     file: spec2.csv
     instrument_id: =ALFOSC
@@ -758,11 +759,13 @@ spectrum:
       - =program_A
       - =program_B
     =id: "spectrum2"
+    units: erg/s/cm/cm/AA
   - obj_id: ZTF21aaqjmps
     file: ZTF21aaqjmps_spec.csv
     instrument_id: =SPRAT
     observed_at: "2021-04-03T02:28:19.921"
     assignment_id: 1
+    units: erg/s/cm/cm/AA
 
 spectra/=spectrum1/annotations:
   - origin: "Kowalski"

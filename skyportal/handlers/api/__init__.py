@@ -4,7 +4,11 @@ from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
-from .annotation_services import IRSAQueryWISEHandler, VizierQueryHandler
+from .annotation_services import (
+    IRSAQueryWISEHandler,
+    VizierQueryHandler,
+    DatalabQueryHandler,
+)
 from .db_stats import StatsHandler
 from .enum_types import EnumTypesHandler
 from .filter import FilterHandler
@@ -75,6 +79,7 @@ from .source import (
     SourceNotificationHandler,
     PS1ThumbnailHandler,
 )
+from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
 from .spectrum import (
     SpectrumHandler,
@@ -82,6 +87,7 @@ from .spectrum import (
     SpectrumASCIIFileParser,
     SpectrumASCIIFileHandler,
     SpectrumRangeHandler,
+    SyntheticPhotometryHandler,
 )
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler

@@ -492,7 +492,11 @@ def insert_new_photometry_data(
     group_photometry_params = []
     stream_photometry_params = []
     for packet in rows:
-        if packet["filter"] not in instrument_cache[packet['instrument_id']].filters:
+        if (
+            instrument_cache[packet['instrument_id']].type == "imager"
+            and packet["filter"]
+            not in instrument_cache[packet['instrument_id']].filters
+        ):
             instrument = instrument_cache[packet['instrument_id']]
             raise ValidationError(
                 f"Instrument {instrument.name} has no filter " f"{packet['filter']}."

@@ -27,6 +27,9 @@ import FormValidationError from "./FormValidationError";
 import TNSSpectraForm from "./TNSSpectraForm";
 import CommentList from "./CommentList";
 import AnnotationsTable from "./AnnotationsTable";
+import SyntheticPhotometryForm from "./SyntheticPhotometryForm";
+
+import withRouter from "./withRouter";
 
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
@@ -192,6 +195,10 @@ const SpectrumRow = ({ rowData, route, annotations }) => {
           <Grid item sm={6}>
             <Typography variant="h6">TNS</Typography>
             <TNSSpectraForm obj_id={route.id} spectrum_id={rowData[0]} />
+          </Grid>
+          <Grid item sm={6}>
+            <Typography variant="h6">Synthetic Photometry</Typography>
+            <SyntheticPhotometryForm spectrum_id={rowData[0]} />
           </Grid>
         </Grid>
       </TableCell>
@@ -716,4 +723,4 @@ ManageDataForm.propTypes = {
   }).isRequired,
 };
 
-export default ManageDataForm;
+export default withRouter(ManageDataForm);

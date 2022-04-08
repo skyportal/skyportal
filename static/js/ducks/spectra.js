@@ -17,6 +17,8 @@ const PARSE_SOURCE_SPECTRUM_ASCII_OK =
 
 export const RESET_PARSED_SPECTRUM = "skyportal/RESET_PARSED_SPECTRUM";
 
+const ADD_SYNTHETIC_PHOTOMETRY = "skyportal/ADD_SYNTHETIC_PHOTOMETRY";
+
 const ADD_SPECTRUM_TNS = "skyportal/ADD_SPECTRUM_TNS";
 
 export function fetchSourceSpectra(id) {
@@ -28,6 +30,14 @@ export function parseASCIISpectrum(data) {
     `/api/spectrum/parse/ascii`,
     PARSE_SOURCE_SPECTRUM_ASCII,
     data
+  );
+}
+
+export function addSyntheticPhotometry(id, formData = {}) {
+  return API.POST(
+    `/api/spectra/synthphot/${id}`,
+    ADD_SYNTHETIC_PHOTOMETRY,
+    formData
   );
 }
 
