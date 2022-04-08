@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 
 import { useDispatch } from "react-redux";
-import { useHistory } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Button from "@material-ui/core/Button";
 import DeleteIcon from "@material-ui/icons/Delete";
 import IconButton from "@material-ui/core/IconButton";
@@ -20,7 +20,7 @@ import * as groupsActions from "../ducks/groups";
 
 const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
   const dispatch = useDispatch();
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
@@ -77,7 +77,7 @@ const ManageUserButtons = ({ group, loadedId, user, isAdmin, currentUser }) => {
   };
 
   const handleDelete = () => {
-    history.push("/groups");
+    navigate("/groups");
     dispatch(
       groupsActions.deleteGroupUser({
         userID: user.id,

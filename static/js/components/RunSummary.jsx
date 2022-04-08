@@ -25,6 +25,8 @@ import MUIDataTable from "mui-datatables";
 import ThumbnailList from "./ThumbnailList";
 import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "./StarList";
+import withRouter from "./withRouter";
+
 import * as SourceAction from "../ducks/source";
 import * as Action from "../ducks/observingRun";
 import { ra_to_hours, dec_to_dms } from "../units";
@@ -481,4 +483,4 @@ RunSummary.propTypes = {
   }).isRequired,
 };
 
-export default RunSummary;
+export default withRouter(RunSummary);

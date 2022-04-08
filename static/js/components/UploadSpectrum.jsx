@@ -23,6 +23,7 @@ import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 
 import { HtmlTooltip } from "./UploadPhotometry";
+import withRouter from "./withRouter";
 
 import * as spectraActions from "../ducks/spectra";
 import { fetchSource } from "../ducks/source";
@@ -707,4 +708,4 @@ UploadSpectrumForm.propTypes = {
   }).isRequired,
 };
 
-export default UploadSpectrumForm;
+export default withRouter(UploadSpectrumForm);
