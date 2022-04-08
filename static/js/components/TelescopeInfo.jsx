@@ -1,28 +1,42 @@
 import React from "react";
 import { useSelector } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
-// get the current telescope using useEffect
+import List from "@material-ui/core/List";
+import ListItem from "@material-ui/core/ListItem";
+import { Divider } from "@material-ui/core";
 
 const useStyles = makeStyles((theme) => ({
   root: {
     width: "100%",
     height: "100%",
     padding: "1rem",
+    gap: "1rem",
+    maxHeight: "85vh",
+    overflowY: "auto",
+  },
+  listItem: {
+    display: "flex",
+    flexDirection: "column",
+    justifyItems: "left",
+    alignItems: "left",
   },
   h2: {
-    fontSize: "2.4rem",
+    textAlign: "left",
+    fontSize: "1.4rem",
     padding: "0",
     margin: "0",
   },
   h3: {
-    fontSize: "1.5rem",
+    textAlign: "left",
+    fontSize: "1rem",
     marginTop: "0.5rem",
     padding: "0",
     margin: "0",
     },
   a: {
-    fontSize: "1.5rem",
-    marginTop: "2rem",
+    textAlign: "left",
+    fontSize: "0.8rem",
+    marginTop: "1rem",
     padding: "0",
     margin: "0",
     }
@@ -31,29 +45,36 @@ const useStyles = makeStyles((theme) => ({
 
 const TelescopeInfo = () => {
   const classes = useStyles();
-  const currentTelescope = useSelector(
-    (state) => state.telescope.currentTelescope
+  const currentTelescopes = useSelector(
+    (state) => state.telescope.currentTelescopes
   );
+  // return a list of telescopes with their information
   return (
-    <div className={classes.root}>
-      {currentTelescope ? (
+    currentTelescopes ? (
+      <List className={classes.root}>
+      {currentTelescopes.telescopes.map((telescope) => (
         <>
-          <h2 className={classes.h2}> {currentTelescope.name} ({currentTelescope.nickname})</h2>
-          {currentTelescope.robotic ? (
+        <ListItem className={classes.listItem} key={telescope.id}>
+          <h2 className={classes.h2}> {telescope.name} ({telescope.nickname})</h2>
+          {telescope.robotic ? (
                 <h3 className={classes.h3}>Robotic : Yes</h3>
             ) : (
-                <h3 className={classes.h3}>Robotic : Yes</h3>
+                <h3 className={classes.h3}>Robotic : No</h3>
             )}
-          <h3 className={classes.h3}>Diameter : {currentTelescope.diameter} </h3>
-          <h3 className={classes.h3}>Location : {currentTelescope.lat}, {currentTelescope.lon}</h3>
-          <h3 className={classes.h3}>Elevation : {currentTelescope.elevation}</h3>
+          <h3 className={classes.h3}>Diameter : {telescope.diameter} </h3>
+          <h3 className={classes.h3}>Location : {telescope.lat}, {telescope.lon}</h3>
+          <h3 className={classes.h3}>Elevation : {telescope.elevation}</h3>
 
-          <a className={classes.a} href={currentTelescope.skycam_link}>skycam link</a>
+          <a className={classes.a} href={telescope.skycam_link}>skycam link</a>
+        </ListItem>
+        <Divider />
         </>
-      ) : (
-        <h2 className={classes.h3}>No telescope selected</h2>
-      )}
-    </div>
+        
+      ))}
+    </List>
+    ) : (
+      <h2 className={classes.h2}>No telescope selected</h2>
+    )
   );
 };
 

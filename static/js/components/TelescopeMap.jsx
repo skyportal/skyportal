@@ -43,35 +43,86 @@ const CustomZoomableGroup = ({ children, ...restProps }) => {
     </g>
   );
 };
-function setCurrentTelescope(currentTelescope) {
+function setCurrentTelescopes(currentTelescopes) {
   const currentTelescopeMenu = "Telescope Map";
   dispatch({
-    type: "skyportal/CURRENT_TELESCOPE_AND_MENU",
-    data: { currentTelescope, currentTelescopeMenu },
+    type: "skyportal/CURRENT_TELESCOPES_AND_MENU",
+    data: { currentTelescopes, currentTelescopeMenu },
   });
 }
 
-const TelescopeMarker = ({ telescope, position }) => {
+function telescopelabel(nestedTelescope) {
+  if (nestedTelescope.telescopes.length === 1) {
+    return nestedTelescope.telescopes[0].name;
+  } else {
+    return `${nestedTelescope.telescopes[0].name} and ${nestedTelescope.telescopes.length - 1} others`
+  }
+}
+
+const TelescopeMarker = ({ nestedTelescope, position }) => {
   return (
     <Marker
-      key={telescope.name}
-      coordinates={[telescope.lon, telescope.lat]}
-      onClick={() => setCurrentTelescope(telescope)}
+      key={`${nestedTelescope.lon},${nestedTelescope.lat}`}
+      coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
+      onClick={() => setCurrentTelescopes(nestedTelescope)}
     >
       <circle r={12 / position.k} fill="#F53" />
       <text textAnchor="middle" fontSize={14 / position.k} y={-15 / position.k}>
-        {telescope.name}
+        {telescopelabel(nestedTelescope)}
       </text>
     </Marker>
   );
 };
 
+function normalizeLongitude(longitude) {
+  if (longitude < 0) {
+    return longitude + 360;
+  }
+  return longitude;
+}
+
+function normalizeLatitude(latitude) {
+  if (latitude < 0) {
+    return latitude + 180;
+  }
+  return latitude;
+}
+
 const TelescopeMap = ({ telescopes }) => {
+  //remove telescopes that have fixed location to false
+  const filteredTelescopes = telescopes.filter((telescope) => telescope.fixed_location);
+  // create a nested list of telescopes using how close they are to each other
+  let nestedTelescopes = [];
+  for(let i = 0; i < filteredTelescopes.length; i++) {
+    if (i === 0) {
+      nestedTelescopes.push({
+        lat: filteredTelescopes[i].lat,
+        lon: filteredTelescopes[i].lon,
+        telescopes: [filteredTelescopes[i]],
+      });
+    } else {
+    for(let j = 0; j < nestedTelescopes.length; j++) {
+      if (Math.abs(normalizeLatitude(filteredTelescopes[i].lat) - normalizeLatitude(nestedTelescopes[j].lat)) < 1 && Math.abs(normalizeLongitude(filteredTelescopes[i].lon) - normalizeLongitude(nestedTelescopes[j].lon)) < 2) {
+        nestedTelescopes[j].telescopes.push(filteredTelescopes[i]);
+        break;
+      } else if (j === nestedTelescopes.length - 1) {
+        nestedTelescopes.push({
+          lat: filteredTelescopes[i].lat,
+          lon: filteredTelescopes[i].lon,
+          telescopes: [filteredTelescopes[i]],
+        });
+        break;
+      }
+      }
+    }
+  }
+  console.log(nestedTelescopes);
+
   dispatch = useDispatch();
   const classes = useStyles();
   return (
     <Grid container spacing={3}>
-      <Grid item md={6} sm={12}>
+      <Grid item md={9} sm={12}>
         <Paper elevation={3}>
           <ComposableMap width={width} height={height}>
             <CustomZoomableGroup center={[0, 0]}>
@@ -89,12 +140,12 @@ const TelescopeMap = ({ telescopes }) => {
                       ))
                     }
                   </Geographies>
-                  {telescopes.map(
-                    (telescope) =>
-                      telescope.lon &&
-                      telescope.lat && (
+                  {nestedTelescopes.map(
+                    (nestedTelescope) =>
+                    nestedTelescope.lon &&
+                    nestedTelescope.lat && (
                         <TelescopeMarker
-                          telescope={telescope}
+                          nestedTelescope={nestedTelescope}
                           position={position}
                         />
                       )
@@ -105,7 +156,7 @@ const TelescopeMap = ({ telescopes }) => {
           </ComposableMap>
         </Paper>
       </Grid>
-      <Grid item md={6} sm={12}>
+      <Grid item md={3} sm={12}>
         <Paper>
           <TelescopeInfo />
         </Paper>

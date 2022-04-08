@@ -112,10 +112,10 @@ const TelescopePage = () => {
   );
 
   function setSelectedMenu(currentTelescopeMenu) {
-    const currentTelescope = null;
+    const currentTelescopes = null;
     dispatch({
-      type: "skyportal/CURRENT_TELESCOPE_AND_MENU",
-      data: { currentTelescope, currentTelescopeMenu },
+      type: "skyportal/CURRENT_TELESCOPES_AND_MENU",
+      data: { currentTelescopes, currentTelescopeMenu },
     });
   }
 
