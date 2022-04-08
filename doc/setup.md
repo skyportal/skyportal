@@ -11,6 +11,11 @@ how to install them on MacOS and Debian-based systems below.
 - PostgreSQL (v>=9.6)
 - Node.JS/npm (v>=5.8.0)
 
+When installing SkyPortal on Debian-based systems, 2 additional packages are required to be able to install pycurl later on:
+
+- libcurl4-gnutls-dev
+- libgnutls28-dev
+
 ## Source download, Python environment
 
 Clone the [SkyPortal repository](https://github.com/skyportal/skyportal) and start a new
