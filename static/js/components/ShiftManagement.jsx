@@ -78,6 +78,7 @@ function CurrentShiftMenu() {
       }
     });
   };
+
   let members;
   let participating;
   if (currentShift.name != null) {
@@ -113,6 +114,14 @@ function CurrentShiftMenu() {
           <i id="current_shift_members">{`\n Members : ${members.join(
             ","
           )}`}</i>
+          <p id="current_shift_start_date" className={classes.shiftgroup}>
+            {" "}
+            Start: {new Date(currentShift.start_date).toLocaleString()}
+          </p>
+          <p id="current_shift_end_date" className={classes.shiftgroup}>
+            {" "}
+            End: {new Date(currentShift.end_date).toLocaleString()}
+          </p>
         </div>
         <div className={classes.buttons}>
           {!participating && (
