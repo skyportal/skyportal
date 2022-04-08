@@ -10,10 +10,24 @@ const useStyles = makeStyles((theme) => ({
     padding: "1rem",
   },
   h2: {
+    fontSize: "2.4rem",
     padding: "0",
     margin: "0",
   },
+  h3: {
+    fontSize: "1.5rem",
+    marginTop: "0.5rem",
+    padding: "0",
+    margin: "0",
+    },
+  a: {
+    fontSize: "1.5rem",
+    marginTop: "2rem",
+    padding: "0",
+    margin: "0",
+    }
 }));
+
 
 const TelescopeInfo = () => {
   const classes = useStyles();
@@ -24,11 +38,17 @@ const TelescopeInfo = () => {
     <div className={classes.root}>
       {currentTelescope ? (
         <>
-          <h2 className={classes.h3}>
-            {currentTelescope.name} ({currentTelescope.nickname})
-          </h2>
-          <h3>{currentTelescope.description}</h3>
-          <a href={currentTelescope.skycam_link}>skycam link</a>
+          <h2 className={classes.h2}> {currentTelescope.name} ({currentTelescope.nickname})</h2>
+          {currentTelescope.robotic ? (
+                <h3 className={classes.h3}>Robotic : Yes</h3>
+            ) : (
+                <h3 className={classes.h3}>Robotic : Yes</h3>
+            )}
+          <h3 className={classes.h3}>Diameter : {currentTelescope.diameter} </h3>
+          <h3 className={classes.h3}>Location : {currentTelescope.lat}, {currentTelescope.lon}</h3>
+          <h3 className={classes.h3}>Elevation : {currentTelescope.elevation}</h3>
+
+          <a className={classes.a} href={currentTelescope.skycam_link}>skycam link</a>
         </>
       ) : (
         <h2 className={classes.h3}>No telescope selected</h2>
