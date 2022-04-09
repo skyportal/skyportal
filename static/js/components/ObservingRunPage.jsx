@@ -67,7 +67,7 @@ const ObservingRunList = ({ observingRuns }) => {
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   const dt_month = dayjs.duration(1, "month");
 
-  const [checked, setChecked] = useState(false);
+  const [displayAll, setDisplayAll] = useState(false);
 
   const toggleCheckbox = () => {
     setChecked(!checked);
