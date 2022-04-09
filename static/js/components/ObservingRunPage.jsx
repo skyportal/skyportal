@@ -69,7 +69,7 @@ const ObservingRunList = ({ observingRuns }) => {
 
   const [displayAll, setDisplayAll] = useState(false);
 
-  const toggleCheckbox = () => {
+  const toggleDisplayAllCheckbox = () => {
     setChecked(!checked);
   };
 
