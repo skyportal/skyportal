@@ -70,11 +70,11 @@ const ObservingRunList = ({ observingRuns }) => {
   const [displayAll, setDisplayAll] = useState(false);
 
   const toggleDisplayAllCheckbox = () => {
-    setChecked(!checked);
+    setDisplayAll(!displayAll);
   };
 
   let observingRunsToShow = [];
-  if (!checked) {
+  if (!displayAll) {
     observingRuns?.forEach((run) => {
       const dt = dayjs.duration(dayjs(run.calendar_date).diff(nowDate));
       if (dt.$ms < dt_month.$ms && dt.$ms > 0) {
@@ -88,6 +88,13 @@ const ObservingRunList = ({ observingRuns }) => {
   return (
     <div className={classes.root}>
       <List component="nav">
+        <input
+          type="checkbox"
+          onChange={toggleDisplayAllCheckbox}
+          name="observationRun"
+          data-testid="observationRunCheckbox"
+        />
+        Display all observing runs? &nbsp;&nbsp;
         {observingRunsToShow?.map((run) => (
           <ListItem button component={Link} to={`/run/${run.id}`} key={run.id}>
             <ListItemText
@@ -101,13 +108,6 @@ const ObservingRunList = ({ observingRuns }) => {
             />
           </ListItem>
         ))}
-        <input
-          type="checkbox"
-          onChange={toggleCheckbox}
-          name="observationRun"
-          data-testid="observationRunCheckbox"
-        />
-        Display all observing runs? &nbsp;&nbsp;
       </List>
     </div>
   );
