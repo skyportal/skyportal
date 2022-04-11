@@ -15,9 +15,14 @@ let currentUser;
 const localizer = momentLocalizer(moment);
 let groups;
 
+function isDailyShift(shiftName) {
+  const regex = /\d+\/\d+/;
+  return regex.test(shiftName);
+}
+
 async function handleSelectSlot({ start, end }) {
   const name = window.prompt("New Shift name");
-  if (name !== "" && name != null) {
+  if (name !== "" && name != null && !isDailyShift(name)) {
     const description = window.prompt("New Shift description");
     if (description === "" || description != null) {
       const group_ids = groups
@@ -55,6 +60,13 @@ async function handleSelectSlot({ start, end }) {
     }
   } else if (name === "") {
     dispatch(showNotification("Shift not created, no name given", "error"));
+  } else if (isDailyShift(name)) {
+    dispatch(
+      showNotification(
+        'Shift not created, invalid name (dont use "number/number")',
+        "error"
+      )
+    );
   }
 }
 

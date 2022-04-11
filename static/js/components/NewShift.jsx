@@ -12,6 +12,11 @@ import { fetchShifts } from "../ducks/shifts";
 
 dayjs.extend(utc);
 
+function isDailyShift(shiftName) {
+  const regex = /\d+\/\d+/;
+  return regex.test(shiftName);
+}
+
 const NewShift = () => {
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
@@ -62,6 +67,11 @@ const NewShift = () => {
   };
 
   function validate(formData, errors) {
+    if (isDailyShift(formData.name)) {
+      errors.name.addError(
+        'Shift name cannot contain "number/number", please use a different name.'
+      );
+    }
     if (nowDate > formData.end_date) {
       errors.end_date.addError(
         "End date must be after current date, please fix."
