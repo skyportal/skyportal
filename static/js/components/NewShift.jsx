@@ -43,7 +43,7 @@ const NewShift = () => {
       const days = endDate.diff(startDate, "days");
       for (let i = 0; i <= days; i += 1) {
         const newFormData = { ...formData };
-        newFormData.name = `${newFormData.name} ${i}`;
+        newFormData.name = `${newFormData.name} ${i}/${days}`;
         newFormData.start_date = startDate
           .add(i, "day")
           .format("YYYY-MM-DDTHH:mm:ssZ")
