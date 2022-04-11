@@ -2,13 +2,21 @@ import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Form from "@rjsf/material-ui";
 import { showNotification } from "baselayer/components/Notifications";
+
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
 import { submitObservingRun } from "../ducks/observingRun";
+
+dayjs.extend(utc);
 
 const NewObservingRun = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
+
+  const defaultDate = dayjs().utc().format("YYYY-MM-DD");
 
   const handleSubmit = async ({ formData }) => {
     if (formData.group_id === -1) {
@@ -31,6 +39,7 @@ const NewObservingRun = () => {
         type: "string",
         format: "date",
         title: "Calendar Date",
+        default: defaultDate,
       },
       observers: {
         type: "string",
