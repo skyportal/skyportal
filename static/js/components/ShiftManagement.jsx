@@ -30,6 +30,32 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+function isDailyShift(shiftName) {
+  const regex = /\d+\/\d+/;
+  return regex.test(shiftName)
+    ? [
+        parseInt(shiftName.match(/\d+/)[0], 10),
+        parseInt(shiftName.match(/\/\d+/)[0].slice(1), 10),
+      ]
+    : null;
+}
+
+function dailyShiftStartEnd(shift) {
+  const startDate = new Date(shift.start_date);
+  const endDate = new Date(shift.end_date);
+  const day = isDailyShift(shift.name);
+  if (day) {
+    startDate.setDate(startDate.getDate() - day[0]);
+    endDate.setDate(endDate.getDate() - day[0] + day[1]);
+    // return a string with start and end date, and a string with start and end time
+    return [
+      `Daily shifts from ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`,
+      `Each shift from ${startDate.toLocaleTimeString()} to ${endDate.toLocaleTimeString()}`,
+    ];
+  }
+  return null;
+}
+
 function CurrentShiftMenu() {
   const classes = useStyles();
 
@@ -89,6 +115,10 @@ function CurrentShiftMenu() {
       .map((user) => user.id)
       .includes(currentUser.id);
   }
+  let [shiftDateStartEnd, shiftTimeStartEnd] = [null, null];
+  if (currentShift.name != null && dailyShiftStartEnd(currentShift)) {
+    [shiftDateStartEnd, shiftTimeStartEnd] = dailyShiftStartEnd(currentShift);
+  }
 
   return (
     currentShift.name != null && (
@@ -114,14 +144,25 @@ function CurrentShiftMenu() {
           <i id="current_shift_members">{`\n Members : ${members.join(
             ","
           )}`}</i>
-          <p id="current_shift_start_date" className={classes.shiftgroup}>
-            {" "}
-            Start: {new Date(currentShift.start_date).toLocaleString()}
-          </p>
-          <p id="current_shift_end_date" className={classes.shiftgroup}>
-            {" "}
-            End: {new Date(currentShift.end_date).toLocaleString()}
-          </p>
+          {shiftDateStartEnd ? (
+            <>
+              <p id="current_shift_date" className={classes.shiftgroup}>
+                {shiftDateStartEnd}
+              </p>
+              <p id="current_shift_time" className={classes.shiftgroup}>
+                {shiftTimeStartEnd}
+              </p>
+            </>
+          ) : (
+            <>
+              <p id="current_shift_start_date" className={classes.shiftgroup}>
+                Start: {new Date(currentShift.start_date).toLocaleString()}
+              </p>
+              <p id="current_shift_end_date" className={classes.shiftgroup}>
+                End: {new Date(currentShift.end_date).toLocaleString()}
+              </p>
+            </>
+          )}
         </div>
         <div className={classes.buttons}>
           {!participating && (

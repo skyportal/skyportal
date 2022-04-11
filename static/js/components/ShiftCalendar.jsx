@@ -17,26 +17,45 @@ let groups;
 
 async function handleSelectSlot({ start, end }) {
   const name = window.prompt("New Shift name");
-  const description = window.prompt("New Shift description");
-  const group_ids = groups.map((group) => `   ${group.name}: ${group.id}\n`);
-  const group_id = await window.prompt(
-    `Choose shift group ID : \n ${group_ids}`
-  );
-  const start_date = start.toISOString().replace("Z", "");
-  const end_date = end.toISOString().replace("Z", "");
-  dispatch(
-    shiftActions.submitShift({
-      name,
-      description,
-      start_date,
-      end_date,
-      group_id,
-    })
-  ).then((result) => {
-    if (result.status === "success") {
-      dispatch(showNotification("Shift saved"));
+  if (name !== "" && name != null) {
+    const description = window.prompt("New Shift description");
+    if (description === "" || description != null) {
+      const group_ids = groups
+        .map((group) => `   ${group.name}: ${group.id}`)
+        .join("\n");
+      let group_id = await window.prompt(
+        `Choose shift group ID : \n${group_ids}`
+      );
+      if (group_id === "") {
+        group_id = groups[0].id;
+        dispatch(
+          showNotification(
+            `Shift group not selected, defaulting to: ${groups[0].name}`,
+            "warning"
+          )
+        );
+      }
+      if (group_id != null) {
+        const start_date = start.toISOString().replace("Z", "");
+        const end_date = end.toISOString().replace("Z", "");
+        dispatch(
+          shiftActions.submitShift({
+            name,
+            description,
+            start_date,
+            end_date,
+            group_id,
+          })
+        ).then((result) => {
+          if (result.status === "success") {
+            dispatch(showNotification("Shift saved"));
+          }
+        });
+      }
     }
-  });
+  } else if (name === "") {
+    dispatch(showNotification("Shift not created, no name given", "error"));
+  }
 }
 
 function setCurrentShift(event) {
