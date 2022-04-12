@@ -4,12 +4,13 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y curl build-essential software-properties-common && \
-    curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
+    curl -sL https://deb.nodesource.com/setup_17.x | bash - && \
     apt-get update && \
     apt-get -y upgrade && \
     apt-get install -y python3 python3-venv python3-dev \
     libpq-dev supervisor \
-    git nginx nodejs postgresql-client vim htop && \
+    git nginx nodejs postgresql-client vim htop \
+    libcurl4-gnutls-dev libgnutls28-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     useradd --create-home --shell /bin/bash skyportal
@@ -29,6 +30,7 @@ RUN bash -c "\
     cp docker.yaml config.yaml && \
     \
     source /skyportal_env/bin/activate && \
+    export NPM_CONFIG_LEGACY_PEER_DEPS=true && \
     make system_setup && \
     \
     ./node_modules/.bin/webpack --mode=production && \

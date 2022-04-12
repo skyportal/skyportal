@@ -23,6 +23,7 @@ import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 
 import { HtmlTooltip } from "./UploadPhotometry";
+import withRouter from "./withRouter";
 
 import * as spectraActions from "../ducks/spectra";
 import { fetchSource } from "../ducks/source";
@@ -262,6 +263,14 @@ const UploadSpectrumForm = ({ route }) => {
     });
   }
 
+  const getUserDisplay = (user) => {
+    const lastOrFirst = user?.first_name || user?.last_name;
+    const displayStr = `${user.username} ${lastOrFirst ? "(" : ""}${
+      user?.first_name ? user.first_name : ""
+    } ${user?.last_name ? user.last_name : ""}${lastOrFirst ? ")" : ""}`;
+    return displayStr;
+  };
+
   const uploadFormSchema = {
     type: "object",
     properties: {
@@ -295,7 +304,7 @@ const UploadSpectrumForm = ({ route }) => {
           type: "integer",
           anyOf: users?.map((user) => ({
             enum: [user.id],
-            title: user.username,
+            title: getUserDisplay(user),
           })),
         },
         uniqueItems: true,
@@ -313,7 +322,7 @@ const UploadSpectrumForm = ({ route }) => {
           type: "integer",
           anyOf: users?.map((user) => ({
             enum: [user.id],
-            title: user.username,
+            title: getUserDisplay(user),
           })),
         },
         uniqueItems: true,
@@ -388,7 +397,7 @@ const UploadSpectrumForm = ({ route }) => {
                   type: "integer",
                   anyOf: users?.map((user) => ({
                     enum: [user.id],
-                    title: user.username,
+                    title: getUserDisplay(user),
                   })),
                 },
                 uniqueItems: true,
@@ -411,7 +420,7 @@ const UploadSpectrumForm = ({ route }) => {
                   type: "integer",
                   anyOf: users?.map((user) => ({
                     enum: [user.id],
-                    title: user.username,
+                    title: getUserDisplay(user),
                   })),
                 },
                 uniqueItems: true,
@@ -439,7 +448,7 @@ const UploadSpectrumForm = ({ route }) => {
                   type: "integer",
                   anyOf: users?.map((user) => ({
                     enum: [user.id],
-                    title: user.username,
+                    title: getUserDisplay(user),
                   })),
                 },
                 uniqueItems: true,
@@ -462,7 +471,7 @@ const UploadSpectrumForm = ({ route }) => {
                   type: "integer",
                   anyOf: users?.map((user) => ({
                     enum: [user.id],
-                    title: user.username,
+                    title: getUserDisplay(user),
                   })),
                 },
                 uniqueItems: true,
@@ -699,4 +708,4 @@ UploadSpectrumForm.propTypes = {
   }).isRequired,
 };
 
-export default UploadSpectrumForm;
+export default withRouter(UploadSpectrumForm);

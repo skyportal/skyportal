@@ -15,7 +15,8 @@ class RoboticInstrumentsHandler(BaseHandler):
                     .all()
                 )
                 retval = {
-                    i.id: i.api_class.frontend_render_info(i) for i in instruments
+                    i.id: i.api_class.frontend_render_info(i, self.current_user)
+                    for i in instruments
                 }
             elif apitype == "api_classname_obsplan":
                 instruments = (
@@ -24,7 +25,7 @@ class RoboticInstrumentsHandler(BaseHandler):
                     .all()
                 )
                 retval = {
-                    i.id: i.api_class_obsplan.frontend_render_info(i)
+                    i.id: i.api_class_obsplan.frontend_render_info(i, self.current_user)
                     for i in instruments
                 }
             else:

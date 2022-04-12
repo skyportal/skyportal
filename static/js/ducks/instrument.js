@@ -10,11 +10,16 @@ const FETCH_INSTRUMENT_OK = "skyportal/FETCH_INSTRUMENT_OK";
 
 const SUBMIT_INSTRUMENT = "skyportal/SUBMIT_INSTRUMENT";
 
+const MODIFY_INSTRUMENT = "skyportal/MODIFY_INSTRUMENT";
+
 export const fetchInstrument = (id) =>
   API.GET(`/api/instrument/${id}`, FETCH_INSTRUMENT);
 
 export const submitInstrument = (run) =>
   API.POST(`/api/instrument`, SUBMIT_INSTRUMENT, run);
+
+export const modifyInstrument = (id, params) =>
+  API.PUT(`/api/instrument/${id}`, MODIFY_INSTRUMENT, params);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {

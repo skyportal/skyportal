@@ -7,7 +7,7 @@ import PropTypes from "prop-types";
 import { Provider, useSelector } from "react-redux";
 import ReactDOM from "react-dom";
 
-import { BrowserRouter, Switch, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useParams } from "react-router-dom";
 
 import { MuiPickersUtilsProvider } from "@material-ui/pickers";
 import { makeStyles } from "@material-ui/core/styles";
@@ -27,7 +27,6 @@ import store from "../store";
 import hydrate from "../actions";
 import * as rotateLogoActions from "../ducks/logo";
 
-import PropsRoute from "./Route";
 import NoMatchingRoute from "./NoMatchingRoute";
 import Responsive from "./Responsive";
 
@@ -112,15 +111,15 @@ const MainContent = ({ root }) => {
 
           <Notifications />
 
-          <Switch>
+          <Routes>
 
             {%- for route in app.routes %}
-            <PropsRoute exact path="{{ route.path }}" component={{ "{" }}{{ route.component }}{{ "}" }} />
+            <Route path="{{ route.path }}" element={{ "{<" }}{{ route.component }}{{ "/>}" }} />
             {%- endfor %}
 
-            <PropsRoute component={NoMatchingRoute} />
+            <Route component={<NoMatchingRoute/>} />
 
-          </Switch>
+          </Routes>
 
         </div>
 

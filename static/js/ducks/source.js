@@ -14,6 +14,8 @@ const ADD_CLASSIFICATION = "skyportal/ADD_CLASSIFICATION";
 
 const DELETE_CLASSIFICATION = "skyportal/DELETE_CLASSIFICATION";
 
+const ADD_SOURCE_TNS = "skyportal/ADD_SOURCE_TNS";
+
 const ADD_COMMENT = "skyportal/ADD_COMMENT";
 
 const DELETE_COMMENT = "skyportal/DELETE_COMMENT";
@@ -56,6 +58,14 @@ const SHARE_DATA = "skyportal/SHARE_DATA";
 
 const SEND_ALERT = "skyportal/SEND_ALERT";
 
+const FETCH_PHOTOZ = "skyportal/FETCH_PHOTOZ";
+
+const FETCH_WISE = "skyportal/FETCH_WISE";
+
+const FETCH_VIZIER = "skyportal/FETCH_VIZIER";
+
+const CHECK_SOURCE = "skyportal/CHECK_SOURCE";
+
 export const shareData = (data) => API.POST("/api/sharing", SHARE_DATA, data);
 
 export const uploadPhotometry = (data) =>
@@ -63,6 +73,10 @@ export const uploadPhotometry = (data) =>
 
 export function addClassification(formData) {
   return API.POST(`/api/classification`, ADD_CLASSIFICATION, formData);
+}
+
+export function addSourceTNS(id, formData) {
+  return API.POST(`/api/sources/${id}/tns`, ADD_SOURCE_TNS, formData);
 }
 
 export function deleteClassification(classification_id) {
@@ -155,6 +169,13 @@ export function fetchSource(id, actionType = FETCH_LOADED_SOURCE) {
   );
 }
 
+export function checkSource(id, params, actionType = CHECK_SOURCE) {
+  return API.GET(
+    `/api/source_exists/${id}?ra=${params.ra}&dec=${params.dec}&radius=1`,
+    actionType
+  );
+}
+
 export function addSourceView(id) {
   return API.POST(`/api/internal/source_views/${id}`, ADD_SOURCE_VIEW);
 }
@@ -217,6 +238,15 @@ export const deleteAssignment = (id) =>
 
 export const sendAlert = (params) =>
   API.POST(`/api/source_notifications`, SEND_ALERT, params);
+
+export const fetchPhotoz = (sourceID) =>
+  API.POST(`/api/sources/${sourceID}/annotations/datalab`, FETCH_PHOTOZ);
+
+export const fetchWise = (sourceID) =>
+  API.POST(`/api/sources/${sourceID}/annotations/irsa`, FETCH_WISE);
+
+export const fetchVizier = (sourceID) =>
+  API.POST(`/api/sources/${sourceID}/annotations/vizier`, FETCH_VIZIER);
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
