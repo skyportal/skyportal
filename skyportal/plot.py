@@ -20,6 +20,7 @@ from bokeh.models import (
     CategoricalColorMapper,
     Legend,
     LegendItem,
+    MultiChoice,
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
@@ -518,17 +519,24 @@ def make_clear_and_add_buttons(model_dict):
 
 def make_add_filter_group_form(split, model_dict, panel_name, user):
     labels = [label for label, sdf in split]
-    label_final = set()
-    for i in labels:
-        label_final.add(i.split('/')[1])
-        label_final.add(i.split('/')[2])
-    checkboxes = CheckboxGroup(labels=list(label_final), active=[], width=100)
+    label_filters_final = set()
+    label_origin_final = set()
+    for label in labels:
+        label_filters_final.add(label.split('/')[1])
+        label_origin_final.add(label.split('/')[2])
+    multi_choice_filters = MultiChoice(
+        options=list(label_filters_final), title="Filter by filter", min_width=180
+    )
+    multi_choice_origin = MultiChoice(
+        options=list(label_origin_final), title="Filter by origin", min_width=180
+    )
     name_input = TextInput(width=100, title="Name", name="Name", value_input="")
     add_filter_group_button = Button(label="Add Filter Group", width=100)
     callback_add_button = CustomJS(
         args={
             'name': name_input,
-            'checkboxes': checkboxes,
+            'multichoice_filter': multi_choice_filters,
+            'multichoice_origin': multi_choice_origin,
             'panel_name': panel_name,
             'preferences': user.preferences,
         },
@@ -541,7 +549,13 @@ def make_add_filter_group_form(split, model_dict, panel_name, user):
     add_filter_group_button.js_on_click(callback_add_button)
     error_div = Div(css_classes=[f"error_{panel_name}"], width=150)
     add_filter_group = column(
-        width=200, children=[checkboxes, name_input, add_filter_group_button]
+        width=120,
+        children=[
+            multi_choice_filters,
+            multi_choice_origin,
+            name_input,
+            add_filter_group_button,
+        ],
     )
     return row(add_filter_group, error_div)
 
@@ -550,7 +564,9 @@ def make_custom_filter_group_button_callback(labels, model_dict):
     return CustomJS(
         args={'labels': labels, 'model_dict': model_dict},
         code="""
+        console.log(labels)
         for (const [key, value] of Object.entries(model_dict)) {
+          console.log(key, value)
           value.visible = false;
           const [label, extra] = key.split("~");
           labels.forEach(element => {
@@ -565,37 +581,36 @@ def make_custom_filter_group_button_callback(labels, model_dict):
 
 def make_custom_filter_group_buttons(user, panel_name, model_dict):
     custom_buttons_row = row(css_classes=[f'custom_buttons_{panel_name}'])
-    if user.preferences:
-        if "custom_filter_groups" in user.preferences:
-            filter_groups = list(user.preferences["custom_filter_groups"].items())
-            # display row of buttons in columns with 4 items each
-            split = [filter_groups[i : i + 4] for i in range(0, len(filter_groups), 4)]
-            for grouping in split:
-                custom_button_column = column()
-                for name, labels in grouping:
-                    btn = Button(label=f"Add {name} only", width=120)
-                    btn.js_on_click(
-                        make_custom_filter_group_button_callback(labels, model_dict)
+    if user.preferences and "custom_filter_groups" in user.preferences:
+        filter_groups = list(user.preferences["custom_filter_groups"].items())
+        # display row of buttons in columns with 4 items each
+        split = [filter_groups[i : i + 4] for i in range(0, len(filter_groups), 4)]
+        for grouping in split:
+            custom_button_column = column()
+            for name, labels in grouping:
+                btn = Button(label=f"Add {name} only", width_policy="min")
+                btn.js_on_click(
+                    make_custom_filter_group_button_callback(labels, model_dict)
+                )
+                delete_button = Button(label="Delete", width_policy="min")
+                delete_button.js_on_click(
+                    CustomJS(
+                        args={
+                            'panel_name': panel_name,
+                            'name': name,
+                            'preferences': user.preferences,
+                        },
+                        code=open(
+                            os.path.join(
+                                os.path.dirname(__file__),
+                                '../static/js/plotjs',
+                                "delete_filter_group.js",
+                            )
+                        ).read(),
                     )
-                    delete_button = Button(label="Delete", width=120)
-                    delete_button.js_on_click(
-                        CustomJS(
-                            args={
-                                'panel_name': panel_name,
-                                'name': name,
-                                'preferences': user.preferences,
-                            },
-                            code=open(
-                                os.path.join(
-                                    os.path.dirname(__file__),
-                                    '../static/js/plotjs',
-                                    "delete_filter_group.js",
-                                )
-                            ).read(),
-                        )
-                    )
-                    custom_button_column.children.append(row(btn, delete_button))
-                custom_buttons_row.children.append(custom_button_column)
+                )
+                custom_button_column.children.append(row(btn, delete_button))
+            custom_buttons_row.children.append(custom_button_column)
     return custom_buttons_row
 
 
