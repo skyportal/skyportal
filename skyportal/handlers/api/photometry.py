@@ -67,17 +67,18 @@ def save_data_using_copy(rows, table, columns):
     )
     output.seek(0)
 
-    # Insert data
-    connection = DBSession().connection().connection
-    cursor = connection.cursor()
-    cursor.copy_from(
-        output,
-        table,
-        sep='\t',
-        null='',
-        columns=columns,
-    )
-    cursor.close()
+    with DBSession() as session:
+        # Insert data
+        connection = session.connection().connection
+        cursor = connection.cursor()
+        cursor.copy_from(
+            output,
+            table,
+            sep='\t',
+            null='',
+            columns=columns,
+        )
+        cursor.close()
     output.close()
 
 
