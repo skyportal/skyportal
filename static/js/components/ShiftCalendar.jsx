@@ -16,7 +16,7 @@ const localizer = momentLocalizer(moment);
 let groups;
 
 function isDailyShift(shiftName) {
-  const regex = /\d+\/\d+/;
+  const regex = /\d+\/\d+$/;
   return regex.test(shiftName);
 }
 
