@@ -94,10 +94,10 @@ def send_slack_notification(mapper, connection, target):
     if target.notification_type == "mention":
         if not target.user.preferences['slack_integration'].get("mentions", False):
             return
-    elif target.notification_type == "gcn notice":
+    elif target.notification_type == "gcnNotice":
         if not target.user.preferences['slack_integration'].get("gcnnotices", False):
             return
-    elif target.notification_type == "facility transaction":
+    elif target.notification_type == "facilityTransaction":
         if not target.user.preferences['slack_integration'].get(
             "facilitytransactions", False
         ):
@@ -168,7 +168,7 @@ def add_user_notifications(mapper, connection, target):
                         UserNotification(
                             user=user,
                             text=f"New {target.__class__.__name__.lower()} on GcnEvent *{target.dateobs}*",
-                            notification_type="gcn notice",
+                            notification_type="gcnNotice",
                             url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
                         )
                     )
@@ -185,7 +185,7 @@ def add_user_notifications(mapper, connection, target):
                             UserNotification(
                                 user=user,
                                 text=f"New observation plan submission for GcnEvent *{localization.dateobs}* by *{instrument.name}*",
-                                notification_type="facility transaction",
+                                notification_type="facilityTransaction",
                                 url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
                             )
                         )
@@ -197,7 +197,7 @@ def add_user_notifications(mapper, connection, target):
                             UserNotification(
                                 user=user,
                                 text=f"New follow-up submission for object *{target.followup_request.obj_id}* by *{instrument.name}*",
-                                notification_type="facility transaction",
+                                notification_type="facilityTransaction",
                                 url=f"/source/{target.followup_request.obj_id}",
                             )
                         )
