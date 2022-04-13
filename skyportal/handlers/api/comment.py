@@ -178,7 +178,16 @@ class CommentHandler(BaseHandler):
             return self.error(
                 f'Comment resource ID does not match resource ID given in path ({resource_id})'
             )
-        return self.success(data=comment)
+
+        if not comment.attachment_bytes:
+            return self.error('Comment has no attachment')
+        else:
+            return self.success(
+                data={
+                    "commentId": int(comment_id),
+                    "attachment": base64.b64decode(comment.attachment_bytes).decode(),
+                }
+            )
 
     @permissions(['Comment'])
     def post(self, associated_resource_type, resource_id):
