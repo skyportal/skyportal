@@ -13,7 +13,7 @@ import { fetchShifts } from "../ducks/shifts";
 dayjs.extend(utc);
 
 function isDailyShift(shiftName) {
-  const regex = /\d+\/\d+/;
+  const regex = /\d+\/\d+$/;
   return regex.test(shiftName);
 }
 
