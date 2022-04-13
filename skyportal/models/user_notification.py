@@ -168,7 +168,7 @@ def add_user_notifications(mapper, connection, target):
                         UserNotification(
                             user=user,
                             text=f"New {target.__class__.__name__.lower()} on GcnEvent *{target.dateobs}*",
-                            type="gcn notice",
+                            notification_type="gcn notice",
                             url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
                         )
                     )
@@ -185,7 +185,7 @@ def add_user_notifications(mapper, connection, target):
                             UserNotification(
                                 user=user,
                                 text=f"New observation plan submission for GcnEvent *{localization.dateobs}* by *{instrument.name}*",
-                                type="facility transaction",
+                                notification_type="facility transaction",
                                 url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
                             )
                         )
@@ -197,7 +197,7 @@ def add_user_notifications(mapper, connection, target):
                             UserNotification(
                                 user=user,
                                 text=f"New follow-up submission for object *{target.followup_request.obj_id}* by *{instrument.name}*",
-                                type="facility transaction",
+                                notification_type="facility transaction",
                                 url=f"/source/{target.followup_request.obj_id}",
                             )
                         )
