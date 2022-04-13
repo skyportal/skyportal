@@ -63,7 +63,7 @@ async function handleSelectSlot({ start, end }) {
   } else if (isDailyShift(name)) {
     dispatch(
       showNotification(
-        'Shift not created, invalid name (dont use "number/number")',
+        'Shift not created, invalid name (dont use "number/number" at end of name)',
         "error"
       )
     );

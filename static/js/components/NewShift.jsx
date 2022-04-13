@@ -69,7 +69,7 @@ const NewShift = () => {
   function validate(formData, errors) {
     if (isDailyShift(formData.name)) {
       errors.name.addError(
-        'Shift name cannot contain "number/number", please use a different name.'
+        'Shift name cannot contain "number/number" at the end of the name, please fix.'
       );
     }
     if (nowDate > formData.end_date) {
