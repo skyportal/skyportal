@@ -5,8 +5,15 @@ import { useTheme } from "@material-ui/core/styles";
 
 const rootURL = `${window.location.protocol}//${window.location.host}`;
 
-const spec = (data, textColor, width = 200, height = 200) => ({
-  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
+const spec = (
+  data,
+  textColor,
+  width = 200,
+  height = 200,
+  titleFontSize,
+  labelFontSize
+) => ({
+  $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
   width,
   height,
   padding: 0.025 * Math.min(width, height),
@@ -32,6 +39,8 @@ const spec = (data, textColor, width = 200, height = 200) => ({
             labelColor: textColor,
             tickColor: textColor,
             titleColor: textColor,
+            titleFontSize,
+            labelFontSize,
           },
         },
         y: {
@@ -47,6 +56,8 @@ const spec = (data, textColor, width = 200, height = 200) => ({
             labelColor: textColor,
             tickColor: textColor,
             titleColor: textColor,
+            titleFontSize,
+            labelFontSize,
           },
         },
         color: {
@@ -89,6 +100,8 @@ const spec = (data, textColor, width = 200, height = 200) => ({
             labelColor: textColor,
             tickColor: textColor,
             titleColor: textColor,
+            titleFontSize,
+            labelFontSize,
           },
         },
         y: {
@@ -103,6 +116,8 @@ const spec = (data, textColor, width = 200, height = 200) => ({
             labelColor: textColor,
             tickColor: textColor,
             titleColor: textColor,
+            titleFontSize,
+            labelFontSize,
           },
         },
         color: {
@@ -112,6 +127,8 @@ const spec = (data, textColor, width = 200, height = 200) => ({
             orient: "bottom",
             labelColor: textColor,
             titleColor: textColor,
+            titleFontSize,
+            labelFontSize,
           },
         },
         opacity: {
@@ -148,6 +165,8 @@ const spec = (data, textColor, width = 200, height = 200) => ({
             labelColor: textColor,
             tickColor: textColor,
             titleColor: textColor,
+            titleFontSize,
+            labelFontSize,
           },
         },
         y: {
@@ -162,6 +181,8 @@ const spec = (data, textColor, width = 200, height = 200) => ({
             labelColor: textColor,
             tickColor: textColor,
             titleColor: textColor,
+            titleFontSize,
+            labelFontSize,
           },
         },
         color: {
@@ -194,9 +215,20 @@ const VegaHR = React.memo((props) => {
     <div
       ref={(node) => {
         if (node) {
-          embed(node, spec(data, theme.palette.text.primary, width, height), {
-            actions: false,
-          });
+          embed(
+            node,
+            spec(
+              data,
+              theme.palette.text.primary,
+              width,
+              height,
+              theme.plotFontSizes.titleFontSize,
+              theme.plotFontSizes.labelFontSize
+            ),
+            {
+              actions: false,
+            }
+          );
         }
       }}
     />
