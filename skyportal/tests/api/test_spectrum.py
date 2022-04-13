@@ -11,6 +11,124 @@ import datetime
 from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES, default_spectrum_type
 
 
+def test_spectrum_put(super_admin_user, super_admin_token, public_source, lris):
+    # make groups that must be unique to this test
+    status, data = api(
+        "POST",
+        "groups",
+        data={
+            "name": str(uuid.uuid4()),
+            "group_admins": [super_admin_user.id],
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data["status"] == "success"
+    group_id1 = data["data"]["id"]
+
+    status, data = api(
+        "POST",
+        "groups",
+        data={
+            "name": str(uuid.uuid4()),
+            "group_admins": [super_admin_user.id],
+        },
+        token=super_admin_token,
+    )
+
+    assert status == 200
+    assert data["status"] == "success"
+    group_id2 = data["data"]["id"]
+
+    status, data = api(
+        'POST',
+        'spectrum',
+        data={
+            'obj_id': public_source.id,
+            'observed_at': '2020-01-10T00:00:00',
+            'instrument_id': lris.id,
+            'wavelengths': [664, 665, 666],
+            'fluxes': [234.3, 232.1, 235.3],
+            'group_ids': [group_id1],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    spectrum_id = data['data']['id']
+
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # update only the label
+    custom_label = str(uuid.uuid4())
+    status, data = api(
+        'PUT',
+        f'spectrum/{spectrum_id}',
+        data={
+            'label': custom_label,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET',
+        f'spectrum/{spectrum_id}',
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['label'] == custom_label
+    group_ids = [g['id'] for g in data['data']['groups']]
+    assert group_id1 in group_ids
+    assert group_id2 not in group_ids
+
+    # update the group IDs (should ADD group2, not remove group1)
+    status, data = api(
+        'PUT',
+        f'spectrum/{spectrum_id}',
+        data={'group_ids': [group_id2]},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET',
+        f'spectrum/{spectrum_id}',
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert data['data']['label'] == custom_label
+    group_ids = [g['id'] for g in data['data']['groups']]
+    assert group_id1 in group_ids  # PUT is only allowed to remove groups
+    assert group_id2 in group_ids
+    num_groups = len(data['data']['groups'])
+
+    # adding the same group ID doesn't make redundant groups
+    status, data = api(
+        'PUT',
+        f'spectrum/{spectrum_id}',
+        data={'group_ids': [group_id1]},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api(
+        'GET',
+        f'spectrum/{spectrum_id}',
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+    assert num_groups == len(data['data']['groups'])
+
+
 def test_spectrum_filtering_obj_groups(
     super_admin_user,
     super_admin_token,
