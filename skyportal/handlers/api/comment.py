@@ -345,6 +345,7 @@ class CommentHandler(BaseHandler):
                     UserNotification(
                         user=user_mentioned,
                         text=f"*@{self.current_user.username}* mentioned you in a comment on *{obj_id}*",
+                        notification_type="mention",
                         url=f"/source/{obj_id}",
                     )
                 )
