@@ -136,7 +136,7 @@ class ShiftHandler(BaseHandler):
                 schema: Error
         """
         if group_id is not None:
-            shifts = (
+            queried_shifts = (
                 Shift.query_records_accessible_by(
                     self.current_user,
                     mode="read",
@@ -150,7 +150,7 @@ class ShiftHandler(BaseHandler):
                 .all()
             )
         else:
-            shifts = (
+            queried_shifts = (
                 Shift.query_records_accessible_by(
                     self.current_user,
                     mode="read",
@@ -162,8 +162,8 @@ class ShiftHandler(BaseHandler):
                 .order_by(Shift.start_date.asc())
                 .all()
             )
-        processed_shifts = []
-        for shift in shifts:
+        shifts = []
+        for shift in queried_shifts:
             susers = [
                 {
                     "id": su.user.id,
@@ -194,10 +194,10 @@ class ShiftHandler(BaseHandler):
             shift["group"] = shift["group"].to_dict()
             shift["group"]["users"] = gusers
             shift["group"].pop('group_users', [])
-            processed_shifts.append(shift)
+            shifts.append(shift)
 
         self.verify_and_commit()
-        return self.success(data=processed_shifts)
+        return self.success(data=shifts)
 
     @permissions(["Manage shifts"])
     def delete(self, shift_id):
