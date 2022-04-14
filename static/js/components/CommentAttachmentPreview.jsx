@@ -126,18 +126,15 @@ const CommentAttachmentPreview = ({
 
   function ressourceType(state) {
     let type = "";
-    switch (associatedResourceType) {
-      case "sources":
-        type = state.source.commentAttachment;
-        break;
-      case "spectra":
-        type = state.source.commentAttachment;
-        break;
-      case "gcn_event":
-        type = state.gcnEvent.commentAttachment;
-        break;
-      default:
-        console.log(`Nothing corresponds to a right ${associatedResourceType}`);
+    if (associatedResourceType === "gcn_event") {
+      type = state.gcnEvent.commentAttachment;
+    } else if (
+      associatedResourceType === "sources" ||
+      associatedResourceType === "spectra"
+    ) {
+      type = state.source.commentAttachment;
+    } else {
+      console.log(`Nothing corresponds to a right ${associatedResourceType}`);
     }
     return type;
   }
