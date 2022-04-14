@@ -142,6 +142,7 @@ class ShiftHandler(BaseHandler):
                     mode="read",
                     options=[
                         joinedload(Shift.group).joinedload(Group.users),
+                        joinedload(Shift.shift_users),
                         joinedload(Shift.users),
                     ],
                 )
@@ -156,14 +157,34 @@ class ShiftHandler(BaseHandler):
                     mode="read",
                     options=[
                         joinedload(Shift.group).joinedload(Group.users),
+                        joinedload(Shift.shift_users),
                         joinedload(Shift.users),
                     ],
                 )
                 .order_by(Shift.start_date.asc())
                 .all()
             )
+        processed_shifts = []
+        for shift in shifts:
+            users = [
+                {
+                    "id": su.user.id,
+                    "username": su.user.username,
+                    "first_name": su.user.first_name,
+                    "last_name": su.user.last_name,
+                    "contact_email": su.user.contact_email,
+                    "contact_phone": su.user.contact_phone,
+                    "admin": su.admin,
+                }
+                for su in shift.shift_users
+            ]
+            shift = shift.to_dict()
+            shift["users"] = users
+            shift.pop('shift_users', [])
+            processed_shifts.append(shift)
+
         self.verify_and_commit()
-        return self.success(data=shifts)
+        return self.success(data=processed_shifts)
 
     @permissions(["Manage shifts"])
     def delete(self, shift_id):

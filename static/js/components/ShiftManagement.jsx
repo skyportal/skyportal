@@ -104,13 +104,18 @@ function CurrentShiftMenu() {
       }
     });
   };
-
+  let admins;
   let members;
   let participating;
   if (currentShift.name != null) {
-    members = currentShift.users.map(
-      (user) => `${user.first_name} ${user.last_name}`
-    );
+    // create list names of non admin members
+    admins = currentShift.users
+      .filter((user) => user.admin)
+      .map((user) => `${user.first_name} ${user.last_name}`);
+    members = currentShift.users
+      .filter((user) => !user.admin)
+      .map((user) => `${user.first_name} ${user.last_name}`);
+
     participating = currentShift.users
       .map((user) => user.id)
       .includes(currentUser.id);
@@ -119,6 +124,18 @@ function CurrentShiftMenu() {
   if (currentShift.name != null && dailyShiftStartEnd(currentShift)) {
     [shiftDateStartEnd, shiftTimeStartEnd] = dailyShiftStartEnd(currentShift);
   }
+  let currentUserIsAdminOfShift = false;
+  if (currentShift.name != null) {
+    if (
+      currentShift.users.filter(
+        (user) => user.id === currentUser.id && user.admin
+      ).length > 0
+    ) {
+      currentUserIsAdminOfShift = true;
+    }
+  }
+
+  console.log(currentUserIsAdminOfShift);
 
   return (
     currentShift.name != null && (
@@ -141,9 +158,16 @@ function CurrentShiftMenu() {
             {" "}
             Group: {currentShift.group.name}
           </h3>
-          <i id="current_shift_members">{`\n Members : ${members.join(
-            ","
-          )}`}</i>
+          <div>
+            <i id="current_shift_admins">{`\n Admins : ${admins.join(
+              ", "
+            )}`}</i>
+          </div>
+          <div>
+            <i id="current_shift_members">{`\n Members : ${members.join(
+              ", "
+            )}`}</i>
+          </div>
           {shiftDateStartEnd ? (
             <>
               <p id="current_shift_date" className={classes.shiftgroup}>
@@ -175,9 +199,14 @@ function CurrentShiftMenu() {
               Leave
             </Button>
           )}
-          <Button id="delete_button" onClick={() => deleteShift(currentShift)}>
-            Delete
-          </Button>
+          {(currentUserIsAdminOfShift || currentUser.admin) && (
+            <Button
+              id="delete_button"
+              onClick={() => deleteShift(currentShift)}
+            >
+              Delete
+            </Button>
+          )}
         </div>
       </div>
     )
