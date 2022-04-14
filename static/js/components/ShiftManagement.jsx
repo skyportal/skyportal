@@ -84,7 +84,7 @@ function CurrentShiftMenu() {
       if (result.status === "success") {
         dispatch(showNotification(`joined shift: ${shift.name}`));
         // dispatch currentShift adding the current user
-        currentShift.users.push(currentUser);
+        currentShift.shift_users.push(currentUser);
         dispatch({ type: "skyportal/CURRENT_SHIFT", data: currentShift });
       }
     });
@@ -96,7 +96,7 @@ function CurrentShiftMenu() {
     ).then((result) => {
       if (result.status === "success") {
         // dispatch currentShift without the current user
-        currentShift.users = [...currentShift.users].filter(
+        currentShift.shift_users = [...currentShift.shift_users].filter(
           (user) => user.id !== currentUser.id
         );
         dispatch({ type: "skyportal/CURRENT_SHIFT", data: currentShift });
@@ -109,14 +109,13 @@ function CurrentShiftMenu() {
   let participating;
   if (currentShift.name != null) {
     // create list names of non admin members
-    admins = currentShift.users
+    admins = currentShift.shift_users
       .filter((user) => user.admin)
       .map((user) => `${user.first_name} ${user.last_name}`);
-    members = currentShift.users
+    members = currentShift.shift_users
       .filter((user) => !user.admin)
       .map((user) => `${user.first_name} ${user.last_name}`);
-
-    participating = currentShift.users
+    participating = currentShift.shift_users
       .map((user) => user.id)
       .includes(currentUser.id);
   }
@@ -127,7 +126,7 @@ function CurrentShiftMenu() {
   let currentUserIsAdminOfShift = false;
   if (currentShift.name != null) {
     if (
-      currentShift.users.filter(
+      currentShift.shift_users.filter(
         (user) => user.id === currentUser.id && user.admin
       ).length > 0
     ) {
@@ -138,7 +137,7 @@ function CurrentShiftMenu() {
   let currentUserIsAdminOfGroup = false;
   if (currentShift.name != null) {
     if (
-      currentShift.group.users.filter(
+      currentShift.group.group_users.filter(
         (user) => user.id === currentUser.id && user.admin
       ).length > 0
     ) {

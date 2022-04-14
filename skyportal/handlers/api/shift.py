@@ -189,11 +189,9 @@ class ShiftHandler(BaseHandler):
                 for gu in shift.group.group_users
             ]
             shift = shift.to_dict()
-            shift["users"] = susers
-            shift.pop('shift_users', [])
+            shift["shift_users"] = susers
             shift["group"] = shift["group"].to_dict()
-            shift["group"]["users"] = gusers
-            shift["group"].pop('group_users', [])
+            shift["group"]["group_users"] = gusers
             shifts.append(shift)
 
         self.verify_and_commit()
