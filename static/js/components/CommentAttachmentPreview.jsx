@@ -124,23 +124,18 @@ const CommentAttachmentPreview = ({
   const theme = useTheme();
   const darkTheme = theme.palette.type === "dark";
 
-  function ressourceType(state) {
+  function resourceType(state) {
     let type = "";
     if (associatedResourceType === "gcn_event") {
       type = state.gcnEvent.commentAttachment;
-    } else if (
-      associatedResourceType === "sources" ||
-      associatedResourceType === "spectra"
-    ) {
-      type = state.source.commentAttachment;
     } else {
-      console.log(`Nothing corresponds to a right ${associatedResourceType}`);
+      type = state.source.commentAttachment;
     }
     return type;
   }
 
   const dispatch = useDispatch();
-  const commentAttachment = useSelector((state) => ressourceType(state));
+  const commentAttachment = useSelector((state) => resourceType(state));
   const cachedAttachmentCommentId = commentAttachment
     ? commentAttachment.commentId
     : null;
