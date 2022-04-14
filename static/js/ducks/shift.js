@@ -6,11 +6,12 @@ import store from "../store";
 const REFRESH_SHIFT = "skyportal/REFRESH_SHIFT";
 
 const FETCH_SHIFT = "skyportal/FETCH_SHIFT";
-const FETCH_SHIFT_OK = "skyportal/FETCH_SHIFT_OK";
 
 const SUBMIT_SHIFT = "skyportal/SUBMIT_SHIFT";
 
 const DELETE_SHIFT = "skyportal/DELETE_SHIFT";
+
+const CURRENT_SHIFT = "skyportal/CURRENT_SHIFT";
 
 export const fetchShift = (id) => API.GET(`/api/shifts/${id}`, FETCH_SHIFT);
 
@@ -31,13 +32,13 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer = (state = null, action) => {
+const reducer = (state = { currentShift: {} }, action) => {
   switch (action.type) {
-    case FETCH_SHIFT_OK: {
-      const shift = action.data;
+    case CURRENT_SHIFT: {
+      const currentShift = action.data;
       return {
         ...state,
-        ...shift,
+        currentShift,
       };
     }
     default:

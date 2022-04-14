@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useHistory } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Form from "@rjsf/material-ui";
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
@@ -18,9 +18,9 @@ import { saveSource, checkSource } from "../ducks/source";
 dayjs.extend(utc);
 
 const NewSource = ({ classes }) => {
-  const history = useHistory();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
-  const allGroups = useSelector((state) => state.groups.all);
+  const allGroups = useSelector((state) => state.groups.userAccessible);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
 
   const handleSubmit = async ({ formData }) => {
@@ -32,7 +32,7 @@ const NewSource = ({ classes }) => {
       const result = await dispatch(saveSource(formData));
       if (result.status === "success") {
         dispatch(showNotification("Source saved"));
-        history.push(`/source/${formData.id}`);
+        navigate(`/source/${formData.id}`);
       }
     }
   };
