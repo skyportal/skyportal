@@ -58,7 +58,7 @@ function dailyShiftStartEnd(shift) {
 
 function CurrentShiftMenu() {
   const classes = useStyles();
-
+  const { permissions } = useSelector((state) => state.profile);
   const { currentShift } = useSelector((state) => state.shift);
   const currentUser = useSelector((state) => state.profile);
   const dispatch = useDispatch();
@@ -135,7 +135,16 @@ function CurrentShiftMenu() {
     }
   }
 
-  console.log(currentUserIsAdminOfShift);
+  let currentUserIsAdminOfGroup = false;
+  if (currentShift.name != null) {
+    if (
+      currentShift.group.users.filter(
+        (user) => user.id === currentUser.id && user.admin
+      ).length > 0
+    ) {
+      currentUserIsAdminOfGroup = true;
+    }
+  }
 
   return (
     currentShift.name != null && (
@@ -199,7 +208,9 @@ function CurrentShiftMenu() {
               Leave
             </Button>
           )}
-          {(currentUserIsAdminOfShift || currentUser.admin) && (
+          {(currentUserIsAdminOfShift ||
+            currentUserIsAdminOfGroup ||
+            permissions.includes("System admin")) && (
             <Button
               id="delete_button"
               onClick={() => deleteShift(currentShift)}

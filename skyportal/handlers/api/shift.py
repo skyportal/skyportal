@@ -141,9 +141,8 @@ class ShiftHandler(BaseHandler):
                     self.current_user,
                     mode="read",
                     options=[
-                        joinedload(Shift.group).joinedload(Group.users),
+                        joinedload(Shift.group).joinedload(Group.group_users),
                         joinedload(Shift.shift_users),
-                        joinedload(Shift.users),
                     ],
                 )
                 .filter(Shift.group_id == group_id)
@@ -156,9 +155,8 @@ class ShiftHandler(BaseHandler):
                     self.current_user,
                     mode="read",
                     options=[
-                        joinedload(Shift.group).joinedload(Group.users),
+                        joinedload(Shift.group).joinedload(Group.group_users),
                         joinedload(Shift.shift_users),
-                        joinedload(Shift.users),
                     ],
                 )
                 .order_by(Shift.start_date.asc())
@@ -166,7 +164,7 @@ class ShiftHandler(BaseHandler):
             )
         processed_shifts = []
         for shift in shifts:
-            users = [
+            susers = [
                 {
                     "id": su.user.id,
                     "username": su.user.username,
@@ -178,9 +176,24 @@ class ShiftHandler(BaseHandler):
                 }
                 for su in shift.shift_users
             ]
+            gusers = [
+                {
+                    "id": gu.user.id,
+                    "username": gu.user.username,
+                    "first_name": gu.user.first_name,
+                    "last_name": gu.user.last_name,
+                    "contact_email": gu.user.contact_email,
+                    "contact_phone": gu.user.contact_phone,
+                    "admin": gu.admin,
+                }
+                for gu in shift.group.group_users
+            ]
             shift = shift.to_dict()
-            shift["users"] = users
+            shift["users"] = susers
             shift.pop('shift_users', [])
+            shift["group"] = shift["group"].to_dict()
+            shift["group"]["users"] = gusers
+            shift["group"].pop('group_users', [])
             processed_shifts.append(shift)
 
         self.verify_and_commit()
