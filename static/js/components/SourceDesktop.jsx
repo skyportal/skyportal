@@ -458,6 +458,9 @@ const SourceDesktop = ({ source }) => {
                     </Suspense>
                   )}
                 </div>
+                <div className={classes.photometryContainer}>
+                  <div id="bokeh-spectroscopy" />
+                </div>
                 <div className={classes.buttonContainer}>
                   <Link to={`/upload_spectrum/${source.id}`} role="link">
                     <Button variant="contained">

@@ -47,6 +47,7 @@ class PlotSpectroscopyHandler(BaseHandler):
         device = self.get_query_argument("device", None)
         smoothing = self.get_query_argument("smoothing", False)
         smooth_number = self.get_query_argument("smoothNumber", 10)
+        on_top_spectra_id = self.get_query_argument("onTopSpectraId", None)
         # Just return browser by default if not one of accepted types
         if device not in device_types:
             device = "browser"
@@ -60,6 +61,7 @@ class PlotSpectroscopyHandler(BaseHandler):
                 device=device,
                 smoothing=smoothing,
                 smooth_number=smooth_number,
+                on_top_spectra_id=on_top_spectra_id,
             )
         except Exception as e:
             return self.error(f'Exception in photometry plot: {e}')
@@ -72,6 +74,7 @@ class PlotSpectroscopyHandler(BaseHandler):
             device=device,
             smoothing=smoothing,
             smooth_number=smooth_number,
+            on_top_spectra_id=on_top_spectra_id,
         )
         self.verify_and_commit()
         self.success(data={'bokehJSON': json, 'url': self.request.uri})

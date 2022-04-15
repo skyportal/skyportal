@@ -20,6 +20,7 @@ from bokeh.models import (
     CategoricalColorMapper,
     Legend,
     LegendItem,
+    Dropdown,
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
@@ -1497,6 +1498,7 @@ def spectroscopy_plot(
     device="browser",
     smoothing=False,
     smooth_number=10,
+    on_top_spectra_id=None,
 ):
     """
     Create object spectroscopy line plot.
@@ -1584,6 +1586,7 @@ def spectroscopy_plot(
                 width,
                 smoothing,
                 smooth_number,
+                on_top_spectra_id,
             )
         )
 
@@ -1600,7 +1603,9 @@ def spectroscopy_plot(
     return bokeh_embed.json_item(layouts[0])
 
 
-def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_number):
+def make_spectrum_layout(
+    obj, spectra, user, device, width, smoothing, smooth_number, on_top_spectra_id
+):
     """
     Helper function that takes the object, spectra and user info,
     as well as the total width of the figure,
@@ -1632,6 +1637,9 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         Bokeh JSON embedding of one layout that can be tabbed or
         used as the plot specifications on its own.
     """
+    if on_top_spectra_id:
+        on_top_spectra_id = int(on_top_spectra_id)
+    on_top_spectra_id = 8
     rainbow = cm.get_cmap('rainbow', len(spectra))
     palette = list(map(rgb2hex, rainbow(range(len(spectra)))))
     color_map = dict(zip([s.id for s in spectra], palette))
@@ -1757,12 +1765,8 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         active_drag=active_drag,
     )
 
-    model_dict = {}
-    legend_items = []
-    for i, (key, df) in enumerate(split):
-
+    def add_renderers(model_dict, s, legend_items, i, df, key):
         renderers = []
-        s = next(spec for spec in spectra if spec.id == key)
         if s.label is not None and len(s.label) > 0:
             label = s.label
         else:
@@ -1795,7 +1799,24 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
         renderers.append(model_dict[f'l{i}'])
 
-        legend_items.append(LegendItem(label=label, renderers=renderers))
+        legend_items.append(LegendItem(label=label, renderers=renderers, id=str(key)))
+
+    i = 0
+    model_dict = {}
+    legend_items = []
+
+    for (key, df) in split:
+        if key != on_top_spectra_id:
+            s = next(spec for spec in spectra if spec.id == key)
+            add_renderers(model_dict, s, legend_items, i, df, key)
+            i += 1
+
+    # the spectra on top should be the last plotted
+    if on_top_spectra_id:
+        df = split.get_group(on_top_spectra_id)
+        s = next(spec for spec in spectra if spec.id == on_top_spectra_id)
+        add_renderers(model_dict, s, legend_items, i, df, on_top_spectra_id)
+        i += 1
 
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
@@ -2132,6 +2153,27 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
                 """,
         ),
     )
+
+    on_top_spectra_dropdown = Dropdown(
+        label="Select on top spectra",
+        menu=[
+            (legend_item.label['value'], legend_item.id) for legend_item in legend_items
+        ],
+        width_policy="min",
+    )
+    on_top_spectra_dropdown.js_on_event(
+        "menu_item_click",
+        CustomJS(
+            args={'sourceId': obj.id},
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    '../static/js/plotjs',
+                    "on_top_spectra.js",
+                )
+            ).read(),
+        ),
+    )
     row2 = row(all_column_checkboxes)
     row3 = (
         column(z, v_exp, smooth_column)
@@ -2141,6 +2183,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     return column(
         plot,
         row2,
+        on_top_spectra_dropdown,
         row3,
         sizing_mode='stretch_width',
         width=width,
