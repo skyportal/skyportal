@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDispatch } from "react-redux";
-import { Link, useHistory } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { makeStyles } from "@material-ui/core/styles";
 
 import TextField from "@material-ui/core/TextField";
@@ -65,7 +65,7 @@ const QuickSearchBar = () => {
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const classes = useStyles();
 
@@ -126,7 +126,7 @@ const QuickSearchBar = () => {
       onChange={(event, newValue, reason) => {
         setValue(newValue);
         if (reason === "select-option") {
-          history.push(`/source/${newValue}`);
+          navigate(`/source/${newValue}`);
         }
         if (reason === "clear") {
           setOpen(false);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useHistory, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { makeStyles, useTheme } from "@material-ui/core/styles";
@@ -70,7 +70,7 @@ const Group = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
-  const history = useHistory();
+  const navigate = useNavigate();
 
   const [groupLoadError, setGroupLoadError] = useState("");
 
@@ -121,7 +121,7 @@ const Group = () => {
     if (result.status === "success") {
       dispatch(groupsActions.fetchGroups(true));
       setConfirmDeleteOpen(false);
-      history.push("/groups");
+      navigate("/groups");
     }
   };
 

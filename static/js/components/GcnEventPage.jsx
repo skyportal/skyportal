@@ -40,6 +40,8 @@ import ObservationPlanRequestLists from "./ObservationPlanRequestLists";
 import CommentList from "./CommentList";
 import GcnTags from "./GcnTags";
 
+import withRouter from "./withRouter";
+
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
@@ -503,4 +505,4 @@ GcnEventPage.propTypes = {
   }).isRequired,
 };
 
-export default GcnEventPage;
+export default withRouter(GcnEventPage);

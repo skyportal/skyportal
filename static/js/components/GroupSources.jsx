@@ -7,6 +7,8 @@ import { makeStyles } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import SourceTable from "./SourceTable";
 
+import withRouter from "./withRouter";
+
 import * as sourcesActions from "../ducks/sources";
 
 const useStyles = makeStyles((theme) => ({
@@ -173,4 +175,4 @@ GroupSources.propTypes = {
   }).isRequired,
 };
 
-export default GroupSources;
+export default withRouter(GroupSources);
