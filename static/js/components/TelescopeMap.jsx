@@ -1,38 +1,19 @@
 import React from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { makeStyles } from "@material-ui/core/styles";
-import Grid from "@material-ui/core/Grid";
-import Paper from "@material-ui/core/Paper";
-import PropTypes from "prop-types";
+import { useDispatch } from "react-redux";
 import {
   ComposableMap,
   Geographies,
   Geography,
   Marker,
-  ZoomableGroup,
   useZoomPan,
 } from "react-simple-maps";
-import TelescopeInfo from "./TelescopeInfo";
 
-import telescopeActions from "../ducks/telescope";
-
-let dispatch;
 const geoUrl =
   "https://raw.githubusercontent.com/zcreativelabs/react-simple-maps/master/topojson-maps/world-110m.json";
 
-const width = 800;
-const height = 600;
-
-const useStyles = makeStyles((theme) => ({
-  root: {
-    width: "100%",
-    height: "100%",
-    display: "grid",
-    gridTemplateColumns: "2fr 1fr",
-    gridTemplateRows: "1fr",
-    gap: "2rem",
-  },
-}));
+let dispatch;
+const width = 700;
+const height = 475;
 
 const CustomZoomableGroup = ({ children, ...restProps }) => {
   const { mapRef, transformString, position } = useZoomPan(restProps);
@@ -44,7 +25,7 @@ const CustomZoomableGroup = ({ children, ...restProps }) => {
   );
 };
 function setCurrentTelescopes(currentTelescopes) {
-  const currentTelescopeMenu = "Telescope Map";
+  const currentTelescopeMenu = "Telescope List";
   dispatch({
     type: "skyportal/CURRENT_TELESCOPES_AND_MENU",
     data: { currentTelescopes, currentTelescopeMenu },
@@ -55,9 +36,18 @@ function telescopelabel(nestedTelescope) {
   if (nestedTelescope.telescopes.length === 1) {
     return nestedTelescope.telescopes[0].name;
   } else {
-    return `${nestedTelescope.telescopes[0].name} and ${
-      nestedTelescope.telescopes.length - 1
-    } others`;
+    // return `${nestedTelescope.telescopes[0].name} and ${
+    //   nestedTelescope.telescopes.length - 1
+    // } others`;
+    // return a string with all telescope nicknames*
+    let telescopeNicknames = "";
+    for (let i = 0; i < nestedTelescope.telescopes.length; i += 1) {
+      telescopeNicknames += nestedTelescope.telescopes[i].nickname;
+      if (i < nestedTelescope.telescopes.length - 1) {
+        telescopeNicknames += " / ";
+      }
+    }
+    return telescopeNicknames;
   }
 }
 
@@ -68,8 +58,8 @@ const TelescopeMarker = ({ nestedTelescope, position }) => {
       coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
       onClick={() => setCurrentTelescopes(nestedTelescope)}
     >
-      <circle r={12 / position.k} fill="#F53" />
-      <text textAnchor="middle" fontSize={14 / position.k} y={-15 / position.k}>
+      <circle r={6.5 / position.k} fill="#457B9C" />
+      <text textAnchor="middle" fontSize={10 / position.k} y={-10 / position.k}>
         {telescopelabel(nestedTelescope)}
       </text>
     </Marker>
@@ -91,13 +81,11 @@ function normalizeLatitude(latitude) {
 }
 
 const TelescopeMap = ({ telescopes }) => {
-  //remove telescopes that have fixed location to false
   const filteredTelescopes = telescopes.filter(
     (telescope) => telescope.fixed_location
   );
-  // create a nested list of telescopes using how close they are to each other
-  let nestedTelescopes = [];
-  for (let i = 0; i < filteredTelescopes.length; i++) {
+  const nestedTelescopes = [];
+  for (let i = 0; i < filteredTelescopes.length; i += 1) {
     if (i === 0) {
       nestedTelescopes.push({
         lat: filteredTelescopes[i].lat,
@@ -105,7 +93,7 @@ const TelescopeMap = ({ telescopes }) => {
         telescopes: [filteredTelescopes[i]],
       });
     } else {
-      for (let j = 0; j < nestedTelescopes.length; j++) {
+      for (let j = 0; j < nestedTelescopes.length; j += 1) {
         if (
           Math.abs(
             normalizeLatitude(filteredTelescopes[i].lat) -
@@ -132,49 +120,37 @@ const TelescopeMap = ({ telescopes }) => {
   console.log(nestedTelescopes);
 
   dispatch = useDispatch();
-  const classes = useStyles();
   return (
-    <Grid container spacing={3}>
-      <Grid item md={9} sm={12}>
-        <Paper elevation={3}>
-          <ComposableMap width={width} height={height}>
-            <CustomZoomableGroup center={[0, 0]}>
-              {(position) => (
-                <>
-                  <Geographies geography={geoUrl}>
-                    {({ geographies }) =>
-                      geographies.map((geo) => (
-                        <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          fill="#EAEAEC"
-                          stroke="#D6D6DA"
-                        />
-                      ))
-                    }
-                  </Geographies>
-                  {nestedTelescopes.map(
-                    (nestedTelescope) =>
-                      nestedTelescope.lon &&
-                      nestedTelescope.lat && (
-                        <TelescopeMarker
-                          nestedTelescope={nestedTelescope}
-                          position={position}
-                        />
-                      )
-                  )}
-                </>
-              )}
-            </CustomZoomableGroup>
-          </ComposableMap>
-        </Paper>
-      </Grid>
-      <Grid item md={3} sm={12}>
-        <Paper>
-          <TelescopeInfo />
-        </Paper>
-      </Grid>
-    </Grid>
+    <ComposableMap width={width} height={height}>
+      <CustomZoomableGroup center={[0, 0]}>
+        {(position) => (
+          <>
+            <Geographies geography={geoUrl}>
+              {({ geographies }) =>
+                geographies.map((geo) => (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    fill="#EAEAEC"
+                    stroke="#D6D6DA"
+                  />
+                ))
+              }
+            </Geographies>
+            {nestedTelescopes.map(
+              (nestedTelescope) =>
+                nestedTelescope.lon &&
+                nestedTelescope.lat && (
+                  <TelescopeMarker
+                    nestedTelescope={nestedTelescope}
+                    position={position}
+                  />
+                )
+            )}
+          </>
+        )}
+      </CustomZoomableGroup>
+    </ComposableMap>
   );
 };
 

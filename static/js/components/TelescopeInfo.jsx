@@ -54,7 +54,6 @@ const TelescopeInfo = () => {
         <>
           <ListItem className={classes.listItem} key={telescope.id}>
             <h2 className={classes.h2}>
-              {" "}
               {telescope.name} ({telescope.nickname})
             </h2>
             {telescope.robotic ? (
@@ -67,10 +66,11 @@ const TelescopeInfo = () => {
               Location : {telescope.lat}, {telescope.lon}
             </h3>
             <h3 className={classes.h3}>Elevation : {telescope.elevation}</h3>
-
-            <a className={classes.a} href={telescope.skycam_link}>
+            {telescope.skycam_link && (
+              <a className={classes.a} href={telescope.skycam_link}>
               skycam link
-            </a>
+              </a>
+            )}
           </ListItem>
           <Divider />
         </>

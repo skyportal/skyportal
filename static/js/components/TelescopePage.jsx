@@ -3,15 +3,15 @@ import { useSelector, useDispatch } from "react-redux";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
-import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
+import Button from "@material-ui/core/Button";
 import { makeStyles } from "@material-ui/core/styles";
 import PropTypes from "prop-types";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import NewTelescope from "./NewTelescope";
 import TelescopeMap from "./TelescopeMap";
-import Button from "@material-ui/core/Button";
+import TelescopeInfo from "./TelescopeInfo";
 
 let dispatch;
 const useStyles = makeStyles((theme) => ({
@@ -106,7 +106,6 @@ const TelescopeList = ({ telescopes }) => {
 const TelescopePage = () => {
   dispatch = useDispatch();
   const { telescopeList } = useSelector((state) => state.telescopes);
-  const currentUser = useSelector((state) => state.profile);
   const currentTelescopeMenu = useSelector(
     (state) => state.telescope.currentTelescopeMenu
   );
@@ -130,44 +129,36 @@ const TelescopePage = () => {
   }
   return (
     <>
-      <Paper className={classes.menu}>
-        <Button
-          onClick={() => setSelectedMenu("Telescope List")}
-          className={isMenuSelected("Telescope List")}
-        >
-          Telescope List
-        </Button>
-        <Button
-          onClick={() => setSelectedMenu("Telescope Map")}
-          className={isMenuSelected("Telescope Map")}
-        >
-          Telescope Map
-        </Button>
-      </Paper>
-      {currentTelescopeMenu === "Telescope List" ? (
-        <Grid container spacing={3}>
-          <Grid item md={6} sm={12}>
-            <Paper elevation={1}>
-              <div className={classes.paperContent}>
-                <Typography variant="h6">List of Telescopes</Typography>
-                <TelescopeList telescopes={telescopeList} />
-              </div>
-            </Paper>
-          </Grid>
-          {currentUser.permissions?.includes("System admin") && (
-            <Grid item md={6} sm={12}>
-              <Paper>
-                <div className={classes.paperContent}>
-                  <Typography variant="h6">Add a New Telescope</Typography>
-                  <NewTelescope />
-                </div>
-              </Paper>
-            </Grid>
-          )}
+      <Grid container spacing={3}>
+        <Grid item md={8} sm={12}>
+          <Paper className={classes.paperContent}>
+            <TelescopeMap telescopes={telescopeList} />
+          </Paper>
         </Grid>
-      ) : (
-        <TelescopeMap telescopes={telescopeList} />
-      )}
+        <Grid item md={4} sm={12}>
+          <Paper className={classes.menu}>
+            <Button
+              onClick={() => setSelectedMenu("Telescope List")}
+              className={isMenuSelected("Telescope List")}
+            >
+              Telescope List
+            </Button>
+            <Button
+              onClick={() => setSelectedMenu("New Telescope")}
+              className={isMenuSelected("New Telescope")}
+            >
+              New Telescope
+            </Button>
+          </Paper>
+          <Paper className={classes.paperContent}>
+            {currentTelescopeMenu === "Telescope List" ? (
+              <TelescopeInfo />
+            ) : (
+              <NewTelescope />
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
     </>
   );
 };
