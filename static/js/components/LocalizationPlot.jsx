@@ -327,6 +327,7 @@ const GeoJSONGlobePlot = ({
       }
 
       if (data.instrument?.fields && data.options.instrument) {
+        const filterColor = filtersToColor(data.instrument?.filters);
         data.instrument.fields.forEach((f) => {
           const { field_id } = f.contour_summary.properties;
           const { features } = f.contour_summary;
@@ -335,10 +336,7 @@ const GeoJSONGlobePlot = ({
             .append("path")
             .attr("class", field_id)
             .classed(classes.fieldStyle, true)
-            .style(
-              "fill",
-              f.selected ? filtersToColor(data.instrument.filters) : "white"
-            )
+            .style("fill", f.selected ? filterColor : "white")
             .attr("d", geoGenerator)
             .on("click", () => {
               if (f.selected) {
