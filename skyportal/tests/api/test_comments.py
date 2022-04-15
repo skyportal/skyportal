@@ -4,7 +4,6 @@ from skyportal.tests import api
 
 
 def test_add_and_retrieve_comment_group_id(comment_token, public_source, public_group):
-    print(public_source)
     status, data = api(
         'POST',
         f'sources/{public_source.id}/comments',
@@ -17,14 +16,12 @@ def test_add_and_retrieve_comment_group_id(comment_token, public_source, public_
         },
         token=comment_token,
     )
-    print(data)
     assert status == 200
     comment_id = data['data']['comment_id']
 
     status, data = api(
         'GET', f'sources/{public_source.id}/comments/{comment_id}', token=comment_token
     )
-    print(data)
     assert status == 200
     assert data['data']['text'] == 'Comment text'
     assert data['data']['bot']
@@ -132,12 +129,9 @@ def test_update_comment_group_list(
     )
     assert status == 200
     comment_id = data['data']['comment_id']
-    # print(comment_token_two_groups)
-    # print(data)
+
     # This token belongs to public_group2
-    # print(public_source_two_groups.id)
-    # print(public_group)
-    # print(public_group2)
+
     status, data = api(
         'GET',
         f'sources/{public_source_two_groups.id}/comments/{comment_id}',
