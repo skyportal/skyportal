@@ -54,12 +54,13 @@ function telescopelabel(nestedTelescope) {
 const TelescopeMarker = ({ nestedTelescope, position }) => {
   return (
     <Marker
+      id="telescope_marker"
       key={`${nestedTelescope.lon},${nestedTelescope.lat}`}
       coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
       onClick={() => setCurrentTelescopes(nestedTelescope)}
     >
       <circle r={6.5 / position.k} fill="#457B9C" />
-      <text textAnchor="middle" fontSize={10 / position.k} y={-10 / position.k}>
+      <text id="telescopes_label" textAnchor="middle" fontSize={10 / position.k} y={-10 / position.k}>
         {telescopelabel(nestedTelescope)}
       </text>
     </Marker>
@@ -117,7 +118,6 @@ const TelescopeMap = ({ telescopes }) => {
       }
     }
   }
-  console.log(nestedTelescopes);
 
   dispatch = useDispatch();
   return (

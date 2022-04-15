@@ -138,12 +138,14 @@ const TelescopePage = () => {
         <Grid item md={4} sm={12}>
           <Paper className={classes.menu}>
             <Button
+            id="telescope-list"
               onClick={() => setSelectedMenu("Telescope List")}
               className={isMenuSelected("Telescope List")}
             >
               Telescope List
             </Button>
             <Button
+              id="new-telescope"
               onClick={() => setSelectedMenu("New Telescope")}
               className={isMenuSelected("New Telescope")}
             >

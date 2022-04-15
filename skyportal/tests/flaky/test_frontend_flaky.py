@@ -19,8 +19,8 @@ def test_telescope_frontend(super_admin_token, super_admin_user, driver):
         data={
             'name': telescope_name,
             'nickname': telescope_name,
-            'lat': 0.0,
-            'lon': 0.0,
+            'lat': 1.0,
+            'lon': 1.0,
             'elevation': 0.0,
             'diameter': 10.0,
         },
@@ -31,17 +31,27 @@ def test_telescope_frontend(super_admin_token, super_admin_user, driver):
 
     driver.get(f"/become_user/{super_admin_user.id}")
 
-    # go to the allocations page
+    # go to the telescope page
     driver.get("/telescopes")
 
-    # check for API instrument
-    driver.wait_for_xpath(f'//span[text()="{telescope_name}"]')
+    # check for API telescope in the map
+    marker_xpath = f'//*[@id="telescopes_label"][contains(.,"{telescope_name}")]'
+    driver.wait_for_xpath(marker_xpath)
+    driver.click_xpath(marker_xpath)
+    # check for API telescope in the list
+    driver.wait_for_xpath(f'//*[@id="{telescope_name}_info"]')
 
-    # add dropdown instrument
+    # go to the new telescope form
+    driver.wait_for_xpath('//*[@id="new-telescope"]')
+    driver.click_xpath('//*[@id="new-telescope"]')
+
+    # add new telescope
     name2 = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(name2)
     driver.wait_for_xpath('//*[@id="root_nickname"]').send_keys(name2)
     driver.wait_for_xpath('//*[@id="root_diameter"]').send_keys('2.0')
+    driver.wait_for_xpath('//*[@id="root_lat"]').send_keys('10.0')
+    driver.wait_for_xpath('//*[@id="root_lon"]').send_keys('10.0')
 
     tab = driver.find_element_by_xpath('//*[@class="MuiFormGroup-root"]')
     for row in tab.find_elements_by_xpath('//span[text()="Yes"]'):
@@ -51,8 +61,12 @@ def test_telescope_frontend(super_admin_token, super_admin_user, driver):
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
-    # check for dropdown instrument
-    driver.wait_for_xpath(f'//span[text()="{name2}"]')
+    # check for form telescope in the map
+    marker_xpath = f'//*[@id="telescopes_label"][contains(.,"{name2}")]'
+    driver.wait_for_xpath(marker_xpath)
+    driver.click_xpath(marker_xpath)
+    # check for form telescope in the list
+    driver.wait_for_xpath(f'//*[@id="{name2}_info"]')
 
 
 @pytest.mark.flaky(reruns=5)

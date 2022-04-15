@@ -52,7 +52,7 @@ const TelescopeInfo = () => {
     <List className={classes.root}>
       {currentTelescopes.telescopes.map((telescope) => (
         <>
-          <ListItem className={classes.listItem} key={telescope.id}>
+          <ListItem id={`${telescope.name}_info`} className={classes.listItem} key={telescope.id}>
             <h2 className={classes.h2}>
               {telescope.name} ({telescope.nickname})
             </h2>
