@@ -308,42 +308,50 @@ const reducer = (state = { source: null, loadError: false }, action) => {
         loadError: `Error while loading source: ${action.message}`,
       };
     case GET_COMMENT_ATTACHMENT_OK: {
-      const { commentId, attachment } = action.data;
+      const { commentId, text, attachment, attachment_name } = action.data;
       return {
         ...state,
         commentAttachment: {
           commentId,
+          text,
           attachment,
+          attachment_name,
         },
       };
     }
     case GET_COMMENT_ATTACHMENT_PREVIEW_OK: {
-      const { commentId, attachment } = action.data;
+      const { commentId, text, attachment, attachment_name } = action.data;
       return {
         ...state,
         commentAttachment: {
           commentId,
+          text,
           attachment,
+          attachment_name,
         },
       };
     }
     case GET_COMMENT_ON_SPECTRUM_ATTACHMENT_OK: {
-      const { commentId, attachment } = action.data;
+      const { commentId, text, attachment, attachment_name } = action.data;
       return {
         ...state,
         commentAttachment: {
           commentId,
+          text,
           attachment,
+          attachment_name,
         },
       };
     }
     case GET_COMMENT_ON_SPECTRUM_ATTACHMENT_PREVIEW_OK: {
-      const { commentId, attachment } = action.data;
+      const { commentId, text, attachment, attachment_name } = action.data;
       return {
         ...state,
         commentAttachment: {
           commentId,
+          text,
           attachment,
+          attachment_name,
         },
       };
     }

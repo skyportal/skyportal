@@ -157,22 +157,26 @@ const reducer = (state = null, action) => {
       return action.data;
     }
     case GET_COMMENT_ON_GCNEVENT_ATTACHMENT_OK: {
-      const { commentId, attachment } = action.data;
+      const { commentId, text, attachment, attachment_name } = action.data;
       return {
         ...state,
         commentAttachment: {
           commentId,
+          text,
           attachment,
+          attachment_name,
         },
       };
     }
     case GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW_OK: {
-      const { commentId, attachment } = action.data;
+      const { commentId, text, attachment, attachment_name } = action.data;
       return {
         ...state,
         commentAttachment: {
           commentId,
+          text,
           attachment,
+          attachment_name,
         },
       };
     }

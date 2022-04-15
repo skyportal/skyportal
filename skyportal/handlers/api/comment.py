@@ -180,12 +180,14 @@ class CommentHandler(BaseHandler):
             )
 
         if not comment.attachment_bytes:
-            return self.error('Comment has no attachment')
+            return self.success(data=comment)
         else:
             return self.success(
                 data={
                     "commentId": int(comment_id),
+                    "text": comment.text,
                     "attachment": base64.b64decode(comment.attachment_bytes).decode(),
+                    "attachment_name": str(comment.attachment_name),
                 }
             )
 
