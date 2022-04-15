@@ -246,6 +246,22 @@ const GeoJSONGlobePlot = ({
       return gdistance < 1.57;
     };
 
+    const filtersToColor = (filters) => {
+      const filterStr = filters.join("");
+      let hash = 0;
+      for (let i = 0; i < filterStr.length; i += 1) {
+        // eslint-disable-next-line no-bitwise
+        hash = filterStr.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      let color = "#";
+      for (let i = 0; i < 3; i += 1) {
+        // eslint-disable-next-line no-bitwise
+        const value = (hash >> (i * 8)) & 0xff;
+        color += `00${value.toString(16)}`.substr(-2);
+      }
+      return color;
+    };
+
     function refresh() {
       svg.selectAll("*").remove();
 
@@ -319,7 +335,10 @@ const GeoJSONGlobePlot = ({
             .append("path")
             .attr("class", field_id)
             .classed(classes.fieldStyle, true)
-            .style("fill", f.selected ? "red" : "white")
+            .style(
+              "fill",
+              f.selected ? filtersToColor(data.instrument.filters) : "white"
+            )
             .attr("d", geoGenerator)
             .on("click", () => {
               if (f.selected) {
@@ -363,7 +382,7 @@ const GeoJSONGlobePlot = ({
           .data(galaxies.features)
           .enter()
           .append("circle")
-          .attr("fill", (d) => (visibleOnSphere(d) ? "red" : "none"))
+          .attr("fill", (d) => (visibleOnSphere(d) ? "green" : "none"))
           .attr("cx", x)
           .attr("cy", y)
           .attr("r", 3)
