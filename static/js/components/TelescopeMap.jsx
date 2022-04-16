@@ -1,4 +1,5 @@
 import React from "react";
+import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
 import {
   ComposableMap,
@@ -15,7 +16,7 @@ let dispatch;
 const width = 700;
 const height = 475;
 
-const CustomZoomableGroup = ({ children, ...restProps }) => {
+function CustomZoomableGroup({ children, ...restProps }) {
   const { mapRef, transformString, position } = useZoomPan(restProps);
   return (
     <g ref={mapRef}>
@@ -23,7 +24,7 @@ const CustomZoomableGroup = ({ children, ...restProps }) => {
       <g transform={transformString}>{children(position)}</g>
     </g>
   );
-};
+}
 function setCurrentTelescopes(currentTelescopes) {
   const currentTelescopeMenu = "Telescope List";
   dispatch({
@@ -33,25 +34,21 @@ function setCurrentTelescopes(currentTelescopes) {
 }
 
 function telescopelabel(nestedTelescope) {
+  let label = "";
   if (nestedTelescope.telescopes.length === 1) {
-    return nestedTelescope.telescopes[0].name;
+    label = nestedTelescope.telescopes[0].name;
   } else {
-    // return `${nestedTelescope.telescopes[0].name} and ${
-    //   nestedTelescope.telescopes.length - 1
-    // } others`;
-    // return a string with all telescope nicknames*
-    let telescopeNicknames = "";
     for (let i = 0; i < nestedTelescope.telescopes.length; i += 1) {
-      telescopeNicknames += nestedTelescope.telescopes[i].nickname;
+      label += nestedTelescope.telescopes[i].nickname;
       if (i < nestedTelescope.telescopes.length - 1) {
-        telescopeNicknames += " / ";
+        label += " / ";
       }
     }
-    return telescopeNicknames;
   }
+  return label;
 }
 
-const TelescopeMarker = ({ nestedTelescope, position }) => {
+function TelescopeMarker({ nestedTelescope, position }) {
   return (
     <Marker
       id="telescope_marker"
@@ -60,12 +57,17 @@ const TelescopeMarker = ({ nestedTelescope, position }) => {
       onClick={() => setCurrentTelescopes(nestedTelescope)}
     >
       <circle r={6.5 / position.k} fill="#457B9C" />
-      <text id="telescopes_label" textAnchor="middle" fontSize={10 / position.k} y={-10 / position.k}>
+      <text
+        id="telescopes_label"
+        textAnchor="middle"
+        fontSize={10 / position.k}
+        y={-10 / position.k}
+      >
         {telescopelabel(nestedTelescope)}
       </text>
     </Marker>
   );
-};
+}
 
 function normalizeLongitude(longitude) {
   if (longitude < 0) {
@@ -152,6 +154,57 @@ const TelescopeMap = ({ telescopes }) => {
       </CustomZoomableGroup>
     </ComposableMap>
   );
+};
+
+// prop validation
+
+// SourceSaveHistory.propTypes = {
+//   groups: PropTypes.arrayOf(
+//     PropTypes.shape({
+//       name: PropTypes.string,
+//       saved_at: PropTypes.string,
+//       saved_by: PropTypes.shape({
+//         username: PropTypes.string,
+//       }),
+//     })
+//   ).isRequired,
+// };
+
+TelescopeMap.propTypes = {
+  telescopes: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string,
+      nickname: PropTypes.string,
+      lat: PropTypes.number,
+      lon: PropTypes.number,
+      fixed_location: PropTypes.bool,
+    })
+  ).isRequired,
+};
+
+TelescopeMarker.propTypes = {
+  nestedTelescope: PropTypes.shape({
+    lat: PropTypes.number,
+    lon: PropTypes.number,
+    telescopes: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        name: PropTypes.string,
+        nickname: PropTypes.string,
+        lat: PropTypes.number,
+        lon: PropTypes.number,
+        fixed_location: PropTypes.bool,
+      })
+    ),
+  }).isRequired,
+  position: PropTypes.shape({
+    k: PropTypes.number,
+  }).isRequired,
+};
+
+CustomZoomableGroup.propTypes = {
+  children: PropTypes.node.isRequired,
 };
 
 export default TelescopeMap;

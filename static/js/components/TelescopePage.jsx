@@ -89,7 +89,7 @@ const TelescopeList = ({ telescopes }) => {
   return (
     <div className={classes.root}>
       <List component="nav">
-        {telescopes?.map((telescope) => (
+        {telescopes.map((telescope) => (
           <ListItem button key={telescope.id}>
             <ListItemText
               primary={telescopeTitle(telescope)}
@@ -110,22 +110,27 @@ const TelescopePage = () => {
     (state) => state.telescope.currentTelescopeMenu
   );
 
-  function setSelectedMenu(currentTelescopeMenu) {
+  function setSelectedMenu(currentSelectedTelescopeMenu) {
     const currentTelescopes = null;
     dispatch({
       type: "skyportal/CURRENT_TELESCOPES_AND_MENU",
-      data: { currentTelescopes, currentTelescopeMenu },
+      data: {
+        currentTelescopes,
+        currentTelescopeMenu: currentSelectedTelescopeMenu,
+      },
     });
   }
 
   const classes = useStyles();
 
   function isMenuSelected(menu) {
+    let style;
     if (menu === currentTelescopeMenu) {
-      return classes.selectedMenu;
+      style = classes.selectedMenu;
     } else {
-      return classes.nonSelectedMenu;
+      style = classes.nonSelectedMenu;
     }
+    return style;
   }
   return (
     <>
@@ -138,7 +143,7 @@ const TelescopePage = () => {
         <Grid item md={4} sm={12}>
           <Paper className={classes.menu}>
             <Button
-            id="telescope-list"
+              id="telescope-list"
               onClick={() => setSelectedMenu("Telescope List")}
               className={isMenuSelected("Telescope List")}
             >
@@ -166,7 +171,16 @@ const TelescopePage = () => {
 };
 
 TelescopeList.propTypes = {
-  telescopes: PropTypes.arrayOf(PropTypes.any).isRequired,
+  telescopes: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string,
+      nickname: PropTypes.string,
+      lat: PropTypes.number,
+      lon: PropTypes.number,
+      elevation: PropTypes.number,
+    })
+  ).isRequired,
 };
 
 export default TelescopePage;

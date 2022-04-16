@@ -5,7 +5,7 @@ import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import { Divider } from "@material-ui/core";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   root: {
     width: "100%",
     height: "100%",
@@ -52,7 +52,11 @@ const TelescopeInfo = () => {
     <List className={classes.root}>
       {currentTelescopes.telescopes.map((telescope) => (
         <>
-          <ListItem id={`${telescope.name}_info`} className={classes.listItem} key={telescope.id}>
+          <ListItem
+            id={`${telescope.name}_info`}
+            className={classes.listItem}
+            key={telescope.id}
+          >
             <h2 className={classes.h2}>
               {telescope.name} ({telescope.nickname})
             </h2>
@@ -68,7 +72,7 @@ const TelescopeInfo = () => {
             <h3 className={classes.h3}>Elevation : {telescope.elevation}</h3>
             {telescope.skycam_link && (
               <a className={classes.a} href={telescope.skycam_link}>
-              skycam link
+                skycam link
               </a>
             )}
           </ListItem>
