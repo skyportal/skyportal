@@ -164,30 +164,19 @@ class ShiftHandler(BaseHandler):
             )
         shifts = []
         for shift in queried_shifts:
-            susers = [
-                {
-                    "id": su.user.id,
-                    "username": su.user.username,
-                    "first_name": su.user.first_name,
-                    "last_name": su.user.last_name,
-                    "contact_email": su.user.contact_email,
-                    "contact_phone": su.user.contact_phone,
-                    "admin": su.admin,
-                }
-                for su in shift.shift_users
-            ]
-            gusers = [
-                {
-                    "id": gu.user.id,
-                    "username": gu.user.username,
-                    "first_name": gu.user.first_name,
-                    "last_name": gu.user.last_name,
-                    "contact_email": gu.user.contact_email,
-                    "contact_phone": gu.user.contact_phone,
-                    "admin": gu.admin,
-                }
-                for gu in shift.group.group_users
-            ]
+            susers = []
+            for su in shift.shift_users:
+                user = su.user.to_dict()
+                user["admin"] = su.admin
+                del user["oauth_uid"]
+                susers.append(user)
+            gusers = []
+            for gu in shift.group.group_users:
+                user = gu.user.to_dict()
+                user["admin"] = gu.admin
+                del user["oauth_uid"]
+                gusers.append(user)
+
             shift = shift.to_dict()
             shift["shift_users"] = susers
             shift["group"] = shift["group"].to_dict()
