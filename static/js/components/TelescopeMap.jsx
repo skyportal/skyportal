@@ -9,8 +9,7 @@ import {
   useZoomPan,
 } from "react-simple-maps";
 
-const geoUrl =
-  "https://raw.githubusercontent.com/zcreativelabs/react-simple-maps/master/topojson-maps/world-110m.json";
+import world_map from "../../images/maps/world-110m.json";
 
 let dispatch;
 const width = 700;
@@ -127,7 +126,7 @@ const TelescopeMap = ({ telescopes }) => {
       <CustomZoomableGroup center={[0, 0]}>
         {(position) => (
           <>
-            <Geographies geography={geoUrl}>
+            <Geographies geography={world_map}>
               {({ geographies }) =>
                 geographies.map((geo) => (
                   <Geography
