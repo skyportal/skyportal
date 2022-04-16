@@ -1,4 +1,5 @@
 import uuid
+import base64
 from skyportal.tests import api
 
 
@@ -8,6 +9,9 @@ def test_add_and_retrieve_comment_group_id(comment_token, public_source, public_
         f'sources/{public_source.id}/comments',
         data={
             'text': 'Comment text',
+            'ra': 0.0,
+            'dec': 0.0,
+            'redshift': 3,
             'group_ids': [public_group.id],
         },
         token=comment_token,
@@ -18,7 +22,6 @@ def test_add_and_retrieve_comment_group_id(comment_token, public_source, public_
     status, data = api(
         'GET', f'sources/{public_source.id}/comments/{comment_id}', token=comment_token
     )
-
     assert status == 200
     assert data['data']['text'] == 'Comment text'
     assert data['data']['bot']
@@ -128,6 +131,7 @@ def test_update_comment_group_list(
     comment_id = data['data']['comment_id']
 
     # This token belongs to public_group2
+
     status, data = api(
         'GET',
         f'sources/{public_source_two_groups.id}/comments/{comment_id}',
@@ -278,7 +282,10 @@ def test_problematic_put_comment_attachment_1275(
     )
     assert status3 == 200
     assert data3["status"] == 'success'
-    assert data3["data"]["attachment_bytes"] == payload['attachment_bytes']
+    assert (
+        data3['data']['attachment']
+        == base64.b64decode(payload['attachment_bytes']).decode()
+    )
     assert data3['data']['attachment_name'] == payload['attachment_name']
 
 
