@@ -1,13 +1,9 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
 import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
 import Button from "@material-ui/core/Button";
 import { makeStyles } from "@material-ui/core/styles";
-import PropTypes from "prop-types";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import NewTelescope from "./NewTelescope";
 import TelescopeMap from "./TelescopeMap";
@@ -38,13 +34,6 @@ const useStyles = makeStyles((theme) => ({
   nonSelectedMenu: {
     height: "3rem",
     fontSize: "1.2rem",
-  },
-}));
-
-const textStyles = makeStyles(() => ({
-  primary: {
-    fontWeight: "bold",
-    fontSize: "110%",
   },
 }));
 
@@ -81,27 +70,6 @@ export function telescopeInfo(telescope) {
 
   return result;
 }
-
-const TelescopeList = ({ telescopes }) => {
-  const classes = useStyles();
-  const textClasses = textStyles();
-
-  return (
-    <div className={classes.root}>
-      <List component="nav">
-        {telescopes.map((telescope) => (
-          <ListItem button key={telescope.id}>
-            <ListItemText
-              primary={telescopeTitle(telescope)}
-              secondary={telescopeInfo(telescope)}
-              classes={textClasses}
-            />
-          </ListItem>
-        ))}
-      </List>
-    </div>
-  );
-};
 
 const TelescopePage = () => {
   dispatch = useDispatch();
@@ -168,19 +136,6 @@ const TelescopePage = () => {
       </Grid>
     </>
   );
-};
-
-TelescopeList.propTypes = {
-  telescopes: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.number,
-      name: PropTypes.string,
-      nickname: PropTypes.string,
-      lat: PropTypes.number,
-      lon: PropTypes.number,
-      elevation: PropTypes.number,
-    })
-  ).isRequired,
 };
 
 export default TelescopePage;
