@@ -156,20 +156,6 @@ const TelescopeMap = ({ telescopes }) => {
   );
 };
 
-// prop validation
-
-// SourceSaveHistory.propTypes = {
-//   groups: PropTypes.arrayOf(
-//     PropTypes.shape({
-//       name: PropTypes.string,
-//       saved_at: PropTypes.string,
-//       saved_by: PropTypes.shape({
-//         username: PropTypes.string,
-//       }),
-//     })
-//   ).isRequired,
-// };
-
 TelescopeMap.propTypes = {
   telescopes: PropTypes.arrayOf(
     PropTypes.shape({
