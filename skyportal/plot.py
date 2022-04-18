@@ -2038,7 +2038,9 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         column_checkboxes.js_on_click(callback_toggle_lines)
 
     second_to_last_column = all_column_checkboxes[-2]
-    clear_all_spectra = Button(name="Clear Spectra", label="Clear Spectra", width=100)
+    clear_all_spectra = Button(
+        name="Clear Spectra", label="Clear Spectra", width_policy="min"
+    )
     callback_clear_all_spectra = CustomJS(
         args={'model_dict': model_dict},
         code="""
@@ -2053,7 +2055,9 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     all_column_checkboxes[-2] = column(second_to_last_column, clear_all_spectra)
 
     third_to_last_column = all_column_checkboxes[-3]
-    add_all_spectra = Button(name="Add All Spectra", label="Add All Spectra", width=30)
+    add_all_spectra = Button(
+        name="Add All Spectra", label="Add All Spectra", width_policy="min"
+    )
     callback_add_all_spectra = CustomJS(
         args={'model_dict': model_dict},
         code="""
@@ -2069,7 +2073,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
 
     last_column = all_column_checkboxes[-1]
     reset_checkboxes_button = Button(
-        name="Reset Checkboxes", label="Reset Checkboxes", width=30
+        name="Reset Checkboxes", label="Reset Checkboxes", width_policy="min"
     )
     callback_reset_specs = CustomJS(
         args={
