@@ -41,6 +41,7 @@ import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import TNSATForm from "./TNSATForm";
 
 import * as spectraActions from "../ducks/spectra";
+import OnTopSpectraSelect from "./OnTopSpectraSelect";
 
 const VegaHR = React.lazy(() => import("./VegaHR"));
 
@@ -183,6 +184,7 @@ const SourceDesktop = ({ source }) => {
     });
   }
   const specIDs = spectra ? spectra.map((s) => s.id).join(",") : "";
+  const [onTopSpectraId, setOnTopSpectraId] = useState("");
 
   useEffect(() => {
     dispatch(spectraActions.fetchSourceSpectra(source.id));
@@ -453,15 +455,27 @@ const SourceDesktop = ({ source }) => {
                       }
                     >
                       <Plot
-                        url={`/api/internal/plot/spectroscopy/${source.id}?width=800&height=600&cacheID=${specIDs}`}
+                        url={`/api/internal/plot/spectroscopy/${
+                          source.id
+                        }?width=800&height=600&cacheID=${specIDs}${
+                          onTopSpectraId !== ""
+                            ? `&onTopSpectraId=${onTopSpectraId}`
+                            : ""
+                        }`}
                       />
                     </Suspense>
                   )}
                 </div>
-                <div className={classes.photometryContainer}>
-                  <div id="bokeh-spectroscopy" />
-                </div>
                 <div className={classes.buttonContainer}>
+                  <OnTopSpectraSelect
+                    spectra={spectra.map((spec) => ({
+                      id: spec.id,
+                      instrument_name: spec.instrument_name,
+                      observed_at: spec.observed_at,
+                    }))}
+                    onTopSpectraId={onTopSpectraId}
+                    setOnTopSpectraId={setOnTopSpectraId}
+                  />
                   <Link to={`/upload_spectrum/${source.id}`} role="link">
                     <Button variant="contained">
                       Upload additional spectroscopy

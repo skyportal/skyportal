@@ -20,7 +20,6 @@ from bokeh.models import (
     CategoricalColorMapper,
     Legend,
     LegendItem,
-    Dropdown,
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
@@ -1639,7 +1638,6 @@ def make_spectrum_layout(
     """
     if on_top_spectra_id:
         on_top_spectra_id = int(on_top_spectra_id)
-    on_top_spectra_id = 8
     rainbow = cm.get_cmap('rainbow', len(spectra))
     palette = list(map(rgb2hex, rainbow(range(len(spectra)))))
     color_map = dict(zip([s.id for s in spectra], palette))
@@ -2154,26 +2152,6 @@ def make_spectrum_layout(
         ),
     )
 
-    on_top_spectra_dropdown = Dropdown(
-        label="Select on top spectra",
-        menu=[
-            (legend_item.label['value'], legend_item.id) for legend_item in legend_items
-        ],
-        width_policy="min",
-    )
-    on_top_spectra_dropdown.js_on_event(
-        "menu_item_click",
-        CustomJS(
-            args={'sourceId': obj.id},
-            code=open(
-                os.path.join(
-                    os.path.dirname(__file__),
-                    '../static/js/plotjs',
-                    "on_top_spectra.js",
-                )
-            ).read(),
-        ),
-    )
     row2 = row(all_column_checkboxes)
     row3 = (
         column(z, v_exp, smooth_column)
@@ -2183,7 +2161,6 @@ def make_spectrum_layout(
     return column(
         plot,
         row2,
-        on_top_spectra_dropdown,
         row3,
         sizing_mode='stretch_width',
         width=width,
