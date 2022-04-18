@@ -58,7 +58,7 @@ function dailyShiftStartEnd(shift) {
 
 function CurrentShiftMenu() {
   const classes = useStyles();
-
+  const { permissions } = useSelector((state) => state.profile);
   const { currentShift } = useSelector((state) => state.shift);
   const currentUser = useSelector((state) => state.profile);
   const dispatch = useDispatch();
@@ -84,7 +84,7 @@ function CurrentShiftMenu() {
       if (result.status === "success") {
         dispatch(showNotification(`joined shift: ${shift.name}`));
         // dispatch currentShift adding the current user
-        currentShift.users.push(currentUser);
+        currentShift.shift_users.push(currentUser);
         dispatch({ type: "skyportal/CURRENT_SHIFT", data: currentShift });
       }
     });
@@ -96,7 +96,7 @@ function CurrentShiftMenu() {
     ).then((result) => {
       if (result.status === "success") {
         // dispatch currentShift without the current user
-        currentShift.users = [...currentShift.users].filter(
+        currentShift.shift_users = [...currentShift.shift_users].filter(
           (user) => user.id !== currentUser.id
         );
         dispatch({ type: "skyportal/CURRENT_SHIFT", data: currentShift });
@@ -104,20 +104,45 @@ function CurrentShiftMenu() {
       }
     });
   };
-
+  let admins;
   let members;
   let participating;
   if (currentShift.name != null) {
-    members = currentShift.users.map(
-      (user) => `${user.first_name} ${user.last_name}`
-    );
-    participating = currentShift.users
+    // create list names of non admin members
+    admins = currentShift.shift_users
+      .filter((user) => user.admin)
+      .map((user) => `${user.first_name} ${user.last_name}`);
+    members = currentShift.shift_users
+      .filter((user) => !user.admin)
+      .map((user) => `${user.first_name} ${user.last_name}`);
+    participating = currentShift.shift_users
       .map((user) => user.id)
       .includes(currentUser.id);
   }
   let [shiftDateStartEnd, shiftTimeStartEnd] = [null, null];
   if (currentShift.name != null && dailyShiftStartEnd(currentShift)) {
     [shiftDateStartEnd, shiftTimeStartEnd] = dailyShiftStartEnd(currentShift);
+  }
+  let currentUserIsAdminOfShift = false;
+  if (currentShift.name != null) {
+    if (
+      currentShift.shift_users.filter(
+        (user) => user.id === currentUser.id && user.admin
+      ).length > 0
+    ) {
+      currentUserIsAdminOfShift = true;
+    }
+  }
+
+  let currentUserIsAdminOfGroup = false;
+  if (currentShift.name != null) {
+    if (
+      currentShift.group.group_users.filter(
+        (user) => user.id === currentUser.id && user.admin
+      ).length > 0
+    ) {
+      currentUserIsAdminOfGroup = true;
+    }
   }
 
   return (
@@ -141,9 +166,16 @@ function CurrentShiftMenu() {
             {" "}
             Group: {currentShift.group.name}
           </h3>
-          <i id="current_shift_members">{`\n Members : ${members.join(
-            ","
-          )}`}</i>
+          <div>
+            <i id="current_shift_admins">{`\n Admins : ${admins.join(
+              ", "
+            )}`}</i>
+          </div>
+          <div>
+            <i id="current_shift_members">{`\n Members : ${members.join(
+              ", "
+            )}`}</i>
+          </div>
           {shiftDateStartEnd ? (
             <>
               <p id="current_shift_date" className={classes.shiftgroup}>
@@ -175,9 +207,16 @@ function CurrentShiftMenu() {
               Leave
             </Button>
           )}
-          <Button id="delete_button" onClick={() => deleteShift(currentShift)}>
-            Delete
-          </Button>
+          {(currentUserIsAdminOfShift ||
+            currentUserIsAdminOfGroup ||
+            permissions.includes("System admin")) && (
+            <Button
+              id="delete_button"
+              onClick={() => deleteShift(currentShift)}
+            >
+              Delete
+            </Button>
+          )}
         </div>
       </div>
     )
