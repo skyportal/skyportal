@@ -36,6 +36,10 @@ const Theme = ({ disableTransitions, children }) => {
       },
       background: dark ? { default: "#303030" } : { default: "#f0f2f5" },
     },
+    plotFontSizes: {
+      titleFontSize: 15,
+      labelFontSize: 15,
+    },
     overrides: {
       MuiTypography: {
         body1: {

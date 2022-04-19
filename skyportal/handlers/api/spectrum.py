@@ -47,7 +47,9 @@ log = make_log('api/spectrum')
 class SpectrumHandler(BaseHandler):
     def get_groups(self, group_ids):
         groups = []
-        if group_ids == "all":
+        if group_ids is None:
+            groups = None
+        elif group_ids == "all":
             groups = Group.query.filter(
                 Group.name == cfg['misc.public_group_name']
             ).all()

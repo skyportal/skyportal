@@ -1039,12 +1039,11 @@ class CandidateHandler(BaseHandler):
                 f"Failed to post candidate for object {obj.id}: {e.args[0]}"
             )
 
+        calling_user_id = self.associated_user_object.id
         if not obj_already_exists:
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj.id, self.associated_user_object.id
-                ),
+                lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, calling_user_id),
             )
 
         return self.success(data={"ids": [c.id for c in candidates]})

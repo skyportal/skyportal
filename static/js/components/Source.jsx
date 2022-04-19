@@ -10,6 +10,8 @@ import SourceDesktop from "./SourceDesktop";
 import SourceMobile from "./SourceMobile";
 import Spinner from "./Spinner";
 
+import withRouter from "./withRouter";
+
 const sidebarWidth = 190;
 
 const Source = ({ route }) => {
@@ -77,4 +79,4 @@ Source.propTypes = {
   }).isRequired,
 };
 
-export default Source;
+export default withRouter(Source);

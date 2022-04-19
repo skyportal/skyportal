@@ -29,6 +29,8 @@ import CommentList from "./CommentList";
 import AnnotationsTable from "./AnnotationsTable";
 import SyntheticPhotometryForm from "./SyntheticPhotometryForm";
 
+import withRouter from "./withRouter";
+
 import * as photometryActions from "../ducks/photometry";
 import * as spectraActions from "../ducks/spectra";
 import * as sourceActions from "../ducks/source";
@@ -721,4 +723,4 @@ ManageDataForm.propTypes = {
   }).isRequired,
 };
 
-export default ManageDataForm;
+export default withRouter(ManageDataForm);
