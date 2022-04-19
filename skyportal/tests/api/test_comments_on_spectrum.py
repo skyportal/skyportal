@@ -1,5 +1,6 @@
 import uuid
 import datetime
+import base64
 
 from skyportal.tests import api
 
@@ -313,8 +314,9 @@ def test_post_comment_attachment(super_admin_token, public_source, lris, public_
     )
     assert status == 200
     assert data['status'] == 'success'
+
     assert data['data']['text'] == 'Looks like Ia'
-    assert data['data']['attachment_bytes'] == payload['body']
+    assert data['data']['attachment'] == base64.b64decode(payload['body']).decode()
     assert data['data']['attachment_name'] == payload['name']
 
 

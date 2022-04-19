@@ -109,7 +109,7 @@ function MyCalendar({ shifts }) {
       onSelectSlot={handleSelectSlot}
       eventPropGetter={(event) => {
         let backgroundColor = "#0d98ba";
-        if (event.users.map((user) => user.id).includes(currentUser.id)) {
+        if (event.shift_users.map((user) => user.id).includes(currentUser.id)) {
           backgroundColor = "#0dba86";
         } else {
           backgroundColor = "#0d98ba";
@@ -132,7 +132,7 @@ MyCalendar.propTypes = {
       description: PropTypes.string,
       start_date: PropTypes.instanceOf(Date),
       end_date: PropTypes.instanceOf(Date),
-      users: PropTypes.arrayOf(
+      shift_users: PropTypes.arrayOf(
         PropTypes.shape({
           id: PropTypes.number,
           first_name: PropTypes.string,
