@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 
 import { useTheme } from "@material-ui/core/styles";
-import Paper from "@material-ui/core/Paper";
 import TelescopePageDesktop from "./TelescopePageDesktop";
 import TelescopePageMobile from "./TelescopePageMobile";
 
@@ -25,11 +24,7 @@ const TelescopePage = () => {
 
   return (
     <div>
-      {width <= 600 ? (
-        <TelescopePageMobile />
-      ) : (
-        <TelescopePageDesktop />
-      )}
+      {width <= 600 ? <TelescopePageMobile /> : <TelescopePageDesktop />}
     </div>
   );
 };
