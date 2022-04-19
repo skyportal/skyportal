@@ -468,7 +468,7 @@ const SourceDesktop = ({ source }) => {
                 </div>
                 <div className={classes.buttonContainer}>
                   <OnTopSpectraSelect
-                    spectra={spectra.map((spec) => ({
+                    spectra={spectra?.map((spec) => ({
                       id: spec.id,
                       instrument_name: spec.instrument_name,
                       observed_at: spec.observed_at,
