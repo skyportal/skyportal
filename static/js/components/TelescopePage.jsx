@@ -23,7 +23,7 @@ const TelescopePage = () => {
   }, [ref]);
 
   return (
-    <div>
+    <div ref={ref}>
       {width <= 600 ? <TelescopePageMobile /> : <TelescopePageDesktop />}
     </div>
   );

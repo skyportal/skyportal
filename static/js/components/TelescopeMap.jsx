@@ -1,6 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
+import { abs } from "mathjs";
 import {
   ComposableMap,
   Geographies,
@@ -37,12 +38,9 @@ function telescopelabel(nestedTelescope) {
   if (nestedTelescope.telescopes.length === 1) {
     label = nestedTelescope.telescopes[0].name;
   } else {
-    for (let i = 0; i < nestedTelescope.telescopes.length; i += 1) {
-      label += nestedTelescope.telescopes[i].nickname;
-      if (i < nestedTelescope.telescopes.length - 1) {
-        label += " / ";
-      }
-    }
+    label = nestedTelescope.telescopes
+      .map((telescope) => telescope.nickname)
+      .join(" / ");
   }
   return label;
 }
@@ -68,18 +66,12 @@ function TelescopeMarker({ nestedTelescope, position }) {
   );
 }
 
-function normalizeLongitude(longitude) {
-  if (longitude < 0) {
-    return longitude + 360;
-  }
-  return longitude;
+function normalizeLongitudeDiff(alpha, beta) {
+  return 180 - abs(abs(alpha - beta) - 180);
 }
 
-function normalizeLatitude(latitude) {
-  if (latitude < 0) {
-    return latitude + 180;
-  }
-  return latitude;
+function normalizeLatitudeDiff(alpha, beta) {
+  return abs(alpha - beta);
 }
 
 const TelescopeMap = ({ telescopes }) => {
@@ -98,12 +90,16 @@ const TelescopeMap = ({ telescopes }) => {
       for (let j = 0; j < nestedTelescopes.length; j += 1) {
         if (
           Math.abs(
-            normalizeLatitude(filteredTelescopes[i].lat) -
-              normalizeLatitude(nestedTelescopes[j].lat)
+            normalizeLatitudeDiff(
+              filteredTelescopes[i].lat,
+              nestedTelescopes[j].lat
+            )
           ) < 1 &&
           Math.abs(
-            normalizeLongitude(filteredTelescopes[i].lon) -
-              normalizeLongitude(nestedTelescopes[j].lon)
+            normalizeLongitudeDiff(
+              filteredTelescopes[i].lon,
+              nestedTelescopes[j].lon
+            )
           ) < 2
         ) {
           nestedTelescopes[j].telescopes.push(filteredTelescopes[i]);
