@@ -7,9 +7,6 @@ import uuid
 def test_super_user_post_shift(
     public_group, super_admin_token, super_admin_user, driver
 ):
-
-    driver.get(f"/become_user/{super_admin_user.id}")
-
     name = str(uuid.uuid4())
     start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
     end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
@@ -29,6 +26,7 @@ def test_super_user_post_shift(
     start_date = date.today().strftime("%m/%d/%Y")
     end_date = (date.today() + timedelta(days=1)).strftime("%m/%d/%Y")
 
+    driver.get(f"/become_user/{super_admin_user.id}")
     # go to the shift page
     driver.get("/shifts")
 
