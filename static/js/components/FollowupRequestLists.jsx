@@ -84,6 +84,7 @@ const FollowupRequestLists = ({
   followupRequests,
   instrumentList,
   instrumentFormParams,
+  showObject = false,
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -105,6 +106,7 @@ const FollowupRequestLists = ({
 
   if (
     instrumentList.length === 0 ||
+    followupRequests.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
     return <p>No robotic followup requests for this source...</p>;
@@ -114,6 +116,10 @@ const FollowupRequestLists = ({
     r[a.id] = a;
     return r;
   }, {});
+
+  if (!Array.isArray(followupRequests)) {
+    return <p>Waiting for followup requests to load...</p>;
+  }
 
   const requestsGroupedByInstId = followupRequests.reduce((r, a) => {
     r[a.allocation.instrument.id] = [
@@ -140,6 +146,39 @@ const FollowupRequestLists = ({
       { name: "requester.username", label: "Requester" },
       { name: "allocation.group.name", label: "Allocation" },
     ];
+
+    if (showObject) {
+      const renderObj = (dataIndex) => {
+        const followupRequest =
+          requestsGroupedByInstId[instrument_id][dataIndex];
+        return (
+          <div>
+            {followupRequest.obj ? (
+              <Button
+                size="small"
+                data-testid={`link_${followupRequest.obj.id}`}
+              >
+                <a href={`/source/${followupRequest.obj.id}`}>
+                  {followupRequest.obj.id}&nbsp;
+                </a>
+              </Button>
+            ) : (
+              <CircularProgress />
+            )}
+          </div>
+        );
+      };
+      columns.push({
+        name: "obj",
+        label: "Object",
+        options: {
+          sort: true,
+          sortThirdClickReset: true,
+          customBodyRenderLite: renderObj,
+        },
+      });
+    }
+
     keys?.forEach((key) => {
       const renderKey = (value) =>
         Array.isArray(value) ? value.join(",") : value;
@@ -342,11 +381,19 @@ FollowupRequestLists.propTypes = {
     })
   ).isRequired,
   instrumentFormParams: PropTypes.shape({
+    // eslint-disable-next-line react/forbid-prop-types
     formSchema: PropTypes.objectOf(PropTypes.any),
+    // eslint-disable-next-line react/forbid-prop-types
     uiSchema: PropTypes.objectOf(PropTypes.any),
+    // eslint-disable-next-line react/forbid-prop-types
     methodsImplemented: PropTypes.objectOf(PropTypes.any),
+    // eslint-disable-next-line react/forbid-prop-types
     aliasLookup: PropTypes.objectOf(PropTypes.any),
   }).isRequired,
+  showObject: PropTypes.bool,
 };
 
+FollowupRequestLists.defaultProps = {
+  showObject: false,
+};
 export default FollowupRequestLists;

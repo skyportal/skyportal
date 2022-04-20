@@ -14,6 +14,7 @@ from sqlalchemy import func, or_, distinct
 import arrow
 from marshmallow import Schema, fields
 from marshmallow.exceptions import ValidationError
+import operator  # noqa: F401
 import functools
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
@@ -492,6 +493,81 @@ class SourceHandler(BaseHandler):
               Comma-separated string of "taxonomy: classification" pair(s) to filter for sources matching
               that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
           - in: query
+            name: nonclassifications
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: string
+            explode: false
+            style: simple
+            description: |
+              Comma-separated string of "taxonomy: classification" pair(s) to filter for sources NOT matching
+              that/those classification(s), i.e. "Sitewide Taxonomy: Type II, Sitewide Taxonomy: AGN"
+          - in: query
+            name: annotationsFilter
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: string
+            explode: false
+            style: simple
+            description: |
+              Comma-separated string of "annotation: value: operator" triplet(s) to filter for sources matching
+              that/those annotation(s), i.e. "redshift: 0.5: lt"
+          - in: query
+            name: annotationsFilterOrigin
+            nullable: true
+            schema:
+              type: string
+            description: Comma separated string of origins. Only annotations from these origins are used when filtering with the annotationsFilter.
+          - in: query
+            name: annotationsFilterBefore
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources that have annotations before this UTC datetime.
+          - in: query
+            name: annotationsFilterAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources that have annotations after this UTC datetime.
+          - in: query
+            name: commentsFilter
+            nullable: true
+            schema:
+              type: array
+              items:
+                type: string
+            explode: false
+            style: simple
+            description: |
+              Comma-separated string of comment text to filter for sources matching.
+          - in: query
+            name: commentsFilterAuthor
+            nullable: true
+            schema:
+              type: string
+            description: Comma separated string of authors. Only comments from these authors are used when filtering with the commentsFilter.
+          - in: query
+            name: commentsFilterBefore
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources that have comments before this UTC datetime.
+          - in: query
+            name: commentsFilterAfter
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Only return sources that have comments after this UTC datetime.
+          - in: query
             name: minRedshift
             nullable: true
             schema:
@@ -579,7 +655,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: boolean
             description: |
-              Boolean indicating whether to include associated geojson. Defaults to
+              Boolean indicating whether to include associated GeoJSON. Defaults to
               false.
           responses:
             200:
@@ -643,6 +719,21 @@ class SourceHandler(BaseHandler):
             "includeDetectionStats", False
         )
         classifications = self.get_query_argument("classifications", None)
+        nonclassifications = self.get_query_argument("nonclassifications", None)
+        annotations_filter = self.get_query_argument("annotationsFilter", None)
+        annotations_filter_origin = self.get_query_argument(
+            "annotationsFilterOrigin", None
+        )
+        annotations_filter_after = self.get_query_argument(
+            'annotationsFilterAfter', None
+        )
+        annotations_filter_before = self.get_query_argument(
+            'annotationsFilterBefore', None
+        )
+        comments_filter = self.get_query_argument("commentsFilter", None)
+        comments_filter_author = self.get_query_argument("commentsFilterAuthor", None)
+        comments_filter_after = self.get_query_argument('commentsFilterAfter', None)
+        comments_filter_before = self.get_query_argument('commentsFilterBefore', None)
         min_redshift = self.get_query_argument("minRedshift", None)
         max_redshift = self.get_query_argument("maxRedshift", None)
         min_peak_magnitude = self.get_query_argument("minPeakMagnitude", None)
@@ -822,7 +913,7 @@ class SourceHandler(BaseHandler):
                     .all()
                 )
                 source_info["comments"] = sorted(
-                    [
+                    (
                         {
                             **{
                                 k: v
@@ -835,7 +926,7 @@ class SourceHandler(BaseHandler):
                             },
                         }
                         for c in comments
-                    ],
+                    ),
                     key=lambda x: x["created_at"],
                     reverse=True,
                 )
@@ -1198,7 +1289,102 @@ class SourceHandler(BaseHandler):
                     Obj.id == classification_subquery.c.obj_id,
                     isouter=True,
                 )
+        if nonclassifications is not None:
+            if isinstance(nonclassifications, str) and "," in nonclassifications:
+                nonclassifications = [c.strip() for c in nonclassifications.split(",")]
+            elif isinstance(nonclassifications, str):
+                nonclassifications = [nonclassifications]
+            else:
+                return self.error(
+                    "Invalid non-classifications value -- must provide at least one string value"
+                )
+            taxonomy_names, nonclassifications = list(
+                zip(
+                    *list(
+                        map(
+                            lambda c: (
+                                c.split(":")[0].strip(),
+                                c.split(":")[1].strip(),
+                            ),
+                            nonclassifications,
+                        )
+                    )
+                )
+            )
+            classification_accessible_subquery = (
+                Classification.query_records_accessible_by(self.current_user).subquery()
+            )
 
+            nonclassification_query = (
+                DBSession()
+                .query(
+                    distinct(Classification.obj_id).label("obj_id"),
+                    Classification.classification,
+                )
+                .join(Taxonomy)
+                .filter(Classification.classification.notin_(nonclassifications))
+                .filter(Taxonomy.name.in_(taxonomy_names))
+            )
+            nonclassification_subquery = nonclassification_query.subquery()
+
+            # We join in the nonclassifications being filtered for first before
+            # the filter for accessible classifications to speed up the query
+            # (this way seems to help the query planner come to more optimal join
+            # strategies)
+            obj_query = obj_query.join(
+                nonclassification_subquery,
+                Obj.id == nonclassification_subquery.c.obj_id,
+            )
+            obj_query = obj_query.join(
+                classification_accessible_subquery,
+                Obj.id == classification_accessible_subquery.c.obj_id,
+            )
+        if annotations_filter is not None:
+            if isinstance(annotations_filter, str) and "," in annotations_filter:
+                annotations_filter = [c.strip() for c in annotations_filter.split(",")]
+            elif isinstance(annotations_filter, str):
+                annotations_filter = [annotations_filter]
+            else:
+                return self.error(
+                    "Invalid annotationsFilter value -- must provide at least one string value"
+                )
+        if annotations_filter_origin is not None:
+            if (
+                isinstance(annotations_filter_origin, str)
+                and "," in annotations_filter_origin
+            ):
+                annotations_filter_origin = [
+                    c.strip() for c in annotations_filter_origin.split(",")
+                ]
+            elif isinstance(annotations_filter_origin, str):
+                annotations_filter_origin = [annotations_filter_origin]
+            else:
+                return self.error(
+                    "Invalid annotationsFilterOrigin value -- must provide at least one string value"
+                )
+        if comments_filter is not None:
+            if isinstance(comments_filter, str) and "," in comments_filter:
+                comments_filter = [c.strip() for c in comments_filter.split(",")]
+            elif isinstance(comments_filter, str):
+                comments_filter = [comments_filter]
+            else:
+                return self.error(
+                    "Invalid commentsFilter value -- must provide at least one string value"
+                )
+        if comments_filter_author is not None:
+            if (
+                isinstance(comments_filter_author, str)
+                and "," in comments_filter_author
+            ):
+                comments_filter_author = [
+                    c.strip() for c in comments_filter_author.split(",")
+                ]
+            elif isinstance(comments_filter_author, str):
+                comments_filter_author = [comments_filter_author]
+            else:
+                return self.error(
+                    "Invalid commentsFilterAuthor value -- must provide at least one string value"
+                )
         if localization_dateobs is not None:
             if localization_name is not None:
                 localization = (
@@ -1366,11 +1552,140 @@ class SourceHandler(BaseHandler):
                     ) = result
                 else:
                     (obj,) = result
+
+                if (
+                    (annotations_filter is not None)
+                    or (annotations_filter_origin is not None)
+                    or (annotations_filter_before is not None)
+                    or (annotations_filter_after is not None)
+                ):
+                    if annotations_filter_origin is not None:
+                        annotations_query = (
+                            Annotation.query_records_accessible_by(self.current_user)
+                            .filter(Annotation.obj_id == obj.id)
+                            .filter(Annotation.origin.in_(annotations_filter_origin))
+                        )
+                    else:
+                        annotations_query = Annotation.query_records_accessible_by(
+                            self.current_user
+                        ).filter(Annotation.obj_id == obj.id)
+                    if annotations_filter_before:
+                        annotations_query = annotations_query.filter(
+                            Annotation.created_at <= annotations_filter_before
+                        )
+                    if annotations_filter_after:
+                        annotations_query = annotations_query.filter(
+                            Annotation.created_at >= annotations_filter_after
+                        )
+                    annotations = annotations_query.all()
+
+                    if len(annotations) > 0:
+                        passes_filter = True
+                    else:
+                        passes_filter = False
+                    if annotations_filter is not None:
+                        for ann_filt in annotations_filter:
+                            ann_split = ann_filt.split(":")
+                            if not (len(ann_split) == 1 or len(ann_split) == 3):
+                                return self.error(
+                                    "Invalid annotationsFilter value -- annotation filter must have 1 or 3 values"
+                                )
+                            name = ann_split[0].strip()
+                            if len(ann_split) == 3:
+                                value = ann_split[1].strip()
+                                try:
+                                    value = float(value)
+                                except ValueError as e:
+                                    return self.error(
+                                        f"Invalid annotation filter value: {e}"
+                                    )
+                                op = ann_split[2].strip()
+                            # first check that the name is present
+                            name_present = [
+                                isinstance(an.data, dict) and name in an.data
+                                for an in annotations
+                            ]
+                            name_check = any(name_present)
+
+                            # fails the filter if name is not present
+                            if not name_check:
+                                passes_filter = False
+                                break
+                            if len(ann_split) == 3:
+                                index = name_present.index(True)
+                                data_value = annotations[index].data[name]
+
+                                op_options = ["lt", "le", "eq", "ne", "ge", "gt"]
+                                if op not in op_options:
+                                    return self.error(f"Invalid operator: {op}")
+
+                                if op == "lt":
+                                    comp_function = operator.lt
+                                elif op == "le":
+                                    comp_function = operator.le
+                                elif op == "eq":
+                                    comp_function = operator.eq
+                                elif op == "ne":
+                                    comp_function = operator.ne
+                                elif op == "ge":
+                                    comp_function = operator.ge
+                                elif op == "gt":
+                                    comp_function = operator.gt
+                                comp_check = comp_function(data_value, value)
+                                if not comp_check:
+                                    passes_filter = False
+                                    break
+                    if not passes_filter:
+                        continue
+                if (
+                    (comments_filter is not None)
+                    or (comments_filter_author is not None)
+                    or (comments_filter_before is not None)
+                    or (comments_filter_after is not None)
+                ):
+                    comments_query = Comment.query_records_accessible_by(
+                        self.current_user
+                    ).filter(Comment.obj_id == obj.id)
+                    if comments_filter_before:
+                        comments_query = comments_query.filter(
+                            Comment.created_at <= comments_filter_before
+                        )
+                    if comments_filter_after:
+                        comments_query = comments_query.filter(
+                            Comment.created_at >= comments_filter_after
+                        )
+                    comments = comments_query.all()
+
+                    if len(comments) > 0:
+                        passes_filter = True
+                    else:
+                        passes_filter = False
+
+                    if comments_filter_author is not None:
+                        author_present = [
+                            com.author.username in comments_filter_author
+                            for com in comments
+                        ]
+                        author_check = any(author_present)
+                        if not author_check:
+                            passes_filter = False
+
+                    if comments_filter is not None:
+                        for com_filt in comments_filter:
+                            # check that the comment filter is present in at least one
+                            comment_present = [com_filt in com.text for com in comments]
+                            comment_check = any(comment_present)
+                            if not comment_check:
+                                passes_filter = False
+                                break
+                    if not passes_filter:
+                        continue
+
                 obj_list.append(obj.to_dict())
 
                 if include_comments:
                     obj_list[-1]["comments"] = sorted(
-                        [
+                        (
                             {
                                 k: v
                                 for k, v in c.to_dict().items()
@@ -1381,7 +1696,7 @@ class SourceHandler(BaseHandler):
                             )
                             .filter(Comment.obj_id == obj.id)
                             .all()
-                        ],
+                        ),
                         key=lambda x: x["created_at"],
                         reverse=True,
                     )
@@ -1539,16 +1854,28 @@ class SourceHandler(BaseHandler):
 
             for source in query_results["sources"]:
                 point = Point((source["ra"], source["dec"]))
-                if source["alias"] is not None:
-                    source_name = ",".join(source["alias"])
-                else:
-                    source_name = f'{source["ra"]},{source["dec"]}'
-
-                features.append(
-                    Feature(geometry=point, properties={"name": source_name})
+                aliases = [alias for alias in (source["alias"] or []) if alias]
+                source_name = ", ".join(
+                    [
+                        source["id"],
+                    ]
+                    + aliases
                 )
 
-            query_results["geojson"] = features
+                features.append(
+                    Feature(
+                        geometry=point,
+                        properties={
+                            "name": source_name,
+                            "url": f"/source/{source['id']}",
+                        },
+                    )
+                )
+
+            query_results["geojson"] = {
+                'type': 'FeatureCollection',
+                'features': features,
+            }
 
         self.verify_and_commit()
         return self.success(data=query_results)

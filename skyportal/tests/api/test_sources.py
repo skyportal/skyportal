@@ -1160,7 +1160,7 @@ def test_sources_filter_by_time_spectrum(
         'spectrum',
         data={
             'obj_id': obj_id1,
-            'observed_at': str(datetime.now(timezone.utc)),
+            'observed_at': str(datetime.now(timezone.utc) - timedelta(days=1)),
             'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
@@ -1178,7 +1178,7 @@ def test_sources_filter_by_time_spectrum(
         'spectrum',
         data={
             'obj_id': obj_id2,
-            'observed_at': str(datetime.now(timezone.utc)),
+            'observed_at': str(datetime.now(timezone.utc) + timedelta(days=1)),
             'instrument_id': lris.id,
             'wavelengths': [664, 665, 666],
             'fluxes': [234.2, 232.1, 235.3],
@@ -1416,6 +1416,20 @@ def test_sources_filter_by_classifications(
     )
     assert status == 200
 
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": obj_id2,
+            "classification": "AGN",
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "group_ids": [public_group.id],
+        },
+        token=classification_token,
+    )
+    assert status == 200
+
     # Filter for sources with classification "Algol" - should only get obj_id1 back
     status, data = api(
         "GET",
@@ -1429,6 +1443,19 @@ def test_sources_filter_by_classifications(
     assert status == 200
     assert len(data["data"]["sources"]) == 1
     assert data["data"]["sources"][0]["id"] == obj_id1
+
+    # Filter for sources with nonclassification "Algol" - should at least get obj_id2 back
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "nonclassifications": f"{taxonomy_name}: Algol",
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert any([source["id"] == obj_id2 for source in data["data"]["sources"]])
 
 
 def test_sources_filter_by_redshift(upload_data_token, view_only_token, public_group):
@@ -2027,3 +2054,138 @@ def test_token_user_retrieving_source_with_period_exists(
     assert status == 200
     assert data["status"] == "success"
     assert data["data"]['period_exists']
+
+
+def test_token_user_retrieving_source_with_annotation_filter(
+    super_admin_token, public_source, public_source_two_groups, annotation_token
+):
+
+    annotation_name = str(uuid.uuid4())
+
+    status, data = api(
+        'POST',
+        f'sources/{public_source.id}/annotations',
+        data={
+            'origin': 'kowalski',
+            'data': {annotation_name: 1.5},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'POST',
+        f'sources/{public_source_two_groups.id}/annotations',
+        data={
+            'origin': 'gloria',
+            'data': {annotation_name: 1.5},
+        },
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"annotationsFilter": f"{annotation_name}:2.0:le"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 2
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "annotationsFilter": f"{annotation_name}:2.0:le",
+            "annotationsFilterOrigin": "kowalski",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 1
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"annotationsFilter": f"{annotation_name}:2.0:ge"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 0
+
+
+def test_add_source_redshift_origin(upload_data_token, view_only_token, public_group):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "redshift_origin": "host-spectrum",
+            "transient": False,
+            "ra_dis": 2.3,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+    assert data["data"]["id"] == obj_id
+
+    assert np.isclose(data["data"]["redshift"], 3)
+    assert data["data"]["redshift_origin"] == "host-spectrum"
+
+
+def test_token_user_retrieving_source_with_comment_filter(
+    super_admin_token, public_source, public_source_two_groups, comment_token
+):
+
+    comment_text = str(uuid.uuid4())
+    comment_text_less = comment_text[:-4]
+
+    status, data = api(
+        'POST',
+        f'sources/{public_source.id}/comments',
+        data={
+            'text': comment_text,
+        },
+        token=comment_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        'POST',
+        f'sources/{public_source_two_groups.id}/comments',
+        data={
+            'text': comment_text_less,
+        },
+        token=comment_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"commentsFilter": f"{comment_text_less}"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 2
+
+    status, data = api(
+        "GET",
+        "sources",
+        params={"commentsFilter": f"{comment_text}"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+    assert len(data["data"]["sources"]) == 1

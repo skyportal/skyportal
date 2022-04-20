@@ -4,9 +4,20 @@ from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
+from .annotation_services import (
+    IRSAQueryWISEHandler,
+    VizierQueryHandler,
+    DatalabQueryHandler,
+)
 from .db_stats import StatsHandler
+from .enum_types import EnumTypesHandler
 from .filter import FilterHandler
-from .followup_request import FollowupRequestHandler, AssignmentHandler
+from .followup_request import (
+    FollowupRequestHandler,
+    FollowupRequestPrioritizationHandler,
+    FollowupRequestSchedulerHandler,
+    AssignmentHandler,
+)
 from .facility_listener import FacilityMessageHandler
 from .galaxy import GalaxyCatalogHandler
 from .gcn import (
@@ -27,11 +38,22 @@ from .instrument import InstrumentHandler
 from .invalid import InvalidEndpointHandler
 from .invitations import InvitationHandler
 from .news_feed import NewsFeedHandler
-from .observation import ObservationHandler
+from .observation import (
+    ObservationASCIIFileHandler,
+    ObservationHandler,
+    ObservationGCNHandler,
+    ObservationTreasureMapHandler,
+    ObservationExternalAPIHandler,
+)
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
     ObservationPlanRequestHandler,
+    ObservationPlanTreasureMapHandler,
+    ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
+    ObservationPlanMovieHandler,
+    ObservationPlanGeoJSONHandler,
+    ObservationPlanAirmassChartHandler,
 )
 from .photometry import (
     PhotometryHandler,
@@ -45,7 +67,10 @@ from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
 from .sharing import SharingHandler
-from .shift import ShiftHandler
+from .shift import (
+    ShiftHandler,
+    ShiftUserHandler,
+)
 from .source import (
     SourceHandler,
     SourceOffsetsHandler,
@@ -53,6 +78,7 @@ from .source import (
     SourceNotificationHandler,
     PS1ThumbnailHandler,
 )
+from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
 from .spectrum import (
     SpectrumHandler,
@@ -60,12 +86,14 @@ from .spectrum import (
     SpectrumASCIIFileParser,
     SpectrumASCIIFileHandler,
     SpectrumRangeHandler,
+    SyntheticPhotometryHandler,
 )
 from .stream import StreamHandler, StreamUserHandler
 from .sysinfo import SysInfoHandler
 from .config_handler import ConfigHandler
 from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
+from .tns import ObjTNSHandler, SpectrumTNSHandler, TNSRobotHandler
 from .thumbnail import ThumbnailHandler
 from .user import UserHandler
 from .unsourced_finder import UnsourcedFinderHandler

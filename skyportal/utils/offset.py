@@ -583,9 +583,7 @@ def get_formatted_standards_list(
         starlist.append(starlist_format["first_line"])
 
     df = pd.read_csv(standard_file, comment="#")
-    if not set(['name', 'ra', 'dec', 'epoch', 'comment']).issubset(
-        set(df.columns.values)
-    ):
+    if not {'name', 'ra', 'dec', 'epoch', 'comment'}.issubset(set(df.columns.values)):
         log("Error: Standard star CSV file is missing necessary headers.")
         return result
 

@@ -1,7 +1,7 @@
 import React, { Suspense, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
-import { Link, useHistory } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import TableCell from "@material-ui/core/TableCell";
 import TableRow from "@material-ui/core/TableRow";
@@ -36,6 +36,7 @@ import { ra_to_hours, dec_to_dms } from "../units";
 import ThumbnailList from "./ThumbnailList";
 import ShowClassification from "./ShowClassification";
 import SourceTableFilterForm from "./SourceTableFilterForm";
+import VegaPhotometry from "./VegaPhotometry";
 import FavoritesButton from "./FavoritesButton";
 import MultipleClassificationsForm from "./MultipleClassificationsForm";
 import * as sourceActions from "../ducks/source";
@@ -43,10 +44,8 @@ import * as sourcesActions from "../ducks/sources";
 import { filterOutEmptyValues } from "../API";
 import { getAnnotationValueString } from "./ScanningPageCandidateAnnotations";
 
-const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaSpectrum = React.lazy(() => import("./VegaSpectrum"));
 const VegaHR = React.lazy(() => import("./VegaHR"));
-const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
 
 const useStyles = makeStyles((theme) => ({
   comment: {
@@ -445,7 +444,7 @@ const SourceTable = ({
                     </div>
                   }
                 >
-                  <VegaPlot dataUrl={`/api/sources/${source.id}/photometry`} />
+                  <VegaPhotometry sourceId={source.id} />
                 </Suspense>
               )}
               {!source.photometry_exists && <div> no photometry exists </div>}
@@ -459,9 +458,7 @@ const SourceTable = ({
                     </div>
                   }
                 >
-                  <VegaFoldedPlot
-                    dataUrl={`/api/sources/${source.id}/photometry?phaseFoldData=True`}
-                  />
+                  <VegaPhotometry sourceId={source.id} folded />
                 </Suspense>
               )}
               {!source.photometry_exists && <div> no photometry exists </div>}
@@ -676,7 +673,7 @@ const SourceTable = ({
 
   // helper function to get the source groups
   const getGroups = (source) => source.groups?.filter((group) => group.active);
-  const history = useHistory();
+  const navigate = useNavigate();
 
   // This is just passed to MUI datatables options -- not meant to be instantiated directly.
   const renderGroups = (dataIndex) => {
@@ -690,7 +687,7 @@ const SourceTable = ({
               key={group.id}
               size="small"
               className={classes.chip}
-              onClick={() => history.push(`/group/${group.id}`)}
+              onClick={() => navigate(`/group/${group.id}`)}
             />
             <br />
           </div>

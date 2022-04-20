@@ -167,7 +167,7 @@ class CommentOnGCN(Base, CommentMixin):
     create = AccessibleIfRelatedRowsAreAccessible(gcn='read')
 
     read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        spectrum='read',
+        gcn='read',
     )
 
     update = delete = AccessibleIfUserMatches('author')

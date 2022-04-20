@@ -64,14 +64,15 @@ class _Base:
             "submit": cls._isimplemented('submit'),
             "send": cls._isimplemented('send'),
             "remove": cls._isimplemented('remove'),
+            "retrieve": cls._isimplemented('retrieve'),
         }
 
     # subclasses should not modify this
     @classmethod
-    def frontend_render_info(cls, instrument):
+    def frontend_render_info(cls, instrument, user):
 
         try:
-            formSchema = cls.custom_json_schema(instrument)
+            formSchema = cls.custom_json_schema(instrument, user)
         except AttributeError:
             formSchema = cls.form_json_schema
         return {

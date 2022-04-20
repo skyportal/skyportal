@@ -76,14 +76,14 @@ class ProfileHandler(BaseHandler):
             .filter(User.username == self.associated_user_object.username)
             .first()
         )
-        user_roles = sorted([role.id for role in user.roles])
-        user_acls = sorted([acl.id for acl in user.acls])
+        user_roles = sorted(role.id for role in user.roles)
+        user_acls = sorted(acl.id for acl in user.acls)
         user_permissions = sorted(user.permissions)
         user_tokens = [
             {
                 "id": token.id,
                 "name": token.name,
-                "acls": sorted([acl.id for acl in token.acls]),
+                "acls": sorted(acl.id for acl in token.acls),
                 "created_at": token.created_at,
             }
             for token in user.tokens

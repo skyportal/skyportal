@@ -73,9 +73,9 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+          curl -sL https://deb.nodesource.com/setup_17.x | sudo -E bash -
 
-          sudo apt install -y wget nodejs unzip firefox nginx
+          sudo apt install -y wget nodejs unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
           pip install pip==21.3.1
           pip install wheel numpy
@@ -84,7 +84,7 @@ jobs:
           export PATH=${NPM_PACKAGES}/bin:$PATH
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
-          sudo npm -g install npm@7.24.0
+          sudo npm -g install npm@latest
 
           which python; python --version
           echo npm $(npm --version)
