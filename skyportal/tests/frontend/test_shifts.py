@@ -2,14 +2,12 @@ from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
 from datetime import date, timedelta
 import uuid
+from selenium.common.exceptions import TimeoutException
 
 
 def test_super_user_post_shift(
     public_group, super_admin_token, super_admin_user, driver
 ):
-
-    driver.get(f"/become_user/{super_admin_user.id}")
-
     name = str(uuid.uuid4())
     start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
     end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
@@ -29,11 +27,22 @@ def test_super_user_post_shift(
     start_date = date.today().strftime("%m/%d/%Y")
     end_date = (date.today() + timedelta(days=1)).strftime("%m/%d/%Y")
 
+    driver.get(f"/become_user/{super_admin_user.id}")
     # go to the shift page
     driver.get("/shifts")
 
     # check for API shift
-    driver.wait_for_xpath(f'//*[text()[contains(.,"{name}")]]', timeout=20)
+    try:
+        driver.wait_for_xpath(
+            f'//*[@class="rbc-event-content"]/div/span/strong[contains(.,"{name}")]',
+            timeout=10,
+        )
+    except TimeoutException:
+        driver.refresh()
+        driver.wait_for_xpath(
+            f'//*[@class="rbc-event-content"]/div/span/strong[contains(.,"{name}")]',
+            timeout=10,
+        )
 
     form_name = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(form_name)
@@ -54,8 +63,10 @@ def test_super_user_post_shift(
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
 
-    # check for dropdown shift
-    event_shift_xpath = f'//*[text()[contains(.,"{form_name}")]]'
+    # check for shift in calendar and click it
+    event_shift_xpath = (
+        f'//*[@class="rbc-event-content"]/div/span/strong[contains(.,"{form_name}")]'
+    )
     driver.wait_for_xpath(event_shift_xpath)
     driver.click_xpath(event_shift_xpath)
 
@@ -72,14 +83,31 @@ def test_super_user_post_shift(
     driver.click_xpath(join_button_xpath)
 
     driver.wait_for_xpath_to_disappear(join_button_xpath)
-
     # check for delete shift button
     delete_button_xpath = '//*[@id="delete_button"]'
     driver.wait_for_xpath(delete_button_xpath)
     driver.click_xpath(delete_button_xpath)
-    driver.wait_for_xpath_to_disappear(f'//*[text()[contains(.,"{form_name}")]]')
+    driver.wait_for_xpath_to_disappear(
+        f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
+    )
+    driver.wait_for_xpath_to_disappear(
+        f'//*[@class="rbc-event-content"]/div/span/strong[contains(.,"{form_name}")]'
+    )
 
     assert (
-        len(driver.find_elements_by_xpath(f'//*[text()[contains(.,"{form_name}")]]'))
+        len(
+            driver.find_elements_by_xpath(
+                f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
+            )
+        )
+        == 0
+    )
+
+    assert (
+        len(
+            driver.find_elements_by_xpath(
+                f'//*[@class="rbc-event-content"]/div/span/strong[contains(.,"{form_name}")]'
+            )
+        )
         == 0
     )
