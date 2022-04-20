@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
@@ -6,8 +6,9 @@ import Button from "@material-ui/core/Button";
 import { makeStyles } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import NewTelescope from "./NewTelescope";
-import TelescopeMap from "./TelescopeMap";
 import TelescopeInfo from "./TelescopeInfo";
+// lazy import the TelescopeMap component
+const TelescopeMap = lazy(() => import("./TelescopeMap"));
 
 let dispatch;
 const useStyles = makeStyles((theme) => ({
@@ -101,7 +102,13 @@ const TelescopePage = () => {
     return style;
   }
   return (
-    <>
+    <Suspense
+      fallback={
+        <div>
+          <CircularProgress color="secondary" />
+        </div>
+      }
+    >
       <Grid container spacing={3}>
         <Grid item md={8} sm={12}>
           <Paper className={classes.paperContent}>
@@ -134,7 +141,7 @@ const TelescopePage = () => {
           </Paper>
         </Grid>
       </Grid>
-    </>
+    </Suspense>
   );
 };
 

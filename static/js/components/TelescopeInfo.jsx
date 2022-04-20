@@ -65,11 +65,15 @@ const TelescopeInfo = () => {
             ) : (
               <h3 className={classes.h3}>Robotic : No</h3>
             )}
-            <h3 className={classes.h3}>Diameter : {telescope.diameter} </h3>
+            <h3 className={classes.h3}>
+              Diameter : {telescope.diameter.toFixed(1)}{" "}
+            </h3>
             <h3 className={classes.h3}>
               Location : {telescope.lat.toFixed(4)}, {telescope.lon.toFixed(4)}
             </h3>
-            <h3 className={classes.h3}>Elevation : {telescope.elevation}</h3>
+            <h3 className={classes.h3}>
+              Elevation : {telescope.elevation.toFixed(1)}
+            </h3>
             {telescope.skycam_link && (
               <a className={classes.a} href={telescope.skycam_link}>
                 skycam link
