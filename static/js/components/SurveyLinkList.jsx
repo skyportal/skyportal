@@ -127,7 +127,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
         name="Aladin"
         url={`http://aladin.unistra.fr/AladinLite/?target=${ra_to_hours(ra, "%20")}${
           dec > 0 ? "%2B" : ""
-        }${dec_to_dms(dec, "%20")}&fov=0.01&survey=P%2FDSS2%2Fcolor`}
+        }${dec_to_dms(dec, "%20"}&fov=0.01&survey=P%2FDSS2%2Fcolor`}
       />
       <SurveyLink
         name="CFHT"
