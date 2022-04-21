@@ -17,7 +17,7 @@ const ra_to_hours = (ra, sep = null) => {
   return `${ra_h}h${ra_m}m${ra_s}s`;
 };
 
-const dec_to_dms = (deci, sep = null) => {
+const dec_to_dms = (deci, sep = null, signed = true) => {
   const dec = Math.abs(deci);
   const deg = Math.floor(dec);
   const deg_padded = numeral(deg).format("00");
@@ -26,6 +26,11 @@ const dec_to_dms = (deci, sep = null) => {
   const sec = (dec - deg - min / 60) * 3600;
   const secstr = numeral(sec).format("00.00");
   let sign = "+";
+
+  // this is for the case where the '+' sign needs to be omitted
+  if (!(deci < 0)&&(signed == false)) {
+    sign = "";
+  }
   if (deci < 0) {
     sign = "-";
   }
