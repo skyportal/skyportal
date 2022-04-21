@@ -169,7 +169,10 @@ class PS1API(FollowUpAPI):
             }
 
             url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/detections.csv"
-            r = requests.get(url, params=params)
+            try:
+                r = requests.get(url, params=params, timeout=5.0)  # timeout in seconds
+            except TimeoutError:
+                req.status = 'error: timeout'
 
             if r.status_code == 200:
                 try:
