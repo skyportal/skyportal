@@ -131,71 +131,71 @@ class PS1API(FollowUpAPI):
         Session = scoped_session(
             sessionmaker(bind=DBSession.session_factory.kw["bind"])
         )
-        session = Session()
 
-        req = (
-            session.query(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .one()
-        )
-
-        if req.status == "Photometry committed to database":
-            raise ValueError('Photometry already in database')
-
-        instrument = (
-            Instrument.query_records_accessible_by(request.requester)
-            .join(Allocation)
-            .join(FollowupRequest)
-            .filter(FollowupRequest.id == request.id)
-            .first()
-        )
-
-        content = req.transactions[0].response["content"]
-        tab = astropy.io.ascii.read(content)
-        objid = tab['objID'][0]
-
-        params = {
-            'objID': objid,
-            'columns': [
-                'detectID',
-                'filterID',
-                'obsTime',
-                'ra',
-                'dec',
-                'psfFlux',
-                'psfFluxerr',
-                'psfQfPerfect',
-            ],
-        }
-
-        url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/detections.csv"
-        r = requests.get(url, params=params)
-
-        if r.status_code == 200:
-            try:
-                text_response = r.text
-            except Exception:
-                raise ValueError('No text data returned in request')
-
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: commit_photometry(
-                    text_response, req.id, instrument.id, request.requester.id
-                ),
+        with Session() as session:
+            req = (
+                session.query(FollowupRequest)
+                .filter(FollowupRequest.id == request.id)
+                .one()
             )
-            req.status = "Committing photometry to database"
-        else:
-            req.status = f'error: {r.content}'
 
-        transaction = FacilityTransaction(
-            request=http.serialize_requests_request(r.request),
-            response=http.serialize_requests_response(r),
-            followup_request=req,
-            initiator_id=req.last_modified_by_id,
-        )
+            if req.status == "Photometry committed to database":
+                raise ValueError('Photometry already in database')
 
-        session.add(transaction)
-        session.commit()
+            instrument = (
+                Instrument.query_records_accessible_by(request.requester)
+                .join(Allocation)
+                .join(FollowupRequest)
+                .filter(FollowupRequest.id == request.id)
+                .first()
+            )
+
+            content = req.transactions[0].response["content"]
+            tab = astropy.io.ascii.read(content)
+            objid = tab['objID'][0]
+
+            params = {
+                'objID': objid,
+                'columns': [
+                    'detectID',
+                    'filterID',
+                    'obsTime',
+                    'ra',
+                    'dec',
+                    'psfFlux',
+                    'psfFluxerr',
+                    'psfQfPerfect',
+                ],
+            }
+
+            url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/detections.csv"
+            r = requests.get(url, params=params)
+
+            if r.status_code == 200:
+                try:
+                    text_response = r.text
+                except Exception:
+                    raise ValueError('No text data returned in request')
+
+                IOLoop.current().run_in_executor(
+                    None,
+                    lambda: commit_photometry(
+                        text_response, req.id, instrument.id, request.requester.id
+                    ),
+                )
+                req.status = "Committing photometry to database"
+            else:
+                req.status = f'error: {r.content}'
+
+            transaction = FacilityTransaction(
+                request=http.serialize_requests_request(r.request),
+                response=http.serialize_requests_response(r),
+                followup_request=req,
+                initiator_id=req.last_modified_by_id,
+            )
+
+            session.add(transaction)
+            session.commit()
 
     # subclasses *must* implement the method below
     @staticmethod
