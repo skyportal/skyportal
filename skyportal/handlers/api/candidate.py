@@ -74,6 +74,7 @@ def add_linked_thumbnails_and_push_ws_msg(obj_id, user_id):
             )
         except Exception as e:
             log(f"Unable to add linked thumbnails to {obj_id}: {e}")
+            session.rollback()
 
 
 def update_redshift_history_if_relevant(request_data, obj, user):

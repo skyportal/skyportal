@@ -106,6 +106,7 @@ def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
             )
         except Exception as e:
             log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
+            session.rollback()
 
 
 def paginate_summary_query(query, page, num_per_page, total_matches):
