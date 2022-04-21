@@ -3,13 +3,14 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
 import dayjs from "dayjs";
+import { useTheme } from "@material-ui/core/styles";
 
 import CircularProgress from "@material-ui/core/CircularProgress";
 
 import * as ephemerisActions from "../ducks/ephemeris";
 
-const airmassSpec = (url, ephemeris) => ({
-  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
+const airmassSpec = (url, ephemeris, titleFontSize, labelFontSize) => ({
+  $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
   background: "transparent",
   data: {
     url,
@@ -28,6 +29,8 @@ const airmassSpec = (url, ephemeris) => ({
       },
       axis: {
         grid: true,
+        titleFontSize,
+        labelFontSize,
       },
     },
     x: {
@@ -39,12 +42,14 @@ const airmassSpec = (url, ephemeris) => ({
       title: "time (UT)",
       axis: {
         grid: true,
+        titleFontSize,
+        labelFontSize,
       },
     },
   },
   transform: [
     {
-      calculate: "utcFormat(datum.time, '%Y-%m-%dT%H:%M:%S.%L')",
+      calculate: "toDate(utcFormat(datum.time, '%Y-%m-%dT%H:%M:%S.%L'))",
       as: "formattedDate",
     },
   ],
@@ -145,13 +150,23 @@ const airmassSpec = (url, ephemeris) => ({
 
 const AirmassPlot = React.memo((props) => {
   const { dataUrl, ephemeris } = props;
+  const theme = useTheme();
   return (
     <div
       ref={(node) => {
         if (node) {
-          embed(node, airmassSpec(dataUrl, ephemeris), {
-            actions: false,
-          });
+          embed(
+            node,
+            airmassSpec(
+              dataUrl,
+              ephemeris,
+              theme.plotFontSizes.titleFontSize,
+              theme.plotFontSizes.labelFontSize
+            ),
+            {
+              actions: false,
+            }
+          );
         }
       }}
     />

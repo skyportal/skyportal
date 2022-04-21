@@ -20,6 +20,7 @@ from bokeh.models import (
     CategoricalColorMapper,
     Legend,
     LegendItem,
+    Spinner,
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
@@ -724,6 +725,9 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     plot.add_tools(imhover)
 
     model_dict = {}
+    spinner = Spinner(
+        title="Data point size", low=1, high=40, step=0.5, value=4, width=80
+    )
 
     legend_items = []
     for i, (label, sdf) in enumerate(split):
@@ -739,11 +743,13 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             color='color',
             marker=factor_mark('instrument', markers, instruments),
             fill_color=color_dict,
+            fill_alpha=0.1,
             alpha='alpha',
             source=ColumnDataSource(df),
         )
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
+        spinner.js_link('value', model_dict[key].glyph, 'size')
 
         key = f'{label}~bin{i}'
         model_dict[key] = plot.scatter(
@@ -752,6 +758,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             color='color',
             marker=factor_mark('instrument', markers, instruments),
             fill_color=color_dict,
+            fill_alpha=0.1,
             source=ColumnDataSource(
                 data=dict(
                     mjd=[],
@@ -769,6 +776,8 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         )
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
+
+        spinner.js_link('value', model_dict[key].glyph, 'size')
 
         key = f'{label}~obserr{str(i)}'
         y_err_x = []
@@ -877,7 +886,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     layout = column(
         slider,
         plot,
-        make_clear_and_add_buttons(model_dict),
+        row(make_clear_and_add_buttons(model_dict), spinner),
         row(
             make_add_filter_group_form(split, model_dict, 'flux'),
             make_custom_buttons_div('flux'),
@@ -978,6 +987,9 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     imhover = HoverTool(tooltips=tooltip_format)
     imhover.renderers = []
     plot.add_tools(imhover)
+    spinner = Spinner(
+        title="Data point size", low=1, high=40, step=0.5, value=4, width=80
+    )
 
     model_dict = {}
 
@@ -999,13 +1011,14 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             y='lim_mag',
             color=color_dict,
             marker=factor_mark('instrument', markers, instruments),
-            fill_alpha=0.0,
+            fill_alpha=0.1,
             line_color=color_dict,
             alpha='alpha',
             source=ColumnDataSource(unobs_source),
         )
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
+        spinner.js_link('value', model_dict[key].glyph, 'size')
 
         key = f'{label}~obs{i}'
         model_dict[key] = plot.scatter(
@@ -1015,10 +1028,12 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             marker=factor_mark('instrument', markers, instruments),
             fill_color=color_dict,
             alpha='alpha',
+            fill_alpha=0.1,
             source=ColumnDataSource(df[df['obs']]),
         )
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
+        spinner.js_link('value', model_dict[key].glyph, 'size')
 
         key = f'{label}~bin{i}'
         model_dict[key] = plot.scatter(
@@ -1027,6 +1042,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             color=color_dict,
             marker=factor_mark('instrument', markers, instruments),
             fill_color='color',
+            fill_alpha=0.1,
             source=ColumnDataSource(
                 data=dict(
                     mjd=[],
@@ -1044,6 +1060,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         )
         renderers.append(model_dict[key])
         imhover.renderers.append(model_dict[key])
+        spinner.js_link('value', model_dict[key].glyph, 'size')
 
         key = f'{label}~obserr{str(i)}'
         y_err_x = []
@@ -1091,6 +1108,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             fill_color='white',
             line_color=color_dict,
             alpha=0.8,
+            fill_alpha=0.1,
             source=ColumnDataSource(
                 data=dict(
                     mjd=[],
@@ -1108,6 +1126,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         )
         imhover.renderers.append(model_dict[key])
         renderers.append(model_dict[key])
+        spinner.js_link('value', model_dict[key].glyph, 'size')
 
         key = f'all{i}'
         model_dict[key] = ColumnDataSource(df)
@@ -1179,7 +1198,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     layout = column(
         top_layout,
         plot,
-        make_clear_and_add_buttons(model_dict),
+        row(make_clear_and_add_buttons(model_dict), spinner),
         row(
             make_add_filter_group_form(split, model_dict, 'mag'),
             make_custom_buttons_div('mag'),
@@ -1252,6 +1271,9 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
         # store all the plot data
         period_model_dict = {}
+        spinner = Spinner(
+            title="Data point size", low=1, high=40, step=0.5, value=4, width=80
+        )
 
         # iterate over each filter
         legend_items = []
@@ -1270,6 +1292,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                     color='color',
                     marker=factor_mark('instrument', markers, instruments),
                     fill_color=color_dict,
+                    fill_alpha=0.1,
                     alpha='alpha',
                     # visible=('a' in ph),
                     source=ColumnDataSource(df[df['obs']]),  # only visible data
@@ -1277,6 +1300,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                 # add to hover tool
                 period_imhover.renderers.append(period_model_dict[key])
                 renderers.append(period_model_dict[key])
+                spinner.js_link('value', period_model_dict[key].glyph, 'size')
 
                 # errorbars for phases
                 key = label + '~fold' + ph + f'err{i}'
@@ -1422,7 +1446,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
         period_layout = column(
             period_plot,
-            make_clear_and_add_buttons(period_model_dict),
+            row(make_clear_and_add_buttons(period_model_dict), spinner),
             period_controls,
             row(
                 make_add_filter_group_form(split, period_model_dict, 'period'),
@@ -2038,7 +2062,9 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         column_checkboxes.js_on_click(callback_toggle_lines)
 
     second_to_last_column = all_column_checkboxes[-2]
-    clear_all_spectra = Button(name="Clear Spectra", label="Clear Spectra", width=100)
+    clear_all_spectra = Button(
+        name="Clear Spectra", label="Clear Spectra", width_policy="min"
+    )
     callback_clear_all_spectra = CustomJS(
         args={'model_dict': model_dict},
         code="""
@@ -2053,7 +2079,9 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     all_column_checkboxes[-2] = column(second_to_last_column, clear_all_spectra)
 
     third_to_last_column = all_column_checkboxes[-3]
-    add_all_spectra = Button(name="Add All Spectra", label="Add All Spectra", width=30)
+    add_all_spectra = Button(
+        name="Add All Spectra", label="Add All Spectra", width_policy="min"
+    )
     callback_add_all_spectra = CustomJS(
         args={'model_dict': model_dict},
         code="""
@@ -2069,7 +2097,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
 
     last_column = all_column_checkboxes[-1]
     reset_checkboxes_button = Button(
-        name="Reset Checkboxes", label="Reset Checkboxes", width=30
+        name="Reset Checkboxes", label="Reset Checkboxes", width_policy="min"
     )
     callback_reset_specs = CustomJS(
         args={

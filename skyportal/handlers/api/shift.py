@@ -136,13 +136,13 @@ class ShiftHandler(BaseHandler):
                 schema: Error
         """
         if group_id is not None:
-            shifts = (
+            queried_shifts = (
                 Shift.query_records_accessible_by(
                     self.current_user,
                     mode="read",
                     options=[
-                        joinedload(Shift.group).joinedload(Group.users),
-                        joinedload(Shift.users),
+                        joinedload(Shift.group).joinedload(Group.group_users),
+                        joinedload(Shift.shift_users),
                     ],
                 )
                 .filter(Shift.group_id == group_id)
@@ -150,18 +150,39 @@ class ShiftHandler(BaseHandler):
                 .all()
             )
         else:
-            shifts = (
+            queried_shifts = (
                 Shift.query_records_accessible_by(
                     self.current_user,
                     mode="read",
                     options=[
-                        joinedload(Shift.group).joinedload(Group.users),
-                        joinedload(Shift.users),
+                        joinedload(Shift.group).joinedload(Group.group_users),
+                        joinedload(Shift.shift_users),
                     ],
                 )
                 .order_by(Shift.start_date.asc())
                 .all()
             )
+        shifts = []
+        for shift in queried_shifts:
+            susers = []
+            for su in shift.shift_users:
+                user = su.user.to_dict()
+                user["admin"] = su.admin
+                del user["oauth_uid"]
+                susers.append(user)
+            gusers = []
+            for gu in shift.group.group_users:
+                user = gu.user.to_dict()
+                user["admin"] = gu.admin
+                del user["oauth_uid"]
+                gusers.append(user)
+
+            shift = shift.to_dict()
+            shift["shift_users"] = susers
+            shift["group"] = shift["group"].to_dict()
+            shift["group"]["group_users"] = gusers
+            shifts.append(shift)
+
         self.verify_and_commit()
         return self.success(data=shifts)
 
