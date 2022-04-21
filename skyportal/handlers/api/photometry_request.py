@@ -1,4 +1,5 @@
 from baselayer.app.access import auth_or_token
+
 from ..base import BaseHandler
 from ...models import (
     FollowupRequest,
@@ -25,22 +26,27 @@ class PhotometryRequestHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        followup_request = FollowupRequest.get_if_accessible_by(
-            request_id, self.current_user, mode="read", raise_if_none=True
-        )
 
-        api = followup_request.instrument.api_class
-        if not api.implements()['get']:
-            return self.error('Cannot retrieve requests on this instrument.')
+        try:
+            followup_request = FollowupRequest.get_if_accessible_by(
+                request_id, self.current_user, mode="read", raise_if_none=True
+            )
 
-        followup_request.last_modified_by_id = self.associated_user_object.id
-        internal_key = followup_request.obj.internal_key
+            api = followup_request.instrument.api_class
+            if not api.implements()['get']:
+                return self.error('Cannot retrieve requests on this instrument.')
 
-        api.get(followup_request)
-        self.verify_and_commit()
+            followup_request.last_modified_by_id = self.associated_user_object.id
+            internal_key = followup_request.obj.internal_key
 
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": internal_key},
-        )
-        return self.success()
+            api.get(followup_request)
+            self.verify_and_commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": internal_key},
+            )
+            return self.success()
+        except Exception as e:
+            # Remove this catch-all once we identify a more specific cause of uncaught errors
+            return self.error(f'Error retrieving photometry request: {e}')
