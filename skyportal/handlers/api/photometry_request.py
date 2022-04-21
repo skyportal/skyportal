@@ -1,8 +1,12 @@
 from baselayer.app.access import auth_or_token
+from baselayer.log import make_log
+
 from ..base import BaseHandler
 from ...models import (
     FollowupRequest,
 )
+
+log = make_log('api/photometry_request')
 
 
 class PhotometryRequestHandler(BaseHandler):
@@ -47,4 +51,5 @@ class PhotometryRequestHandler(BaseHandler):
             )
             return self.success()
         except Exception as e:
+            log(f"Unable to get photometry: {e}")
             return self.error(e.args[0])
