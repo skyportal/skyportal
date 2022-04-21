@@ -477,7 +477,11 @@ const SourceDesktop = ({ source }) => {
                       }
                     >
                       <Plot
-                        url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&height=600&cacheID=${specIDs}`}
+                        url={`/api/internal/plot/spectroscopy/${
+                          source.id
+                        }?width=${
+                          plotWidth !== 0 ? plotWidth : 800
+                        }&height=600&cacheID=${specIDs}`}
                       />
                     </Suspense>
                   )}
