@@ -152,8 +152,13 @@ You can add a user with such permissions by running the following from
 Python:
 
 ```
+from baselayer.app.config import load_config
+from baselayer.app.models import init_db
 from skyportal.model_util import make_super_user
-make_super_user('your@email.address.org')
+
+cfg = load_config()
+init_db(**cfg['database'])
+make_super_user('your_username_in_skyportal')
 ```
 
 ### Test data
