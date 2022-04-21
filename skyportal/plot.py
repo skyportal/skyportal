@@ -740,10 +740,10 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         model_dict[key] = plot.scatter(
             x='mjd',
             y='flux',
-            size=4,
             color='color',
             marker=factor_mark('instrument', markers, instruments),
             fill_color=color_dict,
+            fill_alpha=0.1,
             alpha='alpha',
             source=ColumnDataSource(df),
         )
@@ -755,10 +755,10 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         model_dict[key] = plot.scatter(
             x='mjd',
             y='flux',
-            size=4,
             color='color',
             marker=factor_mark('instrument', markers, instruments),
             fill_color=color_dict,
+            fill_alpha=0.1,
             source=ColumnDataSource(
                 data=dict(
                     mjd=[],
@@ -1011,7 +1011,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             y='lim_mag',
             color=color_dict,
             marker=factor_mark('instrument', markers, instruments),
-            fill_alpha=0.0,
+            fill_alpha=0.1,
             line_color=color_dict,
             alpha='alpha',
             source=ColumnDataSource(unobs_source),
@@ -1028,6 +1028,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             marker=factor_mark('instrument', markers, instruments),
             fill_color=color_dict,
             alpha='alpha',
+            fill_alpha=0.1,
             source=ColumnDataSource(df[df['obs']]),
         )
         renderers.append(model_dict[key])
@@ -1041,6 +1042,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             color=color_dict,
             marker=factor_mark('instrument', markers, instruments),
             fill_color='color',
+            fill_alpha=0.1,
             source=ColumnDataSource(
                 data=dict(
                     mjd=[],
@@ -1106,6 +1108,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             fill_color='white',
             line_color=color_dict,
             alpha=0.8,
+            fill_alpha=0.1,
             source=ColumnDataSource(
                 data=dict(
                     mjd=[],
@@ -1289,6 +1292,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
                     color='color',
                     marker=factor_mark('instrument', markers, instruments),
                     fill_color=color_dict,
+                    fill_alpha=0.1,
                     alpha='alpha',
                     # visible=('a' in ph),
                     source=ColumnDataSource(df[df['obs']]),  # only visible data
