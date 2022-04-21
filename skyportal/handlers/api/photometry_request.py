@@ -1,12 +1,9 @@
 from baselayer.app.access import auth_or_token
-from baselayer.log import make_log
 
 from ..base import BaseHandler
 from ...models import (
     FollowupRequest,
 )
-
-log = make_log('api/photometry_request')
 
 
 class PhotometryRequestHandler(BaseHandler):
