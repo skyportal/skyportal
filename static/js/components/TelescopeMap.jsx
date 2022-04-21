@@ -1,7 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useDispatch } from "react-redux";
-import { abs } from "mathjs";
 import {
   ComposableMap,
   Geographies,
@@ -34,15 +33,9 @@ function setCurrentTelescopes(currentTelescopes) {
 }
 
 function telescopelabel(nestedTelescope) {
-  let label = "";
-  if (nestedTelescope.telescopes.length === 1) {
-    label = nestedTelescope.telescopes[0].name;
-  } else {
-    label = nestedTelescope.telescopes
-      .map((telescope) => telescope.nickname)
-      .join(" / ");
-  }
-  return label;
+  return nestedTelescope.telescopes
+    .map((telescope) => telescope.nickname)
+    .join(" / ");
 }
 
 function TelescopeMarker({ nestedTelescope, position }) {
@@ -67,11 +60,11 @@ function TelescopeMarker({ nestedTelescope, position }) {
 }
 
 function normalizeLongitudeDiff(alpha, beta) {
-  return 180 - abs(abs(alpha - beta) - 180);
+  return 180 - Math.abs(Math.abs(alpha - beta) - 180);
 }
 
 function normalizeLatitudeDiff(alpha, beta) {
-  return abs(alpha - beta);
+  return Math.abs(alpha - beta);
 }
 
 const TelescopeMap = ({ telescopes }) => {
