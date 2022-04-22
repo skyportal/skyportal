@@ -20,6 +20,7 @@ from bokeh.models import (
     CategoricalColorMapper,
     Legend,
     LegendItem,
+    Dropdown,
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
@@ -1759,6 +1760,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
 
     model_dict = {}
     legend_items = []
+    label_dict = {}
     for i, (key, df) in enumerate(split):
 
         renderers = []
@@ -1767,6 +1769,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             label = s.label
         else:
             label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
+        label_dict[label] = i
         model_dict['s' + str(i)] = plot.step(
             x='wavelength',
             y='flux',
@@ -2136,6 +2139,31 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
                 """,
         ),
     )
+    print(label_dict)
+
+    on_top_spectra_dropdown = Dropdown(
+        label="Select on top spectra",
+        menu=[legend_item.label['value'] for legend_item in legend_items],
+        width_policy="min",
+    )
+    on_top_spectra_dropdown.js_on_event(
+        "menu_item_click",
+        CustomJS(
+            args={'model_dict': model_dict, 'label_dict': label_dict},
+            code="""
+            for (const[key, value] of Object.entries(model_dict)) {
+                console.log(label_dict[this.item])
+                if (!key.startsWith('element_') && (key.charAt(key.length - 1) === label_dict[this.item].toString())) {
+                    value.level = 'glyph'
+                }
+                else {
+                    value.level = 'underlay'
+                }
+            }
+            """,
+        ),
+    )
+
     row2 = row(all_column_checkboxes)
     row3 = (
         column(z, v_exp, smooth_column)
@@ -2145,6 +2173,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     return column(
         plot,
         row2,
+        on_top_spectra_dropdown,
         row3,
         sizing_mode='stretch_width',
         width=width,
