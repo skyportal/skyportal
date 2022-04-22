@@ -2139,7 +2139,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             args={'model_dict': model_dict, 'label_dict': label_dict},
             code="""
             for (const[key, value] of Object.entries(model_dict)) {
-                console.log(label_dict[this.item])
                 if (!key.startsWith('element_') && (key.charAt(key.length - 1) === label_dict[this.item].toString())) {
                     value.level = 'glyph'
                 }
