@@ -1782,6 +1782,16 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         active_drag=active_drag,
     )
 
+    # https://docs.bokeh.org/en/latest/docs/user_guide/styling.html#setting-render-levels
+    # image is the lowest render level in bokeh plots, set all of the grid lines to this lowest level
+    # so we can use the 'underlay' and 'glyph' levels for the spectra.
+    for grid in plot.grid:
+        grid.level = "image"
+    for grid in plot.xgrid:
+        grid.level = "image"
+    for grid in plot.ygrid:
+        grid.level = "image"
+
     model_dict = {}
     legend_items = []
     label_dict = {}
