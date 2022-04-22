@@ -1,4 +1,5 @@
 import os
+from socket import timeout
 import uuid
 import pandas as pd
 import time
@@ -37,7 +38,7 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
 
     # check for API telescope in the map
     marker_xpath = f'//*[@class="rsm-svg "]/*/*/*[@id="telescope_marker"]/*[@id="telescopes_label"][contains(.,"{telescope_name}")]'
-    driver.wait_for_xpath(marker_xpath)
+    driver.wait_for_xpath(marker_xpath, timeout=30)
     driver.click_xpath(marker_xpath)
     # check for API telescope in the list
     driver.wait_for_xpath(f'//*[@id="{telescope_name}_info"]')
@@ -64,7 +65,7 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
 
     # check for form telescope in the map
     marker_xpath = f'//*[@class="rsm-svg "]/*/*/*[@id="telescope_marker"]/*[@id="telescopes_label"][contains(.,"{name2}")]'
-    driver.wait_for_xpath(marker_xpath)
+    driver.wait_for_xpath(marker_xpath, timeout=30)
     driver.click_xpath(marker_xpath)
     # check for form telescope in the list
     driver.wait_for_xpath(f'//*[@id="{name2}_info"]')
