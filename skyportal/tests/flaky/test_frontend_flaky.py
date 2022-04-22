@@ -1,6 +1,5 @@
 import os
 import uuid
-import pytest
 import pandas as pd
 import time
 from regions import Regions
