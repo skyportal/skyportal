@@ -2040,7 +2040,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
         column_checkboxes.js_on_click(callback_toggle_lines)
 
-    second_to_last_column = all_column_checkboxes[-2]
     clear_all_spectra = Button(
         name="Clear Spectra", label="Clear Spectra", width_policy="min"
     )
@@ -2055,9 +2054,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         """,
     )
     clear_all_spectra.js_on_click(callback_clear_all_spectra)
-    all_column_checkboxes[-2] = column(second_to_last_column, clear_all_spectra)
 
-    third_to_last_column = all_column_checkboxes[-3]
     add_all_spectra = Button(
         name="Add All Spectra", label="Add All Spectra", width_policy="min"
     )
@@ -2072,30 +2069,21 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         """,
     )
     add_all_spectra.js_on_click(callback_add_all_spectra)
-    all_column_checkboxes[-3] = column(third_to_last_column, add_all_spectra)
 
-    last_column = all_column_checkboxes[-1]
     reset_checkboxes_button = Button(
         name="Reset Checkboxes", label="Reset Checkboxes", width_policy="min"
     )
     callback_reset_specs = CustomJS(
         args={
             'all_column_checkboxes': all_column_checkboxes,
-            'last_column': last_column,
-            'second_to_last_column': second_to_last_column,
-            'third_to_last_column': third_to_last_column,
         },
         code=f"""
-            for (let i = 0; i < {len(all_column_checkboxes) - 3}; i++) {{
+            for (let i = 0; i < {len(all_column_checkboxes)}; i++) {{
                 all_column_checkboxes[i].active = [];
             }}
-            last_column.active = [];
-            second_to_last_column.active = [];
-            third_to_last_column.active = [];
         """,
     )
     reset_checkboxes_button.js_on_click(callback_reset_specs)
-    all_column_checkboxes[-1] = column(last_column, reset_checkboxes_button)
 
     # Move spectral lines when redshift or velocity changes
     speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
@@ -2139,7 +2127,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
                 """,
         ),
     )
-    print(label_dict)
 
     on_top_spectra_dropdown = Dropdown(
         label="Select on top spectra",
@@ -2164,7 +2151,13 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         ),
     )
 
-    row2 = row(all_column_checkboxes)
+    row1 = row(all_column_checkboxes)
+    row2 = row(
+        on_top_spectra_dropdown,
+        add_all_spectra,
+        clear_all_spectra,
+        reset_checkboxes_button,
+    )
     row3 = (
         column(z, v_exp, smooth_column)
         if "mobile" in device
@@ -2172,8 +2165,8 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     )
     return column(
         plot,
+        row1,
         row2,
-        on_top_spectra_dropdown,
         row3,
         sizing_mode='stretch_width',
         width=width,
