@@ -28,7 +28,7 @@ const dec_to_dms = (deci, sep = null, signed = true) => {
   let sign = "+";
 
   // this is for the case where the '+' sign needs to be omitted
-  if (!(deci < 0)&&(signed == false)) {
+  if (!(deci < 0)&&(signed === false)) {
     sign = "";
   }
   if (deci < 0) {
