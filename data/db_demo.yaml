@@ -112,8 +112,8 @@ telescope:
     =id: P60
   - name: Nordic Optical Telescope
     nickname: NOT
-    lat: 28.75
-    lon: 17.88
+    lat: 28.7572
+    lon: -17.8851
     robotic: true
     elevation: 2000
     diameter: 2.56
@@ -179,11 +179,12 @@ telescope:
     nickname: Swift
     name: Swift
     skycam_link: null
+    fixed_location: false
     =id: Swift
   - diameter: 1.8
     elevation: 4215.0
-    lat: 204.5317
-    lon: 19.825
+    lat: 19.825
+    lon: 204.5317
     name: PAN-STARRS 1.8m
     nickname: PS1
     skycam_link: null
