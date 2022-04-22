@@ -36,7 +36,7 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
     driver.get("/telescopes")
 
     # check for API telescope in the map
-    marker_xpath = f'//*[@id="telescopes_label"][contains(.,"{telescope_name}")]'
+    marker_xpath = f'//*[@class="rsm-svg "]/*/*/*[@id="telescope_marker"]/*[@id="telescopes_label"][contains(.,"{telescope_name}")]'
     driver.wait_for_xpath(marker_xpath)
     driver.click_xpath(marker_xpath)
     # check for API telescope in the list
@@ -63,7 +63,7 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
     driver.click_xpath(submit_button_xpath)
 
     # check for form telescope in the map
-    marker_xpath = f'//*[@id="telescopes_label"][contains(.,"{name2}")]'
+    marker_xpath = f'//*[@class="rsm-svg "]/*/*/*[@id="telescope_marker"]/*[@id="telescopes_label"][contains(.,"{name2}")]'
     driver.wait_for_xpath(marker_xpath)
     driver.click_xpath(marker_xpath)
     # check for form telescope in the list
@@ -98,7 +98,9 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
     driver.get("/telescopes")
 
     # check for API instrument
-    driver.wait_for_xpath(f'//span[text()="{telescope_name}"]')
+    driver.wait_for_xpath(
+        f'//*[@class="MuiList-root MuiList-padding"]/*/*/span[text()="{telescope_name}"]'
+    )
 
     # add dropdown instrument
     name2 = str(uuid.uuid4())
@@ -115,7 +117,9 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
     driver.click_xpath(submit_button_xpath)
 
     # check for dropdown instrument
-    driver.wait_for_xpath(f'//span[text()="{name2}"]')
+    driver.wait_for_xpath(
+        f'//*[@class="MuiList-root MuiList-padding"]/*/*/span[text()="{name2}"]'
+    )
 
     driver.set_window_position(0, 0)
     driver.set_window_size(1920, 1080)
