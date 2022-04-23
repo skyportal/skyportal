@@ -46,6 +46,10 @@ class UserNotification(Base):
         doc="The notification text to display",
     )
 
+    notification_type = sa.Column(
+        sa.String(), nullable=True, doc="Type of notification"
+    )
+
     viewed = sa.Column(
         sa.Boolean,
         nullable=False,
@@ -87,17 +91,13 @@ def send_slack_notification(mapper, connection, target):
         f'http://127.0.0.1:{cfg.get("slack.microservice_port", 64100)}'
     )
 
-    is_mention = target.text.find("mentioned you") != -1
-    is_gcnnotice = target.text.find("on GcnEvent") != -1
-    is_facility_transaction = target.text.find("submission") != -1
-
-    if is_mention:
+    if target.notification_type == "mention":
         if not target.user.preferences['slack_integration'].get("mentions", False):
             return
-    elif is_gcnnotice:
+    elif target.notification_type == "gcnNotice":
         if not target.user.preferences['slack_integration'].get("gcnnotices", False):
             return
-    elif is_facility_transaction:
+    elif target.notification_type == "facilityTransaction":
         if not target.user.preferences['slack_integration'].get(
             "facilitytransactions", False
         ):
@@ -168,6 +168,7 @@ def add_user_notifications(mapper, connection, target):
                         UserNotification(
                             user=user,
                             text=f"New {target.__class__.__name__.lower()} on GcnEvent *{target.dateobs}*",
+                            notification_type="gcnNotice",
                             url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
                         )
                     )
@@ -184,6 +185,7 @@ def add_user_notifications(mapper, connection, target):
                             UserNotification(
                                 user=user,
                                 text=f"New observation plan submission for GcnEvent *{localization.dateobs}* by *{instrument.name}*",
+                                notification_type="facilityTransaction",
                                 url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
                             )
                         )
@@ -195,6 +197,7 @@ def add_user_notifications(mapper, connection, target):
                             UserNotification(
                                 user=user,
                                 text=f"New follow-up submission for object *{target.followup_request.obj_id}* by *{instrument.name}*",
+                                notification_type="facilityTransaction",
                                 url=f"/source/{target.followup_request.obj_id}",
                             )
                         )
