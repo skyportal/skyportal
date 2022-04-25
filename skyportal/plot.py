@@ -20,6 +20,7 @@ from bokeh.models import (
     CategoricalColorMapper,
     Legend,
     LegendItem,
+    Dropdown,
     Spinner,
 )
 from bokeh.models.widgets import (
@@ -1781,8 +1782,19 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         active_drag=active_drag,
     )
 
+    # https://docs.bokeh.org/en/latest/docs/user_guide/styling.html#setting-render-levels
+    # image is the lowest render level in bokeh plots, set all of the grid lines to this lowest level
+    # so we can use the 'underlay' and 'glyph' levels for the spectra.
+    for grid in plot.grid:
+        grid.level = "image"
+    for grid in plot.xgrid:
+        grid.level = "image"
+    for grid in plot.ygrid:
+        grid.level = "image"
+
     model_dict = {}
     legend_items = []
+    label_dict = {}
     for i, (key, df) in enumerate(split):
 
         renderers = []
@@ -1791,6 +1803,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             label = s.label
         else:
             label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
+        label_dict[label] = i
         model_dict['s' + str(i)] = plot.step(
             x='wavelength',
             y='flux',
@@ -2061,7 +2074,6 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
         column_checkboxes.js_on_click(callback_toggle_lines)
 
-    second_to_last_column = all_column_checkboxes[-2]
     clear_all_spectra = Button(
         name="Clear Spectra", label="Clear Spectra", width_policy="min"
     )
@@ -2076,9 +2088,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         """,
     )
     clear_all_spectra.js_on_click(callback_clear_all_spectra)
-    all_column_checkboxes[-2] = column(second_to_last_column, clear_all_spectra)
 
-    third_to_last_column = all_column_checkboxes[-3]
     add_all_spectra = Button(
         name="Add All Spectra", label="Add All Spectra", width_policy="min"
     )
@@ -2093,30 +2103,21 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         """,
     )
     add_all_spectra.js_on_click(callback_add_all_spectra)
-    all_column_checkboxes[-3] = column(third_to_last_column, add_all_spectra)
 
-    last_column = all_column_checkboxes[-1]
     reset_checkboxes_button = Button(
         name="Reset Checkboxes", label="Reset Checkboxes", width_policy="min"
     )
     callback_reset_specs = CustomJS(
         args={
             'all_column_checkboxes': all_column_checkboxes,
-            'last_column': last_column,
-            'second_to_last_column': second_to_last_column,
-            'third_to_last_column': third_to_last_column,
         },
         code=f"""
-            for (let i = 0; i < {len(all_column_checkboxes) - 3}; i++) {{
+            for (let i = 0; i < {len(all_column_checkboxes)}; i++) {{
                 all_column_checkboxes[i].active = [];
             }}
-            last_column.active = [];
-            second_to_last_column.active = [];
-            third_to_last_column.active = [];
         """,
     )
     reset_checkboxes_button.js_on_click(callback_reset_specs)
-    all_column_checkboxes[-1] = column(last_column, reset_checkboxes_button)
 
     # Move spectral lines when redshift or velocity changes
     speclines = {f'specline_{i}': line for i, line in enumerate(shifting_elements)}
@@ -2160,7 +2161,36 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
                 """,
         ),
     )
-    row2 = row(all_column_checkboxes)
+
+    on_top_spectra_dropdown = Dropdown(
+        label="Select on top spectra",
+        menu=[legend_item.label['value'] for legend_item in legend_items],
+        width_policy="min",
+    )
+    on_top_spectra_dropdown.js_on_event(
+        "menu_item_click",
+        CustomJS(
+            args={'model_dict': model_dict, 'label_dict': label_dict},
+            code="""
+            for (const[key, value] of Object.entries(model_dict)) {
+                if (!key.startsWith('element_') && (key.charAt(key.length - 1) === label_dict[this.item].toString())) {
+                    value.level = 'glyph'
+                }
+                else {
+                    value.level = 'underlay'
+                }
+            }
+            """,
+        ),
+    )
+
+    row1 = row(all_column_checkboxes)
+    row2 = row(
+        on_top_spectra_dropdown,
+        add_all_spectra,
+        clear_all_spectra,
+        reset_checkboxes_button,
+    )
     row3 = (
         column(z, v_exp, smooth_column)
         if "mobile" in device
@@ -2168,6 +2198,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     )
     return column(
         plot,
+        row1,
         row2,
         row3,
         sizing_mode='stretch_width',
