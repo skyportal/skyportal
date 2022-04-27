@@ -344,6 +344,19 @@ class FollowupRequestHandler(BaseHandler):
               type: string
             description: |
               String to match status of request against
+          - in: query
+            name: numPerPage
+            nullable: true
+            schema:
+              type: integer
+            description: |
+              Number of followup requests to return per paginated request. Defaults to 100
+          - in: query
+            name: pageNumber
+            nullable: true
+            schema:
+              type: integer
+            description: Page number for paginated query results. Defaults to 1
           responses:
             200:
               content:
@@ -359,6 +372,18 @@ class FollowupRequestHandler(BaseHandler):
         end_date = self.get_query_argument('endDate', None)
         sourceID = self.get_query_argument('sourceID', None)
         status = self.get_query_argument('status', None)
+        page_number = self.get_query_argument("pageNumber", None) or 100
+        n_per_page = self.get_query_argument("numPerPage", None)
+
+        try:
+            page_number = int(page_number)
+        except ValueError:
+            return self.error("Invalid page number value.")
+        try:
+            if n_per_page is not None:
+                n_per_page = int(n_per_page)
+        except ValueError:
+            return self.error("Invalid numPerPage value.")
 
         # get owned assignments
         followup_requests = FollowupRequest.query_records_accessible_by(
@@ -412,9 +437,25 @@ class FollowupRequestHandler(BaseHandler):
             joinedload(FollowupRequest.allocation).joinedload(Allocation.group),
             joinedload(FollowupRequest.obj),
             joinedload(FollowupRequest.requester),
-        ).all()
+        )
+
+        total_matches = followup_requests.count()
+        if n_per_page is not None:
+            followup_requests = followup_requests.limit(n_per_page).offset(
+                (page_number - 1) * n_per_page
+            )
+        followup_requests = followup_requests.all()
+
+        print(followup_requests)
+        print(len(followup_requests))
+        print(n_per_page, page_number - 1)
+        print(total_matches)
+
+        info = {}
+        info["followup_requests"] = [req.to_dict() for req in followup_requests]
+        info["totalMatches"] = int(total_matches)
         self.verify_and_commit()
-        return self.success(data=followup_requests)
+        return self.success(data=info)
 
     @permissions(["Upload data"])
     def post(self):
