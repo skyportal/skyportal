@@ -11,9 +11,6 @@ const REFRESH_FOLLOWUP_REQUESTS = "skyportal/REFRESH_FOLLOWUP_REQUESTS";
 const PRIORITIZE_FOLLOWUP_REQUESTS = "skyportal/FETCH_FOLLOWUP_REQUESTS";
 
 export function fetchFollowupRequests(params = {}) {
-  if (!Object.keys(params).includes("pageNumber")) {
-    params.pageNumber = 1;
-  }
   if (!Object.keys(params).includes("numPerPage")) {
     params.numPerPage = 10;
   }
