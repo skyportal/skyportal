@@ -350,7 +350,7 @@ class FollowupRequestHandler(BaseHandler):
             schema:
               type: integer
             description: |
-              Number of followup requests to return per paginated request. Defaults to 100
+              Number of followup requests to return per paginated request. Defaults to 10
           - in: query
             name: pageNumber
             nullable: true
@@ -372,8 +372,8 @@ class FollowupRequestHandler(BaseHandler):
         end_date = self.get_query_argument('endDate', None)
         sourceID = self.get_query_argument('sourceID', None)
         status = self.get_query_argument('status', None)
-        page_number = self.get_query_argument("pageNumber", None) or 100
-        n_per_page = self.get_query_argument("numPerPage", None)
+        page_number = self.get_query_argument("pageNumber", 1)
+        n_per_page = self.get_query_argument("numPerPage", 10)
 
         try:
             page_number = int(page_number)
@@ -445,11 +445,6 @@ class FollowupRequestHandler(BaseHandler):
                 (page_number - 1) * n_per_page
             )
         followup_requests = followup_requests.all()
-
-        print(followup_requests)
-        print(len(followup_requests))
-        print(n_per_page, page_number - 1)
-        print(total_matches)
 
         info = {}
         info["followup_requests"] = [req.to_dict() for req in followup_requests]
