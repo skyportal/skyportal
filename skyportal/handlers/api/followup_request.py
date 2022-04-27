@@ -350,7 +350,7 @@ class FollowupRequestHandler(BaseHandler):
             schema:
               type: integer
             description: |
-              Number of followup requests to return per paginated request. Defaults to 100
+              Number of followup requests to return per paginated request. Defaults to 100. Can be no larger than 1000.
           - in: query
             name: pageNumber
             nullable: true
@@ -384,6 +384,9 @@ class FollowupRequestHandler(BaseHandler):
                 n_per_page = int(n_per_page)
         except ValueError:
             return self.error("Invalid numPerPage value.")
+
+        if n_per_page > 1000:
+            return self.error('numPerPage should be no larger than 1000.')
 
         # get owned assignments
         followup_requests = FollowupRequest.query_records_accessible_by(
@@ -440,11 +443,6 @@ class FollowupRequestHandler(BaseHandler):
         )
 
         total_matches = followup_requests.count()
-        if total_matches > 1000:
-            return self.error(
-                f'More than 1000 followup requests ({total_matches}) match your request... please make your query more restrictive and try again'
-            )
-
         if n_per_page is not None:
             followup_requests = followup_requests.limit(n_per_page).offset(
                 (page_number - 1) * n_per_page
