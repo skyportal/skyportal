@@ -350,7 +350,7 @@ class FollowupRequestHandler(BaseHandler):
             schema:
               type: integer
             description: |
-              Number of followup requests to return per paginated request. Defaults to 10
+              Number of followup requests to return per paginated request. Defaults to 100
           - in: query
             name: pageNumber
             nullable: true
@@ -373,7 +373,7 @@ class FollowupRequestHandler(BaseHandler):
         sourceID = self.get_query_argument('sourceID', None)
         status = self.get_query_argument('status', None)
         page_number = self.get_query_argument("pageNumber", 1)
-        n_per_page = self.get_query_argument("numPerPage", 10)
+        n_per_page = self.get_query_argument("numPerPage", 100)
 
         try:
             page_number = int(page_number)
@@ -440,6 +440,11 @@ class FollowupRequestHandler(BaseHandler):
         )
 
         total_matches = followup_requests.count()
+        if total_matches > 1000:
+            return self.error(
+                f'More than 1000 followup requests ({total_matches}) match your request... please make your query more restrictive and try again'
+            )
+
         if n_per_page is not None:
             followup_requests = followup_requests.limit(n_per_page).offset(
                 (page_number - 1) * n_per_page
