@@ -87,7 +87,7 @@ const FollowupRequestLists = ({
   totalMatches,
   handleTableChange = false,
   pageNumber = 1,
-  numPerPage = 25,
+  numPerPage = 10,
   showObject = false,
   serverSide = false,
 }) => {
