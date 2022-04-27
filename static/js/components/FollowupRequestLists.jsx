@@ -279,7 +279,7 @@ const FollowupRequestLists = ({
     enableNestedDataAccess: ".",
     elevation: 0,
     page: pageNumber - 1,
-    rowPerPage: numPerPage,
+    rowsPerPage: numPerPage,
     rowsPerPageOptions: [10, 25, 50, 100],
     jumpToPage: true,
     serverSide,
