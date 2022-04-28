@@ -186,22 +186,29 @@ const FollowupRequestForm = ({
         groupIDs={selectedGroupIds}
       />
       <div data-testid="followup-request-form">
-        <Form
-          schema={
-            instrumentFormParams[
-              allocationLookUp[selectedAllocationId].instrument_id
-            ].formSchema
-          }
-          uiSchema={
-            instrumentFormParams[
-              allocationLookUp[selectedAllocationId].instrument_id
-            ].uiSchema
-          }
-          liveValidate
-          validate={validate}
-          onSubmit={handleSubmit}
-          disabled={isSubmitting}
-        />
+        {allocationLookUp[selectedAllocationId].instrument_id in
+        instrumentFormParams ? (
+          <Form
+            schema={
+              instrumentFormParams[
+                allocationLookUp[selectedAllocationId].instrument_id
+              ].formSchema
+            }
+            uiSchema={
+              instrumentFormParams[
+                allocationLookUp[selectedAllocationId].instrument_id
+              ].uiSchema
+            }
+            liveValidate
+            validate={validate}
+            onSubmit={handleSubmit}
+            disabled={isSubmitting}
+          />
+        ) : (
+          <div className={classes.marginTop}>
+            <CircularProgress />
+          </div>
+        )}
         {isSubmitting && (
           <div className={classes.marginTop}>
             <CircularProgress />
