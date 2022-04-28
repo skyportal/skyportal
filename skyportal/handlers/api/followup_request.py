@@ -32,6 +32,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.log import make_log
+
 from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
@@ -52,6 +54,9 @@ from sqlalchemy.orm import joinedload
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 
 MAX_FOLLOWUP_REQUESTS = 1000
+
+
+log = make_log('api/followup_requests')
 
 
 class AssignmentHandler(BaseHandler):
@@ -118,6 +123,8 @@ class AssignmentHandler(BaseHandler):
         out_json = ClassicalAssignment.__schema__().dump(assignments, many=True)
 
         # calculate when the targets rise and set
+        log(f"Assignment length = {len(assignments)}")
+
         for json_obj, assignment in zip(out_json, assignments):
             json_obj['rise_time_utc'] = assignment.rise_time.isot
             json_obj['set_time_utc'] = assignment.set_time.isot
@@ -369,7 +376,17 @@ class FollowupRequestHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+        if followup_request_id is None:
+            log(
+                "Called FollowupRequestHandler without followup_request_id. Erroring on purpose."
+            )
+            return self.error(
+                "Sorry: the FollowupRequest service has been temporarily disabled."
+            )
 
+        log(
+            f"Called FollowupRequestHandler with followup_request_id={followup_request_id}"
+        )
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
         sourceID = self.get_query_argument('sourceID', None)
@@ -515,6 +532,8 @@ class FollowupRequestHandler(BaseHandler):
                 group_id, self.current_user, raise_if_none=True
             )
             target_groups.append(g)
+
+        log(f"target groups length = {len(target_groups)}")
 
         try:
             formSchema = instrument.api_class.custom_json_schema(
@@ -727,6 +746,7 @@ def observation_schedule(
 
     blocks = []
     read_out = 10.0 * u.s
+    log(f"followup_request length = {len(followup_requests)}")
 
     for ii, followup_request in enumerate(followup_requests):
         obj = followup_request.obj
@@ -981,7 +1001,6 @@ class FollowupRequestSchedulerHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        return self.error('Closed for renovations. ')
         instrument = (
             Instrument.query_records_accessible_by(
                 self.current_user,
@@ -1052,6 +1071,10 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             joinedload(FollowupRequest.obj),
             joinedload(FollowupRequest.requester),
         ).all()
+
+        log(
+            f"followup_request length in FollowupRequestSchedulerHandler = {len(followup_requests)}"
+        )
 
         if len(followup_requests) == 0:
             return self.error('Need at least one observation to schedule.')
@@ -1141,6 +1164,8 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
             return self.error(message=f"Missing localization with id {localization_id}")
 
         followup_requests = []
+
+        log(f"request_id length = {len(request_ids)}")
         for request_id in request_ids:
             # get owned assignments
             followup_request = FollowupRequest.get_if_accessible_by(
@@ -1193,6 +1218,7 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
         ]
 
         with DBSession() as session:
+            log(f"request_id length (in DBsession) = {len(request_ids)}")
             for request_id, priority in zip(request_ids, priorities):
                 # get owned assignments
                 followup_request = session.query(FollowupRequest).get(request_id)
