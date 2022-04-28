@@ -79,7 +79,7 @@ const FollowupRequestForm = ({
         apiType: "api_classname",
       })
     );
-  }, [setSelectedAllocationId, setSelectedGroupIds]);
+  }, [setSelectedAllocationId, setSelectedGroupIds, dispatch]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
@@ -221,9 +221,9 @@ FollowupRequestForm.propTypes = {
     })
   ).isRequired,
   instrumentFormParams: PropTypes.shape({
-    formSchema: PropTypes.objectOf(PropTypes.any),
-    uiSchema: PropTypes.objectOf(PropTypes.any),
-    implementedMethods: PropTypes.objectOf(PropTypes.any),
+    formSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    uiSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    implementedMethods: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
   }).isRequired,
 };
 

@@ -139,6 +139,14 @@ const FollowupRequestLists = ({
   });
 
   const getDataTableColumns = (keys, instrument_id) => {
+    const columns = [
+      { name: "requester.username", label: "Requester" },
+      { name: "allocation.group.name", label: "Allocation" },
+    ];
+
+    if (!(instrument_id in instrumentFormParams)) {
+      return columns;
+    }
     const implementsDelete =
       instrumentFormParams[instrument_id].methodsImplemented.delete;
     const implementsEdit =
@@ -146,11 +154,6 @@ const FollowupRequestLists = ({
     const implementsGet =
       instrumentFormParams[instrument_id].methodsImplemented.get;
     const modifiable = implementsEdit || implementsDelete || implementsGet;
-
-    const columns = [
-      { name: "requester.username", label: "Requester" },
-      { name: "allocation.group.name", label: "Allocation" },
-    ];
 
     if (showObject) {
       const renderObj = (dataIndex) => {
