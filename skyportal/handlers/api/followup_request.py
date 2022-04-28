@@ -383,7 +383,7 @@ class FollowupRequestHandler(BaseHandler):
             return self.error("Invalid page number value.")
         try:
             n_per_page = int(n_per_page)
-        except TypeError:
+        except ValueError, TypeError:
             return self.error("Invalid numPerPage value.")
 
         if n_per_page > MAX_FOLLOWUP_REQUESTS:
