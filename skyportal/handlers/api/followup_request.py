@@ -51,6 +51,8 @@ from sqlalchemy.orm import joinedload
 
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 
+MAX_FOLLOWUP_REQUESTS = 1000
+
 
 class AssignmentHandler(BaseHandler):
     @auth_or_token
@@ -289,7 +291,7 @@ class AssignmentHandler(BaseHandler):
 class FollowupRequestHandler(BaseHandler):
     @auth_or_token
     def get(self, followup_request_id=None):
-        """
+        f"""
         ---
         single:
           description: Retrieve a followup request
@@ -350,7 +352,7 @@ class FollowupRequestHandler(BaseHandler):
             schema:
               type: integer
             description: |
-              Number of followup requests to return per paginated request. Defaults to 100. Can be no larger than 1000.
+              Number of followup requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_FOLLOWUP_REQUESTS}.
           - in: query
             name: pageNumber
             nullable: true
@@ -380,13 +382,14 @@ class FollowupRequestHandler(BaseHandler):
         except ValueError:
             return self.error("Invalid page number value.")
         try:
-            if n_per_page is not None:
-                n_per_page = int(n_per_page)
-        except ValueError:
+            n_per_page = int(n_per_page)
+        except TypeError:
             return self.error("Invalid numPerPage value.")
 
-        if n_per_page > 1000:
-            return self.error('numPerPage should be no larger than 1000.')
+        if n_per_page > MAX_FOLLOWUP_REQUESTS:
+            return self.error(
+                f'numPerPage should be no larger than {MAX_FOLLOWUP_REQUESTS}.'
+            )
 
         # get owned assignments
         followup_requests = FollowupRequest.query_records_accessible_by(
