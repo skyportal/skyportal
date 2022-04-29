@@ -1068,6 +1068,15 @@ def manage_sources_token_two_groups(group_admin_user_two_groups):
 
 
 @pytest.fixture()
+def observing_run_token(user):
+    token_id = create_token(
+        ACLs=["Manage observing runs"], user_id=user.id, name=str(uuid.uuid4())
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
 def upload_data_token(user):
     token_id = create_token(
         ACLs=["Upload data"], user_id=user.id, name=str(uuid.uuid4())

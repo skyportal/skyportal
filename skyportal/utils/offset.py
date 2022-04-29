@@ -478,6 +478,14 @@ def _calculate_best_position_for_offset_stars(
         log("Uncaught error in ra, dec determination")
         return fallback
 
+    if np.isnan(med_ra) or np.isnan(med_dec):
+        log(
+            "Warning: the median of the positions"
+            " from the photometry data associated with this source "
+            " retured nan, using fallback"
+        )
+        return fallback
+
     # check to make sure that the median isn't too far away from the
     # discovery position
     if fallback != (None, None):
