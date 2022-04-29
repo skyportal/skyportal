@@ -686,10 +686,15 @@ class SourceHandler(BaseHandler):
                   schema: Error
         """
         page_number = self.get_query_argument('pageNumber', 1)
-        num_per_page = min(
-            int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
-            MAX_SOURCES_PER_PAGE,
+        # TODO: this will error if the user enters a string that can't be parsed as an int
+        # TODO: we should be checking bounds of the numerical arguements throughout this handler
+        num_per_page = int(
+            self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)
         )
+        if num_per_page > MAX_SOURCES_PER_PAGE:
+            return self.error(
+                f'Requested too many sources per page ({num_per_page}). Max is {MAX_SOURCES_PER_PAGE}.'
+            )
         ra = self.get_query_argument('ra', None)
         dec = self.get_query_argument('dec', None)
         radius = self.get_query_argument('radius', None)
