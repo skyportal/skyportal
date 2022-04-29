@@ -189,10 +189,6 @@ class SEDMAPI(FollowUpAPI):
             'skyportal/REFRESH_SOURCE',
             payload={'obj_key': request.obj.internal_key},
         )
-        flow.push(
-            '*',
-            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-        )
 
     @staticmethod
     def delete(request):
@@ -230,10 +226,6 @@ class SEDMAPI(FollowUpAPI):
             '*',
             'skyportal/REFRESH_SOURCE',
             payload={'obj_key': request.obj.internal_key},
-        )
-        flow.push(
-            '*',
-            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
         )
 
     @staticmethod
