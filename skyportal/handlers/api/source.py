@@ -68,8 +68,8 @@ from .candidate import (
 from .photometry import serialize
 from .color_mag import get_color_mag
 
-DEFAULT_SOURCES_PER_PAGE = 100
-MAX_SOURCES_PER_PAGE = 500
+DEFAULT_SOURCES_PER_PAGE = 10
+MAX_SOURCES_PER_PAGE = 50
 
 _, cfg = load_env()
 log = make_log('api/source')
@@ -285,7 +285,7 @@ class SourceHandler(BaseHandler):
             schema:
               type: integer
             description: |
-              Number of sources to return per paginated request. Defaults to 100. Max 500.
+              Number of sources to return per paginated request. Defaults to 10. Max 50.
           - in: query
             name: pageNumber
             nullable: true
