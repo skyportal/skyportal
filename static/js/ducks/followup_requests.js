@@ -3,6 +3,8 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
+import * as sourceAction from "./source";
+
 const FETCH_FOLLOWUP_REQUESTS = "skyportal/FETCH_FOLLOWUP_REQUESTS";
 const FETCH_FOLLOWUP_REQUESTS_OK = "skyportal/FETCH_FOLLOWUP_REQUESTS_OK";
 
@@ -25,9 +27,18 @@ export const prioritizeFollowupRequests = (params = {}) =>
     params
   );
 
-messageHandler.add((actionType, payload, dispatch) => {
+messageHandler.add((actionType, payload, dispatch, getState) => {
+  const { source } = getState();
+
   if (actionType === REFRESH_FOLLOWUP_REQUESTS) {
-    dispatch(fetchFollowupRequests());
+    const loaded_obj_key = source?.internal_key;
+    if ("obj_key" in payload) {
+      if (loaded_obj_key === payload.obj_key) {
+        dispatch(sourceAction.fetchSource(source.id));
+      }
+    } else {
+      dispatch(fetchFollowupRequests());
+    }
   }
 });
 

@@ -324,6 +324,12 @@ class FollowupRequestHandler(BaseHandler):
               type: string
             description: Portion of ID to filter on
           - in: query
+            name: instrumentID
+            nullable: true
+            schema:
+              type: integer
+            description: Instrument ID to filter on
+          - in: query
             name: startDate
             nullable: true
             schema:
@@ -373,6 +379,7 @@ class FollowupRequestHandler(BaseHandler):
         start_date = self.get_query_argument('startDate', None)
         end_date = self.get_query_argument('endDate', None)
         sourceID = self.get_query_argument('sourceID', None)
+        instrumentID = self.get_query_argument('instrumentID', None)
         status = self.get_query_argument('status', None)
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 100)
@@ -432,6 +439,15 @@ class FollowupRequestHandler(BaseHandler):
             obj_subquery = obj_query.subquery()
             followup_requests = followup_requests.join(
                 obj_subquery, FollowupRequest.obj_id == obj_subquery.c.id
+            )
+        if instrumentID:
+            allocation_query = Allocation.query_records_accessible_by(
+                self.current_user
+            ).filter(Allocation.instrument_id == instrumentID)
+            allocation_subquery = allocation_query.subquery()
+            followup_requests = followup_requests.join(
+                allocation_subquery,
+                FollowupRequest.allocation_id == allocation_subquery.c.id,
             )
         if status:
             followup_requests = followup_requests.filter(

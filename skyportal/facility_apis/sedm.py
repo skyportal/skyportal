@@ -224,6 +224,7 @@ class SEDMAPI(FollowUpAPI):
         flow.push(
             '*',
             "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            payload={"obj_key": request.obj.internal_key},
         )
 
     @staticmethod
@@ -263,6 +264,7 @@ class SEDMAPI(FollowUpAPI):
         flow.push(
             '*',
             "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            payload={"obj_key": request.obj.internal_key},
         )
 
     _observation_types = [
