@@ -186,6 +186,11 @@ class SEDMAPI(FollowUpAPI):
         flow = Flow()
         flow.push(
             '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': request.obj.internal_key},
+        )
+        flow.push(
+            '*',
             "skyportal/REFRESH_FOLLOWUP_REQUESTS",
         )
 
@@ -223,8 +228,12 @@ class SEDMAPI(FollowUpAPI):
         flow = Flow()
         flow.push(
             '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': request.obj.internal_key},
+        )
+        flow.push(
+            '*',
             "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            payload={"obj_key": request.obj.internal_key},
         )
 
     @staticmethod

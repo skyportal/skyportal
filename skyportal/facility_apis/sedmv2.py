@@ -120,8 +120,12 @@ class SEDMV2API(FollowUpAPI):
         flow = Flow()
         flow.push(
             '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': request.obj.internal_key},
+        )
+        flow.push(
+            '*',
             "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            payload={"obj_key": request.obj.internal_key},
         )
 
     @staticmethod
@@ -184,8 +188,12 @@ class SEDMV2API(FollowUpAPI):
         flow = Flow()
         flow.push(
             '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': request.obj.internal_key},
+        )
+        flow.push(
+            '*',
             "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            payload={"obj_key": request.obj.internal_key},
         )
 
     @staticmethod
@@ -246,8 +254,12 @@ class SEDMV2API(FollowUpAPI):
         flow = Flow()
         flow.push(
             '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': request.obj.internal_key},
+        )
+        flow.push(
+            '*',
             "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            payload={"obj_key": request.obj.internal_key},
         )
 
     form_json_schema = {
