@@ -442,7 +442,8 @@ class FollowupRequestHandler(BaseHandler):
             )
         if instrumentID:
             # allocation query required as only way to reach
-            # instrument_id
+            # instrument_id is through allocation (as requests
+            # are associated to allocations, not instruments)
             allocation_query = Allocation.query_records_accessible_by(
                 self.current_user
             ).filter(Allocation.instrument_id == instrumentID)
