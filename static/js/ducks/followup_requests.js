@@ -1,12 +1,8 @@
-import messageHandler from "baselayer/MessageHandler";
-
 import * as API from "../API";
 import store from "../store";
 
 const FETCH_FOLLOWUP_REQUESTS = "skyportal/FETCH_FOLLOWUP_REQUESTS";
 const FETCH_FOLLOWUP_REQUESTS_OK = "skyportal/FETCH_FOLLOWUP_REQUESTS_OK";
-
-const REFRESH_FOLLOWUP_REQUESTS = "skyportal/REFRESH_FOLLOWUP_REQUESTS";
 
 const PRIORITIZE_FOLLOWUP_REQUESTS = "skyportal/FETCH_FOLLOWUP_REQUESTS";
 
@@ -24,12 +20,6 @@ export const prioritizeFollowupRequests = (params = {}) =>
     PRIORITIZE_FOLLOWUP_REQUESTS,
     params
   );
-
-messageHandler.add((actionType, payload, dispatch) => {
-  if (actionType === REFRESH_FOLLOWUP_REQUESTS) {
-    dispatch(fetchFollowupRequests());
-  }
-});
 
 const reducer = (
   state = { followupRequestList: [], totalMatches: 0 },
