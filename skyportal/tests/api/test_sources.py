@@ -587,7 +587,7 @@ def test_source_summary_pagination(super_admin_user, super_admin_token):
     assert data["status"] == "success"
     new_group_id = data["data"]["id"]
     ids = set()
-    for _ in range(1, 11):
+    for _ in range(1, 51):
         id = str(uuid.uuid4())
         ids.add(id)
         status, data = api(
@@ -612,6 +612,7 @@ def test_source_summary_pagination(super_admin_user, super_admin_token):
     assert status == 200
     assert "sources" in data["data"]
     sources = data["data"]["sources"]
+    # default is 10
     assert len(sources) == 10
     source = sources[0]
     assert "ra" not in source
