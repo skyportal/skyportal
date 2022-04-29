@@ -278,7 +278,6 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
 
   if (actionType === REFRESH_SOURCE) {
     const loaded_obj_key = source?.internal_key;
-
     if (loaded_obj_key === payload.obj_key) {
       dispatch(fetchSource(source.id));
     }
