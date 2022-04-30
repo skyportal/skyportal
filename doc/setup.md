@@ -179,4 +179,4 @@ To have nginx pick up your SSL certificate, you'll need to modify the nginx conf
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-and restart the App.
+and restart the app.
