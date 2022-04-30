@@ -165,3 +165,18 @@ make load_demo_data
 ```
 
 This also adds `testuser@cesium-ml.org` as an administrator.
+
+### nginx configuration
+
+When running on a public server, it can be useful to use X. 509 certificates for Transport Layer Security (TLS) encryption. For example, services such as Let's Encrypt (https://letsencrypt.org/) provide free services to create such certificates when deploying publicly.
+
+One way to pick up the certificates with SkyPortal's nginx deployment is by modifying the default nginx template configuration files which come with baselayer. In this case, in the server portion of baselayer/services/nginx/nginx.conf.template, one can add (for Let's Encrypt'):
+
+    listen [::]:443 ssl ipv6only=on;
+    listen 443 ssl;
+    ssl_certificate /etc/letsencrypt/live/{YOUR_DOMAIN_HERE}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{YOUR_DOMAIN_HERE}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+and restart the App.
