@@ -168,7 +168,7 @@ This also adds `testuser@cesium-ml.org` as an administrator.
 
 ### nginx configuration
 
-When running on a public server, it can be useful to use X. 509 certificates for Transport Layer Security (TLS) encryption. For example, services such as Let's Encrypt (https://letsencrypt.org/) provide free services to create such certificates when deploying publicly.
+When running a public server, you will likely want to deploy an SSL certificate (i.e., serve `https://your.url` instead of `http://your.url`). Certificates can be obtained for free from services such as Let's Encrypt (https://letsencrypt.org/).
 
 One way to pick up the certificates with SkyPortal's nginx deployment is by modifying the default nginx template configuration files which come with baselayer. In this case, in the server portion of baselayer/services/nginx/nginx.conf.template, one can add (for Let's Encrypt'):
 
