@@ -170,7 +170,7 @@ This also adds `testuser@cesium-ml.org` as an administrator.
 
 When running a public server, you will likely want to deploy an SSL certificate (i.e., serve `https://your.url` instead of `http://your.url`). Certificates can be obtained for free from services such as Let's Encrypt (https://letsencrypt.org/).
 
-One way to pick up the certificates with SkyPortal's nginx deployment is by modifying the default nginx template configuration files which come with baselayer. In this case, in the server portion of baselayer/services/nginx/nginx.conf.template, one can add (for Let's Encrypt'):
+To have nginx pick up your SSL certificate, you'll need to modify the nginx configuration in `baselayer/services/nginx/nginx.conf.template`. For example, you would add the following for Let's Encrypt:
 
     listen [::]:443 ssl ipv6only=on;
     listen 443 ssl;
