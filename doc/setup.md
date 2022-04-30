@@ -166,7 +166,7 @@ make load_demo_data
 
 This also adds `testuser@cesium-ml.org` as an administrator.
 
-### nginx configuration
+### Deploying secure HTTP / SSL certificate
 
 When running a public server, you will likely want to deploy an SSL certificate (i.e., serve `https://your.url` instead of `http://your.url`). Certificates can be obtained for free from services such as Let's Encrypt (https://letsencrypt.org/).
 
