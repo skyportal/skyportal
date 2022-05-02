@@ -112,10 +112,11 @@ class InstrumentHandler(BaseHandler):
                 instrument = existing_instrument
                 (instrument,) = existing_instrument
 
-            if field_data is not None:
-                if field_region is None:
-                    return self.error('field_region is required with field_data')
-
+        if field_data is not None:
+            if (field_region is None) and (field_fov_type is None):
+                return self.error(
+                    'field_region or field_fov_type is required with field_data'
+                )
                 if type(field_data) is str:
                     field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
                         orient='list'
@@ -617,8 +618,10 @@ class InstrumentHandler(BaseHandler):
         self.verify_and_commit()
 
         if field_data is not None:
-            if field_region is None:
-                return self.error('field_region is required with field_data')
+            if (field_region is None) and (field_fov_type is None):
+                return self.error(
+                    'field_region or field_fov_type is required with field_data'
+                )
 
             if type(field_data) is str:
                 field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
@@ -750,7 +753,12 @@ def add_tiles(instrument_id, instrument_name, regions, field_data, session=Sessi
             field_data['RA'], field_data['Dec'], unit=u.deg
         ).skyoffset_frame()
 
+        # code expects to loop over regions
+        if type(regions) in [RectangleSkyRegion, CircleSkyRegion, PolygonSkyRegion]:
+            regions = [regions]
+
         ra, dec = [], []
+        needs_summary = False
         for ii, reg in enumerate(regions):
             if type(reg) == RectangleSkyRegion:
                 height = reg.height.value
@@ -776,6 +784,7 @@ def add_tiles(instrument_id, instrument_name, regions, field_data, session=Sessi
             elif type(reg) == PolygonSkyRegion:
                 ra_tmp = reg.vertices.ra
                 dec_tmp = reg.vertices.dec
+                needs_summary = True
 
             ra.append(ra_tmp)
             dec.append(dec_tmp)
@@ -840,41 +849,44 @@ def add_tiles(instrument_id, instrument_name, regions, field_data, session=Sessi
             if field_id == -1:
                 del contour['properties']['field_id']
 
-            # compute summary (bounding-box) contour
-            geometry = []
-            min_ra, max_ra = np.min(coords[0].ra.deg), np.max(coords[0].ra.deg)
-            min_dec, max_dec = np.min(coords[0].dec.deg), np.max(coords[0].dec.deg)
-            for coord in coords:
-                min_ra = min(min_ra, np.min(coord.ra.deg))
-                max_ra = max(max_ra, np.max(coord.ra.deg))
-                min_dec = min(min_dec, np.min(coord.dec.deg))
-                max_dec = max(max_dec, np.max(coord.dec.deg))
-            geometry_summary = [
-                (min_ra, min_dec),
-                (max_ra, min_dec),
-                (max_ra, max_dec),
-                (min_ra, max_dec),
-                (min_ra, min_dec),
-            ]
+            if needs_summary:
+                # compute summary (bounding-box) contour
+                geometry = []
+                min_ra, max_ra = np.min(coords[0].ra.deg), np.max(coords[0].ra.deg)
+                min_dec, max_dec = np.min(coords[0].dec.deg), np.max(coords[0].dec.deg)
+                for coord in coords:
+                    min_ra = min(min_ra, np.min(coord.ra.deg))
+                    max_ra = max(max_ra, np.max(coord.ra.deg))
+                    min_dec = min(min_dec, np.min(coord.dec.deg))
+                    max_dec = max(max_dec, np.max(coord.dec.deg))
+                geometry_summary = [
+                    (min_ra, min_dec),
+                    (max_ra, min_dec),
+                    (max_ra, max_dec),
+                    (min_ra, max_dec),
+                    (min_ra, min_dec),
+                ]
 
-            contour_summary = {
-                'properties': {
-                    'instrument': instrument_name,
-                    'field_id': int(field_id),
-                    'ra': ra,
-                    'dec': dec,
-                },
-                'type': 'FeatureCollection',
-                'features': [
-                    {
-                        'type': 'Feature',
-                        'geometry': {
-                            'type': 'LineString',
-                            'coordinates': geometry_summary,
-                        },
+                contour_summary = {
+                    'properties': {
+                        'instrument': instrument_name,
+                        'field_id': int(field_id),
+                        'ra': ra,
+                        'dec': dec,
                     },
-                ],
-            }
+                    'type': 'FeatureCollection',
+                    'features': [
+                        {
+                            'type': 'Feature',
+                            'geometry': {
+                                'type': 'LineString',
+                                'coordinates': geometry_summary,
+                            },
+                        },
+                    ],
+                }
+            else:
+                contour_summary = contour
             if field_id == -1:
                 del contour_summary['properties']['field_id']
 

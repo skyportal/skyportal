@@ -163,7 +163,7 @@ def test_group1_user_cannot_see_group2_followup_request(
 
     status, data = api('GET', 'followup_request/', token=view_only_token)
     assert status == 200
-    assert id not in [a['id'] for a in data['data']]
+    assert id not in [a['id'] for a in data['data']["followup_requests"]]
 
 
 def test_filter_followup_request(
@@ -200,7 +200,9 @@ def test_filter_followup_request(
     )
     assert status == 200
     assert data['status'] == 'success'
-    assert any([s['obj_id'] == public_source.id for s in data["data"]])
+    assert any(
+        [s['obj_id'] == public_source.id for s in data["data"]["followup_requests"]]
+    )
 
     time_after_post = datetime.utcnow().isoformat()
 
@@ -214,7 +216,9 @@ def test_filter_followup_request(
     )
     assert status == 200
     assert data['status'] == 'success'
-    assert not any([s['obj_id'] == public_source.id for s in data["data"]])
+    assert not any(
+        [s['obj_id'] == public_source.id for s in data["data"]["followup_requests"]]
+    )
 
     params = {'sourceID': public_source.id}
 
@@ -226,4 +230,6 @@ def test_filter_followup_request(
     )
     assert status == 200
     assert data['status'] == 'success'
-    assert any([s['obj_id'] == public_source.id for s in data["data"]])
+    assert any(
+        [s['obj_id'] == public_source.id for s in data["data"]["followup_requests"]]
+    )

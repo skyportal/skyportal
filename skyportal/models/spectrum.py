@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import relationship
 
+import astropy.units as u  # noqa: F401
 import numpy as np
 import yaml
 from astropy.utils.exceptions import AstropyWarning
@@ -58,6 +59,12 @@ class Spectrum(Base):
     errors = sa.Column(
         NumpyArray,
         doc="Errors on the fluxes of the spectrum [F_lambda, same units as `fluxes`.]",
+    )
+
+    units = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Units of the fluxes/errors. Options are Jy, AB, or erg/s/cm/cm/AA.",
     )
 
     obj_id = sa.Column(
@@ -179,6 +186,17 @@ class Spectrum(Base):
         order_by="AnnotationOnSpectrum.created_at",
         doc="Annotations posted about this spectrum.",
     )
+
+    @property
+    def astropy_units(self):
+        if self.units == "Jy":
+            return u.Jy
+        elif self.units == "AB":
+            return u.AB
+        elif self.units == "erg/s/cm/cm/AA":
+            return u.erg / u.s / u.cm / u.cm / u.AA
+        else:
+            return None
 
     @classmethod
     def from_ascii(

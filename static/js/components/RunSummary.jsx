@@ -25,13 +25,15 @@ import MUIDataTable from "mui-datatables";
 import ThumbnailList from "./ThumbnailList";
 import { observingRunTitle } from "./AssignmentForm";
 import { ObservingRunStarList } from "./StarList";
+import withRouter from "./withRouter";
+
 import * as SourceAction from "../ducks/source";
 import * as Action from "../ducks/observingRun";
 import { ra_to_hours, dec_to_dms } from "../units";
 
 import SkyCam from "./SkyCam";
+import VegaPhotometry from "./VegaPhotometry";
 
-const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const AirmassPlot = React.lazy(() => import("./AirmassPlot"));
 
 const useStyles = makeStyles((theme) => ({
@@ -217,9 +219,7 @@ const RunSummary = ({ route }) => {
             </Grid>
             <Grid item>
               <Suspense fallback={<div>Loading plot...</div>}>
-                <VegaPlot
-                  dataUrl={`/api/sources/${assignment.obj.id}/photometry`}
-                />
+                <VegaPhotometry sourceId={assignment.obj.id} />
               </Suspense>
             </Grid>
           </Grid>
@@ -483,4 +483,4 @@ RunSummary.propTypes = {
   }).isRequired,
 };
 
-export default RunSummary;
+export default withRouter(RunSummary);

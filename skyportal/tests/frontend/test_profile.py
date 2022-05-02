@@ -9,7 +9,8 @@ def test_token_acls_options_rendering1(driver, user):
     driver.wait_for_xpath('//*[@data-testid="acls[1]"]')
     driver.wait_for_xpath('//*[@data-testid="acls[2]"]')
     driver.wait_for_xpath('//*[@data-testid="acls[3]"]')
-    driver.wait_for_xpath_to_disappear('//*[@data-testid="acls[4]"]')
+    driver.wait_for_xpath('//*[@data-testid="acls[4]"]')
+    driver.wait_for_xpath_to_disappear('//*[@data-testid="acls[5]"]')
 
 
 def test_token_acls_options_rendering2(driver, super_admin_user):

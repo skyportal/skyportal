@@ -103,12 +103,20 @@ def add_observations(instrument_id, obstable):
                 )
                 continue
 
+            # enable multiple obstime formats
+            try:
+                # can catch iso and isot this way
+                obstime = Time(row["obstime"])
+            except ValueError:
+                # otherwise catch jd as the numerical example
+                obstime = Time(row["obstime"], format='jd')
+
             observations.append(
                 ExecutedObservation(
                     instrument_id=instrument_id,
                     observation_id=row["observation_id"],
                     instrument_field_id=field.id,
-                    obstime=Time(row["obstime"], format='jd').datetime,
+                    obstime=obstime.datetime,
                     seeing=row["seeing"],
                     limmag=row["limmag"],
                     exposure_time=row["exposure_time"],

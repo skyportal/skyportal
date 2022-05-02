@@ -56,6 +56,8 @@ app:
 
   treasuremap_endpoint: http://treasuremap.space
 
+  tns_endpoint: https://sandbox.wis-tns.org
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
@@ -123,62 +125,78 @@ app:
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
+    - name: main
+      subitems:
+        - name: Dashboard
+          icon: Home
+          url: /
 
-    - name: Dashboard
-      icon: Home
-      url: /
+        - name: Sources
+          icon: Storage
+          url: /sources
 
-    - name: Sources
-      icon: Storage
-      url: /sources
+        - name: Candidates
+          icon: Search
+          url: /candidates
 
-    - name: Candidates
-      icon: Search
-      url: /candidates
+        - name: Favorites
+          icon: Star
+          url: /favorites
 
-    - name: Favorites
-      icon: Star
-      url: /favorites
+        - name: Groups
+          icon: GroupWork
+          url: /groups
 
-    - name: Groups
-      icon: GroupWork
-      url: /groups
+        - name: Observing Runs
+          icon: LocalCafe
+          url: /runs
 
-    - name: Observing Runs
-      icon: LocalCafe
-      url: /runs
+        - name: GCN Events
+          icon: SettingsInputAntenna
+          url: /gcn_events
 
-    - name: GCN Events
-      icon: SettingsInputAntenna
-      url: /gcn_events
+        - name: Followup Requests
+          icon: WorkOutlined
+          url: /followup_requests
 
-    - name: Telescopes
-      icon: MyLocation
-      url: /telescopes
+        - name: Shifts
+          icon: SubwayRounded
+          url: /shifts
 
-    - name: Instruments
-      icon: Wifi
-      url: /instruments
+        - name: About
+          icon: Info
+          url: /about
 
-    - name: Allocations
-      icon: HourglassEmptyOutlined
-      url: /allocations
+    - name: Other
+      subitems:
+        - name: Telescopes
+          icon: MyLocation
+          url: /telescopes
 
-    - name: Observations
-      icon: ZoomInOutlined
-      url: /observations
+        - name: Instruments
+          icon: Wifi
+          url: /instruments
 
-    - name: Followup Requests
-      icon: WorkOutlined
-      url: /followup_requests
+        - name: Allocations
+          icon: HourglassEmptyOutlined
+          url: /allocations
 
-    - name: Shifts
-      icon: SubwayRounded
-      url: /shifts
+        - name: Observations
+          icon: ZoomInOutlined
+          url: /observations
 
-    - name: About
-      icon: Info
-      url: /about
+    - name: Admin
+      permissions: ["Manage users", "System admin"]
+      subitems:
+        - name: DB Stats
+          icon: Assessment
+          permissions: ["System admin"]
+          url: /db_stats
+        - name: User Management
+          icon: Group
+          permissions: ["Manage users", "System admin"]
+          url: /user_management
+
 
   # See https://github.com/STRML/react-grid-layout for more on the grid package
   homepage_grid:
@@ -223,7 +241,7 @@ app:
     #
     # The props property should be a set of properties to be passed on to the
     # underlying React component for the widget. You may run into cases in which
-    # you must pass a more complex, dyamic property (perhaps fetched from the
+    # you must pass a more complex, dynamic property (perhaps fetched from the
     # application redux store). Since you can not know that in the time of the
     # configuration writing, such properties should be directly coded into the
     # HomePage.jsx.template file (see the GroupList widget for an example)
@@ -316,6 +334,16 @@ app:
         md: [8, 1, 2, 2]
         sm: [4.5, 1, 1.5, 2]
         xs: [0, 10, 4, 2]
+
+    NewSource:
+      resizeable: true
+      minW: 3
+      layouts:
+        xlg: [10, 0, 4, 3]
+        lg: [7, 0, 3, 3]
+        md: [0, 0, 8, 3]
+        sm: [0, 0, 4.5, 3]
+        xs: [0, 1, 4, 3]
 
 database:
   database: skyportal
@@ -415,8 +443,8 @@ external_logging:
     excluded_log_files: ["log/websocket_server.log"]
 
 cron:
-  - interval: 60
-    script: jobs/count_unsaved_candidates.py
+  # - interval: 60
+  #  script: jobs/count_unsaved_candidates.py
   # - interval: 1440
   #   script: jobs/delete_unsaved_candidates.py
   #   limit: ["01:00", "02:00"]

@@ -48,6 +48,7 @@ import SourceSaveHistory from "./SourceSaveHistory";
 import PhotometryTable from "./PhotometryTable";
 import FavoritesButton from "./FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
+import TNSATForm from "./TNSATForm";
 
 import * as spectraActions from "../ducks/spectra";
 
@@ -114,13 +115,13 @@ export const useSourceStyles = makeStyles((theme) => ({
     flexDirection: "column",
     paddingBottom: "0.5rem",
     overflowX: "scroll",
-    "& div button": {
-      margin: "0.5rem",
-    },
   },
   plotButtons: {
     display: "flex",
     flexFlow: "row wrap",
+    "& button": {
+      margin: "0.5rem",
+    },
   },
   comments: {
     marginLeft: "1rem",
@@ -128,6 +129,12 @@ export const useSourceStyles = makeStyles((theme) => ({
     width: "100%",
   },
   classifications: {
+    display: "flex",
+    flexDirection: "column",
+    margin: "auto",
+    width: "100%",
+  },
+  tns: {
     display: "flex",
     flexDirection: "column",
     margin: "auto",
@@ -466,18 +473,24 @@ const SourceMobile = WidthProvider(
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
-                <div className={classes.photometryContainer}>
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
-                    <Plot
-                      url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
-                    />
-                  </Suspense>
+                <Grid container>
+                  <div className={classes.photometryContainer}>
+                    {!source.photometry_exists ? (
+                      <div> No photometry exists </div>
+                    ) : (
+                      <Suspense
+                        fallback={
+                          <div>
+                            <CircularProgress color="secondary" />
+                          </div>
+                        }
+                      >
+                        <Plot
+                          url={`/api/internal/plot/photometry/${source.id}?width=${plotWidth}&device=${device}`}
+                        />
+                      </Suspense>
+                    )}
+                  </div>
                   <div className={classes.plotButtons}>
                     {isBrowser && (
                       <Link to={`/upload_photometry/${source.id}`} role="link">
@@ -498,7 +511,7 @@ const SourceMobile = WidthProvider(
                       Show Photometry Table
                     </Button>
                   </div>
-                </div>
+                </Grid>
               </AccordionDetails>
             </Accordion>
           </div>
@@ -516,17 +529,21 @@ const SourceMobile = WidthProvider(
               <AccordionDetails>
                 <Grid container>
                   <div className={classes.photometryContainer}>
-                    <Suspense
-                      fallback={
-                        <div>
-                          <CircularProgress color="secondary" />
-                        </div>
-                      }
-                    >
-                      <Plot
-                        url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
-                      />
-                    </Suspense>
+                    {!source.spectrum_exists ? (
+                      <div> No spectra exist </div>
+                    ) : (
+                      <Suspense
+                        fallback={
+                          <div>
+                            <CircularProgress color="secondary" />
+                          </div>
+                        }
+                      >
+                        <Plot
+                          url={`/api/internal/plot/spectroscopy/${source.id}?width=${plotWidth}&device=${device}&cacheID=${specIDs}`}
+                        />
+                      </Suspense>
+                    )}
                   </div>
                   <div className={classes.plotButtons}>
                     {isBrowser && (
@@ -609,6 +626,7 @@ const SourceMobile = WidthProvider(
                     followupRequests={source.followup_requests}
                     instrumentList={instrumentList}
                     instrumentFormParams={instrumentFormParams}
+                    totalMatches={source.followup_requests.length}
                   />
                   <AssignmentForm
                     obj_id={source.id}
@@ -646,6 +664,24 @@ const SourceMobile = WidthProvider(
                   taxonomyList={taxonomyList}
                 />
               </div>
+            </AccordionDetails>
+          </Accordion>
+          <Accordion
+            defaultExpanded
+            className={classes.tns}
+            data-testid="tns-accordion"
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="tns-content"
+              id="tns-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                TNS Form
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <TNSATForm obj_id={source.id} />
             </AccordionDetails>
           </Accordion>
           <Accordion defaultExpanded>
@@ -743,6 +779,8 @@ SourceMobile.propTypes = {
       })
     ),
     alias: PropTypes.arrayOf(PropTypes.string),
+    photometry_exists: PropTypes.bool,
+    spectrum_exists: PropTypes.bool,
   }).isRequired,
 };
 

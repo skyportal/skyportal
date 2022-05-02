@@ -16,7 +16,7 @@ from ...models.schema import ObservingRunPost, ObservingRunGetWithAssignments
 
 
 class ObservingRunHandler(BaseHandler):
-    @permissions(["Upload data"])
+    @permissions(["Manage observing runs"])
     def post(self):
         """
         ---
@@ -174,7 +174,7 @@ class ObservingRunHandler(BaseHandler):
         self.verify_and_commit()
         return self.success(data=runs_list)
 
-    @permissions(["Upload data"])
+    @permissions(["Manage observing runs"])
     def put(self, run_id):
         """
         ---
@@ -231,7 +231,7 @@ class ObservingRunHandler(BaseHandler):
         self.push_all(action="skyportal/FETCH_OBSERVING_RUNS")
         return self.success()
 
-    @permissions(["Upload data"])
+    @auth_or_token
     def delete(self, run_id):
         """
         ---
@@ -255,7 +255,6 @@ class ObservingRunHandler(BaseHandler):
                 schema: Error
         """
         run_id = int(run_id)
-
         try:
             run = ObservingRun.get_if_accessible_by(
                 run_id, self.current_user, mode="delete", raise_if_none=True

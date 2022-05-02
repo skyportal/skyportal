@@ -5,7 +5,6 @@ import { useForm, Controller } from "react-hook-form";
 import MUIDataTable from "mui-datatables";
 import Paper from "@material-ui/core/Paper";
 import Chip from "@material-ui/core/Chip";
-import CircularProgress from "@material-ui/core/CircularProgress";
 import Typography from "@material-ui/core/Typography";
 import TextareaAutosize from "@material-ui/core/TextareaAutosize";
 import Box from "@material-ui/core/Box";
@@ -40,6 +39,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import FormValidationError from "./FormValidationError";
 import * as invitationsActions from "../ducks/invitations";
 import * as streamsActions from "../ducks/streams";
+import Spinner from "./Spinner";
 
 dayjs.extend(utc);
 
@@ -129,7 +129,7 @@ const UserInvitations = () => {
         display={queryInProgress ? "block" : "none"}
         className={classes.spinnerDiv}
       >
-        <CircularProgress />
+        <Spinner />
       </Box>
     );
   }

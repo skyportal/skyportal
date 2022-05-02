@@ -1,9 +1,17 @@
 import React from "react";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
+import { useTheme } from "@material-ui/core/styles";
 
-const spec = (url, width, height, legendOrient) => ({
-  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
+const spec = (
+  url,
+  width,
+  height,
+  legendOrient,
+  titleFontSize,
+  labelFontSize
+) => ({
+  $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
   data: {
     url,
     format: {
@@ -48,6 +56,8 @@ const spec = (url, width, height, legendOrient) => ({
       type: "quantitative",
       axis: {
         title: "wavelength [Angstrom]",
+        titleFontSize,
+        labelFontSize,
       },
     },
     y: {
@@ -56,6 +66,8 @@ const spec = (url, width, height, legendOrient) => ({
       axis: {
         title: "flux [normalized]",
         format: ".2g",
+        titleFontSize,
+        labelFontSize,
       },
     },
     color: {
@@ -63,6 +75,8 @@ const spec = (url, width, height, legendOrient) => ({
       type: "nominal",
       legend: {
         orient: legendOrient,
+        titleFontSize,
+        labelFontSize,
       },
     },
   },
@@ -73,13 +87,25 @@ const spec = (url, width, height, legendOrient) => ({
 
 const VegaSpectrum = React.memo((props) => {
   const { dataUrl, width, height, legendOrient } = props;
+  const theme = useTheme();
   return (
     <div
       ref={(node) => {
         if (node) {
-          embed(node, spec(dataUrl, width, height, legendOrient), {
-            actions: false,
-          });
+          embed(
+            node,
+            spec(
+              dataUrl,
+              width,
+              height,
+              legendOrient,
+              theme.plotFontSizes.titleFontSize,
+              theme.plotFontSizes.labelFontSize
+            ),
+            {
+              actions: false,
+            }
+          );
         }
       }}
     />

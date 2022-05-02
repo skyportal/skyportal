@@ -84,7 +84,12 @@ const FollowupRequestLists = ({
   followupRequests,
   instrumentList,
   instrumentFormParams,
+  totalMatches,
+  handleTableChange = false,
+  pageNumber = 1,
+  numPerPage = 10,
   showObject = false,
+  serverSide = false,
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -106,6 +111,7 @@ const FollowupRequestLists = ({
 
   if (
     instrumentList.length === 0 ||
+    followupRequests.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
     return <p>No robotic followup requests for this source...</p>;
@@ -115,6 +121,10 @@ const FollowupRequestLists = ({
     r[a.id] = a;
     return r;
   }, {});
+
+  if (!Array.isArray(followupRequests)) {
+    return <p>Waiting for followup requests to load...</p>;
+  }
 
   const requestsGroupedByInstId = followupRequests.reduce((r, a) => {
     r[a.allocation.instrument.id] = [
@@ -129,6 +139,14 @@ const FollowupRequestLists = ({
   });
 
   const getDataTableColumns = (keys, instrument_id) => {
+    const columns = [
+      { name: "requester.username", label: "Requester" },
+      { name: "allocation.group.name", label: "Allocation" },
+    ];
+
+    if (!(instrument_id in instrumentFormParams)) {
+      return columns;
+    }
     const implementsDelete =
       instrumentFormParams[instrument_id].methodsImplemented.delete;
     const implementsEdit =
@@ -136,11 +154,6 @@ const FollowupRequestLists = ({
     const implementsGet =
       instrumentFormParams[instrument_id].methodsImplemented.get;
     const modifiable = implementsEdit || implementsDelete || implementsGet;
-
-    const columns = [
-      { name: "requester.username", label: "Requester" },
-      { name: "allocation.group.name", label: "Allocation" },
-    ];
 
     if (showObject) {
       const renderObj = (dataIndex) => {
@@ -268,8 +281,17 @@ const FollowupRequestLists = ({
     selectableRows: "none",
     enableNestedDataAccess: ".",
     elevation: 0,
-    rowsPerPageOptions: [1, 10, 15],
+    page: pageNumber - 1,
+    rowsPerPage: numPerPage,
+    rowsPerPageOptions: [10, 25, 50, 100],
+    jumpToPage: true,
+    serverSide,
+    pagination: true,
+    count: totalMatches,
   };
+  if (typeof handleTableChange === "function") {
+    options.onTableChange = handleTableChange;
+  }
 
   const keyOrder = (a, b) => {
     // End date comes after start date
@@ -385,10 +407,19 @@ FollowupRequestLists.propTypes = {
     // eslint-disable-next-line react/forbid-prop-types
     aliasLookup: PropTypes.objectOf(PropTypes.any),
   }).isRequired,
+  handleTableChange: PropTypes.func.isRequired,
+  pageNumber: PropTypes.number,
+  totalMatches: PropTypes.number,
+  numPerPage: PropTypes.number,
   showObject: PropTypes.bool,
+  serverSide: PropTypes.bool,
 };
 
 FollowupRequestLists.defaultProps = {
   showObject: false,
+  serverSide: false,
+  pageNumber: 1,
+  totalMatches: 0,
+  numPerPage: 10,
 };
 export default FollowupRequestLists;

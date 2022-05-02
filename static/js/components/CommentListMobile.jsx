@@ -23,6 +23,8 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import emoji from "emoji-dictionary";
 
 import * as sourceActions from "../ducks/source";
+import * as gcnEventActions from "../ducks/gcnEvent";
+
 import CommentList from "./CommentList";
 import CommentAttachmentPreview from "./CommentAttachmentPreview";
 import UserAvatar from "./UserAvatar";
@@ -196,6 +198,7 @@ const CommentListMobile = ({
   associatedResourceType = "object",
   objID = null,
   spectrumID = null,
+  gcnEventID = null,
   includeCommentsOnAllResourceTypes = true,
 }) => {
   const styles = useStyles();
@@ -229,6 +232,7 @@ const CommentListMobile = ({
   const candidate = useSelector((state) => state.candidate);
   const obj = isCandidate ? candidate : source;
   const spectra = useSelector((state) => state.spectra);
+  const gcnEvent = useSelector((state) => state.gcnEvent);
   const userProfile = useSelector((state) => state.profile);
   const compactComments = useSelector(
     (state) => state.profile.preferences.compactComments
@@ -236,6 +240,10 @@ const CommentListMobile = ({
 
   if (!objID) {
     objID = obj.id;
+  }
+
+  if (!gcnEventID && gcnEvent) {
+    gcnEventID = gcnEvent.id;
   }
 
   let comments = null;
@@ -261,6 +269,11 @@ const CommentListMobile = ({
     }
     const spectrum = spectra[objID].find((spec) => spec.id === spectrumID);
     comments = spectrum?.comments;
+  } else if (associatedResourceType === "gcn_event") {
+    if (gcnEventID === null) {
+      throw new Error("Must specify a gcnEventID for comments on gcnEvent");
+    }
+    comments = gcnEvent.comments;
   } else {
     throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
   }
@@ -293,6 +306,10 @@ const CommentListMobile = ({
     dispatch(
       sourceActions.deleteCommentOnSpectrum(commentSpectrumID, commentID)
     );
+  };
+
+  const deleteCommentOnGcnEvent = (gcnID, commentID) => {
+    dispatch(gcnEventActions.deleteCommentOnGcnEvent(gcnID, commentID));
   };
 
   // Color styling
@@ -367,31 +384,58 @@ const CommentListMobile = ({
                           <InfoOutlinedIcon fontSize="small" />
                         </Tooltip>
                         <div className={styles.spacer}>
-                          <Button
-                            style={
-                              hoverID === id
-                                ? {
-                                    display: "block",
-                                    minWidth: "0",
-                                    lineHeight: "0",
-                                    padding: "0",
-                                  }
-                                : { display: "none" }
-                            }
-                            size="small"
-                            color="primary"
-                            name={`deleteCommentButton${
-                              (spectrum_id ? "Spectrum" : "Source") + id
-                            }`}
-                            onClick={() =>
-                              spectrum_id
-                                ? deleteCommentOnSpectrum(spectrum_id, id)
-                                : deleteComment(objID, id)
-                            }
-                            className="commentDelete"
-                          >
-                            <CloseIcon fontSize="small" />
-                          </Button>
+                          {associatedResourceType === "gcn_event" && (
+                            <Button
+                              style={
+                                hoverID === id
+                                  ? {
+                                      display: "block",
+                                      minWidth: "0",
+                                      lineHeight: "0",
+                                      padding: "0",
+                                    }
+                                  : { display: "none" }
+                              }
+                              size="small"
+                              color="primary"
+                              type="button"
+                              name={`deleteCommentButtonGcnEvent${id}`}
+                              onClick={() =>
+                                deleteCommentOnGcnEvent(gcnEventID, id)
+                              }
+                              className="commentDelete"
+                            >
+                              <CloseIcon fontSize="small" />
+                            </Button>
+                          )}
+                          {(associatedResourceType === "object" ||
+                            associatedResourceType === "spectra") && (
+                            <Button
+                              style={
+                                hoverID === id
+                                  ? {
+                                      display: "block",
+                                      minWidth: "0",
+                                      lineHeight: "0",
+                                      padding: "0",
+                                    }
+                                  : { display: "none" }
+                              }
+                              size="small"
+                              color="primary"
+                              name={`deleteCommentButton${
+                                (spectrum_id ? "Spectrum" : "Source") + id
+                              }`}
+                              onClick={() =>
+                                spectrum_id
+                                  ? deleteCommentOnSpectrum(spectrum_id, id)
+                                  : deleteComment(objID, id)
+                              }
+                              className="commentDelete"
+                            >
+                              <CloseIcon fontSize="small" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -432,32 +476,59 @@ const CommentListMobile = ({
                           </div>
                         </div>
                         <div className={styles.defaultCommentDelete}>
-                          <Button
-                            style={
-                              hoverID === id
-                                ? {
-                                    display: "block",
-                                    minWidth: "0",
-                                    lineHeight: "0",
-                                    padding: "0",
-                                  }
-                                : { display: "none" }
-                            }
-                            size="small"
-                            color="primary"
-                            type="button"
-                            name={`deleteCommentButton${
-                              (spectrum_id ? "Spectrum" : "Source") + id
-                            }`}
-                            onClick={() =>
-                              spectrum_id
-                                ? deleteCommentOnSpectrum(spectrum_id, id)
-                                : deleteComment(objID, id)
-                            }
-                            className="commentDelete"
-                          >
-                            <CloseIcon fontSize="small" />
-                          </Button>
+                          {associatedResourceType === "gcn_event" && (
+                            <Button
+                              style={
+                                hoverID === id
+                                  ? {
+                                      display: "block",
+                                      minWidth: "0",
+                                      lineHeight: "0",
+                                      padding: "0",
+                                    }
+                                  : { display: "none" }
+                              }
+                              size="small"
+                              color="primary"
+                              type="button"
+                              name={`deleteCommentButtonGcnEvent${id}`}
+                              onClick={() =>
+                                deleteCommentOnGcnEvent(gcnEventID, id)
+                              }
+                              className="commentDelete"
+                            >
+                              <CloseIcon fontSize="small" />
+                            </Button>
+                          )}
+                          {(associatedResourceType === "object" ||
+                            associatedResourceType === "spectra") && (
+                            <Button
+                              style={
+                                hoverID === id
+                                  ? {
+                                      display: "block",
+                                      minWidth: "0",
+                                      lineHeight: "0",
+                                      padding: "0",
+                                    }
+                                  : { display: "none" }
+                              }
+                              size="small"
+                              color="primary"
+                              type="button"
+                              name={`deleteCommentButton${
+                                (spectrum_id ? "Spectrum" : "Source") + id
+                              }`}
+                              onClick={() =>
+                                spectrum_id
+                                  ? deleteCommentOnSpectrum(spectrum_id, id)
+                                  : deleteComment(objID, id)
+                              }
+                              className="commentDelete"
+                            >
+                              <CloseIcon fontSize="small" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                       <div
@@ -478,16 +549,27 @@ const CommentListMobile = ({
                         />
                       </div>
                       <span>
-                        {attachment_name && (
-                          <CommentAttachmentPreview
-                            filename={attachment_name}
-                            objectID={spectrum_id || objID}
-                            commentId={id}
-                            associatedResourceType={
-                              spectrum_id ? "spectra" : "sources"
-                            }
-                          />
-                        )}
+                        {attachment_name &&
+                          (associatedResourceType === "object" ||
+                            associatedResourceType === "spectra") && (
+                            <CommentAttachmentPreview
+                              filename={attachment_name}
+                              objectID={spectrum_id || objID}
+                              commentId={id}
+                              associatedResourceType={
+                                spectrum_id ? "spectra" : "sources"
+                              }
+                            />
+                          )}
+                        {attachment_name &&
+                          associatedResourceType === "gcn_event" && (
+                            <CommentAttachmentPreview
+                              filename={attachment_name}
+                              objectID={gcnEventID}
+                              commentId={id}
+                              associatedResourceType="gcn_event"
+                            />
+                          )}
                       </span>
                     </div>
                   </>
@@ -524,6 +606,7 @@ const CommentListMobile = ({
 CommentListMobile.propTypes = {
   isCandidate: PropTypes.bool,
   objID: PropTypes.string,
+  gcnEventID: PropTypes.number,
   associatedResourceType: PropTypes.string,
   spectrumID: PropTypes.number,
   includeCommentsOnAllResourceTypes: PropTypes.bool,
@@ -532,6 +615,7 @@ CommentListMobile.propTypes = {
 CommentListMobile.defaultProps = {
   isCandidate: false,
   objID: null,
+  gcnEventID: null,
   associatedResourceType: "object",
   spectrumID: null,
   includeCommentsOnAllResourceTypes: true,
