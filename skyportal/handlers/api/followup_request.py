@@ -8,6 +8,7 @@ from tornado.ioloop import IOLoop
 import pandas as pd
 import tempfile
 import functools
+import sqlalchemy as sa
 from scipy.stats import norm
 
 from astropy import units as u
@@ -470,9 +471,14 @@ class FollowupRequestHandler(BaseHandler):
         )
 
         with DBSession() as session:
-            data = [r for r, in session.execute(followup_requests).all()]
-            self.verify_and_commit()
-            return self.success(data=data)
+            total_matches = session.scalar(
+                sa.select(sa.func.count()).select_from(followup_requests)
+            )
+
+        if n_per_page is not None:
+            followup_requests = followup_requests.limit(n_per_page).offset(
+                (page_number - 1) * n_per_page
+            )
 
         with DBSession() as session:
             followup_requests = [r for r, in session.execute(followup_requests).all()]
