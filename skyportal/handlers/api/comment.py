@@ -9,6 +9,7 @@ from ...models import (
     Comment,
     CommentOnSpectrum,
     CommentOnGCN,
+    GeneralComment,
     Spectrum,
     GcnEvent,
     Group,
@@ -31,7 +32,7 @@ def users_mentioned(text):
 
 class CommentHandler(BaseHandler):
     @auth_or_token
-    def get(self, associated_resource_type, resource_id, comment_id=None):
+    def get(self, associated_resource_type=None, resource_id=None, comment_id=None):
         """
         ---
         single:
@@ -82,6 +83,7 @@ class CommentHandler(BaseHandler):
             - spectra
             - sources
             - gcn_event
+            - general_comments
           parameters:
             - in: path
               name: associated_resource_type
@@ -131,9 +133,10 @@ class CommentHandler(BaseHandler):
                     .all()
                 )
             else:
-                return self.error(
-                    f'Unsupported associated resource type "{associated_resource_type}".'
-                )
+                comments = GeneralComment.query_records_accessible_by(
+                    self.current_user
+                ).all()
+
             self.verify_and_commit()
             return self.success(data=comments)
 
@@ -170,11 +173,15 @@ class CommentHandler(BaseHandler):
             comment_resource_id_str = str(comment.gcn_id)
         # add more options using elif
         else:
-            return self.error(
-                f'Unsupported associated_resource_type "{associated_resource_type}".'
-            )
+            try:
+                comment = GeneralComment.get_if_accessible_by(
+                    comment_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(comment.id)
 
-        if comment_resource_id_str != resource_id:
+        if comment_resource_id_str != resource_id and resource_id is not None:
             return self.error(
                 f'Comment resource ID does not match resource ID given in path ({resource_id})'
             )
@@ -192,7 +199,7 @@ class CommentHandler(BaseHandler):
             )
 
     @permissions(['Comment'])
-    def post(self, associated_resource_type, resource_id):
+    def post(self, associated_resource_type=None, resource_id=None):
         """
         ---
         description: Post a comment
@@ -296,61 +303,72 @@ class CommentHandler(BaseHandler):
         author = self.associated_user_object
         is_bot_request = isinstance(self.current_user, Token)
 
-        if associated_resource_type.lower() == "sources":
-            obj_id = resource_id
-            comment = Comment(
-                text=comment_text,
-                obj_id=obj_id,
-                attachment_bytes=attachment_bytes,
-                attachment_name=attachment_name,
-                author=author,
-                groups=groups,
-                bot=is_bot_request,
-            )
-        elif associated_resource_type.lower() == "spectra":
-            spectrum_id = resource_id
-            try:
-                spectrum = Spectrum.get_if_accessible_by(
-                    spectrum_id, self.current_user, raise_if_none=True
+        if associated_resource_type is not None:
+            if associated_resource_type.lower() == "sources":
+                obj_id = resource_id
+                comment = Comment(
+                    text=comment_text,
+                    obj_id=obj_id,
+                    attachment_bytes=attachment_bytes,
+                    attachment_name=attachment_name,
+                    author=author,
+                    groups=groups,
+                    bot=is_bot_request,
                 )
-            except AccessError:
-                return self.error(
-                    f'Could not access spectrum {spectrum_id}.', status=403
+            elif associated_resource_type.lower() == "spectra":
+                spectrum_id = resource_id
+                try:
+                    spectrum = Spectrum.get_if_accessible_by(
+                        spectrum_id, self.current_user, raise_if_none=True
+                    )
+                except AccessError:
+                    return self.error(
+                        f'Could not access spectrum {spectrum_id}.', status=403
+                    )
+                comment = CommentOnSpectrum(
+                    text=comment_text,
+                    spectrum_id=spectrum_id,
+                    attachment_bytes=attachment_bytes,
+                    attachment_name=attachment_name,
+                    author=author,
+                    groups=groups,
+                    bot=is_bot_request,
+                    obj_id=spectrum.obj_id,
                 )
-            comment = CommentOnSpectrum(
-                text=comment_text,
-                spectrum_id=spectrum_id,
-                attachment_bytes=attachment_bytes,
-                attachment_name=attachment_name,
-                author=author,
-                groups=groups,
-                bot=is_bot_request,
-                obj_id=spectrum.obj_id,
-            )
-        elif associated_resource_type.lower() == "gcn_event":
-            gcnevent_id = resource_id
-            try:
-                gcn_event = GcnEvent.get_if_accessible_by(
-                    gcnevent_id, self.current_user, raise_if_none=True
+            elif associated_resource_type.lower() == "gcn_event":
+                gcnevent_id = resource_id
+                try:
+                    gcn_event = GcnEvent.get_if_accessible_by(
+                        gcnevent_id, self.current_user, raise_if_none=True
+                    )
+                except AccessError:
+                    return self.error(
+                        f'Could not access GcnEvent {gcn_event.id}.', status=403
+                    )
+                comment = CommentOnGCN(
+                    text=comment_text,
+                    gcn_id=gcn_event.id,
+                    attachment_bytes=attachment_bytes,
+                    attachment_name=attachment_name,
+                    author=author,
+                    groups=groups,
+                    bot=is_bot_request,
                 )
-            except AccessError:
-                return self.error(
-                    f'Could not access GcnEvent {gcn_event.id}.', status=403
-                )
-            comment = CommentOnGCN(
-                text=comment_text,
-                gcn_id=gcn_event.id,
-                attachment_bytes=attachment_bytes,
-                attachment_name=attachment_name,
-                author=author,
-                groups=groups,
-                bot=is_bot_request,
-            )
         else:
-            return self.error(f'Unknown resource type "{associated_resource_type}".')
+            comment = GeneralComment(
+                text=comment_text,
+                attachment_bytes=attachment_bytes,
+                attachment_name=attachment_name,
+                author=author,
+                groups=groups,
+                bot=is_bot_request,
+            )
 
         users_mentioned_in_comment = users_mentioned(comment_text)
-        if users_mentioned_in_comment:
+        if users_mentioned_in_comment and (
+            associated_resource_type.lower() == "sources"
+            or associated_resource_type.lower() == "spectra"
+        ):
             for user_mentioned in users_mentioned_in_comment:
                 DBSession().add(
                     UserNotification(
@@ -360,6 +378,28 @@ class CommentHandler(BaseHandler):
                         url=f"/source/{obj_id}",
                     )
                 )
+        elif (
+            users_mentioned_in_comment
+            and associated_resource_type.lower() == "gcn_event"
+        ):
+            for user_mentioned in users_mentioned_in_comment:
+                DBSession().add(
+                    UserNotification(
+                        user=user_mentioned,
+                        text=f"*@{self.current_user.username}* mentioned you in a comment on *{gcn_event.id}*",
+                        notification_type="mention",
+                        url=f"/gcn_event/{gcn_event.id}",
+                    )
+                )
+        else:
+            DBSession().add(
+                UserNotification(
+                    user=comment.author,
+                    text=f"*@{self.current_user.username}* commented on *{comment.id}*",
+                    notification_type="comment",
+                    url=f"/comments/{comment.id}",
+                )
+            )
 
         DBSession().add(comment)
         self.verify_and_commit()
@@ -383,6 +423,9 @@ class CommentHandler(BaseHandler):
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_internal_key': comment.obj.internal_key},
             )
+        else:
+            # add comment to all users
+            self.push_all(action='skyportal/FETCH_NEWSFEED', payload={})
 
         return self.success(data={'comment_id': comment.id})
 

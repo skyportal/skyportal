@@ -7,6 +7,7 @@ __all__ = [
     'GroupSpectrum',
     'GroupCommentOnSpectrum',
     'GroupCommentOnGCN',
+    'GroupGeneralComment',
     'GroupAnnotationOnSpectrum',
     'GroupInvitation',
     'GroupSourceNotification',
@@ -27,6 +28,7 @@ from .spectrum import Spectrum
 from .comment import CommentOnSpectrum
 from .annotation import AnnotationOnSpectrum
 from .comment import CommentOnGCN
+from .comment import GeneralComment
 from .invitation import Invitation
 from .source_notification import SourceNotification
 from .filter import Filter
@@ -90,6 +92,12 @@ GroupCommentOnGCN = join_model("group_comments_on_gcns", Group, CommentOnGCN)
 GroupCommentOnGCN.__doc__ = "Join table mapping Groups to CommentOnGCN."
 GroupCommentOnGCN.delete = GroupCommentOnGCN.update = (
     accessible_by_group_admins & GroupCommentOnGCN.read
+)
+
+GroupGeneralComment = join_model("group_general_comments", Group, GeneralComment)
+GroupGeneralComment.__doc__ = "Join table mapping Groups to GeneralComment."
+GroupGeneralComment.delete = GroupGeneralComment.update = (
+    accessible_by_group_admins & GroupGeneralComment.read
 )
 
 GroupInvitation = join_model('group_invitations', Group, Invitation)
