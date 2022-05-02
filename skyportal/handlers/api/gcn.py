@@ -199,25 +199,25 @@ class GcnEventHandler(BaseHandler):
                 data = {
                     **event.to_dict(),
                     "tags": event.tags,
-                    "lightcurve": event.lightcurve,'
+                    "lightcurve": event.lightcurve,
                     "comments": sorted(
-                    (
-                        {
-                            **{
-                                k: v
-                                for k, v in c.to_dict().items()
-                                if k != "attachment_bytes"
-                            },
-                            "author": {
-                                **c.author.to_dict(),
-                                "gravatar_url": c.author.gravatar_url,
-                            },
-                        }
-                        for c in event.comments
+                        (
+                            {
+                                **{
+                                    k: v
+                                    for k, v in c.to_dict().items()
+                                    if k != "attachment_bytes"
+                                },
+                                "author": {
+                                    **c.author.to_dict(),
+                                    "gravatar_url": c.author.gravatar_url,
+                                },
+                            }
+                            for c in event.comments
+                        ),
+                        key=lambda x: x["created_at"],
+                        reverse=True,
                     ),
-                    key=lambda x: x["created_at"],
-                    reverse=True,
-                ),
                 }
 
                 # go through some pain to get probability and area included
