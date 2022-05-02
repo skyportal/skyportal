@@ -808,7 +808,7 @@ def make_legend_items_and_detection_lines(
     data : pandas DataFrame object
         Photometry data (ungrouped)
     obsind : pandas Series object
-        ???
+        Index of points that have been positively detected (observed), i.e., points that are not upper limits.
     markers : list
         List of marker shapes
     instruments : list
@@ -922,8 +922,7 @@ def make_legend_items_and_detection_lines(
                 ColumnDataSource(data=dict(xs=[], ys=[], color=[])),
                 renderers,
             )
-        # plot period scatter plots
-        else:
+        elif panel_name == 'period':
             for ph in ['a', 'b']:
                 y_err_x, y_err_y = get_errs(panel_name, df, ph)
                 make_scatter(
@@ -1208,7 +1207,7 @@ def add_widgets(
     elif panel_name == 'flux':
         slider = make_binsize_slider(grouped_data, model_dict)
         layout.children.insert(0, slider)
-    else:
+    elif panel_name == 'period':
         period_controls = make_period_controls(
             period_labels,
             period_list,
@@ -1243,7 +1242,7 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
         The source/object's spectra
     Returns
     -------
-    bokeh Panel object
+    bokeh Panel object or None if the panel should not be added to the plot (i.e. no period plot)
     """
     # get marker for each unique instrument
     instruments = list(data.instrument.unique())
@@ -1328,15 +1327,14 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
         "vertical" if device in ["browser", "mobile_portrait"] else "horizontal"
     )
 
-    if panel_name == 'mag':
-        y_range = (ymax, ymin)
-        x_range = (xmin, xmax)
-    elif panel_name == 'flux':
-        y_range = (lower, upper)
-        x_range = (xmin, xmax)
-    else:
-        y_range = (ymax, ymin)
-        x_range = (-0.01, 2.01)
+    ranges = {
+        'mag': {'y_range': (ymax, ymin), 'x_range': (xmin, xmax)},
+        'flux': {'y_range': (lower, upper), 'x_range': (xmin, xmax)},
+        'period': {'y_range': (ymax, ymin), 'x_range': (-0.01, 2.01)},
+    }
+
+    y_range = ranges[panel_name]['y_range']
+    x_range = ranges[panel_name]['x_range']
 
     plot = figure(
         frame_width=frame_width,
@@ -1421,6 +1419,7 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
 
     if panel_name == 'mag' or panel_name == 'flux':
         annotate_spec(plot, spectra, y_range[0], y_range[1])
+
     add_filter_group_form = row(
         make_add_filter_group_form(grouped_data, model_dict, panel_name),
         make_custom_buttons_div(panel_name),
@@ -1867,7 +1866,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             label = s.label
         else:
             label = f'{s.instrument.name} ({s.observed_at.date().strftime("%m/%d/%y")})'
-        label_dict[label] = i
+        label_dict[str(s.id)] = i
         model_dict['s' + str(i)] = plot.step(
             x='wavelength',
             y='flux',
@@ -1896,8 +1895,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
         renderers.append(model_dict[f'l{i}'])
 
-        legend_items.append(LegendItem(label=label, renderers=renderers))
-
+        legend_items.append(LegendItem(label=label, renderers=renderers, id=s.id))
     plot.xaxis.axis_label = 'Wavelength (Å)'
     plot.yaxis.axis_label = 'Flux'
     plot.toolbar.logo = None
@@ -2228,7 +2226,10 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
 
     on_top_spectra_dropdown = Dropdown(
         label="Select on top spectra",
-        menu=[legend_item.label['value'] for legend_item in legend_items],
+        menu=[
+            (legend_item.label['value'], str(legend_item.id))
+            for legend_item in legend_items
+        ],
         width_policy="min",
     )
     on_top_spectra_dropdown.js_on_event(
