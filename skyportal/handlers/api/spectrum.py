@@ -207,8 +207,8 @@ class SpectrumHandler(BaseHandler):
 
         if "units" in data:
             if not data["units"] in ["Jy", "AB", "erg/s/cm/cm/AA"]:
-                return self.error("units must be Jy, AB, or erg/s/cm/cm/AA")            
-            
+                return self.error("units must be Jy, AB, or erg/s/cm/cm/AA")
+
         with DBSession() as session:
             spec = Spectrum(**data)
             spec.instrument = instrument
@@ -416,7 +416,7 @@ class SpectrumHandler(BaseHandler):
                 return self.error(
                     f'Could not access spectrum {spectrum_id}.', status=403
                 )
-              
+
             with DBSession() as session:
                 comments = session.execute(
                     CommentOnSpectrum.query_records_accessible_by(

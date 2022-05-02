@@ -1577,7 +1577,7 @@ class SourceHandler(BaseHandler):
                     ) = result
                 else:
                     (obj,) = result
-                    
+
                 if (
                     (annotations_filter is not None)
                     or (annotations_filter_origin is not None)
@@ -1586,25 +1586,23 @@ class SourceHandler(BaseHandler):
                 ):
                     if annotations_filter_origin is not None:
                         annotations_query = [
-                                a
-                                for a, in (
-                                    session.execute(
-                                        Annotation.query_records_accessible_by(
-                                            self.current_user
-                                        )
-                                        .where(Annotation.obj_id == obj.id)
-                                        .where(
-                                            Annotation.origin.in_(
-                                                annotations_filter_origin
-                                            )
-                                        )
-                                    ).all()
-                                )
+                            a
+                            for a, in (
+                                session.execute(
+                                    Annotation.query_records_accessible_by(
+                                        self.current_user
+                                    )
+                                    .where(Annotation.obj_id == obj.id)
+                                    .where(
+                                        Annotation.origin.in_(annotations_filter_origin)
+                                    )
+                                ).all()
+                            )
                         ]
                     else:
                         annotations_query = Annotation.query_records_accessible_by(
-                                            self.current_user
-                                        ).where(Annotation.obj_id == obj.id)
+                            self.current_user
+                        ).where(Annotation.obj_id == obj.id)
                     if annotations_filter_before:
                         annotations_query = annotations_query.filter(
                             Annotation.created_at <= annotations_filter_before
@@ -1613,14 +1611,10 @@ class SourceHandler(BaseHandler):
                         annotations_query = annotations_query.filter(
                             Annotation.created_at >= annotations_filter_after
                         )
-                        
+
                     annotations = [
-                                a
-                                for a, in (
-                                    session.execute(annotations_query)
-                                    .all()
-                                )
-                            ]    
+                        a for a, in (session.execute(annotations_query).all())
+                    ]
 
                     if len(annotations) > 0:
                         passes_filter = True
