@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
+import { Button } from "@material-ui/core";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
@@ -10,6 +11,7 @@ import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
 import { makeStyles } from "@material-ui/core/styles";
 import PropTypes from "prop-types";
+import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -18,6 +20,8 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 import { observingRunTitle } from "./AssignmentForm";
 import NewObservingRun from "./NewObservingRun";
+
+import * as observingRunActions from "../ducks/observingRun";
 
 dayjs.extend(utc);
 dayjs.extend(duration);
@@ -31,6 +35,17 @@ const useStyles = makeStyles((theme) => ({
   },
   paperContent: {
     padding: "1rem",
+  },
+  observingRunDelete: {
+    cursor: "pointer",
+    fontSize: "2em",
+    position: "absolute",
+    padding: 0,
+    right: 0,
+    top: 0,
+  },
+  observingRunDeleteDisabled: {
+    opacity: 0,
   },
 }));
 
@@ -58,7 +73,8 @@ export function observingRunInfo(observingRun, instrumentList, telescopeList) {
   return result;
 }
 
-const ObservingRunList = ({ observingRuns }) => {
+const ObservingRunList = ({ observingRuns, deletePermission }) => {
+  const dispatch = useDispatch();
   const classes = useStyles();
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -85,6 +101,16 @@ const ObservingRunList = ({ observingRuns }) => {
     observingRunsToShow = [...observingRuns];
   }
 
+  const deleteObservingRun = (observingRun) => {
+    dispatch(observingRunActions.deleteObservingRun(observingRun.id)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Observing run deleted"));
+        }
+      }
+    );
+  };
+
   return (
     <div className={classes.root}>
       <List component="nav">
@@ -96,7 +122,7 @@ const ObservingRunList = ({ observingRuns }) => {
         />
         Display all observing runs? &nbsp;&nbsp;
         {observingRunsToShow?.map((run) => (
-          <ListItem button component={Link} to={`/run/${run.id}`} key={run.id}>
+          <ListItem key={run.id}>
             <ListItemText
               primary={observingRunTitle(
                 run,
@@ -106,6 +132,21 @@ const ObservingRunList = ({ observingRuns }) => {
               )}
               secondary={observingRunInfo(run, instrumentList, telescopeList)}
             />
+            <Link to={`/run/${run.id}`} role="link">
+              <Button size="small">More info</Button>
+            </Link>
+            <Button
+              key={`${run.id}-delete_button`}
+              id="delete_button"
+              classes={{
+                root: classes.observingRunDelete,
+                disabled: classes.observingRunDeleteDisabled,
+              }}
+              onClick={() => deleteObservingRun(run)}
+              disabled={!deletePermission}
+            >
+              &times;
+            </Button>
           </ListItem>
         ))}
       </List>
@@ -115,14 +156,23 @@ const ObservingRunList = ({ observingRuns }) => {
 
 const ObservingRunPage = () => {
   const { observingRunList } = useSelector((state) => state.observingRuns);
+  const currentUser = useSelector((state) => state.profile);
   const classes = useStyles();
+
+  const permission =
+    currentUser.permissions?.includes("System admin") ||
+    currentUser.permissions?.includes("Manage observing runs");
+
   return (
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
           <div className={classes.paperContent}>
             <Typography variant="h6">List of Observing Runs</Typography>
-            <ObservingRunList observingRuns={observingRunList} />
+            <ObservingRunList
+              observingRuns={observingRunList}
+              deletePermission={permission}
+            />
           </div>
         </Paper>
       </Grid>
@@ -141,6 +191,7 @@ const ObservingRunPage = () => {
 ObservingRunList.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   observingRuns: PropTypes.arrayOf(PropTypes.any).isRequired,
+  deletePermission: PropTypes.bool.isRequired,
 };
 
 export default ObservingRunPage;
