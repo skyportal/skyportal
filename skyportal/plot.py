@@ -957,6 +957,8 @@ def make_legend_items_and_detection_lines(
                     ),
                     renderers,
                 )
+        else:
+            raise ValueError("Panel name should be one of mag, flux, and period.")
         if panel_name == 'mag' or panel_name == 'flux':
             mark_detections(
                 plot,
@@ -1220,6 +1222,8 @@ def add_widgets(
             layout,
         )
         layout.children.insert(2, period_controls)
+    else:
+        raise ValueError("Panel name should be one of mag, flux, and period.")
 
 
 def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra):
