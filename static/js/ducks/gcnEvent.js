@@ -8,6 +8,20 @@ export const REFRESH_GCNEVENT = "skyportal/REFRESH_GCNEVENT";
 export const FETCH_GCNEVENT = "skyportal/FETCH_GCNEVENT";
 export const FETCH_GCNEVENT_OK = "skyportal/FETCH_GCNEVENT_OK";
 
+const ADD_COMMENT_ON_GCNEVENT = "skyportal/ADD_COMMENT_ON_GCNEVENT";
+
+const DELETE_COMMENT_ON_GCNEVENT = "skyportal/DELETE_COMMENT_ON_GCNEVENT";
+
+const GET_COMMENT_ON_GCNEVENT_ATTACHMENT =
+  "skyportal/GET_COMMENT_ON_GCNEVENT_ATTACHMENT";
+const GET_COMMENT_ON_GCNEVENT_ATTACHMENT_OK =
+  "skyportal/GET_COMMENT_ON_GCNEVENT_ATTACHMENT_OK";
+
+const GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW =
+  "skyportal/GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW";
+const GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW_OK =
+  "skyportal/GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW_OK";
+
 const SUBMIT_OBSERVATION_PLAN_REQUEST =
   "skyportal/SUBMIT_OBSERVATION_PLAN_REQUEST";
 
@@ -28,30 +42,43 @@ const REMOVE_OBSERVATION_PLAN_REQUEST =
 export const fetchGcnEvent = (dateobs) =>
   API.GET(`/api/gcn_event/${dateobs}`, FETCH_GCNEVENT);
 
-// Websocket message handler
-messageHandler.add((actionType, payload, dispatch, getState) => {
-  const { gcnEvent } = getState();
-  if (actionType === FETCH_GCNEVENT) {
-    dispatch(fetchGcnEvent(gcnEvent.dateobs));
+export function addCommentOnGcnEvent(formData) {
+  function fileReaderPromise(file) {
+    return new Promise((resolve) => {
+      const filereader = new FileReader();
+      filereader.readAsDataURL(file);
+      filereader.onloadend = () =>
+        resolve({ body: filereader.result, name: file.name });
+    });
   }
-  if (actionType === REFRESH_GCNEVENT) {
-    const loaded_gcnevent_key = gcnEvent?.dateobs;
+  if (formData.attachment) {
+    return (dispatch) => {
+      fileReaderPromise(formData.attachment).then((fileData) => {
+        formData.attachment = fileData;
 
-    if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
-      dispatch(fetchGcnEvent(gcnEvent.dateobs));
-    }
+        dispatch(
+          API.POST(
+            `/api/gcn_event/${formData.gcnevent_id}/comments`,
+            ADD_COMMENT_ON_GCNEVENT,
+            formData
+          )
+        );
+      });
+    };
   }
-});
+  return API.POST(
+    `/api/gcn_event/${formData.gcnevent_id}/comments`,
+    ADD_COMMENT_ON_GCNEVENT,
+    formData
+  );
+}
 
-const reducer = (state = null, action) => {
-  switch (action.type) {
-    case FETCH_GCNEVENT_OK: {
-      return action.data;
-    }
-    default:
-      return state;
-  }
-};
+export function deleteCommentOnGcnEvent(gcnEventID, commentID) {
+  return API.DELETE(
+    `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
+    DELETE_COMMENT_ON_GCNEVENT
+  );
+}
 
 export const submitObservationPlanRequest = (params) => {
   const { instrument_name, ...paramsToSubmit } = params;
@@ -94,5 +121,68 @@ export const deleteObservationPlanRequestTreasureMap = (id) =>
     `/api/observation_plan/${id}/treasuremap`,
     DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP
   );
+
+export function getCommentOnGcnEventAttachment(gcnEventID, commentID) {
+  return API.GET(
+    `/api/gcn_event/${gcnEventID}/comments/${commentID}/attachment`,
+    GET_COMMENT_ON_GCNEVENT_ATTACHMENT
+  );
+}
+
+export function getCommentOnGcnEventAttachmentPreview(gcnEventID, commentID) {
+  return API.GET(
+    `/api/gcn_event/${gcnEventID}/comments/${commentID}`,
+    GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW
+  );
+}
+
+// Websocket message handler
+messageHandler.add((actionType, payload, dispatch, getState) => {
+  const { gcnEvent } = getState();
+  if (actionType === FETCH_GCNEVENT) {
+    dispatch(fetchGcnEvent(gcnEvent.dateobs));
+  }
+  if (actionType === REFRESH_GCNEVENT) {
+    const loaded_gcnevent_key = gcnEvent?.dateobs;
+
+    if (loaded_gcnevent_key === payload.gcnEvent_dateobs) {
+      dispatch(fetchGcnEvent(gcnEvent.dateobs));
+    }
+  }
+});
+
+const reducer = (state = null, action) => {
+  switch (action.type) {
+    case FETCH_GCNEVENT_OK: {
+      return action.data;
+    }
+    case GET_COMMENT_ON_GCNEVENT_ATTACHMENT_OK: {
+      const { commentId, text, attachment, attachment_name } = action.data;
+      return {
+        ...state,
+        commentAttachment: {
+          commentId,
+          text,
+          attachment,
+          attachment_name,
+        },
+      };
+    }
+    case GET_COMMENT_ON_GCNEVENT_ATTACHMENT_PREVIEW_OK: {
+      const { commentId, text, attachment, attachment_name } = action.data;
+      return {
+        ...state,
+        commentAttachment: {
+          commentId,
+          text,
+          attachment,
+          attachment_name,
+        },
+      };
+    }
+    default:
+      return state;
+  }
+};
 
 store.injectReducer("gcnEvent", reducer);

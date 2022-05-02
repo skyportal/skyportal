@@ -32,7 +32,7 @@ observation_id,field_id,obstime,seeing,limmag,exposure_time,filter,processed_fra
 84434651,1,2458598.8465162003,1.5812000000,20.4940500000,30,ztfr,1.00000
 84434696,1,2458598.8469676003,1.6499500000,20.5603000000,30,ztfr,1.00000
 
-where observation_id (the ID of the observations, does not need to be unique), the field_id, the observation time (in JD), the seeing (in arcseconds), the limiting magnitude, the exposure time (in seconds), the filter, and the "processed_fraction" (what fraction of the image was successfully processed) are potential columns. We note that only observation_id, field_id, obstime, filter, and exposure_time required.
+where observation_id (the ID of the observations, does not need to be unique), the field_id, the observation time (in JD or otherwise any unambigious format as specified in the astropy docs such as iso or isot: https://docs.astropy.org/en/stable/time/index.html), the seeing (in arcseconds), the limiting magnitude, the exposure time (in seconds), the filter, and the "processed_fraction" (what fraction of the image was successfully processed) are potential columns. We note that only observation_id, field_id, obstime, filter, and exposure_time required.
 
 ## Executed Observations API Upload
 

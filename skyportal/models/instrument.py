@@ -133,6 +133,12 @@ class Instrument(Base):
         doc="treasuremap.space API ID for this instrument",
     )
 
+    tns_id = sa.Column(
+        sa.Integer,
+        nullable=True,
+        doc="TNS API ID for this instrument",
+    )
+
     region = deferred(
         sa.Column(
             sa.String, nullable=True, doc="Instrument astropy.regions representation."

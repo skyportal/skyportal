@@ -1,10 +1,11 @@
 import React from "react";
+import { isMobileOnly } from "react-device-detect";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
-import { isMobileOnly } from "react-device-detect";
+import { useTheme } from "@material-ui/core/styles";
 
-const spec = (url) => ({
-  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
+const spec = (url, colorScale, titleFontSize, labelFontSize) => ({
+  $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
   data: {
     url,
     format: {
@@ -49,6 +50,8 @@ const spec = (url) => ({
           },
           axis: {
             title: "Phase",
+            titleFontSize,
+            labelFontSize,
           },
         },
         y: {
@@ -57,14 +60,18 @@ const spec = (url) => ({
           scale: {
             zero: false,
             reverse: true,
+            titleFontSize,
           },
           axis: {
             title: "mag",
+            titleFontSize,
+            labelFontSize,
           },
         },
         color: {
           field: "filter",
           type: "nominal",
+          scale: colorScale,
         },
         tooltip: [
           { field: "magAndErr", title: "mag", type: "nominal" },
@@ -108,6 +115,8 @@ const spec = (url) => ({
           },
           axis: {
             title: "Phase",
+            titleFontSize,
+            labelFontSize,
           },
         },
         y: {
@@ -131,6 +140,8 @@ const spec = (url) => ({
           type: "nominal",
           legend: {
             orient: isMobileOnly ? "bottom" : "right",
+            titleFontSize,
+            labelFontSize,
           },
         },
         opacity: {
@@ -164,6 +175,8 @@ const spec = (url) => ({
           },
           axis: {
             title: "Phase",
+            titleFontSize,
+            labelFontSize,
           },
         },
         y: {
@@ -184,14 +197,24 @@ const spec = (url) => ({
 });
 
 const VegaFoldedPlot = React.memo((props) => {
-  const { dataUrl } = props;
+  const { dataUrl, colorScale } = props;
+  const theme = useTheme();
   return (
     <div
       ref={(node) => {
         if (node) {
-          embed(node, spec(dataUrl), {
-            actions: false,
-          });
+          embed(
+            node,
+            spec(
+              dataUrl,
+              colorScale,
+              theme.plotFontSizes.titleFontSize,
+              theme.plotFontSizes.labelFontSize
+            ),
+            {
+              actions: false,
+            }
+          );
         }
       }}
     />
@@ -200,6 +223,10 @@ const VegaFoldedPlot = React.memo((props) => {
 
 VegaFoldedPlot.propTypes = {
   dataUrl: PropTypes.string.isRequired,
+  colorScale: PropTypes.shape({
+    domain: PropTypes.arrayOf(PropTypes.string),
+    range: PropTypes.arrayOf(PropTypes.string),
+  }).isRequired,
 };
 
 VegaFoldedPlot.displayName = "VegaFoldedPlot";

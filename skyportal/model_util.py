@@ -12,6 +12,7 @@ all_acl_ids = [
     'Manage groups',
     'Manage shifts',
     'Manage allocations',
+    'Manage observing runs',
     'Upload data',
     'System admin',
     'Post taxonomy',
@@ -31,8 +32,15 @@ role_acls = {
         'Post taxonomy',
         'Manage users',
         'Classify',
+        'Manage observing runs',
     ],
-    'Full user': ['Annotate', 'Comment', 'Upload data', 'Classify'],
+    'Full user': [
+        'Annotate',
+        'Comment',
+        'Upload data',
+        'Classify',
+        'Manage observing runs',
+    ],
     'View only': [],
 }
 

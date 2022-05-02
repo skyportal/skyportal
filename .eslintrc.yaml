@@ -1,5 +1,10 @@
 ---
-parser: "babel-eslint"
+parser: "@babel/eslint-parser"
+parserOptions:
+  requireConfigFile: false
+  babelOptions:
+    # Must match webpack.config.js
+    presets: ["@babel/preset-env", "@babel/preset-react"]
 env:
   browser: true
 plugins: ["import", "react", "react-hooks"]
