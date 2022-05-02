@@ -683,7 +683,8 @@ def add_external_photometry(json, user):
             f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. Please break up the data into smaller sets and try again'
         )
 
-    log(f'Pending request from {user.username} with {len(df.index)} rows')
+    username = user.username
+    log(f'Pending request from {username} with {len(df.index)} rows')
 
     # This lock ensures that the Photometry table data are not modified in any way
     # between when the query for duplicate photometry is first executed and
@@ -704,7 +705,7 @@ def add_external_photometry(json, user):
             log(f"Unable to post photometry: {e}")
 
     log(
-        f'Request from {user.username} with {len(df.index)} rows complete with upload_id {upload_id}'
+        f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
     )
 
 
