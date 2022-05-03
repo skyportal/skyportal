@@ -122,6 +122,7 @@ TelescopeList.propTypes = {
       lat: PropTypes.number.isRequired,
       lon: PropTypes.number.isRequired,
       elevation: PropTypes.number.isRequired,
+      is_night_astronomical: PropTypes.bool.isRequired,
     })
   ).isRequired,
 };

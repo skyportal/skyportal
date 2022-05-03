@@ -38,6 +38,14 @@ function telescopelabel(nestedTelescope) {
     .join(" / ");
 }
 
+function telescopeCanObserve(nestedTelescope) {
+  let color = "#f9d71c";
+  if (nestedTelescope.is_night_astronomical_at_least_one) {
+    color = "#0c1445";
+  }
+  return color;
+}
+
 function TelescopeMarker({ nestedTelescope, position }) {
   return (
     <Marker
@@ -46,7 +54,10 @@ function TelescopeMarker({ nestedTelescope, position }) {
       coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
       onClick={() => setCurrentTelescopes(nestedTelescope)}
     >
-      <circle r={6.5 / position.k} fill="#457B9C" />
+      <circle
+        r={6.5 / position.k}
+        fill={telescopeCanObserve(nestedTelescope)}
+      />
       <text
         id="telescopes_label"
         textAnchor="middle"
@@ -77,6 +88,8 @@ const TelescopeMap = ({ telescopes }) => {
       nestedTelescopes.push({
         lat: filteredTelescopes[i].lat,
         lon: filteredTelescopes[i].lon,
+        is_night_astronomical_at_least_one:
+          filteredTelescopes[i].is_night_astronomical,
         telescopes: [filteredTelescopes[i]],
       });
     } else {
@@ -96,11 +109,16 @@ const TelescopeMap = ({ telescopes }) => {
           ) < 2
         ) {
           nestedTelescopes[j].telescopes.push(filteredTelescopes[i]);
+          if (filteredTelescopes[i].is_night_astronomical) {
+            nestedTelescopes[j].is_night_astronomical_at_least_one = true;
+          }
           break;
         } else if (j === nestedTelescopes.length - 1) {
           nestedTelescopes.push({
             lat: filteredTelescopes[i].lat,
             lon: filteredTelescopes[i].lon,
+            is_night_astronomical_at_least_one:
+              filteredTelescopes[i].is_night_astronomical,
             telescopes: [filteredTelescopes[i]],
           });
           break;
@@ -159,16 +177,17 @@ TelescopeMap.propTypes = {
 
 TelescopeMarker.propTypes = {
   nestedTelescope: PropTypes.shape({
-    lat: PropTypes.number,
-    lon: PropTypes.number,
+    lat: PropTypes.number.isRequired,
+    lon: PropTypes.number.isRequired,
     telescopes: PropTypes.arrayOf(
       PropTypes.shape({
-        id: PropTypes.number,
-        name: PropTypes.string,
-        nickname: PropTypes.string,
-        lat: PropTypes.number,
-        lon: PropTypes.number,
+        id: PropTypes.number.isRequired,
+        name: PropTypes.string.isRequired,
+        nickname: PropTypes.string.isRequired,
+        lat: PropTypes.number.isRequired,
+        lon: PropTypes.number.isRequired,
         fixed_location: PropTypes.bool,
+        is_night_astronomical: PropTypes.bool.isRequired,
       })
     ),
   }).isRequired,
