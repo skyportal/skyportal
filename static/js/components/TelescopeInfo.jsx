@@ -20,6 +20,13 @@ const useStyles = makeStyles(() => ({
     justifyItems: "left",
     alignItems: "left",
   },
+  telescope_header: {
+    display: "flex",
+    flexDirection: "row",
+    justifyItems: "center",
+    alignItems: "center",
+    gap: "0.5rem",
+  },
   h2: {
     textAlign: "left",
     fontSize: "1.4rem",
@@ -40,6 +47,18 @@ const useStyles = makeStyles(() => ({
     padding: "0",
     margin: "0",
   },
+  canObserve: {
+    height: "1rem",
+    width: "1rem",
+    backgroundColor: "#0c1445",
+    borderRadius: "50%",
+  },
+  cannotObserve: {
+    height: "1rem",
+    width: "1rem",
+    backgroundColor: "#f9d71c",
+    borderRadius: "50%",
+  },
 }));
 
 const TelescopeInfo = () => {
@@ -57,9 +76,16 @@ const TelescopeInfo = () => {
             className={classes.listItem}
             key={telescope.id}
           >
-            <h2 className={classes.h2}>
-              {telescope.name} ({telescope.nickname})
-            </h2>
+            <div className={classes.telescope_header}>
+              {telescope.is_night_astronomical ? (
+                <span className={classes.canObserve} />
+              ) : (
+                <span className={classes.cannotObserve} />
+              )}
+              <h2 className={classes.h2}>
+                {telescope.name} ({telescope.nickname})
+              </h2>
+            </div>
             {telescope.robotic ? (
               <h3 className={classes.h3}>Robotic : Yes</h3>
             ) : (

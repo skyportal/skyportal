@@ -190,8 +190,8 @@ telescope:
     =id: Swift
   - diameter: 1.8
     elevation: 4215.0
-    lat: 19.825
-    lon: 204.5317
+    lat: 20.708424
+    lon: -156.257565
     name: PAN-STARRS 1.8m
     nickname: PS1
     skycam_link: null
