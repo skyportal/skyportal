@@ -53,7 +53,7 @@ requests==2.27.1
 geojson==2.5.0
 typing-extensions>=4.0.1  # astropy v5.0 needs this, but does not correctly specify as much in its install config
 swifttools==2.4.2
-pip==22.0.3
+pip==22.0.4
 gwemopt==0.0.76
 humanize==4.0.0
 noaodatalab==2.20.0
