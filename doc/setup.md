@@ -170,7 +170,7 @@ This also adds `testuser@cesium-ml.org` as an administrator.
 
 When running a public server, you will likely want to deploy an SSL certificate (i.e., serve `https://your.url` instead of `http://your.url`). Certificates can be obtained for free from services such as Let's Encrypt (https://letsencrypt.org/). For Let's Encrypt at least, the process requires verification of the service without SSL first to provision a certificate, and so deployment without an nginx configuration change will be first required.
 
-To have nginx pick up your SSL certificate, you'll need to modify the nginx configuration in `baselayer/services/nginx/nginx.conf.template`. For example, you would add the following for Let's Encrypt:
+After receiving an SSL certificate, you'll need to modify the nginx configuration in `baselayer/services/nginx/nginx.conf.template` to use it. For example, you would add the following for Let's Encrypt:
 
     listen [::]:443 ssl ipv6only=on;
     listen 443 ssl;
