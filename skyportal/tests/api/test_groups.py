@@ -54,6 +54,7 @@ def test_fetch_group_by_name(super_admin_token, super_admin_user):
     new_group_id = data["data"]["id"]
 
     status, data = api("GET", f"groups?name={group_name}", token=super_admin_token)
+
     assert data["status"] == "success"
     assert len(data["data"]) == 1
     assert data["data"][0]["name"] == group_name

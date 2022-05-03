@@ -80,6 +80,8 @@ def test_token_user_post_get_instrument(super_admin_token):
     assert data['status'] == 'success'
     assert data['data']['band'] == 'NIR'
 
+    print(data)
+
     assert len(data['data']['fields']) == 5
 
     assert any(
@@ -100,6 +102,8 @@ def test_token_user_post_get_instrument(super_admin_token):
     assert status == 200
     assert data['status'] == 'success'
     assert data['data']['band'] == 'NIR'
+
+    print(data)
 
     assert len(data['data']['fields']) == 5
 

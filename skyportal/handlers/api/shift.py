@@ -84,11 +84,18 @@ class ShiftHandler(BaseHandler):
             return self.error(
                 "Invalid shift_admins field; unable to parse all items to int"
             )
-        shift_admins = (
-            User.query_records_accessible_by(self.current_user)
-            .filter(User.id.in_(shift_admin_ids))
-            .all()
-        )
+
+        with DBSession() as session:
+            shift_admins = [
+                s
+                for s, in (
+                    session.execute(
+                        User.query_records_accessible_by(self.current_user).where(
+                            User.id.in_(shift_admin_ids)
+                        )
+                    ).all()
+                )
+            ]
         # get the list of ids from the shift_admins list
         if self.current_user.id not in [e.id for e in shift_admins] and not isinstance(
             self.current_user, Token
