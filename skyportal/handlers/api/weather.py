@@ -70,11 +70,11 @@ class WeatherHandler(BaseHandler):
                               description: Weather fetching error message
         """
         with DBSession() as session:
-            (user,) = session.execute(
+            user = session.execute(
                 User.query_records_accessible_by(self.current_user).where(
                     User.username == self.associated_user_object.username
                 )
-            ).first()
+            ).first()[0]
         user_prefs = getattr(user, 'preferences', None) or {}
         weather_prefs = user_prefs.get('weather', {})
         weather_prefs = {**default_prefs, **weather_prefs}
@@ -90,12 +90,17 @@ class WeatherHandler(BaseHandler):
         # use the query telecope ID otherwise fall back to preferences id
         telescope_id = self.get_query_argument("telescope_id", default_telescope_id)
 
-        telescope = Telescope.get_if_accessible_by(telescope_id, self.current_user)
-        if telescope is None:
-            return self.error(
-                f"Could not load telescope with ID {weather_prefs['telescopeID']}"
+        with self.Session() as session:
+            telescope = session.execute(
+                Telescope.get_if_accessible_by(telescope_id, self.current_user)
             )
-        with DBSession() as session:
+            if telescope is None:
+                return self.error(
+                    f"Could not load telescope with ID {weather_prefs['telescopeID']}"
+                )
+            telescope = telescope[0]
+
+        with self.Session() as session:
             weather = session.execute(
                 sa.select(Weather).where(Weather.telescope_id == telescope_id)
             ).first()
@@ -103,36 +108,37 @@ class WeatherHandler(BaseHandler):
                 weather = Weather(telescope=telescope)
                 session.add(weather)
             else:
-                (weather,) = weather
+                weather = weather[0]
 
-        # Should we call the API again?
-        refresh = weather_refresh is not None
-        if refresh and weather.retrieved_at is not None:
-            if (
-                weather.retrieved_at + datetime.timedelta(seconds=weather_refresh)
-                >= datetime.datetime.utcnow()
-            ):
-                # it is too soon to refresh
-                refresh = False
-        elif weather.retrieved_at is None:
-            refresh = True
+            # Should we call the API again?
+            refresh = weather_refresh is not None
+            if refresh and weather.retrieved_at is not None:
+                if (
+                    weather.retrieved_at + datetime.timedelta(seconds=weather_refresh)
+                    >= datetime.datetime.utcnow()
+                ):
+                    # it is too soon to refresh
+                    refresh = False
+            elif weather.retrieved_at is None:
+                refresh = True
 
-        message = ""
-        if refresh:
-            response = get_url(
-                "https://api.openweathermap.org/data/2.5/onecall?"
-                f"lat={telescope.lat}&lon={telescope.lon}&appid={openweather_api_key}"
-            )
-            if response is not None:
-                if response.status_code == 200:
-                    data = response.json()
-                    weather.weather_info = data
-                    weather.retrieved_at = datetime.datetime.utcnow()
-                    self.verify_and_commit()
-                else:
-                    message = response.text
+            message = ""
+            if refresh:
+                response = get_url(
+                    "https://api.openweathermap.org/data/2.5/onecall?"
+                    f"lat={telescope.lat}&lon={telescope.lon}&appid={openweather_api_key}"
+                )
+                if response is not None:
+                    if response.status_code == 200:
+                        data = response.json()
+                        weather.weather_info = data
+                        weather.retrieved_at = datetime.datetime.utcnow()
+                        session.commit()
+                    else:
+                        message = response.text
 
-        self.verify_and_commit()
+                session.commit()
+
         return self.success(
             data={
                 "weather": weather.weather_info,
