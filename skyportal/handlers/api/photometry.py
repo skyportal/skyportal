@@ -1080,6 +1080,8 @@ class ObjPhotometryHandler(BaseHandler):
     @auth_or_token
     def get(self, obj_id):
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
+        format = self.get_query_argument('format', 'mag')
+        outsys = self.get_query_argument('magsys', 'ab')
 
         Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
 
@@ -1089,11 +1091,8 @@ class ObjPhotometryHandler(BaseHandler):
                     Photometry.obj_id == obj_id
                 )
             ).all()
-        format = self.get_query_argument('format', 'mag')
-        outsys = self.get_query_argument('magsys', 'ab')
-
-        self.verify_and_commit()
-        data = [serialize(phot, outsys, format) for phot, in photometry]
+            self.verify_and_commit()
+            data = [serialize(phot, outsys, format) for phot, in photometry]
 
         if phase_fold_data:
             period, modified = None, arrow.Arrow(1, 1, 1)
