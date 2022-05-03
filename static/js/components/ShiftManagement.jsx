@@ -194,6 +194,7 @@ function CurrentShiftMenu() {
           button = (
             <Tooltip title="Add selected users to shift">
               <Button
+                id="add-users-button"
                 variant="contained"
                 color="primary"
                 className={classes.addUsersButton}
@@ -209,6 +210,7 @@ function CurrentShiftMenu() {
           button = (
             <Tooltip title="Remove selected users from shift">
               <Button
+                id="remove-users-button"
                 variant="contained"
                 color="primary"
                 className={classes.addUsersButton}
@@ -224,6 +226,7 @@ function CurrentShiftMenu() {
           button = (
             <Tooltip title="Adds selected users that are not in the shift, and removes selected users that are already in the shift">
               <Button
+                id="add-remove-users-button"
                 variant="contained"
                 color="primary"
                 className={classes.addUsersButton}
@@ -241,6 +244,7 @@ function CurrentShiftMenu() {
         button = (
           <Tooltip title="No users selected, select users to add and/or remove them from the shift">
             <Button
+              id="deactivated-users-button"
               variant="contained"
               color="secondary"
               className={classes.addUsersButton}
@@ -256,25 +260,23 @@ function CurrentShiftMenu() {
     return (
       <div className={classes.addUsersElements}>
         <FormControl className={classes.addUsersForm}>
-          <InputLabel
-            className={classes.addUsersLabel}
-            id="demo-multiple-chip-label"
-          >
+          <InputLabel className={classes.addUsersLabel} id="select-users-label">
             Select Users
           </InputLabel>
           <Select
-            labelId="demo-multiple-chip-label"
-            id="demo-multiple-chip"
+            labelId="select-users-multiple-chip-label"
+            id="select-users--multiple-chip"
             multiple
             // value is username of all selected users
             value={selectedUsers}
             onChange={handleChange}
             input={<OutlinedInput id="select-multiple-chip" label="Chip" />}
             renderValue={(selected) => (
-              <Box>
+              <Box id="selected_users">
                 {selected.map((value) => (
                   <Chip
                     key={value.id}
+                    id={value.id}
                     label={`${value.first_name} ${value.last_name}`}
                   />
                 ))}
@@ -283,9 +285,10 @@ function CurrentShiftMenu() {
             MenuProps={MenuProps}
           >
             {users.map((user) => (
-              <MenuItem key={user.id} value={user}>
+              <MenuItem id="select_users" key={user.id} value={user}>
                 <Checkbox checked={selectedUsers.indexOf(user) > -1} />
                 <ListItemText
+                  id={user.id}
                   primary={`${user.first_name} ${user.last_name}`}
                 />
               </MenuItem>
