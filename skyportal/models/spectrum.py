@@ -112,17 +112,20 @@ class Spectrum(Base):
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
         doc='Groups that can view this spectrum.',
+        lazy='subquery',
     )
 
     reducers = relationship(
         "User",
         secondary="spectrum_reducers",
         doc="Users that reduced this spectrum, or users to serve as points of contact given an external reducer.",
+        lazy='subquery',
     )
     observers = relationship(
         "User",
         secondary="spectrum_observers",
         doc="Users that observed this spectrum, or users to serve as points of contact given an external observer.",
+        lazy='subquery',
     )
 
     followup_request_id = sa.Column(

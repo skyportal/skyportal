@@ -82,7 +82,7 @@ class SpectrumHandler(BaseHandler):
             validated_ids = []
             for id in id_list.split(','):
                 id = int(id)
-                if id not in [row.id for row in accessible_rows]:
+                if id not in [row.id for row, in accessible_rows]:
                     raise AccessError(
                         f'Invalid {model_class.__name__} IDs field ("{id_list}"); '
                         f'Not all {model_class.__name__} IDs are valid/accessible'
@@ -418,47 +418,53 @@ class SpectrumHandler(BaseHandler):
                 )
 
             with DBSession() as session:
-                comments = session.execute(
-                    CommentOnSpectrum.query_records_accessible_by(
-                        self.current_user,
-                        options=[joinedload(CommentOnSpectrum.groups)],
-                    ).where(CommentOnSpectrum.spectrum_id == spectrum_id)
-                ).all()
-                annotations = session.execute(
-                    AnnotationOnSpectrum.query_records_accessible_by(
-                        self.current_user
-                    ).where(AnnotationOnSpectrum.spectrum_id == spectrum_id)
-                ).all()
+                comments = [
+                    c
+                    for c, in session.execute(
+                        CommentOnSpectrum.query_records_accessible_by(
+                            self.current_user,
+                            options=[joinedload(CommentOnSpectrum.groups)],
+                        ).where(CommentOnSpectrum.spectrum_id == spectrum_id)
+                    ).all()
+                ]
+                annotations = [
+                    s
+                    for s, in session.execute(
+                        AnnotationOnSpectrum.query_records_accessible_by(
+                            self.current_user
+                        ).where(AnnotationOnSpectrum.spectrum_id == spectrum_id)
+                    ).all()
+                ]
 
-            spec_dict = recursive_to_dict(spectrum)
-            spec_dict["instrument_name"] = spectrum.instrument.name
-            spec_dict["groups"] = spectrum.groups
-            spec_dict["reducers"] = spectrum.reducers
-            spec_dict["observers"] = spectrum.observers
-            spec_dict["owner"] = spectrum.owner
-            spec_dict["comments"] = comments
-            spec_dict["annotations"] = annotations
+                spec_dict = recursive_to_dict(spectrum)
+                spec_dict["instrument_name"] = spectrum.instrument.name
+                spec_dict["groups"] = sorted(
+                    recursive_to_dict(spectrum.groups), key=lambda x: x['modified']
+                )
+                spec_dict["reducers"] = recursive_to_dict(spectrum.reducers)
+                spec_dict["observers"] = recursive_to_dict(spectrum.observers)
+                spec_dict["owner"] = spectrum.owner
+                spec_dict["comments"] = recursive_to_dict(comments)
+                spec_dict["annotations"] = recursive_to_dict(annotations)
 
-            external_reducer = (
-                DBSession()
-                .query(SpectrumReducer.external_reducer)
-                .filter(SpectrumReducer.spectr_id == spectrum_id)
-                .first()
-            )
-            if external_reducer is not None:
-                spec_dict["external_reducer"] = external_reducer[0]
+                external_reducer = session.execute(
+                    sa.select(SpectrumReducer.external_reducer).where(
+                        SpectrumReducer.spectr_id == spectrum_id
+                    )
+                ).first()
+                if external_reducer is not None:
+                    spec_dict["external_reducer"] = external_reducer[0]
 
-            external_observer = (
-                DBSession()
-                .query(SpectrumObserver.external_observer)
-                .filter(SpectrumObserver.spectr_id == spectrum_id)
-                .first()
-            )
-            if external_observer is not None:
-                spec_dict["external_observer"] = external_observer[0]
+                external_observer = session.execute(
+                    sa.select(SpectrumObserver.external_observer).where(
+                        SpectrumObserver.spectr_id == spectrum_id
+                    )
+                ).first()
+                if external_observer is not None:
+                    spec_dict["external_observer"] = external_observer[0]
 
-            self.verify_and_commit()
-            return self.success(data=spec_dict)
+                self.verify_and_commit()
+                return self.success(data=spec_dict)
 
         # multiple spectra
         minimal_payload = self.get_query_argument('minimalPayload', False)
@@ -627,113 +633,125 @@ class SpectrumHandler(BaseHandler):
         if spec_type:
             spec_query = spec_query.filter(Spectrum.type.in_(spec_type))
 
-        spectra = spec_query.all()
+        with DBSession() as session:
+            spectra = session.execute(spec_query).all()
+            if not minimal_payload:
+                spectra = [s for s, in spectra]
+            result_spectra = recursive_to_dict(spectra)
 
-        result_spectra = recursive_to_dict(spectra)
+            if (
+                not minimal_payload
+                or (comments_filter is not None)
+                or (comments_filter_author is not None)
+                or (comments_filter_before is not None)
+                or (comments_filter_after is not None)
+            ):
+                new_result_spectra = []
+                for spec_dict in result_spectra:
+                    comments_query = CommentOnSpectrum.query_records_accessible_by(
+                        self.current_user,
+                        options=[joinedload(CommentOnSpectrum.groups)],
+                    ).where(CommentOnSpectrum.spectrum_id == spec_dict['id'])
 
-        if (
-            not minimal_payload
-            or (comments_filter is not None)
-            or (comments_filter_author is not None)
-            or (comments_filter_before is not None)
-            or (comments_filter_after is not None)
-        ):
-            new_result_spectra = []
-            for spec_dict in result_spectra:
-                comments_query = CommentOnSpectrum.query_records_accessible_by(
-                    self.current_user,
-                    options=[joinedload(CommentOnSpectrum.groups)],
-                ).filter(CommentOnSpectrum.spectrum_id == spec_dict['id'])
-
-                if not minimal_payload:  # grab these before further filtering
-                    spec_dict['comments'] = recursive_to_dict(comments_query.all())
-
-                if (
-                    (comments_filter is not None)
-                    or (comments_filter_author is not None)
-                    or (comments_filter_before is not None)
-                    or (comments_filter_after is not None)
-                ):
-                    if comments_filter_before:
-                        comments_query = comments_query.filter(
-                            CommentOnSpectrum.created_at <= comments_filter_before
-                        )
-                    if comments_filter_after:
-                        comments_query = comments_query.filter(
-                            CommentOnSpectrum.created_at >= comments_filter_after
+                    if not minimal_payload:  # grab these before further filtering
+                        spec_dict['comments'] = recursive_to_dict(
+                            [c for c, in session.execute(comments_query).all()]
                         )
 
-                    comments = comments_query.all()
-                    if not comments:  # if nothing passed, this spectrum is rejected
-                        continue
+                    if (
+                        (comments_filter is not None)
+                        or (comments_filter_author is not None)
+                        or (comments_filter_before is not None)
+                        or (comments_filter_after is not None)
+                    ):
+                        if comments_filter_before:
+                            comments_query = comments_query.filter(
+                                CommentOnSpectrum.created_at <= comments_filter_before
+                            )
+                        if comments_filter_after:
+                            comments_query = comments_query.filter(
+                                CommentOnSpectrum.created_at >= comments_filter_after
+                            )
 
-                    # check the author and free text also match at least one comment
-                    author_check = np.zeros(len(comments), dtype=bool)
-                    text_check = np.zeros(len(comments), dtype=bool)
+                        comments = [c for c, in session.execute(comments_query).all()]
+                        if not comments:  # if nothing passed, this spectrum is rejected
+                            continue
 
-                    for i, com in enumerate(comments):
-                        if comments_filter_author is None or any(
-                            [cf in com.author.username for cf in comments_filter_author]
-                        ):
-                            author_check[i] = True
-                        if comments_filter is None or any(
-                            [cf in com.text for cf in comments_filter]
-                        ):
-                            text_check[i] = True
+                        # check the author and free text also match at least one comment
+                        author_check = np.zeros(len(comments), dtype=bool)
+                        text_check = np.zeros(len(comments), dtype=bool)
 
-                    # none of the comments have both author and free text match
-                    if not np.any(author_check & text_check):
-                        continue
+                        for i, com in enumerate(comments):
+                            if comments_filter_author is None or any(
+                                [
+                                    cf in com.author.username
+                                    for cf in comments_filter_author
+                                ]
+                            ):
+                                author_check[i] = True
+                            if comments_filter is None or any(
+                                [cf in com.text for cf in comments_filter]
+                            ):
+                                text_check[i] = True
 
-                new_result_spectra.append(
-                    spec_dict
-                )  # only append what passed all the cuts
+                        # none of the comments have both author and free text match
+                        if not np.any(author_check & text_check):
+                            continue
 
-            result_spectra = new_result_spectra
+                    new_result_spectra.append(
+                        spec_dict
+                    )  # only append what passed all the cuts
 
-        if not minimal_payload:  # add other data to each spectrum
-            for (spec, spec_dict) in zip(spectra, result_spectra):
-                annotations = (
-                    AnnotationOnSpectrum.query_records_accessible_by(self.current_user)
-                    .filter(AnnotationOnSpectrum.spectrum_id == spec.id)
-                    .all()
-                )
-                spec_dict['annotations'] = recursive_to_dict(annotations)
-                external_reducer = (
-                    DBSession()
-                    .query(SpectrumReducer.external_reducer)
-                    .filter(SpectrumReducer.spectr_id == spec.id)
-                    .first()
-                )
-                if external_reducer is not None:
-                    spec_dict['external_reducer'] = recursive_to_dict(
-                        external_reducer[0]
+                result_spectra = new_result_spectra
+
+            if not minimal_payload:  # add other data to each spectrum
+                for (spec, spec_dict) in zip(spectra, result_spectra):
+                    annotations = [
+                        a
+                        for a, in session.execute(
+                            AnnotationOnSpectrum.query_records_accessible_by(
+                                self.current_user
+                            ).filter(AnnotationOnSpectrum.spectrum_id == spec.id)
+                        ).all()
+                    ]
+                    spec_dict['annotations'] = recursive_to_dict(annotations)
+                    external_reducer = session.execute(
+                        sa.select(SpectrumReducer.external_reducer).where(
+                            SpectrumReducer.spectr_id == spec.id
+                        )
+                    ).first()
+                    if external_reducer is not None:
+                        spec_dict['external_reducer'] = recursive_to_dict(
+                            external_reducer[0]
+                        )
+
+                    spec_dict['reducers'] = recursive_to_dict(spec.reducers)
+
+                    external_observer = session.execute(
+                        sa.select(SpectrumObserver.external_observer).where(
+                            SpectrumObserver.spectr_id == spec.id
+                        )
+                    ).first()
+                    if external_observer is not None:
+                        spec_dict['external_observer'] = recursive_to_dict(
+                            external_observer[0]
+                        )
+
+                    spec_dict['observers'] = recursive_to_dict(spec.observers)
+
+                    spec_dict['instrument_name'] = spec.instrument.name
+
+                    spec_dict['groups'] = sorted(
+                        recursive_to_dict(spec.groups), key=lambda x: x['modified']
                     )
+                    spec_dict['owner'] = recursive_to_dict(spec.owner)
 
-                spec_dict['reducers'] = recursive_to_dict(spec.reducers)
+                    print(spec_dict)
 
-                external_observer = (
-                    DBSession()
-                    .query(SpectrumObserver.external_observer)
-                    .filter(SpectrumObserver.spectr_id == spec.id)
-                    .first()
-                )
-                if external_observer is not None:
-                    spec_dict['external_observer'] = recursive_to_dict(
-                        external_observer[0]
-                    )
+            result_spectra = sorted(result_spectra, key=lambda x: x['observed_at'])
 
-                spec_dict['observers'] = recursive_to_dict(spec.observers)
-
-                spec_dict['instrument_name'] = spec.instrument.name
-
-                spec_dict['groups'] = recursive_to_dict(spec.groups)
-                spec_dict['owner'] = recursive_to_dict(spec.owner)
-
-        result_spectra = sorted(result_spectra, key=lambda x: x['observed_at'])
-
-        self.verify_and_commit()
-        return self.success(data=result_spectra)
+            self.verify_and_commit()
+            return self.success(data=result_spectra)
 
     @permissions(['Upload data'])
     def put(self, spectrum_id):
