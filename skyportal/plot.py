@@ -808,7 +808,8 @@ def make_legend_items_and_detection_lines(
     data : pandas DataFrame object
         Photometry data (ungrouped)
     obsind : pandas Series object
-        Index of points that have been positively detected (observed), i.e., points that are not upper limits.
+        Index of points that have been positively detected (observed), 
+        i.e., points that are not upper limits.
     markers : list
         List of marker shapes
     instruments : list
