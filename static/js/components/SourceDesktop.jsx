@@ -165,7 +165,7 @@ const SourceDesktop = ({ source }) => {
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
   const [rightPaneVisible, setRightPaneVisible] = useState(true);
-  const [plotWidth, setPlotWidth] = useState(0);
+  const plotWidth = rightPaneVisible ? 800 : 1200;
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
@@ -196,14 +196,6 @@ const SourceDesktop = ({ source }) => {
     dispatch(spectraActions.fetchSourceSpectra(source.id));
   }, [source.id, dispatch]);
 
-  useEffect(() => {
-    const resizeObserver = new ResizeObserver((event) => {
-      setPlotWidth(parseInt(event[0].contentBoxSize[0].inlineSize, 10));
-    });
-
-    resizeObserver.observe(document.getElementById("photometry-container"));
-  });
-
   const z_round = source.redshift_error
     ? ceil(abs(log10(source.redshift_error)))
     : 4;
@@ -222,7 +214,10 @@ const SourceDesktop = ({ source }) => {
             </div>
           </div>
           {!rightPaneVisible && (
-            <Button onClick={() => setRightPaneVisible(true)}>
+            <Button
+              onClick={() => setRightPaneVisible(true)}
+              data-testid="show-right-pane-button"
+            >
               Show right pane
             </Button>
           )}
@@ -525,6 +520,7 @@ const SourceDesktop = ({ source }) => {
                   followupRequests={source.followup_requests}
                   instrumentList={instrumentList}
                   instrumentFormParams={instrumentFormParams}
+                  totalMatches={source.followup_requests.length}
                 />
                 <AssignmentForm
                   obj_id={source.id}
@@ -545,7 +541,10 @@ const SourceDesktop = ({ source }) => {
       </Grid>
       <Grid item xs={5}>
         {rightPaneVisible && (
-          <Button onClick={() => setRightPaneVisible(false)}>
+          <Button
+            onClick={() => setRightPaneVisible(false)}
+            data-testid="hide-right-pane-button"
+          >
             Hide right pane
           </Button>
         )}
