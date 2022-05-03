@@ -525,7 +525,6 @@ class InstrumentHandler(BaseHandler):
                     data[ii]['fields'] = [tile.to_dict() for tile, in tiles]
 
         self.verify_and_commit()
-        print(data)
         return self.success(data=data)
 
     @permissions(['System admin'])

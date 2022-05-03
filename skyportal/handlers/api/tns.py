@@ -80,14 +80,19 @@ class TNSRobotHandler(BaseHandler):
                 tnsrobot_id = int(tnsrobot_id)
             except ValueError:
                 return self.error("TNSRobot ID must be an integer.")
-            tnsrobots = tnsrobots.filter(TNSRobot.id == tnsrobot_id).all()
-            if len(tnsrobots) == 0:
-                return self.error("Could not retrieve tnsrobot.")
-            return self.success(data=tnsrobots[0])
+            with DBSession() as session:
+                tnsrobots = session.execute(
+                    tnsrobots.where(TNSRobot.id == tnsrobot_id)
+                ).first()
+                if tnsrobots is None:
+                    return self.error("Could not retrieve tnsrobot.")
+                tnsrobots = tnsrobots[0]
+                return self.success(data=tnsrobots)
 
-        tnsrobots = tnsrobots.all()
-        self.verify_and_commit()
-        return self.success(data=tnsrobots)
+        with DBSession() as session:
+            tnsrobots = [t for t, in session.execute(tnsrobots).all()]
+            self.verify_and_commit()
+            return self.success(data=tnsrobots)
 
     @permissions(['Manage tnsrobots'])
     def post(self):
