@@ -1247,7 +1247,8 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
         The source/object's spectra
     Returns
     -------
-    bokeh Panel object or None if the panel should not be added to the plot (i.e. no period plot)
+    bokeh Panel object or None if the panel should 
+    not be added to the plot (i.e. no period plot)
     """
     # get marker for each unique instrument
     instruments = list(data.instrument.unique())
