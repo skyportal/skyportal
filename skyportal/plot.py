@@ -6,6 +6,7 @@ import collections
 
 import numpy as np
 import pandas as pd
+from sqlalchemy.orm import joinedload
 
 from bokeh.core.properties import List, String
 from bokeh.layouts import row, column
@@ -49,8 +50,6 @@ from skyportal.models import (
     Annotation,
     AnnotationOnSpectrum,
     Photometry,
-    Instrument,
-    Telescope,
     PHOT_ZP,
     Spectrum,
 )
@@ -561,26 +560,24 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
         Returns Bokeh JSON embedding for the desired plot.
     """
 
-    telescope_subquery = Telescope.query_records_accessible_by(user).subquery()
-    instrument_subquery = Instrument.query_records_accessible_by(user).subquery()
     with DBSession() as session:
-        data = pd.read_sql(
-            Photometry.query_records_accessible_by(user)
-            .add_columns(
-                telescope_subquery.c.nickname.label("telescope"),
-                instrument_subquery.c.name.label("instrument"),
-            )
-            .join(
-                instrument_subquery,
-                instrument_subquery.c.id == Photometry.instrument_id,
-            )
-            .join(
-                telescope_subquery,
-                telescope_subquery.c.id == instrument_subquery.c.telescope_id,
-            )
-            .where(Photometry.obj_id == obj_id),
-            session.get_bind(),
-        )
+        data = [
+            p
+            for p, in session.execute(
+                Photometry.query_records_accessible_by(
+                    user, options=[joinedload(Photometry.instrument)]
+                ).where(Photometry.obj_id == obj_id)
+            ).all()
+        ]
+        data = [
+            {
+                **d.to_dict(),
+                "telescope": d.instrument.telescope.nickname,
+                "instrument": d.instrument.name,
+            }
+            for d in data
+        ]
+        data = pd.DataFrame(data)
 
     if data.empty:
         return None, None, None

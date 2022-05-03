@@ -112,11 +112,11 @@ class InstrumentHandler(BaseHandler):
                 instrument = existing_instrument
                 (instrument,) = existing_instrument
 
-        if field_data is not None:
-            if (field_region is None) and (field_fov_type is None):
-                return self.error(
-                    'field_region or field_fov_type is required with field_data'
-                )
+            if field_data is not None:
+                if (field_region is None) and (field_fov_type is None):
+                    return self.error(
+                        'field_region or field_fov_type is required with field_data'
+                    )
                 if type(field_data) is str:
                     field_data = pd.read_table(StringIO(field_data), sep=",").to_dict(
                         orient='list'

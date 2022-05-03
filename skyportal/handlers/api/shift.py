@@ -84,11 +84,18 @@ class ShiftHandler(BaseHandler):
             return self.error(
                 "Invalid shift_admins field; unable to parse all items to int"
             )
-        shift_admins = (
-            User.query_records_accessible_by(self.current_user)
-            .filter(User.id.in_(shift_admin_ids))
-            .all()
-        )
+
+        with DBSession() as session:
+            shift_admins = [
+                s
+                for s, in (
+                    session.execute(
+                        User.query_records_accessible_by(self.current_user).where(
+                            User.id.in_(shift_admin_ids)
+                        )
+                    ).all()
+                )
+            ]
         # get the list of ids from the shift_admins list
         if self.current_user.id not in [e.id for e in shift_admins] and not isinstance(
             self.current_user, Token
@@ -135,8 +142,8 @@ class ShiftHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        if group_id is not None:
-            with DBSession() as session:
+        with DBSession() as session:
+            if group_id is not None:
                 queried_shifts = [
                     s
                     for s, in (
@@ -155,8 +162,7 @@ class ShiftHandler(BaseHandler):
                         .all()
                     )
                 ]
-        else:
-            with DBSession() as session:
+            else:
                 queried_shifts = [
                     s
                     for s, in (
@@ -174,29 +180,29 @@ class ShiftHandler(BaseHandler):
                         .all()
                     )
                 ]
-        shifts = []
-        for shift in queried_shifts:
-            susers = []
-            for su in shift.shift_users:
-                user = su.user.to_dict()
-                user["admin"] = su.admin
-                del user["oauth_uid"]
-                susers.append(user)
-            gusers = []
-            for gu in shift.group.group_users:
-                user = gu.user.to_dict()
-                user["admin"] = gu.admin
-                del user["oauth_uid"]
-                gusers.append(user)
+            shifts = []
+            for shift in queried_shifts:
+                susers = []
+                for su in shift.shift_users:
+                    user = su.user.to_dict()
+                    user["admin"] = su.admin
+                    del user["oauth_uid"]
+                    susers.append(user)
+                gusers = []
+                for gu in shift.group.group_users:
+                    user = gu.user.to_dict()
+                    user["admin"] = gu.admin
+                    del user["oauth_uid"]
+                    gusers.append(user)
 
-            shift = shift.to_dict()
-            shift["shift_users"] = susers
-            shift["group"] = shift["group"].to_dict()
-            shift["group"]["group_users"] = gusers
-            shifts.append(shift)
+                shift = shift.to_dict()
+                shift["shift_users"] = susers
+                shift["group"] = shift["group"].to_dict()
+                shift["group"]["group_users"] = gusers
+                shifts.append(shift)
 
-        self.verify_and_commit()
-        return self.success(data=shifts)
+            self.verify_and_commit()
+            return self.success(data=shifts)
 
     @permissions(["Manage shifts"])
     def delete(self, shift_id):
