@@ -7,7 +7,7 @@ from baselayer.app.env import load_env
 from ...utils.offset import get_url
 
 from ..base import BaseHandler
-from ...models import DBSession, Telescope, Weather, User
+from ...models import Telescope, Weather, User
 
 _, cfg = load_env()
 weather_refresh = cfg["weather"].get("refresh_time") if cfg.get("weather") else None
@@ -69,7 +69,7 @@ class WeatherHandler(BaseHandler):
                               type: string
                               description: Weather fetching error message
         """
-        with DBSession() as session:
+        with self.Session() as session:
             user = session.scalars(
                 User.select(self.current_user).where(
                     User.username == self.associated_user_object.username
