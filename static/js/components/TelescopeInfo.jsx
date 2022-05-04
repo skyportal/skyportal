@@ -59,6 +59,12 @@ const useStyles = makeStyles(() => ({
     backgroundColor: "#f9d71c",
     borderRadius: "50%",
   },
+  telescope_time: {
+    display: "flex",
+    flexDirection: "column",
+    justifyItems: "left",
+    alignItems: "left",
+  },
 }));
 
 const TelescopeInfo = () => {
@@ -85,6 +91,16 @@ const TelescopeInfo = () => {
               <h2 className={classes.h2}>
                 {telescope.name} ({telescope.nickname})
               </h2>
+            </div>
+            <div className={classes.telescope_time}>
+              <i>
+                Next Sunrise (Astronomical):{" "}
+                {telescope.next_twilight_morning_astronomical.slice(0, -4)} UTC
+              </i>
+              <i>
+                Next Sunset (Astronomical):{" "}
+                {telescope.next_twilight_evening_astronomical.slice(0, -4)} UTC
+              </i>
             </div>
             {telescope.robotic ? (
               <h3 className={classes.h3}>Robotic : Yes</h3>
