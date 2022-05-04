@@ -75,9 +75,9 @@ class WeatherHandler(BaseHandler):
                     User.username == self.associated_user_object.username
                 )
             ).first()
-        user_prefs = getattr(user, 'preferences', None) or {}
-        weather_prefs = user_prefs.get('weather', {})
-        weather_prefs = {**default_prefs, **weather_prefs}
+            user_prefs = getattr(user, 'preferences', None) or {}
+            weather_prefs = user_prefs.get('weather', {})
+            weather_prefs = {**default_prefs, **weather_prefs}
 
         try:
             default_telescope_id = int(weather_prefs["telescopeID"])
@@ -135,14 +135,14 @@ class WeatherHandler(BaseHandler):
                 session.verify()
                 session.commit()
 
-        return self.success(
-            data={
-                "weather": weather.weather_info,
-                "weather_retrieved_at": weather.retrieved_at,
-                "weather_link": telescope.weather_link,
-                "telescope_name": telescope.name,
-                "telescope_nickname": telescope.nickname,
-                "telescope_id": telescope.id,
-                "message": message,
-            }
-        )
+            return self.success(
+                data={
+                    "weather": weather.weather_info,
+                    "weather_retrieved_at": weather.retrieved_at,
+                    "weather_link": telescope.weather_link,
+                    "telescope_name": telescope.name,
+                    "telescope_nickname": telescope.nickname,
+                    "telescope_id": telescope.id,
+                    "message": message,
+                }
+            )
