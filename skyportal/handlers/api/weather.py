@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 import datetime
 
 from baselayer.app.access import auth_or_token
@@ -68,11 +69,12 @@ class WeatherHandler(BaseHandler):
                               type: string
                               description: Weather fetching error message
         """
-        user = (
-            User.query_records_accessible_by(self.current_user)
-            .filter(User.username == self.associated_user_object.username)
-            .first()
-        )
+        with DBSession() as session:
+            user = session.scalars(
+                User.select(self.current_user).where(
+                    User.username == self.associated_user_object.username
+                )
+            ).first()
         user_prefs = getattr(user, 'preferences', None) or {}
         weather_prefs = user_prefs.get('weather', {})
         weather_prefs = {**default_prefs, **weather_prefs}
@@ -88,44 +90,51 @@ class WeatherHandler(BaseHandler):
         # use the query telecope ID otherwise fall back to preferences id
         telescope_id = self.get_query_argument("telescope_id", default_telescope_id)
 
-        telescope = Telescope.get_if_accessible_by(telescope_id, self.current_user)
+        telescope = Telescope.get(telescope_id, self.current_user)
         if telescope is None:
             return self.error(
                 f"Could not load telescope with ID {weather_prefs['telescopeID']}"
             )
-        weather = Weather.query.filter(Weather.telescope_id == telescope_id).first()
-        if weather is None:
-            weather = Weather(telescope=telescope)
-            DBSession().add(weather)
 
-        # Should we call the API again?
-        refresh = weather_refresh is not None
-        if refresh and weather.retrieved_at is not None:
-            if (
-                weather.retrieved_at + datetime.timedelta(seconds=weather_refresh)
-                >= datetime.datetime.utcnow()
-            ):
-                # it is too soon to refresh
-                refresh = False
-        elif weather.retrieved_at is None:
-            refresh = True
+        with self.Session() as session:
+            weather = session.scalars(
+                sa.select(Weather).where(Weather.telescope_id == telescope_id)
+            ).first()
+            if weather is None:
+                weather = Weather(telescope=telescope)
+                session.add(weather)
 
-        message = ""
-        if refresh:
-            response = get_url(
-                "https://api.openweathermap.org/data/2.5/onecall?"
-                f"lat={telescope.lat}&lon={telescope.lon}&appid={openweather_api_key}"
-            )
-            if response is not None:
-                if response.status_code == 200:
-                    data = response.json()
-                    weather.weather_info = data
-                    weather.retrieved_at = datetime.datetime.utcnow()
-                    self.verify_and_commit()
-                else:
-                    message = response.text
+            # Should we call the API again?
+            refresh = weather_refresh is not None
+            if refresh and weather.retrieved_at is not None:
+                if (
+                    weather.retrieved_at + datetime.timedelta(seconds=weather_refresh)
+                    >= datetime.datetime.utcnow()
+                ):
+                    # it is too soon to refresh
+                    refresh = False
+            elif weather.retrieved_at is None:
+                refresh = True
 
-        self.verify_and_commit()
+            message = ""
+            if refresh:
+                response = get_url(
+                    "https://api.openweathermap.org/data/2.5/onecall?"
+                    f"lat={telescope.lat}&lon={telescope.lon}&appid={openweather_api_key}"
+                )
+                if response is not None:
+                    if response.status_code == 200:
+                        data = response.json()
+                        weather.weather_info = data
+                        weather.retrieved_at = datetime.datetime.utcnow()
+                        session.verify()
+                        session.commit()
+                    else:
+                        message = response.text
+
+                session.verify()
+                session.commit()
+
         return self.success(
             data={
                 "weather": weather.weather_info,
