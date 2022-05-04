@@ -13,12 +13,14 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
 from ..app_utils import get_app_base_url
+from .allocation import Allocation
 from .classification import Classification
 from .gcn import GcnNotice
+from .localization import Localization
 from .spectrum import Spectrum
 from .comment import Comment
 from .listing import Listing
-
+from .facility_transaction import FacilityTransaction
 
 _, cfg = load_env()
 
@@ -42,6 +44,10 @@ class UserNotification(Base):
         sa.String(),
         nullable=False,
         doc="The notification text to display",
+    )
+
+    notification_type = sa.Column(
+        sa.String(), nullable=True, doc="Type of notification"
     )
 
     viewed = sa.Column(
@@ -85,14 +91,16 @@ def send_slack_notification(mapper, connection, target):
         f'http://127.0.0.1:{cfg.get("slack.microservice_port", 64100)}'
     )
 
-    is_mention = target.text.find("mentioned you") != -1
-    is_gcnnotice = target.text.find("GcnEvent") != -1
-
-    if is_mention:
+    if target.notification_type == "mention":
         if not target.user.preferences['slack_integration'].get("mentions", False):
             return
-    elif is_gcnnotice:
+    elif target.notification_type == "gcnNotice":
         if not target.user.preferences['slack_integration'].get("gcnnotices", False):
+            return
+    elif target.notification_type == "facilityTransaction":
+        if not target.user.preferences['slack_integration'].get(
+            "facilitytransactions", False
+        ):
             return
     elif not target.user.preferences['slack_integration'].get(
         "favorite_sources", False
@@ -112,16 +120,24 @@ def send_slack_notification(mapper, connection, target):
 @event.listens_for(Spectrum, 'after_insert')
 @event.listens_for(Comment, 'after_insert')
 @event.listens_for(GcnNotice, 'after_insert')
+@event.listens_for(FacilityTransaction, 'after_insert')
 def add_user_notifications(mapper, connection, target):
     # Add front-end user notifications
     @event.listens_for(DBSession(), "after_flush", once=True)
     def receive_after_flush(session, context):
 
         is_gcnnotice = "dateobs" in target.to_dict()
+        is_facility_transaction = "initiator_id" in target.to_dict()
 
         if is_gcnnotice:
             users = User.query.filter(
                 User.preferences["slack_integration"]["gcnnotices"]
+                .astext.cast(sa.Boolean)
+                .is_(True)
+            ).all()
+        elif is_facility_transaction:
+            users = User.query.filter(
+                User.preferences["slack_integration"]["facilitytransactions"]
                 .astext.cast(sa.Boolean)
                 .is_(True)
             ).all()
@@ -152,9 +168,40 @@ def add_user_notifications(mapper, connection, target):
                         UserNotification(
                             user=user,
                             text=f"New {target.__class__.__name__.lower()} on GcnEvent *{target.dateobs}*",
+                            notification_type="gcnNotice",
                             url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
                         )
                     )
+                elif is_facility_transaction:
+                    if "observation_plan_request" in target.to_dict():
+                        allocation_id = target.observation_plan_request.allocation_id
+                        allocation = session.query(Allocation).get(allocation_id)
+                        instrument = allocation.instrument
+                        localization_id = (
+                            target.observation_plan_request.localization_id
+                        )
+                        localization = session.query(Localization).get(localization_id)
+                        session.add(
+                            UserNotification(
+                                user=user,
+                                text=f"New observation plan submission for GcnEvent *{localization.dateobs}* by *{instrument.name}*",
+                                notification_type="facilityTransaction",
+                                url=f"/gcn_events/{str(localization.dateobs).replace(' ','T')}",
+                            )
+                        )
+                    elif "followup_request" in target.to_dict():
+                        allocation_id = target.followup_request.allocation_id
+                        allocation = session.query(Allocation).get(allocation_id)
+                        instrument = allocation.instrument
+                        session.add(
+                            UserNotification(
+                                user=user,
+                                text=f"New follow-up submission for object *{target.followup_request.obj_id}* by *{instrument.name}*",
+                                notification_type="facilityTransaction",
+                                url=f"/source/{target.followup_request.obj_id}",
+                            )
+                        )
+
                 else:
                     session.add(
                         UserNotification(

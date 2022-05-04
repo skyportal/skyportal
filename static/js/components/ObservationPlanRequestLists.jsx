@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import Button from "@material-ui/core/Button";
@@ -17,6 +17,9 @@ import {
 import MUIDataTable from "mui-datatables";
 
 import * as Actions from "../ducks/gcnEvent";
+import { GET } from "../API";
+
+import LocalizationPlot from "./LocalizationPlot";
 
 const useStyles = makeStyles(() => ({
   observationplanRequestTable: {
@@ -78,16 +81,113 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const ObservationPlanRequestLists = ({ observationplanRequests }) => {
+const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
+  const dispatch = useDispatch();
+
+  const displayOptions = [
+    "localization",
+    "sources",
+    "galaxies",
+    "instrument",
+    "observations",
+  ];
+  const displayOptionsDefault = Object.fromEntries(
+    displayOptions.map((x) => [x, false])
+  );
+  displayOptionsDefault.localization = true;
+  displayOptionsDefault.observations = true;
+
+  const [obsList, setObsList] = useState(null);
+  useEffect(() => {
+    const fetchObsList = async () => {
+      const response = await dispatch(
+        GET(
+          `/api/observation_plan/${observationplanRequest.id}/geojson`,
+          "skyportal/FETCH_OBSERVATION_PLAN_GEOJSON"
+        )
+      );
+      setObsList(response.data);
+    };
+    fetchObsList();
+    if (obsList && Array.isArray(obsList)) {
+      obsList.forEach((f) => {
+        f.selected = false;
+      });
+    }
+  }, [dispatch, setObsList, observationplanRequest]);
+
+  return (
+    <div>
+      {!obsList ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <div>
+          <LocalizationPlot
+            loc={loc}
+            observations={obsList}
+            options={displayOptionsDefault}
+            height={300}
+            width={300}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+ObservationPlanGlobe.propTypes = {
+  loc: PropTypes.shape({
+    id: PropTypes.number,
+    dateobs: PropTypes.string,
+    localization_name: PropTypes.string,
+  }).isRequired,
+  observationplanRequest: PropTypes.shape({
+    id: PropTypes.number,
+    requester: PropTypes.shape({
+      id: PropTypes.number,
+      username: PropTypes.string,
+    }),
+    instrument: PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string,
+    }),
+    status: PropTypes.string,
+    allocation: PropTypes.shape({
+      group: PropTypes.shape({
+        name: PropTypes.string,
+      }),
+    }),
+  }).isRequired,
+};
+
+const ObservationPlanRequestLists = ({ gcnEvent }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const theme = useTheme();
+
+  const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
 
   const [isDeleting, setIsDeleting] = useState(null);
   const handleDelete = async (id) => {
     setIsDeleting(id);
     await dispatch(Actions.deleteObservationPlanRequest(id));
     setIsDeleting(null);
+  };
+
+  const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] = useState(null);
+  const handleSubmitTreasureMap = async (id) => {
+    setIsSubmittingTreasureMap(id);
+    await dispatch(Actions.submitObservationPlanRequestTreasureMap(id));
+    setIsSubmittingTreasureMap(null);
+  };
+
+  const [isDeletingTreasureMap, setIsDeletingTreasureMap] = useState(null);
+  const handleDeleteTreasureMap = async (id) => {
+    setIsDeletingTreasureMap(id);
+    await dispatch(Actions.deleteObservationPlanRequestTreasureMap(id));
+    setIsDeletingTreasureMap(null);
   };
 
   const [isSending, setIsSending] = useState(null);
@@ -108,6 +208,18 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
     (state) => state.instruments
   );
 
+  useEffect(() => {
+    const getLocalizations = async () => {
+      setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
+    };
+
+    getLocalizations();
+
+    // Don't want to reset everytime the component rerenders and
+    // the defaultStartDate is updated, so ignore ESLint here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, setSelectedLocalizationId, gcnEvent]);
+
   if (
     !instrumentList ||
     instrumentList.length === 0 ||
@@ -116,8 +228,15 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
     return <CircularProgress />;
   }
 
-  if (!observationplanRequests || observationplanRequests.length === 0) {
+  if (
+    !gcnEvent.observationplan_requests ||
+    gcnEvent.observationplan_requests.length === 0
+  ) {
     return <p>No observation plan requests for this source...</p>;
+  }
+
+  if (gcnEvent.localizations.length === 0 || !selectedLocalizationId) {
+    return <h3>Fetching skymap...</h3>;
   }
 
   const instLookUp = instrumentList.reduce((r, a) => {
@@ -125,13 +244,22 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
     return r;
   }, {});
 
-  const requestsGroupedByInstId = observationplanRequests.reduce((r, a) => {
-    r[a.allocation.instrument.id] = [
-      ...(r[a.allocation.instrument.id] || []),
-      a,
-    ];
-    return r;
-  }, {});
+  const locLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  gcnEvent.localizations?.forEach((loc) => {
+    locLookUp[loc.id] = loc;
+  });
+
+  const requestsGroupedByInstId = gcnEvent.observationplan_requests.reduce(
+    (r, a) => {
+      r[a.allocation.instrument.id] = [
+        ...(r[a.allocation.instrument.id] || []),
+        a,
+      ];
+      return r;
+    },
+    {}
+  );
 
   Object.values(requestsGroupedByInstId).forEach((value) => {
     value.sort();
@@ -139,12 +267,13 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
 
   const getDataTableColumns = (keys, instrument_id) => {
     const implementsDelete =
-      instrumentFormParams[instrument_id].methodsImplemented.delete;
+      instrumentFormParams[instrument_id]?.methodsImplemented.delete;
     const implementsSend =
-      instrumentFormParams[instrument_id].methodsImplemented.send;
+      instrumentFormParams[instrument_id]?.methodsImplemented.send;
     const implementsRemove =
-      instrumentFormParams[instrument_id].methodsImplemented.remove;
-    const modifiable = implementsSend || implementsDelete || implementsRemove;
+      instrumentFormParams[instrument_id]?.methodsImplemented.remove;
+    const modifiable = implementsDelete;
+    const queuable = implementsSend || implementsRemove;
 
     const columns = [
       { name: "requester.username", label: "Requester" },
@@ -154,20 +283,97 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
       const renderKey = (value) =>
         Array.isArray(value) ? value.join(",") : value;
 
-      const field = Object.keys(
-        instrumentFormParams[instrument_id].aliasLookup
-      ).includes(key)
-        ? instrumentFormParams[instrument_id].aliasLookup[key]
-        : key;
-      columns.push({
-        name: `payload.${key}`,
-        label: field,
-        options: {
-          customBodyRender: renderKey,
-        },
-      });
+      if (instrumentFormParams[instrument_id]) {
+        const field = Object.keys(
+          instrumentFormParams[instrument_id].aliasLookup
+        ).includes(key)
+          ? instrumentFormParams[instrument_id].aliasLookup[key]
+          : key;
+        columns.push({
+          name: `payload.${key}`,
+          label: field,
+          options: {
+            customBodyRender: renderKey,
+          },
+        });
+      }
     });
     columns.push({ name: "status", label: "Status" });
+
+    const renderNumberObservations = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div>
+          {observationplanRequest.observation_plans &&
+          observationplanRequest.observation_plans.length > 0 ? (
+            <div>
+              {observationplanRequest.observation_plans[0].num_observations}
+            </div>
+          ) : (
+            <div>N/A</div>
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "nobs",
+      label: "Number of Observations",
+      options: {
+        customBodyRenderLite: renderNumberObservations,
+      },
+    });
+
+    const renderArea = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div>
+          {observationplanRequest.observation_plans &&
+          observationplanRequest.observation_plans.length > 0 ? (
+            <div>
+              {observationplanRequest.observation_plans[0].area.toFixed(2)}
+            </div>
+          ) : (
+            <div>N/A</div>
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "area",
+      label: "Area [sq. deg.]",
+      options: {
+        customBodyRenderLite: renderArea,
+      },
+    });
+
+    const renderProbability = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div>
+          {observationplanRequest.observation_plans &&
+          observationplanRequest.observation_plans.length > 0 ? (
+            <div>
+              {observationplanRequest.observation_plans[0].probability.toFixed(
+                3
+              )}
+            </div>
+          ) : (
+            <div>N/A</div>
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "probability",
+      label: "Int. Probability",
+      options: {
+        customBodyRenderLite: renderProbability,
+      },
+    });
+
     if (modifiable) {
       const renderModify = (dataIndex) => {
         const observationplanRequest =
@@ -194,6 +400,63 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
                 </Button>
               </div>
             )}
+            <div>
+              <Button
+                href={`/api/observation_plan/${observationplanRequest.id}/gcn`}
+                download={`observation-plan-gcn-${observationplanRequest.id}`}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`gcnRequest_${observationplanRequest.id}`}
+              >
+                GCN
+              </Button>
+            </div>
+            <div>
+              <Button
+                href={`/api/observation_plan/${observationplanRequest.id}?includePlannedObservations=True`}
+                download={`observation-plan-${observationplanRequest.id}`}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`downloadRequest_${observationplanRequest.id}`}
+              >
+                Download
+              </Button>
+            </div>
+            <div>
+              <Button
+                href={`/api/observation_plan/${observationplanRequest.id}/movie`}
+                download={`observation-plan-movie-${observationplanRequest.id}`}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`movieRequest_${observationplanRequest.id}`}
+              >
+                GIF
+              </Button>
+            </div>
+          </div>
+        );
+      };
+      columns.push({
+        name: "interact",
+        label: "Interact",
+        options: {
+          customBodyRenderLite: renderModify,
+        },
+      });
+    }
+
+    if (queuable) {
+      const renderQueue = (dataIndex) => {
+        const observationplanRequest =
+          requestsGroupedByInstId[instrument_id][dataIndex];
+        return (
+          <div className={classes.actionButtons}>
             {implementsSend && isSending === observationplanRequest.id ? (
               <div>
                 <CircularProgress />
@@ -238,13 +501,90 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
         );
       };
       columns.push({
-        name: "modify",
-        label: "Modify",
+        name: "queue",
+        label: "Telescope Queue",
         options: {
-          customBodyRenderLite: renderModify,
+          customBodyRenderLite: renderQueue,
         },
       });
     }
+
+    const renderTreasureMap = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+      return (
+        <div className={classes.actionButtons}>
+          {isSubmittingTreasureMap === observationplanRequest.id ? (
+            <div>
+              <CircularProgress />
+            </div>
+          ) : (
+            <div>
+              <Button
+                onClick={() => {
+                  handleSubmitTreasureMap(observationplanRequest.id);
+                }}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`treasuremapRequest_${observationplanRequest.id}`}
+              >
+                Send to Treasure Map
+              </Button>
+            </div>
+          )}
+          {isDeletingTreasureMap === observationplanRequest.id ? (
+            <div>
+              <CircularProgress />
+            </div>
+          ) : (
+            <div>
+              <Button
+                onClick={() => {
+                  handleDeleteTreasureMap(observationplanRequest.id);
+                }}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`treasuremapDelete_${observationplanRequest.id}`}
+              >
+                Retract from Treasure Map
+              </Button>
+            </div>
+          )}
+        </div>
+      );
+    };
+    columns.push({
+      name: "treasuremap",
+      label: "Treasure Map",
+      options: {
+        customBodyRenderLite: renderTreasureMap,
+      },
+    });
+
+    const renderLocalization = (dataIndex) => {
+      const observationplanRequest =
+        requestsGroupedByInstId[instrument_id][dataIndex];
+
+      return (
+        <div>
+          <ObservationPlanGlobe
+            loc={locLookUp[selectedLocalizationId]}
+            observationplanRequest={observationplanRequest}
+          />
+        </div>
+      );
+    };
+    columns.push({
+      name: "skymap",
+      label: "Skymap",
+      options: {
+        customBodyRenderLite: renderLocalization,
+      },
+    });
 
     return columns;
   };
@@ -337,24 +677,34 @@ const ObservationPlanRequestLists = ({ observationplanRequests }) => {
 };
 
 ObservationPlanRequestLists.propTypes = {
-  observationplanRequests: PropTypes.arrayOf(
-    PropTypes.shape({
-      requester: PropTypes.shape({
+  gcnEvent: PropTypes.shape({
+    dateobs: PropTypes.string,
+    localizations: PropTypes.arrayOf(
+      PropTypes.shape({
         id: PropTypes.number,
-        username: PropTypes.string,
-      }),
-      instrument: PropTypes.shape({
-        id: PropTypes.number,
-        name: PropTypes.string,
-      }),
-      status: PropTypes.string,
-      allocation: PropTypes.shape({
-        group: PropTypes.shape({
+        localization_name: PropTypes.string,
+      })
+    ),
+    id: PropTypes.number,
+    observationplan_requests: PropTypes.arrayOf(
+      PropTypes.shape({
+        requester: PropTypes.shape({
+          id: PropTypes.number,
+          username: PropTypes.string,
+        }),
+        instrument: PropTypes.shape({
+          id: PropTypes.number,
           name: PropTypes.string,
         }),
-      }),
-    })
-  ).isRequired,
+        status: PropTypes.string,
+        allocation: PropTypes.shape({
+          group: PropTypes.shape({
+            name: PropTypes.string,
+          }),
+        }),
+      })
+    ),
+  }).isRequired,
 };
 
 export default ObservationPlanRequestLists;

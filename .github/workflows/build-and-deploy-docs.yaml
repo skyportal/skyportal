@@ -3,7 +3,7 @@ name: Build/deploy docs
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
 
 jobs:
@@ -64,6 +64,12 @@ jobs:
                 password: anything
             EOF
 
+      - name: Install system dependencies
+        run: |
+          curl -sL https://deb.nodesource.com/setup_17.x | sudo -E bash -
+
+          sudo apt install -y libcurl4-gnutls-dev libgnutls28-dev
+
       - name: Install dependencies
         run: |
           python -m pip install pip==21.3.1
@@ -77,13 +83,13 @@ jobs:
           touch doc/_build/html/.nojekyll
 
       - name: Install SSH Client 🔑
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/main'
         uses: webfactory/ssh-agent@v0.4.1
         with:
           ssh-private-key: ${{ secrets.CI_DEPLOY_KEY }}
 
       - name: Deploy docs
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/main'
         uses: JamesIves/github-pages-deploy-action@releases/v3
         with:
           FOLDER: doc/_build/html

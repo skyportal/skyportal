@@ -1,6 +1,7 @@
 import uuid
 import datetime
 import pytest
+from selenium.webdriver import ActionChains
 
 from skyportal.tests import api
 
@@ -524,6 +525,11 @@ def test_candidate_classifications_filtering(
     )
     driver.click_xpath("//div[@id='classifications-select']")
     driver.click_xpath("//li[@data-value='Algol']", scroll_parent=True)
+
+    # Click somewhere outside to remove focus from classification select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
     driver.click_xpath('//span[text()="Search"]')
     # Should see the posted classification
     driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}"]')
@@ -697,7 +703,9 @@ def test_add_scanning_profile(
     )
     redshift_maximum_input.send_keys("1.0")
     driver.click_xpath('//div[@data-testid="annotation-sorting-accordion"]')
-    driver.click_xpath('//div[@data-testid="profileAnnotationSortingOriginSelect"]')
+    driver.click_xpath(
+        '//div[@data-testid="profileAnnotationSortingOriginSelect"]', scroll_parent=True
+    )
     driver.click_xpath('//li[text()="kowalski"]')
     driver.click_xpath('//div[@data-testid="profileAnnotationSortingKeySelect"]')
     driver.click_xpath('//li[text()="offset_from_host_galaxy"]')
@@ -709,7 +717,9 @@ def test_add_scanning_profile(
     )
 
     # Submit and check it shows up in table of profiles
-    driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
+    driver.click_xpath(
+        '//button[@data-testid="saveScanningProfileButton"]', scroll_parent=True
+    )
     driver.wait_for_xpath(f'//div[text()="{saved_status_option}"]')
 
     # Navigate back to scanning page and check that form is populated properly
@@ -741,7 +751,8 @@ def test_delete_scanning_profile(driver, user, public_group):
     time_range_input.send_keys("123")
 
     driver.click_xpath(
-        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
+        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]',
+        scroll_parent=True,
     )
 
     # Submit and check it shows up in table of profiles
@@ -768,7 +779,8 @@ def test_load_scanning_profile(
     name_input.clear()
     name_input.send_keys("profile1")
     driver.click_xpath(
-        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
+        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]',
+        scroll_parent=True,
     )
     driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
     driver.wait_for_xpath('//div[contains(text(), "0.5")]')

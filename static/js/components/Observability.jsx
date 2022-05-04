@@ -15,6 +15,8 @@ import { AirMassPlotWithEphemURL } from "./AirmassPlot";
 import HoursBelowAirmassPlot from "./HoursBelowAirmassPlot";
 import ObservabilityPreferences from "./ObservabilityPreferences";
 
+import withRouter from "./withRouter";
+
 const useStyles = makeStyles({
   inner: { margin: "1rem", padding: "1rem" },
   preferences: { padding: "1rem", marginTop: "1rem" },
@@ -89,4 +91,4 @@ ObservabilityPage.propTypes = {
   }).isRequired,
 };
 
-export default ObservabilityPage;
+export default withRouter(ObservabilityPage);

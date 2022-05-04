@@ -729,7 +729,7 @@ def test_exclude_by_outdated_annotations(
         params={
             "groupIDs": f"{public_group.id}",
             "annotationExcludeOrigin": origin,
-            "annotationExcludeOutdatedDate": str(t0 + datetime.timedelta(seconds=3)),
+            "annotationExcludeOutdatedDate": str(t0 + datetime.timedelta(seconds=60)),
         },
         token=view_only_token,
     )
@@ -933,7 +933,7 @@ def test_candidate_list_saved_to_any_selected_groups(
     assert len(data["data"]["candidates"]) == 2
     assert (
         len(
-            set([obj_id1, obj_id2]).difference(
+            {obj_id1, obj_id2}.difference(
                 map(lambda x: x["id"], data["data"]["candidates"])
             )
         )
@@ -1111,7 +1111,7 @@ def test_candidate_list_not_saved_to_any_accessible_groups(
     assert len(data["data"]["candidates"]) == 2
     assert (
         len(
-            set([obj_id1, obj_id2]).difference(
+            {obj_id1, obj_id2}.difference(
                 map(lambda x: x["id"], data["data"]["candidates"])
             )
         )
@@ -1316,7 +1316,7 @@ def test_candidate_list_not_saved_to_all_selected_groups(
     assert len(data["data"]["candidates"]) == 2
     assert (
         len(
-            set([obj_id2, obj_id3]).difference(
+            {obj_id2, obj_id3}.difference(
                 map(lambda x: x["id"], data["data"]["candidates"])
             )
         )
@@ -1342,12 +1342,12 @@ def test_correct_spectra_and_photometry_returned_by_candidate(
     assert len(public_candidate.photometry) == len(data['data']['photometry'])
     assert len(public_candidate.spectra) == len(data['data']['spectra'])
 
-    phot_ids_db = sorted([p.id for p in public_candidate.photometry])
-    phot_ids_api = sorted([p['id'] for p in data['data']['photometry']])
+    phot_ids_db = sorted(p.id for p in public_candidate.photometry)
+    phot_ids_api = sorted(p['id'] for p in data['data']['photometry'])
     assert phot_ids_db == phot_ids_api
 
-    spec_ids_db = sorted([p.id for p in public_candidate.spectra])
-    spec_ids_api = sorted([p['id'] for p in data['data']['spectra']])
+    spec_ids_db = sorted(p.id for p in public_candidate.spectra)
+    spec_ids_api = sorted(p['id'] for p in data['data']['spectra'])
     assert spec_ids_db == spec_ids_api
 
 

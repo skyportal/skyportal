@@ -5,11 +5,11 @@ import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
 import Grid from "@material-ui/core/Grid";
 import Typography from "@material-ui/core/Typography";
-import CircularProgress from "@material-ui/core/CircularProgress";
 
 import * as sourcesActions from "../ducks/sources";
 import UninitializedDBMessage from "./UninitializedDBMessage";
 import SourceTable from "./SourceTable";
+import Spinner from "./Spinner";
 
 const useStyles = makeStyles((theme) => ({
   paperDiv: {
@@ -41,9 +41,6 @@ const useStyles = makeStyles((theme) => ({
   },
   title: {
     margin: "0.5rem 0rem 0rem 0rem",
-  },
-  spinner: {
-    marginTop: "1rem",
   },
 }));
 
@@ -96,11 +93,11 @@ const SourceList = () => {
     return <UninitializedDBMessage />;
   }
   if (!sourcesState.sources) {
-    return <CircularProgress />;
+    return <Spinner />;
   }
 
   return (
-    <Paper elevation={1}>
+    <Paper elevation={1} className={classes.paper}>
       <div className={classes.paperDiv}>
         <Typography variant="h6" display="inline">
           Sources
@@ -117,9 +114,7 @@ const SourceList = () => {
             />
           </Grid>
         )}
-        {!sourcesState.sources && (
-          <CircularProgress className={classes.spinner} />
-        )}
+        {!sourcesState.sources && <Spinner />}
       </div>
     </Paper>
   );

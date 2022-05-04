@@ -50,7 +50,7 @@ def get_gitlog(
             "-1000",
         ],
         capture_output=True,
-        universal_newlines=True,
+        text=True,
         cwd=cwd,
     )
     gitlog = {

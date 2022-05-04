@@ -6,7 +6,7 @@ If you are planning to use database migrations, you need to let
 Alembic know the current state of the database.
 
 Presuming you've just started off by running `make load_demo_data`
-on the latest master branch commit (this should happen on a vanilla master branch,
+on the latest main branch commit (this should happen on a vanilla main branch,
 i.e. without any of your changes to the database schema),
 tell Alembic that you are on the latest database schema:
 
@@ -16,7 +16,7 @@ PYTHONPATH=. alembic -x config=config.yaml stamp head
 
 ## Generate migration script
 
-To generate a migration script, after having stamped the latest master commit (see above),
+To generate a migration script, after having stamped the latest main commit (see above),
 ensure that the app is stopped, check out the branch with the relevant DB schema
 changes, and run the following:
 

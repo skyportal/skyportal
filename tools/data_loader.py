@@ -61,7 +61,7 @@ if __name__ == "__main__":
         raise NotImplementedError("Cannot yet handle multiple data files")
 
     fname = env.data_files[0]
-    src = yaml.load(open(fname, "r"), Loader=Loader)
+    src = yaml.load(open(fname), Loader=Loader)
     src_path = os.path.dirname(fname)
 
     if env.create_tables:
@@ -238,7 +238,7 @@ if __name__ == "__main__":
         print(f'Posting to {endpoint}: ', end='')
         if 'file' in to_post:
             filename = pjoin(src_path, to_post['file'])
-            post_objs = yaml.load(open(filename, 'r'), Loader=yaml.Loader)
+            post_objs = yaml.load(open(filename), Loader=yaml.Loader)
         else:
             post_objs = to_post
 
@@ -257,6 +257,11 @@ if __name__ == "__main__":
             except KeyError:
                 continue
 
+            if "payload" in obj:
+                date_keys = ["start_date", "end_date"]
+                for key in date_keys:
+                    if key in obj["payload"]:
+                        obj["payload"][key] = obj["payload"][key].isoformat()
             status, response = post(endpoint, data=obj)
 
             print('.' if status == 200 else 'X', end='')

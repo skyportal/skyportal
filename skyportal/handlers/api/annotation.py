@@ -1,6 +1,8 @@
 import re
 from typing import Mapping
 from marshmallow.exceptions import ValidationError
+from sqlalchemy.exc import IntegrityError
+
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
@@ -220,6 +222,9 @@ class AnnotationHandler(BaseHandler):
         data = self.get_json()
         origin = data.get("origin")
 
+        if origin is None:
+            return self.error("origin must be specified")
+
         if not re.search(r'^\w+', origin):
             return self.error("Input `origin` must begin with alphanumeric/underscore")
 
@@ -293,7 +298,10 @@ class AnnotationHandler(BaseHandler):
             return self.error(f'Unknown resource type "{associated_resource_type}".')
 
         DBSession().add(annotation)
-        self.verify_and_commit()
+        try:
+            self.verify_and_commit()
+        except IntegrityError as e:
+            return self.error(f'Annotation already exists: {str(e)}')
 
         if isinstance(
             annotation, (Annotation, AnnotationOnSpectrum)
