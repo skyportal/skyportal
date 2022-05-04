@@ -808,7 +808,7 @@ def make_legend_items_and_detection_lines(
     data : pandas DataFrame object
         Photometry data (ungrouped)
     obsind : pandas Series object
-        Index of points that have been positively detected (observed), 
+        Index of points that have been positively detected (observed),
         i.e., points that are not upper limits.
     markers : list
         List of marker shapes
@@ -1247,7 +1247,7 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
         The source/object's spectra
     Returns
     -------
-    bokeh Panel object or None if the panel should 
+    bokeh Panel object or None if the panel should
     not be added to the plot (i.e. no period plot)
     """
     # get marker for each unique instrument
