@@ -114,6 +114,12 @@ class TelescopeHandler(BaseHandler):
                 telescope.next_twilight_morning_astronomical().jd
                 < telescope.next_twilight_evening_astronomical().jd
             )
+            temp[
+                'next_twilight_morning_astronomical'
+            ] = telescope.next_twilight_morning_astronomical().iso
+            temp[
+                'next_twilight_evening_astronomical'
+            ] = telescope.next_twilight_evening_astronomical().iso
             telescopes.append(temp)
         self.verify_and_commit()
         return self.success(data=telescopes)
