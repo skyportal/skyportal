@@ -31,40 +31,50 @@ def add_user_and_setup_groups(
     last_name=None,
     contact_phone=None,
     contact_email=None,
-    roles=[],
+    role_ids=[],
     group_ids_and_admin=[],
     oauth_uid=None,
     expiration_date=None,
 ):
 
-    # Add user
-    user = User(
-        username=username.lower(),
-        role_ids=roles,
-        first_name=first_name,
-        last_name=last_name,
-        contact_phone=contact_phone,
-        contact_email=contact_email,
-        oauth_uid=oauth_uid,
-        expiration_date=expiration_date,
-    )
-    DBSession().add(user)
-    DBSession().flush()
+    with DBSession() as session:
+        roles = []
+        for id in role_ids:
+            stmt = sa.select(Role).get(id)
+            role = session.execute(stmt)
+            if role is None:
+                raise ValueError(f'No Role associated with id {id}.')
+            roles.append(role)
 
-    # Add user to specified groups & associated streams
-    for group_id, admin in group_ids_and_admin:
-        DBSession().add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
-        group = Group.query.get(group_id)
-        if group.streams:
-            for stream in group.streams:
-                DBSession().add(StreamUser(user_id=user.id, stream_id=stream.id))
+        # Add user
+        user = User(
+            username=username.lower(),
+            roles=roles,
+            first_name=first_name,
+            last_name=last_name,
+            contact_phone=contact_phone,
+            contact_email=contact_email,
+            oauth_uid=oauth_uid,
+            expiration_date=expiration_date,
+        )
+        session.add(user)
+        session.flush()
 
-    # Add user to sitewide public group
-    public_group = Group.query.filter(
-        Group.name == cfg["misc"]["public_group_name"]
-    ).first()
-    if public_group is not None:
-        DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
+        # Add user to specified groups & associated streams
+        for group_id, admin in group_ids_and_admin:
+            session.add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
+            group = session.execute(sa.select(Group).get(group_id))
+            if group.streams:
+                for stream in group.streams:
+                    session.add(StreamUser(user_id=user.id, stream_id=stream.id))
+
+        # Add user to sitewide public group
+        public_group = session.execute(
+            sa.select(Group).filter(Group.name == cfg["misc"]["public_group_name"])
+        ).first()
+        if public_group is not None:
+            session.add(GroupUser(group_id=public_group.id, user_id=user.id))
+
     return user.id
 
 
@@ -362,7 +372,7 @@ class UserHandler(BaseHandler):
             contact_phone=contact_phone,
             contact_email=contact_email,
             oauth_uid=data.get("oauth_uid"),
-            roles=roles,
+            role_ids=roles,
             group_ids_and_admin=group_ids_and_admin,
         )
         self.verify_and_commit()

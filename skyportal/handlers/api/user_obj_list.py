@@ -59,19 +59,17 @@ class UserObjListHandler(BaseHandler):
 
         list_name = self.get_query_argument("listName", None)
 
-        query = Listing.query_records_accessible_by(self.current_user).where(
+        stmt = Listing.query_records_accessible_by(self.current_user).where(
             Listing.user_id == user_id
         )
 
         if list_name is not None:
-            query = query.where(Listing.list_name == list_name)
+            stmt = stmt.where(Listing.list_name == list_name)
 
-        self.verify_and_commit()
+        with self.Session() as session:
+            data = [ls for ls, in session.execute(stmt).all()]
 
-        with DBSession() as session:
-            data = [ls for ls, in session.execute(query).all()]
-
-            return self.success(data=data)
+        return self.success(data=data)
 
     @auth_or_token
     def post(self):
@@ -138,6 +136,7 @@ class UserObjListHandler(BaseHandler):
             return self.error(f'Invalid/missing parameters: {e.normalized_messages()}')
 
         obj_id = data.get('obj_id')
+
         Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
 
         list_name = data.get('list_name')
