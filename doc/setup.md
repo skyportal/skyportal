@@ -178,7 +178,7 @@ Ask `certbot` to verify the service and retrieve a new certificate:
 or similar if using https
     sudo certbot certonly --standalone --preferred-challenges https -d https://your.url
 
-To renew the certificate, one does:
+To renew and retrieve the certificate, do:
     sudo certbot renew
 
 Next, modify the nginx configuration in `baselayer/services/nginx/nginx.conf.template` to use the newly generated certificate:
