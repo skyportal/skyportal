@@ -181,7 +181,7 @@ or similar if using https
 To renew the certificate, one does:
     sudo certbot renew
 
-After receiving an SSL certificate, you'll need to modify the nginx configuration in `baselayer/services/nginx/nginx.conf.template` to use it. For example, you would add the following for Let's Encrypt:
+Next, modify the nginx configuration in `baselayer/services/nginx/nginx.conf.template` to use the newly generated certificate:
 
     listen [::]:443 ssl ipv6only=on;
     listen 443 ssl;
