@@ -1541,7 +1541,6 @@ class SourceHandler(BaseHandler):
 
             # Records are Objs, not Sources
             obj_list = []
-
             for result in query_results["sources"]:
                 if include_detection_stats:
                     (
@@ -1579,7 +1578,6 @@ class SourceHandler(BaseHandler):
                             Annotation.created_at >= annotations_filter_after
                         )
                     annotations = annotations_query.all()
-
                     if len(annotations) > 0:
                         passes_filter = True
                     else:

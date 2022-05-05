@@ -700,7 +700,14 @@ def test_exclude_by_outdated_annotations(
     num_candidates = len(data["data"]["candidates"])
 
     origin = str(uuid.uuid4())
-    t0 = datetime.datetime.now(datetime.timezone.utc)  # recall when it was created
+    t0 = datetime.datetime.utcnow()  # recall when it was created
+    time_offset = (
+        datetime.datetime.utcnow() - datetime.datetime.now()
+    ) / datetime.timedelta(hours=1)
+    t0 += datetime.timedelta(
+        hours=time_offset
+    )  # adjust for time zone of PC running the tests
+    t0 += datetime.timedelta(seconds=60)  # give some extra time
 
     # add an annotation from this origin
     status, data = api(
@@ -729,7 +736,7 @@ def test_exclude_by_outdated_annotations(
         params={
             "groupIDs": f"{public_group.id}",
             "annotationExcludeOrigin": origin,
-            "annotationExcludeOutdatedDate": str(t0 + datetime.timedelta(seconds=60)),
+            "annotationExcludeOutdatedDate": str(t0),
         },
         token=view_only_token,
     )
