@@ -11,7 +11,7 @@ from selenium.common.exceptions import TimeoutException
 from datetime import date, timedelta
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver):
 
     telescope_name = str(uuid.uuid4())
@@ -71,7 +71,7 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
     driver.wait_for_xpath(f'//*[@id="{name2}_info"]')
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
 
     telescope_name = str(uuid.uuid4())
@@ -126,7 +126,7 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
     driver.set_window_size(1920, 1080)
 
 
-# @pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=5)
 def test_instrument_frontend(super_admin_token, super_admin_user, driver):
 
     telescope_name = str(uuid.uuid4())
@@ -211,7 +211,7 @@ def test_instrument_frontend(super_admin_token, super_admin_user, driver):
     driver.wait_for_xpath('//span[contains(text(), "Instrument name matches another")]')
 
 
-# @pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=3)
 def test_super_user_post_allocation(
     public_group, super_admin_token, super_admin_user, driver
 ):
@@ -325,7 +325,7 @@ def test_super_user_post_allocation(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_gcnevents_observations(
     driver, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
 ):
@@ -466,7 +466,7 @@ def test_gcnevents_observations(
     driver.wait_for_xpath('//*[text()="20.40705"]')
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_followup_request_frontend(
     public_group_sedm_allocation,
     public_source,
@@ -525,8 +525,8 @@ def test_followup_request_frontend(
     )
 
 
-# @pytest.mark.flaky(reruns=2)
-def observationplan_request(driver, user, super_admin_token, public_group):
+@pytest.mark.flaky(reruns=2)
+def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
     with open(datafile, 'rb') as fid:
@@ -696,7 +696,7 @@ def observationplan_request(driver, user, super_admin_token, public_group):
     )
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_gcn_request(driver, user, super_admin_token, public_group):
 
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
