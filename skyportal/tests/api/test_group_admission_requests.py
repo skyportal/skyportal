@@ -58,7 +58,7 @@ def test_group_admission_read_access(
         token=upload_data_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Cannot find GroupAdmissionRequest with id" in data["message"]
 
 
 # test get doesn't exist
@@ -70,7 +70,7 @@ def test_group_admission_read_nonexistent(upload_data_token):
         token=upload_data_token,
     )
     assert status == 400
-    assert "Invalid GroupAdmissionRequest id" in data["message"]
+    assert "Cannot find GroupAdmissionRequest with id" in data["message"]
 
 
 # test post for someone not me
@@ -83,7 +83,7 @@ def test_group_admission_post_for_another_user(
         'POST', 'group_admission_requests', data=request_data, token=upload_data_token
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "cannot be made on behalf of others" in data["message"]
 
 
 # test patch non-admin
@@ -115,7 +115,7 @@ def test_group_admission_patch_permissions(
         token=upload_data_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Cannot find GroupAdmissionRequest with id" in data["message"]
 
     # Nor can the requesting user do so
     status, data = api(
@@ -125,7 +125,7 @@ def test_group_admission_patch_permissions(
         token=upload_data_token_group2,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Cannot find GroupAdmissionRequest with id" in data["message"]
 
     # The group admin can approve the request
     status, data = api(
@@ -167,7 +167,7 @@ def test_group_admission_delete_permissions(
         token=upload_data_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Cannot find GroupAdmissionRequest with id" in data["message"]
 
     # Nor can the group admin do so
     status, data = api(
@@ -177,7 +177,7 @@ def test_group_admission_delete_permissions(
         token=group_admin_token,
     )
     assert status == 400
-    assert "Insufficient permissions" in data["message"]
+    assert "Cannot find GroupAdmissionRequest with id" in data["message"]
 
     # The requester can approve the request
     status, data = api(
