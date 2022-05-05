@@ -1,5 +1,6 @@
 import astropy
 from astropy.io import ascii
+import json
 import requests
 from requests import Request, Session
 from requests.auth import HTTPBasicAuth
@@ -272,7 +273,7 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
 
         drop_columns = list(
             set(df.columns.values)
-            - set(['mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'])
+            - {'mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'}
         )
 
         df.drop(
@@ -719,6 +720,42 @@ class ZTFMMAAPI(MMAAPI):
         DBSession().add(transaction)
 
     @staticmethod
+    def queued(allocation, start_date, end_date):
+
+        """Retrieve queued observations by ZTF.
+
+        Parameters
+        ----------
+        allocation: skyportal.models.Allocation
+            The allocation with queue information.
+        """
+
+        altdata = allocation.altdata
+        if not altdata:
+            raise ValueError('Missing allocation information.')
+
+        headers = {"Authorization": f"Bearer {altdata['access_token']}"}
+
+        url = urllib.parse.urljoin(ZTF_URL, 'api/triggers/ztf')
+        s = Session()
+        ztfreq = Request('GET', url, headers=headers)
+        prepped = ztfreq.prepare()
+        r = s.send(prepped)
+
+        if r.status_code == 200:
+            df = pd.DataFrame(r.json()['data'])
+            queue_names = set(df['queue_name'])
+            fetch_obs = functools.partial(
+                fetch_queued_observations,
+                allocation.instrument.id,
+                df,
+            )
+            IOLoop.current().run_in_executor(None, fetch_obs)
+            return queue_names
+        else:
+            return ValueError(f'Error querying for queued observations: {r.text}')
+
+    @staticmethod
     def retrieve(allocation, start_date, end_date):
 
         """Retrieve executed observations by ZTF.
@@ -821,3 +858,58 @@ def fetch_observations(instrument_id, client, request_str):
     from skyportal.handlers.api.observation import add_observations
 
     add_observations(instrument_id, obstable)
+
+
+def fetch_queued_observations(instrument_id, obstable):
+    """Fetch queued observations from ZTF scheduler.
+    instrument_id: int
+        ID of the instrument
+    obstable: pandas.DataFrame
+        A dataframe returned from the ZTF scheduler queue
+    """
+
+    observations = []
+    for _, queue in obstable.iterrows():
+        validity_window_mjd = queue['validity_window_mjd']
+        if validity_window_mjd is not None:
+            validity_window_start = Time(
+                validity_window_mjd[0], format='mjd', scale='utc'
+            ).datetime
+            validity_window_end = Time(
+                validity_window_mjd[1], format='mjd', scale='utc'
+            ).datetime
+        else:
+            continue
+
+        res = json.loads(queue['queue'])
+        for row in res:
+            field_id = int(row["field_id"])
+            if "slot_start_time" in row:
+                slot_start_time = Time(row["slot_start_time"], format='iso').datetime
+            else:
+                slot_start_time = validity_window_start
+            if not row['filter_id'] is None:
+                filt = inv_bands[row['filter_id']]
+            elif row['subprogram_name'] == 'i_band':
+                filt = 'ztfi'
+            else:
+                filt = None
+            print(validity_window_start, validity_window_end)
+            observations.append(
+                {
+                    'queue_name': queue['queue_name'],
+                    'instrument_id': instrument_id,
+                    'field_id': field_id,
+                    'obstime': slot_start_time,
+                    'validity_window_start': validity_window_start,
+                    'validity_window_end': validity_window_end,
+                    'exposure_time': row["exposure_time"],
+                    'filter': filt,
+                }
+            )
+
+    from skyportal.handlers.api.observation import add_queued_observations
+
+    obstable = pd.DataFrame(observations)
+
+    add_queued_observations(instrument_id, obstable)

@@ -126,6 +126,14 @@ class Instrument(Base):
         doc="The ExecutedObservations by this instrument.",
     )
 
+    queued_observations = relationship(
+        'QueuedObservation',
+        back_populates='instrument',
+        cascade='save-update, merge, refresh-expire, expunge',
+        passive_deletes=True,
+        doc="The QueuedObservations for this instrument.",
+    )
+
     treasuremap_id = sa.Column(
         sa.Integer,
         nullable=True,
