@@ -173,7 +173,7 @@ When running a public server, you will likely want to deploy an SSL certificate 
 Briefly, one can install certbot:
     pip install certbot-nginx
 
-and retrieve a certificate:
+Ask `certbot` to verify the service and retrieve a new certificate:
     sudo certbot certonly --standalone --preferred-challenges http -d http://your.url
 or similar if using https
     sudo certbot certonly --standalone --preferred-challenges https -d https://your.url
