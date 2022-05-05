@@ -455,13 +455,9 @@ class Obj(Base, conesearch_alchemy.Point):
         session.commit()
 
     def add_ps1_thumbnail(self, session=DBSession):
-        url = self.panstarrs_url
-        if url is not None:
-            ps1_thumb = Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1")
-            session.add(ps1_thumb)
-            session.commit()
-        else:
-            pass
+        ps1_thumb = Thumbnail(obj=self, public_url=self.panstarrs_url, type="ps1")
+        session.add(ps1_thumb)
+        session.commit()
 
     @property
     def sdss_url(self):
@@ -496,14 +492,20 @@ class Obj(Base, conesearch_alchemy.Point):
             f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
             f"&filter=r&filter=i&filetypes=stack&size=250"
         )
-        cutout_url = None
+        cutout_url = "/static/images/currently_unavailable.png"
         try:
             response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
             response.raise_for_status()
+            no_stamps = re.search(
+                "No PS1 3PI images were found", response.content.decode()
+            )
+            if no_stamps:
+                cutout_url = "/static/images/outside_survey.png"
             match = re.search(
                 'src="//ps1images.stsci.edu.*?"', response.content.decode()
             )
-            cutout_url = match.group().replace('src="', 'https:').replace('"', '')
+            if match:
+                cutout_url = match.group().replace('src="', 'https:').replace('"', '')
         except requests.exceptions.HTTPError as http_err:
             log(f"HTTPError getting thumbnail for {self.id}: {http_err}")
         except requests.exceptions.Timeout as timeout_err:
