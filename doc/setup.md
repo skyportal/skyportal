@@ -170,7 +170,12 @@ This also adds `testuser@cesium-ml.org` as an administrator.
 
 When running a public server, you will likely want to deploy an SSL certificate (i.e., serve `https://your.url` instead of `http://your.url`). Certificates can be obtained for free from services such as Let's Encrypt (https://letsencrypt.org/).
 
-Briefly, one can install certbot:
+[certbot](https://certbot.eff.org/) is software for helping you obtain a new SSL certificate from Let's Encrypt.
+To do so, it first verifies that your server is running (without SSL) at the specified domain.
+
+Start SkyPortal using `make run`.
+
+Then, install `certbot`:
     pip install certbot-nginx
 
 Ask `certbot` to verify the service and retrieve a new certificate:
