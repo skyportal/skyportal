@@ -42,6 +42,8 @@ log = make_log('finder-chart')
 
 _, cfg = load_env()
 
+PS1_CUTOUT_TIMEOUT = 10
+
 
 class GaiaQuery:
 
@@ -251,15 +253,13 @@ def get_ps1_url(ra, dec, imsize, *args, **kwargs):
         f"filter=r&filetypes=stack&size={numpix}"
     )
 
-    response = requests.get(ps_query_url)
-
-    if response.status_code != 200:
-        log(f"Note: cannot get PS1 image at position {ra} {dec}")
-        return ''
-
     try:
+        response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
         # see models.py for how this URL is constructed
         match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
+        if match is None:
+            log(f"PS1 image not found for {ra} {dec}")
+            return ""
         url = match.group().replace('src="', 'http:').replace('"', '')
         url += f"&format=fits&imagename=ps1{ra}{dec:+f}.fits"
     except Exception as e:
@@ -1025,6 +1025,9 @@ def fits_image(
         url = source_image_parameters[image_source]["url"](
             ra=center_ra, dec=center_dec, imsize=imsize
         )
+
+    if url in [None, ""]:
+        raise Exception(f"Could not get FITS image for source {image_source}")
 
     cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
 
