@@ -3,7 +3,7 @@ import uuid
 import pandas as pd
 import time
 from regions import Regions
-
+import pytest
 from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
@@ -615,6 +615,15 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     assert status == 200
     assert data["status"] == "success"
 
+    galaxy_name = str(uuid.uuid4())
+    data = {
+        'catalog_name': 'some_galaxy',
+        'catalog_data': {'name': [galaxy_name], 'ra': [228.5], 'dec': [35.5]},
+    }
+    status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
     driver.get(f'/become_user/{user.id}')
     driver.get('/gcn_events/2019-04-25T08:18:05')
 
@@ -629,6 +638,7 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     driver.wait_for_xpath('//*[text()="LVC"]')
     driver.wait_for_xpath('//*[text()="BNS"]')
+
     submit_button_xpath = (
         '//div[@data-testid="observationplan-request-form"]//button[@type="submit"]'
     )
@@ -645,9 +655,15 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     # Click somewhere outside to remove focus from instrument select
     driver.click_xpath("//body")
     driver.click_xpath(submit_button_xpath)
+    time.sleep(30)
+    submit_button_xpath = (
+        '//button[@type="submit"]//span[contains(., "Generate Observation Plans")]'
+    )
+    driver.wait_for_xpath(submit_button_xpath)
+    driver.click_xpath(submit_button_xpath)
 
     driver.wait_for_xpath(
-        f"//div[@data-testid='{instrument_name}-requests-header']", timeout=15
+        f"//div[@data-testid='{instrument_name}-requests-header']", timeout=30
     )
     driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
     driver.wait_for_xpath(
