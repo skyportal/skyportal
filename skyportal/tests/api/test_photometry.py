@@ -500,7 +500,7 @@ def test_retrieve_photometry_error_group_membership_posted_by_other(
     # `view_only_token only` belongs to `public_group`, not `public_group2`
     assert status == 400
     assert data['status'] == 'error'
-    assert "Insufficient permissions" in data['message']
+    assert "Cannot find Photometry with id" in data['message']
 
 
 def test_can_post_photometry_no_groups(
@@ -1214,7 +1214,7 @@ def test_token_user_update_photometry_groups(
     )
     assert status == 400
     assert data['status'] == 'error'
-    assert "Insufficient permissions" in data["message"]
+    assert "Cannot find Photometry with id" in data["message"]
 
 
 def test_user_can_delete_owned_photometry_data(

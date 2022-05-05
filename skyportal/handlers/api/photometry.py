@@ -647,7 +647,8 @@ def get_stream_ids(data, user):
                     f"Invalid format for stream id {stream_id}, must be an integer."
                 )
             stream = Stream.get_if_accessible_by(stream_id, user)
-            if stream is None:
+
+            if not stream:
                 raise ValidationError(f'No stream with ID {stream_id}')
     else:
         raise ValidationError(
