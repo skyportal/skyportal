@@ -257,6 +257,9 @@ def get_ps1_url(ra, dec, imsize, *args, **kwargs):
         response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
         # see models.py for how this URL is constructed
         match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
+        if match is None:
+            log(f"PS1 image not found for {ra} {dec}")
+            return ""
         url = match.group().replace('src="', 'http:').replace('"', '')
         url += f"&format=fits&imagename=ps1{ra}{dec:+f}.fits"
     except Exception as e:
