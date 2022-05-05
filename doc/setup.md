@@ -170,6 +170,17 @@ This also adds `testuser@cesium-ml.org` as an administrator.
 
 When running a public server, you will likely want to deploy an SSL certificate (i.e., serve `https://your.url` instead of `http://your.url`). Certificates can be obtained for free from services such as Let's Encrypt (https://letsencrypt.org/). For Let's Encrypt at least, the process requires verification of the service without SSL first (i.e. simply running `make run`).
 
+Briefly, one can install certbot:
+    pip install certbot-nginx
+
+and retrieve a certificate:
+    sudo certbot certonly --standalone --preferred-challenges http -d http://your.url
+or similar if using https
+    sudo certbot certonly --standalone --preferred-challenges https -d https://your.url
+
+To renew the certificate, one does:
+    sudo certbot renew
+
 After receiving an SSL certificate, you'll need to modify the nginx configuration in `baselayer/services/nginx/nginx.conf.template` to use it. For example, you would add the following for Let's Encrypt:
 
     listen [::]:443 ssl ipv6only=on;
