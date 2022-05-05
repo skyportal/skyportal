@@ -166,3 +166,37 @@ make load_demo_data
 ```
 
 This also adds `testuser@cesium-ml.org` as an administrator.
+
+### Deploying secure HTTP / SSL certificate
+
+When running a public server, you will likely want to deploy an SSL certificate (i.e., serve `https://your.url` instead of `http://your.url`). Certificates can be obtained for free from services such as Let's Encrypt (https://letsencrypt.org/).
+
+[certbot](https://certbot.eff.org/) is software for helping you obtain a new SSL certificate from Let's Encrypt.
+To do so, it first verifies that your server is running (without SSL) at the specified domain.
+
+Start SkyPortal using `make run`.
+
+Then, install `certbot`:
+    pip install certbot-nginx
+
+Ask `certbot` to verify the service and retrieve a new certificate:
+    sudo certbot certonly --standalone --preferred-challenges http -d http://your.url
+or similar if using https
+    sudo certbot certonly --standalone --preferred-challenges https -d https://your.url
+
+To renew and retrieve the certificate, do:
+    sudo certbot renew
+
+Next, modify the nginx configuration in `baselayer/services/nginx/nginx.conf.template` to use the newly generated certificate, placing it at the top of the server section:
+
+    server {
+      listen [::]:443 ssl ipv6only=on;
+      listen 443 ssl;
+      ssl_certificate /etc/letsencrypt/live/{YOUR_DOMAIN_HERE}/fullchain.pem;
+      ssl_certificate_key /etc/letsencrypt/live/{YOUR_DOMAIN_HERE}/privkey.pem;
+      include /etc/letsencrypt/options-ssl-nginx.conf;
+      ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+      ...
+   }
+
+Finally, stop the app and run it again using `make run`.
