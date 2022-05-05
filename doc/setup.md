@@ -75,6 +75,7 @@ In `pg_hba.conf` (typically located in
 ```
 host skyportal skyportal 127.0.0.1/32 trust
 host skyportal_test skyportal 127.0.0.1/32 trust
+host all postgres 127.0.0.1/32 trust
 ```
 
 In some PostgreSQL installations, the default TCP port may be different from the 5432 value assumed in our default configuration file values. To remedy this, you can either edit your config.yaml file to reflect your system's PostgreSQL default port, or update your system-wide config to use port 5432 by editing /etc/postgresql/12/main/postgresql.conf (replace "12" with your installed version number) and changing the line `port = XXXX` (where "XXXX" is whatever the system default was) to `port = 5432`.
