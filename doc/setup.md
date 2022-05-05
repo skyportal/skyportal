@@ -190,4 +190,4 @@ Next, modify the nginx configuration in `baselayer/services/nginx/nginx.conf.tem
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-and restart the app with `make run`.
+Finally, stop the app and run it again using `make run`.
