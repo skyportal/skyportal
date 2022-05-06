@@ -712,9 +712,9 @@ def add_external_photometry(json, user):
 class PhotometryHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
-        """
+        f"""
         ---
-        description: Upload photometry
+        description: Upload photometry. Posting is capped at {MAX_NUMBER_ROWS} for database stability purposes.
         tags:
           - photometry
         requestBody:
