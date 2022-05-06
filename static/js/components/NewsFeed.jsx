@@ -194,7 +194,6 @@ const NewsFeed = ({ classes }) => {
   const dispatch = useDispatch();
   const permissions = useSelector((state) => state.profile.permissions);
   const { items } = useSelector((state) => state.newsFeed);
-
   const newsFeedPrefs =
     useSelector((state) => state.profile.preferences.newsFeed) || defaultPrefs;
   if (!Object.keys(newsFeedPrefs).includes("categories")) {
