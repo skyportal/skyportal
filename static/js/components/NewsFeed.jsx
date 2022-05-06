@@ -1,7 +1,7 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import { Link } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 
 import { Paper, Avatar, Tooltip } from "@material-ui/core";
@@ -18,6 +18,9 @@ import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import UserAvatar from "./UserAvatar";
 import * as profileActions from "../ducks/profile";
 
+import CommentEntry from "./CommentEntry";
+import * as commentActions from "../ducks/comment";
+
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
@@ -29,6 +32,7 @@ const defaultPrefs = {
     photometry: true,
     sources: true,
     spectra: true,
+    general_comments: true,
     includeCommentsFromBots: false,
   },
 };
@@ -103,6 +107,7 @@ const NewsFeedItem = ({ item }) => {
     case "photometry":
     case "spectrum":
     case "classification":
+    case "general_comments":
       /* eslint-disable react/display-name */
       EntryAvatar = () => (
         <UserAvatar
@@ -186,12 +191,22 @@ const NewsFeedItem = ({ item }) => {
 
 const NewsFeed = ({ classes }) => {
   const styles = useStyles();
+  const dispatch = useDispatch();
+  const permissions = useSelector((state) => state.profile.permissions);
   const { items } = useSelector((state) => state.newsFeed);
   const newsFeedPrefs =
     useSelector((state) => state.profile.preferences.newsFeed) || defaultPrefs;
   if (!Object.keys(newsFeedPrefs).includes("categories")) {
     newsFeedPrefs.categories = defaultPrefs.categories;
   }
+
+  const addGeneralComment = (formData) => {
+    dispatch(
+      commentActions.addGeneralComment({
+        ...formData,
+      })
+    );
+  };
 
   return (
     <Paper elevation={1} className={classes.widgetPaperFillSpace}>
@@ -218,6 +233,10 @@ const NewsFeed = ({ classes }) => {
             />
           ))}
         </div>
+        <br />
+        {permissions.indexOf("Comment") >= 0 && (
+          <CommentEntry addComment={addGeneralComment} />
+        )}
       </div>
     </Paper>
   );
@@ -228,7 +247,7 @@ NewsFeedItem.propTypes = {
     type: PropTypes.string.isRequired,
     time: PropTypes.string.isRequired,
     message: PropTypes.string.isRequired,
-    source_id: PropTypes.string.isRequired,
+    source_id: PropTypes.string,
     author: PropTypes.string,
     author_info: PropTypes.shape({
       username: PropTypes.string.isRequired,

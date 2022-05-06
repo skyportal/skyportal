@@ -1,4 +1,4 @@
-__all__ = ['Comment', 'CommentOnSpectrum', 'CommentOnGCN']
+__all__ = ['Comment', 'CommentOnSpectrum', 'CommentOnGCN', 'GeneralComment']
 
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
@@ -59,6 +59,8 @@ class CommentMixin:
             return 'comments_on_spectra'
         if cls.__name__ == 'CommentOnGCN':
             return 'comments_on_gcns'
+        if cls.__name__ == 'GeneralComment':
+            return 'general_comments'
 
     @declared_attr
     def author(cls):
@@ -183,3 +185,16 @@ class CommentOnGCN(Base, CommentMixin):
         back_populates='comments',
         doc="The GcnEvent referred to by this comment.",
     )
+
+
+class GeneralComment(Base, CommentMixin):
+
+    __tablename__ = 'general_comments'
+
+    create = AccessibleIfRelatedRowsAreAccessible(groups='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        groups='read'
+    )
+
+    update = delete = AccessibleIfUserMatches('author')

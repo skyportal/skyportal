@@ -146,6 +146,13 @@ User.comments_on_gcns = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.general_comments = relationship(
+    "GeneralComment",
+    back_populates="author",
+    foreign_keys="GeneralComment.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
