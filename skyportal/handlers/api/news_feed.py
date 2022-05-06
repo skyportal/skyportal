@@ -201,7 +201,6 @@ class NewsFeedHandler(BaseHandler):
                     for c in comments
                 ]
             )
-        print("news_feed_items", news_feed_items)
         news_feed_items.sort(key=lambda x: x['time'], reverse=True)
         news_feed_items = news_feed_items[:n_items]
         self.verify_and_commit()

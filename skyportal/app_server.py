@@ -14,6 +14,7 @@ from skyportal.handlers.api import (
     ClassificationHandler,
     CommentHandler,
     CommentAttachmentHandler,
+    GeneralCommentHandler,
     EnumTypesHandler,
     AnnotationHandler,
     DatalabQueryHandler,
@@ -141,7 +142,6 @@ skyportal_handlers = [
     (r'/api/candidates(/[0-9A-Za-z-_]+)/([0-9]+)', CandidateHandler),
     (r'/api/candidates(/.*)?', CandidateHandler),
     (r'/api/classification(/[0-9]+)?', ClassificationHandler),
-    (r'/api/comments(/[0-9]+)?', CommentHandler),
     (r'/api/enum_types(/.*)?', EnumTypesHandler),
     (r'/api/facility', FacilityMessageHandler),
     (r'/api/filters(/.*)?', FilterHandler),
@@ -169,6 +169,7 @@ skyportal_handlers = [
         r'/api/(sources|spectra|gcn_event)/([0-9A-Za-z-_\.\+]+)/comments(/[0-9]+)/attachment.pdf',
         CommentAttachmentHandler,
     ),
+    (r'/api/comments(/[0-9]+)?', GeneralCommentHandler),
     (r'/api/gcn_event(/.*)?', GcnEventHandler),
     (
         r'/api/localization(/[0-9]+)/airmass(/[0-9]+)?',
