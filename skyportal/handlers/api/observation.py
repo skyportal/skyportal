@@ -208,7 +208,7 @@ def get_observations(
     localization_cumprob=0.95,
     return_statistics=False,
     includeGeoJSON=False,
-    observation_type='executed',
+    observation_status='executed',
     n_per_page=100,
     page_number=1,
 ):
@@ -244,7 +244,7 @@ def get_observations(
         Defaults to false.
     includeGeoJSON: bool
                 Boolean indicating whether to include associated GeoJSON fields. Defaults to false.
-    observation_type: str
+    observation_status: str
         Whether to include queued or executed observations. Defaults to
             executed.
     n_per_page: int
@@ -267,12 +267,12 @@ def get_observations(
             'localization_dateobs must be specified if return_statistics=True'
         )
 
-    if observation_type == "executed":
+    if observation_status == "executed":
         Observation = ExecutedObservation
-    elif observation_type == "queued":
+    elif observation_status == "queued":
         Observation = QueuedObservation
     else:
-        raise ValueError('observation_type should be executed or queued')
+        raise ValueError('observation_status should be executed or queued')
 
     if includeGeoJSON:
         options = (
@@ -695,7 +695,7 @@ class ObservationHandler(BaseHandler):
                 Boolean indicating whether to include associated GeoJSON. Defaults to
                 false.
             - in: query
-              name: observationType
+              name: observationStatus
               nullable: true
               schema:
                 type: str
@@ -708,7 +708,8 @@ class ObservationHandler(BaseHandler):
               schema:
                 type: integer
               description: |
-                Number of followup requests to return per paginated request. Defaults to 100. Can be no larger than {MAX_OBSERVATIONS}.
+                Number of followup requests to return per paginated request.
+                Defaults to 100. Can be no larger than {MAX_OBSERVATIONS}.
             - in: query
               name: pageNumber
               nullable: true
@@ -735,7 +736,7 @@ class ObservationHandler(BaseHandler):
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         return_statistics = self.get_query_argument("returnStatistics", False)
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
-        observation_type = self.get_query_argument("observationType", 'executed')
+        observation_status = self.get_query_argument("observationStatus", 'executed')
         page_number = self.get_query_argument("pageNumber", 1)
         n_per_page = self.get_query_argument("numPerPage", 100)
 
@@ -773,12 +774,11 @@ class ObservationHandler(BaseHandler):
             localization_cumprob=localization_cumprob,
             return_statistics=return_statistics,
             includeGeoJSON=includeGeoJSON,
-            observation_type=observation_type,
+            observation_status=observation_status,
             n_per_page=n_per_page,
             page_number=page_number,
         )
 
-        print(observation_type, n_per_page, page_number)
         return self.success(data=data)
 
     @auth_or_token

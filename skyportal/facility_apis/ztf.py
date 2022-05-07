@@ -728,6 +728,10 @@ class ZTFMMAAPI(MMAAPI):
         ----------
         allocation: skyportal.models.Allocation
             The allocation with queue information.
+        start_date: datetime.datetime
+            Minimum time for observation request
+        end_date: datetime.datetime
+            Maximum time for observation request
         """
 
         altdata = allocation.altdata
@@ -749,6 +753,8 @@ class ZTFMMAAPI(MMAAPI):
                 fetch_queued_observations,
                 allocation.instrument.id,
                 df,
+                start_date,
+                end_date,
             )
             IOLoop.current().run_in_executor(None, fetch_obs)
             return queue_names
@@ -764,6 +770,10 @@ class ZTFMMAAPI(MMAAPI):
         ----------
         allocation: skyportal.models.Allocation
             The allocation with queue information.
+        start_date: datetime.datetime
+            Minimum time for observation request
+        end_date: datetime.datetime
+            Maximum time for observation request
         """
 
         altdata = allocation.altdata
@@ -860,12 +870,16 @@ def fetch_observations(instrument_id, client, request_str):
     add_observations(instrument_id, obstable)
 
 
-def fetch_queued_observations(instrument_id, obstable):
-    """Fetch queued observations from ZTF scheduler.
+def fetch_queued_observations(instrument_id, obstable, start_date, end_date):
+    """Fetch queued (i.e. yet to be completed) observations from ZTF scheduler.
     instrument_id: int
         ID of the instrument
     obstable: pandas.DataFrame
         A dataframe returned from the ZTF scheduler queue
+    start_date: datetime.datetime
+        Minimum time for observation request
+    end_date: datetime.datetime
+        Maximum time for observation request
     """
 
     observations = []
@@ -888,13 +902,17 @@ def fetch_queued_observations(instrument_id, obstable):
                 slot_start_time = Time(row["slot_start_time"], format='iso').datetime
             else:
                 slot_start_time = validity_window_start
+
+            if (slot_start_time < start_date) or (slot_start_time > end_date):
+                continue
+
             if not row['filter_id'] is None:
                 filt = inv_bands[row['filter_id']]
             elif row['subprogram_name'] == 'i_band':
                 filt = 'ztfi'
             else:
                 filt = None
-            print(validity_window_start, validity_window_end)
+
             observations.append(
                 {
                     'queue_name': queue['queue_name'],

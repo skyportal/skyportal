@@ -33,7 +33,7 @@ export function fetchQueuedObservations(filterParams = {}) {
       .utc()
       .format("YYYY-MM-DDTHH:mm:ssZ");
   }
-  filterParams.observationType = "queued";
+  filterParams.observationStatus = "queued";
 
   return API.GET("/api/observation", FETCH_QUEUED_OBSERVATIONS, filterParams);
 }
@@ -74,7 +74,7 @@ export function fetchGcnEventQueuedObservations(dateobs, filterParams = {}) {
     filterParams.numPerPage = 10;
   }
 
-  filterParams.observationType = "queued";
+  filterParams.observationStatus = "queued";
 
   return API.GET(
     "/api/observation",
