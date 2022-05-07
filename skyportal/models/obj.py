@@ -40,6 +40,8 @@ log = make_log('models.obj')
 # The minimum signal-to-noise ratio to consider a photometry point as a detection
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 
+PS1_CUTOUT_TIMEOUT = 10
+
 
 def delete_obj_if_all_data_owned(cls, user_or_token):
     from .source import Source
@@ -481,15 +483,37 @@ class Obj(Base, conesearch_alchemy.Point):
         The cutout service doesn't allow directly querying for an image; the
         best we can do is request a page that contains a link to the image we
         want (in this case a combination of the g/r/i filters).
+
+        If this page does not return without PS1_CUTOUT_TIMEOUT seconds then
+        we assume that the image is not available and return None.
         """
         ps_query_url = (
             f"https://ps1images.stsci.edu/cgi-bin/ps1cutouts"
             f"?pos={self.ra}+{self.dec}&filter=color&filter=g"
             f"&filter=r&filter=i&filetypes=stack&size=250"
         )
-        response = requests.get(ps_query_url)
-        match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
-        return match.group().replace('src="', 'https:').replace('"', '')
+        cutout_url = "/static/images/currently_unavailable.png"
+        try:
+            response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
+            response.raise_for_status()
+            no_stamps = re.search(
+                "No PS1 3PI images were found", response.content.decode()
+            )
+            if no_stamps:
+                cutout_url = "/static/images/outside_survey.png"
+            match = re.search(
+                'src="//ps1images.stsci.edu.*?"', response.content.decode()
+            )
+            if match:
+                cutout_url = match.group().replace('src="', 'https:').replace('"', '')
+        except requests.exceptions.HTTPError as http_err:
+            log(f"HTTPError getting thumbnail for {self.id}: {http_err}")
+        except requests.exceptions.Timeout as timeout_err:
+            log(f"Timeout in getting thumbnail for {self.id}: {timeout_err}")
+        except requests.exceptions.RequestException as other_err:
+            log(f"Unexpected error in getting thumbnail for {self.id}: {other_err}")
+        finally:
+            return cutout_url
 
     @property
     def target(self):

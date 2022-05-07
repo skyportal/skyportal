@@ -272,7 +272,7 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
 
         drop_columns = list(
             set(df.columns.values)
-            - set(['mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'])
+            - {'mjd', 'ra', 'dec', 'mag', 'magerr', 'limiting_mag', 'filter'}
         )
 
         df.drop(
@@ -290,9 +290,12 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
 
         from skyportal.handlers.api.photometry import add_external_photometry
 
-        add_external_photometry(data_out, request.requester)
+        if len(df.index) > 0:
+            add_external_photometry(data_out, request.requester)
+            request.status = "Photometry committed to database"
+        else:
+            request.status = "No photometry to commit to database"
 
-        request.status = "Photometry committed to database"
         session.add(request)
         session.commit()
 
