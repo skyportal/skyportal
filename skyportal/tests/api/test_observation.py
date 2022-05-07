@@ -9,7 +9,7 @@ import uuid
 from skyportal.tests import api
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_observation(super_admin_token, view_only_token):
 
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
