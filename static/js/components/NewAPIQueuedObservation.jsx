@@ -20,11 +20,11 @@ const NewAPIQueuedObservation = () => {
   const dispatch = useDispatch();
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultStartDate = dayjs()
-    .subtract(3, "day")
+  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultEndDate = dayjs()
+    .add(1, "day")
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
 
   useEffect(() => {
     const getAllocations = async () => {
@@ -102,9 +102,9 @@ const NewAPIQueuedObservation = () => {
   };
 
   function validate(formData, errors) {
-    if (nowDate < formData.end_date) {
+    if (nowDate > formData.start_date) {
       errors.end_date.addError(
-        "End date must be before current time, please fix."
+        "Start date must be after current time, please fix."
       );
     }
     if (formData.start_date > formData.end_date) {

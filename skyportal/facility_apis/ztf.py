@@ -903,7 +903,9 @@ def fetch_queued_observations(instrument_id, obstable, start_date, end_date):
             else:
                 slot_start_time = validity_window_start
 
-            if (slot_start_time < start_date) or (slot_start_time > end_date):
+            if (slot_start_time < Time(start_date, format='datetime').datetime) or (
+                slot_start_time > Time(end_date, format='datetime').datetime
+            ):
                 continue
 
             if not row['filter_id'] is None:
