@@ -47,12 +47,12 @@ class ZTFRequest:
         Parameters
         ----------
 
-        request: skyportal.models.FollowupRequest
+        request : skyportal.models.FollowupRequest
             The request to add to the observation queue and the SkyPortal database.
 
         Returns
         ----------
-        payload: json
+        payload : json
             payload for requests.
         """
 
@@ -102,12 +102,12 @@ class ZTFRequest:
         Parameters
         ----------
 
-        request: skyportal.models.FollowupRequest
+        request : skyportal.models.FollowupRequest
             The request to add to the IPAC forced photometry queue and the SkyPortal database.
 
         Returns
         ----------
-        payload: json
+        payload : json
             payload for requests.
         """
 
@@ -202,7 +202,7 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
         FollowupRequest SkyPortal ID
     instrument_id : int
         Instrument SkyPortal ID
-    user_id: int
+    user_id : int
         User SkyPortal ID
     """
 
@@ -320,7 +320,7 @@ class ZTFAPI(FollowUpAPI):
 
         Parameters
         ----------
-        request: skyportal.models.FollowupRequest
+        request : skyportal.models.FollowupRequest
             The request to delete from the queue and the SkyPortal database.
         """
 
@@ -498,7 +498,7 @@ class ZTFAPI(FollowUpAPI):
 
         Parameters
         ----------
-        request: skyportal.models.FollowupRequest
+        request : skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
         """
 
@@ -619,7 +619,7 @@ class ZTFMMAAPI(MMAAPI):
 
         Parameters
         ----------
-        request: skyportal.models.ObservationPlanRequest
+        request : skyportal.models.ObservationPlanRequest
             The request to add to the queue and the SkyPortal database.
         """
 
@@ -669,7 +669,7 @@ class ZTFMMAAPI(MMAAPI):
 
         Parameters
         ----------
-        request: skyportal.models.ObservationPlanRequest
+        request : skyportal.models.ObservationPlanRequest
             The request to delete from the queue and the SkyPortal database.
         """
 
@@ -726,11 +726,11 @@ class ZTFMMAAPI(MMAAPI):
 
         Parameters
         ----------
-        allocation: skyportal.models.Allocation
+        allocation : skyportal.models.Allocation
             The allocation with queue information.
-        start_date: datetime.datetime
+        start_date : datetime.datetime
             Minimum time for observation request
-        end_date: datetime.datetime
+        end_date : datetime.datetime
             Maximum time for observation request
         """
 
@@ -768,11 +768,11 @@ class ZTFMMAAPI(MMAAPI):
 
         Parameters
         ----------
-        allocation: skyportal.models.Allocation
+        allocation : skyportal.models.Allocation
             The allocation with queue information.
-        start_date: datetime.datetime
+        start_date : datetime.datetime
             Minimum time for observation request
-        end_date: datetime.datetime
+        end_date : datetime.datetime
             Maximum time for observation request
         """
 
@@ -830,11 +830,11 @@ class ZTFMMAAPI(MMAAPI):
 
 def fetch_observations(instrument_id, client, request_str):
     """Fetch executed observations from a TAP client.
-    instrument_id: int
+    instrument_id : int
         ID of the instrument
-    client: pyvo.dal.TAPService
+    client : pyvo.dal.TAPService
         An authenticated pyvo.dal.TAPService instance.
-    request_str: str
+    request_str : str
         TAP request of the form:
         SELECT field,rcid,fid,expid,obsjd,exptime,maglimit,ipac_gid,seeing
         FROM ztf.ztf_current_meta_sci WHERE (obsjd BETWEEN 2459637.2474652776 AND 2459640.2474652776)
@@ -872,13 +872,13 @@ def fetch_observations(instrument_id, client, request_str):
 
 def fetch_queued_observations(instrument_id, obstable, start_date, end_date):
     """Fetch queued (i.e. yet to be completed) observations from ZTF scheduler.
-    instrument_id: int
+    instrument_id : int
         ID of the instrument
-    obstable: pandas.DataFrame
+    obstable : pandas.DataFrame
         A dataframe returned from the ZTF scheduler queue
-    start_date: datetime.datetime
+    start_date : datetime.datetime
         Minimum time for observation request
-    end_date: datetime.datetime
+    end_date : datetime.datetime
         Maximum time for observation request
     """
 
