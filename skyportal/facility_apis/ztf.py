@@ -912,7 +912,6 @@ def fetch_queued_observations(instrument_id, obstable, start_date, end_date):
                 filt = 'ztfi'
             else:
                 filt = None
-
             observations.append(
                 {
                     'queue_name': queue['queue_name'],
