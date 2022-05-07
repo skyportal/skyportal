@@ -894,7 +894,6 @@ def fetch_queued_observations(instrument_id, obstable):
                 filt = 'ztfi'
             else:
                 filt = None
-            print(validity_window_start, validity_window_end)
             observations.append(
                 {
                     'queue_name': queue['queue_name'],
