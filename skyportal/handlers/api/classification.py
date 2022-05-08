@@ -66,6 +66,29 @@ class ClassificationHandler(BaseHandler):
             schema:
               type: integer
             description: Page number for paginated query results. Defaults to 1
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    allOf:
+                      - $ref: '#/components/schemas/Success'
+                      - type: object
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              sources:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Classification'
+                              totalMatches:
+                                type: integer
+            400:
+              content:
+                application/json:
+                  schema: Error
+
         """
 
         page_number = self.get_query_argument('pageNumber', 1)
