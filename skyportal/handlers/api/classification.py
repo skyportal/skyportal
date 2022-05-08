@@ -1,37 +1,115 @@
+import arrow
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Group, Classification, Taxonomy
 
+DEFAULT_CLASSIFICATIONS_PER_PAGE = 100
+MAX_CLASSIFICATIONS_PER_PAGE = 500
+
 
 class ClassificationHandler(BaseHandler):
     @auth_or_token
-    def get(self, classification_id):
+    def get(self, classification_id=None):
         """
         ---
-        description: Retrieve a classification
-        tags:
-          - classifications
-        parameters:
-          - in: path
-            name: classification_id
-            required: true
+        single:
+          description: Retrieve a classification
+          tags:
+            - classifications
+          parameters:
+            - in: path
+              name: classification_id
+              required: true
+              schema:
+                type: integer
+          responses:
+            200:
+              content:
+                application/json:
+                  schema: SingleClassification
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          description: Retrieve all classifications
+          tags:
+            - classifications
+          parameters:
+          - in: query
+            name: startDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              last_detected_at >= startDate
+          - in: query
+            name: endDate
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              last_detected_at <= endDate
+          - in: query
+            name: numPerPage
+            nullable: true
             schema:
               type: integer
-        responses:
-          200:
-            content:
-              application/json:
-                schema: SingleClassification
-          400:
-            content:
-              application/json:
-                schema: Error
+            description: |
+              Number of sources to return per paginated request. Defaults to 100. Max 500.
+          - in: query
+            name: pageNumber
+            nullable: true
+            schema:
+              type: integer
+            description: Page number for paginated query results. Defaults to 1
         """
-        classification = Classification.get_if_accessible_by(
-            classification_id, self.current_user, raise_if_none=True
+
+        page_number = self.get_query_argument('pageNumber', 1)
+        n_per_page = min(
+            int(
+                self.get_query_argument("numPerPage", DEFAULT_CLASSIFICATIONS_PER_PAGE)
+            ),
+            MAX_CLASSIFICATIONS_PER_PAGE,
         )
-        return self.success(data=classification)
+        start_date = self.get_query_argument('startDate', None)
+        end_date = self.get_query_argument('endDate', None)
+
+        if classification_id is not None:
+            classification = Classification.get_if_accessible_by(
+                classification_id, self.current_user, raise_if_none=True
+            )
+            return self.success(data=classification)
+
+        # get owned
+        classifications = Classification.query_records_accessible_by(self.current_user)
+
+        if start_date:
+            start_date = str(arrow.get(start_date.strip()).datetime)
+            classifications = classifications.filter(
+                Classification.created_at >= start_date
+            )
+        if end_date:
+            end_date = str(arrow.get(end_date.strip()).datetime)
+            classifications = classifications.filter(
+                Classification.created_at <= end_date
+            )
+
+        total_matches = classifications.count()
+        if n_per_page is not None:
+            classifications = classifications.limit(n_per_page).offset(
+                (page_number - 1) * n_per_page
+            )
+        classifications = classifications.all()
+
+        info = {}
+        info["classifications"] = [req.to_dict() for req in classifications]
+        info["totalMatches"] = int(total_matches)
+        self.verify_and_commit()
+        return self.success(data=info)
 
     @permissions(['Classify'])
     def post(self):
