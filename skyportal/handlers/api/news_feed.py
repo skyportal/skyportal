@@ -55,10 +55,8 @@ class NewsFeedHandler(BaseHandler):
                 schema: Error
         """
 
-        if hasattr(self.current_user, 'preferences'):
-            preferences = (
-                self.current_user.preferences if self.current_user.preferences else {}
-            )
+        if hasattr(self.current_user, 'preferences') and isinstance(self.current_user.preferences, dict):
+            preferences = self.current_user.preferences
         else:
             preferences = {}
 
