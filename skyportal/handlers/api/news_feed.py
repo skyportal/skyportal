@@ -57,17 +57,17 @@ class NewsFeedHandler(BaseHandler):
         """
 
         preferences = getattr(self.current_user, 'preferences', None) or {}
-        n_items = self.get_query_argument("numItems", None)
-        if n_items is None:
-            if 'newsFeed' in preferences and 'numItems' in preferences['newsFeed']:
-                n_items = min(
-                    int(preferences['newsFeed']['numItems']), DEFAULT_NEWSFEED_ITEMS
-                )
-            else:
-                n_items = DEFAULT_NEWSFEED_ITEMS
+        n_items_query = self.get_query_argument("numItems", None)
+        if n_items_query is not None:
+            n_items_query = int(n_items_query)
         else:
-            n_items = int(n_items)
-
+            n_items_query = None
+        n_items_feed = preferences.get('newsfeed', {}).get('numItems', None)
+        n_items = max(
+            x
+            for x in [n_items_query, n_items_feed, DEFAULT_NEWSFEED_ITEMS]
+            if x is not None
+        )
         if n_items > MAX_NEWSFEED_ITEMS:
             return self.error(
                 f'numItems should be no larger than {MAX_NEWSFEED_ITEMS}.'
