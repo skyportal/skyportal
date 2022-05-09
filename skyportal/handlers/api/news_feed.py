@@ -56,13 +56,7 @@ class NewsFeedHandler(BaseHandler):
                 schema: Error
         """
 
-        if hasattr(self.current_user, 'preferences') and isinstance(
-            self.current_user.preferences, dict
-        ):
-            preferences = self.current_user.preferences
-        else:
-            preferences = {}
-
+        preferences = getattr(self.current_user, 'preferences', None) or {}
         n_items = self.get_query_argument("numItems", None)
         if n_items is None:
             if 'newsFeed' in preferences and 'numItems' in preferences['newsFeed']:
