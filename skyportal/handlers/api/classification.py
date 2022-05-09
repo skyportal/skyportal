@@ -122,10 +122,9 @@ class ClassificationHandler(BaseHandler):
             )
 
         total_matches = classifications.count()
-        if n_per_page is not None:
-            classifications = classifications.limit(n_per_page).offset(
-                (page_number - 1) * n_per_page
-            )
+        classifications = classifications.limit(n_per_page).offset(
+            (page_number - 1) * n_per_page
+        )
         classifications = classifications.all()
 
         info = {}
