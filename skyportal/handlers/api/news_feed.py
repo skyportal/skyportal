@@ -10,15 +10,26 @@ from ...models import (
     basic_user_display_info,
 )
 
+MAX_NEWSFEED_ITEMS = 1000
+DEFAULT_NEWSFEED_ITEMS = 50
+
 
 class NewsFeedHandler(BaseHandler):
     @auth_or_token
     def get(self):
-        """
+        f"""
         ---
         description: Retrieve summary of recent activity
         tags:
           - news_feed
+        parameters:
+          - in: query
+            name: numItems
+            nullable: true
+            schema:
+              type: integer
+            description: Number of newsfeed items to return.
+            Defaults to {DEFAULT_NEWSFEED_ITEMS}. Max is {MAX_NEWSFEED_ITEMS}.
         responses:
           200:
             content:
@@ -44,13 +55,29 @@ class NewsFeedHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        preferences = (
-            self.current_user.preferences if self.current_user.preferences else {}
-        )
-        if 'newsFeed' in preferences and 'numItems' in preferences['newsFeed']:
-            n_items = min(int(preferences['newsFeed']['numItems']), 50)
+
+        if hasattr(self.current_user, 'preferences') and isinstance(
+            self.current_user.preferences, dict
+        ):
+            preferences = self.current_user.preferences
         else:
-            n_items = 10
+            preferences = {}
+
+        n_items = self.get_query_argument("numItems", None)
+        if n_items is None:
+            if 'newsFeed' in preferences and 'numItems' in preferences['newsFeed']:
+                n_items = min(
+                    int(preferences['newsFeed']['numItems']), DEFAULT_NEWSFEED_ITEMS
+                )
+            else:
+                n_items = DEFAULT_NEWSFEED_ITEMS
+        else:
+            n_items = int(n_items)
+
+        if n_items > MAX_NEWSFEED_ITEMS:
+            return self.error(
+                f'numItems should be no larger than {MAX_NEWSFEED_ITEMS}.'
+            )
 
         def fetch_newest(model, include_bot_comments=False):
             query = model.query_records_accessible_by(self.current_user)
