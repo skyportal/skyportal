@@ -6,4 +6,4 @@ notedown
 jsx-lexer
 # need a fix for SQLA1.4
 git+https://github.com/sturzaam/eralchemy@Sturzaam-patch-1#egg=eralchemy
-jinja2<3.1.0
+jinja2<3.2.0

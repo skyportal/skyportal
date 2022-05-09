@@ -31,6 +31,7 @@ from ...models import (
     InstrumentField,
     InstrumentFieldTile,
     ExecutedObservation,
+    QueuedObservation,
 )
 
 from ...models.schema import ObservationExternalAPIHandlerPost
@@ -42,6 +43,64 @@ TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 log = make_log('api/observation')
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+
+MAX_OBSERVATIONS = 1000
+
+
+def add_queued_observations(instrument_id, obstable):
+    """Fetch queued observations from ZTF scheduler.
+    instrument_id: int
+        ID of the instrument
+    obstable: pandas.DataFrame
+        A dataframe returned from the ZTF scheduler queue
+    """
+
+    session = Session()
+
+    try:
+        observations = []
+        for index, row in obstable.iterrows():
+            field_id = int(row["field_id"])
+            field = (
+                session.query(InstrumentField)
+                .filter(
+                    InstrumentField.instrument_id == instrument_id,
+                    InstrumentField.field_id == field_id,
+                )
+                .first()
+            )
+            if field is None:
+                return log(
+                    f"Unable to add observations for instrument {instrument_id}: Missing field {field_id}"
+                )
+
+            observations.append(
+                QueuedObservation(
+                    queue_name=row['queue_name'],
+                    instrument_id=row['instrument_id'],
+                    instrument_field_id=field.id,
+                    obstime=row['obstime'],
+                    validity_window_start=row['validity_window_start'],
+                    validity_window_end=row['validity_window_end'],
+                    exposure_time=row["exposure_time"],
+                    filt=row['filter'],
+                )
+            )
+        session.add_all(observations)
+        session.commit()
+
+        flow = Flow()
+        flow.push('*', "skyportal/REFRESH_QUEUED_OBSERVATIONS")
+
+        return log(
+            f"Successfully added queued observations for instrument {instrument_id}"
+        )
+    except Exception as e:
+        return log(
+            f"Unable to add queued observations for instrument {instrument_id}: {e}"
+        )
+    finally:
+        Session.remove()
 
 
 def add_observations(instrument_id, obstable):
@@ -149,8 +208,11 @@ def get_observations(
     localization_cumprob=0.95,
     return_statistics=False,
     includeGeoJSON=False,
+    observation_status='executed',
+    n_per_page=100,
+    page_number=1,
 ):
-    """Query
+    f"""Query
     Parameters
     ----------
     user : baselayer.app.models.User
@@ -182,6 +244,13 @@ def get_observations(
         Defaults to false.
     includeGeoJSON: bool
                 Boolean indicating whether to include associated GeoJSON fields. Defaults to false.
+    observation_status: str
+        Whether to include queued or executed observations. Defaults to
+            executed.
+    n_per_page: int
+        Number of observations to return per paginated request. Defaults to 100. Can be no larger than {MAX_OBSERVATIONS}.
+    page_number: int
+        Page number for paginated query results. Defaults to 1.
     Returns
     -------
     dict
@@ -198,35 +267,36 @@ def get_observations(
             'localization_dateobs must be specified if return_statistics=True'
         )
 
+    if observation_status == "executed":
+        Observation = ExecutedObservation
+    elif observation_status == "queued":
+        Observation = QueuedObservation
+    else:
+        raise ValueError('observation_status should be executed or queued')
+
     if includeGeoJSON:
         options = (
             [
-                joinedload(ExecutedObservation.instrument).joinedload(
-                    Instrument.telescope
-                ),
-                joinedload(ExecutedObservation.field).undefer(
-                    InstrumentField.contour_summary
-                ),
+                joinedload(Observation.instrument).joinedload(Instrument.telescope),
+                joinedload(Observation.field).undefer(InstrumentField.contour_summary),
             ],
         )
     else:
         options = (
             [
-                joinedload(ExecutedObservation.instrument).joinedload(
-                    Instrument.telescope
-                ),
-                joinedload(ExecutedObservation.field),
+                joinedload(Observation.instrument).joinedload(Instrument.telescope),
+                joinedload(Observation.field),
             ],
         )
 
-    obs_query = ExecutedObservation.query_records_accessible_by(
+    obs_query = Observation.query_records_accessible_by(
         user,
         mode="read",
         options=options,
     )
 
-    obs_query = obs_query.filter(ExecutedObservation.obstime >= start_date)
-    obs_query = obs_query.filter(ExecutedObservation.obstime <= end_date)
+    obs_query = obs_query.filter(Observation.obstime >= start_date)
+    obs_query = obs_query.filter(Observation.obstime <= end_date)
 
     # optional: slice by Instrument
     if telescope_name is not None and instrument_name is not None:
@@ -258,7 +328,7 @@ def get_observations(
         if instrument is None:
             return ValueError(f"Missing instrument {instrument_name}")
 
-        obs_query = obs_query.filter(ExecutedObservation.instrument_id == instrument.id)
+        obs_query = obs_query.filter(Observation.instrument_id == instrument.id)
 
     # optional: slice by GcnEvent localization
     if localization_dateobs is not None:
@@ -331,7 +401,7 @@ def get_observations(
 
         obs_query = obs_query.join(
             tiles_subquery,
-            ExecutedObservation.instrument_field_id == tiles_subquery.c.id,
+            Observation.instrument_field_id == tiles_subquery.c.id,
         )
 
         if return_statistics:
@@ -343,9 +413,9 @@ def get_observations(
                     .filter(
                         InstrumentFieldTile.instrument_id == instrument.id,
                         InstrumentFieldTile.instrument_field_id
-                        == ExecutedObservation.instrument_field_id,
-                        ExecutedObservation.obstime >= start_date,
-                        ExecutedObservation.obstime <= end_date,
+                        == Observation.instrument_field_id,
+                        Observation.obstime >= start_date,
+                        Observation.obstime <= end_date,
                     )
                     .subquery()
                 )
@@ -356,9 +426,9 @@ def get_observations(
                     )
                     .filter(
                         InstrumentFieldTile.instrument_field_id
-                        == ExecutedObservation.instrument_field_id,
-                        ExecutedObservation.obstime >= start_date,
-                        ExecutedObservation.obstime <= end_date,
+                        == Observation.instrument_field_id,
+                        Observation.obstime >= start_date,
+                        Observation.obstime <= end_date,
                     )
                     .subquery()
                 )
@@ -384,7 +454,15 @@ def get_observations(
             if intarea is None:
                 intarea = 0.0
 
+    total_matches = obs_query.count()
+    if n_per_page is not None:
+        obs_query = obs_query.limit(n_per_page).offset((page_number - 1) * n_per_page)
     observations = obs_query.all()
+
+    data = {
+        "observations": [o.to_dict() for o in observations],
+        "totalMatches": int(total_matches),
+    }
 
     if includeGeoJSON:
         # features are JSON representations that the d3 stuff understands.
@@ -402,26 +480,24 @@ def get_observations(
 
         if return_statistics:
             data = {
-                "observations": [o.to_dict() for o in observations],
+                **data,
                 "probability": intprob,
                 "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees,
                 "geojson": geojson,
             }
         else:
             data = {
-                "observations": [o.to_dict() for o in observations],
+                **data,
                 "geojson": geojson,
             }
 
     else:
         if return_statistics:
             data = {
-                "observations": [o.to_dict() for o in observations],
+                **data,
                 "probability": intprob,
                 "area": intarea * (180.0 / np.pi) ** 2,  # sq. degrees
             }
-        else:
-            data = {"observations": [o.to_dict() for o in observations]}
 
     return data
 
@@ -618,6 +694,28 @@ class ObservationHandler(BaseHandler):
               description: |
                 Boolean indicating whether to include associated GeoJSON. Defaults to
                 false.
+            - in: query
+              name: observationStatus
+              nullable: true
+              schema:
+                type: str
+              description: |
+                 Whether to include queued or executed observations.
+                 Defaults to executed.
+            - in: query
+              name: numPerPage
+              nullable: true
+              schema:
+                type: integer
+              description: |
+                Number of followup requests to return per paginated request.
+                Defaults to 100. Can be no larger than {MAX_OBSERVATIONS}.
+            - in: query
+              name: pageNumber
+              nullable: true
+              schema:
+                type: integer
+              description: Page number for paginated query results. Defaults to 1
           responses:
             200:
               content:
@@ -637,8 +735,24 @@ class ObservationHandler(BaseHandler):
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
         return_statistics = self.get_query_argument("returnStatistics", False)
-
         includeGeoJSON = self.get_query_argument("includeGeoJSON", False)
+        observation_status = self.get_query_argument("observationStatus", 'executed')
+        page_number = self.get_query_argument("pageNumber", 1)
+        n_per_page = self.get_query_argument("numPerPage", 100)
+
+        try:
+            page_number = int(page_number)
+        except ValueError:
+            return self.error("Invalid page number value.")
+        try:
+            n_per_page = int(n_per_page)
+        except (ValueError, TypeError) as e:
+            return self.error(f"Invalid numPerPage value: {str(e)}")
+
+        if n_per_page > MAX_OBSERVATIONS:
+            return self.error(
+                f'numPerPage should be no larger than {MAX_OBSERVATIONS}.'
+            )
 
         if start_date is None:
             return self.error(message="Missing start_date")
@@ -660,6 +774,9 @@ class ObservationHandler(BaseHandler):
             localization_cumprob=localization_cumprob,
             return_statistics=return_statistics,
             includeGeoJSON=includeGeoJSON,
+            observation_status=observation_status,
+            n_per_page=n_per_page,
+            page_number=page_number,
         )
 
         return self.success(data=data)
@@ -1017,6 +1134,89 @@ class ObservationExternalAPIHandler(BaseHandler):
             self.push_notification(
                 'Observation ingestion in progress. Should be available soon.'
             )
+        except Exception as e:
+            return self.error(f"Error in querying instrument API: {e}")
+
+    @permissions(['Upload data'])
+    def get(self, allocation_id):
+        """
+        ---
+        description: Retrieve queued observations from external API
+        tags:
+          - observations
+        parameters:
+          - in: path
+            name: instrument_id
+            required: true
+            schema:
+              type: string
+            description: |
+              ID for the instrument to submit
+          - in: query
+            name: startDate
+            required: true
+            schema:
+              type: string
+            description: Filter by start date
+          - in: query
+            name: endDate
+            required: true
+            schema:
+              type: string
+            description: Filter by end date
+        responses:
+          200:
+            content:
+              application/json:
+                schema: ArrayOfPlannedObservations
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        start_date = self.get_query_argument('startDate')
+        end_date = self.get_query_argument('endDate')
+
+        if start_date is None:
+            return self.error(message="Missing start_date")
+
+        if end_date is None:
+            return self.error(message="Missing end_date")
+
+        start_date = arrow.get(start_date.strip()).datetime
+        end_date = arrow.get(end_date.strip()).datetime
+
+        data = {}
+        data["requester_id"] = self.associated_user_object.id
+        data["last_modified_by_id"] = self.associated_user_object.id
+        data['allocation_id'] = int(allocation_id)
+        data['start_date'] = start_date
+        data['end_date'] = end_date
+
+        allocation = Allocation.get_if_accessible_by(
+            data['allocation_id'], self.current_user, raise_if_none=True
+        )
+        instrument = allocation.instrument
+
+        if instrument.api_classname_obsplan is None:
+            return self.error('Instrument has no remote observation plan API.')
+
+        if not instrument.api_class_obsplan.implements()['queued']:
+            return self.error(
+                'Cannot submit executed observation plan requests to this Instrument.'
+            )
+
+        try:
+            # we now retrieve and commit to the database the
+            # executed observations
+            queue_names = instrument.api_class_obsplan.queued(
+                allocation, data['start_date'], data['end_date']
+            )
+            self.push_notification(
+                'Planned observation ingestion in progress. Should be available soon.'
+            )
+            return self.success(data={'queue_names': queue_names})
         except Exception as e:
             return self.error(f"Error in querying instrument API: {e}")
 
