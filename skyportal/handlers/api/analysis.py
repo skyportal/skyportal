@@ -1,4 +1,8 @@
+import json
+from urllib.parse import urlparse
+
 from marshmallow.exceptions import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
@@ -20,6 +24,17 @@ from ...models import (
 log = make_log('app/analysis')
 
 _, cfg = load_env()
+
+
+def valid_url(trial_url):
+    """
+    determine if the URL is valid
+    """
+    try:
+        rez = urlparse(trial_url)
+        return all([rez.scheme, rez.netloc])
+    except ValueError:
+        return False
 
 
 class AnalysisServiceHandler(BaseHandler):
@@ -68,9 +83,13 @@ class AnalysisServiceHandler(BaseHandler):
                     description: |
                         Service authentiction method. One of: {', '.join(f"'{t}'" for t in AUTHENTICATION_TYPES)}.
                         See https://docs.python-requests.org/en/master/user/authentication/
-                  authinfo:
+                  _authinfo:
                     type: object
-                    description: Authentication secrets for the service. Not needed if authentication_type is "none".
+                    description: |
+                        Authentication secrets for the service. Not needed if authentication_type is "none".
+                        This should be a string that can be parsed by the python json.loads() function and
+                        should contain the key `authentication_type`. Values of this key will be used
+                        to POST into the remote analysis service.
                   enabled:
                     type: boolean
                     description: Whether the service is enabled or not.
@@ -120,6 +139,43 @@ class AnalysisServiceHandler(BaseHandler):
         """
         data = self.get_json()
 
+        if not data.get('url', None):
+            return self.error('`url` is required to add an Analysis Service.')
+        else:
+            if not valid_url(data.get('url', None)):
+                return self.error(
+                    'a valid `url` is required to add an Analysis Service.'
+                )
+
+        authentication_type = data.get('authentication_type', None)
+        if not authentication_type:
+            return self.error(
+                '`authentication_type` is required to add an Analysis Service.'
+            )
+
+        if authentication_type not in AUTHENTICATION_TYPES:
+            return self.error(
+                f'`authentication_type` must be one of: {", ".join([t for t in AUTHENTICATION_TYPES])}.'
+            )
+        else:
+            if authentication_type != 'none':
+                _authinfo = data.get('_authinfo', None)
+                if not _authinfo:
+                    return self.error(
+                        '`_authinfo` is required to add an Analysis Service '
+                        ' when authentication_type is not "none".'
+                    )
+                try:
+                    _authinfo = json.loads(_authinfo)
+                except json.JSONDecodeError:
+                    return self.error(
+                        '`_authinfo` must be parseable to a valid JSON object.'
+                    )
+                if authentication_type not in _authinfo:
+                    return self.error(
+                        f'`_authinfo` must contain a key for "{authentication_type}".'
+                    )
+
         group_ids = data.pop('group_ids', None)
         if not group_ids:
             groups = self.current_user.accessible_groups
@@ -133,7 +189,7 @@ class AnalysisServiceHandler(BaseHandler):
 
         schema = AnalysisService.__schema__()
         try:
-            analysis_service = schema.load(data, partial=True)
+            analysis_service = schema.load(data)
         except ValidationError as e:
             return self.error(
                 "Invalid/missing parameters: " f"{e.normalized_messages()}"
@@ -142,7 +198,12 @@ class AnalysisServiceHandler(BaseHandler):
         DBSession().add(analysis_service)
         analysis_service.groups = groups
 
-        self.verify_and_commit()
+        try:
+            self.verify_and_commit()
+        except IntegrityError as e:
+            return self.error(
+                f'Analysis Service with that name already exists: {str(e)}'
+            )
 
         return self.success(data={"id": analysis_service.id})
 
@@ -302,8 +363,9 @@ class AnalysisServiceHandler(BaseHandler):
         data = self.get_json()
         group_ids = data.pop('group_ids', None)
 
+        schema = AnalysisService.__schema__()
         try:
-            new_analysis_service = AnalysisService.load(data)
+            new_analysis_service = schema.load(data, partial=True)
         except ValidationError as e:
             return self.error(
                 'Invalid/missing parameters: ' f'{e.normalized_messages()}'

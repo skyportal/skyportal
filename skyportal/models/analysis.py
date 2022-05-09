@@ -1,16 +1,20 @@
 __all__ = ['AnalysisService']
 
 import re
+import json
+
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSON, ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy_utils.types import JSONType
+
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy_utils.types.encrypted.encrypted_type import (
     StringEncryptedType,
     AesEngine,
 )
 
-from baselayer.app.models import Base, restricted
+from baselayer.app.models import Base
 from baselayer.app.env import load_env
 
 from ..enum_types import (
@@ -48,8 +52,7 @@ class ArrayOfEnum(ARRAY):
 class AnalysisService(Base):
     __tablename__ = 'analysis_services'
 
-    read = accessible_by_groups_members
-    create = update = delete = restricted
+    read = create = update = delete = accessible_by_groups_members
 
     name = sa.Column(
         sa.String,
@@ -113,7 +116,7 @@ class AnalysisService(Base):
     )
 
     _authinfo = sa.Column(
-        StringEncryptedType(JSON, cfg['app.secret_key'], AesEngine, 'pkcs5'),
+        StringEncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5'),
         nullable=True,
         doc=('Contains authentication credentials for the service.'),
     )
@@ -149,3 +152,14 @@ class AnalysisService(Base):
         default=3600.0,
         doc="Max time in seconds to wait for the analysis service to complete.",
     )
+
+    @property
+    def authinfo(self):
+        if self._authinfo is None:
+            return {}
+        else:
+            return json.loads(self._authinfo)
+
+    @authinfo.setter
+    def authinfo(self, value):
+        self._authinfo = value
