@@ -158,7 +158,9 @@ function CurrentShiftMenu() {
   }, [shiftList, dispatch, currentShift]);
 
   function MultipleGroupSelectChip() {
-    const users = currentShift.group.group_users;
+    const users = currentShift.group.group_users.filter(
+      (user) => user.id !== currentUser.id
+    );
     const { selectedUsers } = useSelector((state) => state.shift);
     const [selected, setSelected] = React.useState(selectedUsers || []);
 
