@@ -3,16 +3,19 @@ __all__ = ['AnalysisService']
 import re
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONType, ARRAY
+from sqlalchemy.dialects.postgresql import JSON, ARRAY
 from sqlalchemy_utils import URLType, EmailType
-from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
+from sqlalchemy_utils.types.encrypted.encrypted_type import (
+    StringEncryptedType,
+    AesEngine,
+)
 
 from baselayer.app.models import Base, restricted
 from baselayer.app.env import load_env
 
 from ..enum_types import (
     allowed_analysis_types,
-    allowed_analysis_input_type,
+    allowed_analysis_input_types,
     allowed_external_authentication_types,
     ANALYSIS_TYPES,
     AUTHENTICATION_TYPES,
@@ -110,7 +113,7 @@ class AnalysisService(Base):
     )
 
     _authinfo = sa.Column(
-        EncryptedType(JSONType, cfg['app.secret_key'], AesEngine, 'pkcs5'),
+        StringEncryptedType(JSON, cfg['app.secret_key'], AesEngine, 'pkcs5'),
         nullable=True,
         doc=('Contains authentication credentials for the service.'),
     )
@@ -124,7 +127,7 @@ class AnalysisService(Base):
     )
 
     input_data_types = sa.Column(
-        ArrayOfEnum(allowed_analysis_input_type),
+        ArrayOfEnum(allowed_analysis_input_types),
         nullable=False,
         default=[],
         doc=(
@@ -133,16 +136,16 @@ class AnalysisService(Base):
         ),
     )
 
+    groups = relationship(
+        "Group",
+        secondary="group_analysisservices",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="Groups that can access to this analysis service.",
+    )
+
     timeout = sa.Column(
         sa.Float,
         default=3600.0,
         doc="Max time in seconds to wait for the analysis service to complete.",
-    )
-
-    groups = relationship(
-        "Group",
-        secondary="group_analysisservice",
-        cascade="save-update," "merge, refresh-expire, expunge",
-        passive_deletes=True,
-        doc="List of Groups that have access to this analysis service.",
     )
