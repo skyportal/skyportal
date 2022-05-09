@@ -21,7 +21,7 @@ def test_token_user_retrieving_source_without_nested(
     )
     assert status == 200
 
-    params = {'numItems': 100}
+    params = {'numItems': 1000}
     status, data = api('GET', 'newsfeed', token=view_only_token, params=params)
 
     assert status == 200
