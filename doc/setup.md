@@ -148,18 +148,13 @@ setting `debug_login` to `False`.
 ### Creating an administrative user
 
 By default, no user has permission to perform system administration.
-You can add a user with such permissions by running the following from
-Python:
-
+You can give such permissions to an existing user by running the following from your terminal in the `skyportal` directory:
 ```
-from baselayer.app.config import load_config
-from baselayer.app.models import init_db
-from skyportal.model_util import make_super_user
-
-cfg = load_config()
-init_db(**cfg['database'])
-make_super_user('your_username_in_skyportal')
+PYTHONPATH=. python tools/elevate_user.py <username>
 ```
+
+The `username` argument is the name of the user to elevate to a super admin status. It is optional, and if omitted, a list of users will be displayed. Then the user will be prompted to select one.
+
 
 ### Test data
 
