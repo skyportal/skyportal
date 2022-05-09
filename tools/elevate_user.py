@@ -15,10 +15,7 @@ except IndexError:
 cfg = load_config()
 init_db(**cfg['database'])
 
-# get first argument
 
-
-# function to list all users and choose one to elevate
 def list_users():
     users = (
         User.query.options(joinedload(User.roles))
