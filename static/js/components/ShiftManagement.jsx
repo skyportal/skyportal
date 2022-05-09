@@ -135,7 +135,7 @@ function dailyShiftStartEnd(shift) {
 const userLabel = (user) => {
   let label = user.username;
   if (user.first_name && user.last_name) {
-    label = `${user.first_name} ${user.last_name}`;
+    label = `${user.first_name} ${user.last_name} (${user.username})`;
   }
   return label;
 };
