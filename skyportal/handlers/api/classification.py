@@ -52,7 +52,7 @@ class ClassificationHandler(BaseHandler):
               type: string
             description: |
               Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
-              last_detected_at <= endDate
+              created_at <= endDate
           - in: query
             name: numPerPage
             nullable: true
