@@ -384,7 +384,7 @@ def test_add_and_retrieve_analysis_service_group_access(
     status, data = api(
         'GET', f'analysis_service/{analysis_service_id}', token=analysis_service_token
     )
-    assert status == 400
+    assert status == 403
 
     # Both tokens should be able to view this annotation
     name = str(uuid.uuid4())

@@ -245,9 +245,13 @@ class AnalysisServiceHandler(BaseHandler):
                   schema: Error
         """
         if analysis_service_id is not None:
-            s = AnalysisService.get_if_accessible_by(
-                analysis_service_id, self.current_user, raise_if_none=True
-            )
+            try:
+                s = AnalysisService.get_if_accessible_by(
+                    analysis_service_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Cannot access this Analysis Service.', status=403)
+
             analysis_dict = recursive_to_dict(s)
             analysis_dict["groups"] = s.groups
             return self.success(data=analysis_dict)

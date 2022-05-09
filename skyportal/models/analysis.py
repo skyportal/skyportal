@@ -1,12 +1,11 @@
 __all__ = ['AnalysisService']
 
-import re
 import json
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy_utils.types import JSONType
+from sqlalchemy.dialects.postgresql import ARRAY
 
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy_utils.types.encrypted.encrypted_type import (
@@ -28,25 +27,6 @@ from ..enum_types import (
 from .group import accessible_by_groups_members
 
 _, cfg = load_env()
-
-
-class ArrayOfEnum(ARRAY):
-    def bind_expression(self, bindvalue):
-        return sa.cast(bindvalue, self)
-
-    def result_processor(self, dialect, coltype):
-        super_rp = super().result_processor(dialect, coltype)
-
-        def handle_raw_string(value):
-            if value is None or value == '{}':  # 2nd case, empty array
-                return []
-            inner = re.match(r"^{(.*)}$", value).group(1)
-            return inner.split(",")
-
-        def process(value):
-            return super_rp(handle_raw_string(value))
-
-        return process
 
 
 class AnalysisService(Base):
@@ -130,8 +110,7 @@ class AnalysisService(Base):
     )
 
     input_data_types = sa.Column(
-        ArrayOfEnum(allowed_analysis_input_types),
-        nullable=False,
+        ARRAY(allowed_analysis_input_types),
         default=[],
         doc=(
             'List of allowed_analysis_input_types required by the service.'
