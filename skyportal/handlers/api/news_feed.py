@@ -11,6 +11,7 @@ from ...models import (
 )
 
 MAX_NEWSFEED_ITEMS = 1000
+DEFAULT_NEWSFEED_ITEMS = 50
 
 
 class NewsFeedHandler(BaseHandler):
@@ -28,7 +29,7 @@ class NewsFeedHandler(BaseHandler):
             schema:
               type: integer
             description: Number of newsfeed items to return.
-            Defaults to 10. Max is {MAX_NEWSFEED_ITEMS}.
+            Defaults to {DEFAULT_NEWSFEED_ITEMS}. Max is {MAX_NEWSFEED_ITEMS}.
         responses:
           200:
             content:
@@ -55,7 +56,9 @@ class NewsFeedHandler(BaseHandler):
                 schema: Error
         """
 
-        if hasattr(self.current_user, 'preferences') and isinstance(self.current_user.preferences, dict):
+        if hasattr(self.current_user, 'preferences') and isinstance(
+            self.current_user.preferences, dict
+        ):
             preferences = self.current_user.preferences
         else:
             preferences = {}
@@ -63,9 +66,11 @@ class NewsFeedHandler(BaseHandler):
         n_items = self.get_query_argument("numItems", None)
         if n_items is None:
             if 'newsFeed' in preferences and 'numItems' in preferences['newsFeed']:
-                n_items = min(int(preferences['newsFeed']['numItems']), 50)
+                n_items = min(
+                    int(preferences['newsFeed']['numItems']), DEFAULT_NEWSFEED_ITEMS
+                )
             else:
-                n_items = 10
+                n_items = DEFAULT_NEWSFEED_ITEMS
         else:
             n_items = int(n_items)
 
