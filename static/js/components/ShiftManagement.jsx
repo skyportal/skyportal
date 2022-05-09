@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import PropTypes from "prop-types";
 import { makeStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
 import OutlinedInput from "@material-ui/core/OutlinedInput";
@@ -51,13 +50,13 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     height: "100%",
   },
-  addUsersButton: {
+  activatedButton: {
     margin: "0",
-    width: "30%",
+    width: "15%",
   },
-  addUsersButtonDeactivated: {
+  deactivatedButton: {
     margin: "0",
-    width: "30%",
+    width: "15%",
     backgroundColor: "#e8eaf6",
   },
   addUsersLabel: {
@@ -68,6 +67,24 @@ const useStyles = makeStyles((theme) => ({
     margin: "0",
     width: "60%",
     height: "100%",
+  },
+  userListItem: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+  },
+  add: {
+    fontSize: "1.25rem",
+    marginLeft: "0.5rem",
+    color: "green",
+    fontWeight: "bold",
+  },
+  delete: {
+    fontSize: "1.25rem",
+    marginLeft: "0.5rem",
+    color: "red",
+    fontWeight: "bold",
   },
 }));
 
@@ -124,14 +141,16 @@ function CurrentShiftMenu() {
     }
   }, [shiftList, dispatch, currentShift]);
 
-  function MultipleSelectChip({ users }) {
-    const [selectedUsers, setSelectedUsers] = React.useState([]);
+  function MultipleSelectChip() {
+    const users = currentShift.group.group_users;
+    const { selectedUsers } = useSelector((state) => state.shift);
+    const [selected, setSelected] = React.useState(selectedUsers || []);
 
     const handleChange = (event) => {
       const {
         target: { value },
       } = event;
-      setSelectedUsers(value);
+      setSelected(value);
     };
 
     function addUsersToShift(selected_users) {
@@ -167,94 +186,151 @@ function CurrentShiftMenu() {
       }
     }
 
-    function userManagementButton(selected_users) {
-      // if selectedUsers contains users that are not in the shift yet, add them
-      // if selectedUsers contains users that are in the shift but not selected, remove them
-      // if selectedUsers both contains users that are in the shift and not in the shift, add and remove them respectively
-      // if selectedUsers is empty, do nothing
+    function removeUsersFromSelected(selected_users) {
+      if (selected_users.length > 0) {
+        // create new array without the selected users based on their id
+        const newSelectedUsers = selected.filter((user) =>
+          selected_users.some((selected_user) => selected_user.id !== user.id)
+        );
+        dispatch({
+          type: "skyportal/CURRENT_SHIFT_SELECTED_USERS",
+          data: newSelectedUsers,
+        });
+      }
+    }
 
-      function usersNotInShift(user) {
-        return !currentShift.shift_users.find(
+    function usersNotInShift(user) {
+      return (
+        !currentShift.shift_users.find(
           (shiftUser) => shiftUser.id === user.id
-        );
-      }
+        ) && currentUser.id !== user.id
+      );
+    }
 
-      function usersInShift(shift_user) {
-        return (
-          shift_user.id !== currentUser.id &&
-          selected_users.find((user) => user.id === shift_user.id)
-        );
-      }
-
+    function userManagementAddButton(selected_users) {
       let button;
       if (selected_users.length > 0) {
         const usersToAdd = selected_users.filter(usersNotInShift);
-        const usersToRemove = currentShift.shift_users.filter(usersInShift);
-        if (usersToAdd.length > 0 && usersToRemove.length === 0) {
+        if (usersToAdd.length > 0) {
           button = (
-            <Tooltip title="Add selected users to shift">
+            <Tooltip title="Adds selected users to shift">
               <Button
                 id="add-users-button"
                 variant="contained"
                 color="primary"
-                className={classes.addUsersButton}
+                className={classes.activatedButton}
                 onClick={() => {
-                  addUsersToShift(selected_users);
+                  addUsersToShift(usersToAdd);
+                  removeUsersFromSelected(usersToAdd);
                 }}
               >
-                Add Users
-              </Button>
-            </Tooltip>
-          );
-        } else if (usersToRemove.length > 0 && usersToAdd.length === 0) {
-          button = (
-            <Tooltip title="Remove selected users from shift">
-              <Button
-                id="remove-users-button"
-                variant="contained"
-                color="primary"
-                className={classes.addUsersButton}
-                onClick={() => {
-                  removeUsersFromShift(selected_users);
-                }}
-              >
-                Remove Users
+                Add
               </Button>
             </Tooltip>
           );
         } else {
           button = (
-            <Tooltip title="Adds selected users that are not in the shift, and removes selected users that are already in the shift">
+            <Tooltip title="All the users you selected are already in the shift">
               <Button
-                id="add-remove-users-button"
+                id="deactivated-add-users-button"
                 variant="contained"
-                color="primary"
-                className={classes.addUsersButton}
-                onClick={() => {
-                  addUsersToShift(usersToAdd);
-                  removeUsersFromShift(usersToRemove);
-                }}
+                color="secondary"
+                className={classes.deactivatedButton}
               >
-                Add/Remove Users
+                Add
               </Button>
             </Tooltip>
           );
         }
       } else {
         button = (
-          <Tooltip title="No users selected, select users to add and/or remove them from the shift">
+          <Tooltip title="No users selected, select users to add them to the shift">
             <Button
-              id="deactivated-users-button"
+              id="deactivated-add-users-button"
               variant="contained"
               color="secondary"
-              className={classes.addUsersButton}
+              className={classes.deactivatedButton}
             >
-              Add/Remove Users
+              Add
             </Button>
           </Tooltip>
         );
       }
       return button;
+    }
+
+    function usersInShift(user) {
+      return (
+        currentShift.shift_users.find(
+          (shiftUser) => shiftUser.id === user.id
+        ) && currentUser.id !== user.id
+      );
+    }
+
+    function userManagementRemoveButton(selected_users) {
+      // if selectedUsers contains users that are not in the shift yet, add them
+      // if selectedUsers contains users that are in the shift but not selected, remove them
+      // if selectedUsers both contains users that are in the shift and not in the shift, add and remove them respectively
+      // if selectedUsers is empty, do nothing
+
+      let button;
+      if (selected_users.length > 0) {
+        const usersToRemove = selected_users.filter(usersInShift);
+        if (usersToRemove.length > 0) {
+          button = (
+            <Tooltip title="Removes selected users from shift">
+              <Button
+                id="remove-users-button"
+                variant="contained"
+                color="primary"
+                className={classes.activatedButton}
+                onClick={() => {
+                  removeUsersFromShift(usersToRemove);
+                  removeUsersFromSelected(usersToRemove);
+                }}
+              >
+                Remove
+              </Button>
+            </Tooltip>
+          );
+        } else {
+          button = (
+            <Tooltip title="None of the users you selected are in the shift">
+              <Button
+                id="deactivated-remove-users-button"
+                variant="contained"
+                color="secondary"
+                className={classes.deactivatedButton}
+              >
+                Remove
+              </Button>
+            </Tooltip>
+          );
+        }
+      } else {
+        button = (
+          <Tooltip title="No users selected, select users to remove them from the shift">
+            <Button
+              id="deactivated-remove-users-button"
+              variant="contained"
+              color="secondary"
+              className={classes.deactivatedButton}
+            >
+              Remove
+            </Button>
+          </Tooltip>
+        );
+      }
+      return button;
+    }
+
+    function addOrDelete(user) {
+      let style = <span className={classes.add}>+</span>;
+      if (usersInShift(user)) {
+        // return a + char in green
+        style = <span className={classes.delete}>-</span>;
+      }
+      return style;
     }
 
     return (
@@ -268,16 +344,16 @@ function CurrentShiftMenu() {
             id="select-users--multiple-chip"
             multiple
             // value is username of all selected users
-            value={selectedUsers}
+            value={selected}
             onChange={handleChange}
             input={<OutlinedInput id="select-multiple-chip" label="Chip" />}
-            renderValue={(selected) => (
+            renderValue={(selected_users) => (
               <Box id="selected_users">
-                {selected.map((value) => (
+                {selected_users.map((value) => (
                   <Chip
                     key={value.id}
                     id={value.id}
-                    label={`${value.first_name} ${value.last_name}`}
+                    label={`${value.username}`}
                   />
                 ))}
               </Box>
@@ -286,30 +362,23 @@ function CurrentShiftMenu() {
           >
             {users.map((user) => (
               <MenuItem id="select_users" key={user.id} value={user}>
-                <Checkbox checked={selectedUsers.indexOf(user) > -1} />
+                <Checkbox checked={selected.indexOf(user) > -1} />
                 <ListItemText
+                  className={classes.userListItem}
                   id={user.id}
-                  primary={`${user.first_name} ${user.last_name}`}
+                  primary={`${user.username}`}
+                  secondary={addOrDelete(user)}
                 />
               </MenuItem>
             ))}
           </Select>
         </FormControl>
 
-        {userManagementButton(selectedUsers)}
+        {userManagementAddButton(selected)}
+        {userManagementRemoveButton(selected)}
       </div>
     );
   }
-
-  MultipleSelectChip.propTypes = {
-    users: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number.isRequired,
-        first_name: PropTypes.string,
-        last_name: PropTypes.string,
-      })
-    ).isRequired,
-  };
 
   const deleteShift = (shift) => {
     dispatch(shiftActions.deleteShift(shift.id)).then((result) => {
@@ -359,10 +428,10 @@ function CurrentShiftMenu() {
     // create list names of non admin members
     admins = currentShift.shift_users
       .filter((user) => user.admin)
-      .map((user) => `${user.first_name} ${user.last_name}`);
+      .map((user) => `${user.username}`);
     members = currentShift.shift_users
       .filter((user) => !user.admin)
-      .map((user) => `${user.first_name} ${user.last_name}`);
+      .map((user) => `${user.username}`);
     participating = currentShift.shift_users
       .map((user) => user.id)
       .includes(currentUser.id);
@@ -475,10 +544,7 @@ function CurrentShiftMenu() {
           {(currentUserIsAdminOfShift ||
             currentUserIsAdminOfGroup ||
             permissions.includes("System admin")) && (
-            <MultipleSelectChip
-              id="add_shift_users"
-              users={currentShift.group.group_users}
-            />
+            <MultipleSelectChip id="add_shift_users" />
           )}
         </div>
       </div>

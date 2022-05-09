@@ -71,7 +71,7 @@ def test_super_user_post_shift(
     driver.click_xpath(event_shift_xpath)
 
     # check for deactivated button to add users
-    deactivated_add_user_button = '//*[@id="deactivated-users-button"]'
+    deactivated_add_user_button = '//*[@id="deactivated-add-users-button"]'
     driver.wait_for_xpath(deactivated_add_user_button)
 
     # check for the dropdown to add a user
@@ -82,15 +82,15 @@ def test_super_user_post_shift(
     driver.click_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
 
     # check for button to add users
+    remove_users_button = '//*[@id="deactivated-remove-users-button"]'
+    driver.wait_for_xpath(remove_users_button)
     add_users_button = '//*[@id="add-users-button"]'
     driver.wait_for_xpath(add_users_button)
     driver.click_xpath(add_users_button)
 
     # check if user has been added
     shift_members = '//*[@id="current_shift_members"]'
-    driver.wait_for_xpath(
-        shift_members + f'[contains(text(), "{user.first_name} {user.last_name}")]'
-    )
+    driver.wait_for_xpath(shift_members + f'[contains(text(), "{user.username}")]')
 
     # check for the dropdown to add and remove users
     select_users = '//*[@id="select-users--multiple-chip"]'
@@ -103,18 +103,24 @@ def test_super_user_post_shift(
     driver.click_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
 
     # check for button to add and remove users
-    add_remove_users_button = '//*[@id="add-remove-users-button"]'
+    add_remove_users_button = '//*[@id="add-users-button"]'
+    driver.wait_for_xpath(add_remove_users_button)
+    driver.click_xpath(add_remove_users_button)
+
+    # check for button to add and remove users
+    add_remove_users_button = '//*[@id="remove-users-button"]'
     driver.wait_for_xpath(add_remove_users_button)
     driver.click_xpath(add_remove_users_button)
 
     # check if user has been added and other user has been removed
     shift_members = '//*[@id="current_shift_members"]'
-    driver.wait_for_xpath_to_disappear(
-        shift_members + f'[contains(text(), "{user.first_name} {user.last_name}")]'
-    )
+
     driver.wait_for_xpath(
-        shift_members
-        + f'[contains(text(), "{view_only_user.first_name} {view_only_user.last_name}")]'
+        shift_members + f'[contains(text(), "{view_only_user.username}")]'
+    )
+
+    driver.wait_for_xpath_to_disappear(
+        shift_members + f'[contains(text(), "{user.username}")]'
     )
 
     # check for the dropdown to remove users
@@ -126,6 +132,8 @@ def test_super_user_post_shift(
     driver.click_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
 
     # check for button to remove users
+    add_users_button = '//*[@id="deactivated-add-users-button"]'
+    driver.wait_for_xpath(add_users_button)
     remove_users_button = '//*[@id="remove-users-button"]'
     driver.wait_for_xpath(remove_users_button)
     driver.click_xpath(remove_users_button)
@@ -133,8 +141,7 @@ def test_super_user_post_shift(
     # check if user has been removed
     shift_members = '//*[@id="current_shift_members"]'
     driver.wait_for_xpath_to_disappear(
-        shift_members
-        + f'[contains(text(), "{view_only_user.first_name} {view_only_user.last_name}")]'
+        shift_members + f'[contains(text(), "{view_only_user.username}")]'
     )
 
     # check for leave shift button
