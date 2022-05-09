@@ -74,17 +74,25 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "left",
     alignItems: "center",
   },
-  add: {
+  addUserListItem: {
     fontSize: "1.25rem",
     marginLeft: "0.5rem",
     color: "green",
     fontWeight: "bold",
   },
-  delete: {
+  deleteUserListItem: {
     fontSize: "1.25rem",
     marginLeft: "0.5rem",
     color: "red",
     fontWeight: "bold",
+  },
+  addUserChip: {
+    // set the background color to a light green
+    backgroundColor: "#a5d6a7",
+  },
+  deleteUserChip: {
+    // set the background color to a light red
+    backgroundColor: "#ffcdd2",
   },
 }));
 
@@ -324,11 +332,20 @@ function CurrentShiftMenu() {
       return button;
     }
 
-    function addOrDelete(user) {
-      let style = <span className={classes.add}>+</span>;
+    function addOrDeleteUserListItem(user) {
+      let indicator = <span className={classes.addUserListItem}>+</span>;
       if (usersInShift(user)) {
         // return a + char in green
-        style = <span className={classes.delete}>-</span>;
+        indicator = <span className={classes.deleteUserListItem}>-</span>;
+      }
+      return indicator;
+    }
+
+    function addOrDeleteUserChip(user) {
+      let style = classes.addUserChip;
+      if (usersInShift(user)) {
+        // return a + char in green
+        style = classes.deleteUserChip;
       }
       return style;
     }
@@ -354,6 +371,7 @@ function CurrentShiftMenu() {
                     key={value.id}
                     id={value.id}
                     label={`${value.username}`}
+                    className={addOrDeleteUserChip(value)}
                   />
                 ))}
               </Box>
@@ -367,7 +385,7 @@ function CurrentShiftMenu() {
                   className={classes.userListItem}
                   id={user.id}
                   primary={`${user.username}`}
-                  secondary={addOrDelete(user)}
+                  secondary={addOrDeleteUserListItem(user)}
                 />
               </MenuItem>
             ))}
