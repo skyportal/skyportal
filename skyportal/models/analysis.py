@@ -7,9 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONType, ARRAY
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy_utils.types.encrypted.encrypted_type import EncryptedType, AesEngine
 
-from baselayer.app.models import (
-    Base,
-)
+from baselayer.app.models import Base, restricted
 from baselayer.app.env import load_env
 
 from ..enum_types import (
@@ -48,6 +46,7 @@ class AnalysisService(Base):
     __tablename__ = 'analysis_services'
 
     read = accessible_by_groups_members
+    create = update = delete = restricted
 
     name = sa.Column(
         sa.String,
