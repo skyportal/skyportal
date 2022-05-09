@@ -107,9 +107,6 @@ def test_super_user_post_shift(
     driver.wait_for_xpath(add_users_button)
     driver.click_xpath(add_users_button)
 
-    # import time
-    # time.sleep(60)
-
     # check for button to add and remove users
     remove_users_button = '//*[@id="remove-users-button"]'
     driver.wait_for_xpath(remove_users_button, timeout=2)
