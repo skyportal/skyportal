@@ -132,6 +132,14 @@ function dailyShiftStartEnd(shift) {
   return null;
 }
 
+const userLabel = (user) => {
+  let label = user.username;
+  if (user.first_name && user.last_name) {
+    label = `${user.first_name} ${user.last_name}`;
+  }
+  return label;
+};
+
 function CurrentShiftMenu() {
   const classes = useStyles();
   const { shiftList } = useSelector((state) => state.shifts);
@@ -149,7 +157,7 @@ function CurrentShiftMenu() {
     }
   }, [shiftList, dispatch, currentShift]);
 
-  function MultipleSelectChip() {
+  function MultipleGroupSelectChip() {
     const users = currentShift.group.group_users;
     const { selectedUsers } = useSelector((state) => state.shift);
     const [selected, setSelected] = React.useState(selectedUsers || []);
@@ -197,7 +205,7 @@ function CurrentShiftMenu() {
     function removeUsersFromSelected(selected_users) {
       if (selected_users.length > 0) {
         // create new array without the selected users based on their id
-        const newSelectedUsers = selected.filter((user) =>
+        const newSelectedUsers = selectedUsers.filter((user) =>
           selected_users.some((selected_user) => selected_user.id !== user.id)
         );
         dispatch({
@@ -370,7 +378,7 @@ function CurrentShiftMenu() {
                   <Chip
                     key={value.id}
                     id={value.id}
-                    label={`${value.username}`}
+                    label={userLabel(value)}
                     className={addOrDeleteUserChip(value)}
                   />
                 ))}
@@ -384,7 +392,7 @@ function CurrentShiftMenu() {
                 <ListItemText
                   className={classes.userListItem}
                   id={user.id}
-                  primary={`${user.username}`}
+                  primary={userLabel(user)}
                   secondary={addOrDeleteUserListItem(user)}
                 />
               </MenuItem>
@@ -446,10 +454,10 @@ function CurrentShiftMenu() {
     // create list names of non admin members
     admins = currentShift.shift_users
       .filter((user) => user.admin)
-      .map((user) => `${user.username}`);
+      .map((user) => `${userLabel(user)}`);
     members = currentShift.shift_users
       .filter((user) => !user.admin)
-      .map((user) => `${user.username}`);
+      .map((user) => `${userLabel(user)}`);
     participating = currentShift.shift_users
       .map((user) => user.id)
       .includes(currentUser.id);
@@ -562,7 +570,7 @@ function CurrentShiftMenu() {
           {(currentUserIsAdminOfShift ||
             currentUserIsAdminOfGroup ||
             permissions.includes("System admin")) && (
-            <MultipleSelectChip id="add_shift_users" />
+            <MultipleGroupSelectChip id="add_shift_users" />
           )}
         </div>
       </div>
