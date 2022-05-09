@@ -854,10 +854,6 @@ def test_gcn_request(driver, user, super_admin_token, public_group):
     driver.wait_for_xpath('//*[@id="instrumentSelectLabel"]/../*/*[@role="button"]')
     driver.click_xpath('//*[@id="instrumentSelectLabel"]/../*/*[@role="button"]')
 
-    # driver.click_xpath(
-    #     f'//li[contains(text(), "{telescope_name}")][contains(text(), "{instrument_name}")]',
-    #     scroll_parent=True,
-    # )
     nretries = 0
     while nretries < 5:
         try:
