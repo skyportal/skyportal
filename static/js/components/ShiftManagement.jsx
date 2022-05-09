@@ -204,9 +204,8 @@ function CurrentShiftMenu() {
 
     function removeUsersFromSelected(selected_users) {
       if (selected_users.length > 0) {
-        // create new array without the selected users based on their id
-        const newSelectedUsers = selectedUsers.filter((user) =>
-          selected_users.some((selected_user) => selected_user.id !== user.id)
+        const newSelectedUsers = selected.filter((user) =>
+          selected_users.every((selected_user) => selected_user.id !== user.id)
         );
         dispatch({
           type: "skyportal/CURRENT_SHIFT_SELECTED_USERS",
