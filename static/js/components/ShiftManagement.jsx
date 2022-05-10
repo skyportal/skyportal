@@ -285,11 +285,6 @@ function CurrentShiftMenu() {
     }
 
     function userManagementRemoveButton(selected_users) {
-      // if selectedUsers contains users that are not in the shift yet, add them
-      // if selectedUsers contains users that are in the shift but not selected, remove them
-      // if selectedUsers both contains users that are in the shift and not in the shift, add and remove them respectively
-      // if selectedUsers is empty, do nothing
-
       let button;
       if (selected_users.length > 0) {
         const usersToRemove = selected_users.filter(usersInShift);
