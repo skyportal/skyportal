@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from astropy.time import Time
 import functools
 import numpy as np
-from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import pandas as pd
 import pyvo
@@ -186,7 +185,9 @@ class ZTFRequest:
         return json_data
 
 
-def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_id):
+def commit_photometry(
+    url, altdata, df_request, request_id, instrument_id, user_id, session
+):
     """
     Commits ZTF forced photometry to the database
 
@@ -204,17 +205,15 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
         Instrument SkyPortal ID
     user_id : int
         User SkyPortal ID
+    session : baselayer.DBSession
+        Database session to use for photometry
     """
 
     from ..models import (
-        DBSession,
         FollowupRequest,
         Instrument,
         User,
     )
-
-    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
-    session = Session()
 
     try:
         request = session.query(FollowupRequest).get(request_id)
@@ -308,8 +307,6 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
         )
     except Exception as e:
         return log(f"Unable to commit photometry for {request_id}: {e}")
-    finally:
-        Session.remove()
 
 
 class ZTFAPI(FollowUpAPI):
@@ -374,7 +371,7 @@ class ZTFAPI(FollowUpAPI):
         DBSession().add(transaction)
 
     @staticmethod
-    def get(request):
+    def get(request, session):
 
         """Get a forced photometry request result from ZTF.
 
@@ -382,20 +379,16 @@ class ZTFAPI(FollowUpAPI):
         ----------
         request : skyportal.models.FollowupRequest
             The request to retrieve ZTF forced photometry.
+        session : baselayer.DBSession
+            Database session to use for photometry
         """
 
         from ..models import (
-            DBSession,
             FollowupRequest,
             FacilityTransaction,
             Allocation,
             Instrument,
         )
-
-        Session = scoped_session(
-            sessionmaker(bind=DBSession.session_factory.kw["bind"])
-        )
-        session = Session()
 
         req = (
             session.query(FollowupRequest)
@@ -478,6 +471,7 @@ class ZTFAPI(FollowUpAPI):
                             req.id,
                             instrument.id,
                             request.requester.id,
+                            session,
                         ),
                     )
         else:

@@ -5,7 +5,6 @@ from astropy.time import Time
 import numpy as np
 import pandas as pd
 from io import StringIO
-from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 
 from . import FollowUpAPI
@@ -68,7 +67,9 @@ class ATLASRequest:
         return target
 
 
-def commit_photometry(json_response, altdata, request_id, instrument_id, user_id):
+def commit_photometry(
+    json_response, altdata, request_id, instrument_id, user_id, session
+):
     """
     Commits ATLAS photometry to the database
 
@@ -82,19 +83,17 @@ def commit_photometry(json_response, altdata, request_id, instrument_id, user_id
         FollowupRequest SkyPortal ID
     instrument_id : int
         Instrument SkyPortal ID
-    user_id: int
+    user_id : int
         User SkyPortal ID
+    session : baselayer.DBSession
+        Database session to use for photometry
     """
 
     from ..models import (
-        DBSession,
         FollowupRequest,
         Instrument,
         User,
     )
-
-    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
-    session = Session()
 
     try:
         request = session.query(FollowupRequest).get(request_id)
@@ -203,8 +202,6 @@ def commit_photometry(json_response, altdata, request_id, instrument_id, user_id
 
     except Exception as e:
         return log(f"Unable to commit photometry for {request_id}: {e}")
-    finally:
-        Session.remove()
 
 
 class ATLASAPI(FollowUpAPI):
@@ -212,7 +209,7 @@ class ATLASAPI(FollowUpAPI):
     """An interface to ATLAS forced photometry."""
 
     @staticmethod
-    def get(request):
+    def get(request, session):
 
         """Get a forced photometry request result from ATLAS.
 
@@ -220,20 +217,16 @@ class ATLASAPI(FollowUpAPI):
         ----------
         request : skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session : baselayer.DBSession
+            Database session to use for photometry
         """
 
         from ..models import (
-            DBSession,
             FollowupRequest,
             FacilityTransaction,
             Allocation,
             Instrument,
         )
-
-        Session = scoped_session(
-            sessionmaker(bind=DBSession.session_factory.kw["bind"])
-        )
-        session = Session()
 
         req = (
             session.query(FollowupRequest)
@@ -280,6 +273,7 @@ class ATLASAPI(FollowUpAPI):
                         req.id,
                         instrument.id,
                         request.requester.id,
+                        session,
                     ),
                 )
                 req.status = "Committing photometry to database"
