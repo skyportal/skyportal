@@ -48,6 +48,8 @@ _, cfg = load_env()
 
 log = make_log('api/photometry')
 
+MAX_NUMBER_ROWS = 10000
+
 
 def save_data_using_copy(rows, table, columns):
     # Prepare data
@@ -676,6 +678,14 @@ def add_external_photometry(json, user):
     stream_ids = get_stream_ids(json, user)
     df, instrument_cache = standardize_photometry_data(json)
 
+    if len(df.index) > MAX_NUMBER_ROWS:
+        raise ValueError(
+            f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. Please break up the data into smaller sets and try again'
+        )
+
+    username = user.username
+    log(f'Pending request from {username} with {len(df.index)} rows')
+
     # This lock ensures that the Photometry table data are not modified in any way
     # between when the query for duplicate photometry is first executed and
     # when the insert statement with the new photometry is performed.
@@ -694,15 +704,17 @@ def add_external_photometry(json, user):
             session.rollback()
             log(f"Unable to post photometry: {e}")
 
-    log("Successfully posted photometry")
+    log(
+        f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
+    )
 
 
 class PhotometryHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
-        """
+        f"""
         ---
-        description: Upload photometry
+        description: Upload photometry. Posting is capped at {MAX_NUMBER_ROWS} for database stability purposes.
         tags:
           - photometry
         requestBody:
@@ -751,6 +763,14 @@ class PhotometryHandler(BaseHandler):
         except (ValidationError, RuntimeError) as e:
             return self.error(e.args[0])
 
+        if len(df.index) > MAX_NUMBER_ROWS:
+            return self.error(
+                f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. Please break up the data into smaller sets and try again'
+            )
+
+        username = self.associated_user_object.username
+        log(f'Pending request from {username} with {len(df.index)} rows')
+
         # This lock ensures that the Photometry table data are not modified in any way
         # between when the query for duplicate photometry is first executed and
         # when the insert statement with the new photometry is performed.
@@ -772,6 +792,10 @@ class PhotometryHandler(BaseHandler):
             except Exception as e:
                 session.rollback()
                 return self.error(e.args[0])
+
+        log(
+            f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
+        )
 
         return self.success(data={'ids': ids, 'upload_id': upload_id})
 
