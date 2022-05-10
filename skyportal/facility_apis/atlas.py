@@ -230,6 +230,9 @@ class ATLASAPI(FollowUpAPI):
             Instrument,
         )
 
+        log(
+            f'Pending ATLAS request from {request.requester.username}: request ID {request.id}'
+        )
         raise ValueError(
             'Turning off ATLAS API endpoint until this can be made more stable.'
         )
