@@ -71,7 +71,6 @@ class NewsFeedHandler(BaseHandler):
             n_items = DEFAULT_NEWSFEED_ITEMS
         else:
             n_items = max(x for x in n_items_list if x is not None)
-        print(n_items)
         if n_items > MAX_NEWSFEED_ITEMS:
             return self.error(
                 f'numItems should be no larger than {MAX_NEWSFEED_ITEMS}.'
