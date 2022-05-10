@@ -230,6 +230,10 @@ class ATLASAPI(FollowUpAPI):
             Instrument,
         )
 
+        raise ValueError(
+            'Turning off ATLAS API endpoint until this can be made more stable.'
+        )
+
         Session = scoped_session(
             sessionmaker(bind=DBSession.session_factory.kw["bind"])
         )
