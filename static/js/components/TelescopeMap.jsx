@@ -54,10 +54,20 @@ function TelescopeMarker({ nestedTelescope, position }) {
       coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
       onClick={() => setCurrentTelescopes(nestedTelescope)}
     >
-      <circle
-        r={6.5 / position.k}
-        fill={telescopeCanObserve(nestedTelescope)}
-      />
+      {nestedTelescope.fixed_location ? (
+        <circle
+          r={6.5 / position.k}
+          fill={telescopeCanObserve(nestedTelescope)}
+        />
+      ) : (
+        <rect
+          x={-6.5 / position.k}
+          y={-6.5 / position.k}
+          width={13 / position.k}
+          height={13 / position.k}
+          fill={telescopeCanObserve(nestedTelescope)}
+        />
+      )}
       <text
         id="telescopes_label"
         textAnchor="middle"
@@ -90,6 +100,7 @@ const TelescopeMap = ({ telescopes }) => {
         lon: filteredTelescopes[i].lon,
         is_night_astronomical_at_least_one:
           filteredTelescopes[i].is_night_astronomical,
+        fixed_location: true,
         telescopes: [filteredTelescopes[i]],
       });
     } else {
@@ -119,12 +130,29 @@ const TelescopeMap = ({ telescopes }) => {
             lon: filteredTelescopes[i].lon,
             is_night_astronomical_at_least_one:
               filteredTelescopes[i].is_night_astronomical,
+            fixed_location: true,
             telescopes: [filteredTelescopes[i]],
           });
           break;
         }
       }
     }
+  }
+
+  const nonFixedTelescopes = telescopes.filter(
+    (telescope) => !telescope.fixed_location
+  );
+
+  if (nonFixedTelescopes.length > 0) {
+    nestedTelescopes.push({
+      lat: -52,
+      lon: 125,
+      is_night_astronomical_at_least_one: nonFixedTelescopes.some(
+        (telescope) => telescope.is_night_astronomical
+      ),
+      fixed_location: false,
+      telescopes: nonFixedTelescopes,
+    });
   }
 
   dispatch = useDispatch();
@@ -150,6 +178,7 @@ const TelescopeMap = ({ telescopes }) => {
                 nestedTelescope.lon &&
                 nestedTelescope.lat && (
                   <TelescopeMarker
+                    key={`${nestedTelescope.lon},${nestedTelescope.lat}`}
                     nestedTelescope={nestedTelescope}
                     position={position}
                   />
@@ -179,6 +208,8 @@ TelescopeMarker.propTypes = {
   nestedTelescope: PropTypes.shape({
     lat: PropTypes.number.isRequired,
     lon: PropTypes.number.isRequired,
+    fixed_location: PropTypes.bool.isRequired,
+    is_night_astronomical_at_least_one: PropTypes.bool.isRequired,
     telescopes: PropTypes.arrayOf(
       PropTypes.shape({
         id: PropTypes.number.isRequired,

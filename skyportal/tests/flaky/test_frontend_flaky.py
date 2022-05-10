@@ -53,6 +53,7 @@ def test_telescope_frontend_desktop(super_admin_token, super_admin_user, driver)
     driver.wait_for_xpath('//*[@id="root_diameter"]').send_keys('2.0')
     driver.wait_for_xpath('//*[@id="root_lat"]').send_keys('10.0')
     driver.wait_for_xpath('//*[@id="root_lon"]').send_keys('10.0')
+    driver.wait_for_xpath('//*[@id="root_elevation"]').send_keys('50.0')
 
     tab = driver.find_element_by_xpath('//*[@class="MuiFormGroup-root"]')
     for row in tab.find_elements_by_xpath('//span[text()="Yes"]'):
@@ -106,7 +107,10 @@ def test_telescope_frontend_mobile(super_admin_token, super_admin_user, driver):
     name2 = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(name2)
     driver.wait_for_xpath('//*[@id="root_nickname"]').send_keys(name2)
+    driver.wait_for_xpath('//*[@id="root_lat"]').send_keys('5.0')
+    driver.wait_for_xpath('//*[@id="root_lon"]').send_keys('5.0')
     driver.wait_for_xpath('//*[@id="root_diameter"]').send_keys('2.0')
+    driver.wait_for_xpath('//*[@id="root_elevation"]').send_keys('50.0')
 
     tab = driver.find_element_by_xpath('//*[@class="MuiFormGroup-root"]')
     for row in tab.find_elements_by_xpath('//span[text()="Yes"]'):
