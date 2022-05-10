@@ -130,10 +130,12 @@ const TelescopeInfo = () => {
               Diameter :{" "}
               {telescope.diameter ? telescope.diameter.toFixed(1) : null}
             </h3>
-            <h3 className={classes.h3} key={`${telescope.id}_location`}>
-              Location : {telescope.lat ? telescope.lat.toFixed(4) : null},{" "}
-              {telescope.lon ? telescope.lon.toFixed(4) : null}
-            </h3>
+            {telescope.fixed_location && (
+              <h3 className={classes.h3} key={`${telescope.id}_location`}>
+                Location : {telescope.lat ? telescope.lat.toFixed(4) : null},{" "}
+                {telescope.lon ? telescope.lon.toFixed(4) : null}
+              </h3>
+            )}
             <h3 className={classes.h3} key={`${telescope.id}_elevation`}>
               Elevation :{" "}
               {telescope.elevation ? telescope.elevation.toFixed(1) : null}
