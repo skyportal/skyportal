@@ -174,7 +174,7 @@ function CurrentShiftMenu() {
           newSelected.push(element);
         }
       });
-      setSelected(value);
+      setSelected(newSelected);
     };
 
     function addUsersToShift(selected_users) {
