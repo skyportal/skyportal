@@ -60,8 +60,6 @@ class NewsFeedHandler(BaseHandler):
         n_items_query = self.get_query_argument("numItems", None)
         if n_items_query is not None:
             n_items_query = int(n_items_query)
-        else:
-            n_items_query = None
         n_items_feed = preferences.get('newsFeed', {}).get('numItems', None)
         if n_items_feed is not None:
             n_items_feed = int(n_items_feed)
