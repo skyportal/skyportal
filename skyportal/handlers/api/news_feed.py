@@ -63,11 +63,12 @@ class NewsFeedHandler(BaseHandler):
         else:
             n_items_query = None
         n_items_feed = preferences.get('newsfeed', {}).get('numItems', None)
-        n_items = max(
-            x
-            for x in [n_items_query, n_items_feed, DEFAULT_NEWSFEED_ITEMS]
-            if x is not None
-        )
+
+        n_items_list = [n_items_query, n_items_feed]
+        if all(v is None for v in n_items_list):
+            n_items = DEFAULT_NEWSFEED_ITEMS
+        else:
+            n_items = max(x for x in n_items_list if x is not None)
         if n_items > MAX_NEWSFEED_ITEMS:
             return self.error(
                 f'numItems should be no larger than {MAX_NEWSFEED_ITEMS}.'
