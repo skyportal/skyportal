@@ -389,7 +389,11 @@ function CurrentShiftMenu() {
           >
             {users.map((user) => (
               <MenuItem id="select_users" key={user.id} value={user}>
-                <Checkbox checked={selected.indexOf(user) > -1} />
+                <Checkbox
+                  checked={selected.some(
+                    (selected_user) => selected_user.id === user.id
+                  )}
+                />
                 <ListItemText
                   className={classes.userListItem}
                   id={user.id}
