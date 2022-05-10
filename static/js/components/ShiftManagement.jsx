@@ -168,6 +168,12 @@ function CurrentShiftMenu() {
       const {
         target: { value },
       } = event;
+      const newSelected = [];
+      value.forEach((element) => {
+        if (!newSelected.find((user) => user.id === element.id)) {
+          newSelected.push(element);
+        }
+      });
       setSelected(value);
     };
 
