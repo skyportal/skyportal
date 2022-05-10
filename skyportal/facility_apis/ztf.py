@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from astropy.time import Time
 import functools
 import numpy as np
+from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 import pandas as pd
 import pyvo
@@ -185,9 +186,7 @@ class ZTFRequest:
         return json_data
 
 
-def commit_photometry(
-    url, altdata, df_request, request_id, instrument_id, user_id, session
-):
+def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_id):
     """
     Commits ZTF forced photometry to the database
 
@@ -205,15 +204,17 @@ def commit_photometry(
         Instrument SkyPortal ID
     user_id : int
         User SkyPortal ID
-    session : baselayer.DBSession
-        Database session to use for photometry
     """
 
     from ..models import (
+        DBSession,
         FollowupRequest,
         Instrument,
         User,
     )
+
+    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+    session = Session()
 
     try:
         request = session.query(FollowupRequest).get(request_id)
@@ -471,7 +472,6 @@ class ZTFAPI(FollowUpAPI):
                             req.id,
                             instrument.id,
                             request.requester.id,
-                            session,
                         ),
                     )
         else:

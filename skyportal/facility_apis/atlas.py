@@ -5,6 +5,7 @@ from astropy.time import Time
 import numpy as np
 import pandas as pd
 from io import StringIO
+from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 
 from . import FollowUpAPI
@@ -67,9 +68,7 @@ class ATLASRequest:
         return target
 
 
-def commit_photometry(
-    json_response, altdata, request_id, instrument_id, user_id, session
-):
+def commit_photometry(json_response, altdata, request_id, instrument_id, user_id):
     """
     Commits ATLAS photometry to the database
 
@@ -90,10 +89,14 @@ def commit_photometry(
     """
 
     from ..models import (
+        DBSession,
         FollowupRequest,
         Instrument,
         User,
     )
+
+    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+    session = Session()
 
     try:
         request = session.query(FollowupRequest).get(request_id)
@@ -273,7 +276,6 @@ class ATLASAPI(FollowUpAPI):
                         req.id,
                         instrument.id,
                         request.requester.id,
-                        session,
                     ),
                 )
                 req.status = "Committing photometry to database"

@@ -1,6 +1,7 @@
 import astropy
 import requests
 import numpy as np
+from sqlalchemy.orm import sessionmaker, scoped_session
 from tornado.ioloop import IOLoop
 
 from . import FollowUpAPI
@@ -17,7 +18,7 @@ PS1_URL = cfg['app.ps1_endpoint']
 log = make_log('facility_apis/ps1')
 
 
-def commit_photometry(text_response, request_id, instrument_id, user_id, session):
+def commit_photometry(text_response, request_id, instrument_id, user_id):
     """
     Commits PS1 DR2 photometry to the database
 
@@ -31,15 +32,17 @@ def commit_photometry(text_response, request_id, instrument_id, user_id, session
         Instrument SkyPortal ID
     user_id : int
         User SkyPortal ID
-    session : baselayer.DBSession
-        Database session to use for photometry
     """
 
     from ..models import (
+        DBSession,
         FollowupRequest,
         Instrument,
         User,
     )
+
+    Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
+    session = Session()
 
     try:
         request = session.query(FollowupRequest).get(request_id)
@@ -177,7 +180,7 @@ class PS1API(FollowUpAPI):
             IOLoop.current().run_in_executor(
                 None,
                 lambda: commit_photometry(
-                    text_response, req.id, instrument.id, request.requester.id, session
+                    text_response, req.id, instrument.id, request.requester.id
                 ),
             )
             req.status = "Committing photometry to database"
