@@ -84,8 +84,6 @@ def commit_photometry(json_response, altdata, request_id, instrument_id, user_id
         Instrument SkyPortal ID
     user_id : int
         User SkyPortal ID
-    session : baselayer.DBSession
-        Database session to use for photometry
     """
 
     from ..models import (
