@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token, AccessError
@@ -10,6 +11,8 @@ from ...models import (
     User,
     Token,
     UserNotification,
+    CommentOnGCN,
+    Comment,
 )
 
 
@@ -447,3 +450,140 @@ class ShiftUserHandler(BaseHandler):
             action='skyportal/REFRESH_SHIFTS', payload={'shift_id': int(shift_id)}
         )
         return self.success()
+
+
+class ShiftsSummary(BaseHandler):
+    # this handler has a get method that returns a summary of all the activity of shift users on skyportal for a given period
+    # it is used to generate a report
+
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get a summary of all the activity of shift users on skyportal for a given period
+        tags:
+          - shifts
+          - users
+        parameters:
+          - in: path
+            name: start_date
+            required: true
+            schema:
+              type: string
+              format: date
+          - in: path
+            name: end_date
+            required: true
+            schema:
+              type: string
+              format: date
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        start_date = self.get_argument("start_date", None)
+        end_date = self.get_argument("end_date", None)
+        print(start_date, end_date)
+        if start_date is None or end_date is None:
+            return self.error("Please provide start_date and end_date")
+        try:
+            start_date = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
+            end_date = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
+        except ValueError:
+            return self.error("Please provide valid start_date and end_date")
+        if start_date > end_date:
+            return self.error("Please provide start_date < end_date")
+        if start_date.date() > datetime.today().date():
+            return self.error("Please provide start_date < today")
+        if end_date.date() > datetime.today().date():
+            return self.error("Please provide end_date < today")
+
+        shifts = (
+            Shift.query_records_accessible_by(
+                self.current_user,
+                mode="read",
+                options=[
+                    joinedload(Shift.shift_users),
+                ],
+            )
+            .order_by(Shift.start_date.asc())
+            .all()
+        )
+        if len(shifts) == 0:
+            return self.error("No shifts found")
+
+        # get the comments on gcn made by shift_users
+
+        # generate the report of all gcn comments made during the period, shift by shift, user by user
+        report = {}
+        for shift in shifts:
+            report[shift.id] = {}
+            report[shift.id]['shift_info'] = {
+                'shift_name': shift.name,
+                'start_date': shift.start_date,
+                'end_date': shift.end_date,
+                'shift_description': shift.description,
+            }
+            report[shift.id]['shift_users'] = {}
+            for shift_user in shift.shift_users:
+                report[shift.id]['shift_users'][shift_user.user_id] = {
+                    "user_name": f'{shift_user.user.first_name} {shift_user.user.last_name}',
+                    "user_email": shift_user.user.contact_email,
+                    "user_id": shift_user.user_id,
+                }
+            comments_on_gcn = (
+                CommentOnGCN.query_records_accessible_by(self.current_user, mode='read')
+                .filter(
+                    CommentOnGCN.author_id.in_(
+                        [shift_user.user_id for shift_user in shift.shift_users]
+                    )
+                )
+                .filter(CommentOnGCN.created_at >= start_date)
+                .filter(CommentOnGCN.created_at <= end_date)
+                .all()
+            )
+            report[shift.id]["gcn_comments"] = []
+            for comment in comments_on_gcn:
+                if comment.author_id in [
+                    shift_user.user_id for shift_user in shift.shift_users
+                ]:
+                    report[shift.id]["gcn_comments"].append(
+                        {
+                            "comment_id": comment.id,
+                            "gcn_id": comment.gcn_id,
+                            "comment": comment.text,
+                            "author_id": comment.author_id,
+                            "date": comment.created_at,
+                        }
+                    )
+
+            comments_on_source = (
+                Comment.query_records_accessible_by(self.current_user, mode='read')
+                .filter(
+                    Comment.author_id.in_(
+                        [shift_user.user_id for shift_user in shift.shift_users]
+                    )
+                )
+                .filter(Comment.created_at >= start_date)
+                .filter(Comment.created_at <= end_date)
+                .all()
+            )
+
+            report[shift.id]["source_comments"] = []
+            for comment in comments_on_source:
+                if comment.author_id in [
+                    shift_user.user_id for shift_user in shift.shift_users
+                ]:
+                    report[shift.id]["source_comments"].append(
+                        {
+                            "comment_id": comment.id,
+                            "source_id": comment.obj_id,
+                            "comment": comment.text,
+                            "author_id": comment.author_id,
+                            "date": comment.created_at,
+                        }
+                    )
+
+        return self.success(report)
