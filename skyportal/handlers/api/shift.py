@@ -13,6 +13,8 @@ from ...models import (
     UserNotification,
     CommentOnGCN,
     Comment,
+    GcnEvent,
+    Source,
 )
 
 
@@ -497,8 +499,13 @@ class ShiftsSummary(BaseHandler):
             return self.error("Please provide start_date < end_date")
         if start_date.date() > datetime.today().date():
             return self.error("Please provide start_date < today")
-        if end_date.date() > datetime.today().date():
-            return self.error("Please provide end_date < today")
+
+        # get the groups of the current user
+        groups = self.current_user.groups
+        # get a list of group ids
+        groups_ids = [group.id for group in groups if not group.single_user_group]
+
+        print(groups_ids)
 
         shifts = (
             Shift.query_records_accessible_by(
@@ -508,6 +515,8 @@ class ShiftsSummary(BaseHandler):
                     joinedload(Shift.shift_users),
                 ],
             )
+            .filter(Shift.start_date >= start_date)
+            .filter(Shift.start_date <= end_date)
             .order_by(Shift.start_date.asc())
             .all()
         )
@@ -585,5 +594,24 @@ class ShiftsSummary(BaseHandler):
                             "date": comment.created_at,
                         }
                     )
+
+            # get all the gcns that have been created during each shift
+            report[shift.id]["gcns"] = (
+                GcnEvent.query_records_accessible_by(self.current_user, mode='read')
+                .filter(GcnEvent.created_at >= shift.start_date)
+                .filter(GcnEvent.created_at <= shift.end_date)
+                .all()
+            )
+
+            # for each gcn, get the sources they contain
+            # TO IMPLEMENT
+
+            # get all the sources that have been created during each shift
+            report[shift.id]["sources"] = (
+                Source.query_records_accessible_by(self.current_user, mode='read')
+                .filter(Source.created_at >= shift.start_date)
+                .filter(Source.created_at <= shift.end_date)
+                .all()
+            )
 
         return self.success(report)
