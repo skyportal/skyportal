@@ -172,6 +172,11 @@ function CurrentShiftMenu() {
       value.forEach((element) => {
         if (!newSelected.find((user) => user.id === element.id)) {
           newSelected.push(element);
+        } else {
+          newSelected.splice(
+            newSelected.findIndex((user) => user.id === element.id),
+            1
+          );
         }
       });
       setSelected(newSelected);
