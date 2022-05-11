@@ -1,62 +1,109 @@
-import sys
-
-from baselayer.app.config import load_config
+import argparse
+from baselayer.app.env import load_env
 from baselayer.app.models import init_db
-from skyportal.model_util import make_super_user
+from skyportal.model_util import add_user, setup_permissions, role_acls
 from baselayer.app.models import User, Role
-from sqlalchemy.orm import joinedload
+from baselayer.app.models import DBSession
+import sqlalchemy as sa
 
-
-try:
-    username = sys.argv[1]
-except IndexError:
-    username = None
-
-cfg = load_config()
+env, cfg = load_env()
 init_db(**cfg['database'])
+
+parser = argparse.ArgumentParser(
+    description='Elevate user to super admin', add_help=False
+)
+parser.add_argument('--username', help='Username of the user to elevate')
+parser.add_argument('--list', action='store_true', help='List all users')
+parser.add_argument('--role', help='Role to elevate user to')
+
+args = parser.parse_args(namespace=env)
+
+BOLD = '\033[1m'
+END = '\033[0m'
+GREEN = '\033[92m'
+RED = '\033[91m'
+YELLOW = '\033[93m'
+
+
+def users_without_given_role(role='System admin'):
+    return [
+        user[0]
+        for user in DBSession().execute(
+            sa.select(User).filter(~User.roles.any(Role.id == role))
+        )
+    ]
+
+
+def roles_user_has(user):
+    return [role.id for role in user.roles]
+
+
+def roles_user_does_not_have(user):
+    return [role for role in role_acls if role not in roles_user_has(user)]
 
 
 def list_users():
-    users = (
-        User.query.options(joinedload(User.roles))
-        .filter(~User.roles.any(Role.id == 'Super admin'))
-        .all()
-    )
-
+    users = users_without_given_role()
     if len(users) == 0:
         print('\nNo users left to elevate!')
-        return False
     else:
-        print('\nList of non-admin users: \n')
-        for user in users:
-            print(f'{user.id}. {user.username}')
-        return True
+        # print each user's username and roles
+        print(f'\n{BOLD}List of users with their current roles:{END}')
+        for i, user in enumerate(users):
+            list_of_new_roles = (
+                BOLD
+                + GREEN
+                + f'{END}, {BOLD}{GREEN}'.join(roles_user_does_not_have(user))
+                + END
+            )
+            if len(user.roles) == 0:
+                print(
+                    f'\n{BOLD}{YELLOW}{user.username}{END} (no roles) can be elevated to {list_of_new_roles}'
+                )
+            else:
+                list_of_roles = (
+                    BOLD + RED + f'{END}, {BOLD}{RED}'.join(roles_user_has(user)) + END
+                )
+                print(
+                    f'\n{BOLD}{i+1}. {YELLOW}{user.username}{END} has the following roles: {list_of_roles} and can be elevated to: {list_of_new_roles}'
+                )
 
 
-def elevate_user(username=None):
-    if username is not None:
-        make_super_user(username)
-        print(f'\nUser {username} elevated!')
-    else:
-        if list_users():
-            username = input("\nEnter username to elevate (or hit ctrl-c to exit): ")
-            make_super_user(username)
-            print(f'\nUser {username} elevated!')
+def elevate_user(username=None, role=None):
+    if not role:
+        print(
+            f'{BOLD}{RED}\nNo role given!{END} User will be elevated to {BOLD}{GREEN}Super admin{END}{BOLD} by default{END}.'
+        )
+        role = 'Super admin'
+    if role not in role_acls:
+        print(f'{BOLD}{RED}\nRole not found!{END} Try a role from the list below:\n')
+        for i, role in enumerate(role_acls):
+            print(f'{BOLD}{i+1}. {GREEN}{role}{END}')
+        print('\n')
+
+    elif username is not None:
+        if username in [user.username for user in users_without_given_role(role)]:
+            setup_permissions()
+            add_user(username, roles=[role], auth=True)
+            print(
+                f'\n{BOLD}{YELLOW}User {username}{END} successfully elevated to role: {BOLD}{GREEN}{role}{END}!\n'
+            )
         else:
-            print('\nExiting...')
-            sys.exit()
+            print(
+                f'\nUser {BOLD}{YELLOW}{username}{END} {BOLD}{GREEN}already has this role{END}, {BOLD}{RED}or does not exist{END}!\n'
+            )
 
 
 def main():
-    if username is not None:
-        elevate_user(username)
+    if args.list:
+        list_users()
+    elif args.username:
+        elevate_user(args.username, args.role)
     else:
-        while True:
-            try:
-                elevate_user()
-            except KeyboardInterrupt:
-                print('\nExiting...')
-                break
+        print(
+            f'\n{BOLD}{RED}No arguments given{END}! Displaying {BOLD}{GREEN}Help{END}:\n'
+        )
+        parser.print_help()
 
 
 main()
