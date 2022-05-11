@@ -150,10 +150,16 @@ setting `debug_login` to `False`.
 By default, no user has permission to perform system administration.
 You can give such permissions to an existing user by running the following from your terminal in the `skyportal` directory:
 ```
-PYTHONPATH=. python tools/elevate_user.py <username>
+PYTHONPATH=. python tools/elevate_user.py --username="<username>" --role="<role>"
 ```
 
-The `username` argument is the name of the user to elevate to a super admin status. It is optional, and if omitted, a list of users will be displayed. Then the user will be prompted to select one.
+The `username` argument is the name of the user to elevate, and the `role` argument is the role to give them. The role is optionnal, and defaults to `Super admin`.
+
+Also, you can omit those arguments and use:
+```
+PYTHONPATH=. python tools/elevate_user.py --list
+```
+to list all users, their roles and the roles that they can be elevated to.
 
 
 ### Test data
