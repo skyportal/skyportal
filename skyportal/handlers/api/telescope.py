@@ -39,12 +39,6 @@ class TelescopeHandler(BaseHandler):
         """
         data = self.get_json()
 
-        if 'lon' in data and 'lat' in data:
-            if not (
-                -180 <= float(data['lon']) <= 180 and -90 <= float(data['lat']) <= 90
-            ):
-                raise ValidationError('Invalid longitude or latitude')
-
         schema = Telescope.__schema__()
 
         try:
@@ -117,18 +111,16 @@ class TelescopeHandler(BaseHandler):
         telescopes = []
         for telescope in data:
             temp = telescope.to_dict()
-            if temp['lon'] is not None and temp['lat'] is not None:
-                if -180 <= temp['lon'] <= 180 and -90 <= temp['lat'] <= 90:
-                    temp['is_night_astronomical'] = bool(
-                        telescope.next_twilight_morning_astronomical().jd
-                        < telescope.next_twilight_evening_astronomical().jd
-                    )
-                    temp[
-                        'next_twilight_morning_astronomical'
-                    ] = telescope.next_twilight_morning_astronomical().iso
-                    temp[
-                        'next_twilight_evening_astronomical'
-                    ] = telescope.next_twilight_evening_astronomical().iso
+            temp['is_night_astronomical'] = bool(
+                telescope.next_twilight_morning_astronomical().jd
+                < telescope.next_twilight_evening_astronomical().jd
+            )
+            temp[
+                'next_twilight_morning_astronomical'
+            ] = telescope.next_twilight_morning_astronomical().iso
+            temp[
+                'next_twilight_evening_astronomical'
+            ] = telescope.next_twilight_evening_astronomical().iso
             telescopes.append(temp)
         self.verify_and_commit()
         return self.success(data=telescopes)
@@ -165,12 +157,6 @@ class TelescopeHandler(BaseHandler):
             return self.error('Invalid telescope ID.')
         data = self.get_json()
         data['id'] = int(telescope_id)
-
-        if 'lon' in data and 'lat' in data:
-            if not (
-                -180 <= float(data['lon']) <= 180 and -90 <= float(data['lat']) <= 90
-            ):
-                raise ValidationError('Invalid longitude or latitude')
 
         schema = Telescope.__schema__()
         try:
