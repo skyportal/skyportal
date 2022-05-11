@@ -11,7 +11,6 @@ from ...models import (
     User,
     Token,
     UserNotification,
-    CommentOnGCN,
     Comment,
     GcnEvent,
     Source,
@@ -487,7 +486,6 @@ class ShiftsSummary(BaseHandler):
         """
         start_date = self.get_argument("start_date", None)
         end_date = self.get_argument("end_date", None)
-        print(start_date, end_date)
         if start_date is None or end_date is None:
             return self.error("Please provide start_date and end_date")
         try:
@@ -500,12 +498,7 @@ class ShiftsSummary(BaseHandler):
         if start_date.date() > datetime.today().date():
             return self.error("Please provide start_date < today")
 
-        # get the groups of the current user
-        groups = self.current_user.groups
-        # get a list of group ids
-        groups_ids = [group.id for group in groups if not group.single_user_group]
-
-        print(groups_ids)
+        report = {}
 
         shifts = (
             Shift.query_records_accessible_by(
@@ -522,96 +515,103 @@ class ShiftsSummary(BaseHandler):
         )
         if len(shifts) == 0:
             return self.error("No shifts found")
+        else:
+            report['shifts'] = shifts
 
-        # get the comments on gcn made by shift_users
-
-        # generate the report of all gcn comments made during the period, shift by shift, user by user
-        report = {}
-        for shift in shifts:
-            report[shift.id] = {}
-            report[shift.id]['shift_info'] = {
-                'shift_name': shift.name,
-                'start_date': shift.start_date,
-                'end_date': shift.end_date,
-                'shift_description': shift.description,
-            }
-            report[shift.id]['shift_users'] = {}
-            for shift_user in shift.shift_users:
-                report[shift.id]['shift_users'][shift_user.user_id] = {
-                    "user_name": f'{shift_user.user.first_name} {shift_user.user.last_name}',
-                    "user_email": shift_user.user.contact_email,
-                    "user_id": shift_user.user_id,
-                }
-            comments_on_gcn = (
-                CommentOnGCN.query_records_accessible_by(self.current_user, mode='read')
-                .filter(
-                    CommentOnGCN.author_id.in_(
-                        [shift_user.user_id for shift_user in shift.shift_users]
-                    )
-                )
-                .filter(CommentOnGCN.created_at >= start_date)
-                .filter(CommentOnGCN.created_at <= end_date)
-                .all()
+        gcns = (
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+                mode="read",
+                options=[
+                    # join to gcn comments made by shift_users
+                    joinedload(GcnEvent.comments),
+                ],
             )
-            report[shift.id]["gcn_comments"] = []
-            for comment in comments_on_gcn:
-                if comment.author_id in [
-                    shift_user.user_id for shift_user in shift.shift_users
-                ]:
-                    report[shift.id]["gcn_comments"].append(
-                        {
-                            "comment_id": comment.id,
-                            "gcn_id": comment.gcn_id,
-                            "comment": comment.text,
-                            "author_id": comment.author_id,
-                            "date": comment.created_at,
-                        }
-                    )
+            .filter(GcnEvent.created_at >= start_date)
+            .filter(GcnEvent.created_at <= end_date)
+            .order_by(GcnEvent.created_at.asc())
+            .all()
+        )
+        gcn_added_during_shifts = []
+        # get the gcns added during the shifts
+        if len(gcns) > 0:
+            for shift in shifts:
+                shift = shift.to_dict()
+                for gcn in gcns:
+                    gcn = gcn.to_dict()
+                    if (
+                        gcn["created_at"] >= shift["start_date"]
+                        and gcn["created_at"] <= shift["end_date"]
+                    ):
+                        if gcn["id"] not in [
+                            gcn["id"] for gcn in gcn_added_during_shifts
+                        ]:
+                            gcn_added_during_shifts.append(gcn)
+                        # if the gcn is already in the list, simply add the additional comment to the existing gcn
 
-            comments_on_source = (
-                Comment.query_records_accessible_by(self.current_user, mode='read')
-                .filter(
-                    Comment.author_id.in_(
-                        [shift_user.user_id for shift_user in shift.shift_users]
-                    )
-                )
-                .filter(Comment.created_at >= start_date)
-                .filter(Comment.created_at <= end_date)
-                .all()
+            report['gcn'] = gcn_added_during_shifts
+
+        sources = (
+            Source.query_records_accessible_by(
+                self.current_user,
+                mode="read",
             )
+            .filter(Source.created_at >= start_date)
+            .filter(Source.created_at <= end_date)
+            .order_by(Source.created_at.asc())
+            .all()
+        )
 
-            report[shift.id]["source_comments"] = []
-            for comment in comments_on_source:
-                if comment.author_id in [
-                    shift_user.user_id for shift_user in shift.shift_users
-                ]:
-                    report[shift.id]["source_comments"].append(
-                        {
-                            "comment_id": comment.id,
-                            "source_id": comment.obj_id,
-                            "comment": comment.text,
-                            "author_id": comment.author_id,
-                            "date": comment.created_at,
-                        }
-                    )
+        sources_added_during_shifts = []
+        # get the sources added during the shifts
+        if len(sources) > 0:
+            for shift in shifts:
+                shift = shift.to_dict()
+                for source in sources:
+                    print(source)
+                    source = source.to_dict()
+                    if (
+                        source["created_at"] >= shift["start_date"]
+                        and source["created_at"] <= shift["end_date"]
+                    ):
+                        comments = (
+                            Comment.query_records_accessible_by(
+                                self.current_user,
+                                mode="read",
+                            )
+                            .filter(Comment.obj_id == source['obj_id'])
+                            .filter(Comment.created_at >= shift['start_date'])
+                            .filter(Comment.created_at <= shift['end_date'])
+                            .all()
+                        )
 
-            # get all the gcns that have been created during each shift
-            report[shift.id]["gcns"] = (
-                GcnEvent.query_records_accessible_by(self.current_user, mode='read')
-                .filter(GcnEvent.created_at >= shift.start_date)
-                .filter(GcnEvent.created_at <= shift.end_date)
-                .all()
-            )
+                        comments_added_during_shift = []
+                        # get the comments added only by shift_user during the shift
+                        if len(comments) > 0:
+                            for comment in comments:
+                                comment = comment.to_dict()
+                                print(shift["shift_users"])
+                                if comment["author_id"] in [
+                                    user.to_dict()["user_id"]
+                                    for user in shift["shift_users"]
+                                ]:
+                                    comments_added_during_shift.append(comment)
+                        if source["id"] not in [
+                            source["id"] for source in sources_added_during_shifts
+                        ]:
+                            source["comments"] = comments_added_during_shift
+                            sources_added_during_shifts.append(source)
+                        else:
+                            # if the source is already in the list, simply add the additional comment to the existing source
+                            for source in sources_added_during_shifts:
+                                if source["id"] == source["id"]:
+                                    source["comments"].extend(
+                                        comments_added_during_shift
+                                    )
+                                    break
 
-            # for each gcn, get the sources they contain
-            # TO IMPLEMENT
+                        # if the source is already in the list, simply add the additional comment to the existing source
 
-            # get all the sources that have been created during each shift
-            report[shift.id]["sources"] = (
-                Source.query_records_accessible_by(self.current_user, mode='read')
-                .filter(Source.created_at >= shift.start_date)
-                .filter(Source.created_at <= shift.end_date)
-                .all()
-            )
+            report['source'] = sources_added_during_shifts
 
         return self.success(report)
