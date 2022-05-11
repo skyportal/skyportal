@@ -3,9 +3,7 @@ import uuid
 from skyportal.tests import api
 
 
-def test_token_user_retrieving_source_without_nested(
-    view_only_token, public_group, upload_data_token
-):
+def test_retrieve_newsfeed(view_only_token, public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -29,3 +27,12 @@ def test_token_user_retrieving_source_without_nested(
     assert any([d['type'] == 'source' for d in data])
     assert any([d['message'] == 'New source saved' for d in data])
     assert any([d['source_id'] == obj_id for d in data])
+
+
+def test_fail_newsfeed_request_too_many(
+    view_only_token,
+):
+    params = {'numItems': 1001}
+    status, data = api('GET', 'newsfeed', token=view_only_token, params=params)
+    assert status == 400
+    assert data['message'] == 'numItems should be no larger than 1000.'
