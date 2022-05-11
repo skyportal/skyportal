@@ -99,6 +99,18 @@ def test_add_and_retrieve_classification_group_id(
     assert data['data']['classification'] == 'Algol'
     assert data['data']['probability'] == 1.0
 
+    params = {'numPerPage': 100}
+
+    status, data = api(
+        'GET', 'classification', token=classification_token, params=params
+    )
+
+    assert status == 200
+    data = data['data']['classifications']
+    assert [d['classification'] == 'Algol' for d in data]
+    assert [d['probability'] == 1.0 for d in data]
+    assert [d['obj_id'] == public_source.id for d in data]
+
 
 def test_add_and_retrieve_classification_no_group_id(
     taxonomy_token, classification_token, public_source, public_group

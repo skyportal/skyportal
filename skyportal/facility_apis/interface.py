@@ -104,6 +104,12 @@ class FollowUpAPI(_Base):
         """Retrieve the status of executed observations."""
         raise NotImplementedError
 
+    # subclasses should implement this if desired
+    @staticmethod
+    def queued():
+        """Retrieve the status of planned observations."""
+        raise NotImplementedError
+
     # jsonschema outlining the schema of the frontend form. See
     # https://github.com/rjsf-team/react-jsonschema-form
     # for examples.

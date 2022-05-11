@@ -333,7 +333,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
         >
           Send selected to observation plan
         </Button>
-        <InputLabel id="allocationSelectLabel">Localization</InputLabel>
+        <InputLabel id="localizationSelectLabel">Localization</InputLabel>
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}
           labelId="localizationSelectLabel"

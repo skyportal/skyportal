@@ -13,6 +13,8 @@ const DELETE_SHIFT = "skyportal/DELETE_SHIFT";
 
 const CURRENT_SHIFT = "skyportal/CURRENT_SHIFT";
 
+const CURRENT_SHIFT_SELECTED_USERS = "skyportal/CURRENT_SHIFT_SELECTED_USERS";
+
 export const fetchShift = (id) => API.GET(`/api/shifts/${id}`, FETCH_SHIFT);
 
 export const submitShift = (run) => API.POST(`/api/shifts`, SUBMIT_SHIFT, run);
@@ -32,13 +34,20 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer = (state = { currentShift: {} }, action) => {
+const reducer = (state = { currentShift: {}, selectedUsers: [] }, action) => {
   switch (action.type) {
     case CURRENT_SHIFT: {
       const currentShift = action.data;
       return {
         ...state,
         currentShift,
+      };
+    }
+    case CURRENT_SHIFT_SELECTED_USERS: {
+      const selectedUsers = action.data;
+      return {
+        ...state,
+        selectedUsers,
       };
     }
     default:
