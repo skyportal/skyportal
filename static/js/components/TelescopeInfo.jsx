@@ -64,6 +64,11 @@ const useStyles = makeStyles(() => ({
     width: "1rem",
     backgroundColor: "#5ca9d6",
   },
+  noLonLat: {
+    height: "1rem",
+    width: "1rem",
+    backgroundColor: "#808080",
+  },
   telescope_time: {
     display: "flex",
     flexDirection: "column",
@@ -91,20 +96,27 @@ const TelescopeInfo = () => {
               className={classes.telescope_header}
               key={`${telescope.id}_header`}
             >
-              {telescope.is_night_astronomical && telescope.fixed_location && (
-                <span className={classes.canObserveFixed} />
-              )}
-              {!telescope.is_night_astronomical && telescope.fixed_location && (
-                <span className={classes.cannotObserveFixed} />
-              )}
+              {telescope.is_night_astronomical &&
+                telescope.fixed_location &&
+                telescope.lon &&
+                telescope.lat && <span className={classes.canObserveFixed} />}
+              {!telescope.is_night_astronomical &&
+                telescope.fixed_location &&
+                telescope.lon &&
+                telescope.lat && (
+                  <span className={classes.cannotObserveFixed} />
+                )}
               {!telescope.fixed_location && (
                 <span className={classes.nonFixed} />
+              )}
+              {telescope.fixed_location && !telescope.lon && !telescope.lat && (
+                <span className={classes.noLonLat} />
               )}
               <h2 className={classes.h2}>
                 {telescope.name} ({telescope.nickname})
               </h2>
             </div>
-            {telescope.fixed_location && (
+            {telescope.fixed_location && telescope.lon && telescope.lat && (
               <div
                 className={classes.telescope_time}
                 key={`${telescope.id}_time`}
@@ -120,6 +132,9 @@ const TelescopeInfo = () => {
                   UTC
                 </i>
               </div>
+            )}
+            {telescope.fixed_location && (!telescope.lon || !telescope.lat) && (
+              <i>Missing Longitude and/or Latitude</i>
             )}
             <h3 className={classes.h3} key={`${telescope.id}_diameter`}>
               Diameter :{" "}
