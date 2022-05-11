@@ -1,7 +1,3 @@
-import pytest
-
-
-@pytest.mark.flaky(reruns=2)
 def test_new_source(
     driver, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
 ):
