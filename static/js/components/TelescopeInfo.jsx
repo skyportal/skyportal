@@ -59,15 +59,15 @@ const useStyles = makeStyles(() => ({
     backgroundColor: "#f9d71c",
     borderRadius: "50%",
   },
-  nonFixed: {
+  canObserveNonFixed: {
     height: "1rem",
     width: "1rem",
-    backgroundColor: "#5ca9d6",
+    backgroundColor: "#0c1445",
   },
-  noLonLat: {
+  cannotObserveNonFixed: {
     height: "1rem",
     width: "1rem",
-    backgroundColor: "#808080",
+    backgroundColor: "#f9d71c",
   },
   telescope_time: {
     display: "flex",
@@ -96,27 +96,24 @@ const TelescopeInfo = () => {
               className={classes.telescope_header}
               key={`${telescope.id}_header`}
             >
-              {telescope.is_night_astronomical &&
-                telescope.fixed_location &&
-                telescope.lon &&
-                telescope.lat && <span className={classes.canObserveFixed} />}
+              {telescope.is_night_astronomical && telescope.fixed_location && (
+                <span className={classes.canObserveFixed} />
+              )}
+              {telescope.is_night_astronomical && !telescope.fixed_location && (
+                <span className={classes.canObserveNonFixed} />
+              )}
+              {!telescope.is_night_astronomical && telescope.fixed_location && (
+                <span className={classes.cannotObserveFixed} />
+              )}
               {!telescope.is_night_astronomical &&
-                telescope.fixed_location &&
-                telescope.lon &&
-                telescope.lat && (
-                  <span className={classes.cannotObserveFixed} />
+                !telescope.fixed_location && (
+                  <span className={classes.cannotObserveNonFixed} />
                 )}
-              {!telescope.fixed_location && (
-                <span className={classes.nonFixed} />
-              )}
-              {telescope.fixed_location && !telescope.lon && !telescope.lat && (
-                <span className={classes.noLonLat} />
-              )}
               <h2 className={classes.h2}>
                 {telescope.name} ({telescope.nickname})
               </h2>
             </div>
-            {telescope.fixed_location && telescope.lon && telescope.lat && (
+            {telescope.fixed_location && (
               <div
                 className={classes.telescope_time}
                 key={`${telescope.id}_time`}
@@ -132,9 +129,6 @@ const TelescopeInfo = () => {
                   UTC
                 </i>
               </div>
-            )}
-            {telescope.fixed_location && (!telescope.lon || !telescope.lat) && (
-              <i>Missing Longitude and/or Latitude</i>
             )}
             <h3 className={classes.h3} key={`${telescope.id}_diameter`}>
               Diameter :{" "}

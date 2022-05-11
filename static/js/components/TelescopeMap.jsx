@@ -88,75 +88,59 @@ function normalizeLatitudeDiff(alpha, beta) {
   return Math.abs(alpha - beta);
 }
 
-function isTelescopeValid(telescope) {
-  let valid = false;
-  if (telescope.lon && telescope.lat) {
-    if (
-      telescope.lon > -180 &&
-      telescope.lon < 180 &&
-      telescope.lat > -90 &&
-      telescope.lat < 90
-    ) {
-      valid = true;
-    }
-  }
-  return valid;
-}
 const TelescopeMap = ({ telescopes }) => {
   const filteredTelescopes = telescopes.filter(
     (telescope) => telescope.fixed_location
   );
   const nestedTelescopes = [];
   for (let i = 0; i < filteredTelescopes.length; i += 1) {
-    if (isTelescopeValid(filteredTelescopes[i])) {
-      if (nestedTelescopes.length === 0) {
-        nestedTelescopes.push({
-          lat: filteredTelescopes[i].lat,
-          lon: filteredTelescopes[i].lon,
-          is_night_astronomical_at_least_one:
-            filteredTelescopes[i].is_night_astronomical,
-          fixed_location: true,
-          telescopes: [filteredTelescopes[i]],
-        });
-      } else {
-        for (let j = 0; j < nestedTelescopes.length; j += 1) {
-          if (
-            Math.abs(
-              normalizeLatitudeDiff(
-                filteredTelescopes[i].lat,
-                nestedTelescopes[j].lat
-              )
-            ) < 1 &&
-            Math.abs(
-              normalizeLongitudeDiff(
-                filteredTelescopes[i].lon,
-                nestedTelescopes[j].lon
-              )
-            ) < 2
-          ) {
-            nestedTelescopes[j].telescopes.push(filteredTelescopes[i]);
-            if (filteredTelescopes[i].is_night_astronomical) {
-              nestedTelescopes[j].is_night_astronomical_at_least_one = true;
-            }
-            break;
-          } else if (j === nestedTelescopes.length - 1) {
-            nestedTelescopes.push({
-              lat: filteredTelescopes[i].lat,
-              lon: filteredTelescopes[i].lon,
-              is_night_astronomical_at_least_one:
-                filteredTelescopes[i].is_night_astronomical,
-              fixed_location: true,
-              telescopes: [filteredTelescopes[i]],
-            });
-            break;
+    if (i === 0) {
+      nestedTelescopes.push({
+        lat: filteredTelescopes[i].lat,
+        lon: filteredTelescopes[i].lon,
+        is_night_astronomical_at_least_one:
+          filteredTelescopes[i].is_night_astronomical,
+        fixed_location: true,
+        telescopes: [filteredTelescopes[i]],
+      });
+    } else {
+      for (let j = 0; j < nestedTelescopes.length; j += 1) {
+        if (
+          Math.abs(
+            normalizeLatitudeDiff(
+              filteredTelescopes[i].lat,
+              nestedTelescopes[j].lat
+            )
+          ) < 1 &&
+          Math.abs(
+            normalizeLongitudeDiff(
+              filteredTelescopes[i].lon,
+              nestedTelescopes[j].lon
+            )
+          ) < 2
+        ) {
+          nestedTelescopes[j].telescopes.push(filteredTelescopes[i]);
+          if (filteredTelescopes[i].is_night_astronomical) {
+            nestedTelescopes[j].is_night_astronomical_at_least_one = true;
           }
+          break;
+        } else if (j === nestedTelescopes.length - 1) {
+          nestedTelescopes.push({
+            lat: filteredTelescopes[i].lat,
+            lon: filteredTelescopes[i].lon,
+            is_night_astronomical_at_least_one:
+              filteredTelescopes[i].is_night_astronomical,
+            fixed_location: true,
+            telescopes: [filteredTelescopes[i]],
+          });
+          break;
         }
       }
     }
   }
 
   const nonFixedTelescopes = telescopes.filter(
-    (telescope) => !telescope.fixed_location || !telescope.lat || !telescope.lon
+    (telescope) => !telescope.fixed_location
   );
 
   if (nonFixedTelescopes.length > 0) {
