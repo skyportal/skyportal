@@ -136,10 +136,12 @@ const TelescopeInfo = () => {
                 {telescope.lon ? telescope.lon.toFixed(4) : null}
               </h3>
             )}
-            <h3 className={classes.h3} key={`${telescope.id}_elevation`}>
-              Elevation :{" "}
-              {telescope.elevation ? telescope.elevation.toFixed(1) : null}
-            </h3>
+            {telescope.fixed_location && (
+              <h3 className={classes.h3} key={`${telescope.id}_elevation`}>
+                Elevation :{" "}
+                {telescope.elevation ? telescope.elevation.toFixed(1) : null}
+              </h3>
+            )}
             {telescope.robotic ? (
               <h3 className={classes.h3} key={`${telescope.id}_robotic`}>
                 Robotic : Yes
