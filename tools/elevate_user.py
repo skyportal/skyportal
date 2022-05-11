@@ -67,6 +67,7 @@ def list_users():
                 print(
                     f'\n{BOLD}{i+1}. {YELLOW}{user.username}{END} has the following roles: {list_of_roles} and can be elevated to: {list_of_new_roles}'
                 )
+        print('\n')
 
 
 def elevate_user(username=None, role=None):
