@@ -82,7 +82,7 @@ def commit_photometry(json_response, altdata, request_id, instrument_id, user_id
         FollowupRequest SkyPortal ID
     instrument_id : int
         Instrument SkyPortal ID
-    user_id: int
+    user_id : int
         User SkyPortal ID
     """
 
@@ -203,8 +203,6 @@ def commit_photometry(json_response, altdata, request_id, instrument_id, user_id
 
     except Exception as e:
         return log(f"Unable to commit photometry for {request_id}: {e}")
-    finally:
-        Session.remove()
 
 
 class ATLASAPI(FollowUpAPI):
@@ -212,7 +210,7 @@ class ATLASAPI(FollowUpAPI):
     """An interface to ATLAS forced photometry."""
 
     @staticmethod
-    def get(request):
+    def get(request, session):
 
         """Get a forced photometry request result from ATLAS.
 
@@ -220,20 +218,16 @@ class ATLASAPI(FollowUpAPI):
         ----------
         request : skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session : baselayer.DBSession
+            Database session to use for photometry
         """
 
         from ..models import (
-            DBSession,
             FollowupRequest,
             FacilityTransaction,
             Allocation,
             Instrument,
         )
-
-        Session = scoped_session(
-            sessionmaker(bind=DBSession.session_factory.kw["bind"])
-        )
-        session = Session()
 
         req = (
             session.query(FollowupRequest)

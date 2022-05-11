@@ -308,8 +308,6 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
         )
     except Exception as e:
         return log(f"Unable to commit photometry for {request_id}: {e}")
-    finally:
-        Session.remove()
 
 
 class ZTFAPI(FollowUpAPI):
@@ -374,7 +372,7 @@ class ZTFAPI(FollowUpAPI):
         DBSession().add(transaction)
 
     @staticmethod
-    def get(request):
+    def get(request, session):
 
         """Get a forced photometry request result from ZTF.
 
@@ -382,20 +380,16 @@ class ZTFAPI(FollowUpAPI):
         ----------
         request : skyportal.models.FollowupRequest
             The request to retrieve ZTF forced photometry.
+        session : baselayer.DBSession
+            Database session to use for photometry
         """
 
         from ..models import (
-            DBSession,
             FollowupRequest,
             FacilityTransaction,
             Allocation,
             Instrument,
         )
-
-        Session = scoped_session(
-            sessionmaker(bind=DBSession.session_factory.kw["bind"])
-        )
-        session = Session()
 
         req = (
             session.query(FollowupRequest)
