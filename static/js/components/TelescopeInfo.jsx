@@ -113,19 +113,23 @@ const TelescopeInfo = () => {
                 {telescope.name} ({telescope.nickname})
               </h2>
             </div>
-            <div
-              className={classes.telescope_time}
-              key={`${telescope.id}_time`}
-            >
-              <i>
-                Next Sunrise (Astronomical):{" "}
-                {telescope.next_twilight_morning_astronomical.slice(0, -4)} UTC
-              </i>
-              <i>
-                Next Sunset (Astronomical):{" "}
-                {telescope.next_twilight_evening_astronomical.slice(0, -4)} UTC
-              </i>
-            </div>
+            {telescope.fixed_location && (
+              <div
+                className={classes.telescope_time}
+                key={`${telescope.id}_time`}
+              >
+                <i>
+                  Next Sunrise (Astronomical):{" "}
+                  {telescope.next_twilight_morning_astronomical.slice(0, -4)}{" "}
+                  UTC
+                </i>
+                <i>
+                  Next Sunset (Astronomical):{" "}
+                  {telescope.next_twilight_evening_astronomical.slice(0, -4)}{" "}
+                  UTC
+                </i>
+              </div>
+            )}
             <h3 className={classes.h3} key={`${telescope.id}_diameter`}>
               Diameter :{" "}
               {telescope.diameter ? telescope.diameter.toFixed(1) : null}

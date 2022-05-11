@@ -65,7 +65,7 @@ function TelescopeMarker({ nestedTelescope, position }) {
           y={-6.5 / position.k}
           width={13 / position.k}
           height={13 / position.k}
-          fill={telescopeCanObserve(nestedTelescope)}
+          fill="#5ca9d6"
         />
       )}
       <text
