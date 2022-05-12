@@ -465,6 +465,8 @@ class ShiftsSummary(BaseHandler):
         tags:
           - shifts
           - users
+          - sources
+          - gcn
         parameters:
           - in: path
             name: start_date
@@ -537,6 +539,7 @@ class ShiftsSummary(BaseHandler):
         if len(gcns) > 0:
             for shift in shifts:
                 shift = shift.to_dict()
+                # get list of user_id who are shift_users
                 for gcn in gcns:
                     gcn = gcn.to_dict()
                     if (
@@ -546,10 +549,29 @@ class ShiftsSummary(BaseHandler):
                         if gcn["id"] not in [
                             gcn["id"] for gcn in gcn_added_during_shifts
                         ]:
+                            # check if gcn comments are made by shift_users
+                            comments = gcn["comments"]
+                            new_comments = []
+                            if len(comments) > 0:
+                                for comment in comments:
+                                    comment = comment.to_dict()
+                                    if (
+                                        comment["created_at"] >= shift["start_date"]
+                                        and comment["created_at"] <= shift["end_date"]
+                                    ):
+                                        if comment["author_id"] in [
+                                            user.to_dict()["user_id"]
+                                            for user in shift["shift_users"]
+                                        ]:
+                                            comment['made_by_shift_user'] = True
+                                        else:
+                                            comment['made_by_shift_user'] = False
+                                        new_comments.append(comment)
+                            gcn["comments"] = new_comments
                             gcn_added_during_shifts.append(gcn)
                         # if the gcn is already in the list, simply add the additional comment to the existing gcn
-
-            report['gcn'] = gcn_added_during_shifts
+            report['gcns'] = {'total': len(gcn_added_during_shifts)}
+            report['gcns']['data'] = gcn_added_during_shifts
 
         sources = (
             Source.query_records_accessible_by(
@@ -562,56 +584,61 @@ class ShiftsSummary(BaseHandler):
             .all()
         )
 
+        sources_with_comments = []
+        for source in sources:
+            source = source.to_dict()
+            if (
+                source["created_at"] >= shift["start_date"]
+                and source["created_at"] <= shift["end_date"]
+            ):
+                source['comments'] = (
+                    Comment.query_records_accessible_by(
+                        self.current_user,
+                        mode="read",
+                    )
+                    .filter(Comment.obj_id == source['obj_id'])
+                    .filter(Comment.created_at >= start_date)
+                    .filter(Comment.created_at <= end_date)
+                    .all()
+                )
+                sources_with_comments.append(source)
+
+        sources = sources_with_comments
+
         sources_added_during_shifts = []
         # get the sources added during the shifts
         if len(sources) > 0:
             for shift in shifts:
                 shift = shift.to_dict()
                 for source in sources:
-                    print(source)
-                    source = source.to_dict()
                     if (
                         source["created_at"] >= shift["start_date"]
                         and source["created_at"] <= shift["end_date"]
                     ):
-                        comments = (
-                            Comment.query_records_accessible_by(
-                                self.current_user,
-                                mode="read",
-                            )
-                            .filter(Comment.obj_id == source['obj_id'])
-                            .filter(Comment.created_at >= shift['start_date'])
-                            .filter(Comment.created_at <= shift['end_date'])
-                            .all()
-                        )
-
-                        comments_added_during_shift = []
-                        # get the comments added only by shift_user during the shift
-                        if len(comments) > 0:
-                            for comment in comments:
-                                comment = comment.to_dict()
-                                print(shift["shift_users"])
-                                if comment["author_id"] in [
-                                    user.to_dict()["user_id"]
-                                    for user in shift["shift_users"]
-                                ]:
-                                    comments_added_during_shift.append(comment)
-                        if source["id"] not in [
-                            source["id"] for source in sources_added_during_shifts
+                        if source["obj_id"] not in [
+                            source["obj_id"] for source in sources_added_during_shifts
                         ]:
-                            source["comments"] = comments_added_during_shift
+                            # check if source comments are made by shift_users
+                            comments = source["comments"]
+                            new_comments = []
+                            if len(comments) > 0:
+                                for comment in comments:
+                                    comment = comment.to_dict()
+                                    if (
+                                        comment["created_at"] >= shift["start_date"]
+                                        and comment["created_at"] <= shift["end_date"]
+                                    ):
+                                        if comment["author_id"] in [
+                                            user.to_dict()["user_id"]
+                                            for user in shift["shift_users"]
+                                        ]:
+                                            comment['made_by_shift_user'] = True
+                                        else:
+                                            comment['made_by_shift_user'] = False
+                                        new_comments.append(comment)
+                            source["comments"] = new_comments
                             sources_added_during_shifts.append(source)
-                        else:
-                            # if the source is already in the list, simply add the additional comment to the existing source
-                            for source in sources_added_during_shifts:
-                                if source["id"] == source["id"]:
-                                    source["comments"].extend(
-                                        comments_added_during_shift
-                                    )
-                                    break
-
-                        # if the source is already in the list, simply add the additional comment to the existing source
-
-            report['source'] = sources_added_during_shifts
+            report['sources'] = {'total': len(sources_added_during_shifts)}
+            report['sources']['data'] = sources_added_during_shifts
 
         return self.success(report)
