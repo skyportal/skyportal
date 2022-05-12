@@ -90,8 +90,8 @@ const NewAPIQueuedObservation = () => {
 
   const handleSubmit = async ({ formData }) => {
     const data = {
-      startDate: formData.start_date.replace("+00:00", ""),
-      endDate: formData.end_date.replace("+00:00", ""),
+      startDate: formData.start_date.replace("+00:00", "").replace(".000Z", ""),
+      endDate: formData.end_date.replace("+00:00", "").replace(".000Z", ""),
     };
     await dispatch(
       queuedObservationActions.requestAPIQueuedObservations(
