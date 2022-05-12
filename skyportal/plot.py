@@ -1371,7 +1371,7 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
     obj = Obj.get_if_accessible_by(obj_id, user)
     if obj.dm is not None:
         plot.extra_y_ranges = {
-            "Absolute Mag": Range1d(start=y_range[1] - obj.dm, end=y_range[0] - obj.dm)
+            "Absolute Mag": Range1d(start=y_range[0] - obj.dm, end=y_range[1] - obj.dm)
         }
         plot.add_layout(
             LinearAxis(y_range_name="Absolute Mag", axis_label="m - DM"), 'right'

@@ -6,7 +6,7 @@ from selenium.common.exceptions import TimeoutException
 
 
 def test_super_user_post_shift(
-    public_group, super_admin_token, super_admin_user, driver
+    public_group, super_admin_token, super_admin_user, user, view_only_user, driver
 ):
     name = str(uuid.uuid4())
     start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
@@ -69,6 +69,80 @@ def test_super_user_post_shift(
     )
     driver.wait_for_xpath(event_shift_xpath)
     driver.click_xpath(event_shift_xpath)
+
+    # check for deactivated button to add users
+    deactivated_add_user_button = '//*[@id="deactivated-add-users-button"]'
+    driver.wait_for_xpath(deactivated_add_user_button)
+
+    # check for the dropdown to add a user
+    select_users = '//*[@id="select-users--multiple-chip"]'
+    driver.wait_for_xpath(select_users)
+    driver.click_xpath(select_users)
+    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
+    driver.click_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
+
+    # check for button to add users
+    remove_users_button = '//*[@id="deactivated-remove-users-button"]'
+    driver.wait_for_xpath(remove_users_button)
+    add_users_button = '//*[@id="add-users-button"]'
+    driver.wait_for_xpath(add_users_button)
+    driver.click_xpath(add_users_button)
+
+    # check if user has been added
+    shift_members = '//*[@id="current_shift_members"]'
+    driver.wait_for_xpath(shift_members + f'[contains(text(), "{user.username}")]')
+
+    # check for the dropdown to add and remove users
+    select_users = '//*[@id="select-users--multiple-chip"]'
+    driver.wait_for_xpath(select_users)
+    driver.click_xpath(select_users)
+    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
+    driver.click_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
+
+    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
+    driver.click_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
+
+    # check for button to add and remove users
+    add_users_button = '//*[@id="add-users-button"]'
+    driver.wait_for_xpath(add_users_button)
+    driver.click_xpath(add_users_button)
+
+    # check for button to add and remove users
+    remove_users_button = '//*[@id="remove-users-button"]'
+    driver.wait_for_xpath(remove_users_button, timeout=2)
+    driver.click_xpath(remove_users_button)
+
+    # check if user has been added and other user has been removed
+    shift_members = '//*[@id="current_shift_members"]'
+
+    driver.wait_for_xpath(
+        shift_members + f'[contains(text(), "{view_only_user.username}")]'
+    )
+
+    driver.wait_for_xpath_to_disappear(
+        shift_members + f'[contains(text(), "{user.username}")]'
+    )
+
+    # check for the dropdown to remove users
+    select_users = '//*[@id="select-users--multiple-chip"]'
+    driver.wait_for_xpath(select_users)
+    driver.click_xpath(select_users)
+
+    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
+    driver.click_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
+
+    # check for button to remove users
+    add_users_button = '//*[@id="deactivated-add-users-button"]'
+    driver.wait_for_xpath(add_users_button)
+    remove_users_button = '//*[@id="remove-users-button"]'
+    driver.wait_for_xpath(remove_users_button)
+    driver.click_xpath(remove_users_button)
+
+    # check if user has been removed
+    shift_members = '//*[@id="current_shift_members"]'
+    driver.wait_for_xpath_to_disappear(
+        shift_members + f'[contains(text(), "{view_only_user.username}")]'
+    )
 
     # check for leave shift button
     leave_button_xpath = '//*[@id="leave_button"]'
