@@ -38,6 +38,14 @@ function telescopelabel(nestedTelescope) {
     .join(" / ");
 }
 
+function telescopeCanObserve(nestedTelescope) {
+  let color = "#f9d71c";
+  if (nestedTelescope.is_night_astronomical_at_least_one) {
+    color = "#0c1445";
+  }
+  return color;
+}
+
 function TelescopeMarker({ nestedTelescope, position }) {
   return (
     <Marker
@@ -46,7 +54,20 @@ function TelescopeMarker({ nestedTelescope, position }) {
       coordinates={[nestedTelescope.lon, nestedTelescope.lat]}
       onClick={() => setCurrentTelescopes(nestedTelescope)}
     >
-      <circle r={6.5 / position.k} fill="#457B9C" />
+      {nestedTelescope.fixed_location ? (
+        <circle
+          r={6.5 / position.k}
+          fill={telescopeCanObserve(nestedTelescope)}
+        />
+      ) : (
+        <rect
+          x={-6.5 / position.k}
+          y={-6.5 / position.k}
+          width={13 / position.k}
+          height={13 / position.k}
+          fill="#5ca9d6"
+        />
+      )}
       <text
         id="telescopes_label"
         textAnchor="middle"
@@ -77,6 +98,9 @@ const TelescopeMap = ({ telescopes }) => {
       nestedTelescopes.push({
         lat: filteredTelescopes[i].lat,
         lon: filteredTelescopes[i].lon,
+        is_night_astronomical_at_least_one:
+          filteredTelescopes[i].is_night_astronomical,
+        fixed_location: true,
         telescopes: [filteredTelescopes[i]],
       });
     } else {
@@ -96,17 +120,39 @@ const TelescopeMap = ({ telescopes }) => {
           ) < 2
         ) {
           nestedTelescopes[j].telescopes.push(filteredTelescopes[i]);
+          if (filteredTelescopes[i].is_night_astronomical) {
+            nestedTelescopes[j].is_night_astronomical_at_least_one = true;
+          }
           break;
         } else if (j === nestedTelescopes.length - 1) {
           nestedTelescopes.push({
             lat: filteredTelescopes[i].lat,
             lon: filteredTelescopes[i].lon,
+            is_night_astronomical_at_least_one:
+              filteredTelescopes[i].is_night_astronomical,
+            fixed_location: true,
             telescopes: [filteredTelescopes[i]],
           });
           break;
         }
       }
     }
+  }
+
+  const nonFixedTelescopes = telescopes.filter(
+    (telescope) => !telescope.fixed_location
+  );
+
+  if (nonFixedTelescopes.length > 0) {
+    nestedTelescopes.push({
+      lat: -52,
+      lon: 125,
+      is_night_astronomical_at_least_one: nonFixedTelescopes.some(
+        (telescope) => telescope.is_night_astronomical
+      ),
+      fixed_location: false,
+      telescopes: nonFixedTelescopes,
+    });
   }
 
   dispatch = useDispatch();
@@ -132,6 +178,7 @@ const TelescopeMap = ({ telescopes }) => {
                 nestedTelescope.lon &&
                 nestedTelescope.lat && (
                   <TelescopeMarker
+                    key={`${nestedTelescope.lon},${nestedTelescope.lat}`}
                     nestedTelescope={nestedTelescope}
                     position={position}
                   />
@@ -159,16 +206,19 @@ TelescopeMap.propTypes = {
 
 TelescopeMarker.propTypes = {
   nestedTelescope: PropTypes.shape({
-    lat: PropTypes.number,
-    lon: PropTypes.number,
+    lat: PropTypes.number.isRequired,
+    lon: PropTypes.number.isRequired,
+    fixed_location: PropTypes.bool.isRequired,
+    is_night_astronomical_at_least_one: PropTypes.bool.isRequired,
     telescopes: PropTypes.arrayOf(
       PropTypes.shape({
-        id: PropTypes.number,
-        name: PropTypes.string,
-        nickname: PropTypes.string,
-        lat: PropTypes.number,
-        lon: PropTypes.number,
+        id: PropTypes.number.isRequired,
+        name: PropTypes.string.isRequired,
+        nickname: PropTypes.string.isRequired,
+        lat: PropTypes.number.isRequired,
+        lon: PropTypes.number.isRequired,
         fixed_location: PropTypes.bool,
+        is_night_astronomical: PropTypes.bool.isRequired,
       })
     ),
   }).isRequired,
