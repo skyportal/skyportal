@@ -25,13 +25,21 @@ RED = '\033[91m'
 YELLOW = '\033[93m'
 
 
-def users_without_given_role(role='System admin'):
-    return [
-        user[0]
-        for user in DBSession().execute(
-            sa.select(User).filter(~User.roles.any(Role.id == role))
-        )
-    ]
+def users_without_given_role(role=None):
+    if role:
+        return [
+            user[0]
+            for user in DBSession().execute(
+                sa.select(User).filter(~User.roles.any(Role.id == role))
+            )
+        ]
+    else:
+        return [
+            user[0]
+            for user in DBSession().execute(
+                sa.select(User)
+            )
+        ]
 
 
 def roles_user_has(user):
