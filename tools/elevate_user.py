@@ -2,7 +2,7 @@ import argparse
 from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from skyportal.model_util import add_user, setup_permissions, role_acls
-from baselayer.app.models import User, Role
+from baselayer.app.models import User
 from baselayer.app.models import DBSession
 import sqlalchemy as sa
 
@@ -25,21 +25,8 @@ RED = '\033[91m'
 YELLOW = '\033[93m'
 
 
-def users_without_given_role(role=None):
-    if role:
-        return [
-            user[0]
-            for user in DBSession().execute(
-                sa.select(User).filter(~User.roles.any(Role.id == role))
-            )
-        ]
-    else:
-        return [
-            user[0]
-            for user in DBSession().execute(
-                sa.select(User)
-            )
-        ]
+def get_users(role=None):
+    return [user[0] for user in DBSession().execute(sa.select(User))]
 
 
 def roles_user_has(user):
@@ -51,7 +38,7 @@ def roles_user_does_not_have(user):
 
 
 def list_users():
-    users = users_without_given_role()
+    users = get_users()
     if len(users) == 0:
         print('\nNo users left to elevate!')
     else:
@@ -91,16 +78,26 @@ def elevate_user(username=None, role=None):
         print('\n')
 
     elif username is not None:
-        if username in [user.username for user in users_without_given_role(role)]:
-            setup_permissions()
-            add_user(username, roles=[role], auth=True)
-            print(
-                f'\n{BOLD}{YELLOW}User {username}{END} successfully elevated to role: {BOLD}{GREEN}{role}{END}!\n'
-            )
+        users = get_users()
+        if username in [user.username for user in users]:
+            if role not in [
+                role.id
+                for role in [
+                    user.roles[0] for user in users if user.username == username
+                ]
+            ]:
+                setup_permissions()
+                add_user(username, roles=[role], auth=True)
+                print(
+                    f'\n{BOLD}{YELLOW}User {username}{END} successfully elevated to role: {BOLD}{GREEN}{role}{END}!\n'
+                )
+            else:
+                print(
+                    f'\nUser {BOLD}{YELLOW}{username}{END} {BOLD}{GREEN}already has this role{END}\n'
+                )
+
         else:
-            print(
-                f'\nUser {BOLD}{YELLOW}{username}{END} {BOLD}{GREEN}already has this role{END}, {BOLD}{RED}or does not exist{END}!\n'
-            )
+            print(f'\n{BOLD}{RED}User does not exist{END}!\n')
 
 
 def main():
