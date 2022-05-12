@@ -8,6 +8,7 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 import NewShift from "./NewShift";
 import MyCalendar from "./ShiftCalendar";
 import CurrentShiftMenu from "./ShiftManagement";
+import ShiftsSummary from "./ShiftsSummary";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -46,6 +47,9 @@ const ShiftPage = () => {
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
           <MyCalendar shifts={shiftList} />
+        </Paper>
+        <Paper>
+          <ShiftsSummary />
         </Paper>
       </Grid>
 

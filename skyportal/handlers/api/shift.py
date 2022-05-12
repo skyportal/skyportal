@@ -500,6 +500,10 @@ class ShiftsSummary(BaseHandler):
         if start_date.date() > datetime.today().date():
             return self.error("Please provide start_date < today")
 
+        # if there is more than 4 weeks, we return an error
+        if (end_date - start_date).days > 28:
+            return self.error("Please provide a period of less than 4 weeks")
+
         report = {}
 
         shifts = (
@@ -640,5 +644,5 @@ class ShiftsSummary(BaseHandler):
                             sources_added_during_shifts.append(source)
             report['sources'] = {'total': len(sources_added_during_shifts)}
             report['sources']['data'] = sources_added_during_shifts
-
-        return self.success(report)
+        self.push_all(action="skyportal/FETCH_SHIFT_SUMMARY")
+        return self.success(data=report)

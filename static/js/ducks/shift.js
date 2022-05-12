@@ -15,12 +15,18 @@ const CURRENT_SHIFT = "skyportal/CURRENT_SHIFT";
 
 const CURRENT_SHIFT_SELECTED_USERS = "skyportal/CURRENT_SHIFT_SELECTED_USERS";
 
+const FETCH_SHIFT_SUMMARY = "skyportal/FETCH_SHIFT_SUMMARY";
+
 export const fetchShift = (id) => API.GET(`/api/shifts/${id}`, FETCH_SHIFT);
 
 export const submitShift = (run) => API.POST(`/api/shifts`, SUBMIT_SHIFT, run);
 
 export function deleteShift(shiftID) {
   return API.DELETE(`/api/shifts/${shiftID}`, DELETE_SHIFT);
+}
+
+export function getShiftsSummary(data) {
+  return API.GET(`/api/shifts/summary`, FETCH_SHIFT_SUMMARY, data);
 }
 
 // Websocket message handler
@@ -34,7 +40,10 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer = (state = { currentShift: {}, selectedUsers: [] }, action) => {
+const reducer = (
+  state = { currentShift: {}, selectedUsers: [], shiftsSummary: [] },
+  action
+) => {
   switch (action.type) {
     case CURRENT_SHIFT: {
       const currentShift = action.data;
@@ -48,6 +57,13 @@ const reducer = (state = { currentShift: {}, selectedUsers: [] }, action) => {
       return {
         ...state,
         selectedUsers,
+      };
+    }
+    case FETCH_SHIFT_SUMMARY: {
+      const shiftsSummary = action.data;
+      return {
+        ...state,
+        shiftsSummary,
       };
     }
     default:
