@@ -423,6 +423,7 @@ function CurrentShiftMenu({ currentShift }) {
         // dispatch an empty shift to clear the current shift
         dispatch({ type: "skyportal/CURRENT_SHIFT", data: {} });
         dispatch(showNotification("Shift deleted"));
+        dispatch(fetchShifts());
       }
     });
   };
@@ -439,7 +440,9 @@ function CurrentShiftMenu({ currentShift }) {
         dispatch(showNotification(`joined shift: ${shift.name}`));
         // dispatch currentShift adding the current user
         currentShift.shift_users.push(currentUser);
+
         dispatch({ type: "skyportal/CURRENT_SHIFT", data: currentShift });
+        dispatch(fetchShifts());
       }
     });
   };
@@ -645,6 +648,7 @@ function CurrentShiftMenu({ currentShift }) {
         );
         dispatch({ type: "skyportal/CURRENT_SHIFT", data: currentShift });
         dispatch(showNotification(`left shift: ${shift.name}`));
+        dispatch(fetchShifts());
       }
     });
   };

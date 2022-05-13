@@ -1,8 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import ShiftPage from "./ShiftPage";
 
-const ShiftNoId = () => {
-  return <ShiftPage />;
-};
+const ShiftNoId = () => <ShiftPage />;
 
 export default ShiftNoId;
