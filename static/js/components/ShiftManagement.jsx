@@ -418,12 +418,11 @@ function CurrentShiftMenu({ currentShift }) {
   }
 
   const deleteShift = (shift) => {
+    dispatch({ type: "skyportal/CURRENT_SHIFT", data: {} });
     dispatch(shiftActions.deleteShift(shift.id)).then((result) => {
       if (result.status === "success") {
         // dispatch an empty shift to clear the current shift
-        dispatch({ type: "skyportal/CURRENT_SHIFT", data: {} });
         dispatch(showNotification("Shift deleted"));
-        dispatch(fetchShifts());
       }
     });
   };
@@ -438,11 +437,6 @@ function CurrentShiftMenu({ currentShift }) {
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification(`joined shift: ${shift.name}`));
-        // dispatch currentShift adding the current user
-        currentShift.shift_users.push(currentUser);
-
-        dispatch({ type: "skyportal/CURRENT_SHIFT", data: currentShift });
-        dispatch(fetchShifts());
       }
     });
   };
@@ -642,13 +636,7 @@ function CurrentShiftMenu({ currentShift }) {
       deleteShiftUser({ userID: currentUser.id, shift_id: shift.id })
     ).then((result) => {
       if (result.status === "success") {
-        // dispatch currentShift without the current user
-        currentShift.shift_users = [...currentShift.shift_users].filter(
-          (user) => user.id !== currentUser.id
-        );
-        dispatch({ type: "skyportal/CURRENT_SHIFT", data: currentShift });
         dispatch(showNotification(`left shift: ${shift.name}`));
-        dispatch(fetchShifts());
       }
     });
   };

@@ -42,7 +42,6 @@ const ShiftPage = ({ route }) => {
       setEvents(datestringToDate(shiftList));
     } else if (events.length !== shiftList.length) {
       setEvents(datestringToDate(shiftList));
-      // check if the currentShift is in the new shift list and if they have changed
     } else if (currentShift) {
       if (Object.keys(currentShift).length > 0) {
         if (
@@ -58,10 +57,15 @@ const ShiftPage = ({ route }) => {
   if (route && shiftList.length > 0) {
     if (currentShift) {
       if (!currentShift.id) {
-        dispatch({
-          type: "skyportal/CURRENT_SHIFT",
-          data: shiftList.find((shift) => shift.id === parseInt(route.id, 10)),
-        });
+        const newCurrentShift = shiftList.find(
+          (shift) => shift.id === parseInt(route.id, 10)
+        );
+        if (newCurrentShift) {
+          dispatch({
+            type: "SET_CURRENT_SHIFT",
+            data: newCurrentShift,
+          });
+        }
       }
     }
   }

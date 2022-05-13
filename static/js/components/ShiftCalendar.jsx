@@ -7,7 +7,6 @@ import { showNotification } from "baselayer/components/Notifications";
 import { CircularProgress } from "@material-ui/core";
 import PropTypes from "prop-types";
 import * as shiftActions from "../ducks/shift";
-import { fetchShifts } from "../ducks/shifts";
 
 /* eslint-disable react/prop-types */
 
@@ -56,7 +55,6 @@ async function handleSelectSlot({ start, end }) {
         ).then((result) => {
           if (result.status === "success") {
             dispatch(showNotification("Shift saved"));
-            dispatch(fetchShifts());
           }
         });
       }
@@ -97,7 +95,6 @@ function MyCalendar({ events, currentShift }) {
 
   if (currentShift && !defaultDate) {
     if (currentShift.start_date) {
-      // check if start date is a string or a date object
       if (typeof currentShift.start_date === "string") {
         setDefaultDate(new Date(`${currentShift.start_date}Z`));
       } else {
