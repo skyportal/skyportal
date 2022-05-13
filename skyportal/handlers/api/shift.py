@@ -303,20 +303,26 @@ class ShiftUserHandler(BaseHandler):
             return self.error(
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
-        # if the shift has no users, we need to make sure the user is an admin
-        if not ShiftUser.query.filter_by(shift_id=shift_id).count():
-            admin = True
-
-        shift_id = int(shift_id)
+        # if the shift has no admins, we add the user as an admin
+        try:
+            shift_id = int(shift_id)
+        except (ValueError, TypeError):
+            return self.error("Invalid shift_id parameter: unable to parse to integer")
 
         shift = Shift.get_if_accessible_by(
-            shift_id, self.current_user, raise_if_none=True, mode='read'
+            shift_id,
+            self.current_user,
+            raise_if_none=True,
+            mode='read',
+            options=[joinedload(Shift.shift_users)],
         )
+        if not any(su.admin for su in shift.shift_users):
+            admin = True
+
         user = User.get_if_accessible_by(
             user_id, self.current_user, raise_if_none=True, mode='read'
         )
 
-        # Add user to group
         su = (
             ShiftUser.query.filter(ShiftUser.shift_id == shift_id)
             .filter(ShiftUser.user_id == user_id)

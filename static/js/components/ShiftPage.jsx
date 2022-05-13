@@ -35,7 +35,6 @@ const ShiftPage = ({ route }) => {
   const currentUser = useSelector((state) => state.profile);
   const shiftList = useSelector((state) => state.shifts.shiftList);
   const currentShift = useSelector((state) => state.shift.currentShift);
-  console.log("rerendering shift page");
   const [events, setEvents] = React.useState([]);
 
   if (shiftList) {
@@ -45,10 +44,7 @@ const ShiftPage = ({ route }) => {
       setEvents(datestringToDate(shiftList));
       // check if the currentShift is in the new shift list and if they have changed
     } else if (currentShift) {
-      console.log("currentShift", currentShift);
       if (Object.keys(currentShift).length > 0) {
-        console.log("currentShift 2nd condition", currentShift);
-
         if (
           events.find((shift) => shift.id === currentShift.id).shift_users
             .length !== currentShift.shift_users.length
