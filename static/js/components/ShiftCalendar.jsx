@@ -4,6 +4,7 @@ import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { showNotification } from "baselayer/components/Notifications";
+import { CircularProgress } from "@material-ui/core";
 import PropTypes from "prop-types";
 import * as shiftActions from "../ducks/shift";
 import { fetchShifts } from "../ducks/shifts";
@@ -92,24 +93,24 @@ function MyCalendar({ events, currentShift }) {
   currentUser = useSelector((state) => state.profile);
   dispatch = useDispatch();
   groups = useSelector((state) => state.groups.userAccessible);
-  const [date, setDate] = React.useState();
+  const [defaultDate, setDefaultDate] = React.useState();
 
-  if (currentShift && !date) {
+  if (currentShift && !defaultDate) {
     if (currentShift.start_date) {
       // check if start date is a string or a date object
       if (typeof currentShift.start_date === "string") {
-        setDate(new Date(`${currentShift.start_date}Z`));
+        setDefaultDate(new Date(`${currentShift.start_date}Z`));
       } else {
-        setDate(new Date(currentShift.start_date.getTime()));
+        setDefaultDate(new Date(currentShift.start_date.getTime()));
       }
     }
-  } else if (!date) {
-    setDate(new Date());
+  } else if (!defaultDate) {
+    setDefaultDate(new Date());
   }
 
-  function handleNavigate(date, view, action) {
-    setDate(moment(date).toDate());
-  }
+  const handleNavigate = (date) => {
+    setDefaultDate(moment(date).toDate());
+  };
 
   return (
     <div>
@@ -118,7 +119,7 @@ function MyCalendar({ events, currentShift }) {
       ) : (
         <Calendar
           events={events}
-          date={date}
+          date={defaultDate}
           onNavigate={handleNavigate}
           views={allViews}
           step={60}

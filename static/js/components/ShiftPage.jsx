@@ -1,13 +1,14 @@
 import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { makeStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
-import { makeStyles } from "@material-ui/core/styles";
+import CircularProgress from "@material-ui/core/CircularProgress";
+import PropTypes from "prop-types";
 import NewShift from "./NewShift";
 import MyCalendar from "./ShiftCalendar";
 import CurrentShiftMenu from "./ShiftManagement";
-import CircularProgress from "@material-ui/core/CircularProgress";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -47,7 +48,7 @@ const ShiftPage = ({ route }) => {
     if (!currentShift.id) {
       dispatch({
         type: "skyportal/CURRENT_SHIFT",
-        data: shiftList.find((shift) => shift.id === parseInt(route.id)),
+        data: shiftList.find((shift) => shift.id === parseInt(route.id, 10)),
       });
     }
   }
@@ -93,6 +94,16 @@ const ShiftPage = ({ route }) => {
       </Grid>
     </Grid>
   );
+};
+
+ShiftPage.propTypes = {
+  route: PropTypes.shape({
+    id: PropTypes.string,
+  }),
+};
+
+ShiftPage.defaultProps = {
+  route: null,
 };
 
 export default ShiftPage;

@@ -15,9 +15,7 @@ const UPDATE_SHIFT_USER = "skyportal/UPDATE_SHIFT_USER";
 const DELETE_SHIFT_USER = "skyportal/DELETE_SHIFT_USER";
 
 // eslint-disable-next-line import/prefer-default-export
-export const fetchShifts = () => {
-  return API.GET("/api/shifts", FETCH_SHIFTS);
-};
+export const fetchShifts = () => API.GET("/api/shifts", FETCH_SHIFTS);
 
 export function addShiftUser({ userID, admin, shift_id }) {
   return API.POST(`/api/shifts/${shift_id}/users`, ADD_SHIFT_USER, {
@@ -32,16 +30,11 @@ export const updateShiftUser = ({
   admin,
   needs_replacement,
   shift_id,
-}) => {
-  return API.PATCH(
-    `/api/shifts/${shift_id}/users/${userID}`,
-    UPDATE_SHIFT_USER,
-    {
-      admin,
-      needs_replacement,
-    }
-  );
-};
+}) =>
+  API.PATCH(`/api/shifts/${shift_id}/users/${userID}`, UPDATE_SHIFT_USER, {
+    admin,
+    needs_replacement,
+  });
 
 export function deleteShiftUser({ userID, shift_id }) {
   return API.DELETE(

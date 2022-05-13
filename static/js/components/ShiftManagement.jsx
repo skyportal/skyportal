@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
@@ -12,6 +12,7 @@ import Checkbox from "@material-ui/core/Checkbox";
 import Box from "@material-ui/core/Box";
 import ListItemText from "@material-ui/core/ListItemText";
 import Tooltip from "@material-ui/core/Tooltip";
+import PropTypes from "prop-types";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as shiftActions from "../ducks/shift";
@@ -453,23 +454,23 @@ function CurrentShiftMenu({ currentShift }) {
     );
 
     function replaceUserInShift(selected_user) {
-      const shift_id = parseInt(currentShift.id);
+      const shift_id = parseInt(currentShift.id, 10);
       dispatch(
         deleteShiftUser({
           userID: selected_user.id,
-          shift_id: shift_id,
+          shift_id,
         })
       ).then((result) => {
         if (result.status === "success") {
           dispatch(
             addShiftUser({
-              shift_id: shift_id,
+              shift_id,
               userID: currentUser.id,
               admin: false,
               needs_replacement: false,
             })
-          ).then((result) => {
-            if (result.status === "success") {
+          ).then((next_result) => {
+            if (next_result.status === "success") {
               dispatch(
                 showNotification(`replaced user: ${selected_user.username}`)
               );
@@ -516,10 +517,7 @@ function CurrentShiftMenu({ currentShift }) {
     };
 
     const askForReplacementButton = () => {
-      console.log("askForReplacementButton");
       let button = null;
-      console.log("currentUserInShift", currentUserInShift);
-      console.log("currentUserIsNotAdminOfShift", !currentUserIsAdminOfShift);
       if (currentUserInShift && !currentUserIsAdminOfShift) {
         // check if the user has already asked for a replacement
         const userHasAlreadyAskedForReplacement = usersToReplace.some(
@@ -534,15 +532,14 @@ function CurrentShiftMenu({ currentShift }) {
                 color="primary"
                 className={classes.replacementButton}
                 onClick={() => {
-                  console.log("shift id", currentShift.id);
-                  const shift_id = parseInt(currentShift.id);
-                  const userID = parseInt(currentUser.id);
+                  const shift_id = parseInt(currentShift.id, 10);
+                  const userID = parseInt(currentUser.id, 10);
                   dispatch(
                     updateShiftUser({
-                      userID: userID,
+                      userID,
                       admin: false,
                       needs_replacement: true,
-                      shift_id: shift_id,
+                      shift_id,
                     })
                   ).then((result) => {
                     if (result.status === "success") {
@@ -571,8 +568,6 @@ function CurrentShiftMenu({ currentShift }) {
         setSelectedToReplace({});
       }
     };
-    console.log("usersToReplace", usersToReplace);
-    console.log("current user is not in shift", !currentUserInShift);
 
     return (
       <div>
@@ -592,13 +587,13 @@ function CurrentShiftMenu({ currentShift }) {
                 value={selectedToReplace}
                 onChange={handleChangeReplace}
                 input={<OutlinedInput id="select-chip" label="Chip" />}
-                renderValue={(selectedToReplace) => (
+                renderValue={(selectedToReplaceValue) => (
                   <Box id="selected_users">
-                    {Object.keys(selectedToReplace).length > 0 && (
+                    {Object.keys(selectedToReplaceValue).length > 0 && (
                       <Chip
-                        key={`${selectedToReplace.id}_selected_to_replace`}
-                        id={selectedToReplace.id}
-                        label={userLabel(selectedToReplace)}
+                        key={`${selectedToReplaceValue.id}_selected_to_replace`}
+                        id={selectedToReplaceValue.id}
+                        label={userLabel(selectedToReplaceValue)}
                       />
                     )}
                   </Box>
@@ -634,6 +629,10 @@ function CurrentShiftMenu({ currentShift }) {
       </div>
     );
   }
+
+  ReplaceUserMenu.propTypes = {
+    currentUserIsAdminOfShift: PropTypes.bool.isRequired,
+  };
 
   const leaveShift = (shift) => {
     dispatch(
@@ -782,4 +781,31 @@ function CurrentShiftMenu({ currentShift }) {
     )
   );
 }
+
+CurrentShiftMenu.propTypes = {
+  currentShift: PropTypes.shape({
+    id: PropTypes.number,
+    name: PropTypes.string,
+    description: PropTypes.string,
+    start_date: PropTypes.instanceOf(Date),
+    end_date: PropTypes.instanceOf(Date),
+    group: PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string,
+      group_users: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          admin: PropTypes.bool,
+        })
+      ),
+    }),
+    shift_users: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        admin: PropTypes.bool,
+      })
+    ),
+  }).isRequired,
+};
+
 export default CurrentShiftMenu;
