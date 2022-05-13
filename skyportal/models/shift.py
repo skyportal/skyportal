@@ -12,7 +12,6 @@ from baselayer.app.models import (
     UserAccessControl,
     DBSession,
     safe_aliased,
-    AccessibleIfUserMatches,
 )
 from baselayer.app.env import load_env
 
@@ -110,17 +109,21 @@ ShiftUser.admin = sa.Column(
     default=False,
     doc="Boolean flag indicating whether the User is an admin of the shift.",
 )
+# add a column that is a boolean saying if a user needs a replacement for the shift
+ShiftUser.needs_replacement = sa.Column(
+    sa.Boolean,
+    nullable=True,
+    default=False,
+    doc="Boolean flag indicating whether the User needs a replacement for the shift.",
+)
 
-ShiftUser.update = CustomUserAccessControl(shiftuser_update_access_logic)
+ShiftUser.update = ShiftUser.read
 ShiftUser.delete = (
     # TODO: admins can leave a shift ONLY if there is at least one other admin
     # users can remove themselves from a shift
     # admins of a shift can remove users from it
-    (AccessibleIfUserMatches('user'))
-    & ShiftUser.read
-    & CustomUserAccessControl(
-        lambda cls, user_or_token: DBSession().query(cls).join(Shift)
-    )
+    # anyone can remove a user that has asked for a replacement
+    ShiftUser.read
 )
 
 ShiftUser.create = ShiftUser.read

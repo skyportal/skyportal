@@ -1,13 +1,13 @@
-import React from "react";
-import { useSelector } from "react-redux";
+import React, { useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
 import { makeStyles } from "@material-ui/core/styles";
-import CircularProgress from "@material-ui/core/CircularProgress";
 import NewShift from "./NewShift";
 import MyCalendar from "./ShiftCalendar";
 import CurrentShiftMenu from "./ShiftManagement";
+import CircularProgress from "@material-ui/core/CircularProgress";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -28,15 +28,38 @@ function datestringToDate(shiftList) {
   return shiftList;
 }
 
-const ShiftPage = () => {
+const ShiftPage = ({ route }) => {
   const classes = useStyles();
-  let { shiftList } = useSelector((state) => state.shifts);
+  const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.profile);
-  shiftList = datestringToDate(shiftList);
-
-  if (!shiftList) {
-    return <CircularProgress />;
+  const shiftList = useSelector((state) => state.shifts.shiftList);
+  const [events, setEvents] = React.useState([]);
+  if (shiftList) {
+    if (!events) {
+      setEvents(datestringToDate(shiftList));
+    } else if (events.length !== shiftList.length) {
+      setEvents(datestringToDate(shiftList));
+    }
   }
+  const currentShift = useSelector((state) => state.shift.currentShift);
+
+  if (route && shiftList.length > 0) {
+    if (!currentShift.id) {
+      dispatch({
+        type: "skyportal/CURRENT_SHIFT",
+        data: shiftList.find((shift) => shift.id === parseInt(route.id)),
+      });
+    }
+  }
+
+  useEffect(() => {
+    if (currentShift) {
+      const shift = shiftList.find((s) => s.id === currentShift.id);
+      if (shift) {
+        dispatch({ type: "skyportal/CURRENT_SHIFT", data: shift });
+      }
+    }
+  }, [shiftList, dispatch, currentShift]);
 
   const permission =
     currentUser.permissions?.includes("System admin") ||
@@ -45,13 +68,19 @@ const ShiftPage = () => {
     <Grid container spacing={3}>
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
-          <MyCalendar shifts={shiftList} />
+          {events ? (
+            <MyCalendar events={events} currentShift={currentShift} />
+          ) : (
+            <CircularProgress />
+          )}
         </Paper>
       </Grid>
 
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
-          <CurrentShiftMenu />
+          {events && Object.keys(currentShift).length > 0 ? (
+            <CurrentShiftMenu currentShift={currentShift} />
+          ) : null}
         </Paper>
         {permission && (
           <Paper>
