@@ -40,7 +40,7 @@ def roles_user_does_not_have(user):
 def list_users():
     users = get_users()
     if len(users) == 0:
-        print('\nNo users left to elevate!')
+        print('\nNo users in database')
     else:
         # print each user's username and roles
         print(f'\n{BOLD}List of users with their current roles:{END}')
