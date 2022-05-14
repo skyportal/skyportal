@@ -93,7 +93,7 @@ def elevate_user(username=None, role=None):
                 )
             else:
                 print(
-                    f'\nUser {BOLD}{YELLOW}{username}{END} {BOLD}{GREEN}already has this role{END}\n'
+                    f'\nUser {BOLD}{YELLOW}{username}{END} already has role {BOLD}{GREEN}{role}{END}\n'
                 )
 
         else:
