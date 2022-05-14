@@ -159,7 +159,7 @@ Also, you can omit those arguments and use:
 ```
 PYTHONPATH=. python tools/elevate_user.py --list
 ```
-to list all users, their roles and the roles that they can be elevated to.
+to list all users, their roles and the roles that they can be set to.
 
 
 ### Test data
