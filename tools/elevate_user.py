@@ -89,7 +89,7 @@ def elevate_user(username=None, role=None):
                 setup_permissions()
                 add_user(username, roles=[role], auth=True)
                 print(
-                    f'\n{BOLD}{YELLOW}User {username}{END} successfully elevated to role: {BOLD}{GREEN}{role}{END}!\n'
+                    f'\nSuccessfully assigned role {BOLD}{GREEN}{role}{END} to {BOLD}{YELLOW}User {username}{END}\n'
                 )
             else:
                 print(
