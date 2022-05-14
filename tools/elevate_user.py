@@ -68,7 +68,7 @@ def list_users():
 def elevate_user(username=None, role=None):
     if not role:
         print(
-            f'{BOLD}{RED}\nNo role given!{END} User will be elevated to {BOLD}{GREEN}Super admin{END}{BOLD} by default{END}.'
+            f'{BOLD}{RED}\nNo role provided;{END} setting to {BOLD}{GREEN}Super admin{END}{BOLD}{END}.'
         )
         role = 'Super admin'
     if role not in role_acls:
