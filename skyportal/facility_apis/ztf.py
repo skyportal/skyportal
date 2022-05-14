@@ -258,16 +258,16 @@ def commit_photometry(url, altdata, df_request, request_id, instrument_id, user_
         df['magerr'] = 1.0857 * df['forcediffimfluxunc'] / df['forcediffimflux']
 
         snr = df['forcediffimflux'] / df['forcediffimfluxunc'] < 5
-        df['mag'].loc[snr] = None
-        df['magerr'].loc[snr] = None
+        df.loc[snr, 'mag'] = None
+        df.loc[snr, 'magerr'] = None
 
         iszero = df['forcediffimfluxunc'] == 0.0
-        df['mag'].loc[iszero] = None
-        df['magerr'].loc[iszero] = None
+        df.loc[iszero, 'mag'] = None
+        df.loc[iszero, 'magerr'] = None
 
         isnan = np.isnan(df['forcediffimflux'])
-        df['mag'].loc[isnan] = None
-        df['magerr'].loc[isnan] = None
+        df.loc[isnan, 'mag'] = None
+        df.loc[isnan, 'magerr'] = None
 
         df = df.replace({np.nan: None})
 
