@@ -12,7 +12,7 @@ init_db(**cfg['database'])
 parser = argparse.ArgumentParser(
     description='Elevate user to super admin', add_help=False
 )
-parser.add_argument('--username', help='Username of the user to elevate')
+parser.add_argument('--username', help='User to set role for')
 parser.add_argument('--list', action='store_true', help='List all users')
 parser.add_argument('--role', help='Role to elevate user to')
 
