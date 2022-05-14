@@ -107,7 +107,7 @@ def main():
         elevate_user(args.username, args.role)
     else:
         print(
-            f'\n{BOLD}{RED}No arguments given{END}! Displaying {BOLD}{GREEN}Help{END}:\n'
+            f'\n{BOLD}{RED}No arguments given;{END} displaying {BOLD}{GREEN}usage{END}:\n'
         )
         parser.print_help()
 
