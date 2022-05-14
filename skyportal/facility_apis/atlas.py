@@ -150,18 +150,18 @@ def commit_photometry(json_response, altdata, request_id, instrument_id, user_id
 
         snr = df['uJy'] / df['duJy'] < 5
 
-        df['filter'].loc[cyan] = 'atlasc'
-        df['filter'].loc[orange] = 'atlaso'
-        df['mag'].loc[snr] = None
-        df['magerr'].loc[snr] = None
+        df.loc[cyan, 'filter'] = 'atlasc'
+        df.loc[orange, 'filter'] = 'atlaso'
+        df.loc[snr, 'mag'] = None
+        df.loc[snr, 'magerr'] = None
 
         iszero = df['duJy'] == 0.0
-        df['mag'].loc[iszero] = None
-        df['magerr'].loc[iszero] = None
+        df.loc[iszero, 'mag'] = None
+        df.loc[iszero, 'magerr'] = None
 
         isnan = np.isnan(df['uJy'])
-        df['mag'].loc[isnan] = None
-        df['magerr'].loc[isnan] = None
+        df.loc[isnan, 'mag'] = None
+        df.loc[isnan, 'magerr'] = None
 
         df = df.replace({np.nan: None})
 
