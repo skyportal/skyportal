@@ -97,7 +97,7 @@ def elevate_user(username=None, role=None):
                 )
 
         else:
-            print(f'\n{BOLD}{RED}User does not exist{END}!\n')
+            print(f'\n{BOLD}{RED}User{END} {BOLD}{YELLOW}{user}{END} {BOLD}{RED}does not exist{END}\n')
 
 
 def main():
