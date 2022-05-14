@@ -43,7 +43,7 @@ def list_users():
         print('\nNo users in database')
     else:
         # print each user's username and roles
-        print(f'\n{BOLD}List of users with their current roles:{END}')
+        print(f'\n{BOLD}List of users and current roles:{END}')
         for i, user in enumerate(users):
             list_of_new_roles = (
                 BOLD
