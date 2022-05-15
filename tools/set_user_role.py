@@ -1,22 +1,20 @@
 import argparse
-from baselayer.app.env import load_env
-from baselayer.app.models import init_db
-from skyportal.model_util import add_user, setup_permissions, role_acls
-from baselayer.app.models import User
-from baselayer.app.models import DBSession
-import sqlalchemy as sa
-
-env, cfg = load_env()
-init_db(**cfg['database'])
 
 parser = argparse.ArgumentParser(
-    description='Elevate user to super admin', add_help=False
+    description='Elevate user to super admin', add_help=True
 )
 parser.add_argument('--username', help='User to set role for')
 parser.add_argument('--list', action='store_true', help='List all users')
 parser.add_argument('--role', help='Role to elevate user to')
+args = parser.parse_args()
 
-args = parser.parse_args(namespace=env)
+import sqlalchemy as sa  # noqa: E402
+from baselayer.app.env import load_env  # noqa: E402
+from baselayer.app.models import init_db, User, DBSession  # noqa: E402
+from skyportal.model_util import add_user, setup_permissions, role_acls  # noqa: E402
+
+env, cfg = load_env()
+init_db(**cfg['database'])
 
 BOLD = '\033[1m'
 END = '\033[0m'
@@ -65,7 +63,7 @@ def list_users():
         print('\n')
 
 
-def elevate_user(username=None, role=None):
+def set_user_role(username=None, role=None):
     if not role:
         print(
             f'{BOLD}{RED}\nNo role provided;{END} setting to {BOLD}{GREEN}Super admin{END}{BOLD}{END}.'
@@ -97,19 +95,22 @@ def elevate_user(username=None, role=None):
                 )
 
         else:
-            print(f'\n{BOLD}{RED}User{END} {BOLD}{YELLOW}{user}{END} {BOLD}{RED}does not exist{END}\n')
+            print(
+                f'\n{BOLD}{RED}User{END} {BOLD}{YELLOW}{username}{END} {BOLD}{RED}does not exist{END}\n'
+            )
 
 
 def main():
-    if args.list:
-        list_users()
-    elif args.username:
-        elevate_user(args.username, args.role)
+    if args.list or args.username:
+        if args.list:
+            list_users()
+        if args.username:
+            set_user_role(args.username, args.role)
     else:
         print(
-            f'\n{BOLD}{RED}No arguments given;{END} displaying {BOLD}{GREEN}usage{END}:\n'
+            f'\n{BOLD}{RED}No arguments given;{END} listing {BOLD}{YELLOW}users{END}:\n'
         )
-        parser.print_help()
+        list_users()
 
 
 main()
