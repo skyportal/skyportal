@@ -1580,12 +1580,19 @@ def shift_user(public_group, public_stream):
         groups=[public_group],
         roles=[
             DBSession()
-            .execute(sa.select(models.Role).filter(models.Role.id == "Group admin"))
+            .execute(sa.select(models.Role).filter(models.Role.id == "View only"))
             .scalars()
             .first()
         ],
         streams=[public_stream],
+        acls=[
+            DBSession()
+            .execute(sa.select(models.ACL).filter(models.ACL.id == "Manage shifts"))
+            .scalars()
+            .first()
+        ],
     )
+
     user_id = user.id
     yield user
     UserFactory.teardown(user_id)
