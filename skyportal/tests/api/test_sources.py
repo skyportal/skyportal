@@ -5,6 +5,7 @@ import numpy as np
 import arrow
 from tdtax import taxonomy, __version__
 import astropy.units as u
+from timeit import default_timer as timer
 
 from skyportal.tests import api
 from skyportal.models import cosmo
@@ -1237,11 +1238,18 @@ def test_sources_filter_by_time_spectrum(
 
 
 def test_sources_filter_by_last_detected(
-    upload_data_token, view_only_token, public_group, ztf_camera
+    upload_data_token,
+    view_only_token,
+    upload_data_token_two_groups,
+    public_group,
+    public_group2,
+    ztf_camera,
 ):
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
     obj_id3 = str(uuid.uuid4())
+
+    query_mode = 'exist'
 
     # Upload three new sources
     status, data = api(
@@ -1352,7 +1360,7 @@ def test_sources_filter_by_last_detected(
         "sources",
         params={
             "startDate": arrow.get((58500 - 40_587) * 86400.0).isoformat(),
-            "queryMode": "new",
+            "queryMode": query_mode,
             "group_ids": f"{public_group.id}",
         },
         token=view_only_token,
@@ -1368,7 +1376,7 @@ def test_sources_filter_by_last_detected(
         params={
             "startDate": arrow.get((58500 - 40_587) * 86400.0).isoformat(),
             "endDate": arrow.get((59100 - 40_587) * 86400.0).isoformat(),
-            "queryMode": "new",
+            "queryMode": query_mode,
             "group_ids": f"{public_group.id}",
         },
         token=view_only_token,
@@ -1383,7 +1391,7 @@ def test_sources_filter_by_last_detected(
         "sources",
         params={
             "endDate": arrow.get((59100 - 40_587) * 86400.0).isoformat(),
-            "queryMode": "new",
+            "queryMode": query_mode,
             "group_ids": f"{public_group.id}",
         },
         token=view_only_token,
@@ -1421,7 +1429,7 @@ def test_sources_filter_by_last_detected(
         params={
             "startDate": arrow.get((58500 - 40_587) * 86400.0).isoformat(),
             "endDate": arrow.get((59100 - 40_587) * 86400.0).isoformat(),
-            "queryMode": "new",
+            "queryMode": query_mode,
             "group_ids": f"{public_group.id}",
         },
         token=view_only_token,
@@ -1459,7 +1467,45 @@ def test_sources_filter_by_last_detected(
         params={
             "startDate": arrow.get((58500 - 40_587) * 86400.0).isoformat(),
             "endDate": arrow.get((59100 - 40_587) * 86400.0).isoformat(),
-            "queryMode": "new",
+            "queryMode": query_mode,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 1
+    assert data["data"]["sources"][0]["id"] == obj_id1
+
+    # now post additional (inaccessible) photometry to obj3
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id3,
+            'mjd': [59001.0],
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,  # very noisy, not a detection!
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group2.id],
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # Filter for obj 1 only
+    # (the detection for obj3 is in range,
+    # but is not accessible to the user)
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "startDate": arrow.get((58500 - 40_587) * 86400.0).isoformat(),
+            "endDate": arrow.get((59100 - 40_587) * 86400.0).isoformat(),
+            "queryMode": query_mode,
             "group_ids": f"{public_group.id}",
         },
         token=view_only_token,
@@ -1496,7 +1542,7 @@ def test_sources_filter_by_last_detected(
         params={
             "startDate": arrow.get((58500 - 40_587) * 86400.0).isoformat(),
             "endDate": arrow.get((59100 - 40_587) * 86400.0).isoformat(),
-            "queryMode": "new",
+            "queryMode": query_mode,
             "group_ids": f"{public_group.id}",
         },
         token=view_only_token,
@@ -1504,6 +1550,261 @@ def test_sources_filter_by_last_detected(
     assert status == 200
     assert len(data["data"]["sources"]) == 2
     assert all([obj['id'] in [obj_id1, obj_id3] for obj in data["data"]["sources"]])
+
+
+# use this only for benchmarking (add test_ to name to run in pytest)
+def benchmark_filter_by_last_detected(
+    upload_data_token,
+    view_only_token,
+    upload_data_token_two_groups,
+    public_group,
+    public_group2,
+    ztf_camera,
+):
+    query_mode = 'old'
+    num_sources = 10
+    num_points = 100
+    central_mjd = 59000.0
+
+    # we want to always get only these two objects
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+
+    # Upload two target sources
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id1,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id1
+
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id2,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["data"]["id"] == obj_id2
+
+    # Add detections to obj 1
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id1,
+            'mjd': [central_mjd],
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    for i in range(np.random.poisson(num_points) + 1):
+        status, data = api(
+            'POST',
+            'photometry',
+            data={
+                'obj_id': obj_id1,
+                'mjd': [
+                    central_mjd - (abs(np.random.normal(0, 100)) + 10)
+                ],  # in the past
+                'instrument_id': ztf_camera.id,
+                'flux': 12.24,
+                'fluxerr': 0.031,
+                'zp': 25.0,
+                'magsys': 'ab',
+                'filter': 'ztfg',
+                'group_ids': [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+    # Add detections to obj 2
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id2,
+            'mjd': [central_mjd],
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+            'group_ids': [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    for i in range(np.random.poisson(num_points) + 1):
+        status, data = api(
+            'POST',
+            'photometry',
+            data={
+                'obj_id': obj_id2,
+                'mjd': [
+                    central_mjd - (abs(np.random.normal(0, 100)) + 10)
+                ],  # in the past
+                'instrument_id': ztf_camera.id,
+                'flux': 12.24,
+                'fluxerr': 0.031,
+                'zp': 25.0,
+                'magsys': 'ab',
+                'filter': 'ztfg',
+                'group_ids': [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+        assert data['status'] == 'success'
+
+    # upload a bunch of decoys
+    for j in range(num_sources):
+        decoy_id = str(uuid.uuid4())
+        status, data = api(
+            "POST",
+            "sources",
+            data={
+                "id": decoy_id,
+                "ra": 234.22,
+                "dec": -22.33,
+                "group_ids": [public_group.id],
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+        # these should be in the future
+        for i in range(np.random.poisson(num_points) + 1):
+            status, data = api(
+                'POST',
+                'photometry',
+                data={
+                    'obj_id': decoy_id,
+                    'mjd': [
+                        central_mjd + (abs(np.random.normal(0, 100)) + 10)
+                    ],  # in the future
+                    'instrument_id': ztf_camera.id,
+                    'flux': 12.24,
+                    'fluxerr': 0.031,
+                    'zp': 25.0,
+                    'magsys': 'ab',
+                    'filter': 'ztfg',
+                    'group_ids': [public_group.id],
+                },
+                token=upload_data_token,
+            )
+            assert status == 200
+            assert data['status'] == 'success'
+
+        # these should be in the past
+        for i in range(np.random.poisson(num_points) + 1):
+            status, data = api(
+                'POST',
+                'photometry',
+                data={
+                    'obj_id': decoy_id,
+                    'mjd': [
+                        central_mjd - (abs(np.random.normal(0, 100)) + 10)
+                    ],  # in the past
+                    'instrument_id': ztf_camera.id,
+                    'flux': 12.24,
+                    'fluxerr': 0.031,
+                    'zp': 25.0,
+                    'magsys': 'ab',
+                    'filter': 'ztfg',
+                    'group_ids': [public_group.id],
+                },
+                token=upload_data_token,
+            )
+            assert status == 200
+            assert data['status'] == 'success'
+
+        # these should be hidden from the user
+        for i in range(np.random.poisson(num_points) + 1):
+            status, data = api(
+                'POST',
+                'photometry',
+                data={
+                    'obj_id': decoy_id,
+                    'mjd': [np.random.normal(central_mjd, 100)],
+                    'instrument_id': ztf_camera.id,
+                    'flux': 12.24,
+                    'fluxerr': 0.031,
+                    'zp': 25.0,
+                    'magsys': 'ab',
+                    'filter': 'ztfg',
+                    'group_ids': [public_group2.id],
+                },
+                token=upload_data_token_two_groups,
+            )
+            assert status == 200
+            assert data['status'] == 'success'
+
+        # these should be below threshold
+        for i in range(np.random.poisson(num_points)):
+            status, data = api(
+                'POST',
+                'photometry',
+                data={
+                    'obj_id': decoy_id,
+                    'mjd': [np.random.normal(central_mjd, 100)],
+                    'instrument_id': ztf_camera.id,
+                    'flux': 12.24,
+                    'fluxerr': 8.1,
+                    'zp': 25.0,
+                    'magsys': 'ab',
+                    'filter': 'ztfg',
+                    'group_ids': [public_group.id],
+                },
+                token=upload_data_token,
+            )
+            assert status == 200
+            assert data['status'] == 'success'
+
+    t0 = timer()
+    # Filter only the target objects
+    status, data = api(
+        "GET",
+        "sources",
+        params={
+            "startDate": arrow.get((59000 - 5 - 40_587) * 86400.0).isoformat(),
+            "endDate": arrow.get((59000 + 5 - 40_587) * 86400.0).isoformat(),
+            "queryMode": query_mode,
+            "group_ids": f"{public_group.id}",
+        },
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["sources"]) == 2
+    assert all([obj['id'] in [obj_id1, obj_id2] for obj in data["data"]["sources"]])
+
+    print(f'Query time: {timer() - t0:.1f}s')
 
 
 def test_sources_filter_by_simbad_class(

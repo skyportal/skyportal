@@ -19,6 +19,7 @@ import operator  # noqa: F401
 import functools
 import conesearch_alchemy as ca
 import healpix_alchemy as ha
+from timeit import default_timer as timer
 
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
@@ -688,6 +689,8 @@ class SourceHandler(BaseHandler):
                 application/json:
                   schema: Error
         """
+
+        t0 = timer()  # keep track of how long this query takes
         page_number = self.get_query_argument('pageNumber', 1)
         num_per_page = min(
             int(self.get_query_argument("numPerPage", DEFAULT_SOURCES_PER_PAGE)),
@@ -1124,20 +1127,50 @@ class SourceHandler(BaseHandler):
                 obj_query = obj_query.join(
                     in_range_subquery, Obj.id == in_range_subquery.c.obj_id
                 )
+            elif query_mode == 'sub':
+                in_range_subquery = (
+                    Photometry.query_records_accessible_by(self.current_user)
+                    .filter(Photometry.mjd >= mjd_start, Photometry.mjd <= mjd_end)
+                    .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+                    .subquery()
+                )
+
+                obj_query = obj_query.join(
+                    in_range_subquery, Obj.id == in_range_subquery.c.obj_id
+                )
 
                 # then must also disqualify objects that have detections after the time range
-                # after_range_subquery = (
-                #     Photometry.query_records_accessible_by(self.current_user)
-                #     .filter(Obj.id == Photometry.obj_id)
-                #     .filter(Photometry.mjd >= mjd_end)
-                #     .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-                #     .scalar_subquery()
-                # )
-                #
-                # obj_query = obj_query.outerjoin(
-                #     after_range_subquery, Obj.id == after_range_subquery.c.obj_id
-                # ).filter(after_range_subquery.c.id.is_(None))
+                # this is still potentially slow if the query needs to scan all photometry rows...
+                after_range_subquery = (
+                    Photometry.query_records_accessible_by(self.current_user)
+                    .filter(Photometry.mjd >= mjd_end)
+                    .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+                    .subquery()
+                )
 
+                obj_query = obj_query.outerjoin(
+                    after_range_subquery, Obj.id == after_range_subquery.c.obj_id
+                ).filter(after_range_subquery.c.id.is_(None))
+
+            elif query_mode == 'exist':
+                in_range_subquery = (
+                    Photometry.query_records_accessible_by(self.current_user)
+                    .filter(Photometry.mjd >= mjd_start, Photometry.mjd <= mjd_end)
+                    .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+                    .subquery()
+                )
+
+                obj_query = obj_query.join(
+                    in_range_subquery, Obj.id == in_range_subquery.c.obj_id
+                )
+
+                after_range_subquery = (
+                    Photometry.query_records_accessible_by(self.current_user)
+                    .filter(Photometry.mjd >= mjd_end)
+                    .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+                    .exists()
+                )
+                obj_query = obj_query.filter(~after_range_subquery)
                 # this is really slow and kinda defeats the purpose
                 # obj_query = obj_query.filter(
                 #     Obj.last_detected_at(self.current_user) <= end_date
@@ -1948,6 +1981,7 @@ class SourceHandler(BaseHandler):
                 'features': features,
             }
 
+        query_results['totalQueryTime'] = timer() - t0
         self.verify_and_commit()
         return self.success(data=query_results)
 
