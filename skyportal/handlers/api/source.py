@@ -1124,18 +1124,19 @@ class SourceHandler(BaseHandler):
                 obj_query = obj_query.join(
                     in_range_subquery, Obj.id == in_range_subquery.c.obj_id
                 )
-                # then must also disqualify objects that have detections after the time range
-                after_range_subquery = (
-                    Photometry.query_records_accessible_by(self.current_user)
-                    .filter(Obj.id == Photometry.obj_id)
-                    .filter(Photometry.mjd >= mjd_end)
-                    .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
-                    .scalar_subquery()
-                )
 
-                obj_query = obj_query.outerjoin(
-                    after_range_subquery, Obj.id == after_range_subquery.c.obj_id
-                ).filter(after_range_subquery.c.id.is_(None))
+                # then must also disqualify objects that have detections after the time range
+                # after_range_subquery = (
+                #     Photometry.query_records_accessible_by(self.current_user)
+                #     .filter(Obj.id == Photometry.obj_id)
+                #     .filter(Photometry.mjd >= mjd_end)
+                #     .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+                #     .scalar_subquery()
+                # )
+                #
+                # obj_query = obj_query.outerjoin(
+                #     after_range_subquery, Obj.id == after_range_subquery.c.obj_id
+                # ).filter(after_range_subquery.c.id.is_(None))
 
                 # this is really slow and kinda defeats the purpose
                 # obj_query = obj_query.filter(
@@ -1738,6 +1739,18 @@ class SourceHandler(BaseHandler):
                                 break
                     if not passes_filter:
                         continue
+
+                # must also remove any objects that have detections
+                # in range, but that have later detections outside range
+                if (start_date or end_date) and query_mode == 'new':
+                    photometry_query = (
+                        Photometry.query_records_accessible_by(self.current_user)
+                        .filter(Photometry.obj_id == obj.id)
+                        .filter(Photometry.mjd > mjd_end)
+                        .filter(Photometry.snr > PHOT_DETECTION_THRESHOLD)
+                    )
+                    if photometry_query.count() > 0:
+                        continue  # skip any source with such a point
 
                 obj_list.append(obj.to_dict())
 
