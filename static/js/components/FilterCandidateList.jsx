@@ -128,7 +128,6 @@ const FilterCandidateList = ({
   annotationFilterList,
   setSortOrder,
 }) => {
-  console.log(userAccessibleGroups);
   const classes = useStyles();
   const theme = useTheme();
 
