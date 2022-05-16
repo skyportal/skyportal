@@ -29,18 +29,18 @@ def test_super_user_post_shift(
 
     driver.get(f"/become_user/{super_admin_user.id}")
     # go to the shift page
-    driver.get("/shifts")
+    driver.get(f"/shifts/{data['data']['id']}")
 
     # check for API shift
     try:
         driver.wait_for_xpath(
-            f'//*[@class="rbc-event-content"]/div/span/strong[contains(.,"{name}")]',
+            f'//*[@class="rbc-events-container"]/div/*[@class="rbc-event-content"]/div/span/strong[contains(.,"{name}")]',
             timeout=10,
         )
     except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath(
-            f'//*[@class="rbc-event-content"]/div/span/strong[contains(.,"{name}")]',
+            f'//*[@class="rbc-events-container"]/div/*[@class="rbc-event-content"]/div/span/strong[contains(.,"{name}")]',
             timeout=10,
         )
 
@@ -64,9 +64,7 @@ def test_super_user_post_shift(
     driver.click_xpath(submit_button_xpath)
 
     # check for shift in calendar and click it
-    event_shift_xpath = (
-        f'//*[@class="rbc-event-content"]/div/span/strong[contains(.,"{form_name}")]'
-    )
+    event_shift_xpath = f'//*[@class="rbc-events-container"]/div/*[@class="rbc-event-content"]/div/span/strong[contains(.,"{form_name}")]'
     driver.wait_for_xpath(event_shift_xpath)
     driver.click_xpath(event_shift_xpath)
 
@@ -165,7 +163,7 @@ def test_super_user_post_shift(
         f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
     )
     driver.wait_for_xpath_to_disappear(
-        f'//*[@class="rbc-event-content"]/div/span/strong[contains(.,"{form_name}")]'
+        f'//*[@class="rbc-events-container"]/div/*[@class="rbc-event-content"]/div/span/strong[contains(.,"{form_name}")]'
     )
 
     assert (
@@ -180,7 +178,7 @@ def test_super_user_post_shift(
     assert (
         len(
             driver.find_elements_by_xpath(
-                f'//*[@class="rbc-event-content"]/div/span/strong[contains(.,"{form_name}")]'
+                f'//*[@class="rbc-events-container"]/div/*[@class="rbc-event-content"]/div/span/strong[contains(.,"{form_name}")]'
             )
         )
         == 0
@@ -214,22 +212,20 @@ def test_shift_user_replacement(
 
     driver.get(f"/become_user/{shift_user.id}")
 
-    driver.get("/shifts")
+    driver.get(f"/shifts/{data['data']['id']}")
 
-    shift_on_calendar = (
-        f'//*[@class="rbc-event-content"]/div/span/strong[contains(.,"{name}")]'
-    )
+    shift_on_calendar = f'//*[@class="rbc-events-container"]/div/*[@class="rbc-event-content"]/div/span/strong[contains(.,"{name}")]'
     # check for API shift
     try:
         driver.wait_for_xpath(
             shift_on_calendar,
-            timeout=10,
+            timeout=20,
         )
     except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath(
             shift_on_calendar,
-            timeout=10,
+            timeout=20,
         )
 
     driver.click_xpath(shift_on_calendar)
@@ -269,20 +265,17 @@ def test_shift_user_replacement(
     driver.wait_for_xpath(notification_xpath)
     driver.click_xpath(notification_xpath, timeout=10)
 
-    shift_on_calendar = (
-        f'//*[@class="rbc-event-content"]/div/span/strong[contains(.,"{name}")]'
-    )
     # check for API shift
     try:
         driver.wait_for_xpath(
             shift_on_calendar,
-            timeout=10,
+            timeout=20,
         )
     except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath(
             shift_on_calendar,
-            timeout=10,
+            timeout=20,
         )
 
     driver.click_xpath(shift_on_calendar)
