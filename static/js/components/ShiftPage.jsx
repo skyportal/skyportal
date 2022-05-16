@@ -54,27 +54,22 @@ const ShiftPage = ({ route }) => {
     }
   }
 
-  if (route && shiftList.length > 0) {
-    if (currentShift) {
-      if (!currentShift.id) {
-        const newCurrentShift = shiftList.find(
-          (shift) => shift.id === parseInt(route.id, 10)
-        );
-        if (newCurrentShift) {
-          dispatch({
-            type: "SET_CURRENT_SHIFT",
-            data: newCurrentShift,
-          });
-        }
-      }
-    }
-  }
-
   useEffect(() => {
-    if (currentShift) {
-      const shift = shiftList.find((s) => s.id === currentShift.id);
-      if (shift) {
-        dispatch({ type: "skyportal/CURRENT_SHIFT", data: shift });
+    if (!currentShift.id && route) {
+      const shift = shiftList.find((s) => s.id === parseInt(route.id, 10));
+      if (shift)
+        dispatch({
+          type: "skyportal/CURRENT_SHIFT",
+          data: shift,
+        });
+    } else if (currentShift) {
+      const updatedShift = shiftList.find((s) => s.id === currentShift.id);
+      // check if the shift shift_users length is different from the current shift
+      if (
+        updatedShift &&
+        updatedShift.shift_users.length !== currentShift.shift_users.length
+      ) {
+        dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
       }
     }
   }, [shiftList, dispatch, currentShift]);
