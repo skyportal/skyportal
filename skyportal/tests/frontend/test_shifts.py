@@ -34,13 +34,13 @@ def test_super_user_post_shift(
     # check for API shift
     try:
         driver.wait_for_xpath(
-            f'//*[@class="rbc-events-container"]/div/*[@class="rbc-event-content"]/div/span/strong[contains(.,"{name}")]',
+            f'//*/strong[contains(.,"{name}")]',
             timeout=10,
         )
     except TimeoutException:
         driver.refresh()
         driver.wait_for_xpath(
-            f'//*[@class="rbc-events-container"]/div/*[@class="rbc-event-content"]/div/span/strong[contains(.,"{name}")]',
+            f'//*/strong[contains(.,"{name}")]',
             timeout=10,
         )
 
@@ -64,7 +64,7 @@ def test_super_user_post_shift(
     driver.click_xpath(submit_button_xpath)
 
     # check for shift in calendar and click it
-    event_shift_xpath = f'//*[@class="rbc-events-container"]/div/*[@class="rbc-event-content"]/div/span/strong[contains(.,"{form_name}")]'
+    event_shift_xpath = f'//*/strong[contains(.,"{form_name}")]'
     driver.wait_for_xpath(event_shift_xpath)
     driver.click_xpath(event_shift_xpath)
 
@@ -162,9 +162,7 @@ def test_super_user_post_shift(
     driver.wait_for_xpath_to_disappear(
         f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
     )
-    driver.wait_for_xpath_to_disappear(
-        f'//*[@class="rbc-events-container"]/div/*[@class="rbc-event-content"]/div/span/strong[contains(.,"{form_name}")]'
-    )
+    driver.wait_for_xpath_to_disappear(f'//*/strong[contains(.,"{form_name}")]')
 
     assert (
         len(
@@ -176,11 +174,7 @@ def test_super_user_post_shift(
     )
 
     assert (
-        len(
-            driver.find_elements_by_xpath(
-                f'//*[@class="rbc-events-container"]/div/*[@class="rbc-event-content"]/div/span/strong[contains(.,"{form_name}")]'
-            )
-        )
+        len(driver.find_elements_by_xpath(f'//*/strong[contains(.,"{form_name}")]'))
         == 0
     )
 
@@ -214,7 +208,7 @@ def test_shift_user_replacement(
 
     driver.get(f"/shifts/{data['data']['id']}")
 
-    shift_on_calendar = f'//*[@class="rbc-events-container"]/div/*[@class="rbc-event-content"]/div/span/strong[contains(.,"{name}")]'
+    shift_on_calendar = f'//*/strong[contains(.,"{name}")]'
     # check for API shift
     try:
         driver.wait_for_xpath(
