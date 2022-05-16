@@ -459,6 +459,7 @@ class ShiftUserHandler(BaseHandler):
                     )
 
         self.verify_and_commit()
+        self.push_all(action='skyportal/REFRESH_SHIFTS', payload={'shift_id': shift_id})
         return self.success()
 
     @permissions(["Manage shifts"])

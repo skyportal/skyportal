@@ -70,9 +70,24 @@ const ShiftPage = ({ route }) => {
         updatedShift.shift_users.length !== currentShift.shift_users.length
       ) {
         dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
+      } else if (updatedShift) {
+        if (
+          Object.keys(updatedShift).length > 0 &&
+          Object.keys(currentShift).length > 0
+        ) {
+          if (
+            updatedShift.shift_users.some((user) =>
+              currentShift.shift_users.some(
+                (cUser) => cUser.needs_replacement === user.needs_replacement
+              )
+            )
+          ) {
+            dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
+          }
+        }
       }
     }
-  }, [shiftList, dispatch, currentShift]);
+  }, [shiftList, dispatch]);
 
   const permission =
     currentUser.permissions?.includes("System admin") ||

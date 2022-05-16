@@ -20,7 +20,6 @@ import {
   addShiftUser,
   deleteShiftUser,
   updateShiftUser,
-  fetchShifts,
 } from "../ducks/shifts";
 
 const useStyles = makeStyles((theme) => ({
@@ -541,7 +540,6 @@ function CurrentShiftMenu({ currentShift }) {
                   ).then((result) => {
                     if (result.status === "success") {
                       dispatch(showNotification(`asked for replacement`));
-                      dispatch(fetchShifts());
                     }
                   });
                 }}
@@ -559,7 +557,7 @@ function CurrentShiftMenu({ currentShift }) {
       const {
         target: { value },
       } = event;
-      if (value.id !== selectedToReplace.id) {
+      if (value) {
         setSelectedToReplace(value);
       } else {
         setSelectedToReplace({});
@@ -582,7 +580,7 @@ function CurrentShiftMenu({ currentShift }) {
                 id="select-user-replace-chip"
                 // value is username of all selected users
                 value={selectedToReplace}
-                onChange={handleChangeReplace}
+                onClick={handleChangeReplace}
                 input={<OutlinedInput id="select-chip" label="Chip" />}
                 renderValue={(selectedToReplaceValue) => (
                   <Box id="selected_users">
@@ -604,7 +602,10 @@ function CurrentShiftMenu({ currentShift }) {
                     value={user}
                   >
                     <Checkbox
-                      checked={Object.keys(selectedToReplace).length > 0}
+                      checked={
+                        Object.keys(selectedToReplace).length > 0 &&
+                        selectedToReplace.id === user.id
+                      }
                     />
                     <ListItemText
                       className={classes.userListItem}
@@ -779,8 +780,14 @@ CurrentShiftMenu.propTypes = {
     id: PropTypes.number,
     name: PropTypes.string,
     description: PropTypes.string,
-    start_date: PropTypes.instanceOf(Date),
-    end_date: PropTypes.instanceOf(Date),
+    start_date: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.instanceOf(Date),
+    ]),
+    end_date: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.instanceOf(Date),
+    ]),
     group: PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,
