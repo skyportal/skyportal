@@ -4,27 +4,14 @@ import { useSelector, useDispatch } from "react-redux";
 import FormGroup from "@material-ui/core/FormGroup";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Switch from "@material-ui/core/Switch";
-import IconButton from "@material-ui/core/IconButton";
 import TextField from "@material-ui/core/TextField";
 
-import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
-import Typography from "@material-ui/core/Typography";
 import { makeStyles } from "@material-ui/core/styles";
-import Popover from "@material-ui/core/Popover";
 
 import * as profileActions from "../ducks/profile";
+import UserPreferencesHeader from "./UserPreferencesHeader";
 
 const useStyles = makeStyles((theme) => ({
-  header: {
-    display: "flex",
-    alignItems: "center",
-    "& > h6": {
-      marginRight: "0.5rem",
-    },
-  },
-  typography: {
-    padding: theme.spacing(2),
-  },
   textField: {
     marginLeft: theme.spacing(1),
     marginRight: theme.spacing(1),
@@ -39,7 +26,6 @@ const SlackPreferences = () => {
   const slack_preamble = useSelector((state) => state.config.slackPreamble);
   const profile = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();
-  const [anchorEl, setAnchorEl] = useState(null);
   const [slackurl, setSlackurl] = useState(profile.slack_integration?.url);
   const [slackurlerror, setSlackurlerror] = useState(false);
 
@@ -61,15 +47,6 @@ const SlackPreferences = () => {
     }
   };
 
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-  const open = Boolean(anchorEl);
-  const id = open ? "simple-popover" : undefined;
-
   const prefToggled = (event) => {
     const prefs = {
       slack_integration: {
@@ -82,35 +59,13 @@ const SlackPreferences = () => {
 
   return (
     <div>
-      <div className={classes.header}>
-        <Typography variant="h6" display="inline">
-          Slack Integration
-        </Typography>
-        <IconButton aria-label="help" size="small" onClick={handleClick}>
-          <HelpOutlineIcon />
-        </IconButton>
-      </div>
-      <Popover
-        id={id}
-        open={open}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{
-          vertical: "top",
-          horizontal: "right",
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "left",
-        }}
-      >
-        <Typography className={classes.typography}>
-          You&apos;ll need to ask your site administrator to give you a unique
+      <UserPreferencesHeader
+        title="Slack Integration"
+        popupText="You'll need to ask your site administrator to give you a unique
           URL that posts to your Slack channel. Activating the Slack integration
           will allow you to see all @ mentions of this account and configure
-          other notifications below.
-        </Typography>
-      </Popover>
+          other notifications below."
+      />
       <FormGroup row>
         <FormControlLabel
           control={

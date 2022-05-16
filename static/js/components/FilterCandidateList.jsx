@@ -142,7 +142,7 @@ const FilterCandidateList = ({
     }
   }, [dispatch, availableAnnotationsInfo]);
 
-  const { scanningProfiles } = useSelector(
+  const { scanningProfiles, classificationShortcuts } = useSelector(
     (state) => state.profile.preferences
   );
 
@@ -363,6 +363,12 @@ const FilterCandidateList = ({
     setQueryInProgress(false);
   };
 
+  const handleClassificationShortcutClick = (shortcutClassifications) => {
+    setSelectedClassifications([
+      ...new Set([...selectedClassifications, ...shortcutClassifications]),
+    ]);
+  };
+
   return (
     <Paper variant="outlined">
       <div className={classes.filterListContainer}>
@@ -437,11 +443,11 @@ const FilterCandidateList = ({
             </InputLabel>
             <Controller
               labelId="classifications-select-label"
-              render={({ onChange, value }) => (
+              render={({ onChange }) => (
                 <Select
                   id="classifications-select"
                   multiple
-                  value={value}
+                  value={selectedClassifications}
                   onChange={(event) => {
                     setSelectedClassifications(event.target.value);
                     onChange(event.target.value);
@@ -480,6 +486,21 @@ const FilterCandidateList = ({
               defaultValue={selectedScanningProfile?.classifications || []}
             />
           </div>
+          {classificationShortcuts &&
+            Object.entries(classificationShortcuts)?.map(
+              ([shortcutName, shortcutClassifications]) => (
+                <Button
+                  variant="outlined"
+                  key={shortcutName}
+                  data-testid={shortcutName}
+                  onClick={() =>
+                    handleClassificationShortcutClick(shortcutClassifications)
+                  }
+                >
+                  Select {shortcutName}
+                </Button>
+              )
+            )}
           <div className={classes.formRow}>
             <InputLabel id="redshift-select-label">Redshift</InputLabel>
             <div className={classes.redshiftField}>
@@ -726,7 +747,18 @@ const FilterCandidateList = ({
   );
 };
 FilterCandidateList.propTypes = {
-  userAccessibleGroups: PropTypes.arrayOf(PropTypes.object).isRequired,
+  userAccessibleGroups: PropTypes.arrayOf(
+    PropTypes.shape({
+      single_user_group: PropTypes.bool.isRequired,
+      created_at: PropTypes.string.isRequired,
+      id: PropTypes.number.isRequired,
+      modified: PropTypes.string.isRequired,
+      name: PropTypes.string.isRequired,
+      nickname: PropTypes.string,
+      private: PropTypes.bool.isRequired,
+      description: PropTypes.string,
+    })
+  ).isRequired,
   setQueryInProgress: PropTypes.func.isRequired,
   setFilterGroups: PropTypes.func.isRequired,
   numPerPage: PropTypes.number.isRequired,
