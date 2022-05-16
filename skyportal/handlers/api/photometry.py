@@ -450,15 +450,14 @@ def get_values_table_and_condition(df):
 
 
 def insert_new_photometry_data(
-    df, instrument_cache, group_ids, stream_ids, user, validate=True
+    df, instrument_cache, group_ids, stream_ids, user, session, validate=True
 ):
     # check for existing photometry and error if any is found
     if validate:
         values_table, condition = get_values_table_and_condition(df)
 
         duplicated_photometry = (
-            DBSession()
-            .execute(sa.select(Photometry).join(values_table, condition))
+            session.execute(sa.select(Photometry).join(values_table, condition))
             .scalars()
             .all()
         )
@@ -478,7 +477,7 @@ def insert_new_photometry_data(
 
     pkq = f"SELECT nextval('photometry_id_seq') FROM " f"generate_series(1, {len(df)})"
 
-    proxy = DBSession().execute(pkq)
+    proxy = session.execute(pkq)
 
     # cache this as list for response
     ids = [i[0] for i in proxy]
@@ -599,7 +598,7 @@ def insert_new_photometry_data(
             ('photometr_id', 'stream_id', 'created_at', 'modified'),
         )
 
-    DBSession.commit()
+    session.commit()
     return ids, upload_id
 
 
@@ -698,15 +697,14 @@ def add_external_photometry(json, user):
                 f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
             )
             ids, upload_id = insert_new_photometry_data(
-                df, instrument_cache, group_ids, stream_ids, user
+                df, instrument_cache, group_ids, stream_ids, user, session
+            )
+            log(
+                f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
             )
         except Exception as e:
             session.rollback()
             log(f"Unable to post photometry: {e}")
-
-    log(
-        f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
-    )
 
 
 class PhotometryHandler(BaseHandler):
@@ -788,6 +786,7 @@ class PhotometryHandler(BaseHandler):
                     group_ids,
                     stream_ids,
                     self.associated_user_object,
+                    session,
                 )
             except Exception as e:
                 session.rollback()
@@ -929,6 +928,7 @@ class PhotometryHandler(BaseHandler):
                         group_ids,
                         stream_ids,
                         self.associated_user_object,
+                        session,
                         validate=False,
                     )
 
