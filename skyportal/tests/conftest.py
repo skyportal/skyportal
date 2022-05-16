@@ -1555,3 +1555,37 @@ def user_notification(user):
     user_notification = UserNotificationFactory(user=user)
     yield user_notification
     UserNotificationFactory.teardown(user_notification)
+
+
+@pytest.fixture()
+def shift_admin(public_group, public_stream):
+    user = UserFactory(
+        groups=[public_group],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Group admin"))
+            .scalars()
+            .first()
+        ],
+        streams=[public_stream],
+    )
+    user_id = user.id
+    yield user
+    UserFactory.teardown(user_id)
+
+
+@pytest.fixture()
+def shift_user(public_group, public_stream):
+    user = UserFactory(
+        groups=[public_group],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Group admin"))
+            .scalars()
+            .first()
+        ],
+        streams=[public_stream],
+    )
+    user_id = user.id
+    yield user
+    UserFactory.teardown(user_id)
