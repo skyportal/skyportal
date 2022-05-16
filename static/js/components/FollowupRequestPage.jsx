@@ -72,7 +72,7 @@ const FollowupRequestPage = () => {
       instrumentID: selectedInstrumentId,
     };
     dispatch(followupRequestActions.fetchFollowupRequests(params));
-  }, [dispatch, fetchParams, selectedInstrumentId]);
+  }, [dispatch, selectedInstrumentId]);
 
   if (!Array.isArray(followupRequestList)) {
     return <p>Waiting for followup requests to load...</p>;

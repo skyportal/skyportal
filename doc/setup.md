@@ -75,6 +75,15 @@ In `pg_hba.conf` (typically located in
 ```
 host skyportal skyportal 127.0.0.1/32 trust
 host skyportal_test skyportal 127.0.0.1/32 trust
+host all postgres 127.0.0.1/32 trust
+```
+
+If you are deploying SkyPortal using IPv6 rather than IPv4, you should add the following lines instead:
+
+```
+host skyportal skyportal ::1/128 trust
+host skyportal_test skyportal ::1/128 trust
+host all postgres ::1/128 trust
 ```
 
 In some PostgreSQL installations, the default TCP port may be different from the 5432 value assumed in our default configuration file values. To remedy this, you can either edit your config.yaml file to reflect your system's PostgreSQL default port, or update your system-wide config to use port 5432 by editing /etc/postgresql/12/main/postgresql.conf (replace "12" with your installed version number) and changing the line `port = XXXX` (where "XXXX" is whatever the system default was) to `port = 5432`.
@@ -165,3 +174,37 @@ make load_demo_data
 ```
 
 This also adds `testuser@cesium-ml.org` as an administrator.
+
+### Deploying secure HTTP / SSL certificate
+
+When running a public server, you will likely want to deploy an SSL certificate (i.e., serve `https://your.url` instead of `http://your.url`). Certificates can be obtained for free from services such as Let's Encrypt (https://letsencrypt.org/).
+
+[certbot](https://certbot.eff.org/) is software for helping you obtain a new SSL certificate from Let's Encrypt.
+To do so, it first verifies that your server is running (without SSL) at the specified domain.
+
+Start SkyPortal using `make run`.
+
+Then, install `certbot`:
+    pip install certbot-nginx
+
+Ask `certbot` to verify the service and retrieve a new certificate:
+    sudo certbot certonly --standalone --preferred-challenges http -d http://your.url
+or similar if using https
+    sudo certbot certonly --standalone --preferred-challenges https -d https://your.url
+
+To renew and retrieve the certificate, do:
+    sudo certbot renew
+
+Next, modify the nginx configuration in `baselayer/services/nginx/nginx.conf.template` to use the newly generated certificate, placing it at the top of the server section:
+
+    server {
+      listen [::]:443 ssl ipv6only=on;
+      listen 443 ssl;
+      ssl_certificate /etc/letsencrypt/live/{YOUR_DOMAIN_HERE}/fullchain.pem;
+      ssl_certificate_key /etc/letsencrypt/live/{YOUR_DOMAIN_HERE}/privkey.pem;
+      include /etc/letsencrypt/options-ssl-nginx.conf;
+      ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+      ...
+   }
+
+Finally, stop the app and run it again using `make run`.

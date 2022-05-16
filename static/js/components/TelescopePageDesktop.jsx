@@ -26,6 +26,7 @@ const useStyles = makeStyles((theme) => ({
     direction: "row",
     justifyContent: "space-around",
     alignItems: "center",
+    marginBottom: "1rem",
   },
   selectedMenu: {
     height: "3rem",

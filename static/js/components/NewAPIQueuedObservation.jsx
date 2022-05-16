@@ -5,13 +5,13 @@ import Form from "@rjsf/material-ui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import * as observationActions from "../ducks/observations";
+import * as queuedObservationActions from "../ducks/queued_observations";
 import * as allocationActions from "../ducks/allocations";
 import * as instrumentActions from "../ducks/instruments";
 
 dayjs.extend(utc);
 
-const NewAPIObservation = () => {
+const NewAPIQueuedObservation = () => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationList } = useSelector((state) => state.allocations);
@@ -20,11 +20,11 @@ const NewAPIObservation = () => {
   const dispatch = useDispatch();
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultStartDate = dayjs()
-    .subtract(3, "day")
+  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultEndDate = dayjs()
+    .add(1, "day")
     .utc()
     .format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
 
   useEffect(() => {
     const getAllocations = async () => {
@@ -89,19 +89,22 @@ const NewAPIObservation = () => {
   });
 
   const handleSubmit = async ({ formData }) => {
-    formData.start_date = formData.start_date
-      .replace("+00:00", "")
-      .replace(".000Z", "");
-    formData.end_date = formData.end_date
-      .replace("+00:00", "")
-      .replace(".000Z", "");
-    await dispatch(observationActions.requestAPIObservations(formData));
+    const data = {
+      startDate: formData.start_date.replace("+00:00", "").replace(".000Z", ""),
+      endDate: formData.end_date.replace("+00:00", "").replace(".000Z", ""),
+    };
+    await dispatch(
+      queuedObservationActions.requestAPIQueuedObservations(
+        formData.allocation_id,
+        data
+      )
+    );
   };
 
   function validate(formData, errors) {
-    if (nowDate < formData.end_date) {
+    if (nowDate > formData.start_date) {
       errors.end_date.addError(
-        "End date must be before current time, please fix."
+        "Start date must be after current time, please fix."
       );
     }
     if (formData.start_date > formData.end_date) {
@@ -155,4 +158,4 @@ const NewAPIObservation = () => {
   );
 };
 
-export default NewAPIObservation;
+export default NewAPIQueuedObservation;

@@ -57,7 +57,7 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const ExecutedObservationsTable = ({
+const QueuedObservationsTable = ({
   observations,
   totalMatches,
   handleTableChange = false,
@@ -101,8 +101,8 @@ const ExecutedObservationsTable = ({
       },
     },
     {
-      name: "observation_id",
-      label: " Observation ID",
+      name: "queue_name",
+      label: "Queue name",
     },
     {
       name: "obstime",
@@ -117,16 +117,12 @@ const ExecutedObservationsTable = ({
       label: "Exposure time [s]",
     },
     {
-      name: "airmass",
-      label: "Airmass",
+      name: "validity_window_start",
+      label: "Validity Window [start]",
     },
     {
-      name: "seeing",
-      label: "Seeing",
-    },
-    {
-      name: "limmag",
-      label: "Limiting magnitude",
+      name: "validity_window_end",
+      label: "Validity Window [end]",
     },
   ];
 
@@ -165,7 +161,7 @@ const ExecutedObservationsTable = ({
   );
 };
 
-ExecutedObservationsTable.propTypes = {
+QueuedObservationsTable.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
   handleTableChange: PropTypes.func.isRequired,
@@ -174,10 +170,10 @@ ExecutedObservationsTable.propTypes = {
   numPerPage: PropTypes.number,
 };
 
-ExecutedObservationsTable.defaultProps = {
+QueuedObservationsTable.defaultProps = {
   pageNumber: 1,
   totalMatches: 0,
   numPerPage: 10,
 };
 
-export default ExecutedObservationsTable;
+export default QueuedObservationsTable;
