@@ -648,7 +648,7 @@ def get_stream_ids(data, user):
                 )
             stream = Stream.get_if_accessible_by(stream_id, user)
 
-            if not stream:
+            if stream is None:
                 raise ValidationError(f'No stream with ID {stream_id}')
     else:
         raise ValidationError(
