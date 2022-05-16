@@ -92,11 +92,9 @@ const useStyles = makeStyles((theme) => ({
     fontWeight: "bold",
   },
   addUserChip: {
-    // set the background color to a light green
     backgroundColor: "#a5d6a7",
   },
   deleteUserChip: {
-    // set the background color to a light red
     backgroundColor: "#ffcdd2",
   },
   replacementButton: {
@@ -349,7 +347,6 @@ function CurrentShiftMenu({ currentShift }) {
     function addOrDeleteUserListItem(user) {
       let indicator = <span className={classes.addUserListItem}>+</span>;
       if (usersInShift(user)) {
-        // return a + char in green
         indicator = <span className={classes.deleteUserListItem}>-</span>;
       }
       return indicator;
@@ -358,7 +355,6 @@ function CurrentShiftMenu({ currentShift }) {
     function addOrDeleteUserChip(user) {
       let style = classes.addUserChip;
       if (usersInShift(user)) {
-        // return a + char in green
         style = classes.deleteUserChip;
       }
       return style;
@@ -374,7 +370,6 @@ function CurrentShiftMenu({ currentShift }) {
             labelId="select-users-multiple-chip-label"
             id="select-users--multiple-chip"
             multiple
-            // value is username of all selected users
             value={selected}
             onChange={handleChange}
             input={<OutlinedInput id="select-multiple-chip" label="Chip" />}
@@ -420,7 +415,6 @@ function CurrentShiftMenu({ currentShift }) {
     dispatch({ type: "skyportal/CURRENT_SHIFT", data: {} });
     dispatch(shiftActions.deleteShift(shift.id)).then((result) => {
       if (result.status === "success") {
-        // dispatch an empty shift to clear the current shift
         dispatch(showNotification("Shift deleted"));
       }
     });
@@ -578,7 +572,6 @@ function CurrentShiftMenu({ currentShift }) {
               <Select
                 labelId="select-user-replace-chip-label"
                 id="select-user-replace-chip"
-                // value is username of all selected users
                 value={selectedToReplace}
                 onClick={handleChangeReplace}
                 input={<OutlinedInput id="select-chip" label="Chip" />}
