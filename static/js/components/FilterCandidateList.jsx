@@ -754,9 +754,9 @@ FilterCandidateList.propTypes = {
       id: PropTypes.number.isRequired,
       modified: PropTypes.string.isRequired,
       name: PropTypes.string.isRequired,
-      nickname: PropTypes.string.isRequired,
+      nickname: PropTypes.string,
       private: PropTypes.bool.isRequired,
-      description: PropTypes.string.isRequired,
+      description: PropTypes.string,
     })
   ).isRequired,
   setQueryInProgress: PropTypes.func.isRequired,

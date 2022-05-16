@@ -87,7 +87,7 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justify="flex-start"
+              justifyContent="flex-start"
               alignItems="baseline"
               spacing={2}
             >
@@ -114,7 +114,7 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justify="flex-start"
+              justifyContent="flex-start"
               alignItems="baseline"
               spacing={2}
             >
@@ -135,7 +135,7 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justify="flex-start"
+              justifyContent="flex-start"
               alignItems="baseline"
               spacing={2}
             >
