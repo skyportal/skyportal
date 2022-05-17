@@ -72,6 +72,7 @@ async function handleSelectSlot({ start, end }) {
 
 function setCurrentShift(event) {
   dispatch({ type: "skyportal/CURRENT_SHIFT", data: event });
+  dispatch({ type: "skyportal/CURRENT_SHIFT_SELECTED_USERS", data: [] });
 }
 
 function Event({ event }) {

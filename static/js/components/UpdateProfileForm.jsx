@@ -24,6 +24,7 @@ import NotificationPreferences from "./NotificationPreferences";
 import FavoriteSourcesNotificationPreferences from "./FavoriteSourcesNotificationPreferences";
 import SlackPreferences from "./SlackPreferences";
 import ObservabilityPreferences from "./ObservabilityPreferences";
+// import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
 
 const UpdateProfileForm = () => {
   const profile = useSelector((state) => state.profile);
@@ -86,7 +87,7 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justify="flex-start"
+              justifyContent="flex-start"
               alignItems="baseline"
               spacing={2}
             >
@@ -113,7 +114,7 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justify="flex-start"
+              justifyContent="flex-start"
               alignItems="baseline"
               spacing={2}
             >
@@ -134,7 +135,7 @@ const UpdateProfileForm = () => {
             <Grid
               container
               direction="row"
-              justify="flex-start"
+              justifyContent="flex-start"
               alignItems="baseline"
               spacing={2}
             >
@@ -176,6 +177,9 @@ const UpdateProfileForm = () => {
         <CardContent>
           <ObservabilityPreferences />
         </CardContent>
+        {/* <CardContent>
+          <ClassificationsShortcutForm />
+        </CardContent> */}
       </Card>
       <Dialog
         open={welcomeDialogOpen}

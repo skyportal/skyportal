@@ -57,7 +57,13 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const ExecutedObservationsTable = ({ observations }) => {
+const ExecutedObservationsTable = ({
+  observations,
+  totalMatches,
+  handleTableChange = false,
+  pageNumber = 1,
+  numPerPage = 10,
+}) => {
   const classes = useStyles();
   const theme = useTheme();
 
@@ -128,7 +134,17 @@ const ExecutedObservationsTable = ({ observations }) => {
     search: true,
     selectableRows: "none",
     elevation: 0,
+    page: pageNumber - 1,
+    rowsPerPage: numPerPage,
+    rowsPerPageOptions: [10, 25, 50, 100],
+    jumpToPage: true,
+    serverSide: true,
+    pagination: true,
+    count: totalMatches,
   };
+  if (typeof handleTableChange === "function") {
+    options.onTableChange = handleTableChange;
+  }
 
   return (
     <div>
@@ -150,7 +166,18 @@ const ExecutedObservationsTable = ({ observations }) => {
 };
 
 ExecutedObservationsTable.propTypes = {
+  // eslint-disable-next-line react/forbid-prop-types
   observations: PropTypes.arrayOf(PropTypes.any).isRequired,
+  handleTableChange: PropTypes.func.isRequired,
+  pageNumber: PropTypes.number,
+  totalMatches: PropTypes.number,
+  numPerPage: PropTypes.number,
+};
+
+ExecutedObservationsTable.defaultProps = {
+  pageNumber: 1,
+  totalMatches: 0,
+  numPerPage: 10,
 };
 
 export default ExecutedObservationsTable;

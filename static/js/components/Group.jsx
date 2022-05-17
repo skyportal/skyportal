@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { makeStyles, useTheme } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
@@ -227,12 +226,6 @@ const Group = () => {
       </Dialog>
     </div>
   );
-};
-
-Group.propTypes = {
-  route: PropTypes.shape({
-    id: PropTypes.string,
-  }).isRequired,
 };
 
 export default Group;

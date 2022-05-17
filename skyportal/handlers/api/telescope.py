@@ -38,6 +38,7 @@ class TelescopeHandler(BaseHandler):
                 schema: Error
         """
         data = self.get_json()
+
         schema = Telescope.__schema__()
 
         try:
@@ -105,9 +106,24 @@ class TelescopeHandler(BaseHandler):
         query = Telescope.query
         if tel_name is not None:
             query = query.filter(Telescope.name == tel_name)
+
         data = query.all()
+        telescopes = []
+        for telescope in data:
+            temp = telescope.to_dict()
+            temp['is_night_astronomical'] = bool(
+                telescope.next_twilight_morning_astronomical().jd
+                < telescope.next_twilight_evening_astronomical().jd
+            )
+            temp[
+                'next_twilight_morning_astronomical'
+            ] = telescope.next_twilight_morning_astronomical().iso
+            temp[
+                'next_twilight_evening_astronomical'
+            ] = telescope.next_twilight_evening_astronomical().iso
+            telescopes.append(temp)
         self.verify_and_commit()
-        return self.success(data=data)
+        return self.success(data=telescopes)
 
     @permissions(['Manage sources'])
     def put(self, telescope_id):

@@ -4,11 +4,9 @@ import { useSelector, useDispatch } from "react-redux";
 import FormGroup from "@material-ui/core/FormGroup";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Switch from "@material-ui/core/Switch";
-import Typography from "@material-ui/core/Typography";
-
-// import { useTheme } from '@material-ui/core/styles';
 
 import * as profileActions from "../ducks/profile";
+import UserPreferencesHeader from "./UserPreferencesHeader";
 
 const UIPreferences = () => {
   const preferences = useSelector((state) => state.profile.preferences);
@@ -72,7 +70,7 @@ const UIPreferences = () => {
 
   return (
     <div>
-      <Typography variant="h6">UI Preferences</Typography>
+      <UserPreferencesHeader title="UI Preferences" />
       <FormGroup row>
         <FormControlLabel control={themeSwitch} label="Dark mode" />
         <FormControlLabel

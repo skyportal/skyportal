@@ -26,6 +26,8 @@ const SUBMIT_OBSERVATIONS_TREASUREMAP =
 const DELETE_OBSERVATIONS_TREASUREMAP =
   "skyportal/DELETE_OBSERVATIONS_TREASUREMAP";
 const REQUEST_API_OBSERVATIONS = "skyportal/REQUEST_API_OBSERVATIONS";
+const REQUEST_API_QUEUED_OBSERVATIONS =
+  "skyportal/REQUEST_API_QUEUED_OBSERVATIONS";
 
 export const submitObservations = (params) =>
   API.POST(`/api/observation`, SUBMIT_OBSERVATIONS, params);
@@ -43,6 +45,10 @@ export function fetchObservations(filterParams = {}) {
     filterParams.endDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   }
 
+  if (!Object.keys(filterParams).includes("numPerPage")) {
+    filterParams.numPerPage = 10;
+  }
+
   return API.GET("/api/observation", FETCH_OBSERVATIONS, filterParams);
 }
 
@@ -54,6 +60,14 @@ export function requestAPIObservations(data) {
   return API.POST(
     `/api/observation/external_api`,
     REQUEST_API_OBSERVATIONS,
+    data
+  );
+}
+
+export function requestAPIQueuedObservations(id, data = {}) {
+  return API.GET(
+    `/api/observation/external_api/${id}`,
+    REQUEST_API_QUEUED_OBSERVATIONS,
     data
   );
 }

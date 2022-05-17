@@ -33,8 +33,12 @@ const NewShift = () => {
 
   const handleSubmit = async ({ formData }) => {
     if (!formData.repeatsDaily) {
-      formData.start_date = formData.start_date.replace("+00:00", "");
-      formData.end_date = formData.end_date.replace("+00:00", "");
+      formData.start_date = formData.start_date
+        .replace("+00:00", "")
+        .replace(".000Z", "");
+      formData.end_date = formData.end_date
+        .replace("+00:00", "")
+        .replace(".000Z", "");
       delete formData.repeatsDaily;
       const result = await dispatch(submitShift(formData));
       if (result.status === "success") {
@@ -52,11 +56,13 @@ const NewShift = () => {
         newFormData.start_date = startDate
           .add(i, "day")
           .format("YYYY-MM-DDTHH:mm:ssZ")
-          .replace("+00:00", "");
+          .replace("+00:00", "")
+          .replace(".000Z", "");
         newFormData.end_date = endDate
           .subtract(days - i, "day")
           .format("YYYY-MM-DDTHH:mm:ssZ")
-          .replace("+00:00", "");
+          .replace("+00:00", "")
+          .replace(".000Z", "");
         const result = dispatch(submitShift(newFormData));
         if (result.status === "success") {
           dispatch(showNotification("Shift saved"));
