@@ -1,25 +1,16 @@
-import React, { useState } from "react";
+import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import FormGroup from "@material-ui/core/FormGroup";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Switch from "@material-ui/core/Switch";
-import IconButton from "@material-ui/core/IconButton";
-import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
 import Typography from "@material-ui/core/Typography";
 import { makeStyles } from "@material-ui/core/styles";
-import Popover from "@material-ui/core/Popover";
 
 import * as profileActions from "../ducks/profile";
+import UserPreferencesHeader from "./UserPreferencesHeader";
 
 const useStyles = makeStyles((theme) => ({
-  header: {
-    display: "flex",
-    alignItems: "center",
-    "& > h6": {
-      marginRight: "0.5rem",
-    },
-  },
   typography: {
     padding: theme.spacing(2),
   },
@@ -29,16 +20,6 @@ const FavoriteSourcesNotificationPreferences = () => {
   const classes = useStyles();
   const profile = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();
-
-  const [anchorEl, setAnchorEl] = useState(null);
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-  const open = Boolean(anchorEl);
-  const id = open ? "simple-popover" : undefined;
 
   const prefToggled = (event) => {
     const prefs = {
@@ -62,33 +43,11 @@ const FavoriteSourcesNotificationPreferences = () => {
 
   return (
     <div>
-      <div className={classes.header}>
-        <Typography variant="h6" display="inline">
-          Notifications For Favorite Source Activity
-        </Typography>
-        <IconButton aria-label="help" size="small" onClick={handleClick}>
-          <HelpOutlineIcon />
-        </IconButton>
-      </div>
-      <Popover
-        id={id}
-        open={open}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{
-          vertical: "top",
-          horizontal: "right",
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "left",
-        }}
-      >
-        <Typography className={classes.typography}>
-          Enable these to receive notifications for the selected activity types
-          regarding sources you have starred/favorited.
-        </Typography>
-      </Popover>
+      <UserPreferencesHeader
+        title="Notifications For Favorite Source Activity"
+        popupText="Enable these to receive notifications for the selected activity types
+          regarding sources you have starred/favorited."
+      />
       <FormGroup row>
         <Typography className={classes.typography}>Browser:</Typography>
         <FormControlLabel
