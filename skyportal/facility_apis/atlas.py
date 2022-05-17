@@ -225,6 +225,7 @@ class ATLASAPI(FollowUpAPI):
         from ..models import (
             FollowupRequest,
             FacilityTransaction,
+            FacilityTransactionRequest,
             Allocation,
             Instrument,
         )
@@ -250,6 +251,22 @@ class ATLASAPI(FollowUpAPI):
 
         content = req.transactions[0].response["content"]
         content = json.loads(content)
+
+        transaction_request = FacilityTransactionRequest(
+            method='GET',
+            endpoint=content["url"],
+            headers={
+                'Authorization': f"Token {altdata['api_token']}",
+                'Accept': 'application/json',
+            },
+            followup_request=req,
+            initiator_id=req.last_modified_by_id,
+        )
+
+        session.add(transaction_request)
+        session.commit()
+
+        return
 
         r = requests.get(
             content["url"],
