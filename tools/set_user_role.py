@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 parser = argparse.ArgumentParser(
     description='Elevate user to super admin', add_help=True
@@ -6,12 +7,18 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--username', help='User to set role for')
 parser.add_argument('--list', action='store_true', help='List all users')
 parser.add_argument('--role', help='Role to elevate user to')
+
+if len(sys.argv) == 1:
+    parser.print_help(sys.stderr)
+    sys.exit(1)
+
 args = parser.parse_args()
 
 import sqlalchemy as sa  # noqa: E402
 from baselayer.app.env import load_env  # noqa: E402
 from baselayer.app.models import init_db, User, DBSession  # noqa: E402
 from skyportal.model_util import add_user, setup_permissions, role_acls  # noqa: E402
+
 
 env, cfg = load_env()
 init_db(**cfg['database'])
@@ -108,9 +115,9 @@ def main():
             set_user_role(args.username, args.role)
     else:
         print(
-            f'\n{BOLD}{RED}No arguments given;{END} listing {BOLD}{YELLOW}users{END}:\n'
+            f'\n{BOLD}{RED}No arguments given;{END} printing {BOLD}{GREEN}help{END}:\n'
         )
-        list_users()
+        parser.print_help()
 
 
 main()

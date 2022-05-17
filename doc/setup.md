@@ -148,18 +148,17 @@ setting `debug_login` to `False`.
 ### Creating an administrative user
 
 By default, no user has permission to perform system administration.
-You can give such permissions as well as other permissions to an existing user by running the following from your terminal in the `skyportal` directory:
+You can give this and other permissions to an existing user by running the following from your terminal in the `skyportal` directory:
 ```
 PYTHONPATH=. python tools/set_user_role.py --username="<username>" --role="<role>"
 ```
 
-The `username` argument is the name of the user that we want to set to a role, and the `role` argument is the role to give them. The role is optionnal, and defaults to `Super admin`.
+The `username` argument is the name of the user that we want to set to a role. The `role` argument is optional, and defaults to `Super admin`.
 
-Also, you can omit those arguments and use:
+You may also list all users and their roles:
 ```
 PYTHONPATH=. python tools/set_user_role.py --list
 ```
-to list all users, their roles and the roles that they can be set to. If no arguments are passed, it will also default to listing all users.
 
 
 ### Test data
