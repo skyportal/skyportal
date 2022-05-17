@@ -5,8 +5,8 @@ parser = argparse.ArgumentParser(
     description='Elevate user to super admin', add_help=True
 )
 parser.add_argument('--username', help='User to set role for')
-parser.add_argument('--list', action='store_true', help='List all users')
 parser.add_argument('--role', help='Role to elevate user to')
+parser.add_argument('--list', action='store_true', help='List all users')
 
 if len(sys.argv) == 1:
     parser.print_help(sys.stderr)

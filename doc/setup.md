@@ -153,7 +153,7 @@ You can give this and other permissions to an existing user by running the follo
 PYTHONPATH=. python tools/set_user_role.py --username="<username>" --role="<role>"
 ```
 
-The `username` argument is the name of the user that we want to set to a role. The `role` argument is optional, and defaults to `Super admin`.
+The `role` argument is optional, and defaults to `Super admin`.
 
 You may also list all users and their roles:
 ```
