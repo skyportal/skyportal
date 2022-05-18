@@ -3,6 +3,7 @@ from selenium.webdriver.common.keys import Keys
 from datetime import date, timedelta
 import uuid
 from selenium.common.exceptions import TimeoutException
+import time
 
 
 def test_shift(
@@ -164,35 +165,12 @@ def test_shift(
 
     driver.wait_for_xpath_to_disappear(join_button_xpath)
     # check for delete shift button
-    delete_button_xpath = '//*[@id="delete_button"]'
-    driver.wait_for_xpath(delete_button_xpath)
-    driver.click_xpath(delete_button_xpath)
-    driver.wait_for_xpath_to_disappear(
-        f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
-    )
-    driver.wait_for_xpath_to_disappear(f'//*/strong[contains(.,"{form_name}")]')
-
-    assert (
-        len(
-            driver.find_elements_by_xpath(
-                f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
-            )
-        )
-        == 0
-    )
-
-    assert (
-        len(driver.find_elements_by_xpath(f'//*/strong[contains(.,"{form_name}")]'))
-        == 0
-    )
 
     driver.get(f"/become_user/{shift_user.id}")
 
     driver.get(f"/shifts")
 
-    shift_on_calendar = (
-        f'//*[@id="event_{data["data"]["id"]}"]/span/strong[contains(.,"{name}")]'
-    )
+    shift_on_calendar = f'//*/span/strong[contains(.,"{form_name}")]'
     # check for API shift
     driver.wait_for_xpath(
         shift_on_calendar,
@@ -227,27 +205,21 @@ def test_shift(
     driver.get("/")
 
     # look for the replacement request notification
-
     notification_bell = '//*[@data-testid="notificationsBadge"]'
     driver.wait_for_xpath(notification_bell)
     driver.click_xpath(notification_bell)
 
-    notification_xpath = f'//*[@href="/shifts/{data["data"]["id"]}"]'
+    notification_xpath = (
+        f'//ul/a/p[contains(text(),"needs a replacement for shift: {form_name}")]'
+    )
     driver.wait_for_xpath(notification_xpath)
     driver.click_xpath(notification_xpath, timeout=10)
 
     # check for API shift
-    try:
-        driver.wait_for_xpath(
-            shift_on_calendar,
-            timeout=20,
-        )
-    except TimeoutException:
-        driver.refresh()
-        driver.wait_for_xpath(
-            shift_on_calendar,
-            timeout=20,
-        )
+    driver.wait_for_xpath(
+        shift_on_calendar,
+        timeout=30,
+    )
 
     driver.click_xpath(shift_on_calendar)
 
@@ -279,4 +251,38 @@ def test_shift(
     shift_members = '//*[@id="current_shift_members"]'
     driver.wait_for_xpath(
         shift_members + f'[contains(text(), "{shift_admin.username}")]'
+    )
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+    # go to the shift page
+    driver.get(f"/shifts")
+
+    # check for API shift
+    driver.wait_for_xpath(
+        shift_on_calendar,
+        timeout=30,
+    )
+
+    driver.click_xpath(shift_on_calendar)
+
+    delete_button_xpath = '//*[@id="delete_button"]'
+    driver.wait_for_xpath(delete_button_xpath)
+    driver.click_xpath(delete_button_xpath)
+    driver.wait_for_xpath_to_disappear(
+        f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
+    )
+    driver.wait_for_xpath_to_disappear(f'//*/strong[contains(.,"{form_name}")]')
+
+    assert (
+        len(
+            driver.find_elements_by_xpath(
+                f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
+            )
+        )
+        == 0
+    )
+
+    assert (
+        len(driver.find_elements_by_xpath(f'//*/strong[contains(.,"{form_name}")]'))
+        == 0
     )
