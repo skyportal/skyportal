@@ -391,8 +391,6 @@ class ShiftUserHandler(BaseHandler):
               application/json:
                 schema: Success
         """
-        print('user_id', user_id)
-        print('currentuser id', self.current_user.id)
         data = self.get_json()
         try:
             shift_id = int(shift_id)
