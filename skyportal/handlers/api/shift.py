@@ -360,7 +360,7 @@ class ShiftUserHandler(BaseHandler):
     def patch(self, shift_id, user_id):
         """
         ---
-        description: Update a shift user's admin status
+        description: Update a shift user's admin status, or needs_replacement status
         tags:
           - shifts
           - users
@@ -432,17 +432,13 @@ class ShiftUserHandler(BaseHandler):
             # that the user needs to be replaced
             # recover all group users associated to the shift
             try:
-                shift = (
-                    Shift.get_if_accessible_by(
-                        [shift_id],
-                        self.current_user,
-                        options=[
-                            joinedload(Shift.group).joinedload(Group.group_users),
-                        ],
-                        raise_if_none=True,
-                    )
-                    .order_by(Shift.start_date.asc())
-                    .all()
+                shift = Shift.get_if_accessible_by(
+                    [shift_id],
+                    self.current_user,
+                    options=[
+                        joinedload(Shift.group).joinedload(Group.group_users),
+                    ],
+                    raise_if_none=True,
                 )
             except AccessError as e:
                 return self.error(f'Could not find shift. Original error: {e}')
