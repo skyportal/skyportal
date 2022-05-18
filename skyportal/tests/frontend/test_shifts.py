@@ -167,7 +167,7 @@ def test_shift(
 
     driver.get(f"/become_user/{shift_user.id}")
 
-    driver.get(f"/shifts")
+    driver.get("/shifts")
 
     shift_on_calendar = f'//*/span/strong[contains(.,"{form_name}")]'
     # check for API shift
@@ -254,7 +254,7 @@ def test_shift(
 
     driver.get(f"/become_user/{super_admin_user.id}")
     # go to the shift page
-    driver.get(f"/shifts")
+    driver.get("/shifts")
 
     # check for API shift
     driver.wait_for_xpath(
