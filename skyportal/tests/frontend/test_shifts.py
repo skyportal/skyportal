@@ -114,7 +114,7 @@ def test_shift(
 
     # check for button to add and remove users
     remove_users_button = '//*[@id="remove-users-button"]'
-    driver.wait_for_xpath(remove_users_button, timeout=2)
+    driver.wait_for_xpath(remove_users_button)
     driver.click_xpath(remove_users_button)
 
     # check if user has been added and other user has been removed
@@ -146,8 +146,8 @@ def test_shift(
     # check if user has been removed
     shift_members = '//*[@id="current_shift_members"]'
 
-    driver.wait_for_xpath_to_disappear(
-        shift_members + f'[contains(text(), "{view_only_user.username}")]'
+    driver.wait_for_xpath(
+        shift_members + f'[not(contains(text(), "{view_only_user.username}"))]'
     )
 
     # check for leave shift button
