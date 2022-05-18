@@ -3,7 +3,6 @@ from selenium.webdriver.common.keys import Keys
 from datetime import date, timedelta
 import uuid
 from selenium.common.exceptions import TimeoutException
-import time
 
 
 def test_shift(
