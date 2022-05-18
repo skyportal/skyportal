@@ -71,13 +71,20 @@ const ShiftPage = ({ route }) => {
           Object.keys(updatedShift).length > 0 &&
           Object.keys(currentShift).length > 0
         ) {
-          if (
-            updatedShift.shift_users.some((user) =>
-              currentShift.shift_users.some(
-                (cUser) => cUser.needs_replacement === user.needs_replacement
-              )
-            )
-          ) {
+          let usersHaveChanged = false;
+          for (let i = 0; i < updatedShift.shift_users.length; i += 1) {
+            for (let j = 0; j < currentShift.shift_users.length; j += 1) {
+              if (
+                updatedShift.shift_users[i].id ===
+                  currentShift.shift_users[j].id &&
+                updatedShift.shift_users[i].needs_replacement !==
+                  currentShift.shift_users[j].needs_replacement
+              ) {
+                usersHaveChanged = true;
+              }
+            }
+          }
+          if (usersHaveChanged) {
             dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
           }
         }
