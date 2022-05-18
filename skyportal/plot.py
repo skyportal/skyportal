@@ -533,40 +533,6 @@ def make_clear_and_add_photometry_buttons(model_dict):
     )
 
 
-def make_add_filter_group_form(split, model_dict, panel_name):
-    """Makes a form for adding filter groups.
-    Returns
-    -------
-    bokeh row object containing checkboxes, an input, and a button
-    """
-    labels = [label for label, sdf in split]
-    checkboxes = CheckboxGroup(labels=labels, active=[], width=100)
-    name_input = TextInput(width=100, title="Name", name="Name", value_input="")
-    add_filter_group_button = Button(label="Add Filter Group", width=100)
-    callback_add_button = CustomJS(
-        args={
-            'model_dict': model_dict,
-            'name': name_input,
-            'checkboxes': checkboxes,
-            'panel_name': panel_name,
-        },
-        code=open(
-            os.path.join(
-                os.path.dirname(__file__), '../static/js/plotjs', "custom_button.js"
-            )
-        ).read(),
-    )
-    add_filter_group_button.js_on_click(callback_add_button)
-    add_filter_group = column(
-        width=200, children=[checkboxes, name_input, add_filter_group_button]
-    )
-    return add_filter_group
-
-
-def make_custom_buttons_div(panel_name):
-    return Div(css_classes=[f'custom_buttons_{panel_name}'], width=300)
-
-
 def add_axis_labels(plot, panel_name):
     """Add axis labels to a photometry plot.
     Parameters
