@@ -187,9 +187,11 @@ def test_shift(
 
     driver.get(f"/become_user/{shift_user.id}")
 
-    driver.get(f"/shifts/{data['data']['id']}")
+    driver.get(f"/shifts")
 
-    shift_on_calendar = f'//*/strong[contains(.,"{name}")]'
+    shift_on_calendar = (
+        f'//*[@id="event_{data["data"]["id"]}"]/span/strong[contains(.,"{name}")]'
+    )
     # check for API shift
     driver.wait_for_xpath(
         shift_on_calendar,
