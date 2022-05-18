@@ -38,24 +38,20 @@ const ShiftPage = ({ route }) => {
   const [events, setEvents] = React.useState([]);
 
   if (shiftList) {
-    if (!events) {
+    if (!events || events?.length !== shiftList?.length) {
       setEvents(datestringToDate(shiftList));
-    } else if (events.length !== shiftList.length) {
-      setEvents(datestringToDate(shiftList));
-    } else if (currentShift) {
-      if (Object.keys(currentShift).length > 0) {
-        if (
-          events.find((shift) => shift.id === currentShift.id).shift_users
-            .length !== currentShift.shift_users.length
-        ) {
-          setEvents(datestringToDate(shiftList));
-        }
+    } else if (currentShift?.shift_users && currentShift?.id) {
+      if (
+        events.find((shift) => shift.id === currentShift.id).shift_users
+          .length !== currentShift.shift_users.length
+      ) {
+        setEvents(datestringToDate(shiftList));
       }
     }
   }
 
   useEffect(() => {
-    if (!currentShift.id && route) {
+    if (!currentShift?.id && route) {
       const shift = shiftList.find((s) => s.id === parseInt(route.id, 10));
       if (shift)
         dispatch({

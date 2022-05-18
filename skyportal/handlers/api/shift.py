@@ -431,18 +431,21 @@ class ShiftUserHandler(BaseHandler):
             # send a user notification to all members of the group associated to the shift
             # that the user needs to be replaced
             # recover all group users associated to the shift
-            shift = (
-                Shift.query_records_accessible_by(
-                    self.current_user,
-                    mode="read",
-                    options=[
-                        joinedload(Shift.group).joinedload(Group.group_users),
-                    ],
+            try:
+                shift = (
+                    Shift.get_if_accessible_by(
+                        [shift_id],
+                        self.current_user,
+                        options=[
+                            joinedload(Shift.group).joinedload(Group.group_users),
+                        ],
+                        raise_if_none=True,
+                    )
+                    .order_by(Shift.start_date.asc())
+                    .all()
                 )
-                .filter(Shift.id == shift_id)
-                .order_by(Shift.start_date.asc())
-                .all()
-            )
+            except AccessError as e:
+                return self.error(f'Could not find shift. Original error: {e}')
             for group_user in shift[0].group.group_users:
                 if group_user.user_id != user_id:
                     DBSession().add(

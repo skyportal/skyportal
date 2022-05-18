@@ -112,7 +112,7 @@ ShiftUser.admin = sa.Column(
 # add a column that is a boolean saying if a user needs a replacement for the shift
 ShiftUser.needs_replacement = sa.Column(
     sa.Boolean,
-    nullable=True,
+    nullable=False,
     default=False,
     doc="Boolean flag indicating whether the User needs a replacement for the shift.",
 )

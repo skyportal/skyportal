@@ -150,7 +150,6 @@ const userLabel = (user) => {
 
 function CurrentShiftMenu({ currentShift }) {
   const classes = useStyles();
-  const { permissions } = useSelector((state) => state.profile);
   const currentUser = useSelector((state) => state.profile);
   const dispatch = useDispatch();
 
@@ -743,7 +742,7 @@ function CurrentShiftMenu({ currentShift }) {
             )}
             {(currentUserIsAdminOfShift ||
               currentUserIsAdminOfGroup ||
-              permissions.includes("System admin")) && (
+              currentUser?.permissions.includes("System admin")) && (
               <Button
                 id="delete_button"
                 onClick={() => deleteShift(currentShift)}
@@ -756,7 +755,7 @@ function CurrentShiftMenu({ currentShift }) {
         <div className={classes.addUsersElements}>
           {(currentUserIsAdminOfShift ||
             currentUserIsAdminOfGroup ||
-            permissions.includes("System admin")) && (
+            currentUser?.permissions.includes("System admin")) && (
             <MultipleGroupSelectChip id="add_shift_users" />
           )}
         </div>
