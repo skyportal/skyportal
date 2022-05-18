@@ -5,8 +5,15 @@ import uuid
 from selenium.common.exceptions import TimeoutException
 
 
-def test_super_user_post_shift(
-    public_group, super_admin_token, super_admin_user, user, view_only_user, driver
+def test_shift(
+    public_group,
+    super_admin_token,
+    super_admin_user,
+    user,
+    view_only_user,
+    shift_admin,
+    shift_user,
+    driver,
 ):
     name = str(uuid.uuid4())
     start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
@@ -178,49 +185,16 @@ def test_super_user_post_shift(
         == 0
     )
 
-
-def test_shift_user_replacement(
-    public_group,
-    super_admin_token,
-    super_admin_user,
-    user,
-    shift_admin,
-    shift_user,
-    driver,
-):
-    name = str(uuid.uuid4())
-    start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
-    end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
-    request_data = {
-        'name': name,
-        'group_id': public_group.id,
-        'start_date': start_date,
-        'end_date': end_date,
-        'description': 'the Night Shift',
-        'shift_admins': [super_admin_user.id],
-    }
-
-    status, data = api('POST', 'shifts', data=request_data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
     driver.get(f"/become_user/{shift_user.id}")
 
     driver.get(f"/shifts/{data['data']['id']}")
 
     shift_on_calendar = f'//*/strong[contains(.,"{name}")]'
     # check for API shift
-    try:
-        driver.wait_for_xpath(
-            shift_on_calendar,
-            timeout=20,
-        )
-    except TimeoutException:
-        driver.refresh()
-        driver.wait_for_xpath(
-            shift_on_calendar,
-            timeout=20,
-        )
+    driver.wait_for_xpath(
+        shift_on_calendar,
+        timeout=30,
+    )
 
     driver.click_xpath(shift_on_calendar)
 
