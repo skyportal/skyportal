@@ -1426,14 +1426,9 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
     if panel_name == 'mag' or panel_name == 'flux':
         annotate_spec(plot, spectra, y_range[0], y_range[1])
 
-    add_filter_group_form = row(
-        make_add_filter_group_form(grouped_data, model_dict, panel_name),
-        make_custom_buttons_div(panel_name),
-    )
     layout = column(
         plot,
         row(make_clear_and_add_photometry_buttons(model_dict), spinner),
-        add_filter_group_form,
         width=width,
     )
     add_widgets(
