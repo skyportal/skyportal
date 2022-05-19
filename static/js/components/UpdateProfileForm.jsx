@@ -24,7 +24,6 @@ import NotificationPreferences from "./NotificationPreferences";
 import FavoriteSourcesNotificationPreferences from "./FavoriteSourcesNotificationPreferences";
 import SlackPreferences from "./SlackPreferences";
 import ObservabilityPreferences from "./ObservabilityPreferences";
-import PhotometryPlottingPreferences from "./PhotometryPlottingPreferences";
 
 const UpdateProfileForm = () => {
   const profile = useSelector((state) => state.profile);
@@ -176,9 +175,6 @@ const UpdateProfileForm = () => {
         </CardContent>
         <CardContent>
           <ObservabilityPreferences />
-        </CardContent>
-        <CardContent>
-          <PhotometryPlottingPreferences />
         </CardContent>
       </Card>
       <Dialog
