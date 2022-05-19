@@ -24,6 +24,7 @@ import NotificationPreferences from "./NotificationPreferences";
 import FavoriteSourcesNotificationPreferences from "./FavoriteSourcesNotificationPreferences";
 import SlackPreferences from "./SlackPreferences";
 import ObservabilityPreferences from "./ObservabilityPreferences";
+import PhotometryPlottingPreferences from "./PhotometryPlottingPreferences";
 import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
 
 const UpdateProfileForm = () => {
@@ -176,6 +177,9 @@ const UpdateProfileForm = () => {
         </CardContent>
         <CardContent>
           <ObservabilityPreferences />
+        </CardContent>
+        <CardContent>
+          <PhotometryPlottingPreferences />
         </CardContent>
         <CardContent>
           <ClassificationsShortcutForm />
