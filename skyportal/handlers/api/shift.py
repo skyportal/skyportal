@@ -278,6 +278,9 @@ class ShiftUserHandler(BaseHandler):
                             admin:
                               type: boolean
                               description: Boolean indicating whether user is shift admin
+                            needs_replacement:
+                              type: boolean
+                              description: Boolean indicating whether user needs replacement or not
         """
 
         data = self.get_json()
@@ -382,6 +385,10 @@ class ShiftUserHandler(BaseHandler):
                     type: boolean
                     description: |
                       Boolean indicating whether user is shift admin.
+                  needs_replacement:
+                    type: boolean
+                    description: |
+                      Boolean indicating whether user needs replacement or not
 
                 required:
                   - userID
