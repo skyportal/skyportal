@@ -75,24 +75,29 @@ class Telescope(Base):
                 return None
             if not (-90 <= self.lat <= 90):
                 return None
-            tf = timezonefinder.TimezoneFinder(in_memory=True)
-            local_tz = tf.closest_timezone_at(
-                lng=(self.lon + 180) % 360 - 180, lat=self.lat, delta_degree=5
-            )
-            elevation = self.elevation
-            if (
-                self.elevation is None
-                or self.elevation == ""
-                or np.isnan(self.elevation)
-            ):
-                elevation = 0
 
-            self._observer = astroplan.Observer(
-                longitude=self.lon * u.deg,
-                latitude=self.lat * u.deg,
-                elevation=elevation * u.m,
-                timezone=local_tz,
-            )
+            try:
+                tf = timezonefinder.TimezoneFinder(in_memory=True)
+                local_tz = tf.closest_timezone_at(
+                    lng=(self.lon + 180) % 360 - 180, lat=self.lat, delta_degree=5
+                )
+                elevation = self.elevation
+                if (
+                    self.elevation is None
+                    or self.elevation == ""
+                    or np.isnan(self.elevation)
+                ):
+                    elevation = 0
+
+                self._observer = astroplan.Observer(
+                    longitude=self.lon * u.deg,
+                    latitude=self.lat * u.deg,
+                    elevation=elevation * u.m,
+                    timezone=local_tz,
+                )
+
+            except Exception:
+                return None
 
         return self._observer
 
