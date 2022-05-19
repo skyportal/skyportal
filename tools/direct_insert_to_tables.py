@@ -59,7 +59,7 @@ def insert_data(filename, tablename, delete_id=True, new_data_dir="./", verbose=
         del opd["id"]
     else:
         if verbose:
-            print("Note: not deleting the `id` for this table {tablename}.")
+            print(f"Note: not deleting the `id` for this table {tablename}.")
 
     total = 0
     for index, row in opd.iterrows():
