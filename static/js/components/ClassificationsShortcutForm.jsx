@@ -1,16 +1,13 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useForm } from "react-hook-form";
-import Input from "@material-ui/core/Input";
 import InputLabel from "@material-ui/core/InputLabel";
 import Chip from "@material-ui/core/Chip";
-import Select from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
 import { makeStyles } from "@material-ui/core/styles";
-import { Button, FormControl, TextField, Typography } from "@material-ui/core";
+import { Button, TextField, Typography } from "@material-ui/core";
 import UserPreferencesHeader from "./UserPreferencesHeader";
-import { allowedClasses } from "./ClassificationForm";
 import * as profileActions from "../ducks/profile";
+import ClassificationSelect from "./ClassificationSelect";
 
 const useStyles = makeStyles(() => ({
   chips: {
@@ -32,28 +29,8 @@ const useStyles = makeStyles(() => ({
 const ClassificationsShortcutForm = () => {
   const classes = useStyles();
   const profile = useSelector((state) => state.profile.preferences);
-  const { taxonomyList } = useSelector((state) => state.taxonomies);
-  const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
-  let classifications = [];
-  latestTaxonomyList?.forEach((taxonomy) => {
-    const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
-      (option) => option.class
-    );
-    classifications = classifications.concat(currentClasses);
-  });
-  classifications = Array.from(new Set(classifications)).sort();
   const { handleSubmit, register, errors, reset } = useForm();
   const dispatch = useDispatch();
-
-  const ITEM_HEIGHT = 48;
-  const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5,
-        width: 250,
-      },
-    },
-  };
 
   const [selectedClassifications, setSelectedClassifications] = useState([]);
 
@@ -88,37 +65,10 @@ const ClassificationsShortcutForm = () => {
       <div className={classes.form}>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className={classes.form}>
-            <div>
-              <FormControl className={classes.classificationsMenu}>
-                <InputLabel id="classifications-select-label">
-                  Classifications
-                </InputLabel>
-                <Select
-                  labelId="classifications-select-label"
-                  id="classifications-select"
-                  multiple
-                  value={selectedClassifications}
-                  onChange={(event) => {
-                    setSelectedClassifications(event.target.value);
-                  }}
-                  input={<Input id="classifications-select" />}
-                  renderValue={(selected) => (
-                    <div className={classes.chips}>
-                      {selected?.map((classification) => (
-                        <Chip key={classification} label={classification} />
-                      ))}
-                    </div>
-                  )}
-                  MenuProps={MenuProps}
-                >
-                  {classifications?.map((classification) => (
-                    <MenuItem key={classification} value={classification}>
-                      {classification}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </div>
+            <ClassificationSelect
+              selectedClassifications={selectedClassifications}
+              setSelectedClassifications={setSelectedClassifications}
+            />
             <div>
               <InputLabel htmlFor="shortcutNameInput">Shortcut Name</InputLabel>
               <TextField

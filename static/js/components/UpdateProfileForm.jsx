@@ -24,7 +24,7 @@ import NotificationPreferences from "./NotificationPreferences";
 import FavoriteSourcesNotificationPreferences from "./FavoriteSourcesNotificationPreferences";
 import SlackPreferences from "./SlackPreferences";
 import ObservabilityPreferences from "./ObservabilityPreferences";
-// import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
+import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
 
 const UpdateProfileForm = () => {
   const profile = useSelector((state) => state.profile);
@@ -177,9 +177,9 @@ const UpdateProfileForm = () => {
         <CardContent>
           <ObservabilityPreferences />
         </CardContent>
-        {/* <CardContent>
+        <CardContent>
           <ClassificationsShortcutForm />
-        </CardContent> */}
+        </CardContent>
       </Card>
       <Dialog
         open={welcomeDialogOpen}
