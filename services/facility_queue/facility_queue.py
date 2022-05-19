@@ -3,6 +3,9 @@
 # curl -X POST http://localhost:64510 -d '{"method": "GET", "endpoint": "http://localhost:9980"}'
 #
 
+from datetime import datetime, timedelta
+import time
+
 import tornado.ioloop
 import tornado.web
 import asyncio
@@ -39,6 +42,8 @@ request_session.trust_env = (
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
+WAIT_TIME_BETWEEN_QUERIES = timedelta(seconds=120)
+
 
 class FacilityQueue(asyncio.Queue):
     async def load_from_db(self):
@@ -56,63 +61,74 @@ class FacilityQueue(asyncio.Queue):
     async def service(self):
         while True:
             req = await queue.get()
-            print(f"{req.method} request to [{req.endpoint}]")
 
-            session = Session()
-            followup_request = session.query(FollowupRequest).get(
-                req.followup_request_id
-            )
-            instrument = followup_request.allocation.instrument
-            altdata = followup_request.allocation.altdata
+            print(f"Executing request {req.id}")
 
-            response = request_session.request(
-                req.method,
-                req.endpoint,
-                json=req.data,
-                params=req.params,
-                headers=req.headers,
-            )
-
-            if instrument.name == "ATLAS":
-                from skyportal.facility_apis.atlas import commit_photometry
-
-                if response.status_code == 200:
-                    try:
-                        json_response = response.json()
-                    except Exception:
-                        raise ('No JSON data returned in request')
-
-                    if json_response['finishtimestamp']:
-                        req.status = "Committing photometry to database"
-                        commit_photometry(
-                            json_response,
-                            altdata,
-                            followup_request.id,
-                            instrument.id,
-                            followup_request.requester.id,
-                        )
-                        req.status = 'complete'
-                        session.add(req)
-
-                    elif json_response['starttimestamp']:
-                        followup_request.status = f"Task is running (started at {json_response['starttimestamp']})"
-                        await self.put(req)
-                    else:
-                        followup_request.status = f"Waiting for job to start (queued at {json_response['timestamp']})"
-                        await self.put(req)
-                else:
-                    followup_request.status = f'error: {response.content}'
-
-                session.add(followup_request)
-                session.commit()
-
+            dt = datetime.utcnow() - req.last_query
+            if dt < WAIT_TIME_BETWEEN_QUERIES:
+                print(
+                    f"Holding {req.id} for {(WAIT_TIME_BETWEEN_QUERIES-dt).seconds} seconds"
+                )
+                await self.put(req)
             else:
-                raise ValueError(f'API for {instrument.name} unknown')
+                session = Session()
+                followup_request = session.query(FollowupRequest).get(
+                    req.followup_request_id
+                )
+                instrument = followup_request.allocation.instrument
+                altdata = followup_request.allocation.altdata
 
-            # Simulate time taken to service this request
-            await asyncio.sleep(3)
+                response = request_session.request(
+                    req.method,
+                    req.endpoint,
+                    json=req.data,
+                    params=req.params,
+                    headers=req.headers,
+                )
 
-            print(f"{req.method} request to [{req.endpoint}] completed")
+                if instrument.name == "ATLAS":
+                    from skyportal.facility_apis.atlas import commit_photometry
+
+                    if response.status_code == 200:
+                        try:
+                            json_response = response.json()
+                        except Exception:
+                            raise ('No JSON data returned in request')
+
+                        if json_response['finishtimestamp']:
+                            req.status = "Committing photometry to database"
+                            commit_photometry(
+                                json_response,
+                                altdata,
+                                followup_request.id,
+                                instrument.id,
+                                followup_request.requester.id,
+                            )
+                            req.status = 'complete'
+                            session.add(req)
+                            print(f"Request {req.id} completed")
+
+                        elif json_response['starttimestamp']:
+                            followup_request.status = f"Task is running (started at {json_response['starttimestamp']})"
+                            req.last_query = datetime.utcnow()
+                            session.add(req)
+                            await self.put(req)
+                        else:
+                            followup_request.status = f"Waiting for job to start (queued at {json_response['timestamp']})"
+                            req.last_query = datetime.utcnow()
+                            session.add(req)
+                            await self.put(req)
+                    else:
+                        followup_request.status = f'error: {response.content}'
+
+                    session.add(followup_request)
+                    session.commit()
+
+                else:
+                    raise ValueError(f'API for {instrument.name} unknown')
+
+            # Pause between requests
+            time.sleep(1)
 
 
 queue = FacilityQueue()
@@ -143,15 +159,15 @@ class QueueHandler(tornado.web.RequestHandler):
                 }
             )
 
-        for field in ('method', 'endpoint'):
-            if getattr(req, field) is None:
-                self.set_status(400)
-                return self.write(
-                    {
-                        "status": "error",
-                        "message": f"Missing request attribute `{field}`",
-                    }
-                )
+        # for field in ('method', 'endpoint'):
+        #    if getattr(req, field) is None:
+        #        self.set_status(400)
+        #        return self.write(
+        #            {
+        #                "status": "error",
+        #                "message": f"Missing request attribute `{field}`",
+        #            }
+        #        )
 
         session = Session()
 

@@ -73,6 +73,14 @@ class FacilityTransactionRequest(Base):
         doc="UTC time this FacilityTransactionRequest was created.",
     )
 
+    last_query = sa.Column(
+        sa.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        index=True,
+        doc="UTC time this FacilityTransactionRequest was last queried.",
+    )
+
     method = sa.Column(
         sa.String,
         nullable=False,

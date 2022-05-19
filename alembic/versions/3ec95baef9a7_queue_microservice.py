@@ -23,6 +23,7 @@ def upgrade():
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
         sa.Column('modified', sa.DateTime(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('last_query', sa.DateTime(), nullable=False),
         sa.Column('method', sa.String(), nullable=False),
         sa.Column('endpoint', sa.String(), nullable=False),
         sa.Column('data', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
