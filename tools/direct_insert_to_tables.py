@@ -16,14 +16,16 @@ psql> \copy (select * from classifications WHERE created_at > '<DATE>')
 ```
 
 This will create a new file called `new_classifications.csv`.
-Edit this script and change `new_data_dir` and `tables` variables
-accordingly.
 
 Then run this script:
 ```
-PYTHONPATH=. python tools/direct_insert_to_tables.py new_classifications.csv classifications True --config=...
+PYTHONPATH=. python tools/direct_insert_to_tables.py new_classifications.csv \
+             classifications --delete_id=True --config=<location of config files>
 ```
 
+The first argument is the filename, the second is the table name, and the third is the delete_id flag.
+You can also provide a location of where the files are stored (`new_data_dir`, default is `./`)
+and a verbose flag (`verbose`, default is `False`).
 Each row is added sequentially and referential integrity issues are caught.
 
 """
