@@ -433,7 +433,7 @@ class ShiftUserHandler(BaseHandler):
             # recover all group users associated to the shift
             try:
                 shift = Shift.get_if_accessible_by(
-                    [shift_id],
+                    shift_id,
                     self.current_user,
                     options=[
                         joinedload(Shift.group).joinedload(Group.group_users),
@@ -442,13 +442,13 @@ class ShiftUserHandler(BaseHandler):
                 )
             except AccessError as e:
                 return self.error(f'Could not find shift. Original error: {e}')
-            for group_user in shift[0].group.group_users:
+            for group_user in shift.group.group_users:
                 if group_user.user_id != user_id:
                     DBSession().add(
                         UserNotification(
                             user=group_user.user,
-                            text=f"*@{shiftuser.user.username}* needs a replacement for shift: {shift[0].name} from {shift[0].start_date} to {shift[0].end_date}.",
-                            url=f"/shifts/{shift[0].id}",
+                            text=f"*@{shiftuser.user.username}* needs a replacement for shift: {shift.name} from {shift.start_date} to {shift.end_date}.",
+                            url=f"/shifts/{shift.id}",
                         )
                     )
                     self.flow.push(

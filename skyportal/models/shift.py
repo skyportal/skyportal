@@ -38,13 +38,29 @@ def manage_shift_access_logic(cls, user_or_token):
     return query
 
 
-# shift admins can set the admin status of other shift members
 def shiftuser_update_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.id)
+    query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.shift_id)
     if not user_or_token.is_system_admin:
-        query = query.filter(aliased.user_id == user_id, aliased.admin.is_(True))
+        query = query.filter(
+            sa.or_(aliased.user_id == user_id, ShiftUser.admin.is_(True))
+        )
+    return query
+
+
+def shiftuser_delete_access_logic(cls, user_or_token):
+    aliased = safe_aliased(cls)
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.shift_id)
+    if not user_or_token.is_system_admin:
+        query = query.filter(
+            sa.or_(
+                aliased.user_id == user_id,
+                ShiftUser.admin.is_(True),
+                aliased.needs_replacement.is_(True),
+            )
+        )
     return query
 
 
@@ -117,13 +133,7 @@ ShiftUser.needs_replacement = sa.Column(
     doc="Boolean flag indicating whether the User needs a replacement for the shift.",
 )
 
-ShiftUser.update = ShiftUser.read
-ShiftUser.delete = (
-    # TODO: admins can leave a shift ONLY if there is at least one other admin
-    # users can remove themselves from a shift
-    # admins of a shift can remove users from it
-    # anyone can remove a user that has asked for a replacement
-    ShiftUser.read
-)
+ShiftUser.update = CustomUserAccessControl(shiftuser_update_access_logic)
+ShiftUser.delete = CustomUserAccessControl(shiftuser_delete_access_logic)
 
 ShiftUser.create = ShiftUser.read
