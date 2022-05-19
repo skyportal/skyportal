@@ -4,6 +4,7 @@ from dl import queryClient as qc
 import pandas as pd
 from io import StringIO
 from sqlalchemy.exc import IntegrityError
+from astroquery.gaia import GaiaClass
 from astroquery.irsa import Irsa
 import numpy as np
 from astroquery.vizier import Vizier
@@ -18,6 +19,145 @@ from ...models import (
     Group,
     Obj,
 )
+
+
+class GaiaQueryHandler(BaseHandler):
+    @auth_or_token
+    def post(self, obj_id):
+        """
+        ---
+        description: |
+            get Gaia parallax and magnitudes and post them as an annotation,
+            based on cross-match to the Gaia eDR3.
+        parameters:
+          - in: path
+            name: obj_id
+            required: true
+            schema:
+              type: string
+            description: ID of the object to retrieve WISE colors for
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  catalog:
+                    required: false
+                    type: string
+                    description: |
+                      The name of the catalog key, associated with a
+                      catalog cross match,
+                      from which the data should be retrieved.
+                      Default is < >
+                  crossmatchRadius:
+                    required: false
+                    type: number
+                    description: |
+                      Crossmatch radius (in arcseconds) to retrieve Gaia sources
+                      Default is 2.
+                  group_ids:
+                    required: false
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of group IDs corresponding to which groups
+                      should be able to view annotation.
+                      Defaults to all of requesting user's groups.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        obj = Obj.get_if_accessible_by(obj_id, self.current_user)
+        if obj is None:
+            return self.error('Invalid object id.')
+
+        data = self.get_json()
+
+        group_ids = data.pop('group_ids', None)
+        if not group_ids:
+            groups = self.current_user.accessible_groups
+        else:
+            try:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error(
+                    'At least some of the groups are not accessible.', status=403
+                )
+
+        author = self.associated_user_object
+
+        catalog = data.pop('catalog', "gaiaedr3.gaia_source")
+        radius_arcsec = data.pop('crossmatchRadius', 2.0)
+        candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
+
+        df = (
+            GaiaClass()
+            .cone_search(
+                candidate_coord,
+                radius_arcsec * u.arcsec,
+                table_name=catalog,
+            )
+            .get_data()
+            .to_pandas()
+        )
+
+        columns = {
+            'ra': 'ra',
+            'dec': 'dec',
+            'pm_ra': 'pmra',
+            'pm_dec': 'pmdec',
+            'Mag_G': 'phot_g_mean_mag',
+            'Mag_BP': 'phot_bp_mean_mag',
+            'Mag_RP': 'phot_rp_mean_mag',
+            'Plx': 'parallax',
+            'Plx_err': 'parallax_error',
+            'A_G': 'a_g_val',
+            'RUWE': 'ruwe',
+        }
+
+        annotations = []
+        for index, row in df.iterrows():
+            row_dict = row.to_dict()
+            annotation_data = {}
+            for local_key, gaia_key in columns.items():
+                value = row_dict.get(gaia_key, np.nan)
+                if not np.isnan(value):
+                    annotation_data[local_key] = value
+            if annotation_data:
+                origin = f"{catalog}-{row['ra']}-{row['dec']}"
+                annotation = Annotation(
+                    data=annotation_data,
+                    obj_id=obj_id,
+                    origin=origin,
+                    author=author,
+                    groups=groups,
+                )
+                annotations.append(annotation)
+
+        if len(annotations) == 0:
+            return self.error("No Gaia Photometry available.")
+
+        DBSession().add_all(annotations)
+        try:
+            self.verify_and_commit()
+        except IntegrityError:
+            return self.error("Annotation already posted.")
+
+        self.push_all(
+            action='skyportal/REFRESH_SOURCE',
+            payload={'obj_key': obj.internal_key},
+        )
+        return self.success()
 
 
 class IRSAQueryWISEHandler(BaseHandler):

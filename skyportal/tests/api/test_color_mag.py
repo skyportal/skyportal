@@ -8,9 +8,12 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
         f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
-            'origin': 'cross_match1',
+            'origin': 'gaiaedr3.gaia_source',
             'data': {
-                'gaia': {'Mag_G': 15.1, 'Mag_Bp': 16.1, 'Mag_Rp': 14.0, 'Plx': 20},
+                'Mag_G': 15.1,
+                'Mag_Bp': 16.1,
+                'Mag_Rp': 14.0,
+                'Plx': 20,
             },
         },
         token=annotation_token,
@@ -26,7 +29,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
     )
 
     assert status == 200
-    assert data['data'][0]['origin'] == 'cross_match1'
+    assert data['data'][0]['origin'] == 'gaiaedr3.gaia_source'
     assert abs(data['data'][0]['abs_mag'] - 11.6) < 0.1
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
@@ -36,15 +39,13 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
         f'sources/{public_source.id}/annotations/{annotation_id}',
         data={
             'obj_id': public_source.id,
-            'origin': 'cross_match1',
+            'origin': 'gaiaedr3.gaia_source',
             'data': {
-                'gaia': {
-                    'Mag_G': 15.1,
-                    'Mag_Bp': 16.1,
-                    'Mag_Rp': 14.0,
-                    'Plx': 20,
-                    'A_G': 0.3,
-                },
+                'Mag_G': 15.1,
+                'Mag_Bp': 16.1,
+                'Mag_Rp': 14.0,
+                'Plx': 20,
+                'A_G': 0.3,
             },
         },
         token=annotation_token,
@@ -56,7 +57,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
     )
 
     assert status == 200
-    assert data['data'][0]['origin'] == 'cross_match1'
+    assert data['data'][0]['origin'] == 'gaiaedr3.gaia_source'
     assert abs(data['data'][0]['abs_mag'] - 11.9) < 0.1
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
@@ -66,16 +67,14 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
         f'sources/{public_source.id}/annotations/{annotation_id}',
         data={
             'obj_id': public_source.id,
-            'origin': 'cross_match1',
+            'origin': 'gaiaedr3.gaia_source',
             'data': {
-                'gaia': {
-                    'Mag_G': 15.1,
-                    'Mag_Bp': 16.1,
-                    'Mag_Rp': 14.0,
-                    'Plx': 20,
-                    'Abs_mag_G': 12.5,
-                    'color': 1.8,
-                },
+                'Mag_G': 15.1,
+                'Mag_Bp': 16.1,
+                'Mag_Rp': 14.0,
+                'Plx': 20,
+                'Abs_mag_G': 12.5,
+                'color': 1.8,
             },
             # note the additional keys should override the existing data only when asking for them in the query
         },
@@ -89,7 +88,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
     )
 
     assert status == 200
-    assert data['data'][0]['origin'] == 'cross_match1'
+    assert data['data'][0]['origin'] == 'gaiaedr3.gaia_source'
     assert abs(data['data'][0]['abs_mag'] - 11.6) < 0.1
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
@@ -102,7 +101,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
     )
 
     assert status == 200
-    assert data['data'][0]['origin'] == 'cross_match1'
+    assert data['data'][0]['origin'] == 'gaiaedr3.gaia_source'
     assert abs(data['data'][0]['abs_mag'] - 12.5) < 0.1
     assert abs(data['data'][0]['color'] - 1.8) < 0.1
 
@@ -115,7 +114,7 @@ def test_post_retrieve_color_mag_data(annotation_token, user, public_source):
     )
 
     assert status == 200
-    assert data['data']['color_magnitude'][0]['origin'] == 'cross_match1'
+    assert data['data']['color_magnitude'][0]['origin'] == 'gaiaedr3.gaia_source'
     assert abs(data['data']['color_magnitude'][0]['abs_mag'] - 11.6) < 0.1
     assert abs(data['data']['color_magnitude'][0]['color'] - 2.1) < 0.1
 

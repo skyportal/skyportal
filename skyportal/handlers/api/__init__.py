@@ -5,6 +5,7 @@ from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
+    GaiaQueryHandler,
     IRSAQueryWISEHandler,
     VizierQueryHandler,
     DatalabQueryHandler,
