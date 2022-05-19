@@ -203,9 +203,16 @@ function CurrentShiftMenu({ currentShift }) {
               userID: selected_users[user].id,
               shift_id: currentShift.id,
             })
-          );
+          ).then((result) => {
+            if (result.status === "success") {
+              dispatch(
+                showNotification(
+                  `User ${selected_users[user]?.username} removed from shift`
+                )
+              );
+            }
+          });
         });
-        dispatch(showNotification("Users removed from shift"));
       } else {
         dispatch(showNotification("No users selected", "error"));
       }

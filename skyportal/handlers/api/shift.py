@@ -30,7 +30,7 @@ class ShiftHandler(BaseHandler):
                   - type: object
                     properties:
                       shift_admins:
-                        type: array
+                        type: arrayF
                         items:
                           type: integer
                         description: |
@@ -504,9 +504,10 @@ class ShiftUserHandler(BaseHandler):
             .filter(ShiftUser.user_id == user_id)
             .first()
         )
-
         if su is None:
-            raise AccessError("ShiftUser does not exist.")
+            raise AccessError(
+                "ShiftUser does not exist, or you don't have the right to delete him."
+            )
 
         DBSession().delete(su)
         self.verify_and_commit()

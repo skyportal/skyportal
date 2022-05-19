@@ -41,10 +41,20 @@ def manage_shift_access_logic(cls, user_or_token):
 def shiftuser_update_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    user_shift_admin = (
+        DBSession()
+        .query(Shift)
+        .join(GroupUser, GroupUser.group_id == Shift.group_id)
+        .filter(sa.and_(GroupUser.user_id == user_id, GroupUser.admin.is_(True)))
+    )
     query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.shift_id)
     if not user_or_token.is_system_admin:
         query = query.filter(
-            sa.or_(aliased.user_id == user_id, aliased.admin.is_(True))
+            sa.or_(
+                aliased.user_id == user_id,
+                sa.and_(aliased.admin.is_(True), aliased.user_id == user_id),
+                aliased.shift_id.in_([shift.id for shift in user_shift_admin.all()]),
+            )
         )
     return query
 
@@ -52,12 +62,19 @@ def shiftuser_update_access_logic(cls, user_or_token):
 def shiftuser_delete_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    user_shift_admin = (
+        DBSession()
+        .query(Shift)
+        .join(GroupUser, GroupUser.group_id == Shift.group_id)
+        .filter(sa.and_(GroupUser.user_id == user_id, GroupUser.admin.is_(True)))
+    )
     query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.shift_id)
     if not user_or_token.is_system_admin:
         query = query.filter(
             sa.or_(
                 aliased.user_id == user_id,
-                aliased.admin.is_(True),
+                sa.and_(aliased.admin.is_(True), aliased.user_id == user_id),
+                aliased.shift_id.in_([shift.id for shift in user_shift_admin.all()]),
                 aliased.needs_replacement.is_(True),
             )
         )
