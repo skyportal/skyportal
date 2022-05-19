@@ -76,7 +76,7 @@ def insert_data(filename, tablename, delete_id=True, new_data_dir="./", verbose=
             if verbose:
                 print(f"Error message: {e}")
 
-    print(f"Added {total} to {tablename}")
+    print(f"Added {total} rows to {tablename}.")
 
 
 if __name__ == '__main__':
