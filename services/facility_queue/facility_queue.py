@@ -34,12 +34,6 @@ request_session.trust_env = (
     False  # Otherwise pre-existing netrc config will override auth headers
 )
 
-# class FacilityTransactionRequest:
-#    def __init__(self, method=None, endpoint=None, headers=None):
-#        self.method = method
-#        self.endpoint = endpoint
-#        self.headers = headers
-
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 WAIT_TIME_BETWEEN_QUERIES = timedelta(seconds=120)
@@ -159,16 +153,6 @@ class QueueHandler(tornado.web.RequestHandler):
                 }
             )
 
-        # for field in ('method', 'endpoint'):
-        #    if getattr(req, field) is None:
-        #        self.set_status(400)
-        #        return self.write(
-        #            {
-        #                "status": "error",
-        #                "message": f"Missing request attribute `{field}`",
-        #            }
-        #        )
-
         session = Session()
 
         current_req = session.execute(
@@ -182,6 +166,21 @@ class QueueHandler(tornado.web.RequestHandler):
                 {
                     "status": "error",
                     "message": f"Facility request {req.followup_request_id} already in the queue and/or complete",
+                    "data": {"followup_request_id": req.followup_request_id},
+                }
+            )
+            return
+
+        endpoint_req = session.execute(
+            sa.select(FacilityTransactionRequest).where(
+                FacilityTransactionRequest.endpoint == req.endpoint
+            )
+        ).first()
+        if endpoint_req is not None:
+            self.write(
+                {
+                    "status": "error",
+                    "message": f"Facility request {req.followup_request_id} already reaches same endpoint {req.endpoint} as {endpoint_req.id}",
                     "data": {"followup_request_id": req.followup_request_id},
                 }
             )
