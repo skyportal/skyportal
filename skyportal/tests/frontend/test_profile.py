@@ -1,10 +1,10 @@
 import pytest
 import uuid
 
-# from skyportal.tests import api
-# from tdtax import taxonomy, __version__
-# from selenium.webdriver.common.keys import Keys
-# from selenium.webdriver.common.action_chains import ActionChains
+from skyportal.tests import api
+from tdtax import taxonomy, __version__
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 
 
 def test_token_acls_options_rendering1(driver, user):
@@ -106,64 +106,64 @@ def test_profile_dropdown(driver, user):
     driver.wait_for_xpath("//a[contains(@data-testid, 'signOutButton')]")
 
 
-# def test_add_classification_shortcut(driver, user, public_group, taxonomy_token):
-#     status, data = api(
-#         'POST',
-#         'taxonomy',
-#         data={
-#             'name': "test taxonomy" + str(uuid.uuid4()),
-#             'hierarchy': taxonomy,
-#             'group_ids': [public_group.id],
-#             'provenance': f"tdtax_{__version__}",
-#             'version': __version__,
-#             'isLatest': True,
-#         },
-#         token=taxonomy_token,
-#     )
-#     assert status == 200
-#     driver.get(f"/become_user/{user.id}")
-#     driver.get("/profile")
-#     classifications_entry = driver.wait_for_xpath('//div[@id="classifications-select"]')
-#     driver.scroll_to_element_and_click(classifications_entry)
-#     agn_option = driver.wait_for_xpath('//li[@data-value="AGN"]')
-#     driver.scroll_to_element_and_click(agn_option)
-#     driver.wait_for_xpath('//span[contains(text(), "AGN")]')
-#     am_cvn_option = driver.wait_for_xpath('//li[@data-value="AM CVn"]')
-#     driver.scroll_to_element_and_click(am_cvn_option)
-#     driver.wait_for_xpath('//span[contains(text(), "AM CVn")]')
-#     ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+def test_add_classification_shortcut(driver, user, public_group, taxonomy_token):
+    status, data = api(
+        'POST',
+        'taxonomy',
+        data={
+            'name': "test taxonomy" + str(uuid.uuid4()),
+            'hierarchy': taxonomy,
+            'group_ids': [public_group.id],
+            'provenance': f"tdtax_{__version__}",
+            'version': __version__,
+            'isLatest': True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/profile")
+    classifications_entry = driver.wait_for_xpath('//div[@id="classifications-select"]')
+    driver.scroll_to_element_and_click(classifications_entry)
+    agn_option = driver.wait_for_xpath('//li[@data-value="AGN"]')
+    driver.scroll_to_element_and_click(agn_option)
+    driver.wait_for_xpath('//span[contains(text(), "AGN")]')
+    am_cvn_option = driver.wait_for_xpath('//li[@data-value="AM CVn"]')
+    driver.scroll_to_element_and_click(am_cvn_option)
+    driver.wait_for_xpath('//span[contains(text(), "AM CVn")]')
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
 
-#     shortcut_name = str(uuid.uuid4())
-#     shortcut_name_entry = driver.wait_for_xpath('//input[@name="shortcutName"]')
-#     driver.scroll_to_element_and_click(shortcut_name_entry)
-#     shortcut_name_entry.send_keys(shortcut_name)
+    shortcut_name = str(uuid.uuid4())
+    shortcut_name_entry = driver.wait_for_xpath('//input[@name="shortcutName"]')
+    driver.scroll_to_element_and_click(shortcut_name_entry)
+    shortcut_name_entry.send_keys(shortcut_name)
 
-#     add_shortcut_button = driver.wait_for_xpath(
-#         '//button[@data-testid="addShortcutButton"]'
-#     )
-#     driver.scroll_to_element_and_click(add_shortcut_button)
+    add_shortcut_button = driver.wait_for_xpath(
+        '//button[@data-testid="addShortcutButton"]'
+    )
+    driver.scroll_to_element_and_click(add_shortcut_button)
 
-#     driver.wait_for_xpath(f'//span[contains(text(), "{shortcut_name}")]')
-#     return shortcut_name
-
-
-# def test_classification_shortcut(driver, user, public_group, taxonomy_token):
-#     shortcut_name = test_add_classification_shortcut(
-#         driver, user, public_group, taxonomy_token
-#     )
-#     driver.get("/candidates")
-#     shortcut_button = driver.wait_for_xpath(f'//button[@data-testid="{shortcut_name}"]')
-#     driver.scroll_to_element_and_click(shortcut_button)
-#     driver.wait_for_xpath('//span[contains(text(), "AGN")]')
-#     driver.wait_for_xpath('//span[contains(text(), "AM CVn")]')
+    driver.wait_for_xpath(f'//span[contains(text(), "{shortcut_name}")]')
+    return shortcut_name
 
 
-# def test_delete_classification_shortcut(driver, user, public_group, taxonomy_token):
-#     shortcut_name = test_add_classification_shortcut(
-#         driver, user, public_group, taxonomy_token
-#     )
-#     delete_icon = driver.wait_for_xpath(
-#         '//*[@class="MuiSvgIcon-root MuiChip-deleteIcon"]'
-#     )
-#     driver.scroll_to_element_and_click(delete_icon)
-#     driver.wait_for_xpath_to_disappear(f'//span[contains(text(), "{shortcut_name}")]')
+def test_classification_shortcut(driver, user, public_group, taxonomy_token):
+    shortcut_name = test_add_classification_shortcut(
+        driver, user, public_group, taxonomy_token
+    )
+    driver.get("/candidates")
+    shortcut_button = driver.wait_for_xpath(f'//button[@data-testid="{shortcut_name}"]')
+    driver.scroll_to_element_and_click(shortcut_button)
+    driver.wait_for_xpath('//span[contains(text(), "AGN")]')
+    driver.wait_for_xpath('//span[contains(text(), "AM CVn")]')
+
+
+def test_delete_classification_shortcut(driver, user, public_group, taxonomy_token):
+    shortcut_name = test_add_classification_shortcut(
+        driver, user, public_group, taxonomy_token
+    )
+    delete_icon = driver.wait_for_xpath(
+        '//*[@class="MuiSvgIcon-root MuiChip-deleteIcon"]'
+    )
+    driver.scroll_to_element_and_click(delete_icon)
+    driver.wait_for_xpath_to_disappear(f'//span[contains(text(), "{shortcut_name}")]')
