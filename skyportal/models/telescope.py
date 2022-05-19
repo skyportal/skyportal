@@ -1,5 +1,6 @@
 __all__ = ['Telescope']
 
+import numpy as np
 from datetime import timedelta
 
 import sqlalchemy as sa
@@ -63,14 +64,33 @@ class Telescope(Base):
         try:
             return self._observer
         except AttributeError:
+            if (
+                self.lon is None
+                or self.lon == ''
+                or np.isnan(self.lon)
+                or self.lat is None
+                or self.lat == ''
+                or np.isnan(self.lat)
+            ):
+                return None
+            if not (-90 <= self.lat <= 90):
+                return None
             tf = timezonefinder.TimezoneFinder(in_memory=True)
             local_tz = tf.closest_timezone_at(
                 lng=(self.lon + 180) % 360 - 180, lat=self.lat, delta_degree=5
             )
+            elevation = self.elevation
+            if (
+                self.elevation is None
+                or self.elevation == ""
+                or np.isnan(self.elevation)
+            ):
+                elevation = 0
+
             self._observer = astroplan.Observer(
                 longitude=self.lon * u.deg,
                 latitude=self.lat * u.deg,
-                elevation=self.elevation * u.m,
+                elevation=elevation * u.m,
                 timezone=local_tz,
             )
 
@@ -82,6 +102,8 @@ class Telescope(Base):
         if time is None:
             time = ap_time.Time.now()
         observer = self.observer
+        if observer is None:
+            return None
         return observer.sun_set_time(time, which='next')
 
     def next_sunrise(self, time=None):
@@ -90,6 +112,8 @@ class Telescope(Base):
         if time is None:
             time = ap_time.Time.now()
         observer = self.observer
+        if observer is None:
+            return None
         return observer.sun_rise_time(time, which='next')
 
     def next_twilight_evening_nautical(self, time=None):
@@ -98,6 +122,8 @@ class Telescope(Base):
         if time is None:
             time = ap_time.Time.now()
         observer = self.observer
+        if observer is None:
+            return None
         return observer.twilight_evening_nautical(time, which='next')
 
     def next_twilight_morning_nautical(self, time=None):
@@ -106,6 +132,8 @@ class Telescope(Base):
         if time is None:
             time = ap_time.Time.now()
         observer = self.observer
+        if observer is None:
+            return None
         return observer.twilight_morning_nautical(time, which='next')
 
     def next_twilight_evening_astronomical(self, time=None):
@@ -114,6 +142,8 @@ class Telescope(Base):
         if time is None:
             time = ap_time.Time.now()
         observer = self.observer
+        if observer is None:
+            return None
         return observer.twilight_evening_astronomical(time, which='next')
 
     def next_twilight_morning_astronomical(self, time=None):
@@ -122,14 +152,26 @@ class Telescope(Base):
         if time is None:
             time = ap_time.Time.now()
         observer = self.observer
+        if observer is None:
+            return None
         return observer.twilight_morning_astronomical(time, which='next')
 
     def ephemeris(self, time):
 
+        if (
+            self.lon is None
+            or self.lon == ''
+            or np.isnan(self.lon)
+            or self.lat is None
+            or self.lat == ''
+            or np.isnan(self.lat)
+        ):
+            return {}
+
         sunrise = self.next_sunrise(time=time)
         sunset = self.next_sunset(time=time)
 
-        if sunset > sunrise:
+        if sunset is not None and sunset > sunrise:
             sunset = self.observer.sun_set_time(time, which='previous')
             time = sunset - ap_time.TimeDelta(30, format='sec')
 
