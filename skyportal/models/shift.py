@@ -44,7 +44,7 @@ def shiftuser_update_access_logic(cls, user_or_token):
     query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.shift_id)
     if not user_or_token.is_system_admin:
         query = query.filter(
-            sa.or_(aliased.user_id == user_id, ShiftUser.admin.is_(True))
+            sa.or_(aliased.user_id == user_id, aliased.admin.is_(True))
         )
     return query
 
@@ -57,7 +57,7 @@ def shiftuser_delete_access_logic(cls, user_or_token):
         query = query.filter(
             sa.or_(
                 aliased.user_id == user_id,
-                ShiftUser.admin.is_(True),
+                aliased.admin.is_(True),
                 aliased.needs_replacement.is_(True),
             )
         )
