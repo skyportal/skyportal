@@ -8,28 +8,16 @@ import InputLabel from "@material-ui/core/InputLabel";
 import FormControl from "@material-ui/core/FormControl";
 import Chip from "@material-ui/core/Chip";
 import Typography from "@material-ui/core/Typography";
-import Popover from "@material-ui/core/Popover";
-import IconButton from "@material-ui/core/IconButton";
-import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
 import { Box } from "@material-ui/core";
 import { useForm } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
 import TextField from "@material-ui/core/TextField";
 import Button from "@material-ui/core/Button";
+import UserPreferencesHeader from "./UserPreferencesHeader";
 
 import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles((theme) => ({
-  header: {
-    display: "flex",
-    alignItems: "center",
-    "& > h6": {
-      marginRight: "0.5rem",
-    },
-  },
-  typography: {
-    padding: theme.spacing(2),
-  },
   formControl: {
     minWidth: "12rem",
     paddingRight: theme.spacing(1),
@@ -40,10 +28,6 @@ const useStyles = makeStyles((theme) => ({
   },
   chip: {
     margin: 2,
-  },
-  formInline: {
-    display: "flex",
-    flexDirection: "row",
   },
 }));
 
@@ -87,16 +71,6 @@ const PhotometryPlottingPreferences = () => {
         profile.photometryPlottingPreferencesName,
     });
   }, [reset, profile]);
-
-  const [anchorEl, setAnchorEl] = useState(null);
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-  const open = Boolean(anchorEl);
-  const id = open ? "simple-popover" : undefined;
 
   const handleChangeFilters = (event) => {
     if (event.target.value.includes("Clear filters")) {
@@ -156,152 +130,131 @@ const PhotometryPlottingPreferences = () => {
 
   return (
     <div>
-      <div className={classes.header}>
-        <Typography variant="h6" display="inline">
-          Photometry Plotting Preferences
-        </Typography>
-        <IconButton aria-label="help" size="small" onClick={handleClick}>
-          <HelpOutlineIcon />
-        </IconButton>
-      </div>
-      <div className={classes.formInline}>
-        <Popover
-          id={id}
-          open={open}
-          anchorEl={anchorEl}
-          onClose={handleClose}
-          anchorOrigin={{
-            vertical: "top",
-            horizontal: "right",
+      <UserPreferencesHeader
+        variant="h5"
+        title="Photometry Plotting Preferences"
+      />
+      <UserPreferencesHeader title="Select Automatically Visible Photometry" />
+      <UserPreferencesHeader title="Photometry Buttons" />
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <FormControl className={classes.formControl}>
+          <InputLabel id="select-photometry-plot-filter-label">
+            Filters
+          </InputLabel>
+          <Select
+            labelId="demo-simple-select-helper-label"
+            id="demo-simple-select-helper"
+            multiple
+            value={filtersList || []}
+            // value={profile?.photometryPlottingFilters || []}
+            label="Select photometry filter"
+            onChange={handleChangeFilters}
+            renderValue={(selected) => (
+              <Box>
+                {selected.map((value) => (
+                  <Chip key={value} label={value} />
+                ))}
+              </Box>
+            )}
+            MenuProps={MenuProps}
+          >
+            {filters.map((filter) => (
+              <MenuItem key={filter} value={filter}>
+                <div data-testid={`filter_${filter}`}>{filter}</div>
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl className={classes.formControl}>
+          <InputLabel id="select-photometry-plot-origin-label">
+            Origin
+          </InputLabel>
+          <Select
+            labelId="demo-simple-select-helper-label"
+            id="demo-simple-select-helper"
+            multiple
+            value={originsList || []}
+            // value={profile?.photometryPlottingOrigins || []}
+            label="Select photometry filter"
+            onChange={handleChangeOrigins}
+            renderValue={(selected) => (
+              <Box>
+                {selected.map((value) => (
+                  <Chip key={value} label={value} />
+                ))}
+              </Box>
+            )}
+            MenuProps={MenuProps}
+          >
+            {origins.map((origin) => (
+              <MenuItem key={origin} value={origin}>
+                <div data-testid={`origin_${origin}`}>{origin}</div>
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <TextField
+          label="Custom Origin"
+          inputRef={register({ required: false })}
+          name="txtFiled"
+          id="shortcutNameInput"
+          error={!!errors.shortcutName}
+          helperText={errors.shortcutName ? "OH NO" : ""}
+          onChange={(event) => {
+            setCustomOrigin(event.target.value);
           }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "left",
-          }}
-        >
-          <Typography className={classes.typography}>
-            Preferences for the photometry plot in a source page.
-          </Typography>
-        </Popover>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <FormControl className={classes.formControl}>
-            <InputLabel id="select-photometry-plot-filter-label">
-              Filters
-            </InputLabel>
-            <Select
-              labelId="demo-simple-select-helper-label"
-              id="demo-simple-select-helper"
-              multiple
-              value={filtersList || []}
-              // value={profile?.photometryPlottingFilters || []}
-              label="Select photometry filter"
-              onChange={handleChangeFilters}
-              renderValue={(selected) => (
-                <Box>
-                  {selected.map((value) => (
-                    <Chip key={value} label={value} />
-                  ))}
-                </Box>
-              )}
-              MenuProps={MenuProps}
-            >
-              {filters.map((filter) => (
-                <MenuItem key={filter} value={filter}>
-                  <div data-testid={`filter_${filter}`}>{filter}</div>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl className={classes.formControl}>
-            <InputLabel id="select-photometry-plot-origin-label">
-              Origin
-            </InputLabel>
-            <Select
-              labelId="demo-simple-select-helper-label"
-              id="demo-simple-select-helper"
-              multiple
-              value={originsList || []}
-              // value={profile?.photometryPlottingOrigins || []}
-              label="Select photometry filter"
-              onChange={handleChangeOrigins}
-              renderValue={(selected) => (
-                <Box>
-                  {selected.map((value) => (
-                    <Chip key={value} label={value} />
-                  ))}
-                </Box>
-              )}
-              MenuProps={MenuProps}
-            >
-              {origins.map((origin) => (
-                <MenuItem key={origin} value={origin}>
-                  <div data-testid={`origin_${origin}`}>{origin}</div>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            label="Custom Origin"
-            inputRef={register({ required: false })}
-            name="txtFiled"
-            id="shortcutNameInput"
-            error={!!errors.shortcutName}
-            helperText={errors.shortcutName ? "OH NO" : ""}
-            onChange={(event) => {
-              setCustomOrigin(event.target.value);
-            }}
-          />
-          <TextField
-            label="Name"
-            inputRef={register({
-              required: true,
-              validate: (value) => {
-                if (filtersList.length !== 0 && originsList.length !== 0) {
-                  console.log(
-                    "return",
-                    !(
-                      value in (profile?.photometryPlotting?.Filters || {}) &&
-                      !(value in (profile?.photometryPlotting?.Origins || {}))
-                    )
-                  );
-                  return !(
+        />
+        <TextField
+          label="Name"
+          inputRef={register({
+            required: true,
+            validate: (value) => {
+              if (filtersList.length !== 0 && originsList.length !== 0) {
+                console.log(
+                  "return",
+                  !(
                     value in (profile?.photometryPlotting?.Filters || {}) &&
                     !(value in (profile?.photometryPlotting?.Origins || {}))
-                  );
-                }
-                return null;
-              },
-            })}
-            name="photometryPlottingPreferencesName"
-            id="photometryPlottingPreferencesNameInput"
-            error={!!errors.photometryPlottingPreferencesName}
-            helperText={
-              errors.photometryPlottingPreferencesName
-                ? "Required/Shortcut with that name already exists"
-                : ""
-            }
-          />
-          <Button
-            variant="contained"
-            type="submit"
-            onClick={(event) => handleClickSubmit(event)}
-          >
-            SUBMIT
-          </Button>
-        </form>
-        {profile.photometryPlottingFilters && (
-          <div>
-            <Typography>Shortcuts</Typography>
-            {profile?.photometryPlottingFilters.map((shortcutName) => (
-              <Chip
-                key={shortcutName}
-                label={shortcutName}
-                onDelete={() => onDelete(shortcutName)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+                  )
+                );
+                return !(
+                  value in (profile?.photometryPlotting?.Filters || {}) &&
+                  !(value in (profile?.photometryPlotting?.Origins || {}))
+                );
+              }
+              return null;
+            },
+          })}
+          name="photometryPlottingPreferencesName"
+          id="photometryPlottingPreferencesNameInput"
+          error={!!errors.photometryPlottingPreferencesName}
+          helperText={
+            errors.photometryPlottingPreferencesName
+              ? "Required/Shortcut with that name already exists"
+              : ""
+          }
+        />
+        <Button
+          variant="contained"
+          type="submit"
+          onClick={(event) => handleClickSubmit(event)}
+        >
+          SUBMIT
+        </Button>
+      </form>
+      {profile.photometryPlottingFilters && (
+        <div>
+          <Typography>Shortcuts</Typography>
+          {profile?.photometryPlottingFilters.map((shortcutName) => (
+            <Chip
+              key={shortcutName}
+              label={shortcutName}
+              onDelete={() => onDelete(shortcutName)}
+            />
+          ))}
+        </div>
+      )}
+      <UserPreferencesHeader title="Data Point Size" />
     </div>
   );
 };
