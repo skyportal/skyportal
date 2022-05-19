@@ -5,6 +5,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import { showNotification } from "baselayer/components/Notifications";
 import * as shiftActions from "../ducks/shift";
 import { addShiftUser, deleteShiftUser } from "../ducks/shifts";
+import CommentList from "./CommentList";
 
 const useStyles = makeStyles(() => ({
   shiftinfo: {
@@ -56,7 +57,7 @@ function dailyShiftStartEnd(shift) {
   return null;
 }
 
-function CurrentShiftMenu() {
+export function CurrentShiftMenu() {
   const classes = useStyles();
   const { permissions } = useSelector((state) => state.profile);
   const { currentShift } = useSelector((state) => state.shift);
@@ -223,4 +224,18 @@ function CurrentShiftMenu() {
   );
 }
 
-export default CurrentShiftMenu;
+export function CommentOnShift() {
+  const classes = useStyles();
+  const { permissions } = useSelector((state) => state.profile);
+  const { currentShift } = useSelector((state) => state.shift);
+  const currentUser = useSelector((state) => state.profile);
+  const dispatch = useDispatch();
+
+  return (
+    currentShift.name != null && (
+      <div id="current_shift_comment" className={classes.content}>
+        <CommentList />
+      </div>
+    )
+  );
+}

@@ -18,6 +18,7 @@ import emoji from "emoji-dictionary";
 
 import * as sourceActions from "../ducks/source";
 import * as gcnEventActions from "../ducks/gcnEvent";
+import * as shiftActions from "../ducks/shift";
 
 import CommentEntry from "./CommentEntry";
 import UserAvatar from "./UserAvatar";
@@ -160,6 +161,7 @@ const CommentList = ({
   objID = null,
   spectrumID = null,
   gcnEventID = null,
+  shiftID = null,
   includeCommentsOnAllResourceTypes = true,
 }) => {
   const styles = useStyles();
@@ -189,6 +191,7 @@ const CommentList = ({
   const compactComments = useSelector(
     (state) => state.profile.preferences?.compactComments
   );
+  const { currentShift } = useSelector((state) => state.shift);
 
   if (!objID && obj) {
     objID = obj.id;
@@ -196,6 +199,10 @@ const CommentList = ({
 
   if (!gcnEventID && gcnEvent) {
     gcnEventID = gcnEvent.id;
+  }
+
+  if (!shiftID && currentShift) {
+    shiftID = currentShift.id;
   }
 
   const addComment = (formData) => {
@@ -212,6 +219,15 @@ const CommentList = ({
     dispatch(
       gcnEventActions.addCommentOnGcnEvent({
         gcnevent_id: gcnEventID,
+        ...formData,
+      })
+    );
+  };
+
+  const addShiftComment = (formData) => {
+    dispatch(
+      shiftActions.addCommentOnShift({
+        shift_id: shiftID,
         ...formData,
       })
     );
@@ -245,6 +261,11 @@ const CommentList = ({
       throw new Error("Must specify a gcnEventID for comments on gcnEvent");
     }
     comments = gcnEvent.comments;
+  } else if (associatedResourceType === "shift") {
+    if (shiftID === null) {
+      throw new Error("Must specify a shiftID for comments on shift");
+    }
+    comments = currentShift?.comments;
   } else {
     throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
   }
@@ -281,6 +302,10 @@ const CommentList = ({
 
   const deleteCommentOnGcnEvent = (gcnID, commentID) => {
     dispatch(gcnEventActions.deleteCommentOnGcnEvent(gcnID, commentID));
+  };
+
+  const deleteCommentOnShift = (commentID) => {
+    dispatch(shiftActions.deleteCommentOnShift(shiftID, commentID));
   };
 
   const emojiSupport = (text) =>
@@ -377,6 +402,28 @@ const CommentList = ({
                             <CloseIcon fontSize="small" />
                           </Button>
                         )}
+                        {associatedResourceType === "shift" && (
+                          <Button
+                            style={
+                              hoverID === id
+                                ? {
+                                    display: "block",
+                                    minWidth: "0",
+                                    lineHeight: "0",
+                                    padding: "0",
+                                  }
+                                : { display: "none" }
+                            }
+                            size="small"
+                            color="primary"
+                            type="button"
+                            name={`deleteCommentButtonShift${id}`}
+                            onClick={() => deleteCommentOnShift(shiftID, id)}
+                            className="commentDelete"
+                          >
+                            <CloseIcon fontSize="small" />
+                          </Button>
+                        )}
                         {(associatedResourceType === "object" ||
                           associatedResourceType === "spectra") && (
                           <Button
@@ -466,6 +513,28 @@ const CommentList = ({
                             <CloseIcon fontSize="small" />
                           </Button>
                         )}
+                        {associatedResourceType === "shift" && (
+                          <Button
+                            style={
+                              hoverID === id
+                                ? {
+                                    display: "block",
+                                    minWidth: "0",
+                                    lineHeight: "0",
+                                    padding: "0",
+                                  }
+                                : { display: "none" }
+                            }
+                            size="small"
+                            color="primary"
+                            type="button"
+                            name={`deleteCommentButtonShift${id}`}
+                            onClick={() => deleteCommentOnShift(shiftID, id)}
+                            className="commentDelete"
+                          >
+                            <CloseIcon fontSize="small" />
+                          </Button>
+                        )}
                         {(associatedResourceType === "object" ||
                           associatedResourceType === "spectra") && (
                           <Button
@@ -536,6 +605,15 @@ const CommentList = ({
                             associatedResourceType="gcn_event"
                           />
                         )}
+                      {attachment_name &&
+                        associatedResourceType === "shift" && (
+                          <CommentAttachmentPreview
+                            filename={attachment_name}
+                            shiftID={shiftID}
+                            commentId={id}
+                            associatedResourceType="shift"
+                          />
+                        )}
                     </span>
                   </div>
                 </>
@@ -551,6 +629,9 @@ const CommentList = ({
       {permissions.indexOf("Comment") >= 0 && gcnEventID && (
         <CommentEntry addComment={addGcnEventComment} />
       )}
+      {permissions.indexOf("Comment") >= 0 && shiftID && (
+        <CommentEntry addComment={addShiftComment} />
+      )}
     </div>
   );
 };
@@ -559,6 +640,7 @@ CommentList.propTypes = {
   isCandidate: PropTypes.bool,
   objID: PropTypes.string,
   gcnEventID: PropTypes.number,
+  shiftID: PropTypes.number,
   associatedResourceType: PropTypes.string,
   spectrumID: PropTypes.number,
   includeCommentsOnAllResourceTypes: PropTypes.bool,
@@ -568,6 +650,7 @@ CommentList.defaultProps = {
   isCandidate: false,
   objID: null,
   gcnEventID: null,
+  shiftID: null,
   associatedResourceType: "object",
   spectrumID: null,
   includeCommentsOnAllResourceTypes: true,

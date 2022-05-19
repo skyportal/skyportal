@@ -1,4 +1,10 @@
-__all__ = ['Comment', 'CommentOnSpectrum', 'CommentOnGCN', 'CommentOnShift', 'GeneralComment']
+__all__ = [
+    'Comment',
+    'CommentOnSpectrum',
+    'CommentOnGCN',
+    'CommentOnShift',
+    'GeneralComment',
+]
 
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
@@ -188,6 +194,7 @@ class CommentOnGCN(Base, CommentMixin):
         doc="The GcnEvent referred to by this comment.",
     )
 
+
 class CommentOnShift(Base, CommentMixin):
 
     __tablename__ = 'comments_on_shifts'
@@ -201,7 +208,7 @@ class CommentOnShift(Base, CommentMixin):
     update = delete = AccessibleIfUserMatches('author')
 
     shift_id = sa.Column(
-        sa.ForeignKey('shift.id', ondelete='CASCADE'),
+        sa.ForeignKey('shifts.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
         doc="ID of the Comment's Shift.",
@@ -211,6 +218,7 @@ class CommentOnShift(Base, CommentMixin):
         back_populates='comments',
         doc="The Shift referred to by this comment.",
     )
+
 
 class GeneralComment(Base, CommentMixin):
 

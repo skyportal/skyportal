@@ -7,7 +7,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import NewShift from "./NewShift";
 import MyCalendar from "./ShiftCalendar";
-import CurrentShiftMenu from "./ShiftManagement";
+import { CurrentShiftMenu, CommentOnShift } from "./ShiftManagement";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -31,6 +31,7 @@ function datestringToDate(shiftList) {
 const ShiftPage = () => {
   const classes = useStyles();
   let { shiftList } = useSelector((state) => state.shifts);
+  // const { currentShift } = useSelector((state) => state.shift);
   const currentUser = useSelector((state) => state.profile);
   shiftList = datestringToDate(shiftList);
 
@@ -52,6 +53,12 @@ const ShiftPage = () => {
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
           <CurrentShiftMenu />
+        </Paper>
+        <Paper elevation={1}>
+          <CommentOnShift
+            associatedResourceType="shift"
+            // shiftID={currentShift.id}
+          />
         </Paper>
         {permission && (
           <Paper>

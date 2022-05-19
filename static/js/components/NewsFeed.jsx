@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 
-import { Paper, Avatar, Tooltip } from "@material-ui/core";
+import { Paper, Avatar, Tooltip, Button } from "@material-ui/core";
 import Typography from "@material-ui/core/Typography";
 import DragHandleIcon from "@material-ui/icons/DragHandle";
 import { makeStyles } from "@material-ui/core/styles";
@@ -222,6 +222,7 @@ const NewsFeed = ({ classes }) => {
               stateBranchName="newsFeed"
               title="News Feed Preferences"
               onSubmit={profileActions.updateUserPreferences}
+              isNewsFeed={true}
             />
           </div>
         </div>
@@ -233,10 +234,6 @@ const NewsFeed = ({ classes }) => {
             />
           ))}
         </div>
-        <br />
-        {permissions.indexOf("Comment") >= 0 && (
-          <CommentEntry addComment={addGeneralComment} />
-        )}
       </div>
     </Paper>
   );
