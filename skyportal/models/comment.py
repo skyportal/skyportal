@@ -1,4 +1,4 @@
-__all__ = ['Comment', 'CommentOnSpectrum', 'CommentOnGCN', 'GeneralComment']
+__all__ = ['Comment', 'CommentOnSpectrum', 'CommentOnGCN', 'CommentOnShift', 'GeneralComment']
 
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declared_attr
@@ -59,6 +59,8 @@ class CommentMixin:
             return 'comments_on_spectra'
         if cls.__name__ == 'CommentOnGCN':
             return 'comments_on_gcns'
+        if cls.__name__ == 'CommentOnShift':
+            return 'comments_on_shifts'
         if cls.__name__ == 'GeneralComment':
             return 'general_comments'
 
@@ -186,6 +188,29 @@ class CommentOnGCN(Base, CommentMixin):
         doc="The GcnEvent referred to by this comment.",
     )
 
+class CommentOnShift(Base, CommentMixin):
+
+    __tablename__ = 'comments_on_shifts'
+
+    create = AccessibleIfRelatedRowsAreAccessible(shift='read')
+
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        shift='read',
+    )
+
+    update = delete = AccessibleIfUserMatches('author')
+
+    shift_id = sa.Column(
+        sa.ForeignKey('shift.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the Comment's Shift.",
+    )
+    shift = relationship(
+        'Shift',
+        back_populates='comments',
+        doc="The Shift referred to by this comment.",
+    )
 
 class GeneralComment(Base, CommentMixin):
 

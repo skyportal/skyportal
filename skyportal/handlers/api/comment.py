@@ -9,8 +9,10 @@ from ...models import (
     Comment,
     CommentOnSpectrum,
     CommentOnGCN,
+    CommentOnShift,
     Spectrum,
     GcnEvent,
+    Shift,
     Group,
     User,
     UserNotification,
@@ -130,6 +132,12 @@ class CommentHandler(BaseHandler):
                     .filter(CommentOnGCN.gcn_id == resource_id)
                     .all()
                 )
+            elif associated_resource_type.lower() == "shift":
+                comments = (
+                    CommentOnShift.query_records_accessible_by(self.current_user)
+                    .filter(CommentOnShift.shift_id == resource_id)
+                    .all()
+                )
             else:
                 return self.error(
                     f'Unsupported associated resource type "{associated_resource_type}".'
@@ -168,6 +176,14 @@ class CommentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(comment.gcn_id)
+        elif associated_resource_type.lower() == "shift":
+            try:
+                comment = CommentOnShift.get_if_accessible_by(
+                    comment_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(comment.shift_id)
         # add more options using elif
         else:
             return self.error(
@@ -346,6 +362,25 @@ class CommentHandler(BaseHandler):
                 groups=groups,
                 bot=is_bot_request,
             )
+        elif associated_resource_type.lower() == "shift":
+            shift_id = resource_id
+            try:
+                shift = Shift.get_if_accessible_by(
+                    shift_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error(
+                    f'Could not access GcnEvent {shift.id}.', status=403
+                )
+            comment = CommentOnGCN(
+                text=comment_text,
+                shift_id=shift.id,
+                attachment_bytes=attachment_bytes,
+                attachment_name=attachment_name,
+                author=author,
+                groups=groups,
+                bot=is_bot_request,
+            )
         else:
             return self.error(f'Unknown resource type "{associated_resource_type}".')
 
@@ -383,6 +418,12 @@ class CommentHandler(BaseHandler):
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_internal_key': comment.obj.internal_key},
             )
+        elif isinstance(comment, CommentOnShift):
+            self.push_all(
+                action='skyportal/REFRESH_SHIFT',
+                payload={'obj_internal_key': comment.obj.internal_key},
+            )
+
 
         return self.success(data={'comment_id': comment.id})
 
@@ -479,7 +520,15 @@ class CommentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(c.gcn_id)
-
+        elif associated_resource_type.lower() == "shift":
+            schema = CommentOnShift.__schema__()
+            try:
+                c = CommentOnShift.get_if_accessible_by(
+                    comment_id, self.current_user, mode="update", raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(c.gcn_id)
         # add more options using elif
         else:
             return self.error(
@@ -536,9 +585,14 @@ class CommentHandler(BaseHandler):
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_internal_key': c.obj.internal_key},
             )
-        elif isinstance(c, CommentOnGCN):  # also update the spectrum
+        elif isinstance(c, CommentOnGCN):  # also update the gcn
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_GCN',
+                payload={'obj_internal_key': c.obj.internal_key},
+            )
+        elif isinstance(c, CommentOnShift):  # also update the shift
+            self.push_all(
+                action='skyportal/REFRESH_SHIFT',
                 payload={'obj_internal_key': c.obj.internal_key},
             )
 
@@ -613,6 +667,14 @@ class CommentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(c.gcn_id)
+        elif associated_resource_type.lower() == "shift":
+            try:
+                c = CommentOnShift.get_if_accessible_by(
+                    comment_id, self.current_user, mode="delete", raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(c.shift_id)
 
         # add more options using elif
         else:
@@ -647,6 +709,11 @@ class CommentHandler(BaseHandler):
         elif isinstance(c, CommentOnSpectrum):  # also update the spectrum
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
+                payload={'obj_internal_key': obj_key},
+            )
+        elif isinstance(c, CommentOnShift):  # also update the shift
+            self.push_all(
+                action='skyportal/REFRESH_SHIFT',
                 payload={'obj_internal_key': obj_key},
             )
 
@@ -752,6 +819,14 @@ class CommentAttachmentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(comment.gcn_id)
+        elif associated_resource_type.lower() == "shift":
+            try:
+                comment = CommentOnShift.get_if_accessible_by(
+                    comment_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(comment.shift_id)
 
         # add more options using elif
         else:
