@@ -168,6 +168,7 @@ class ShiftHandler(BaseHandler):
             for su in shift.shift_users:
                 user = su.user.to_dict()
                 user["admin"] = su.admin
+                user["needs_replacement"] = su.needs_replacement
                 del user["oauth_uid"]
                 susers.append(user)
             gusers = []
@@ -277,6 +278,9 @@ class ShiftUserHandler(BaseHandler):
                             admin:
                               type: boolean
                               description: Boolean indicating whether user is shift admin
+                            needs_replacement:
+                              type: boolean
+                              description: Boolean indicating whether user needs replacement or not
         """
 
         data = self.get_json()
@@ -289,25 +293,39 @@ class ShiftUserHandler(BaseHandler):
         except (ValueError, TypeError):
             return self.error("Invalid userID parameter: unable to parse to integer")
 
+        needs_replacement = data.get("needs_replacement", False)
+        try:
+            needs_replacement = bool(needs_replacement)
+        except (ValueError, TypeError):
+            return self.error(
+                "Invalid needs_replacement parameter: unable to parse to boolean"
+            )
+
         admin = data.get("admin", False)
         if not isinstance(admin, bool):
             return self.error(
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
-        # if the shift has no users, we need to make sure the user is an admin
-        if not ShiftUser.query.filter_by(shift_id=shift_id).count():
-            admin = True
-
-        shift_id = int(shift_id)
+        # if the shift has no admins, we add the user as an admin
+        try:
+            shift_id = int(shift_id)
+        except (ValueError, TypeError):
+            return self.error("Invalid shift_id parameter: unable to parse to integer")
 
         shift = Shift.get_if_accessible_by(
-            shift_id, self.current_user, raise_if_none=True, mode='read'
+            shift_id,
+            self.current_user,
+            raise_if_none=True,
+            mode='read',
+            options=[joinedload(Shift.shift_users)],
         )
+        if not any(su.admin for su in shift.shift_users):
+            admin = True
+
         user = User.get_if_accessible_by(
             user_id, self.current_user, raise_if_none=True, mode='read'
         )
 
-        # Add user to group
         su = (
             ShiftUser.query.filter(ShiftUser.shift_id == shift_id)
             .filter(ShiftUser.user_id == user_id)
@@ -318,7 +336,14 @@ class ShiftUserHandler(BaseHandler):
                 f"User {user_id} is already a member of shift {shift_id}."
             )
 
-        DBSession().add(ShiftUser(shift_id=shift_id, user_id=user_id, admin=admin))
+        DBSession().add(
+            ShiftUser(
+                shift_id=shift_id,
+                user_id=user_id,
+                admin=admin,
+                needs_replacement=needs_replacement,
+            )
+        )
         DBSession().add(
             UserNotification(
                 user=user,
@@ -335,10 +360,10 @@ class ShiftUserHandler(BaseHandler):
         )
 
     @permissions(["Manage shifts"])
-    def patch(self, shift_id, *ignored_args):
+    def patch(self, shift_id, user_id):
         """
         ---
-        description: Update a shift user's admin status
+        description: Update a shift user's admin status, or needs_replacement status
         tags:
           - shifts
           - users
@@ -360,6 +385,10 @@ class ShiftUserHandler(BaseHandler):
                     type: boolean
                     description: |
                       Boolean indicating whether user is shift admin.
+                  needs_replacement:
+                    type: boolean
+                    description: |
+                      Boolean indicating whether user needs replacement or not
 
                 required:
                   - userID
@@ -374,8 +403,6 @@ class ShiftUserHandler(BaseHandler):
             shift_id = int(shift_id)
         except ValueError:
             return self.error("Invalid shift ID")
-
-        user_id = data.get("userID")
         try:
             user_id = int(user_id)
         except ValueError:
@@ -397,9 +424,49 @@ class ShiftUserHandler(BaseHandler):
                 "Invalid (non-boolean) value provided for parameter `admin`"
             )
         shiftuser.admin = admin
+
+        needs_replacement = data.get("needs_replacement", False)
+        try:
+            needs_replacement = bool(needs_replacement)
+        except (ValueError, TypeError):
+            return self.error(
+                "Invalid needs_replacement parameter: unable to parse to boolean"
+            )
+        shiftuser.needs_replacement = needs_replacement
+
+        if needs_replacement:
+            # send a user notification to all members of the group associated to the shift
+            # that the user needs to be replaced
+            # recover all group users associated to the shift
+            try:
+                shift = Shift.get_if_accessible_by(
+                    shift_id,
+                    self.current_user,
+                    options=[
+                        joinedload(Shift.group).joinedload(Group.group_users),
+                    ],
+                    raise_if_none=True,
+                )
+            except AccessError as e:
+                return self.error(f'Could not find shift. Original error: {e}')
+            for group_user in shift.group.group_users:
+                if group_user.user_id != user_id:
+                    DBSession().add(
+                        UserNotification(
+                            user=group_user.user,
+                            text=f"*@{shiftuser.user.username}* needs a replacement for shift: {shift.name} from {shift.start_date} to {shift.end_date}.",
+                            url=f"/shifts/{shift.id}",
+                        )
+                    )
+                    self.flow.push(
+                        group_user.user_id, "skyportal/FETCH_NOTIFICATIONS", {}
+                    )
+
         self.verify_and_commit()
+        self.push_all(action='skyportal/REFRESH_SHIFTS', payload={'shift_id': shift_id})
         return self.success()
 
+    @permissions(["Manage shifts"])
     @auth_or_token
     def delete(self, shift_id, user_id):
         """
@@ -437,9 +504,10 @@ class ShiftUserHandler(BaseHandler):
             .filter(ShiftUser.user_id == user_id)
             .first()
         )
-
         if su is None:
-            raise AccessError("ShiftUser does not exist.")
+            raise AccessError(
+                "ShiftUser does not exist, or you don't have the right to delete him."
+            )
 
         DBSession().delete(su)
         self.verify_and_commit()
