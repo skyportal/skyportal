@@ -3,6 +3,7 @@ from selenium.webdriver.common.keys import Keys
 from datetime import date, timedelta
 import uuid
 from selenium.common.exceptions import TimeoutException
+import time
 
 
 def test_shift(
@@ -112,9 +113,11 @@ def test_shift(
     driver.wait_for_xpath(add_users_button)
     driver.click_xpath(add_users_button)
 
-    # check for button to add and remove users
     remove_users_button = '//*[@id="remove-users-button"]'
-    driver.wait_for_xpath(remove_users_button)
+    # waith for xpath to stay for a second to allow the button to be clickable
+    driver.wait_for_xpath(remove_users_button, timeout=1)
+    time.sleep(1)
+    driver.wait_for_xpath(remove_users_button, timeout=1)
     driver.click_xpath(remove_users_button)
 
     # check if user has been added and other user has been removed
@@ -137,8 +140,8 @@ def test_shift(
     driver.click_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
 
     # check for button to remove users
-    add_users_button = '//*[@id="deactivated-add-users-button"]'
-    driver.wait_for_xpath(add_users_button)
+    deactivated_add_users_button = '//*[@id="deactivated-add-users-button"]'
+    driver.wait_for_xpath(deactivated_add_users_button)
     remove_users_button = '//*[@id="remove-users-button"]'
     driver.wait_for_xpath(remove_users_button)
     driver.click_xpath(remove_users_button)
