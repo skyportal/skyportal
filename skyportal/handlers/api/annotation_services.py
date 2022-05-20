@@ -132,7 +132,7 @@ class GaiaQueryHandler(BaseHandler):
 
         # first remove rows that have faint magnitudes
         if limmag:  # do not remove if limmag is None or zero
-            df = df[df['phot_g_mean_mag'] > limmag]
+            df = df[df['phot_g_mean_mag'] < limmag]
 
         # propagate the stars using Gaia proper motion
         # then choose the closest match
