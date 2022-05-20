@@ -40,7 +40,13 @@ class TelescopeHandler(BaseHandler):
         data = self.get_json()
 
         schema = Telescope.__schema__()
-
+        # check if the telescope has a fixed location
+        if 'fixed_location' in data:
+            if data['fixed_location']:
+                if 'lat' not in data or 'lon' not in data or 'elevation' not in data:
+                    raise ValidationError(
+                        'Missing latitude, longitude or elevation, required if the telescope is fixed'
+                    )
         try:
             telescope = schema.load(data)
         except ValidationError as e:
