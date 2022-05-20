@@ -2,7 +2,7 @@ __all__ = ['Telescope']
 
 import numpy as np
 from datetime import timedelta
-
+import warnings
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import URLType
@@ -64,17 +64,6 @@ class Telescope(Base):
         try:
             return self._observer
         except AttributeError:
-            if (
-                self.lon is None
-                or self.lon == ''
-                or np.isnan(self.lon)
-                or self.lat is None
-                or self.lat == ''
-                or np.isnan(self.lat)
-            ):
-                return None
-            if not (-90 <= self.lat <= 90):
-                return None
 
             try:
                 tf = timezonefinder.TimezoneFinder(in_memory=True)
@@ -139,7 +128,12 @@ class Telescope(Base):
         observer = self.observer
         if observer is None:
             return None
-        return observer.twilight_morning_nautical(time, which='next')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            t = observer.twilight_morning_nautical(time, which='next')
+            if isinstance(t.value, np.ma.core.MaskedArray):
+                return None
+        return t
 
     def next_twilight_evening_astronomical(self, time=None):
         """The astropy timestamp of the next evening astronomical (-18 degree)
@@ -149,7 +143,12 @@ class Telescope(Base):
         observer = self.observer
         if observer is None:
             return None
-        return observer.twilight_evening_astronomical(time, which='next')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            t = observer.twilight_evening_astronomical(time, which='next')
+            if isinstance(t.value, np.ma.core.MaskedArray):
+                return None
+        return t
 
     def next_twilight_morning_astronomical(self, time=None):
         """The astropy timestamp of the next morning astronomical (-18 degree)
@@ -159,18 +158,16 @@ class Telescope(Base):
         observer = self.observer
         if observer is None:
             return None
-        return observer.twilight_morning_astronomical(time, which='next')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            t = observer.twilight_morning_astronomical(time, which='next')
+            if isinstance(t.value, np.ma.core.MaskedArray):
+                return None
+        return t
 
     def ephemeris(self, time):
 
-        if (
-            self.lon is None
-            or self.lon == ''
-            or np.isnan(self.lon)
-            or self.lat is None
-            or self.lat == ''
-            or np.isnan(self.lat)
-        ):
+        if self.observer is None:
             return {}
 
         sunrise = self.next_sunrise(time=time)
