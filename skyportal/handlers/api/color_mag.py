@@ -86,7 +86,6 @@ def get_color_mag(annotations, **kwargs):
                 abs_mag = abs_mag + absorption  # apply the absorption term
 
             output.append({'origin': an.origin, 'abs_mag': abs_mag, 'color': color})
-            break  # found all the data we need
 
     return output
 
@@ -110,7 +109,8 @@ class ObjColorMagHandler(BaseHandler):
         schema:
           type: string
         description: |
-          The name of the data key, associated with a catalog cross match,
+          Partial match to the origin,
+          associated with a catalog cross match,
           from which the color-mag data should be retrieved.
           Default is GAIA. Ignores case and underscores.
       - in: query
