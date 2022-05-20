@@ -56,15 +56,11 @@ class FacilityQueue(asyncio.Queue):
         while True:
             req = await queue.get()
 
-            print(f"Executing request {req.id}")
-
             dt = datetime.utcnow() - req.last_query
             if dt < WAIT_TIME_BETWEEN_QUERIES:
-                print(
-                    f"Holding {req.id} for {(WAIT_TIME_BETWEEN_QUERIES-dt).seconds} seconds"
-                )
                 await self.put(req)
             else:
+                print(f"Executing request {req.id}")
                 session = Session()
                 followup_request = session.query(FollowupRequest).get(
                     req.followup_request_id
