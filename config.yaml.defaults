@@ -505,6 +505,12 @@ spectrum_types:
    - host_center
   default: source
 
+cross_match:
+  gaia:
+    radius: 2.0
+    limmag: 20.5
+    number: 1
+
 # define the additional passbands that are not in SNCosmo
 # (https://sncosmo.readthedocs.io/en/stable/bandpass-list.html)
 # the names must be unique. The wavelength array should

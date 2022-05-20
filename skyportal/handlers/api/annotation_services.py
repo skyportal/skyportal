@@ -1,5 +1,7 @@
 from astropy.coordinates import SkyCoord
 import astropy.units as u
+from astropy.time import Time
+
 from dl import queryClient as qc
 import pandas as pd
 from io import StringIO
@@ -11,6 +13,7 @@ from astroquery.vizier import Vizier
 
 from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.access import auth_or_token
+from baselayer.app.env import load_env
 
 from ..base import BaseHandler
 from ...models import (
@@ -19,6 +22,8 @@ from ...models import (
     Group,
     Obj,
 )
+
+_, cfg = load_env()
 
 
 class GaiaQueryHandler(BaseHandler):
@@ -55,7 +60,17 @@ class GaiaQueryHandler(BaseHandler):
                     type: number
                     description: |
                       Crossmatch radius (in arcseconds) to retrieve Gaia sources
-                      Default is 2.
+                      If not specified (or None) will use the default from
+                      the config file, or 2 arcsec if not specified in the config.
+                  crossmatchLimmag:
+                    required: false
+                    type: number
+                    description: |
+                      Crossmatch limiting magnitude (for Gaia G mag).
+                      Will ignore sources fainter than this magnitude.
+                      If not specified, will use the default value in
+                      the config file, or None if not specified in the config.
+                      If zero or None, will take sources of any magnitude.
                   group_ids:
                     required: false
                     type: array
@@ -97,7 +112,13 @@ class GaiaQueryHandler(BaseHandler):
         author = self.associated_user_object
 
         catalog = data.pop('catalog', "gaiaedr3.gaia_source")
-        radius_arcsec = data.pop('crossmatchRadius', 2.0)
+        radius_arcsec = data.pop(
+            'crossmatchRadius', cfg.get('cross_match.gaia.radius', 2.0)
+        )
+        limmag = data.pop('crossmatchLimmag', cfg.get('cross_match.gaia.limmag', None))
+        num_matches = data.pop(
+            'crossmatchNumber', cfg.get('cross_match.gaia.number', 1)
+        )
         candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
         df = (
@@ -110,6 +131,30 @@ class GaiaQueryHandler(BaseHandler):
             .get_data()
             .to_pandas()
         )
+
+        # first remove rows that have faint magnitudes
+        if limmag:  # do not remove if limmag is None or zero
+            df = df[df['phot_g_mean_mag'] > limmag]
+
+        # propagate the stars using Gaia proper motion
+        # then choose the closest match
+        if len(df) > 1:
+            df['adjusted_dist'] = 0  # new column
+            for index, row in df.iterrows():
+                c = SkyCoord(
+                    ra=row['ra'] * u.deg,
+                    dec=row['dec'] * u.deg,
+                    pm_ra_cosdec=row['pmra'] * u.mas / u.yr,
+                    pm_dec=row['pmdec'] * u.mas / u.yr,
+                    frame='icrs',
+                    distance=min(abs(1 / row['parallax']), 10) * u.kpc,
+                    obstime=Time(row['ref_epoch'], format='jyear'),
+                )
+                new_dist = c.separation(candidate_coord).deg
+                df.at[index, 'adjusted_dist'] = new_dist
+
+            df.sort_values(by=['adjusted_dist'], inplace=True)
+            df = df.head(num_matches)
 
         columns = {
             'ra': 'ra',
@@ -134,7 +179,10 @@ class GaiaQueryHandler(BaseHandler):
                 if not np.isnan(value):
                     annotation_data[local_key] = value
             if annotation_data:
-                origin = f"{catalog}-{row['ra']}-{row['dec']}"
+                if len(df) > 1:
+                    origin = f"{catalog}-{row['ra']}-{row['dec']}"
+                else:
+                    origin = catalog
                 annotation = Annotation(
                     data=annotation_data,
                     obj_id=obj_id,
