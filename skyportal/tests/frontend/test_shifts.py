@@ -114,10 +114,9 @@ def test_shift(
     driver.click_xpath(add_users_button)
 
     remove_users_button = '//*[@id="remove-users-button"]'
-    # waith for xpath to stay for a second to allow the button to be clickable
-    driver.wait_for_xpath(remove_users_button, timeout=1)
+    # As the component rerenders, the remove button will be deactivated for a bit, so we wait for the xpath to stay for a second to allow the button to be clickable
+    # if we checked for the xpath right now, it might disappear right after when we try to click it. So we add a little delay before clicking the button
     time.sleep(1)
-    driver.wait_for_xpath(remove_users_button, timeout=1)
     driver.click_xpath(remove_users_button)
 
     # check if user has been added and other user has been removed
