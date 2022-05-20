@@ -58,7 +58,7 @@ def list_users():
             )
             if len(user.roles) == 0:
                 print(
-                    f'\n{BOLD}{YELLOW}{user.username}{END} (no roles) can be elevated to {list_of_new_roles}'
+                    f'\n{BOLD}{i+1}. {YELLOW}{user.username}{END} (no roles) can be elevated to {list_of_new_roles}'
                 )
             else:
                 list_of_roles = (
@@ -88,7 +88,9 @@ def set_user_role(username=None, role=None):
             if role not in [
                 role.id
                 for role in [
-                    user.roles[0] for user in users if user.username == username
+                    user.roles[0]
+                    for user in users
+                    if user.username == username and len(user.roles) > 0
                 ]
             ]:
                 setup_permissions()

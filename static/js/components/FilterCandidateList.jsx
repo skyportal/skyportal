@@ -11,13 +11,12 @@ import Paper from "@material-ui/core/Paper";
 import SearchIcon from "@material-ui/icons/Search";
 import Input from "@material-ui/core/Input";
 import InputLabel from "@material-ui/core/InputLabel";
-import Chip from "@material-ui/core/Chip";
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
 import TextField from "@material-ui/core/TextField";
 import Tooltip from "@material-ui/core/Tooltip";
 import { Typography } from "@material-ui/core";
-import { makeStyles, useTheme } from "@material-ui/core/styles";
+import { makeStyles } from "@material-ui/core/styles";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -28,6 +27,7 @@ import FoldBox from "./FoldBox";
 import CandidatesPreferences from "./CandidatesPreferences";
 import FormValidationError from "./FormValidationError";
 import { allowedClasses } from "./ClassificationForm";
+import ClassificationSelect from "./ClassificationSelect";
 
 dayjs.extend(utc);
 
@@ -81,15 +81,6 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-function getStyles(classification, selectedClassifications, theme) {
-  return {
-    fontWeight:
-      selectedClassifications.indexOf(classification) === -1
-        ? theme.typography.fontWeightRegular
-        : theme.typography.fontWeightMedium,
-  };
-}
-
 const rejectedStatusSelectOptions = [
   { value: "hide", label: "Hide rejected candidates" },
   { value: "show", label: "Show rejected candidates" },
@@ -129,7 +120,6 @@ const FilterCandidateList = ({
   setSortOrder,
 }) => {
   const classes = useStyles();
-  const theme = useTheme();
 
   const availableAnnotationsInfo = useSelector(
     (state) => state.candidates.annotationsInfo
@@ -142,7 +132,7 @@ const FilterCandidateList = ({
     }
   }, [dispatch, availableAnnotationsInfo]);
 
-  const { scanningProfiles, classificationShortcuts } = useSelector(
+  const { scanningProfiles } = useSelector(
     (state) => state.profile.preferences
   );
 
@@ -184,16 +174,6 @@ const FilterCandidateList = ({
     defaultStartDate.setDate(defaultStartDate.getDate() - 1);
   }
 
-  const ITEM_HEIGHT = 48;
-  const MenuProps = {
-    PaperProps: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5,
-        width: 250,
-      },
-    },
-  };
-
   // Get unique classification names, in alphabetical order
   const { taxonomyList } = useSelector((state) => state.taxonomies);
   const latestTaxonomyList = taxonomyList?.filter((t) => t.isLatest);
@@ -206,7 +186,9 @@ const FilterCandidateList = ({
   });
   classifications = Array.from(new Set(classifications)).sort();
 
-  const [selectedClassifications, setSelectedClassifications] = useState([]);
+  const [selectedClassifications, setSelectedClassifications] = useState(
+    selectedScanningProfile?.classifications || []
+  );
   const [selectedAnnotationOrigin, setSelectedAnnotationOrigin] = useState(
     selectedScanningProfile?.sortingOrigin
   );
@@ -313,8 +295,8 @@ const FilterCandidateList = ({
     if (formData.endDate) {
       data.endDate = formData.endDate.toISOString();
     }
-    if (formData.classifications.length > 0) {
-      data.classifications = formData.classifications;
+    if (selectedClassifications.length > 0) {
+      data.classifications = selectedClassifications;
     }
     if (formData.redshiftMinimum) {
       data.minRedshift = formData.redshiftMinimum;
@@ -361,12 +343,6 @@ const FilterCandidateList = ({
       })
     );
     setQueryInProgress(false);
-  };
-
-  const handleClassificationShortcutClick = (shortcutClassifications) => {
-    setSelectedClassifications([
-      ...new Set([...selectedClassifications, ...shortcutClassifications]),
-    ]);
   };
 
   return (
@@ -437,70 +413,11 @@ const FilterCandidateList = ({
               ))}
             </Controller>
           </div>
-          <div className={classes.formRow}>
-            <InputLabel id="classifications-select-label">
-              Classifications
-            </InputLabel>
-            <Controller
-              labelId="classifications-select-label"
-              render={({ onChange }) => (
-                <Select
-                  id="classifications-select"
-                  multiple
-                  value={selectedClassifications}
-                  onChange={(event) => {
-                    setSelectedClassifications(event.target.value);
-                    onChange(event.target.value);
-                  }}
-                  input={<Input id="classifications-select" />}
-                  renderValue={(selected) => (
-                    <div className={classes.chips}>
-                      {selected?.map((classification) => (
-                        <Chip
-                          key={classification}
-                          label={classification}
-                          className={classes.chip}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  MenuProps={MenuProps}
-                >
-                  {classifications?.map((classification) => (
-                    <MenuItem
-                      key={classification}
-                      value={classification}
-                      style={getStyles(
-                        classification,
-                        selectedClassifications,
-                        theme
-                      )}
-                    >
-                      {classification}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-              name="classifications"
-              control={control}
-              defaultValue={selectedScanningProfile?.classifications || []}
-            />
-          </div>
-          {classificationShortcuts &&
-            Object.entries(classificationShortcuts)?.map(
-              ([shortcutName, shortcutClassifications]) => (
-                <Button
-                  variant="outlined"
-                  key={shortcutName}
-                  data-testid={shortcutName}
-                  onClick={() =>
-                    handleClassificationShortcutClick(shortcutClassifications)
-                  }
-                >
-                  Select {shortcutName}
-                </Button>
-              )
-            )}
+          <ClassificationSelect
+            selectedClassifications={selectedClassifications}
+            setSelectedClassifications={setSelectedClassifications}
+            showShortcuts
+          />
           <div className={classes.formRow}>
             <InputLabel id="redshift-select-label">Redshift</InputLabel>
             <div className={classes.redshiftField}>

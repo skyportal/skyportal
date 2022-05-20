@@ -38,6 +38,7 @@ import { ra_to_hours, dec_to_dms } from "../units";
 import RejectButton from "./RejectButton";
 import VegaPhotometry from "./VegaPhotometry";
 import Spinner from "./Spinner";
+import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 
 const useStyles = makeStyles((theme) => ({
   candidateListContainer: {
@@ -622,6 +623,9 @@ const CandidateList = () => {
                 }}
                 groups={allGroups}
               />
+            </div>
+            <div>
+              <AddClassificationsScanningPage obj_id={candidateObj.id} />
             </div>
             <div className={classes.infoItem}>
               <b>Saved groups: </b>
