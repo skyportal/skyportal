@@ -118,7 +118,7 @@ class FacilityQueue(asyncio.Queue):
                     raise ValueError(f'API for {instrument.name} unknown')
 
             # Pause between requests
-            time.sleep(1)
+            time.sleep(10)
 
 
 queue = FacilityQueue()
