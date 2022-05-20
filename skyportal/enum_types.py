@@ -85,6 +85,10 @@ AUTHENTICATION_TYPES = (
     'HTTPDigestAuth',
     'OAuth1',
 )
+WEBHOOK_STATUS_TYPES = ('pending', 'completed', 'failure', 'cancelled', 'timed_out')
+allowed_webbook_status_types = sa.Enum(
+    *WEBHOOK_STATUS_TYPES, name='webhookstatustypes', validate_strings=True
+)
 
 allowed_analysis_types = sa.Enum(
     *ANALYSIS_TYPES, name='analysistypes', validate_strings=True
@@ -153,6 +157,7 @@ py_allowed_analysis_input_types = Enum('analysisinputtypes', ANALYSIS_INPUT_TYPE
 py_allowed_external_authentication_types = Enum(
     'authenticationtypes', AUTHENTICATION_TYPES
 )
+py_allowed_webbook_status_types = Enum('webhookstatustypes', WEBHOOK_STATUS_TYPES)
 
 
 sqla_enum_types = [
@@ -166,4 +171,5 @@ sqla_enum_types = [
     allowed_analysis_types,
     allowed_analysis_input_types,
     allowed_external_authentication_types,
+    allowed_webbook_status_types,
 ]

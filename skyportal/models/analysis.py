@@ -1,10 +1,11 @@
-__all__ = ['AnalysisService']
+__all__ = ['AnalysisService', 'ObjAnalysis']
 
 import json
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from sqlalchemy_utils.types import JSONType
+from sqlalchemy_utils.types import JSONType, JSONB
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.dialects.postgresql import ARRAY
 
 from sqlalchemy_utils import URLType, EmailType
@@ -13,7 +14,11 @@ from sqlalchemy_utils.types.encrypted.encrypted_type import (
     AesEngine,
 )
 
-from baselayer.app.models import Base
+from baselayer.app.models import (
+    Base,
+    AccessibleIfRelatedRowsAreAccessible,
+    AccessibleIfUserMatches,
+)
 from baselayer.app.env import load_env
 
 from ..enum_types import (
@@ -24,6 +29,8 @@ from ..enum_types import (
     AUTHENTICATION_TYPES,
 )
 
+
+from .webhook import WebhookMixin
 from .group import accessible_by_groups_members
 
 _, cfg = load_env()
@@ -152,3 +159,110 @@ class AnalysisService(Base):
     @authinfo.setter
     def authinfo(self, value):
         self._authinfo = value
+
+
+class AnalysisMixin:
+
+    results = sa.Column(
+        JSONB, default=None, nullable=False, doc="Searchable results in JSON format"
+    )
+
+    show_parameters = sa.Column(
+        sa.Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether to render the parameters of this analysis",
+    )
+
+    show_plots = sa.Column(
+        sa.Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether to render the plots of this analysis",
+    )
+
+    show_corner = sa.Column(
+        sa.Boolean,
+        default=False,
+        nullable=False,
+        doc="Whether to render the corner plots of this analysis",
+    )
+
+    @classmethod
+    def backref_name(cls):
+        if cls.__name__ == 'ObjAnalysis':
+            return "obj_analyses"
+
+    @declared_attr
+    def analysis_service(cls):
+        return relationship(
+            AnalysisService,
+            backref=cls.backref_name(),
+            cascade="save-update, merge, refresh-expire, expunge",
+            passive_deletes=True,
+            doc="Analysis service this analysis uses.",
+        )
+
+    @declared_attr
+    def creator(cls):
+        return relationship(
+            "User",
+            back_populates=cls.backref_name(),
+            doc="Analysis's creator.",
+            uselist=False,
+            foreign_keys=f"{cls.__name__}.creator_id",
+        )
+
+    @declared_attr
+    def creator_id(cls):
+        return sa.Column(
+            sa.ForeignKey('users.id', ondelete='CASCADE'),
+            nullable=False,
+            index=True,
+            doc="ID of the Analysis author's User instance.",
+        )
+
+    @declared_attr
+    def groups(cls):
+        return relationship(
+            "Group",
+            secondary="group_" + cls.backref_name(),
+            cascade="save-update, merge, refresh-expire, expunge",
+            passive_deletes=True,
+            doc="Groups that can see the analysis.",
+        )
+
+    def construct_creator_info_dict(self):
+        return {
+            field: getattr(self.author, field)
+            for field in ('username', 'first_name', 'last_name', 'gravatar_url')
+        }
+
+
+class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
+    """Analysis on an Obj with a set of results as JSON"""
+
+    __tablename__ = 'obj_analyses'
+
+    create = AccessibleIfRelatedRowsAreAccessible(obj='read')
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        obj='read'
+    )
+    update = delete = AccessibleIfUserMatches('creator')
+
+    @declared_attr
+    def obj_id(cls):
+        return sa.Column(
+            sa.ForeignKey('objs.id', ondelete='CASCADE'),
+            nullable=False,
+            index=True,
+            doc="ID of the ObjAnalysis's Obj.",
+        )
+
+    @declared_attr
+    def obj(cls):
+        return relationship(
+            'Obj',
+            back_populates=cls.backref_name(),
+            doc="The ObjAnalysis's Obj.",
+        )

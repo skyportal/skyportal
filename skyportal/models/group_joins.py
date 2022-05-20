@@ -14,6 +14,7 @@ __all__ = [
     'GroupSourceNotification',
     'GroupStream',
     'GroupAnalysisService',
+    'GroupObjAnalysis',
 ]
 
 import sqlalchemy as sa
@@ -36,7 +37,13 @@ from .source_notification import SourceNotification
 from .filter import Filter
 from .stream import Stream, StreamUser
 from .group import Group, accessible_by_group_admins, accessible_by_group_members
-from .analysis import AnalysisService
+from .analysis import AnalysisService, ObjAnalysis
+
+GroupObjAnalysis = join_model("group_objanalyses", Group, ObjAnalysis)
+GroupObjAnalysis.__doc__ = "Join table mapping Groups to ObjAnalysis."
+GroupObjAnalysis.delete = GroupObjAnalysis.update = (
+    accessible_by_group_admins & GroupObjAnalysis.read
+)
 
 GroupAnalysisService = join_model("group_analysisservices", Group, AnalysisService)
 GroupAnalysisService.__doc__ = "Join table mapping Groups to Analysis Services."
