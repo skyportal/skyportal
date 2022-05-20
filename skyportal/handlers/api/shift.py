@@ -30,7 +30,7 @@ class ShiftHandler(BaseHandler):
                   - type: object
                     properties:
                       shift_admins:
-                        type: arrayF
+                        type: array
                         items:
                           type: integer
                         description: |
