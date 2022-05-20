@@ -23,7 +23,11 @@ def test_share_data(
         '//div[@data-testid="photometry-div"]//*[@data-testid="MUIDataTableBodyRow-0"]',
         timeout=10,
     )
-    driver.click_xpath('//*[@id="MUIDataTableSelectCell-0"]', wait_clickable=False)
+    # driver.click_xpath('//*[@id="MUIDataTableSelectCell-0"]', wait_clickable=False)
+    driver.click_xpath(
+        '//*[contains( @ id, "MUIDataTableSelectCell") and contains( @ id, "-0")]',
+        wait_clickable=False,
+    )
     driver.click_xpath('//*[@id="dataSharingFormGroupsSelect"]')
     driver.click_xpath(f'//li[text()="{public_group2.name}"]', scroll_parent=True)
     driver.click_xpath('//*[text()="Submit"]')

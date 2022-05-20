@@ -583,7 +583,7 @@ const ManageDataForm = ({ route }) => {
 
   return (
     <>
-      <div data-testid="photometry-div">
+      <div>
         <Typography variant="h5">
           Share Source Data -&nbsp;
           <Link to={`/source/${route.id}`} role="link">
@@ -602,7 +602,7 @@ const ManageDataForm = ({ route }) => {
       <br />
       <div>
         {!!photometry[route.id] && (
-          <div>
+          <div data-testid="photometry-div">
             <MUIDataTable
               columns={photHeadCells}
               data={photRows}
