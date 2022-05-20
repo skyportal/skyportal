@@ -507,6 +507,7 @@ spectrum_types:
 
 cross_match:
   gaia:
+    catalog: "gaiaedr3.gaia_source"
     radius: 2.0
     limmag: 20.5
     number: 1
