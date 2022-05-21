@@ -1,12 +1,18 @@
 __all__ = ['AnalysisService', 'ObjAnalysis']
 
+import os
 import json
+import hashlib
+import re
+
+import xarray as xr
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from sqlalchemy_utils.types import JSONType, JSONB
+from sqlalchemy_utils.types import JSONType
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from sqlalchemy_utils import URLType, EmailType
 from sqlalchemy_utils.types.encrypted.encrypted_type import (
@@ -34,6 +40,11 @@ from .webhook import WebhookMixin
 from .group import accessible_by_groups_members
 
 _, cfg = load_env()
+
+
+RE_SLASHES = re.compile(r'^[\w_\-\+\/\\]*$')
+RE_NO_SLASHES = re.compile(r'^[\w_\-\+]*$')
+MAX_FILEPATH_LENGTH = 255
 
 
 class AnalysisService(Base):
@@ -162,9 +173,84 @@ class AnalysisService(Base):
 
 
 class AnalysisMixin:
+    def calc_hash(self):
+        md5_hash = hashlib.md5()
+        md5_hash.update(self._data.to_netcdf())
+        self.hash = md5_hash.hexdigest()
 
-    results = sa.Column(
-        JSONB, default=None, nullable=False, doc="Searchable results in JSON format"
+    def load_data(self):
+        """
+        Load the associated analysis data from disk.
+        """
+        self._data = xr.load_dataset(self.filename)
+
+    def save_data(self):
+        """
+        Save the associated analysis data to disk.
+        """
+
+        # there's a default value but it is best to provide a full path in the config
+        root_folder = cfg.get('analysis_folder', 'analysis_data')
+
+        # the filename can have alphanumeric, underscores, + or -
+        self.check_path_string(self._unique_id)
+
+        # make sure to replace windows style slashes
+        subfolder = self._unique_id.replace("\\", "/")
+
+        filename = f'analysis_{self.id}.nc'
+
+        path = os.path.join(root_folder, subfolder)
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        full_name = os.path.join(path, filename)
+
+        if len(full_name) > MAX_FILEPATH_LENGTH:
+            raise ValueError(
+                f'Full path to file {full_name} is longer than {MAX_FILEPATH_LENGTH} characters.'
+            )
+
+        self._data.to_netcdf(full_name)
+        self.filename = full_name
+
+    def delete_data(self):
+        """
+        Delete the associated data from disk
+        """
+
+        if os.path.exists(self.filename):
+            os.remove(self.filename)
+
+    @staticmethod
+    def check_path_string(string, allow_slashes=False):
+        if allow_slashes:
+            reg = RE_SLASHES
+        else:
+            reg = RE_NO_SLASHES
+
+        if not reg.match(string):
+            raise ValueError(f'Illegal characters in string "{string}". ')
+
+    @hybrid_property
+    def data(self):
+        """Lazy load the data dictionary"""
+        if self._data is None:
+            self.load_data()
+
+    _unique_id = sa.Column(
+        sa.String,
+        nullable=False,
+        unique=True,
+        default=sa.func.uuid_generate_v4(),
+        doc='Unique identifier for this analysis result.',
+    )
+
+    hash = sa.Column(
+        sa.String,
+        nullable=False,
+        unique=True,
+        doc='MD5sum hash of the data to be saved to file. Prevents duplications.',
     )
 
     show_parameters = sa.Column(
