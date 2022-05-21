@@ -1,3 +1,5 @@
+import uuid
+import numpy as np
 import pytest
 
 
@@ -12,9 +14,9 @@ def test_new_source(
     driver.wait_for_xpath('//*[text()="Add a Source"]')
 
     # test add sources form
-    driver.wait_for_xpath('//*[@id="root_id"]').send_keys('nobel_prize')
-    driver.wait_for_xpath('//*[@id="root_ra"]').send_keys(5)
-    driver.wait_for_xpath('//*[@id="root_dec"]').send_keys(10)
+    driver.wait_for_xpath('//*[@id="root_id"]').send_keys(str(uuid.uuid4()))
+    driver.wait_for_xpath('//*[@id="root_ra"]').send_keys(np.random.rand() * 360)
+    driver.wait_for_xpath('//*[@id="root_dec"]').send_keys(np.random.rand() * 180 - 90)
 
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
