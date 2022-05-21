@@ -2,7 +2,8 @@ from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
 from datetime import date, timedelta
 import uuid
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, UnexpectedAlertPresentException
+from selenium.webdriver import ActionChains
 import time
 
 
@@ -84,8 +85,7 @@ def test_shift(
     select_users = '//*[@id="select-users--multiple-chip"]'
     driver.wait_for_xpath(select_users)
     driver.click_xpath(select_users)
-    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
-    driver.click_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
+    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]').click()
 
     # check for button to add users
     remove_users_button = '//*[@id="deactivated-remove-users-button"]'
@@ -102,11 +102,11 @@ def test_shift(
     select_users = '//*[@id="select-users--multiple-chip"]'
     driver.wait_for_xpath(select_users)
     driver.click_xpath(select_users)
-    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
-    driver.click_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]')
+    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{user.id}"]').click()
 
-    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
-    driver.click_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
+    driver.wait_for_xpath(
+        f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]'
+    ).click()
 
     # check for button to add and remove users
     add_users_button = '//*[@id="add-users-button"]'
@@ -114,8 +114,13 @@ def test_shift(
     driver.click_xpath(add_users_button)
 
     remove_users_button = '//*[@id="remove-users-button"]'
-    # As the component rerenders, the remove button will be deactivated for a bit, so we wait for the xpath to stay for a second to allow the button to be clickable
-    # if we checked for the xpath right now, it might disappear right after when we try to click it. So we add a little delay before clicking the button
+    # As the component rerenders,
+    # the remove button will be deactivated for a bit,
+    # so we wait for the xpath to stay for a second
+    # to allow the button to be clickable
+    # if we checked for the xpath right now,
+    # it might disappear right after when we try to click it.
+    # So we add a little delay before clicking the button
     time.sleep(1)
     driver.click_xpath(remove_users_button)
 
@@ -132,18 +137,23 @@ def test_shift(
 
     # check for the dropdown to remove users
     select_users = '//*[@id="select-users--multiple-chip"]'
-    driver.wait_for_xpath(select_users)
-    driver.click_xpath(select_users)
+    driver.wait_for_xpath(select_users).click()
 
-    driver.wait_for_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
-    driver.click_xpath(f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]')
+    driver.wait_for_xpath(
+        f'//li[@id="select_users"]/*[@id="{view_only_user.id}"]'
+    ).click()
 
     # check for button to remove users
     deactivated_add_users_button = '//*[@id="deactivated-add-users-button"]'
     driver.wait_for_xpath(deactivated_add_users_button)
+    # see comment above
+    time.sleep(1)
     remove_users_button = '//*[@id="remove-users-button"]'
-    driver.wait_for_xpath(remove_users_button)
-    driver.click_xpath(remove_users_button)
+    button = driver.wait_for_xpath(remove_users_button)
+    ActionChains(driver).move_to_element(button).click().perform()
+    # click once to close the menu, and again to remove the user
+    time.sleep(1)
+    ActionChains(driver).move_to_element(button).click().perform()
 
     # check if user has been removed
     shift_members = '//*[@id="current_shift_members"]'
@@ -154,15 +164,13 @@ def test_shift(
 
     # check for leave shift button
     leave_button_xpath = '//*[@id="leave_button"]'
-    driver.wait_for_xpath(leave_button_xpath)
-    driver.click_xpath(leave_button_xpath)
+    driver.wait_for_xpath(leave_button_xpath).click()
 
     driver.wait_for_xpath_to_disappear(leave_button_xpath)
 
     # check for join shift button
     join_button_xpath = '//*[@id="join_button"]'
-    driver.wait_for_xpath(join_button_xpath)
-    driver.click_xpath(join_button_xpath)
+    driver.wait_for_xpath(join_button_xpath).click()
 
     driver.wait_for_xpath_to_disappear(join_button_xpath)
     # check for delete shift button
@@ -173,17 +181,11 @@ def test_shift(
 
     shift_on_calendar = f'//*/span/strong[contains(.,"{form_name}")]'
     # check for API shift
-    driver.wait_for_xpath(
-        shift_on_calendar,
-        timeout=30,
-    )
-
-    driver.click_xpath(shift_on_calendar)
+    driver.wait_for_xpath(shift_on_calendar, timeout=30).click()
 
     # check for join shift button
     join_button_xpath = '//*[@id="join_button"]'
-    driver.wait_for_xpath(join_button_xpath)
-    driver.click_xpath(join_button_xpath)
+    driver.wait_for_xpath(join_button_xpath).click()
 
     driver.wait_for_xpath_to_disappear(join_button_xpath)
 
@@ -195,8 +197,7 @@ def test_shift(
 
     # check for button to ask for replacement
     ask_for_replacement_button_xpath = '//*[@id="ask-for-replacement-button"]'
-    driver.wait_for_xpath(ask_for_replacement_button_xpath)
-    driver.click_xpath(ask_for_replacement_button_xpath)
+    driver.wait_for_xpath(ask_for_replacement_button_xpath).click()
 
     driver.wait_for_xpath_to_disappear(ask_for_replacement_button_xpath)
 
@@ -207,14 +208,12 @@ def test_shift(
 
     # look for the replacement request notification
     notification_bell = '//*[@data-testid="notificationsBadge"]'
-    driver.wait_for_xpath(notification_bell)
-    driver.click_xpath(notification_bell)
+    driver.wait_for_xpath(notification_bell).click()
 
     notification_xpath = (
         f'//ul/a/p[contains(text(),"needs a replacement for shift: {form_name}")]'
     )
-    driver.wait_for_xpath(notification_xpath)
-    driver.click_xpath(notification_xpath, timeout=10)
+    driver.wait_for_xpath(notification_xpath).click()
 
     # check for API shift
     driver.wait_for_xpath(
@@ -228,17 +227,22 @@ def test_shift(
 
     # check for the dropdown to add a user
     select_users = '//*[@id="select-user-replace-chip"]'
-    driver.wait_for_xpath(select_users)
-    driver.click_xpath(select_users)
+    driver.wait_for_xpath(select_users).click()
     driver.wait_for_xpath(
         f'//li[@id="select_user_to_replace"]/*[@id="{shift_user.id}"]'
-    )
-    driver.click_xpath(f'//li[@id="select_user_to_replace"]/*[@id="{shift_user.id}"]')
+    ).click()
 
     # check for button to add and remove users
     replace_user_button = '//*[@id="replace-users-button"]'
-    driver.wait_for_xpath(replace_user_button)
-    driver.click_xpath(replace_user_button)
+    # need to click outside the menu and wait a bit before clicking
+    button = driver.wait_for_xpath(replace_user_button)
+    ActionChains(driver).move_to_element(button).click().perform()
+    # if that click did not make the button disapper, try it again
+    time.sleep(1)
+    try:
+        driver.wait_for_xpath(replace_user_button, timeout=1).click()
+    except TimeoutException:
+        pass
 
     driver.wait_for_xpath_to_disappear(replace_user_button)
 
@@ -259,16 +263,27 @@ def test_shift(
     driver.get("/shifts")
 
     # check for API shift
-    driver.wait_for_xpath(
-        shift_on_calendar,
-        timeout=30,
-    )
+    shift_element = driver.wait_for_xpath(shift_on_calendar, timeout=30)
+    for i in range(30):  # stroll a few pixels to the left
+        try:
+            ActionChains(driver).move_to_element(shift_element).move_by_offset(
+                -i, 0
+            ).click().perform()
+            title = driver.wait_for_xpath('//*[@id="current_shift_title"]')
+            if title.text == form_name:
+                break
+        except UnexpectedAlertPresentException:
+            pass  # avoid popup asking to make new shift
 
-    driver.click_xpath(shift_on_calendar)
+    assert title.text == form_name  # we found the right shift
 
     delete_button_xpath = '//*[@id="delete_button"]'
-    driver.wait_for_xpath(delete_button_xpath)
-    driver.click_xpath(delete_button_xpath)
+    driver.wait_for_xpath(delete_button_xpath).click()
+    try:  # try again
+        driver.wait_for_xpath(delete_button_xpath, timeout=1).click()
+    except TimeoutException:
+        pass
+
     driver.wait_for_xpath_to_disappear(
         f'//*[@id="current_shift_title"][contains(.,"{form_name}")]'
     )
