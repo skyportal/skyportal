@@ -132,6 +132,16 @@ class AnalysisService(Base):
         doc="Max time in seconds to wait for the analysis service to complete.",
     )
 
+    upload_only = sa.Column(
+        sa.Boolean,
+        default=False,
+        doc=(
+            "If true, the analysis service is an upload type, where the user is responsible"
+            " for providing the input data to the service. If false, the service is "
+            " called using the data provided in input_data_types"
+        ),
+    )
+
     @property
     def authinfo(self):
         if self._authinfo is None:
