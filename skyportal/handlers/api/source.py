@@ -883,13 +883,12 @@ class SourceHandler(BaseHandler):
                 self.verify_and_commit()
 
             if include_thumbnails:
+                user_id = self.associated_user_object.id
                 existing_thumbnail_types = [thumb.type for thumb in s.thumbnails]
                 if "ps1" not in existing_thumbnail_types:
                     IOLoop.current().run_in_executor(
                         None,
-                        lambda: add_ps1_thumbnail_and_push_ws_msg(
-                            obj_id, self.associated_user_object.id
-                        ),
+                        lambda: add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id),
                     )
                 if (
                     "sdss" not in existing_thumbnail_types
@@ -897,9 +896,7 @@ class SourceHandler(BaseHandler):
                 ):
                     IOLoop.current().run_in_executor(
                         None,
-                        lambda: add_linked_thumbnails_and_push_ws_msg(
-                            obj_id, self.associated_user_object.id
-                        ),
+                        lambda: add_linked_thumbnails_and_push_ws_msg(obj_id, user_id),
                     )
             if include_comments:
                 comments = (
@@ -2005,11 +2002,10 @@ class SourceHandler(BaseHandler):
         self.verify_and_commit()
 
         if not obj_already_exists:
+            user_id = self.associated_user_object.id
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj.id, self.associated_user_object.id
-                ),
+                lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, user_id),
             )
         else:
             self.push_all(
