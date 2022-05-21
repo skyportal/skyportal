@@ -904,3 +904,18 @@ shifts/=gcnshift/users:
   - userID: =viewonlyuser
     admin: false
     needs_replacement: true
+
+analysis_service:
+  - name: "Demo_Analysis"
+    display_name: "Demo analysis service display name"
+    description: "Description for demo analysis"
+    version: "1.0"
+    contact_name: "Vera Rubin"
+    url: "http://localhost:6801/analysis/demo_analysis"
+    authentication_type: "header_token"
+    _authinfo: "{'header_token': {'Authorization': 'Bearer MY_TOKEN'}}"
+    type: "lightcurve_fitting"
+    input_data_types: ["photometry", "redshift"]
+    group_ids:
+      - =program_A
+      - =program_B
