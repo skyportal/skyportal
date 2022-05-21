@@ -237,6 +237,7 @@ class AnalysisMixin:
         """Lazy load the data dictionary"""
         if self._data is None:
             self.load_data()
+        return self._data
 
     _unique_id = sa.Column(
         sa.String,
