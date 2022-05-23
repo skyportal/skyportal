@@ -151,7 +151,7 @@ class Obj(Base, conesearch_alchemy.Point):
     delete = restricted | CustomUserAccessControl(delete_obj_if_all_data_owned)
 
     id = sa.Column(sa.String, primary_key=True, doc="Name of the object.")
-    # TODO should this column type be decimal? fixed-precison numeric
+    # TODO should this column type be decimal? fixed-precision numeric
 
     ra_dis = sa.Column(sa.Float, doc="J2000 Right Ascension at discovery time [deg].")
     dec_dis = sa.Column(sa.Float, doc="J2000 Declination at discovery time [deg].")
@@ -290,6 +290,15 @@ class Obj(Base, conesearch_alchemy.Point):
         passive_deletes=True,
         order_by="Photometry.mjd",
         doc="Photometry of the object.",
+    )
+
+    phot_stats = relationship(
+        'PhotStat',
+        back_populates='obj',
+        cascade='save-update, merge, refresh-expire, expunge, delete',
+        single_parent=True,
+        passive_deletes=True,
+        doc="Photometry statistics associated with the object.",
     )
 
     detect_photometry_count = sa.Column(
@@ -671,6 +680,176 @@ Obj.candidates = relationship(
 
 # See source.py for Obj.sources relationship
 # It had to be defined there to prevent a circular import.
+
+
+class PhotStat(Base):
+    """
+    Keep track of some photometric statistics
+    such as when was this object last detected.
+    These correspond to all photometric points,
+    regardless of permissioning.
+    """
+
+    read = public
+
+    write = update = delete = restricted
+
+    obj_id = sa.Column(
+        sa.ForeignKey('objs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+        doc="ID of the PhotStat's Obj.",
+    )
+    obj = relationship('Obj', back_populates='photstats', doc="The PhotStat's Obj.")
+
+    first_detected_mjd = sa.Column(
+        sa.Float,
+        nullable=False,
+        index=True,
+        doc='Modified Julian date when object was first detected.',
+    )
+
+    first_detected_mag = sa.Column(
+        sa.Float,
+        nullable=True,
+        index=True,
+        doc='The apparent magnitude of the first detection.',
+    )
+
+    first_detected_filter = sa.Column(
+        sa.String,
+        nullable=True,
+        index=True,
+        doc='Which filter was used when making the first detection.',
+    )
+
+    last_detected_mjd = sa.Column(
+        sa.Float,
+        nullable=False,
+        index=True,
+        doc='Modified Julian date when object was last detected.',
+    )
+
+    last_detected_mag = sa.Column(
+        sa.Float,
+        nullable=True,
+        index=True,
+        doc='The apparent magnitude of the last detection.',
+    )
+
+    last_detected_filter = sa.Column(
+        sa.String,
+        nullable=True,
+        index=True,
+        doc='Which filter was used when making the last detection.',
+    )
+
+    time_to_non_detection = sa.Column(
+        sa.Float,
+        nullable=False,
+        index=True,
+        doc='Amount of time (in days), between the first detection '
+        'and the last upper limit before that detection.',
+    )
+
+    mean_mag_per_filter = sa.Column(
+        sa.JSONB,
+        nullable=False,
+        index=True,
+        doc='Average magnitude in various filters. '
+        'The value is saved in a separate key for'
+        'each filter in this JSONB.',
+    )
+
+    mean_color = sa.Column(
+        sa.JSONB,
+        nullable=False,
+        index=True,
+        doc='Average magnitude difference in various filters combinations. '
+        'The value is saved in a separate key for each filter combination, '
+        'where the keys are named {filter1}-{filter2}.',
+    )
+
+    peak_mag_global = sa.Column(
+        sa.Float,
+        nullable=False,
+        index=True,
+        doc='Brightest recorded apparent magnitude, in any filter.',
+    )
+
+    peak_mag_per_filter = sa.Column(
+        sa.JSONB,
+        nullable=False,
+        index=True,
+        doc='Brightest recorded apparent magnitude in each filter.',
+    )
+
+    faintest_mag_global = sa.Column(
+        sa.Float,
+        nullable=False,
+        index=True,
+        doc='Faintest recorded apparent magnitude (not including non-detections), '
+        'in any filter.',
+    )
+
+    faintest_mag_per_filter = sa.Column(
+        sa.JSONB,
+        nullable=False,
+        index=True,
+        doc='Faintest recorded apparent magnitude (not including non-detections), '
+        'in each filter.',
+    )
+
+    mag_rms_global = sa.Column(
+        sa.Float,
+        nullable=False,
+        index=True,
+        doc='Average variability of the magnitude measurements for all filters.',
+    )
+
+    mag_rms_per_filter = sa.Column(
+        sa.JSONB,
+        nullable=False,
+        index=True,
+        doc='Average variability of the magnitude, '
+        'keyed to the name of each filter.',
+    )
+
+    num_obs_global = sa.Column(
+        sa.Integer,
+        nullable=False,
+        index=True,
+        doc='Number of observations taken of this source in all filters combined.',
+    )
+
+    num_obs_per_filter = sa.Column(
+        sa.JSONB,
+        nullable=False,
+        index=True,
+        doc='Number of observations taken of this source in each filter.',
+    )
+
+    num_det_global = sa.Column(
+        sa.Integer,
+        nullable=False,
+        index=True,
+        doc='Number of detections (measurements above threshold) '
+        'of this source, in all filters combined.',
+    )
+
+    num_det_per_filter = sa.Column(
+        sa.JSONB,
+        nullable=False,
+        index=True,
+        doc='Number of detections (measurements above threshold) '
+        'of this source, in each filter.',
+    )
+
+    def add_photometry_point(self, phot):
+        pass
+
+    def full_update(self, phot_list):
+        pass
 
 
 @event.listens_for(Obj, 'before_delete')
