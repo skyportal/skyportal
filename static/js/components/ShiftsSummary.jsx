@@ -1,9 +1,11 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 import Form from "@rjsf/material-ui";
 import { showNotification } from "baselayer/components/Notifications";
+import List from "@material-ui/core/List";
+import ListItem from "@material-ui/core/ListItem";
+import ListItemText from "@material-ui/core/ListItemText";
 import * as shiftActions from "../ducks/shift";
 
 const ShiftsSummary = () => {
@@ -11,7 +13,10 @@ const ShiftsSummary = () => {
   // return a react json schema form where the user can select a start date and end date, and then click submit to get  json document that summarizes the activity during shifts between the start and end dates
   const shiftsSummary = useSelector((state) => state.shift.shiftsSummary);
 
-  const defaultStartDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
+  const defaultStartDate = dayjs()
+    .subtract(1, "day")
+    .utc()
+    .format("YYYY-MM-DDTHH:mm:ssZ");
   const defaultEndDate = dayjs()
     .add(1, "day")
     .utc()
@@ -33,7 +38,6 @@ const ShiftsSummary = () => {
         default: defaultEndDate,
       },
     },
-    required: ["start_date", "end_date"],
   };
 
   function validate(formData, errors) {
@@ -50,19 +54,61 @@ const ShiftsSummary = () => {
   }
 
   const handleSubmit = async ({ formData }) => {
-    console.log("formData", formData);
     formData.start_date = formData.start_date
       .replace("+00:00", "")
       .replace(".000Z", "");
     formData.end_date = formData.end_date
       .replace("+00:00", "")
       .replace(".000Z", "");
-    console.log(formData.start_date);
-    console.log(formData.end_date);
-    dispatch(shiftActions.getShiftsSummary(formData));
-    showNotification("Shifts Summary", "Shifts Summary", "success");
+    if (formData.end_date && formData.start_date) {
+      dispatch(
+        shiftActions.getShiftsSummary({
+          start_date: formData.start_date,
+          end_date: formData.end_date,
+        })
+      );
+      showNotification("Shifts Summary", "Shifts Summary", "success");
+    }
   };
 
+  const displayShiftsList = (shifts) => (
+    <List>
+      <h2>Shifts:</h2>
+      {shifts.map((shift) => (
+        <ListItem key={shift.id}>
+          <ListItemText
+            primary={`${shift.name}`}
+            secondary={`${shift.start_date} - ${shift.end_date}`}
+          />
+          <p>
+            {" "}
+            Members :{" "}
+            {shift.shift_users.map((user) => user.username).join(", ")}
+          </p>
+        </ListItem>
+      ))}
+    </List>
+  );
+
+  const displayShiftsGCN = (shifts, gcns) => {
+    <List>
+      <h2>GCN Events:</h2>
+      {gcns.map((gcn) => (
+        <ListItem key={gcn.id}>
+          <ListItemText
+            primary={`${gcn.dateobs}`}
+            secondary={`${gcn.start_date} - ${gcn.end_date}`}
+          />
+          {shifts.length > 1 ? (
+            <p>
+              {" "}
+              Shift : {shifts.find((shift) => shift.id === gcn.shift_id).name}
+            </p>
+          ) : null}
+        </ListItem>
+      ))}
+    </List>;
+  };
   return (
     <div>
       <Form
@@ -72,7 +118,10 @@ const ShiftsSummary = () => {
         validate={validate}
         liveValidate
       />
-      {shiftsSummary && <div>{shiftsSummary}</div>}
+      {shiftsSummary?.shifts?.total > 1 &&
+        displayShiftsList(shiftsSummary.shifts.data)}
+      {shiftsSummary?.gcns &&
+        displayShiftsGCN(shiftsSummary.shifts.data, shiftsSummary.gcns.data)}
     </div>
   );
 };

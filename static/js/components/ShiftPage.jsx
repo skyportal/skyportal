@@ -1,9 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
-import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
 import Grid from "@material-ui/core/Grid";
+import { Button } from "@material-ui/core";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import PropTypes from "prop-types";
 import NewShift from "./NewShift";
@@ -18,6 +18,7 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: theme.palette.background.paper,
   },
   paperContent: {
+    marginBottom: theme.spacing(2),
     padding: "1rem",
   },
 }));
@@ -37,6 +38,7 @@ const ShiftPage = ({ route }) => {
   const shiftList = useSelector((state) => state.shifts.shiftList);
   const currentShift = useSelector((state) => state.shift.currentShift);
   const [events, setEvents] = React.useState([]);
+  const [show, setShow] = useState(true);
 
   if (shiftList) {
     if (!events || events?.length !== shiftList?.length) {
@@ -59,6 +61,7 @@ const ShiftPage = ({ route }) => {
           type: "skyportal/CURRENT_SHIFT",
           data: shift,
         });
+      setShow(false);
     } else if (currentShift) {
       const updatedShift = shiftList.find((s) => s.id === currentShift.id);
       // check if the shift shift_users length is different from the current shift
@@ -67,6 +70,7 @@ const ShiftPage = ({ route }) => {
         updatedShift.shift_users.length !== currentShift.shift_users.length
       ) {
         dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
+        setShow(false);
       } else if (updatedShift) {
         if (
           Object.keys(updatedShift).length > 0 &&
@@ -89,6 +93,7 @@ const ShiftPage = ({ route }) => {
           }
           if (usersHaveChanged) {
             dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
+            setShow(false);
           }
         }
       }
@@ -103,31 +108,39 @@ const ShiftPage = ({ route }) => {
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
           {events ? (
-            <MyCalendar events={events} currentShift={currentShift} />
+            <MyCalendar
+              events={events}
+              currentShift={currentShift}
+              setShow={setShow}
+            />
           ) : (
             <CircularProgress />
           )}
         </Paper>
-        <Paper>
-          <ShiftsSummary />
-        </Paper>
       </Grid>
 
       <Grid item md={6} sm={12}>
-        <Paper elevation={1}>
-          {currentShift &&
-            (events && Object.keys(currentShift).length > 0 ? (
-              <CurrentShiftMenu currentShift={currentShift} />
-            ) : null)}
-        </Paper>
         {permission && (
           <Paper>
             <div className={classes.paperContent}>
-              <Typography variant="h6">Add a New Shift</Typography>
-              <NewShift />
+              <Button onClick={() => setShow((prev) => !prev)}>
+                Add New Shift
+              </Button>
+              {show ? <NewShift /> : null}
             </div>
           </Paper>
         )}
+        <Paper elevation={1}>
+          {currentShift &&
+            (events && !show && Object.keys(currentShift).length > 0 ? (
+              <CurrentShiftMenu currentShift={currentShift} />
+            ) : null)}
+        </Paper>
+      </Grid>
+      <Grid item md={12} sm={12}>
+        <Paper>
+          <ShiftsSummary />
+        </Paper>
       </Grid>
     </Grid>
   );

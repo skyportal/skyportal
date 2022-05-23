@@ -17,6 +17,8 @@ const CURRENT_SHIFT_SELECTED_USERS = "skyportal/CURRENT_SHIFT_SELECTED_USERS";
 
 const FETCH_SHIFT_SUMMARY = "skyportal/FETCH_SHIFT_SUMMARY";
 
+const FETCH_SHIFT_SUMMARY_OK = "skyportal/FETCH_SHIFT_SUMMARY_OK";
+
 export const fetchShift = (id) => API.GET(`/api/shifts/${id}`, FETCH_SHIFT);
 
 export const submitShift = (run) => API.POST(`/api/shifts`, SUBMIT_SHIFT, run);
@@ -26,10 +28,14 @@ export function deleteShift(shiftID) {
 }
 
 export function getShiftsSummary({ shiftID, start_date, end_date }) {
-  return API.GET(`/api/shifts/summary/${shiftID}`, FETCH_SHIFT_SUMMARY, {
-    start_date,
-    end_date,
-  });
+  let data = {};
+  let url = `/api/shifts/summary`;
+  if (start_date && end_date) {
+    data = { start_date, end_date };
+  } else if (shiftID) {
+    url = `/api/shifts/${shiftID}/summary`;
+  }
+  return API.GET(url, FETCH_SHIFT_SUMMARY, data);
 }
 
 // Websocket message handler
@@ -62,7 +68,7 @@ const reducer = (
         selectedUsers,
       };
     }
-    case FETCH_SHIFT_SUMMARY: {
+    case FETCH_SHIFT_SUMMARY_OK: {
       const shiftsSummary = action.data;
       return {
         ...state,

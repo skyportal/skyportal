@@ -552,7 +552,7 @@ class ShiftSummary(BaseHandler):
               application/json:
                 schema: Success
         """
-        print(shift_id)
+
         start_date = self.get_argument("start_date", None)
         end_date = self.get_argument("end_date", None)
         if (start_date is None or end_date is None) and shift_id is None:
@@ -574,7 +574,7 @@ class ShiftSummary(BaseHandler):
 
         report = {}
         if start_date and end_date:
-            shifts = (
+            s = (
                 Shift.query_records_accessible_by(
                     self.current_user,
                     mode="read",
@@ -588,7 +588,7 @@ class ShiftSummary(BaseHandler):
                 .all()
             )
         else:
-            shifts = (
+            s = (
                 Shift.query_records_accessible_by(
                     self.current_user,
                     mode="read",
@@ -599,17 +599,27 @@ class ShiftSummary(BaseHandler):
                 .filter(Shift.id == shift_id)
                 .all()
             )
-        print(shifts)
-        if len(shifts) == 0:
+        if len(s) == 0:
             return self.error("No shifts found")
+        shifts = []
+        for shift in s:
+            susers = []
+            for su in shift.shift_users:
+                user = su.user.to_dict()
+                user["admin"] = su.admin
+                user["needs_replacement"] = su.needs_replacement
+                del user["oauth_uid"]
+                susers.append(user)
+                shift = shift.to_dict()
+                shift["shift_users"] = susers
+                shifts.append(shift)
 
         report['shifts'] = {}
         report['shifts']['total'] = len(shifts)
         report['shifts']['data'] = shifts
-        print(shifts[0].start_date, shifts[0].end_date)
         if shift_id and not start_date and not end_date:
-            start_date = shifts[0].start_date
-            end_date = shifts[0].end_date
+            start_date = shifts[0]['start_date']
+            end_date = shifts[0]['end_date']
 
         gcns = (
             GcnEvent.query_records_accessible_by(
@@ -628,7 +638,6 @@ class ShiftSummary(BaseHandler):
         # get the gcns added during the shifts
         if len(gcns) > 0:
             for shift in shifts:
-                shift = shift.to_dict()
                 # get list of user_id who are shift_users
                 for gcn in gcns:
                     gcn = gcn.to_dict()
@@ -651,19 +660,18 @@ class ShiftSummary(BaseHandler):
                                         and comment["created_at"] <= shift["end_date"]
                                     ):
                                         if comment["author_id"] in [
-                                            user.to_dict()["user_id"]
-                                            for user in shift["shift_users"]
+                                            user["id"] for user in shift["shift_users"]
                                         ]:
                                             comment['made_by_shift_user'] = True
                                         else:
                                             comment['made_by_shift_user'] = False
                                         new_comments.append(comment)
                             gcn["comments"] = new_comments
-                            gcn['discovered_during_shift'] = shift['id']
+                            gcn['shift_id'] = shift['id']
                             gcn_added_during_shifts.append(gcn)
                         # if the gcn is already in the list, simply add the additional comment to the existing gcn
             report['gcns'] = {'total': len(gcn_added_during_shifts)}
             report['gcns']['data'] = gcn_added_during_shifts
 
-        self.push_all(action="skyportal/FETCH_SHIFT_SUMMARY")
+        self.push_all(action="skyportal/FETCH_SHIFT_SUMMARY", payload=report)
         return self.success(data=report)
