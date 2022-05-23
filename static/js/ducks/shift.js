@@ -28,12 +28,12 @@ export function deleteShift(shiftID) {
 }
 
 export function getShiftsSummary({ shiftID, start_date, end_date }) {
-  let data = {};
+  let data = null;
   let url = `/api/shifts/summary`;
   if (start_date && end_date) {
     data = { start_date, end_date };
   } else if (shiftID) {
-    url = `/api/shifts/${shiftID}/summary`;
+    url = `/api/shifts/summary/${shiftID}`;
   }
   return API.GET(url, FETCH_SHIFT_SUMMARY, data);
 }

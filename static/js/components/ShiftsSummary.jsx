@@ -1,5 +1,6 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
 import Form from "@rjsf/material-ui";
 import { showNotification } from "baselayer/components/Notifications";
@@ -8,7 +9,14 @@ import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import * as shiftActions from "../ducks/shift";
 
+const useStyles = makeStyles((theme) => ({
+  root: {
+    marginBottom: theme.spacing(2),
+  },
+}));
+
 const ShiftsSummary = () => {
+  const classes = useStyles();
   const dispatch = useDispatch();
   // return a react json schema form where the user can select a start date and end date, and then click submit to get  json document that summarizes the activity during shifts between the start and end dates
   const shiftsSummary = useSelector((state) => state.shift.shiftsSummary);
@@ -71,44 +79,48 @@ const ShiftsSummary = () => {
     }
   };
 
-  const displayShiftsList = (shifts) => (
-    <List>
-      <h2>Shifts:</h2>
-      {shifts.map((shift) => (
-        <ListItem key={shift.id}>
-          <ListItemText
-            primary={`${shift.name}`}
-            secondary={`${shift.start_date} - ${shift.end_date}`}
-          />
-          <p>
-            {" "}
-            Members :{" "}
-            {shift.shift_users.map((user) => user.username).join(", ")}
-          </p>
-        </ListItem>
-      ))}
-    </List>
-  );
-
-  const displayShiftsGCN = (shifts, gcns) => {
-    <List>
-      <h2>GCN Events:</h2>
-      {gcns.map((gcn) => (
-        <ListItem key={gcn.id}>
-          <ListItemText
-            primary={`${gcn.dateobs}`}
-            secondary={`${gcn.start_date} - ${gcn.end_date}`}
-          />
-          {shifts.length > 1 ? (
+  function displayShiftsList(shifts) {
+    return (
+      <List className={classes.root}>
+        <h2>Shifts:</h2>
+        {shifts.map((shift) => (
+          <ListItem key={shift.id}>
+            <ListItemText
+              primary={`${shift.name}`}
+              secondary={`${shift.start_date} - ${shift.end_date}`}
+            />
             <p>
               {" "}
-              Shift : {shifts.find((shift) => shift.id === gcn.shift_id).name}
+              Members :{" "}
+              {shift.shift_users.map((user) => user.username).join(", ")}
             </p>
-          ) : null}
-        </ListItem>
-      ))}
-    </List>;
-  };
+          </ListItem>
+        ))}
+      </List>
+    );
+  }
+
+  function displayShiftsGCN(shifts, gcns) {
+    return (
+      <List className={classes.root}>
+        <h2>GCN Events:</h2>
+        {gcns.map((gcn) => (
+          <ListItem key={gcn.id}>
+            <ListItemText
+              primary={`${gcn.dateobs}`}
+              secondary={`${gcn.start_date} - ${gcn.end_date}`}
+            />
+            {shifts.length > 1 ? (
+              <p>
+                {" "}
+                Shift : {shifts.find((shift) => shift.id === gcn.shift_id).name}
+              </p>
+            ) : null}
+          </ListItem>
+        ))}
+      </List>
+    );
+  }
   return (
     <div>
       <Form
@@ -118,6 +130,7 @@ const ShiftsSummary = () => {
         validate={validate}
         liveValidate
       />
+      {console.log(shiftsSummary)}
       {shiftsSummary?.shifts?.total > 1 &&
         displayShiftsList(shiftsSummary.shifts.data)}
       {shiftsSummary?.gcns &&
