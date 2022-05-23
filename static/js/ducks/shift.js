@@ -23,6 +23,7 @@ const GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW =
   "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW";
 const GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW_OK =
   "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW_OK";
+const CURRENT_SHIFT_SELECTED_USERS = "skyportal/CURRENT_SHIFT_SELECTED_USERS";
 
 export const fetchShift = (id) => API.GET(`/api/shifts/${id}`, FETCH_SHIFT);
 
@@ -98,7 +99,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   // }
 });
 
-const reducer = (state = { currentShift: {} }, action) => {
+const reducer = (state = { currentShift: {}, selectedUsers: [] }, action) => {
   switch (action.type) {
     case CURRENT_SHIFT: {
       const currentShift = action.data;
@@ -129,6 +130,13 @@ const reducer = (state = { currentShift: {} }, action) => {
           attachment,
           attachment_name,
         },
+      };
+    }
+    case CURRENT_SHIFT_SELECTED_USERS: {
+      const selectedUsers = action.data;
+      return {
+        ...state,
+        selectedUsers,
       };
     }
     default:

@@ -121,7 +121,9 @@ app:
     - path: "/instruments"
       component: InstrumentPage
     - path: "/shifts"
-      component: ShiftPage
+      component: ShiftNoId
+    - path: "/shifts/:id"
+      component: ShiftWithId
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -443,8 +445,8 @@ external_logging:
     excluded_log_files: ["log/websocket_server.log"]
 
 cron:
-  - interval: 60
-    script: jobs/count_unsaved_candidates.py
+  # - interval: 60
+  #  script: jobs/count_unsaved_candidates.py
   # - interval: 1440
   #   script: jobs/delete_unsaved_candidates.py
   #   limit: ["01:00", "02:00"]

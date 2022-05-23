@@ -626,6 +626,7 @@ const SourceMobile = WidthProvider(
                     followupRequests={source.followup_requests}
                     instrumentList={instrumentList}
                     instrumentFormParams={instrumentFormParams}
+                    totalMatches={source.followup_requests.length}
                   />
                   <AssignmentForm
                     obj_id={source.id}

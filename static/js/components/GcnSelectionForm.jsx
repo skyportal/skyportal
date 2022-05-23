@@ -175,8 +175,12 @@ const GcnSelectionForm = ({ gcnEvent }) => {
 
   const handleSubmit = async ({ formData }) => {
     setIsSubmitting(true);
-    formData.startDate = formData.startDate.replace("+00:00", "");
-    formData.endDate = formData.endDate.replace("+00:00", "");
+    formData.startDate = formData.startDate
+      .replace("+00:00", "")
+      .replace(".000Z", "");
+    formData.endDate = formData.endDate
+      .replace("+00:00", "")
+      .replace(".000Z", "");
     dispatch(sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData));
     formData.includeGeoJSON = true;
     dispatch(
@@ -333,7 +337,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
         >
           Send selected to observation plan
         </Button>
-        <InputLabel id="allocationSelectLabel">Localization</InputLabel>
+        <InputLabel id="localizationSelectLabel">Localization</InputLabel>
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}
           labelId="localizationSelectLabel"

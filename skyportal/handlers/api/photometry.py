@@ -18,6 +18,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
 
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 from ..base import BaseHandler
@@ -47,6 +48,8 @@ _, cfg = load_env()
 
 
 log = make_log('api/photometry')
+
+MAX_NUMBER_ROWS = 10000
 
 
 def save_data_using_copy(rows, table, columns):
@@ -448,15 +451,14 @@ def get_values_table_and_condition(df):
 
 
 def insert_new_photometry_data(
-    df, instrument_cache, group_ids, stream_ids, user, validate=True
+    df, instrument_cache, group_ids, stream_ids, user, session, validate=True
 ):
     # check for existing photometry and error if any is found
     if validate:
         values_table, condition = get_values_table_and_condition(df)
 
         duplicated_photometry = (
-            DBSession()
-            .execute(sa.select(Photometry).join(values_table, condition))
+            session.execute(sa.select(Photometry).join(values_table, condition))
             .scalars()
             .all()
         )
@@ -476,7 +478,7 @@ def insert_new_photometry_data(
 
     pkq = f"SELECT nextval('photometry_id_seq') FROM " f"generate_series(1, {len(df)})"
 
-    proxy = DBSession().execute(pkq)
+    proxy = session.execute(pkq)
 
     # cache this as list for response
     ids = [i[0] for i in proxy]
@@ -597,7 +599,7 @@ def insert_new_photometry_data(
             ('photometr_id', 'stream_id', 'created_at', 'modified'),
         )
 
-    DBSession.commit()
+    session.commit()
     return ids, upload_id
 
 
@@ -676,6 +678,14 @@ def add_external_photometry(json, user):
     stream_ids = get_stream_ids(json, user)
     df, instrument_cache = standardize_photometry_data(json)
 
+    if len(df.index) > MAX_NUMBER_ROWS:
+        raise ValueError(
+            f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. Please break up the data into smaller sets and try again'
+        )
+
+    username = user.username
+    log(f'Pending request from {username} with {len(df.index)} rows')
+
     # This lock ensures that the Photometry table data are not modified in any way
     # between when the query for duplicate photometry is first executed and
     # when the insert statement with the new photometry is performed.
@@ -688,21 +698,22 @@ def add_external_photometry(json, user):
                 f'LOCK TABLE {Photometry.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
             )
             ids, upload_id = insert_new_photometry_data(
-                df, instrument_cache, group_ids, stream_ids, user
+                df, instrument_cache, group_ids, stream_ids, user, session
+            )
+            log(
+                f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
             )
         except Exception as e:
             session.rollback()
             log(f"Unable to post photometry: {e}")
 
-    log("Successfully posted photometry")
-
 
 class PhotometryHandler(BaseHandler):
     @permissions(['Upload data'])
     def post(self):
-        """
+        f"""
         ---
-        description: Upload photometry
+        description: Upload photometry. Posting is capped at {MAX_NUMBER_ROWS} for database stability purposes.
         tags:
           - photometry
         requestBody:
@@ -751,6 +762,14 @@ class PhotometryHandler(BaseHandler):
         except (ValidationError, RuntimeError) as e:
             return self.error(e.args[0])
 
+        if len(df.index) > MAX_NUMBER_ROWS:
+            return self.error(
+                f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. Please break up the data into smaller sets and try again'
+            )
+
+        username = self.associated_user_object.username
+        log(f'Pending request from {username} with {len(df.index)} rows')
+
         # This lock ensures that the Photometry table data are not modified in any way
         # between when the query for duplicate photometry is first executed and
         # when the insert statement with the new photometry is performed.
@@ -768,10 +787,15 @@ class PhotometryHandler(BaseHandler):
                     group_ids,
                     stream_ids,
                     self.associated_user_object,
+                    session,
                 )
             except Exception as e:
                 session.rollback()
                 return self.error(e.args[0])
+
+        log(
+            f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
+        )
 
         return self.success(data={'ids': ids, 'upload_id': upload_id})
 
@@ -905,6 +929,7 @@ class PhotometryHandler(BaseHandler):
                         group_ids,
                         stream_ids,
                         self.associated_user_object,
+                        session,
                         validate=False,
                     )
 
@@ -1077,7 +1102,10 @@ class ObjPhotometryHandler(BaseHandler):
     def get(self, obj_id):
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
 
-        Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
+        if Obj.get_if_accessible_by(obj_id, self.current_user) is None:
+            raise AccessError(
+                f"Insufficient permissions for User {self.current_user.id} to read Obj {obj_id}"
+            )
         photometry = Photometry.query_records_accessible_by(self.current_user).filter(
             Photometry.obj_id == obj_id
         )
