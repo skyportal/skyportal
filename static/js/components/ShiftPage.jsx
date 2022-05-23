@@ -57,7 +57,6 @@ const ShiftPage = () => {
         <Paper elevation={1}>
           <CommentOnShift
             associatedResourceType="shift"
-            // shiftID={currentShift.id}
           />
         </Paper>
         {permission && (

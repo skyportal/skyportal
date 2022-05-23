@@ -224,7 +224,9 @@ export function CurrentShiftMenu() {
   );
 }
 
-export function CommentOnShift() {
+export function CommentOnShift(
+  associatedResourceType,
+) {
   const classes = useStyles();
   const { permissions } = useSelector((state) => state.profile);
   const { currentShift } = useSelector((state) => state.shift);
@@ -234,7 +236,9 @@ export function CommentOnShift() {
   return (
     currentShift.name != null && (
       <div id="current_shift_comment" className={classes.content}>
-        <CommentList />
+        <CommentList 
+          associatedResourceType={associatedResourceType.associatedResourceType}
+        />
       </div>
     )
   );

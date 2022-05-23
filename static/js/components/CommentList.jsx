@@ -236,6 +236,8 @@ const CommentList = ({
   let comments = null;
   let specComments = null;
 
+  console.log('associatedResourceType', associatedResourceType);
+  console.log('currentShift', currentShift);
   if (associatedResourceType === "object") {
     comments = obj.comments;
     if (
@@ -270,8 +272,12 @@ const CommentList = ({
     throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
   }
 
+
+  console.log('pre comments', comments);
   comments = comments || [];
 
+
+  console.log('comments', comments);
   const renderCommentText = (text, spectrum_id) => {
     if (
       spectrum_id &&

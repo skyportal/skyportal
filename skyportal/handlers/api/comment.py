@@ -446,7 +446,7 @@ class CommentHandler(BaseHandler):
             )
         elif isinstance(comment, CommentOnShift):
             self.push_all(
-                action='skyportal/REFRESH_SHIFT',
+                action='skyportal/REFRESH_SHIFTS',
                 payload={'obj_internal_key': comment.shift_id},
             )
 

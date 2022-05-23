@@ -3,7 +3,7 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-const REFRESH_SHIFT = "skyportal/REFRESH_SHIFT";
+const REFRESH_CURRENT_SHIFT_COMMENTS = "skyportal/REFRESH_CURRENT_SHIFT_COMMENTS";
 
 const FETCH_SHIFT = "skyportal/FETCH_SHIFT";
 
@@ -86,16 +86,16 @@ export function getCommentOnShiftAttachmentPreview(shiftID, commentID) {
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
-  const { shift } = getState();
+  // const { shift } = getState();
   // if (actionType === FETCH_SHIFT) {
   //   dispatch(fetchShift(shift.id));
   // }
-  if (actionType === REFRESH_SHIFT) {
-    const shift_id = shift?.currentShift.id;
-    if (shift_id === payload.obj_internal_key) {
-      dispatch(fetchShift(shift.currentShift.id));
-    }
-  }
+  // if (actionType === REFRESH_CURRENT_SHIFT_COMMENTS) {
+  //   const shift_id = shift?.currentShift.id;
+  //   if (shift_id === payload.obj_internal_key) {
+  //     dispatch(fetchShift(shift.currentShift.id));
+  //   }
+  // }
 });
 
 const reducer = (state = { currentShift: {} }, action) => {
