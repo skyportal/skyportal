@@ -200,6 +200,10 @@ class ProfileHandler(BaseHandler):
         if not user_prefs:
             user_prefs = preferences
         else:
+            if "classificationShortcuts" in preferences:
+                user_prefs["classificationShortcuts"] = preferences[
+                    "classificationShortcuts"
+                ]
             user_prefs = recursive_update(user_prefs, preferences)
         user.preferences = user_prefs
 
