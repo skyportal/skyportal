@@ -25,8 +25,11 @@ export function deleteShift(shiftID) {
   return API.DELETE(`/api/shifts/${shiftID}`, DELETE_SHIFT);
 }
 
-export function getShiftsSummary(data) {
-  return API.GET(`/api/shifts/summary`, FETCH_SHIFT_SUMMARY, data);
+export function getShiftsSummary({ shiftID, start_date, end_date }) {
+  return API.GET(`/api/shifts/summary/${shiftID}`, FETCH_SHIFT_SUMMARY, {
+    start_date,
+    end_date,
+  });
 }
 
 // Websocket message handler

@@ -11,9 +11,7 @@ from ...models import (
     User,
     Token,
     UserNotification,
-    Comment,
     GcnEvent,
-    Source,
 )
 
 
@@ -453,12 +451,12 @@ class ShiftUserHandler(BaseHandler):
         return self.success()
 
 
-class ShiftsSummary(BaseHandler):
+class ShiftSummary(BaseHandler):
     # this handler has a get method that returns a summary of all the activity of shift users on skyportal for a given period
     # it is used to generate a report
 
     @auth_or_token
-    def get(self):
+    def get(self, shift_id=None):
         """
         ---
         description: Get a summary of all the activity of shift users on skyportal for a given period
@@ -486,50 +484,70 @@ class ShiftsSummary(BaseHandler):
               application/json:
                 schema: Success
         """
+        print(shift_id)
         start_date = self.get_argument("start_date", None)
         end_date = self.get_argument("end_date", None)
-        if start_date is None or end_date is None:
-            return self.error("Please provide start_date and end_date")
-        try:
-            start_date = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
-            end_date = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
-        except ValueError:
-            return self.error("Please provide valid start_date and end_date")
-        if start_date > end_date:
-            return self.error("Please provide start_date < end_date")
-        if start_date.date() > datetime.today().date():
-            return self.error("Please provide start_date < today")
+        if (start_date is None or end_date is None) and shift_id is None:
+            return self.error("Please provide start_date and end_date, or shift_id")
 
-        # if there is more than 4 weeks, we return an error
-        if (end_date - start_date).days > 28:
-            return self.error("Please provide a period of less than 4 weeks")
+        if start_date is not None and end_date is not None:
+            try:
+                start_date = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
+                end_date = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
+            except ValueError:
+                return self.error("Please provide valid start_date and end_date")
+            if start_date > end_date:
+                return self.error("Please provide start_date < end_date")
+            if start_date.date() > datetime.today().date():
+                return self.error("Please provide start_date < today")
+            # if there is more than 4 weeks, we return an error
+            if (end_date - start_date).days > 28:
+                return self.error("Please provide a period of less than 4 weeks")
 
         report = {}
-
-        shifts = (
-            Shift.query_records_accessible_by(
-                self.current_user,
-                mode="read",
-                options=[
-                    joinedload(Shift.shift_users),
-                ],
+        if start_date and end_date:
+            shifts = (
+                Shift.query_records_accessible_by(
+                    self.current_user,
+                    mode="read",
+                    options=[
+                        joinedload(Shift.shift_users),
+                    ],
+                )
+                .filter(Shift.start_date >= start_date)
+                .filter(Shift.start_date <= end_date)
+                .order_by(Shift.start_date.asc())
+                .all()
             )
-            .filter(Shift.start_date >= start_date)
-            .filter(Shift.start_date <= end_date)
-            .order_by(Shift.start_date.asc())
-            .all()
-        )
+        else:
+            shifts = (
+                Shift.query_records_accessible_by(
+                    self.current_user,
+                    mode="read",
+                    options=[
+                        joinedload(Shift.shift_users),
+                    ],
+                )
+                .filter(Shift.id == shift_id)
+                .all()
+            )
+        print(shifts)
         if len(shifts) == 0:
             return self.error("No shifts found")
-        else:
-            report['shifts'] = shifts
+
+        report['shifts'] = {}
+        report['shifts']['total'] = len(shifts)
+        report['shifts']['data'] = shifts
+        print(shifts[0].start_date, shifts[0].end_date)
+        if shift_id and not start_date and not end_date:
+            start_date = shifts[0].start_date
+            end_date = shifts[0].end_date
 
         gcns = (
             GcnEvent.query_records_accessible_by(
                 self.current_user,
                 mode="read",
                 options=[
-                    # join to gcn comments made by shift_users
                     joinedload(GcnEvent.comments),
                 ],
             )
@@ -553,6 +571,7 @@ class ShiftsSummary(BaseHandler):
                         if gcn["id"] not in [
                             gcn["id"] for gcn in gcn_added_during_shifts
                         ]:
+
                             # check if gcn comments are made by shift_users
                             comments = gcn["comments"]
                             new_comments = []
@@ -572,77 +591,11 @@ class ShiftsSummary(BaseHandler):
                                             comment['made_by_shift_user'] = False
                                         new_comments.append(comment)
                             gcn["comments"] = new_comments
+                            gcn['discovered_during_shift'] = shift['id']
                             gcn_added_during_shifts.append(gcn)
                         # if the gcn is already in the list, simply add the additional comment to the existing gcn
             report['gcns'] = {'total': len(gcn_added_during_shifts)}
             report['gcns']['data'] = gcn_added_during_shifts
 
-        sources = (
-            Source.query_records_accessible_by(
-                self.current_user,
-                mode="read",
-            )
-            .filter(Source.created_at >= start_date)
-            .filter(Source.created_at <= end_date)
-            .order_by(Source.created_at.asc())
-            .all()
-        )
-
-        sources_with_comments = []
-        for source in sources:
-            source = source.to_dict()
-            if (
-                source["created_at"] >= shift["start_date"]
-                and source["created_at"] <= shift["end_date"]
-            ):
-                source['comments'] = (
-                    Comment.query_records_accessible_by(
-                        self.current_user,
-                        mode="read",
-                    )
-                    .filter(Comment.obj_id == source['obj_id'])
-                    .filter(Comment.created_at >= start_date)
-                    .filter(Comment.created_at <= end_date)
-                    .all()
-                )
-                sources_with_comments.append(source)
-
-        sources = sources_with_comments
-
-        sources_added_during_shifts = []
-        # get the sources added during the shifts
-        if len(sources) > 0:
-            for shift in shifts:
-                shift = shift.to_dict()
-                for source in sources:
-                    if (
-                        source["created_at"] >= shift["start_date"]
-                        and source["created_at"] <= shift["end_date"]
-                    ):
-                        if source["obj_id"] not in [
-                            source["obj_id"] for source in sources_added_during_shifts
-                        ]:
-                            # check if source comments are made by shift_users
-                            comments = source["comments"]
-                            new_comments = []
-                            if len(comments) > 0:
-                                for comment in comments:
-                                    comment = comment.to_dict()
-                                    if (
-                                        comment["created_at"] >= shift["start_date"]
-                                        and comment["created_at"] <= shift["end_date"]
-                                    ):
-                                        if comment["author_id"] in [
-                                            user.to_dict()["user_id"]
-                                            for user in shift["shift_users"]
-                                        ]:
-                                            comment['made_by_shift_user'] = True
-                                        else:
-                                            comment['made_by_shift_user'] = False
-                                        new_comments.append(comment)
-                            source["comments"] = new_comments
-                            sources_added_during_shifts.append(source)
-            report['sources'] = {'total': len(sources_added_during_shifts)}
-            report['sources']['data'] = sources_added_during_shifts
         self.push_all(action="skyportal/FETCH_SHIFT_SUMMARY")
         return self.success(data=report)
