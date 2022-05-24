@@ -139,6 +139,17 @@ class UserFactory(factory.alchemy.SQLAlchemyModelFactory):
                 DBSession().commit()
 
     @factory.post_generation
+    def acls(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        if extracted:
+            for acl in extracted:
+                obj.acls.append(acl)
+                DBSession().add(obj)
+                DBSession().commit()
+
+    @factory.post_generation
     def groups(obj, create, extracted, **kwargs):
         if not create:
             return

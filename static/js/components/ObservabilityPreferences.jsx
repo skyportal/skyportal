@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { makeStyles, useTheme } from "@material-ui/core/styles";
@@ -8,24 +8,10 @@ import InputLabel from "@material-ui/core/InputLabel";
 import FormControl from "@material-ui/core/FormControl";
 import Chip from "@material-ui/core/Chip";
 import Input from "@material-ui/core/Input";
-import Typography from "@material-ui/core/Typography";
-import Popover from "@material-ui/core/Popover";
-import IconButton from "@material-ui/core/IconButton";
-import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
-
 import * as profileActions from "../ducks/profile";
+import UserPreferencesHeader from "./UserPreferencesHeader";
 
 const useStyles = makeStyles((theme) => ({
-  header: {
-    display: "flex",
-    alignItems: "center",
-    "& > h6": {
-      marginRight: "0.5rem",
-    },
-  },
-  typography: {
-    padding: theme.spacing(2),
-  },
   formControl: {
     marginTop: theme.spacing(1),
     minWidth: "12rem",
@@ -54,17 +40,6 @@ const ObservabilityPreferences = () => {
 
   const dispatch = useDispatch();
 
-  //   const [telescopeIDs, setTelescopeIDs] = useState([]);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-  const open = Boolean(anchorEl);
-  const id = open ? "simple-popover" : undefined;
-
   const handleChange = (event) => {
     const prefs = {
       observabilityTelescopes:
@@ -82,33 +57,12 @@ const ObservabilityPreferences = () => {
 
   return (
     <div>
-      <div className={classes.header}>
-        <Typography variant="h6" display="inline">
-          Observability Preferences
-        </Typography>
-        <IconButton aria-label="help" size="small" onClick={handleClick}>
-          <HelpOutlineIcon />
-        </IconButton>
-      </div>
-      <Popover
-        id={id}
-        open={open}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{
-          vertical: "top",
-          horizontal: "right",
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "left",
-        }}
-      >
-        <Typography className={classes.typography}>
-          The telescopes to display observability plots for on sources&apos;
-          observability pages. Leave blank to show all telescopes.
-        </Typography>
-      </Popover>
+      <UserPreferencesHeader
+        title="Observability Preferences"
+        popupText={
+          "The telescopes to display observability plots for on sources' observability pages. Leave blank to show all telescopes."
+        }
+      />
       <FormControl className={classes.formControl}>
         <InputLabel id="select-telescopes-label">Telescopes to show</InputLabel>
         <Select

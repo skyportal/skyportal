@@ -8,15 +8,22 @@ user:
   - username: groupadmin
     roles:
       - Group admin
+    first_name: Theo
+    last_name: du Laz
     =id: groupadmin
   - username: fulluser
     roles:
       - Full user
     =id: fulluser
+    first_name: Michael
+    last_name: Coughlin
   - username: viewonlyuser
     roles:
       - View only
     =id: viewonlyuser
+    first_name: Guy
+    last_name: Nir
+
 
 streams:
   - name: ZTF Public
@@ -886,3 +893,4 @@ shifts:
 shifts/=nightshift/users:
   - userID: =viewonlyuser
     admin: false
+    needs_replacement: true

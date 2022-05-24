@@ -87,9 +87,11 @@ def test_observation(super_admin_token, view_only_token):
         'localizationName': "bayestar.fits.gz",
         'localizationCumprob': 1.01,
         'returnStatistics': True,
+        'numPerPage': 1000,
     }
 
     status, data = api('GET', 'observation', params=data, token=super_admin_token)
+
     assert status == 200
     data = data["data"]
     assert len(data['observations']) == 10
@@ -121,6 +123,7 @@ def test_observation(super_admin_token, view_only_token):
         'localizationName': "bayestar.fits.gz",
         'localizationCumprob': 1.01,
         'returnStatistics': True,
+        'numPerPage': 1000,
     }
 
     status, data = api('GET', 'observation', params=data, token=super_admin_token)

@@ -65,6 +65,7 @@ class _Base:
             "send": cls._isimplemented('send'),
             "remove": cls._isimplemented('remove'),
             "retrieve": cls._isimplemented('retrieve'),
+            "queued": cls._isimplemented('queued'),
         }
 
     # subclasses should not modify this
