@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
@@ -7,17 +7,30 @@ import { showNotification } from "baselayer/components/Notifications";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
+import { Collapse } from "@material-ui/core";
+import { ExpandMore, ExpandLess } from "@material-ui/icons";
 import * as shiftActions from "../ducks/shift";
 
 const useStyles = makeStyles((theme) => ({
   root: {
     marginBottom: theme.spacing(2),
   },
+  nestedList: {
+    paddingLeft: theme.spacing(4),
+  },
+  link: {
+    fontSize: "1.5rem",
+    color: "blue",
+  },
+  info: {
+    margin: "0",
+  },
 }));
 
 const ShiftsSummary = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const [selectedGCN, setSelectedGCN] = useState(null);
   // return a react json schema form where the user can select a start date and end date, and then click submit to get  json document that summarizes the activity during shifts between the start and end dates
   const shiftsSummary = useSelector((state) => state.shift.shiftsSummary);
 
@@ -79,6 +92,31 @@ const ShiftsSummary = () => {
     }
   };
 
+  function shiftInfo(shift) {
+    // returns a 2 line text with :
+    // 1. shift start date and end date (UTC)
+    // 2. shift members (admin and non-admin)
+    return (
+      <div className={classes.info}>
+        <p className={classes.info}>
+          {`${shift.start_date} UTC - ${shift.end_date} UTC`}
+        </p>
+        <p className={classes.info}>
+          {`Members: ${shift.shift_users
+            .map(
+              (member) =>
+                `${member.username} ${
+                  member.first_name && member.last_name
+                    ? `(${member.first_name}  ${member.last_name})`
+                    : null
+                }`
+            )
+            .join(", ")}`}
+        </p>
+      </div>
+    );
+  }
+
   function displayShiftsList(shifts) {
     return (
       <List className={classes.root}>
@@ -86,14 +124,48 @@ const ShiftsSummary = () => {
         {shifts.map((shift) => (
           <ListItem key={shift.id}>
             <ListItemText
-              primary={`${shift.name}`}
-              secondary={`${shift.start_date} - ${shift.end_date}`}
+              primary={
+                <a href={`/shifts/${shift.id}`} className={classes.link}>
+                  {shift.name}
+                </a>
+              }
+              secondary={shiftInfo(shift)}
             />
-            <p>
-              {" "}
-              Members :{" "}
-              {shift.shift_users.map((user) => user.username).join(", ")}
-            </p>
+          </ListItem>
+        ))}
+      </List>
+    );
+  }
+
+  function gcnInfo(gcn, shifts) {
+    return (
+      <div className={classes.info}>
+        <p
+          className={classes.info}
+        >{`Sources in GCN: ${gcn.sources.length}`}</p>
+        <p className={classes.info}>{`discovered during shift: ${
+          shifts.find((shift) => shift.id === gcn.shift_id).name
+        }`}</p>
+      </div>
+    );
+  }
+
+  function displaySourcesInGCN(sources) {
+    return (
+      <List className={classes.nestedList}>
+        {sources.map((source) => (
+          <ListItem key={source.id}>
+            <ListItemText
+              primary={
+                <a href={`/source/${source.id}`}>{`Source: ${source.id}`}</a>
+              }
+              secondary={`ra: ${source.ra}, dec: ${
+                source.dec
+              }, last detected: ${source.last_detected_at.replace(
+                "+00:00",
+                " UTC"
+              )}`}
+            />
           </ListItem>
         ))}
       </List>
@@ -105,22 +177,42 @@ const ShiftsSummary = () => {
       <List className={classes.root}>
         <h2>GCN Events:</h2>
         {gcns.map((gcn) => (
-          <ListItem key={gcn.id}>
-            <ListItemText
-              primary={`${gcn.dateobs}`}
-              secondary={`${gcn.start_date} - ${gcn.end_date}`}
-            />
-            {shifts.length > 1 ? (
-              <p>
-                {" "}
-                Shift : {shifts.find((shift) => shift.id === gcn.shift_id).name}
-              </p>
-            ) : null}
-          </ListItem>
+          <div key={gcn.id}>
+            <ListItem
+              key={gcn.id}
+              onClick={() => {
+                if (gcn.sources.length > 0) {
+                  if (selectedGCN === gcn.id) {
+                    setSelectedGCN(null);
+                  } else {
+                    setSelectedGCN(gcn.id);
+                  }
+                }
+              }}
+            >
+              <ListItemText
+                primary={
+                  <a
+                    href={`/gcn_events/${gcn.dateobs}`}
+                    className={classes.link}
+                  >
+                    {gcn.dateobs}
+                  </a>
+                }
+                secondary={gcnInfo(gcn, shifts)}
+              />
+              {gcn.sources.length > 0 &&
+                (selectedGCN === gcn.id ? <ExpandLess /> : <ExpandMore />)}
+            </ListItem>
+            <Collapse in={selectedGCN === gcn.id} timeout="auto" unmountOnExit>
+              {displaySourcesInGCN(gcn.sources)}
+            </Collapse>
+          </div>
         ))}
       </List>
     );
   }
+
   return (
     <div>
       <Form

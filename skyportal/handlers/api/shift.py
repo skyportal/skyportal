@@ -1,4 +1,5 @@
-from datetime import datetime
+import datetime
+import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token, AccessError
@@ -12,6 +13,10 @@ from ...models import (
     Token,
     UserNotification,
     GcnEvent,
+    Localization,
+    LocalizationTile,
+    Obj,
+    Source,
 )
 
 
@@ -560,13 +565,13 @@ class ShiftSummary(BaseHandler):
 
         if start_date is not None and end_date is not None:
             try:
-                start_date = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
-                end_date = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
+                start_date = datetime.datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
+                end_date = datetime.datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
             except ValueError:
                 return self.error("Please provide valid start_date and end_date")
             if start_date > end_date:
                 return self.error("Please provide start_date < end_date")
-            if start_date.date() > datetime.today().date():
+            if start_date.date() > datetime.datetime.today().date():
                 return self.error("Please provide start_date < today")
             # if there is more than 4 weeks, we return an error
             if (end_date - start_date).days > 28:
@@ -668,6 +673,87 @@ class ShiftSummary(BaseHandler):
                                         new_comments.append(comment)
                             gcn["comments"] = new_comments
                             gcn['shift_id'] = shift['id']
+                            # retrieve sources that are contained within the localization of the gcn event
+                            obj_query = Obj.query_records_accessible_by(
+                                self.current_user
+                            )
+                            obj_query = obj_query.filter(
+                                Obj.last_detected_at(self.current_user)
+                                >= gcn['dateobs']
+                            )
+                            obj_query = obj_query.filter(
+                                Obj.last_detected_at(self.current_user)
+                                <= gcn['dateobs'] + datetime.timedelta(days=7)
+                            )
+                            localization = (
+                                Localization.query_records_accessible_by(
+                                    self.current_user
+                                )
+                                .filter(
+                                    Localization.dateobs
+                                    == gcn['dateobs'].strftime('%Y-%m-%dT%H:%M:%S')
+                                )
+                                .first()
+                            )
+                            cum_prob = (
+                                sa.func.sum(
+                                    LocalizationTile.probdensity
+                                    * LocalizationTile.healpix.area
+                                )
+                                .over(order_by=LocalizationTile.probdensity.desc())
+                                .label('cum_prob')
+                            )
+                            localizationtile_subquery = (
+                                sa.select(
+                                    LocalizationTile.probdensity, cum_prob
+                                ).filter(
+                                    LocalizationTile.localization_id == localization.id
+                                )
+                            ).subquery()
+
+                            min_probdensity = (
+                                sa.select(
+                                    sa.func.min(
+                                        localizationtile_subquery.columns.probdensity
+                                    )
+                                ).filter(
+                                    localizationtile_subquery.columns.cum_prob <= 1.01
+                                )
+                            ).scalar_subquery()
+
+                            tiles_subquery = (
+                                sa.select(Obj.id)
+                                .filter(
+                                    LocalizationTile.localization_id == localization.id,
+                                    LocalizationTile.healpix.contains(Obj.healpix),
+                                    LocalizationTile.probdensity >= min_probdensity,
+                                )
+                                .subquery()
+                            )
+
+                            obj_query = obj_query.join(
+                                tiles_subquery,
+                                Obj.id == tiles_subquery.c.id,
+                            )
+                            source_query = Source.query_records_accessible_by(
+                                self.current_user
+                            )
+                            source_subquery = source_query.subquery()
+                            query = obj_query.join(
+                                source_subquery, Obj.id == source_subquery.c.obj_id
+                            )
+                            gcn['sources'] = [
+                                {
+                                    'id': source.id,
+                                    'ra': source.ra,
+                                    'dec': source.dec,
+                                    'last_detected_at': source.last_detected_at(
+                                        self.current_user
+                                    ),
+                                }
+                                for source in query.all()
+                            ]
+
                             gcn_added_during_shifts.append(gcn)
                         # if the gcn is already in the list, simply add the additional comment to the existing gcn
             report['gcns'] = {'total': len(gcn_added_during_shifts)}
