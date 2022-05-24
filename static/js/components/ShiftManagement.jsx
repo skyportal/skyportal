@@ -41,6 +41,9 @@ const useStyles = makeStyles((theme) => ({
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
   },
+  content: {
+    padding: "1rem",
+  },
   buttons: {
     display: "flex",
     flexDirection: "row",
@@ -818,10 +821,12 @@ export function CommentOnShift(
 
   return (
     currentShift.name != null && (
-      <div id="current_shift_comment" className={classes.content}>
+      <div id="current_shift_comment" className={classes.root}>
+        <div className={classes.content}>
         <CommentList 
           associatedResourceType={associatedResourceType.associatedResourceType}
         />
+        </div>
       </div>
     )
   );

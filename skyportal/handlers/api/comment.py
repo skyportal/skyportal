@@ -709,7 +709,7 @@ class CommentHandler(BaseHandler):
 
         if isinstance(c, CommentOnGCN):
             gcnevent_dateobs = c.gcn.dateobs
-        else:
+        elif not isinstance(c, CommentOnShift):
             obj_key = c.obj.internal_key
 
         if comment_resource_id_str != resource_id:
@@ -738,8 +738,7 @@ class CommentHandler(BaseHandler):
             )
         elif isinstance(c, CommentOnShift):  # also update the shift
             self.push_all(
-                action='skyportal/REFRESH_SHIFT',
-                payload={'obj_internal_key': obj_key},
+                action='skyportal/REFRESH_SHIFTS',
             )
 
         return self.success()

@@ -146,6 +146,7 @@ const CommentEntry = ({ addComment }) => {
         <Controller
           render={() => (
             <TextField
+              id="root_comment"
               value={textValue}
               onChange={(event) => {
                 handleTextInputChange(event);
@@ -265,7 +266,7 @@ const CommentEntry = ({ addComment }) => {
         <Button
           variant="contained"
           color="primary"
-          type="submit"
+          type="submitComment"
           name="submitCommentButton"
         >
           Add Comment

@@ -201,7 +201,7 @@ const CommentList = ({
     gcnEventID = gcnEvent.id;
   }
 
-  if (!shiftID && currentShift) {
+  if (currentShift) {
     shiftID = currentShift.id;
   }
 
@@ -236,8 +236,6 @@ const CommentList = ({
   let comments = null;
   let specComments = null;
 
-  console.log('associatedResourceType', associatedResourceType);
-  console.log('currentShift', currentShift);
   if (associatedResourceType === "object") {
     comments = obj.comments;
     if (
@@ -272,12 +270,8 @@ const CommentList = ({
     throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
   }
 
-
-  console.log('pre comments', comments);
   comments = comments || [];
 
-
-  console.log('comments', comments);
   const renderCommentText = (text, spectrum_id) => {
     if (
       spectrum_id &&
@@ -310,7 +304,7 @@ const CommentList = ({
     dispatch(gcnEventActions.deleteCommentOnGcnEvent(gcnID, commentID));
   };
 
-  const deleteCommentOnShift = (commentID) => {
+  const deleteCommentOnShift = (shiftID, commentID) => {
     dispatch(shiftActions.deleteCommentOnShift(shiftID, commentID));
   };
 
@@ -340,6 +334,7 @@ const CommentList = ({
             spectrum_id,
           }) => (
             <span
+              id={`comment`}
               key={(spectrum_id ? "Spectrum" : "Source") + id}
               className={commentStyle}
               onMouseOver={() =>
@@ -398,7 +393,7 @@ const CommentList = ({
                             }
                             size="small"
                             color="primary"
-                            type="button"
+                            type="deleteCommentButton"
                             name={`deleteCommentButtonGcnEvent${id}`}
                             onClick={() =>
                               deleteCommentOnGcnEvent(gcnEventID, id)
@@ -422,7 +417,7 @@ const CommentList = ({
                             }
                             size="small"
                             color="primary"
-                            type="button"
+                            type="deleteCommentButton"
                             name={`deleteCommentButtonShift${id}`}
                             onClick={() => deleteCommentOnShift(shiftID, id)}
                             className="commentDelete"
@@ -533,7 +528,7 @@ const CommentList = ({
                             }
                             size="small"
                             color="primary"
-                            type="button"
+                            type="deleteCommentButton"
                             name={`deleteCommentButtonShift${id}`}
                             onClick={() => deleteCommentOnShift(shiftID, id)}
                             className="commentDelete"
