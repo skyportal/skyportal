@@ -21,7 +21,6 @@ from bokeh.models import (
     Legend,
     LegendItem,
     Dropdown,
-    Spinner,
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
@@ -567,10 +566,10 @@ def make_scatter(
     y,
     renderers,
     imhover,
-    spinner,
     color_dict,
     markers,
     instruments,
+    user,
 ):
     """Adds a scatter plot to a bokeh Figure object.
     Parameters
@@ -595,23 +594,27 @@ def make_scatter(
         List of renderers for the current legend item. This scatter plot GlyphRenderer is added to the renderers.
     imhover : HoverTool object
         HoverTool for current photometry
-    spinner : Spinner object
-        Spinner for controlling the data size of photometry points.
     color_dict : dict
         Dictionary defining which color the data points should be
     markers : list
         List of marker shapes
     instruments : list
         List of instruments
+    user : User object
+        Current user.
 
     Returns
     -------
     None
     """
     key = f'{label}~{name}{i}'
+    size = 4
+    if user.preferences and "photometryDataPointSize" in user.preferences:
+        size = int(user.preferences["photometryDataPointSize"])
     model_dict[key] = plot.scatter(
         x=x,
         y=y,
+        size=size,
         color=color_dict,
         marker=factor_mark('instrument', markers, instruments),
         fill_alpha=0.1,
@@ -621,7 +624,6 @@ def make_scatter(
     )
     renderers.append(model_dict[key])
     imhover.renderers.append(model_dict[key])
-    spinner.js_link('value', model_dict[key].glyph, 'size')
 
 
 def make_multi_line(plot, model_dict, name, i, label, data_source, renderers):
@@ -743,7 +745,6 @@ def mark_detections(plot, detection_dates, ymin, ymax):
 def make_legend_items_and_detection_lines(
     grouped_data,
     plot,
-    spinner,
     model_dict,
     imhover,
     panel_name,
@@ -754,13 +755,12 @@ def make_legend_items_and_detection_lines(
     markers,
     instruments,
     period,
+    user,
 ):
     """Makes the legend items for a plot and adds detections lines.
     grouped_data : pandas DataFrameGroupBy object
         The photometry data grouped by label.
     plot : bokeh Figure object
-    spinner : Spinner object
-        Spinner for controlling the data size of photometry points.
     model_dict : dict
         A dictionary containing all of the GlyphRenderers for the plot.
     imhover : HoverTool object
@@ -782,6 +782,8 @@ def make_legend_items_and_detection_lines(
         List of instruments
     period : float
         period used for manipulating the data frame
+    user : User object
+        Current user.
 
     Returns
     -------
@@ -856,10 +858,10 @@ def make_legend_items_and_detection_lines(
                     values['y'],
                     renderers,
                     imhover,
-                    spinner,
                     color_dict,
                     markers,
                     instruments,
+                    user,
                 )
             make_multi_line(
                 plot,
@@ -903,10 +905,10 @@ def make_legend_items_and_detection_lines(
                     'mag',
                     renderers,
                     imhover,
-                    spinner,
                     color_dict,
                     markers,
                     instruments,
+                    user,
                 )
                 make_multi_line(
                     plot,
@@ -1367,14 +1369,10 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
     plot.add_tools(imhover)
 
     model_dict = {}
-    spinner = Spinner(
-        title="Data point size", low=1, high=40, step=0.5, value=4, width=80
-    )
 
     legend_items = make_legend_items_and_detection_lines(
         grouped_data,
         plot,
-        spinner,
         model_dict,
         imhover,
         panel_name,
@@ -1385,6 +1383,7 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
         markers,
         instruments,
         period,
+        user,
     )
 
     add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
@@ -1394,7 +1393,7 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
 
     layout = column(
         plot,
-        row(make_clear_and_add_photometry_buttons(model_dict), spinner),
+        row(make_clear_and_add_photometry_buttons(model_dict)),
         width=width,
     )
     add_widgets(
