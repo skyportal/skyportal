@@ -1,7 +1,7 @@
 """Queue microservice
 
 Revision ID: 3ec95baef9a7
-Revises: 8ec1cf68e06f
+Revises: 8acd303bd097
 Create Date: 2022-05-18 19:09:22.564772
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '3ec95baef9a7'
-down_revision = '8ec1cf68e06f'
+down_revision = '8acd303bd097'
 branch_labels = None
 depends_on = None
 
