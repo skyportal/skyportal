@@ -305,9 +305,9 @@ const FilterCandidateList = ({
       data.maxRedshift = formData.redshiftMaximum;
     }
     if (formData.sortingOrigin) {
-      data.sortingOrigin = formData.sortingOrigin;
-      data.sortingKey = formData.sortingKey;
-      data.sortingOrder = formData.sortingOrder;
+      data.sortByAnnotationOrigin = formData.sortingOrigin;
+      data.sortByAnnotationKey = formData.sortingKey;
+      data.sortByAnnotationOrder = formData.sortingOrder;
     }
 
     // Submit a new search for candidates

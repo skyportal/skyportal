@@ -893,3 +893,4 @@ shifts:
 shifts/=nightshift/users:
   - userID: =viewonlyuser
     admin: false
+    needs_replacement: true
