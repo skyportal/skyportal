@@ -4,6 +4,7 @@ import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { showNotification } from "baselayer/components/Notifications";
+import { CircularProgress } from "@material-ui/core";
 import PropTypes from "prop-types";
 import * as shiftActions from "../ducks/shift";
 
@@ -86,47 +87,75 @@ function Event({ event }) {
   );
 }
 
-function MyCalendar({ shifts }) {
+function MyCalendar({ events, currentShift }) {
   currentUser = useSelector((state) => state.profile);
   dispatch = useDispatch();
   groups = useSelector((state) => state.groups.userAccessible);
+  const [defaultDate, setDefaultDate] = React.useState();
+
+  if (currentShift && !defaultDate) {
+    if (currentShift.start_date) {
+      if (typeof currentShift.start_date === "string") {
+        setDefaultDate(new Date(`${currentShift.start_date}Z`));
+      } else {
+        setDefaultDate(new Date(currentShift.start_date.getTime()));
+      }
+    }
+  } else if (!defaultDate) {
+    setDefaultDate(new Date());
+  }
+
+  const handleNavigate = (date) => {
+    setDefaultDate(moment(date).toDate());
+  };
+
   return (
-    <Calendar
-      events={shifts}
-      views={allViews}
-      step={60}
-      defaultView={Views.WEEK}
-      showMultiDayTimes
-      localizer={localizer}
-      style={{ height: "70vh", width: "100%" }}
-      components={{
-        event: Event,
-      }}
-      startAccessor="start_date"
-      endAccessor="end_date"
-      titleAccessor="name"
-      selectable
-      onSelectEvent={(event) => setCurrentShift(event)}
-      onSelectSlot={handleSelectSlot}
-      eventPropGetter={(event) => {
-        let backgroundColor = "#0d98ba";
-        if (event.shift_users.map((user) => user.id).includes(currentUser.id)) {
-          backgroundColor = "#0dba86";
-        } else {
-          backgroundColor = "#0d98ba";
-        }
-        return {
-          style: {
-            backgroundColor,
-          },
-        };
-      }}
-    />
+    <div>
+      {!events ? (
+        <CircularProgress />
+      ) : (
+        <Calendar
+          events={events}
+          date={defaultDate}
+          onNavigate={handleNavigate}
+          views={allViews}
+          step={60}
+          defaultView={Views.WEEK}
+          showMultiDayTimes
+          localizer={localizer}
+          style={{ height: "70vh", width: "100%" }}
+          components={{
+            event: Event,
+          }}
+          startAccessor="start_date"
+          endAccessor="end_date"
+          titleAccessor="name"
+          selectable
+          onSelectEvent={(event) => setCurrentShift(event)}
+          onSelectSlot={handleSelectSlot}
+          eventPropGetter={(event) => {
+            let backgroundColor = "#0d98ba";
+            if (
+              event.shift_users.map((user) => user.id).includes(currentUser.id)
+            ) {
+              backgroundColor = "#0dba86";
+            } else {
+              backgroundColor = "#0d98ba";
+            }
+            return {
+              style: {
+                backgroundColor,
+              },
+            };
+          }}
+        />
+      )}
+    </div>
   );
 }
 
 MyCalendar.propTypes = {
-  shifts: PropTypes.arrayOf(
+  events: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.number,
       name: PropTypes.string,

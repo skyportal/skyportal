@@ -121,7 +121,9 @@ app:
     - path: "/instruments"
       component: InstrumentPage
     - path: "/shifts"
-      component: ShiftPage
+      component: ShiftNoId
+    - path: "/shifts/:id"
+      component: ShiftWithId
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
