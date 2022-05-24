@@ -61,6 +61,7 @@ from .photometry import (
     BulkDeletePhotometryHandler,
     PhotometryRangeHandler,
 )
+from .phot_stat import PhotStatHandler
 from .color_mag import ObjColorMagHandler
 from .photometry_request import PhotometryRequestHandler
 from .public_group import PublicGroupHandler

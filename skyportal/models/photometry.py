@@ -3,6 +3,7 @@ __all__ = ['Photometry', 'PHOT_ZP', 'PHOT_SYS']
 import uuid
 
 import sqlalchemy as sa
+from sqlalchemy import event
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -248,3 +249,11 @@ Photometry.__table_args__ = (
         unique=True,
     ),
 )
+
+
+@event.listens_for(Photometry, 'before_insert')
+def update_phot_stats(mapper, connection, target):
+    if target.obj.phot_stats is None:
+        print('need to create a new PhotStat')
+    else:
+        print('need to update existing PhotStat')
