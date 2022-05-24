@@ -1,5 +1,6 @@
 import json
 from urllib.parse import urlparse
+import pandas as pd
 
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -19,7 +20,14 @@ from ...models import (
     DBSession,
     AnalysisService,
     Group,
+    Photometry,
+    Spectrum,
+    Annotation,
+    Classification,
+    Obj,
+    Comment,
 )
+from .photometry import serialize
 
 log = make_log('app/analysis')
 
@@ -424,3 +432,221 @@ class AnalysisServiceHandler(BaseHandler):
         self.verify_and_commit()
 
         return self.success()
+
+
+class AnalysisHandler(BaseHandler):
+    def generic_serialize(self, row, columns):
+        return {c: getattr(row, c) for c in columns}
+
+    def get_associated_obj_resource(self, associated_resource_type):
+        """
+        What are the columns that we can allow to send to the external service
+        should not be sending internal keys
+        """
+        associated_resource_type = associated_resource_type.lower()
+        associated_resource_types = {
+            "photometry": {
+                "class": Photometry,
+                "allowed_export_columns": [
+                    "mjd",
+                    "flux",
+                    "fluxerr",
+                    "filter",
+                    "magsys",
+                    "zp",
+                    "instrument_name",
+                ],
+                "id_attr": 'obj_id',
+            },
+            "spectra": {
+                "class": Spectrum,
+                "allowed_export_columns": [
+                    "observed_at",
+                    "wavelengths",
+                    "fluxes",
+                    "errors",
+                    "units",
+                    "altdata",
+                    "created_at",
+                    "origin",
+                    "modified",
+                    "type",
+                ],
+                "id_attr": 'obj_id',
+            },
+            "annotations": {
+                "class": Annotation,
+                "allowed_export_columns": ["data", "modified", "origin", "created_at"],
+                "id_attr": 'obj_id',
+            },
+            "comments": {
+                "class": Comment,
+                "allowed_export_columns": [
+                    "text",
+                    "bot",
+                    "modified",
+                    "origin",
+                    "created_at",
+                ],
+                "id_attr": 'obj_id',
+            },
+            "classifications": {
+                "class": Classification,
+                "allowed_export_columns": [
+                    "classification",
+                    "probability",
+                    "modified",
+                    "created_at",
+                ],
+                "id_attr": 'obj_id',
+            },
+            "redshift": {
+                "class": Obj,
+                "allowed_export_columns": [
+                    "redshift",
+                    "redshift_error",
+                    "redshift_origin",
+                ],
+                "id_attr": 'id',
+            },
+        }
+        if associated_resource_type not in associated_resource_types:
+            raise ValueError(
+                f"Invalid associated_resource_type: {associated_resource_type}"
+            )
+        return associated_resource_types[associated_resource_type]
+
+    @permissions(['Run Analyses'])
+    def post(self, analysis_resource_type, resource_id, analysis_service_id):
+        """
+        ---
+        description: Begin an analysis run
+        tags:
+          - analysis_services
+        parameters:
+          - in: path
+            name: analysis_resource_type
+            required: true
+            schema:
+              type: string
+            description: |
+               What underlying data the annotation is on:
+               must be one of either "obj" (more to be added in the future)
+          - in: path
+            name: resource_id
+            required: true
+            schema:
+              type: string
+            description: |
+               The ID of the underlying data.
+               This would be a string for an object ID.
+          - in: path
+            name: analysis_service_id
+            required: true
+            schema:
+              type: string
+            description: the analysis service id to be used
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  show_parameters:
+                    type: boolean
+                    description: Whether to render the parameters of this analysis
+                  show_plots:
+                    type: boolean
+                    description: Whether to render the plots of this analysis
+                  show_corner:
+                    type: boolean
+                    description: Whether to render the corner plots of this analysis
+                  group_ids:
+                    type: array
+                    items:
+                      type: integer
+                    description: |
+                      List of group IDs corresponding to which groups should be
+                      able to view analysis results. Defaults to all of requesting user's
+                      groups.
+        responses:
+          200:
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: '#/components/schemas/Success'
+                    - type: object
+                      properties:
+                        data:
+                          type: object
+                          properties:
+                            analysis_id:
+                              type: integer
+                              description: New analysis ID
+        """
+        log("here")
+        data = self.get_json()
+
+        try:
+            analysis_service = AnalysisService.get_if_accessible_by(
+                analysis_service_id, self.current_user, mode="read", raise_if_none=True
+            )
+            input_data_types = analysis_service.input_data_types.copy()
+        except AccessError:
+            return self.error(
+                f'Could not access Analysis Service {analysis_service_id}.', status=403
+            )
+
+        group_ids = data.pop('group_ids', None)
+        if not group_ids:
+            groups = self.current_user.accessible_groups
+        else:
+            try:
+                groups = Group.get_if_accessible_by(
+                    group_ids, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible groups.', status=403)
+
+        inputs = {}
+        if analysis_resource_type.lower() == 'obj':
+            obj_id = resource_id
+            source = Obj.get_if_accessible_by(obj_id, self.current_user)
+            if source is None:
+                return self.error(f'Source {obj_id} not found', status=404)
+
+            # Let's assemble the input data for this Obj
+            for input_type in input_data_types:
+                associated_resource = self.get_associated_obj_resource(input_type)
+                data = (
+                    associated_resource['class']
+                    .query_records_accessible_by(self.current_user)
+                    .filter(
+                        getattr(
+                            associated_resource['class'], associated_resource['id_attr']
+                        )
+                        == obj_id
+                    )
+                    .all()
+                )
+                if input_type == 'photometry':
+                    data = [serialize(phot, 'ab', 'flux') for phot in data]
+                else:
+                    data = [
+                        self.generic_serialize(
+                            row, associated_resource['allowed_export_columns']
+                        )
+                        for row in data
+                    ]
+
+                df = pd.DataFrame(data)[associated_resource['allowed_export_columns']]
+                inputs[input_type] = df.to_csv(index=False)
+
+        else:
+            return self.error(
+                f'associated_resource_type must be one of {", ".join(["obj"])}'
+            )
+        log(data)
+        log(groups)
+        return self.success(data=inputs)

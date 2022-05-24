@@ -160,6 +160,13 @@ class AnalysisService(Base):
         ),
     )
 
+    obj_analyses = relationship(
+        'ObjAnalysis',
+        back_populates='analysis_service',
+        passive_deletes=True,
+        doc="The Obj Analyses associated with this Service.",
+    )
+
     @property
     def authinfo(self):
         if self._authinfo is None:
@@ -281,32 +288,36 @@ class AnalysisMixin:
             return "obj_analyses"
 
     @declared_attr
-    def analysis_service(cls):
-        return relationship(
-            AnalysisService,
-            backref=cls.backref_name(),
-            cascade="save-update, merge, refresh-expire, expunge",
-            passive_deletes=True,
-            doc="Analysis service this analysis uses.",
-        )
-
-    @declared_attr
-    def creator(cls):
-        return relationship(
-            "User",
-            back_populates=cls.backref_name(),
-            doc="Analysis's creator.",
-            uselist=False,
-            foreign_keys=f"{cls.__name__}.creator_id",
-        )
-
-    @declared_attr
-    def creator_id(cls):
+    def author_id(cls):
         return sa.Column(
             sa.ForeignKey('users.id', ondelete='CASCADE'),
             nullable=False,
             index=True,
-            doc="ID of the Analysis author's User instance.",
+            doc="ID of the Annotation author's User instance.",
+        )
+
+    @declared_attr
+    def author(cls):
+        return relationship(
+            "User",
+            doc="Annotation's author.",
+        )
+
+    @declared_attr
+    def analysis_service_id(cls):
+        return sa.Column(
+            sa.ForeignKey('analysis_services.id', ondelete='CASCADE'),
+            nullable=False,
+            index=True,
+            doc="ID of the associated analysis service.",
+        )
+
+    @declared_attr
+    def analysis_service(cls):
+        return relationship(
+            "AnalysisService",
+            back_populates=cls.backref_name(),
+            doc="Analysis Service associated with this analysis.",
         )
 
     @declared_attr

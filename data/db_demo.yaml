@@ -922,7 +922,7 @@ analysis_service:
     authentication_type: "header_token"
     _authinfo: '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}'
     analysis_type: "lightcurve_fitting"
-    input_data_types: ["photometry", "redshift"]
+    input_data_types: ["photometry", "redshift", "spectra", "annotations", "classifications", "comments"]
     group_ids:
       - =program_A
       - =program_B

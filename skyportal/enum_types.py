@@ -76,7 +76,14 @@ LISTENER_CLASSNAMES = [
 LISTENER_CLASSES = [getattr(facility_apis, c) for c in LISTENER_CLASSNAMES]
 
 ANALYSIS_TYPES = ('lightcurve_fitting', 'spectrum_fitting', 'meta_analysis')
-ANALYSIS_INPUT_TYPES = ('photometry', 'spectra', 'redshift', 'annotations', 'comments')
+ANALYSIS_INPUT_TYPES = (
+    'photometry',
+    'spectra',
+    'redshift',
+    'annotations',
+    'comments',
+    'classifications',
+)
 AUTHENTICATION_TYPES = (
     'none',
     'header_token',
