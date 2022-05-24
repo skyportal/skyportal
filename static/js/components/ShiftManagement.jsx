@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
@@ -12,10 +12,15 @@ import Checkbox from "@material-ui/core/Checkbox";
 import Box from "@material-ui/core/Box";
 import ListItemText from "@material-ui/core/ListItemText";
 import Tooltip from "@material-ui/core/Tooltip";
+import PropTypes from "prop-types";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as shiftActions from "../ducks/shift";
-import { addShiftUser, deleteShiftUser } from "../ducks/shifts";
+import {
+  addShiftUser,
+  deleteShiftUser,
+  updateShiftUser,
+} from "../ducks/shifts";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -87,12 +92,15 @@ const useStyles = makeStyles((theme) => ({
     fontWeight: "bold",
   },
   addUserChip: {
-    // set the background color to a light green
     backgroundColor: "#a5d6a7",
   },
   deleteUserChip: {
-    // set the background color to a light red
     backgroundColor: "#ffcdd2",
+  },
+  replacementButton: {
+    alignSelf: "right",
+    margin: "0",
+    width: "35%",
   },
 }));
 
@@ -140,22 +148,10 @@ const userLabel = (user) => {
   return label;
 };
 
-function CurrentShiftMenu() {
+function CurrentShiftMenu({ currentShift }) {
   const classes = useStyles();
-  const { shiftList } = useSelector((state) => state.shifts);
-  const { permissions } = useSelector((state) => state.profile);
-  const { currentShift } = useSelector((state) => state.shift);
   const currentUser = useSelector((state) => state.profile);
   const dispatch = useDispatch();
-
-  useEffect(() => {
-    if (currentShift) {
-      const shift = shiftList.find((s) => s.id === currentShift.id);
-      if (shift) {
-        dispatch({ type: "skyportal/CURRENT_SHIFT", data: shift });
-      }
-    }
-  }, [shiftList, dispatch, currentShift]);
 
   function MultipleGroupSelectChip() {
     const users = currentShift.group.group_users.filter(
@@ -207,9 +203,16 @@ function CurrentShiftMenu() {
               userID: selected_users[user].id,
               shift_id: currentShift.id,
             })
-          );
+          ).then((result) => {
+            if (result.status === "success") {
+              dispatch(
+                showNotification(
+                  `User ${selected_users[user]?.username} removed from shift`
+                )
+              );
+            }
+          });
         });
-        dispatch(showNotification("Users removed from shift"));
       } else {
         dispatch(showNotification("No users selected", "error"));
       }
@@ -350,7 +353,6 @@ function CurrentShiftMenu() {
     function addOrDeleteUserListItem(user) {
       let indicator = <span className={classes.addUserListItem}>+</span>;
       if (usersInShift(user)) {
-        // return a + char in green
         indicator = <span className={classes.deleteUserListItem}>-</span>;
       }
       return indicator;
@@ -359,7 +361,6 @@ function CurrentShiftMenu() {
     function addOrDeleteUserChip(user) {
       let style = classes.addUserChip;
       if (usersInShift(user)) {
-        // return a + char in green
         style = classes.deleteUserChip;
       }
       return style;
@@ -375,7 +376,6 @@ function CurrentShiftMenu() {
             labelId="select-users-multiple-chip-label"
             id="select-users--multiple-chip"
             multiple
-            // value is username of all selected users
             value={selected}
             onChange={handleChange}
             input={<OutlinedInput id="select-multiple-chip" label="Chip" />}
@@ -418,10 +418,9 @@ function CurrentShiftMenu() {
   }
 
   const deleteShift = (shift) => {
+    dispatch({ type: "skyportal/CURRENT_SHIFT", data: {} });
     dispatch(shiftActions.deleteShift(shift.id)).then((result) => {
       if (result.status === "success") {
-        // dispatch an empty shift to clear the current shift
-        dispatch({ type: "skyportal/CURRENT_SHIFT", data: {} });
         dispatch(showNotification("Shift deleted"));
       }
     });
@@ -437,11 +436,199 @@ function CurrentShiftMenu() {
     ).then((result) => {
       if (result.status === "success") {
         dispatch(showNotification(`joined shift: ${shift.name}`));
-        // dispatch currentShift adding the current user
-        currentShift.shift_users.push(currentUser);
-        dispatch({ type: "skyportal/CURRENT_SHIFT", data: currentShift });
       }
     });
+  };
+
+  function ReplaceUserMenu({ currentUserIsAdminOfShift }) {
+    const [selectedToReplace, setSelectedToReplace] = React.useState({});
+    const usersToReplace = currentShift.shift_users.filter(
+      (shiftUser) => shiftUser.needs_replacement
+    );
+    const currentUserInShift = currentShift.shift_users.some(
+      (shiftUser) => shiftUser.id === currentUser.id
+    );
+
+    function replaceUserInShift(selected_user) {
+      const shift_id = parseInt(currentShift.id, 10);
+      dispatch(
+        deleteShiftUser({
+          userID: selected_user.id,
+          shift_id,
+        })
+      ).then((result) => {
+        if (result.status === "success") {
+          dispatch(
+            addShiftUser({
+              shift_id,
+              userID: currentUser.id,
+              admin: false,
+              needs_replacement: false,
+            })
+          ).then((next_result) => {
+            if (next_result.status === "success") {
+              dispatch(
+                showNotification(`replaced user: ${selected_user.username}`)
+              );
+            }
+          });
+        }
+      });
+    }
+
+    const userReplacementButton = () => {
+      let button;
+      if (Object.keys(selectedToReplace).length > 0) {
+        button = (
+          <Tooltip title="Replace selected users">
+            <Button
+              id="replace-users-button"
+              variant="contained"
+              color="primary"
+              className={classes.activatedButton}
+              onClick={() => {
+                replaceUserInShift(selectedToReplace);
+                setSelectedToReplace({});
+              }}
+            >
+              Replace
+            </Button>
+          </Tooltip>
+        );
+      } else {
+        button = (
+          <Tooltip title="No users selected, select users to replace them">
+            <Button
+              id="deactivated-replace-users-button"
+              variant="contained"
+              color="secondary"
+              className={classes.deactivatedButton}
+            >
+              Replace
+            </Button>
+          </Tooltip>
+        );
+      }
+      return button;
+    };
+
+    const askForReplacementButton = () => {
+      let button = null;
+      if (currentUserInShift && !currentUserIsAdminOfShift) {
+        // check if the user has already asked for a replacement
+        const userHasAlreadyAskedForReplacement = usersToReplace.some(
+          (shiftUser) => shiftUser.id === currentUser.id
+        );
+        if (!userHasAlreadyAskedForReplacement) {
+          button = (
+            <Tooltip title="Ask for someone to replace you. All users from the group associated to the Shift will be notified">
+              <Button
+                id="ask-for-replacement-button"
+                variant="contained"
+                color="primary"
+                className={classes.replacementButton}
+                onClick={() => {
+                  const shift_id = parseInt(currentShift.id, 10);
+                  const userID = parseInt(currentUser.id, 10);
+                  dispatch(
+                    updateShiftUser({
+                      userID,
+                      admin: false,
+                      needs_replacement: true,
+                      shift_id,
+                    })
+                  ).then((result) => {
+                    if (result.status === "success") {
+                      dispatch(showNotification(`asked for replacement`));
+                    }
+                  });
+                }}
+              >
+                Ask for Replacement
+              </Button>
+            </Tooltip>
+          );
+        }
+      }
+      return button;
+    };
+
+    const handleChangeReplace = (event) => {
+      const {
+        target: { value },
+      } = event;
+      if (value) {
+        setSelectedToReplace(value);
+      } else {
+        setSelectedToReplace({});
+      }
+    };
+
+    return (
+      <div>
+        {usersToReplace.length > 0 && !currentUserInShift ? (
+          <div className={classes.addUsersElements}>
+            <FormControl className={classes.addUsersForm}>
+              <InputLabel
+                className={classes.addUsersLabel}
+                id="select-user-replace-label"
+              >
+                Replace user
+              </InputLabel>
+              <Select
+                labelId="select-user-replace-chip-label"
+                id="select-user-replace-chip"
+                value={selectedToReplace}
+                onClick={handleChangeReplace}
+                input={<OutlinedInput id="select-chip" label="Chip" />}
+                renderValue={(selectedToReplaceValue) => (
+                  <Box id="selected_users">
+                    {Object.keys(selectedToReplaceValue).length > 0 && (
+                      <Chip
+                        key={`${selectedToReplaceValue.id}_selected_to_replace`}
+                        id={selectedToReplaceValue.id}
+                        label={userLabel(selectedToReplaceValue)}
+                      />
+                    )}
+                  </Box>
+                )}
+                MenuProps={MenuProps}
+              >
+                {usersToReplace.map((user) => (
+                  <MenuItem
+                    id="select_user_to_replace"
+                    key={`${user.id}_can_replace`}
+                    value={user}
+                  >
+                    <Checkbox
+                      checked={
+                        Object.keys(selectedToReplace).length > 0 &&
+                        selectedToReplace.id === user.id
+                      }
+                    />
+                    <ListItemText
+                      className={classes.userListItem}
+                      id={user.id}
+                      primary={userLabel(user)}
+                    />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {userReplacementButton()}
+          </div>
+        ) : (
+          <div className={classes.addUsersElements}>
+            {askForReplacementButton()}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  ReplaceUserMenu.propTypes = {
+    currentUserIsAdminOfShift: PropTypes.bool.isRequired,
   };
 
   const leaveShift = (shift) => {
@@ -449,11 +636,6 @@ function CurrentShiftMenu() {
       deleteShiftUser({ userID: currentUser.id, shift_id: shift.id })
     ).then((result) => {
       if (result.status === "success") {
-        // dispatch currentShift without the current user
-        currentShift.shift_users = [...currentShift.shift_users].filter(
-          (user) => user.id !== currentUser.id
-        );
-        dispatch({ type: "skyportal/CURRENT_SHIFT", data: currentShift });
         dispatch(showNotification(`left shift: ${shift.name}`));
       }
     });
@@ -567,7 +749,7 @@ function CurrentShiftMenu() {
             )}
             {(currentUserIsAdminOfShift ||
               currentUserIsAdminOfGroup ||
-              permissions.includes("System admin")) && (
+              currentUser?.permissions.includes("System admin")) && (
               <Button
                 id="delete_button"
                 onClick={() => deleteShift(currentShift)}
@@ -580,12 +762,48 @@ function CurrentShiftMenu() {
         <div className={classes.addUsersElements}>
           {(currentUserIsAdminOfShift ||
             currentUserIsAdminOfGroup ||
-            permissions.includes("System admin")) && (
+            currentUser?.permissions.includes("System admin")) && (
             <MultipleGroupSelectChip id="add_shift_users" />
           )}
         </div>
+        <ReplaceUserMenu
+          currentUserIsAdminOfShift={currentUserIsAdminOfShift}
+        />
       </div>
     )
   );
 }
+
+CurrentShiftMenu.propTypes = {
+  currentShift: PropTypes.shape({
+    id: PropTypes.number,
+    name: PropTypes.string,
+    description: PropTypes.string,
+    start_date: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.instanceOf(Date),
+    ]),
+    end_date: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.instanceOf(Date),
+    ]),
+    group: PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string,
+      group_users: PropTypes.arrayOf(
+        PropTypes.shape({
+          id: PropTypes.number,
+          admin: PropTypes.bool,
+        })
+      ),
+    }),
+    shift_users: PropTypes.arrayOf(
+      PropTypes.shape({
+        id: PropTypes.number,
+        admin: PropTypes.bool,
+      })
+    ),
+  }).isRequired,
+};
+
 export default CurrentShiftMenu;
