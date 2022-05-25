@@ -3,7 +3,6 @@ from .allocation import AllocationHandler
 from .candidate import CandidateHandler
 from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
-from .general_comment import GeneralCommentHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
     IRSAQueryWISEHandler,
