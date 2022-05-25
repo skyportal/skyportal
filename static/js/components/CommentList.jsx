@@ -393,7 +393,7 @@ const CommentList = ({
                             }
                             size="small"
                             color="primary"
-                            type="deleteCommentButton"
+                            type="button"
                             name={`deleteCommentButtonGcnEvent${id}`}
                             onClick={() =>
                               deleteCommentOnGcnEvent(gcnEventID, id)
@@ -417,7 +417,7 @@ const CommentList = ({
                             }
                             size="small"
                             color="primary"
-                            type="deleteCommentButton"
+                            type="button"
                             name={`deleteCommentButtonShift${id}`}
                             onClick={() => deleteCommentOnShift(shiftID, id)}
                             className="commentDelete"
@@ -528,7 +528,7 @@ const CommentList = ({
                             }
                             size="small"
                             color="primary"
-                            type="deleteCommentButton"
+                            type="button"
                             name={`deleteCommentButtonShift${id}`}
                             onClick={() => deleteCommentOnShift(shiftID, id)}
                             className="commentDelete"
