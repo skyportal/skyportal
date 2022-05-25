@@ -673,7 +673,7 @@ class ShiftSummary(BaseHandler):
                                             comment['made_by_shift_user'] = False
                                         new_comments.append(comment)
                             gcn["comments"] = new_comments
-                            gcn['shift_id'] = shift['id']
+                            gcn['shift_ids'] = [shift['id']]
                             # retrieve sources that are contained within the localization of the gcn event
                             obj_query = Obj.query_records_accessible_by(
                                 self.current_user
@@ -746,7 +746,12 @@ class ShiftSummary(BaseHandler):
                             gcn['sources_count'] = query.distinct().count()
 
                             gcn_added_during_shifts.append(gcn)
-                        # if the gcn is already in the list, simply add the additional comment to the existing gcn
+
+                        else:
+                            for gcn_added in gcn_added_during_shifts:
+                                if gcn_added['id'] == gcn['id']:
+                                    gcn_added['shift_ids'].append(shift['id'])
+                                    break
             report['gcns'] = {'total': len(gcn_added_during_shifts)}
             report['gcns']['data'] = gcn_added_during_shifts
 
