@@ -635,9 +635,9 @@ class ShiftSummary(BaseHandler):
                     joinedload(GcnEvent.comments),
                 ],
             )
-            .filter(GcnEvent.created_at >= start_date)
-            .filter(GcnEvent.created_at <= end_date)
-            .order_by(GcnEvent.created_at.asc())
+            .filter(GcnEvent.dateobs >= start_date)
+            .filter(GcnEvent.dateobs <= end_date)
+            .order_by(GcnEvent.dateobs.asc())
             .all()
         )
         gcn_added_during_shifts = []
@@ -648,8 +648,8 @@ class ShiftSummary(BaseHandler):
                 for gcn in gcns:
                     gcn = gcn.to_dict()
                     if (
-                        gcn["created_at"] >= shift["start_date"]
-                        and gcn["created_at"] <= shift["end_date"]
+                        gcn["dateobs"] >= shift["start_date"]
+                        and gcn["dateobs"] <= shift["end_date"]
                     ):
                         if gcn["id"] not in [
                             gcn["id"] for gcn in gcn_added_during_shifts

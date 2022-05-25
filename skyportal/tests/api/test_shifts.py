@@ -53,8 +53,8 @@ def test_shift_summary(
 ):
     # add a shift to the group, with a start day one day before today, and an end day one day after today
     shift_name_1 = str(uuid.uuid4())
-    start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
-    end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    start_date = "2018-01-15T12:00:00"
+    end_date = "2018-01-17T12:00:00"
     request_data = {
         'name': shift_name_1,
         'group_id': public_group.id,
@@ -71,8 +71,8 @@ def test_shift_summary(
     shift_id = data['data']['id']
 
     shift_name_2 = str(uuid.uuid4())
-    start_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
-    end_date = (date.today() + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%S")
+    start_date = "2018-01-17T12:00:00"
+    end_date = "2018-01-18T12:00:00"
     request_data = {
         'name': shift_name_2,
         'group_id': public_group.id,
@@ -85,6 +85,8 @@ def test_shift_summary(
     status, data = api('POST', 'shifts', data=request_data, token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
+
+    shift_id_2 = data['data']['id']
 
     status, data = api('GET', f'shifts/{public_group.id}', token=super_admin_token)
     assert status == 200
@@ -148,11 +150,12 @@ def test_shift_summary(
     assert int(data['data']['gcns']['data'][0]['sources_count']) == 1
     assert data['data']['shifts']['data'][0]['name'] == shift_name_1
     assert data['data']['gcns']['data'][0]['dateobs'] == '2018-01-16T00:36:53'
-    assert data['data']['gcns']['data'][0]['shift_id'] == shift_id
+    assert shift_id in data['data']['gcns']['data'][0]['shift_ids']
+    assert shift_id_2 not in data['data']['gcns']['data'][0]['shift_ids']
 
     request_data = {
-        'start_date': (date.today() + timedelta(days=-1)).strftime("%Y-%m-%dT%H:%M:%S"),
-        'end_date': (date.today() + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%S"),
+        'start_date': "2018-01-14T12:00:00",
+        'end_date': "2018-01-19T12:00:00",
     }
 
     status, data = api(
@@ -164,3 +167,5 @@ def test_shift_summary(
     assert int(data['data']['shifts']['total']) == 2
     assert int(data['data']['gcns']['total']) == 1
     assert int(data['data']['gcns']['data'][0]['sources_count']) == 1
+    assert shift_id in data['data']['gcns']['data'][0]['shift_ids']
+    assert shift_id_2 not in data['data']['gcns']['data'][0]['shift_ids']

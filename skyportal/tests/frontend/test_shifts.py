@@ -297,8 +297,8 @@ def test_shift_summary(
 ):
     # add a shift to the group, with a start day one day before today, and an end day one day after today
     shift_name_1 = str(uuid.uuid4())
-    start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
-    end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    start_date = "2018-01-15T12:00:00"
+    end_date = "2018-01-17T12:00:00"
     request_data = {
         'name': shift_name_1,
         'group_id': public_group.id,
@@ -315,8 +315,8 @@ def test_shift_summary(
     shift_id = data['data']['id']
 
     shift_name_2 = str(uuid.uuid4())
-    start_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
-    end_date = (date.today() + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%S")
+    start_date = "2018-01-17T12:00:00"
+    end_date = "2018-01-18T12:00:00"
     request_data = {
         'name': shift_name_2,
         'group_id': public_group.id,
@@ -414,20 +414,23 @@ def test_shift_summary(
 
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
 
-    start_date = (date.today() + timedelta(days=-1)).strftime("%m/%d/%YT%H:%M:%S")
-    end_date = (date.today() + timedelta(days=3)).strftime("%m/%d/%YT%H:%M:%S")
-
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(start_date[0:10])
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys("1")
     driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(start_date[10:15])
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys("14")
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys("2018")
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('12:00')
     driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
     driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('A')
 
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(end_date[0:10])
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys("1")
     driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(end_date[10:15])
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys("19")
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys("2018")
     driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
-    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('P')
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('12:00')
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('A')
 
     submit_button_xpath = '//button[@type="submit"]'
     driver.wait_for_xpath(submit_button_xpath)
