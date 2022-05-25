@@ -615,10 +615,9 @@ class ShiftSummary(BaseHandler):
                 user["needs_replacement"] = su.needs_replacement
                 del user["oauth_uid"]
                 susers.append(user)
-                if not isinstance(shift, dict):
-                    shift = shift.to_dict()
-                shift["shift_users"] = susers
-                shifts.append(shift)
+            shift = shift.to_dict()
+            shift["shift_users"] = susers
+            shifts.append(shift)
 
         report['shifts'] = {}
         report['shifts']['total'] = len(shifts)
