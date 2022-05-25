@@ -3,7 +3,6 @@ __all__ = [
     'CommentOnSpectrum',
     'CommentOnGCN',
     'CommentOnShift',
-    'GeneralComment',
 ]
 
 import sqlalchemy as sa
@@ -67,8 +66,6 @@ class CommentMixin:
             return 'comments_on_gcns'
         if cls.__name__ == 'CommentOnShift':
             return 'comments_on_shifts'
-        if cls.__name__ == 'GeneralComment':
-            return 'general_comments'
 
     @declared_attr
     def author(cls):
@@ -218,16 +215,3 @@ class CommentOnShift(Base, CommentMixin):
         back_populates='comments',
         doc="The Shift referred to by this comment.",
     )
-
-
-class GeneralComment(Base, CommentMixin):
-
-    __tablename__ = 'general_comments'
-
-    create = AccessibleIfRelatedRowsAreAccessible(groups='read')
-
-    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        groups='read'
-    )
-
-    update = delete = AccessibleIfUserMatches('author')
