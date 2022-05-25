@@ -1,5 +1,5 @@
-import React from 'react';
-import { Controller } from 'react-hook-form';
+import React from "react";
+import { Controller, useForm } from "react-hook-form";
 import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
 import Select from "@material-ui/core/Select";
@@ -22,8 +22,8 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const OriginSelect = ({ control }) => {
-  const classes = useStyles()
+const OriginSelect = ({ onOriginSelectChange, initValue }) => {
+  const classes = useStyles();
   const origins = ["Clear selections", "Muphoten", "STDpipe", "None"];
 
   const ITEM_HEIGHT = 48;
@@ -36,24 +36,24 @@ const OriginSelect = ({ control }) => {
       },
     },
   };
+  const { control } = useForm();
 
   return (
     <Controller
       name="originSelect"
       control={control}
-      render={({onChange, value}) => (
+      render={({ onChange }) => (
         <FormControl className={classes.formControl}>
-          <InputLabel id="select-origin-label">
-            Origin
-          </InputLabel>
+          <InputLabel id="select-origin-label">Origin</InputLabel>
           <Select
             labelId="select-origin-label"
             id="select-origin-label"
             multiple
-            value={value || []}
+            value={initValue || []}
             label="Select origin"
             onChange={(event) => {
-              onChange(event.target.value)
+              onChange(event.target.value);
+              onOriginSelectChange(event);
             }}
             renderValue={(selected) => (
               <div>
@@ -72,8 +72,8 @@ const OriginSelect = ({ control }) => {
           </Select>
         </FormControl>
       )}
-      />
-  )
-}
+    />
+  );
+};
 
 export default OriginSelect;

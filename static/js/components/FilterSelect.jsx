@@ -1,5 +1,5 @@
-import React from 'react';
-import { Controller } from 'react-hook-form';
+import React from "react";
+import { Controller, useForm } from "react-hook-form";
 import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
 import Select from "@material-ui/core/Select";
@@ -22,17 +22,17 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const FilterSelect = ({ control }) => {
-  const classes = useStyles()
-  let filters = ["Clear selections"];
-  const filters_enums = useSelector(
-    (state) => state.enum_types.enum_types.ALLOWED_BANDPASSES
+const FilterSelect = ({ onFilterSelectChange, initValue }) => {
+  const classes = useStyles();
+  let filtersEnums = [];
+  filtersEnums = filtersEnums.concat(
+    useSelector((state) => state.enum_types.enum_types.ALLOWED_BANDPASSES)
   );
+  filtersEnums.sort();
+  filtersEnums.unshift("Clear selections");
 
-  if (filters_enums && filters.length === 1) {
-    filters = filters.concat(filters_enums);
-  }
-  
+  const { control } = useForm();
+
   const ITEM_HEIGHT = 48;
   const ITEM_PADDING_TOP = 8;
   const MenuProps = {
@@ -48,7 +48,7 @@ const FilterSelect = ({ control }) => {
     <Controller
       name="filterSelect"
       control={control}
-      render={({onChange, value}) => (
+      render={({ onChange }) => (
         <FormControl className={classes.formControl}>
           <InputLabel id="select-photometry-plot-filter-label">
             Filters
@@ -57,10 +57,11 @@ const FilterSelect = ({ control }) => {
             labelId="demo-simple-select-helper-label"
             id="demo-simple-select-helper"
             multiple
-            value={value || []}
+            value={initValue || []}
             label="Select photometry filter"
             onChange={(event) => {
-              onChange(event.target.value)
+              onChange(event.target.value);
+              onFilterSelectChange(event);
             }}
             renderValue={(selected) => (
               <div>
@@ -71,7 +72,7 @@ const FilterSelect = ({ control }) => {
             )}
             MenuProps={MenuProps}
           >
-            {filters.map((filter) => (
+            {filtersEnums.map((filter) => (
               <MenuItem key={filter} value={filter}>
                 <div data-testid={`filter_${filter}`}>{filter}</div>
               </MenuItem>
@@ -79,8 +80,8 @@ const FilterSelect = ({ control }) => {
           </Select>
         </FormControl>
       )}
-      />
-  )
-}
+    />
+  );
+};
 
 export default FilterSelect;

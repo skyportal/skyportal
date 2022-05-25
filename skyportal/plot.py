@@ -479,14 +479,16 @@ def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
         )
 
 
-def make_clear_photometry_button(model_dict):
-    """Make a button to clear photometry.
+def make_hide_photometry_button(model_dict):
+    """Make a button to hide photometry on the photometry plot.
     Returns
     -------
     bokeh Button object
     """
-    button = Button(name="Clear Photometry", label="Clear Photometry", width=112)
-    callback_clear_photometry = CustomJS(
+    button = Button(
+        name="Hide All Photometry", label="Hide All Photometry", width_policy="min"
+    )
+    callback_hide_photometry = CustomJS(
         args={'model_dict': model_dict},
         code="""
         for (const [key, value] of Object.entries(model_dict)) {
@@ -494,18 +496,20 @@ def make_clear_photometry_button(model_dict):
         }
         """,
     )
-    button.js_on_click(callback_clear_photometry)
+    button.js_on_click(callback_hide_photometry)
     return button
 
 
-def make_add_all_photometry_button(model_dict):
-    """Make a button to add photometry.
+def make_show_all_photometry_button(model_dict):
+    """Make a button to show all photometry on the photometry plot.
     Returns
     -------
     bokeh Button object
     """
-    button = Button(name="Add All Photometry", label="Add All Photometry", width=120)
-    callback_add_photometry = CustomJS(
+    button = Button(
+        name="Show All Photometry", label="Show All Photometry", width_policy="min"
+    )
+    callback_show_photometry = CustomJS(
         args={'model_dict': model_dict},
         code="""
         for (const [key, value] of Object.entries(model_dict)) {
@@ -513,21 +517,20 @@ def make_add_all_photometry_button(model_dict):
         }
         """,
     )
-    button.js_on_click(callback_add_photometry)
+    button.js_on_click(callback_show_photometry)
     return button
 
 
-def make_clear_and_add_photometry_buttons(model_dict):
+def make_show_and_hide_photometry_buttons(model_dict):
     """Make a container for the clear and add photometry buttons.
     Returns
     -------
     bokeh row object
     """
     return row(
-        css_classes=["clear_and_add_buttons"],
         children=[
-            make_add_all_photometry_button(model_dict),
-            make_clear_photometry_button(model_dict),
+            make_show_all_photometry_button(model_dict),
+            make_hide_photometry_button(model_dict),
         ],
     )
 
@@ -1393,7 +1396,7 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
 
     layout = column(
         plot,
-        row(make_clear_and_add_photometry_buttons(model_dict)),
+        row(make_show_and_hide_photometry_buttons(model_dict)),
         width=width,
     )
     add_widgets(
@@ -2102,10 +2105,10 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
         column_checkboxes.js_on_click(callback_toggle_lines)
 
-    clear_all_spectra = Button(
-        name="Clear Spectra", label="Clear Spectra", width_policy="min"
+    hide_all_spectra = Button(
+        name="Hide All Spectra", label="Hide All Spectra", width_policy="min"
     )
-    callback_clear_all_spectra = CustomJS(
+    callback_hide_all_spectra = CustomJS(
         args={'model_dict': model_dict},
         code="""
             for (const[key, value] of Object.entries(model_dict)) {
@@ -2115,12 +2118,12 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             }
         """,
     )
-    clear_all_spectra.js_on_click(callback_clear_all_spectra)
+    hide_all_spectra.js_on_click(callback_hide_all_spectra)
 
-    add_all_spectra = Button(
-        name="Add All Spectra", label="Add All Spectra", width_policy="min"
+    show_all_spectra = Button(
+        name="Show All Spectra", label="Show All Spectra", width_policy="min"
     )
-    callback_add_all_spectra = CustomJS(
+    callback_show_all_spectra = CustomJS(
         args={'model_dict': model_dict},
         code="""
             for (const[key, value] of Object.entries(model_dict)) {
@@ -2130,7 +2133,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             }
         """,
     )
-    add_all_spectra.js_on_click(callback_add_all_spectra)
+    show_all_spectra.js_on_click(callback_show_all_spectra)
 
     reset_checkboxes_button = Button(
         name="Reset Checkboxes", label="Reset Checkboxes", width_policy="min"
@@ -2218,8 +2221,8 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     row1 = row(all_column_checkboxes)
     row2 = row(
         on_top_spectra_dropdown,
-        add_all_spectra,
-        clear_all_spectra,
+        show_all_spectra,
+        hide_all_spectra,
         reset_checkboxes_button,
     )
     row3 = (
