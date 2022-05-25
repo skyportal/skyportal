@@ -7,13 +7,16 @@ import { showNotification } from "baselayer/components/Notifications";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
-import { Collapse } from "@material-ui/core";
+import { Collapse, Divider } from "@material-ui/core";
 import { ExpandMore, ExpandLess } from "@material-ui/icons";
 import * as shiftActions from "../ducks/shift";
 
 const useStyles = makeStyles((theme) => ({
   root: {
     marginBottom: theme.spacing(2),
+  },
+  content: {
+    paddingLeft: theme.spacing(2),
   },
   nestedList: {
     paddingLeft: theme.spacing(4),
@@ -24,6 +27,10 @@ const useStyles = makeStyles((theme) => ({
   },
   info: {
     margin: "0",
+  },
+  listHeader: {
+    marginTop: "0",
+    marginBottom: "0",
   },
 }));
 
@@ -97,7 +104,7 @@ const ShiftsSummary = () => {
     // 1. shift start date and end date (UTC)
     // 2. shift members (admin and non-admin)
     return (
-      <div className={classes.info}>
+      <div className={classes.info} id={`shift_info_${shift.id}`}>
         <p className={classes.info}>
           {`${shift.start_date} UTC - ${shift.end_date} UTC`}
         </p>
@@ -122,10 +129,14 @@ const ShiftsSummary = () => {
       <List className={classes.root}>
         <h2>Shifts:</h2>
         {shifts.map((shift) => (
-          <ListItem key={shift.id}>
+          <ListItem key={shift.id} id={`shift_list_item_${shift.id}`}>
             <ListItemText
               primary={
-                <a href={`/shifts/${shift.id}`} className={classes.link}>
+                <a
+                  href={`/shifts/${shift.id}`}
+                  className={classes.link}
+                  id={`shift_${shift.id}`}
+                >
                   {shift.name}
                 </a>
               }
@@ -139,13 +150,13 @@ const ShiftsSummary = () => {
 
   function gcnInfo(gcn, shifts) {
     return (
-      <div className={classes.info}>
+      <div className={classes.info} id={`gcn_info_${gcn.dateobs}`}>
         <p
           className={classes.info}
         >{`Sources in GCN: ${gcn.sources.length}`}</p>
-        <p className={classes.info}>{`discovered during shift: ${
-          shifts.find((shift) => shift.id === gcn.shift_id).name
-        }`}</p>
+        <p className={classes.info}>{`discovered during shift: ${shifts
+          .map((shift) => (shift.id === gcn.shift_id ? shift.name : null))
+          .join(", ")}`}</p>
       </div>
     );
   }
@@ -153,11 +164,15 @@ const ShiftsSummary = () => {
   function displaySourcesInGCN(sources) {
     return (
       <List className={classes.nestedList}>
+        <h3 className={classes.listHeader}>Sources in GCN:</h3>
         {sources.map((source) => (
-          <ListItem key={source.id}>
+          <ListItem key={source.id} id={`source_in_gcn_info_${source.id}`}>
             <ListItemText
               primary={
-                <a href={`/source/${source.id}`}>{`Source: ${source.id}`}</a>
+                <a
+                  href={`/source/${source.id}`}
+                  id={`source_in_gcn_${source.id}`}
+                >{`Source: ${source.id}`}</a>
               }
               secondary={`ra: ${source.ra}, dec: ${
                 source.dec
@@ -180,6 +195,7 @@ const ShiftsSummary = () => {
           <div key={gcn.id}>
             <ListItem
               key={gcn.id}
+              id={`gcn_list_item_${gcn.dateobs}`}
               onClick={() => {
                 if (gcn.sources.length > 0) {
                   if (selectedGCN === gcn.id) {
@@ -195,6 +211,7 @@ const ShiftsSummary = () => {
                   <a
                     href={`/gcn_events/${gcn.dateobs}`}
                     className={classes.link}
+                    id={`gcn_${gcn.dateobs}`}
                   >
                     {gcn.dateobs}
                   </a>
@@ -207,6 +224,7 @@ const ShiftsSummary = () => {
             <Collapse in={selectedGCN === gcn.id} timeout="auto" unmountOnExit>
               {displaySourcesInGCN(gcn.sources)}
             </Collapse>
+            <Divider />
           </div>
         ))}
       </List>
@@ -222,11 +240,12 @@ const ShiftsSummary = () => {
         validate={validate}
         liveValidate
       />
-      {console.log(shiftsSummary)}
-      {shiftsSummary?.shifts?.total > 1 &&
-        displayShiftsList(shiftsSummary.shifts.data)}
-      {shiftsSummary?.gcns &&
-        displayShiftsGCN(shiftsSummary.shifts.data, shiftsSummary.gcns.data)}
+      <div className={classes.content}>
+        {shiftsSummary?.shifts?.total > 1 &&
+          displayShiftsList(shiftsSummary.shifts.data)}
+        {shiftsSummary?.gcns &&
+          displayShiftsGCN(shiftsSummary.shifts.data, shiftsSummary.gcns.data)}
+      </div>
     </div>
   );
 };

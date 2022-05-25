@@ -11,6 +11,8 @@ import MyCalendar from "./ShiftCalendar";
 import CurrentShiftMenu from "./ShiftManagement";
 import ShiftsSummary from "./ShiftsSummary";
 
+import { getShiftsSummary } from "../ducks/shift";
+
 const useStyles = makeStyles((theme) => ({
   root: {
     width: "100%",
@@ -61,6 +63,11 @@ const ShiftPage = ({ route }) => {
           type: "skyportal/CURRENT_SHIFT",
           data: shift,
         });
+      dispatch(
+        getShiftsSummary({
+          shiftID: parseInt(route.id, 10),
+        })
+      );
       setShow(false);
     } else if (currentShift) {
       const updatedShift = shiftList.find((s) => s.id === currentShift.id);

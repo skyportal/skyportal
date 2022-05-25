@@ -1,6 +1,8 @@
 from skyportal.tests import api
 from datetime import date, timedelta
 import uuid
+import os
+import time
 
 
 def test_shift(public_group, super_admin_token, view_only_token, super_admin_user):
@@ -39,3 +41,148 @@ def test_shift(public_group, super_admin_token, view_only_token, super_admin_use
             for shift in data['data']
         ]
     )
+
+
+def test_shift_summary(
+    public_group,
+    super_admin_token,
+    super_admin_user,
+    upload_data_token,
+    view_only_token,
+    ztf_camera,
+):
+    # add a shift to the group, with a start day one day before today, and an end day one day after today
+    shift_name_1 = str(uuid.uuid4())
+    start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
+    end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    request_data = {
+        'name': shift_name_1,
+        'group_id': public_group.id,
+        'start_date': start_date,
+        'end_date': end_date,
+        'description': 'Shift during GCN',
+        'shift_admins': [super_admin_user.id],
+    }
+
+    status, data = api('POST', 'shifts', data=request_data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    shift_id = data['data']['id']
+
+    shift_name_2 = str(uuid.uuid4())
+    start_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    end_date = (date.today() + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%S")
+    request_data = {
+        'name': shift_name_2,
+        'group_id': public_group.id,
+        'start_date': start_date,
+        'end_date': end_date,
+        'description': 'Shift not during GCN',
+        'shift_admins': [super_admin_user.id],
+    }
+
+    status, data = api('POST', 'shifts', data=request_data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api('GET', f'shifts/{public_group.id}', token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # wait for event to load
+    time.sleep(15)
+
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 229.9620403,
+            "dec": 34.8442757,
+            "redshift": 3,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 58134.025611226854 + 1,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+
+    galaxy_name = str(uuid.uuid4())
+    data = {
+        'catalog_name': 'galaxy_in_Fermi',
+        'catalog_data': {'name': [galaxy_name], 'ra': [228.5], 'dec': [35.5]},
+    }
+    status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # wait for galaxies to load
+    nretries = 0
+    galaxies_loaded = False
+    while not galaxies_loaded and nretries < 5:
+        try:
+            status, data = api('GET', 'galaxy_catalog', token=view_only_token)
+            assert status == 200
+            galaxies_loaded = True
+        except AssertionError:
+            nretries = nretries + 1
+            time.sleep(3)
+
+    status, data = api('GET', f'shifts/summary/{shift_id}', token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+    assert int(data['data']['shifts']['total']) == 1
+    assert int(data['data']['gcns']['total']) == 1
+    assert len(data['data']['gcns']['data'][0]['sources']) == 1
+    assert data['data']['shifts']['data'][0]['name'] == shift_name_1
+    assert data['data']['gcns']['data'][0]['dateobs'] == '2018-01-16T00:36:53'
+    assert data['data']['gcns']['data'][0]['shift_id'] == shift_id
+    assert data['data']['gcns']['data'][0]['sources'][0]['id'] == obj_id
+
+    request_data = {
+        'start_date': (date.today() + timedelta(days=-1)).strftime("%Y-%m-%dT%H:%M:%S"),
+        'end_date': (date.today() + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+
+    status, data = api(
+        'GET', 'shifts/summary', params=request_data, token=super_admin_token
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    assert int(data['data']['shifts']['total']) == 2
+    assert int(data['data']['gcns']['total']) == 1
+    assert len(data['data']['gcns']['data'][0]['sources']) == 1
