@@ -6,7 +6,6 @@ import Form from "@rjsf/material-ui";
 import { showNotification } from "baselayer/components/Notifications";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
 import { Collapse, Divider } from "@material-ui/core";
 import { ExpandMore, ExpandLess } from "@material-ui/icons";
 import * as shiftActions from "../ducks/shift";
@@ -31,6 +30,12 @@ const useStyles = makeStyles((theme) => ({
   listHeader: {
     marginTop: "0",
     marginBottom: "0",
+  },
+  listItem: {
+    display: "flex",
+    flexDirection: "row",
+    alignContent: "center",
+    justifyContent: "space-between",
   },
 }));
 
@@ -130,18 +135,14 @@ const ShiftsSummary = () => {
         <h2>Shifts:</h2>
         {shifts.map((shift) => (
           <ListItem key={shift.id} id={`shift_list_item_${shift.id}`}>
-            <ListItemText
-              primary={
-                <a
-                  href={`/shifts/${shift.id}`}
-                  className={classes.link}
-                  id={`shift_${shift.id}`}
-                >
-                  {shift.name}
-                </a>
-              }
-              secondary={shiftInfo(shift)}
-            />
+            <a
+              href={`/shifts/${shift.id}`}
+              className={classes.link}
+              id={`shift_${shift.id}`}
+            >
+              {shift.name}
+            </a>
+            {shiftInfo(shift)}
           </ListItem>
         ))}
       </List>
@@ -161,26 +162,36 @@ const ShiftsSummary = () => {
     );
   }
 
+  function sourceInfo(source) {
+    return (
+      <div className={classes.info} id={`source_info_${source.id}`}>
+        <p>
+          {`ra: ${source.ra}, dec: ${
+            source.dec
+          }, last detected: ${source.last_detected_at.replace(
+            "+00:00",
+            " UTC"
+          )}`}
+        </p>
+      </div>
+    );
+  }
+
   function displaySourcesInGCN(sources) {
     return (
       <List className={classes.nestedList}>
         <h3 className={classes.listHeader}>Sources in GCN:</h3>
         {sources.map((source) => (
           <ListItem key={source.id} id={`source_in_gcn_info_${source.id}`}>
-            <ListItemText
-              primary={
-                <a
-                  href={`/source/${source.id}`}
-                  id={`source_in_gcn_${source.id}`}
-                >{`Source: ${source.id}`}</a>
-              }
-              secondary={`ra: ${source.ra}, dec: ${
-                source.dec
-              }, last detected: ${source.last_detected_at.replace(
-                "+00:00",
-                " UTC"
-              )}`}
-            />
+            <div>
+              <a
+                href={`/source/${source.id}`}
+                id={`source_in_gcn_${source.id}`}
+              >
+                {`Source: ${source.id}`}
+              </a>
+              {sourceInfo(source)}
+            </div>
           </ListItem>
         ))}
       </List>
@@ -196,6 +207,7 @@ const ShiftsSummary = () => {
             <ListItem
               key={gcn.id}
               id={`gcn_list_item_${gcn.dateobs}`}
+              className={classes.listItem}
               onClick={() => {
                 if (gcn.sources.length > 0) {
                   if (selectedGCN === gcn.id) {
@@ -206,18 +218,16 @@ const ShiftsSummary = () => {
                 }
               }}
             >
-              <ListItemText
-                primary={
-                  <a
-                    href={`/gcn_events/${gcn.dateobs}`}
-                    className={classes.link}
-                    id={`gcn_${gcn.dateobs}`}
-                  >
-                    {gcn.dateobs}
-                  </a>
-                }
-                secondary={gcnInfo(gcn, shifts)}
-              />
+              <div>
+                <a
+                  href={`/gcn_events/${gcn.dateobs}`}
+                  className={classes.link}
+                  id={`gcn_${gcn.dateobs}`}
+                >
+                  {gcn.dateobs}
+                </a>
+                {gcnInfo(gcn, shifts)}
+              </div>
               {gcn.sources.length > 0 &&
                 (selectedGCN === gcn.id ? <ExpandLess /> : <ExpandMore />)}
             </ListItem>
