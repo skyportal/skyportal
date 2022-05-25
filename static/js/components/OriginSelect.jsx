@@ -24,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
 
 const OriginSelect = ({ onOriginSelectChange, initValue }) => {
   const classes = useStyles();
-  const origins = ["Clear selections", "Muphoten", "STDpipe", "None"];
+  const origins = ["Clear selections", "Muphoten", "STDpipe"];
 
   const ITEM_HEIGHT = 48;
   const ITEM_PADDING_TOP = 8;

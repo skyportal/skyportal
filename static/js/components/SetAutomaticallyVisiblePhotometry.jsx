@@ -18,7 +18,7 @@ const SetAutomaticallyVisiblePhotometry = () => {
   const dispatch = useDispatch();
   const { automaticallyVisibleFilters, automaticallyVisibleOrigins } =
     useSelector((state) => state.profile.preferences);
-  const { control } = useForm();
+  console.log(automaticallyVisibleFilters) 
   const onFilterSelectChange = (event) => {
     const prefs = {
       automaticallyVisibleFilters: event.target.value.includes(
