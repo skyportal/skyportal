@@ -5,9 +5,6 @@ import uuid
 from selenium.common.exceptions import TimeoutException
 import time
 
-
-from selenium.webdriver.common.action_chains import ActionChains
-
 def test_shift(
     public_group,
     super_admin_token,
@@ -83,14 +80,10 @@ def test_shift(
     driver.click_xpath('//button[@type="submitComment"]')
 
     # delete the comment from the shift
-    action = ActionChains(driver);
-
-    action.move_to_element(driver.wait_for_xpath('//*[@id="comment"]'))
-    action.move_to_element(driver.find_element_by_class_name('commentDelete'))
-
-    # actions.move_to_element(driver.wait_for_xpath('//button[@type="deleteCommentButton"]')).click().build().perform()
-    # action.move_to_element(driver.wait_for_xpath('//*[@id="comment_1"]')).move_to_element(driver.click_xpath('//button[@type="deleteCommentButton"]')).click().perform()
-    
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath('//*[@id="comment"]')
+    )
+    driver.click_xpath('//*[contains(@name, "deleteCommentButtonShift")]')    
 
     # check for deactivated button to add users
     deactivated_add_user_button = '//*[@id="deactivated-add-users-button"]'
