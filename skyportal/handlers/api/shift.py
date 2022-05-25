@@ -615,7 +615,8 @@ class ShiftSummary(BaseHandler):
                 user["needs_replacement"] = su.needs_replacement
                 del user["oauth_uid"]
                 susers.append(user)
-                shift = shift.to_dict()
+                if not isinstance(shift, dict):
+                    shift = shift.to_dict()
                 shift["shift_users"] = susers
                 shifts.append(shift)
 
@@ -742,17 +743,7 @@ class ShiftSummary(BaseHandler):
                             query = obj_query.join(
                                 source_subquery, Obj.id == source_subquery.c.obj_id
                             )
-                            gcn['sources'] = [
-                                {
-                                    'id': source.id,
-                                    'ra': source.ra,
-                                    'dec': source.dec,
-                                    'last_detected_at': source.last_detected_at(
-                                        self.current_user
-                                    ),
-                                }
-                                for source in query.all()
-                            ]
+                            gcn['sources_count'] = query.distinct().count()
 
                             gcn_added_during_shifts.append(gcn)
                         # if the gcn is already in the list, simply add the additional comment to the existing gcn

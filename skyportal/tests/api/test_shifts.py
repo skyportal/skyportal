@@ -140,37 +140,15 @@ def test_shift_summary(
     status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
     assert status == 200
 
-    galaxy_name = str(uuid.uuid4())
-    data = {
-        'catalog_name': 'galaxy_in_Fermi',
-        'catalog_data': {'name': [galaxy_name], 'ra': [228.5], 'dec': [35.5]},
-    }
-    status, data = api('POST', 'galaxy_catalog', data=data, token=super_admin_token)
-    assert status == 200
-    assert data['status'] == 'success'
-
-    # wait for galaxies to load
-    nretries = 0
-    galaxies_loaded = False
-    while not galaxies_loaded and nretries < 5:
-        try:
-            status, data = api('GET', 'galaxy_catalog', token=view_only_token)
-            assert status == 200
-            galaxies_loaded = True
-        except AssertionError:
-            nretries = nretries + 1
-            time.sleep(3)
-
     status, data = api('GET', f'shifts/summary/{shift_id}', token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
     assert int(data['data']['shifts']['total']) == 1
     assert int(data['data']['gcns']['total']) == 1
-    assert len(data['data']['gcns']['data'][0]['sources']) == 1
+    assert int(data['data']['gcns']['data'][0]['sources_count']) == 1
     assert data['data']['shifts']['data'][0]['name'] == shift_name_1
     assert data['data']['gcns']['data'][0]['dateobs'] == '2018-01-16T00:36:53'
     assert data['data']['gcns']['data'][0]['shift_id'] == shift_id
-    assert data['data']['gcns']['data'][0]['sources'][0]['id'] == obj_id
 
     request_data = {
         'start_date': (date.today() + timedelta(days=-1)).strftime("%Y-%m-%dT%H:%M:%S"),
@@ -185,4 +163,4 @@ def test_shift_summary(
     assert data['status'] == 'success'
     assert int(data['data']['shifts']['total']) == 2
     assert int(data['data']['gcns']['total']) == 1
-    assert len(data['data']['gcns']['data'][0]['sources']) == 1
+    assert int(data['data']['gcns']['data'][0]['sources_count']) == 1

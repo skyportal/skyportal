@@ -3,22 +3,19 @@ import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
 import Form from "@rjsf/material-ui";
+import { Paper, Collapse, Divider } from "@material-ui/core";
 import { showNotification } from "baselayer/components/Notifications";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
-import { Collapse, Divider } from "@material-ui/core";
 import { ExpandMore, ExpandLess } from "@material-ui/icons";
 import * as shiftActions from "../ducks/shift";
+import SourceTable from "./SourceTable";
+import * as sourcesActions from "../ducks/sources";
 
 const useStyles = makeStyles((theme) => ({
-  root: {
-    marginBottom: theme.spacing(2),
-  },
   content: {
-    paddingLeft: theme.spacing(2),
-  },
-  nestedList: {
-    paddingLeft: theme.spacing(4),
+    padding: theme.spacing(2),
+    marginBottom: theme.spacing(2),
   },
   link: {
     fontSize: "1.5rem",
@@ -27,22 +24,27 @@ const useStyles = makeStyles((theme) => ({
   info: {
     margin: "0",
   },
-  listHeader: {
-    marginTop: "0",
-    marginBottom: "0",
-  },
   listItem: {
     display: "flex",
     flexDirection: "row",
     alignContent: "center",
     justifyContent: "space-between",
   },
+  listItemText: {
+    display: "flex",
+    flexDirection: "column",
+    alignContent: "center",
+    justifyContent: "center",
+  },
 }));
 
-const ShiftsSummary = () => {
+const ShiftSummary = () => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const [selectedGCN, setSelectedGCN] = useState(null);
+  const sources = useSelector((state) => state?.sources?.gcnEventSources);
+
+  const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
   // return a react json schema form where the user can select a start date and end date, and then click submit to get  json document that summarizes the activity during shifts between the start and end dates
   const shiftsSummary = useSelector((state) => state.shift.shiftsSummary);
 
@@ -131,18 +133,24 @@ const ShiftsSummary = () => {
 
   function displayShiftsList(shifts) {
     return (
-      <List className={classes.root}>
+      <List>
         <h2>Shifts:</h2>
         {shifts.map((shift) => (
-          <ListItem key={shift.id} id={`shift_list_item_${shift.id}`}>
-            <a
-              href={`/shifts/${shift.id}`}
-              className={classes.link}
-              id={`shift_${shift.id}`}
-            >
-              {shift.name}
-            </a>
-            {shiftInfo(shift)}
+          <ListItem
+            key={shift.id}
+            id={`shift_list_item_${shift.id}`}
+            className={classes.listItem}
+          >
+            <div className={classes.listItemText}>
+              <a
+                href={`/shifts/${shift.id}`}
+                className={classes.link}
+                id={`shift_${shift.id}`}
+              >
+                {shift.name}
+              </a>
+              {shiftInfo(shift)}
+            </div>
           </ListItem>
         ))}
       </List>
@@ -152,9 +160,7 @@ const ShiftsSummary = () => {
   function gcnInfo(gcn, shifts) {
     return (
       <div className={classes.info} id={`gcn_info_${gcn.dateobs}`}>
-        <p
-          className={classes.info}
-        >{`Sources in GCN: ${gcn.sources.length}`}</p>
+        <p className={classes.info}>{`Sources in GCN: ${gcn.sources_count}`}</p>
         <p className={classes.info}>{`discovered during shift: ${shifts
           .map((shift) => (shift.id === gcn.shift_id ? shift.name : null))
           .join(", ")}`}</p>
@@ -162,45 +168,56 @@ const ShiftsSummary = () => {
     );
   }
 
-  function sourceInfo(source) {
-    return (
-      <div className={classes.info} id={`source_info_${source.id}`}>
-        <p>
-          {`ra: ${source.ra}, dec: ${
-            source.dec
-          }, last detected: ${source.last_detected_at.replace(
-            "+00:00",
-            " UTC"
-          )}`}
-        </p>
-      </div>
-    );
-  }
+  function displaySourcesInGCN(dateobs, gcnSources) {
+    const handleSourcesTableSorting = (sortData, filterData) => {
+      dispatch(
+        sourcesActions.fetchGcnEventSources(dateobs, {
+          ...filterData,
+          pageNumber: 1,
+          numPerPage: sourcesRowsPerPage,
+          sortBy: sortData.name,
+          sortOrder: sortData.direction,
+        })
+      );
+    };
 
-  function displaySourcesInGCN(sources) {
-    return (
-      <List className={classes.nestedList}>
-        <h3 className={classes.listHeader}>Sources in GCN:</h3>
-        {sources.map((source) => (
-          <ListItem key={source.id} id={`source_in_gcn_info_${source.id}`}>
-            <div>
-              <a
-                href={`/source/${source.id}`}
-                id={`source_in_gcn_${source.id}`}
-              >
-                {`Source: ${source.id}`}
-              </a>
-              {sourceInfo(source)}
-            </div>
-          </ListItem>
-        ))}
-      </List>
+    const handleSourcesTablePagination = (
+      pageNumber,
+      numPerPage,
+      sortData,
+      filterData
+    ) => {
+      setSourcesRowsPerPage(numPerPage);
+      const data = {
+        ...filterData,
+        pageNumber,
+        numPerPage,
+      };
+      if (sortData && Object.keys(sortData).length > 0) {
+        data.sortBy = sortData.name;
+        data.sortOrder = sortData.direction;
+      }
+      dispatch(sourcesActions.fetchGcnEventSources(dateobs, data));
+    };
+    return gcnSources ? (
+      <SourceTable
+        sources={gcnSources.sources}
+        title="Event Sources"
+        paginateCallback={handleSourcesTablePagination}
+        pageNumber={gcnSources.pageNumber}
+        totalMatches={gcnSources.totalMatches}
+        numPerPage={gcnSources.numPerPage}
+        sortingCallback={handleSourcesTableSorting}
+        favoritesRemoveButton
+      />
+    ) : (
+      <div>No sources found</div>
     );
   }
 
   function displayShiftsGCN(shifts, gcns) {
     return (
-      <List className={classes.root}>
+      <List>
         <h2>GCN Events:</h2>
         {gcns.map((gcn) => (
           <div key={gcn.id}>
@@ -209,11 +226,19 @@ const ShiftsSummary = () => {
               id={`gcn_list_item_${gcn.dateobs}`}
               className={classes.listItem}
               onClick={() => {
-                if (gcn.sources.length > 0) {
+                if (gcn.sources_count > 0) {
                   if (selectedGCN === gcn.id) {
                     setSelectedGCN(null);
                   } else {
                     setSelectedGCN(gcn.id);
+                    const data = {
+                      pageNumber: 1,
+                      numPerPage: 100,
+                    };
+                    dispatch(
+                      sourcesActions.fetchGcnEventSources(gcn.dateobs),
+                      data
+                    );
                   }
                 }
               }}
@@ -228,11 +253,11 @@ const ShiftsSummary = () => {
                 </a>
                 {gcnInfo(gcn, shifts)}
               </div>
-              {gcn.sources.length > 0 &&
+              {gcn.sources_count > 0 &&
                 (selectedGCN === gcn.id ? <ExpandLess /> : <ExpandMore />)}
             </ListItem>
             <Collapse in={selectedGCN === gcn.id} timeout="auto" unmountOnExit>
-              {displaySourcesInGCN(gcn.sources)}
+              {displaySourcesInGCN(gcn.dateobs, sources)}
             </Collapse>
             <Divider />
           </div>
@@ -243,21 +268,27 @@ const ShiftsSummary = () => {
 
   return (
     <div>
-      <Form
-        schema={shiftFormSchema}
-        onSubmit={handleSubmit}
-        // eslint-disable-next-line react/jsx-no-bind
-        validate={validate}
-        liveValidate
-      />
-      <div className={classes.content}>
-        {shiftsSummary?.shifts?.total > 1 &&
-          displayShiftsList(shiftsSummary.shifts.data)}
-        {shiftsSummary?.gcns &&
-          displayShiftsGCN(shiftsSummary.shifts.data, shiftsSummary.gcns.data)}
-      </div>
+      <Paper className={classes.content}>
+        <Form
+          schema={shiftFormSchema}
+          onSubmit={handleSubmit}
+          // eslint-disable-next-line react/jsx-no-bind
+          validate={validate}
+          liveValidate
+        />
+      </Paper>
+      {shiftsSummary?.shifts?.total > 1 && (
+        <Paper className={classes.content}>
+          {displayShiftsList(shiftsSummary.shifts.data)}
+        </Paper>
+      )}
+      {shiftsSummary?.gcns && (
+        <Paper className={classes.content}>
+          {displayShiftsGCN(shiftsSummary.shifts.data, shiftsSummary.gcns.data)}
+        </Paper>
+      )}
     </div>
   );
 };
 
-export default ShiftsSummary;
+export default ShiftSummary;

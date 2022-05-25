@@ -9,7 +9,7 @@ import PropTypes from "prop-types";
 import NewShift from "./NewShift";
 import MyCalendar from "./ShiftCalendar";
 import CurrentShiftMenu from "./ShiftManagement";
-import ShiftsSummary from "./ShiftsSummary";
+import ShiftSummary from "./ShiftSummary";
 
 import { getShiftsSummary } from "../ducks/shift";
 
@@ -130,7 +130,10 @@ const ShiftPage = ({ route }) => {
         {permission && (
           <Paper>
             <div className={classes.paperContent}>
-              <Button onClick={() => setShow((prev) => !prev)}>
+              <Button
+                name="add_shift_button"
+                onClick={() => setShow((prev) => !prev)}
+              >
                 Add New Shift
               </Button>
               {show ? <NewShift /> : null}
@@ -145,9 +148,7 @@ const ShiftPage = ({ route }) => {
         </Paper>
       </Grid>
       <Grid item md={12} sm={12}>
-        <Paper>
-          <ShiftsSummary />
-        </Paper>
+        <ShiftSummary />
       </Grid>
     </Grid>
   );

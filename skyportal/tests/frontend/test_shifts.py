@@ -45,6 +45,10 @@ def test_shift(
         timeout=30,
     )
 
+    driver.click_xpath(
+        '//*/button[@name="add_shift_button"]',
+    )
+
     form_name = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(form_name)
     driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(start_date)
@@ -408,21 +412,7 @@ def test_shift_summary(
         )
     )
 
-    driver.wait_for_xpath(
-        f'//*[@id="source_in_gcn_{obj_id}"][contains(.,"Source: {obj_id}")]',
-        timeout=30,
-    )
-
-    driver.wait_for_xpath(
-        '//*[contains(.,"ra: 229.9620403, dec: 34.8442757")]',
-        timeout=30,
-    )
-
-    driver.scroll_to_element_and_click(
-        driver.wait_for_xpath(
-            '//*[@id="gcn_list_item_2018-01-16T00:36:53"]', timeout=30
-        )
-    )
+    driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
 
     start_date = (date.today() + timedelta(days=-1)).strftime("%m/%d/%YT%H:%M:%S")
     end_date = (date.today() + timedelta(days=3)).strftime("%m/%d/%YT%H:%M:%S")
