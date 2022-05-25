@@ -71,10 +71,11 @@ const ShiftPage = ({ route }) => {
           Object.keys(updatedShift).length > 0 &&
           Object.keys(currentShift).length > 0
         ) {
-          if (updatedShift?.comments?.length !== currentShift?.comments?.length) {
+          if (
+            updatedShift?.comments?.length !== currentShift?.comments?.length
+          ) {
             dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
-          }
-          else {
+          } else {
             let usersHaveChanged = false;
             // check if the users have the same ids, or if they need a replacement when they didnt need one before, and vice versa
             for (let i = 0; i < updatedShift.shift_users.length; i += 1) {
@@ -122,9 +123,7 @@ const ShiftPage = ({ route }) => {
             ) : null)}
         </Paper>
         <Paper elevation={1}>
-          <CommentOnShift
-            associatedResourceType="shift"
-          />
+          <CommentOnShift associatedResourceType="shift" />
         </Paper>
         {permission && (
           <Paper>

@@ -304,8 +304,8 @@ const CommentList = ({
     dispatch(gcnEventActions.deleteCommentOnGcnEvent(gcnID, commentID));
   };
 
-  const deleteCommentOnShift = (shiftID, commentID) => {
-    dispatch(shiftActions.deleteCommentOnShift(shiftID, commentID));
+  const deleteCommentOnShift = (commentID) => {
+    dispatch(shiftActions.deleteCommentOnShift(commentID));
   };
 
   const emojiSupport = (text) =>
@@ -334,7 +334,7 @@ const CommentList = ({
             spectrum_id,
           }) => (
             <span
-              id={`comment`}
+              id="comment"
               key={(spectrum_id ? "Spectrum" : "Source") + id}
               className={commentStyle}
               onMouseOver={() =>
@@ -419,7 +419,7 @@ const CommentList = ({
                             color="primary"
                             type="button"
                             name={`deleteCommentButtonShift${id}`}
-                            onClick={() => deleteCommentOnShift(shiftID, id)}
+                            onClick={() => deleteCommentOnShift(id)}
                             className="commentDelete"
                           >
                             <CloseIcon fontSize="small" />
@@ -530,7 +530,7 @@ const CommentList = ({
                             color="primary"
                             type="button"
                             name={`deleteCommentButtonShift${id}`}
-                            onClick={() => deleteCommentOnShift(shiftID, id)}
+                            onClick={() => deleteCommentOnShift(id)}
                             className="commentDelete"
                           >
                             <CloseIcon fontSize="small" />

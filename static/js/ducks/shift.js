@@ -3,8 +3,6 @@ import messageHandler from "baselayer/MessageHandler";
 import * as API from "../API";
 import store from "../store";
 
-const REFRESH_CURRENT_SHIFT_COMMENTS = "skyportal/REFRESH_CURRENT_SHIFT_COMMENTS";
-
 const FETCH_SHIFT = "skyportal/FETCH_SHIFT";
 
 const SUBMIT_SHIFT = "skyportal/SUBMIT_SHIFT";
@@ -16,6 +14,11 @@ const CURRENT_SHIFT = "skyportal/CURRENT_SHIFT";
 const ADD_COMMENT_ON_SHIFT = "skyportal/ADD_COMMENT_ON_SHIFT";
 const DELETE_COMMENT_ON_SHIFT = "skyportal/DELETE_COMMENT_ON_SHIFT";
 
+const REFRESH_CURRENT_SHIFT_COMMENTS =
+  "skyportal/REFRESH_CURRENT_SHIFT_COMMENTS";
+
+const GET_COMMENT_ON_SHIFT_ATTACHMENT =
+  "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT";
 const GET_COMMENT_ON_SHIFT_ATTACHMENT_OK =
   "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT_OK";
 
@@ -87,16 +90,16 @@ export function getCommentOnShiftAttachmentPreview(shiftID, commentID) {
 
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
-  // const { shift } = getState();
-  // if (actionType === FETCH_SHIFT) {
-  //   dispatch(fetchShift(shift.id));
-  // }
-  // if (actionType === REFRESH_CURRENT_SHIFT_COMMENTS) {
-  //   const shift_id = shift?.currentShift.id;
-  //   if (shift_id === payload.obj_internal_key) {
-  //     dispatch(fetchShift(shift.currentShift.id));
-  //   }
-  // }
+  const { shift } = getState();
+  if (actionType === FETCH_SHIFT) {
+    dispatch(fetchShift(shift.id));
+  }
+  if (actionType === REFRESH_CURRENT_SHIFT_COMMENTS) {
+    const shift_id = shift?.currentShift.id;
+    if (shift_id === payload.obj_internal_key) {
+      dispatch(fetchShift(shift.currentShift.id));
+    }
+  }
 });
 
 const reducer = (state = { currentShift: {}, selectedUsers: [] }, action) => {

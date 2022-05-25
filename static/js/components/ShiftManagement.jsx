@@ -810,22 +810,16 @@ CurrentShiftMenu.propTypes = {
   }).isRequired,
 };
 
-export function CommentOnShift(
-  associatedResourceType,
-) {
+export function CommentOnShift(resourceType) {
   const classes = useStyles();
-  const { permissions } = useSelector((state) => state.profile);
+  const { associatedResourceType } = resourceType;
   const { currentShift } = useSelector((state) => state.shift);
-  const currentUser = useSelector((state) => state.profile);
-  const dispatch = useDispatch();
 
   return (
     currentShift.name != null && (
       <div id="current_shift_comment" className={classes.root}>
         <div className={classes.content}>
-        <CommentList 
-          associatedResourceType={associatedResourceType.associatedResourceType}
-        />
+          <CommentList associatedResourceType={associatedResourceType} />
         </div>
       </div>
     )
