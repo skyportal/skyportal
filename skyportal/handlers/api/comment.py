@@ -9,8 +9,10 @@ from ...models import (
     Comment,
     CommentOnSpectrum,
     CommentOnGCN,
+    CommentOnShift,
     Spectrum,
     GcnEvent,
+    Shift,
     Group,
     User,
     UserNotification,
@@ -130,6 +132,12 @@ class CommentHandler(BaseHandler):
                     .filter(CommentOnGCN.gcn_id == resource_id)
                     .all()
                 )
+            elif associated_resource_type.lower() == "shift":
+                comments = (
+                    CommentOnShift.query_records_accessible_by(self.current_user)
+                    .filter(CommentOnShift.shift_id == resource_id)
+                    .all()
+                )
             else:
                 return self.error(
                     f'Unsupported associated resource type "{associated_resource_type}".'
@@ -168,6 +176,14 @@ class CommentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(comment.gcn_id)
+        elif associated_resource_type.lower() == "shift":
+            try:
+                comment = CommentOnShift.get_if_accessible_by(
+                    comment_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(comment.shift_id)
         # add more options using elif
         else:
             return self.error(
@@ -346,20 +362,65 @@ class CommentHandler(BaseHandler):
                 groups=groups,
                 bot=is_bot_request,
             )
+        elif associated_resource_type.lower() == "shift":
+            shift_id = resource_id
+            try:
+                shift = Shift.get_if_accessible_by(
+                    shift_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error(f'Could not access Shift {shift.id}.', status=403)
+            comment = CommentOnShift(
+                text=comment_text,
+                shift_id=shift.id,
+                attachment_bytes=attachment_bytes,
+                attachment_name=attachment_name,
+                author=author,
+                groups=groups,
+                bot=is_bot_request,
+            )
         else:
             return self.error(f'Unknown resource type "{associated_resource_type}".')
 
         users_mentioned_in_comment = users_mentioned(comment_text)
-        if users_mentioned_in_comment:
-            for user_mentioned in users_mentioned_in_comment:
-                DBSession().add(
-                    UserNotification(
-                        user=user_mentioned,
-                        text=f"*@{self.current_user.username}* mentioned you in a comment on *{obj_id}*",
-                        notification_type="mention",
-                        url=f"/source/{obj_id}",
+        if (
+            associated_resource_type.lower() == "sources"
+            or associated_resource_type.lower() == "spectra"
+        ):
+            if users_mentioned_in_comment:
+                for user_mentioned in users_mentioned_in_comment:
+                    DBSession().add(
+                        UserNotification(
+                            user=user_mentioned,
+                            text=f"*@{self.current_user.username}* mentioned you in a comment on *{obj_id}*",
+                            notification_type="mention",
+                            url=f"/source/{obj_id}",
+                        )
                     )
-                )
+        elif associated_resource_type.lower() == "gcn_event":
+            if users_mentioned_in_comment:
+                for user_mentioned in users_mentioned_in_comment:
+                    DBSession().add(
+                        UserNotification(
+                            user=user_mentioned,
+                            text=f"*@{self.current_user.username}* mentioned you in a comment on *{gcnevent_id}*",
+                            notification_type="mention",
+                            url=f"/gcn_events/{gcnevent_id}",
+                        )
+                    )
+        elif associated_resource_type.lower() == "shift":
+            if users_mentioned_in_comment:
+                for user_mentioned in users_mentioned_in_comment:
+                    DBSession().add(
+                        UserNotification(
+                            user=user_mentioned,
+                            text=f"*@{self.current_user.username}* mentioned you in a comment on *{shift_id}*",
+                            notification_type="mention",
+                            url=f"/shifts",
+                        )
+                    )
+        else:
+            return self.error(f'Unknown resource type "{associated_resource_type}".')
 
         DBSession().add(comment)
         self.verify_and_commit()
@@ -383,6 +444,11 @@ class CommentHandler(BaseHandler):
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_internal_key': comment.obj.internal_key},
             )
+        elif isinstance(comment, CommentOnShift):
+            self.push_all(
+                action='skyportal/REFRESH_SHIFTS',
+                payload={'obj_internal_key': comment.shift_id},
+            )
 
         return self.success(data={'comment_id': comment.id})
 
@@ -399,21 +465,21 @@ class CommentHandler(BaseHandler):
             required: true
             schema:
               type: string
-              enum: [sources, spectrum, gcn_event]
+              enum: [sources, spectrum, gcn_event, shift]
             description: |
                What underlying data the comment is on:
-               "sources" or "spectra" or "gcn_event".
+               "sources" or "spectra" or "gcn_event" or "shift".
           - in: path
             name: resource_id
             required: true
             schema:
               type: string
-              enum: [sources, spectra, gcn_event]
+              enum: [sources, spectra, gcn_event, shift]
             description: |
                The ID of the source or spectrum
                that the comment is posted to.
                This would be a string for an object ID
-               or an integer for a spectrum or gcn_event.
+               or an integer for a spectrum, a gcn_event or a shift.
           - in: path
             name: comment_id
             required: true
@@ -479,7 +545,15 @@ class CommentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(c.gcn_id)
-
+        elif associated_resource_type.lower() == "shift":
+            schema = CommentOnShift.__schema__()
+            try:
+                c = CommentOnShift.get_if_accessible_by(
+                    comment_id, self.current_user, mode="update", raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(c.shift_id)
         # add more options using elif
         else:
             return self.error(
@@ -536,9 +610,14 @@ class CommentHandler(BaseHandler):
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_internal_key': c.obj.internal_key},
             )
-        elif isinstance(c, CommentOnGCN):  # also update the spectrum
+        elif isinstance(c, CommentOnGCN):  # also update the gcn
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_GCN',
+                payload={'obj_internal_key': c.obj.internal_key},
+            )
+        elif isinstance(c, CommentOnShift):  # also update the shift
+            self.push_all(
+                action='skyportal/REFRESH_SHIFT',
                 payload={'obj_internal_key': c.obj.internal_key},
             )
 
@@ -613,6 +692,14 @@ class CommentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(c.gcn_id)
+        elif associated_resource_type.lower() == "shift":
+            try:
+                c = CommentOnShift.get_if_accessible_by(
+                    comment_id, self.current_user, mode="delete", raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(c.shift_id)
 
         # add more options using elif
         else:
@@ -622,7 +709,7 @@ class CommentHandler(BaseHandler):
 
         if isinstance(c, CommentOnGCN):
             gcnevent_dateobs = c.gcn.dateobs
-        else:
+        elif not isinstance(c, CommentOnShift):
             obj_key = c.obj.internal_key
 
         if comment_resource_id_str != resource_id:
@@ -648,6 +735,10 @@ class CommentHandler(BaseHandler):
             self.push_all(
                 action='skyportal/REFRESH_SOURCE_SPECTRA',
                 payload={'obj_internal_key': obj_key},
+            )
+        elif isinstance(c, CommentOnShift):  # also update the shift
+            self.push_all(
+                action='skyportal/REFRESH_SHIFTS',
             )
 
         return self.success()
@@ -752,6 +843,14 @@ class CommentAttachmentHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible comments.', status=403)
             comment_resource_id_str = str(comment.gcn_id)
+        elif associated_resource_type.lower() == "shift":
+            try:
+                comment = CommentOnShift.get_if_accessible_by(
+                    comment_id, self.current_user, raise_if_none=True
+                )
+            except AccessError:
+                return self.error('Could not find any accessible comments.', status=403)
+            comment_resource_id_str = str(comment.shift_id)
 
         # add more options using elif
         else:
