@@ -10,30 +10,17 @@ import Button from "@material-ui/core/Button";
 import Checkbox from "@material-ui/core/Checkbox";
 import { makeStyles } from "@material-ui/core/styles";
 import SaveIcon from "@material-ui/icons/Save";
-import Forum from "@material-ui/icons/Forum";
 import TextField from "@material-ui/core/TextField";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Typography from "@material-ui/core/Typography";
 import Tooltip from "@material-ui/core/Tooltip";
-import commentActions from "../ducks/comment";
-import WidgetCommentDialog from "./WidgetCommentDialog";
 
 const useStyles = makeStyles(() => ({
   saveButton: {
     margin: "1rem 0",
-    textAlign: "left",
   },
   inputSectionDiv: {
     marginBottom: "1rem",
-  },
-  commentButtons: {
-    textAlign: "right",
-    margin: "1rem 0",
-  },
-  buttons: {
-    margin: "1rem 0",
-    display: "flex",
-    justifyContent: "space-between",
   },
 }));
 
@@ -42,12 +29,10 @@ const WidgetPrefsDialog = ({
   initialValues,
   onSubmit,
   stateBranchName,
-  isNewsFeed = false,
 }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
-  const [secondDialogOpen, setSecondDialogOpen] = useState(false);
 
   const { handleSubmit, register, errors, reset, control } =
     useForm(initialValues);
@@ -69,18 +54,6 @@ const WidgetPrefsDialog = ({
     dispatch(onSubmit(payload));
     setOpen(false);
   };
-
-  const addGeneralComment = (formData) => {
-    dispatch(
-      commentActions.addComment({
-        obj_id: objID,
-        spectrum_id: spectrumID,
-        ...formData,
-      })
-    );
-  };
-
-  console.log("seconDialogOpen", secondDialogOpen);
 
   return (
     <div>
@@ -175,9 +148,8 @@ const WidgetPrefsDialog = ({
               }
               return <div key={key} />;
             })}
-            <div className={classes.buttons}>
+            <div className={classes.saveButton}>
               <Button
-                className={classes.saveButton}
                 color="primary"
                 variant="contained"
                 type="submit"
@@ -185,28 +157,6 @@ const WidgetPrefsDialog = ({
               >
                 Save
               </Button>
-              {isNewsFeed && (
-                <div className={classes.commentButtons}>
-                  <Button
-                    color="primary"
-                    variant="contained"
-                    onClick={() => setSecondDialogOpen(true)}
-                  >
-                    <WidgetCommentDialog
-                      addComment={addGeneralComment}
-                      open={secondDialogOpen}
-                    />
-                    Add Comment
-                  </Button>
-                  <Button
-                    color="primary"
-                    variant="contained"
-                    startIcon={<Forum />}
-                  >
-                    Comments
-                  </Button>
-                </div>
-              )}
             </div>
           </form>
         </DialogContent>
@@ -222,7 +172,6 @@ WidgetPrefsDialog.propTypes = {
   stateBranchName: PropTypes.string.isRequired,
   onSubmit: PropTypes.func.isRequired,
   title: PropTypes.string.isRequired,
-  isNewsFeed: PropTypes.bool,
 };
 
 export default WidgetPrefsDialog;
