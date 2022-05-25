@@ -45,7 +45,11 @@ const ShiftPage = ({ route }) => {
   if (shiftList) {
     if (!events || events?.length !== shiftList?.length) {
       setEvents(datestringToDate(shiftList));
-    } else if (currentShift?.shift_users && currentShift?.id) {
+    } else if (
+      currentShift?.shift_users &&
+      currentShift?.id &&
+      events.length > 0
+    ) {
       if (
         events.find((shift) => shift.id === currentShift.id).shift_users
           .length !== currentShift.shift_users.length
