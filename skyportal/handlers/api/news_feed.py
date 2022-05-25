@@ -4,7 +4,6 @@ from ..base import BaseHandler
 from ...models import (
     Source,
     Comment,
-    GeneralComment,
     Classification,
     Spectrum,
     Photometry,
@@ -86,22 +85,14 @@ class NewsFeedHandler(BaseHandler):
                 )
             elif model == Comment and not include_bot_comments:
                 query = query.filter(Comment.bot.is_(False))
-            elif model == GeneralComment and not include_bot_comments:
-                query = query.filter(GeneralComment.bot.is_(False))
-
-            if model == GeneralComment:
-                query = query.order_by(desc(model.created_at or model.saved_at)).limit(
-                    n_items
-                )
-            else:
-                query = (
-                    query.order_by(desc(model.created_at or model.saved_at))
-                    .distinct(model.obj_id, model.created_at)
-                    .limit(n_items)
-                )
+            query = (
+                query.order_by(desc(model.created_at or model.saved_at))
+                .distinct(model.obj_id, model.created_at)
+                .limit(n_items)
+            )
             newest = query.all()
 
-            if model == Comment or model == GeneralComment:
+            if model == Comment:
                 for comment in newest:
                     comment.author_info = comment.construct_author_info_dict()
 
@@ -204,25 +195,6 @@ class NewsFeedHandler(BaseHandler):
                 ]
             )
 
-        if (
-            preferences.get("newsFeed", {})
-            .get("categories", {})
-            .get("general_comments", True)
-        ):
-            comments = fetch_newest(GeneralComment)
-            # Add latest comments
-            news_feed_items.extend(
-                [
-                    {
-                        'type': 'general_comments',
-                        'time': c.created_at,
-                        'message': c.text,
-                        'author': c.author.username,
-                        'author_info': c.author_info,
-                    }
-                    for c in comments
-                ]
-            )
         news_feed_items.sort(key=lambda x: x['time'], reverse=True)
         news_feed_items = news_feed_items[:n_items]
         self.verify_and_commit()
