@@ -137,7 +137,7 @@ class Telescope(Base):
         if observer is None:
             return None
         with warnings.catch_warnings():
-            # for telescopes above the arcric circle (or below antarctic circle)
+            # for telescopes above the arctic circle (or below antarctic circle)
             # there is no morning nautical twilight
             # so this returns a MaskedArray and raises a warning.
             warnings.simplefilter("ignore")
