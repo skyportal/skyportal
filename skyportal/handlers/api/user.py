@@ -19,6 +19,7 @@ from ...models import (
     Stream,
 )
 
+from skyportal.model_util import role_acls, all_acl_ids
 
 env, cfg = load_env()
 
@@ -63,6 +64,54 @@ def add_user_and_setup_groups(
     if public_group is not None:
         DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
     return user.id
+
+
+def set_default_role(user):
+    if (
+        cfg['default_role'] is not None
+        and isinstance(cfg['default_role'], str)
+        and cfg['default_role'] in role_acls
+    ):
+        role = Role.query.filter(Role.id == cfg['default_role']).first()
+        if role is None:
+            raise ValueError(
+                f"Invalid default_role configuration value: {cfg['default_role']} does not exist"
+            )
+        else:
+            DBSession().add(UserRole(user_id=user.id, role_id=role.id))
+
+
+def set_default_acls(user):
+    if cfg['default_acls'] is not None:
+        for acl_id in cfg['default_acls']:
+            if acl_id not in all_acl_ids:
+                raise ValueError(
+                    f"Invalid default_acls configuration value: {acl_id} does not exist"
+                )
+        acls = ACL.query.filter(ACL.id.in_(cfg['default_acls'])).all()
+        DBSession().add_all([UserACL(user_id=user.id, acl_id=acl.id) for acl in acls])
+
+
+def set_default_group(user):
+    default_groups = []
+    if cfg['misc']['public_group_name'] is not None:
+        default_groups.append(cfg['misc']['public_group_name'])
+    if cfg['default_groups'] is not None and isinstance(cfg['default_groups'], list):
+        default_groups.extend(cfg['default_groups'])
+    default_groups = list(set(default_groups))
+    for default_group_name in default_groups:
+        default_group = Group.query.filter(Group.name == default_group_name).first()
+        if default_group is None:
+            raise ValueError(
+                f"Invalid default_group configuration value: {default_group_name} does not exist"
+            )
+        else:
+            DBSession().add(
+                GroupUser(user_id=user.id, group_id=default_group.id, admin=False)
+            )
+            if default_group.streams:
+                for stream in default_group.streams:
+                    DBSession().add(StreamUser(user_id=user.id, stream_id=stream.id))
 
 
 class UserHandler(BaseHandler):

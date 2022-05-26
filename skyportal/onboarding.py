@@ -10,6 +10,11 @@ from .models import (
 )
 from baselayer.app.env import load_env
 
+from skyportal.handlers.api import (
+    set_default_role,
+    set_default_acls,
+    set_default_group,
+)
 
 env, cfg = load_env()
 
@@ -58,6 +63,9 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
             expiration_date=invitation.user_expiration_date,
         )
         user.roles.append(invitation.role)
+        set_default_acls(user)
+        set_default_group(user)
+
         DBSession().add(user)
         DBSession().commit()
         return {"is_new": True, "user": user}
@@ -74,6 +82,11 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
             for name in backend.setting("USER_FIELDS", USER_FIELDS)
         }
         user = strategy.create_user(**fields, **{"oauth_uid": uid})
+
+        set_default_role(user)
+        set_default_acls(user)
+        set_default_group(user)
+
         DBSession().commit()
         return {"is_new": True, "user": user}
     elif existing_user is not None:
