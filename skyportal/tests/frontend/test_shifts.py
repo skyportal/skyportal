@@ -401,11 +401,6 @@ def test_shift_summary(
         timeout=30,
     )
 
-    driver.wait_for_xpath(
-        '//*[@id="gcn_info_2018-01-16T00:36:53"]/*[contains(.,"Sources in GCN: 1")]',
-        timeout=30,
-    )
-
     driver.scroll_to_element_and_click(
         driver.wait_for_xpath(
             '//*[@id="gcn_list_item_2018-01-16T00:36:53"]', timeout=30

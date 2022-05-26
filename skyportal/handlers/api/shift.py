@@ -1,5 +1,4 @@
 import datetime
-import sqlalchemy as sa
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token, AccessError
@@ -13,10 +12,6 @@ from ...models import (
     Token,
     UserNotification,
     GcnEvent,
-    Localization,
-    LocalizationTile,
-    Obj,
-    Source,
 )
 
 
@@ -630,9 +625,6 @@ class ShiftSummary(BaseHandler):
             GcnEvent.query_records_accessible_by(
                 self.current_user,
                 mode="read",
-                options=[
-                    joinedload(GcnEvent.comments),
-                ],
             )
             .filter(GcnEvent.dateobs >= start_date)
             .filter(GcnEvent.dateobs <= end_date)
@@ -653,97 +645,7 @@ class ShiftSummary(BaseHandler):
                         if gcn["id"] not in [
                             gcn["id"] for gcn in gcn_added_during_shifts
                         ]:
-
-                            # check if gcn comments are made by shift_users
-                            comments = gcn["comments"]
-                            new_comments = []
-                            if len(comments) > 0:
-                                for comment in comments:
-                                    comment = comment.to_dict()
-                                    if (
-                                        comment["created_at"] >= shift["start_date"]
-                                        and comment["created_at"] <= shift["end_date"]
-                                    ):
-                                        if comment["author_id"] in [
-                                            user["id"] for user in shift["shift_users"]
-                                        ]:
-                                            comment['made_by_shift_user'] = True
-                                        else:
-                                            comment['made_by_shift_user'] = False
-                                        new_comments.append(comment)
-                            gcn["comments"] = new_comments
                             gcn['shift_ids'] = [shift['id']]
-                            # retrieve sources that are contained within the localization of the gcn event
-                            obj_query = Obj.query_records_accessible_by(
-                                self.current_user
-                            )
-                            obj_query = obj_query.filter(
-                                Obj.last_detected_at(self.current_user)
-                                >= gcn['dateobs']
-                            )
-                            obj_query = obj_query.filter(
-                                Obj.last_detected_at(self.current_user)
-                                <= gcn['dateobs'] + datetime.timedelta(days=7)
-                            )
-                            localization = (
-                                Localization.query_records_accessible_by(
-                                    self.current_user
-                                )
-                                .filter(
-                                    Localization.dateobs
-                                    == gcn['dateobs'].strftime('%Y-%m-%dT%H:%M:%S')
-                                )
-                                .first()
-                            )
-                            cum_prob = (
-                                sa.func.sum(
-                                    LocalizationTile.probdensity
-                                    * LocalizationTile.healpix.area
-                                )
-                                .over(order_by=LocalizationTile.probdensity.desc())
-                                .label('cum_prob')
-                            )
-                            localizationtile_subquery = (
-                                sa.select(
-                                    LocalizationTile.probdensity, cum_prob
-                                ).filter(
-                                    LocalizationTile.localization_id == localization.id
-                                )
-                            ).subquery()
-
-                            min_probdensity = (
-                                sa.select(
-                                    sa.func.min(
-                                        localizationtile_subquery.columns.probdensity
-                                    )
-                                ).filter(
-                                    localizationtile_subquery.columns.cum_prob <= 1.01
-                                )
-                            ).scalar_subquery()
-
-                            tiles_subquery = (
-                                sa.select(Obj.id)
-                                .filter(
-                                    LocalizationTile.localization_id == localization.id,
-                                    LocalizationTile.healpix.contains(Obj.healpix),
-                                    LocalizationTile.probdensity >= min_probdensity,
-                                )
-                                .subquery()
-                            )
-
-                            obj_query = obj_query.join(
-                                tiles_subquery,
-                                Obj.id == tiles_subquery.c.id,
-                            )
-                            source_query = Source.query_records_accessible_by(
-                                self.current_user
-                            )
-                            source_subquery = source_query.subquery()
-                            query = obj_query.join(
-                                source_subquery, Obj.id == source_subquery.c.obj_id
-                            )
-                            gcn['sources_count'] = query.distinct().count()
-
                             gcn_added_during_shifts.append(gcn)
 
                         else:

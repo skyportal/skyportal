@@ -147,7 +147,6 @@ def test_shift_summary(
     assert data['status'] == 'success'
     assert int(data['data']['shifts']['total']) == 1
     assert int(data['data']['gcns']['total']) == 1
-    assert int(data['data']['gcns']['data'][0]['sources_count']) == 1
     assert data['data']['shifts']['data'][0]['name'] == shift_name_1
     assert data['data']['gcns']['data'][0]['dateobs'] == '2018-01-16T00:36:53'
     assert shift_id in data['data']['gcns']['data'][0]['shift_ids']
@@ -166,6 +165,5 @@ def test_shift_summary(
     assert data['status'] == 'success'
     assert int(data['data']['shifts']['total']) == 2
     assert int(data['data']['gcns']['total']) == 1
-    assert int(data['data']['gcns']['data'][0]['sources_count']) == 1
     assert shift_id in data['data']['gcns']['data'][0]['shift_ids']
     assert shift_id_2 not in data['data']['gcns']['data'][0]['shift_ids']

@@ -160,7 +160,6 @@ const ShiftSummary = () => {
   function gcnInfo(gcn, shifts) {
     return (
       <div className={classes.info} id={`gcn_info_${gcn.dateobs}`}>
-        <p className={classes.info}>{`Sources in GCN: ${gcn.sources_count}`}</p>
         <p className={classes.info}>{`discovered during shift: ${shifts
           .map((shift) =>
             gcn.shift_ids.includes(shift.id) ? shift.name : null
@@ -228,20 +227,18 @@ const ShiftSummary = () => {
               id={`gcn_list_item_${gcn.dateobs}`}
               className={classes.listItem}
               onClick={() => {
-                if (gcn.sources_count > 0) {
-                  if (selectedGCN === gcn.id) {
-                    setSelectedGCN(null);
-                  } else {
-                    setSelectedGCN(gcn.id);
-                    const data = {
-                      pageNumber: 1,
-                      numPerPage: 100,
-                    };
-                    dispatch(
-                      sourcesActions.fetchGcnEventSources(gcn.dateobs),
-                      data
-                    );
-                  }
+                if (selectedGCN === gcn.id) {
+                  setSelectedGCN(null);
+                } else {
+                  setSelectedGCN(gcn.id);
+                  const data = {
+                    pageNumber: 1,
+                    numPerPage: 100,
+                  };
+                  dispatch(
+                    sourcesActions.fetchGcnEventSources(gcn.dateobs),
+                    data
+                  );
                 }
               }}
             >
@@ -255,8 +252,7 @@ const ShiftSummary = () => {
                 </a>
                 {gcnInfo(gcn, shifts)}
               </div>
-              {gcn.sources_count > 0 &&
-                (selectedGCN === gcn.id ? <ExpandLess /> : <ExpandMore />)}
+              {selectedGCN === gcn.id ? <ExpandLess /> : <ExpandMore />}
             </ListItem>
             <Collapse in={selectedGCN === gcn.id} timeout="auto" unmountOnExit>
               {displaySourcesInGCN(gcn.dateobs, sources)}
