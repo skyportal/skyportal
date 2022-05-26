@@ -13,6 +13,9 @@ from astropy import units as u
 from astropy import time as ap_time
 
 from baselayer.app.models import Base, restricted
+from baselayer.log import make_log
+
+log = make_log('api/source')
 
 
 class Telescope(Base):
@@ -64,6 +67,8 @@ class Telescope(Base):
         try:
             return self._observer
         except AttributeError:
+            if not self.fixed_location:
+                return None
 
             try:
                 tf = timezonefinder.TimezoneFinder(in_memory=True)
@@ -86,6 +91,9 @@ class Telescope(Base):
                 )
 
             except Exception:
+                log(
+                    f'Telescope {self.id} ("{self.name}") cannot calculate an observer.'
+                )
                 return None
 
         return self._observer
@@ -129,6 +137,9 @@ class Telescope(Base):
         if observer is None:
             return None
         with warnings.catch_warnings():
+            # for telescopes above the arcric circle (or below antarctic circle)
+            # there is no morning nautical twilight
+            # so it would return a MaskedArray and spew a warning.
             warnings.simplefilter("ignore")
             t = observer.twilight_morning_nautical(time, which='next')
             if isinstance(t.value, np.ma.core.MaskedArray):
