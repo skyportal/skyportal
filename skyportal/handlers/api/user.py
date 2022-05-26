@@ -24,48 +24,6 @@ from skyportal.model_util import role_acls, all_acl_ids
 env, cfg = load_env()
 
 
-def add_user_and_setup_groups(
-    username,
-    first_name=None,
-    last_name=None,
-    contact_phone=None,
-    contact_email=None,
-    roles=[],
-    group_ids_and_admin=[],
-    oauth_uid=None,
-    expiration_date=None,
-):
-    # Add user
-    user = User(
-        username=username.lower(),
-        role_ids=roles,
-        first_name=first_name,
-        last_name=last_name,
-        contact_phone=contact_phone,
-        contact_email=contact_email,
-        oauth_uid=oauth_uid,
-        expiration_date=expiration_date,
-    )
-    DBSession().add(user)
-    DBSession().flush()
-
-    # Add user to specified groups & associated streams
-    for group_id, admin in group_ids_and_admin:
-        DBSession().add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
-        group = Group.query.get(group_id)
-        if group.streams:
-            for stream in group.streams:
-                DBSession().add(StreamUser(user_id=user.id, stream_id=stream.id))
-
-    # Add user to sitewide public group
-    public_group = Group.query.filter(
-        Group.name == cfg["misc"]["public_group_name"]
-    ).first()
-    if public_group is not None:
-        DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
-    return user.id
-
-
 def set_default_role(user):
     if (
         cfg['default_role'] is not None
@@ -112,6 +70,58 @@ def set_default_group(user):
             if default_group.streams:
                 for stream in default_group.streams:
                     DBSession().add(StreamUser(user_id=user.id, stream_id=stream.id))
+
+
+def add_user_and_setup_groups(
+    username,
+    first_name=None,
+    last_name=None,
+    contact_phone=None,
+    contact_email=None,
+    roles=[],
+    acls=[],
+    group_ids_and_admin=[],
+    oauth_uid=None,
+    expiration_date=None,
+):
+    # Add user
+    user = User(
+        username=username.lower(),
+        role_ids=roles,
+        first_name=first_name,
+        last_name=last_name,
+        contact_phone=contact_phone,
+        contact_email=contact_email,
+        oauth_uid=oauth_uid,
+        expiration_date=expiration_date,
+    )
+
+    DBSession().add(user)
+    DBSession().flush()
+
+    if roles == []:
+        set_default_role(user)
+    if group_ids_and_admin == []:
+        set_default_group(user)
+    else:
+        # Add user to specified groups & associated streams
+        for group_id, admin in group_ids_and_admin:
+            DBSession().add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
+            group = Group.query.get(group_id)
+            if group.streams:
+                for stream in group.streams:
+                    DBSession().add(StreamUser(user_id=user.id, stream_id=stream.id))
+
+        # Add user to sitewide public group
+        public_group = Group.query.filter(
+            Group.name == cfg["misc"]["public_group_name"]
+        ).first()
+        if public_group is not None:
+            DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
+
+    set_default_acls(user)
+
+    return user.id
 
 
 class UserHandler(BaseHandler):
@@ -369,7 +379,7 @@ class UserHandler(BaseHandler):
                               description: New user ID
         """
         data = self.get_json()
-        roles = data.get("roles", ["Full user"])
+        roles = data.get("roles", [])
         group_ids_and_admin = data.get("groupIDsAndAdmin", [])
 
         phone = data.get("contact_phone")
