@@ -14,7 +14,7 @@ from skyportal.handlers.api.gcn import post_gcnevent
     gcn.NoticeType.LVC_INITIAL,
     gcn.NoticeType.LVC_UPDATE,
     gcn.NoticeType.LVC_RETRACTION,
-    gcn.NoticeType.LVC_TEST,
+    # gcn.NoticeType.LVC_TEST,
     gcn.NoticeType.AMON_ICECUBE_COINC,
     gcn.NoticeType.AMON_ICECUBE_HESE,
     gcn.NoticeType.ICECUBE_ASTROTRACK_GOLD,
