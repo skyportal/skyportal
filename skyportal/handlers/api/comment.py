@@ -479,7 +479,7 @@ class CommentHandler(BaseHandler):
                The ID of the source or spectrum
                that the comment is posted to.
                This would be a string for an object ID
-               or an integer for a spectrum, a gcn_event or a shift.
+               or an integer for a spectrum, gcn_event or shift.
           - in: path
             name: comment_id
             required: true
