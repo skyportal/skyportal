@@ -178,11 +178,11 @@ const UpdateProfileForm = () => {
         <CardContent>
           <ObservabilityPreferences />
         </CardContent>
-        <CardContent>
-          <PhotometryPlottingPreferences />
+        <CardContent style={{ paddingBottom: 0 }}>
+          <ClassificationsShortcutForm />
         </CardContent>
         <CardContent>
-          <ClassificationsShortcutForm />
+          <PhotometryPlottingPreferences />
         </CardContent>
       </Card>
       <Dialog

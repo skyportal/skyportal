@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import UserPreferencesHeader from "./UserPreferencesHeader";
+import { makeStyles } from "@material-ui/core/node_modules/@material-ui/styles";
 import { useForm } from "react-hook-form";
 import { Button, Chip, TextField, Typography } from "@material-ui/core";
 import FilterSelect from "./FilterSelect";
 import OriginSelect from "./OriginSelect";
-import { makeStyles } from "@material-ui/core/node_modules/@material-ui/styles";
+import UserPreferencesHeader from "./UserPreferencesHeader";
 import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles(() => ({
@@ -29,12 +29,18 @@ const PhotometryButtonsForm = () => {
   const { handleSubmit, register, control, errors, reset } = useForm();
   const [selectedFilters, setSelectedFilters] = useState([]);
   const [selectedOrigins, setSelectedOrigins] = useState([]);
+
   const onFilterSelectChange = (event) => {
-    setSelectedFilters(event.target.value);
+    setSelectedFilters(
+      event.target.value.includes("Clear selections") ? [] : event.target.value
+    );
   };
   const onOriginSelectChange = (event) => {
-    setSelectedOrigins(event.target.value);
+    setSelectedOrigins(
+      event.target.value.includes("Clear selections") ? [] : event.target.value
+    );
   };
+
   const onSubmit = (formValues) => {
     const currPhotButtons = photometryButtons || {};
     currPhotButtons[formValues.photometryButtonName] = {
@@ -51,6 +57,7 @@ const PhotometryButtonsForm = () => {
       photometryButtonName: "",
     });
   };
+
   const onDelete = (buttonName) => {
     const currPhotButtons = photometryButtons;
     delete currPhotButtons[buttonName];
@@ -59,6 +66,7 @@ const PhotometryButtonsForm = () => {
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
+  const parent = "PhotometryButtonsForm";
   return (
     <div>
       <UserPreferencesHeader title="Photometry Buttons" />
@@ -69,11 +77,13 @@ const PhotometryButtonsForm = () => {
               initValue={selectedFilters}
               onFilterSelectChange={onFilterSelectChange}
               control={control}
+              parent={parent}
             />
             <OriginSelect
               initValue={selectedOrigins}
               onOriginSelectChange={onOriginSelectChange}
               control={control}
+              parent={parent}
             />
             <TextField
               label="Name"
@@ -100,8 +110,9 @@ const PhotometryButtonsForm = () => {
             variant="contained"
             type="submit"
             className={classes.submitButton}
+            id="addPhotometryButtonButton"
           >
-            Submit
+            Add Photometry Button
           </Button>
         </form>
         {photometryButtons && (

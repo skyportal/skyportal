@@ -167,3 +167,82 @@ def test_delete_classification_shortcut(driver, user, public_group, taxonomy_tok
     )
     driver.scroll_to_element_and_click(delete_icon)
     driver.wait_for_xpath_to_disappear(f'//span[contains(text(), "{shortcut_name}")]')
+
+
+def test_set_photometry_data_point_size(driver, user, upload_data_token):
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/profile")
+    data_point_size_entry = driver.wait_for_xpath(
+        '//input[@name="photometryDataPointSize"]'
+    )
+    driver.scroll_to_element_and_click(data_point_size_entry)
+    data_point_size_entry.send_keys(5)
+    status, data = api('GET', 'internal/profile', token=upload_data_token)
+    assert status == 200
+    # default data point size is 4, so after sending the '5' key, data point size should be 45.
+    assert data['data']['preferences']['photometryDataPointSize'] == 45
+
+
+def test_set_automatically_visible_photometry(driver, user, upload_data_token):
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/profile")
+    filter_select = driver.wait_for_xpath(
+        '//div[@id="filterSelectAutomaticallyVisiblePhotometry"]'
+    )
+    driver.scroll_to_element_and_click(filter_select)
+    massh_option = driver.wait_for_xpath('//li[@data-value="2massh"]')
+    driver.scroll_to_element_and_click(massh_option)
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+
+    origin_select = driver.wait_for_xpath(
+        '//div[@id="originSelectAutomaticallyVisiblePhotometry"]'
+    )
+    driver.scroll_to_element_and_click(origin_select)
+    muphoten_option = driver.wait_for_xpath('//li[@data-value="Muphoten"]')
+    driver.scroll_to_element_and_click(muphoten_option)
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+
+    status, data = api('GET', 'internal/profile', token=upload_data_token)
+    assert status == 200
+    assert data['data']['preferences']['automaticallyVisibleFilters'] == ['2massh']
+    assert data['data']['preferences']['automaticallyVisibleOrigins'] == ['Muphoten']
+
+
+def test_photometry_buttons_form(driver, user, upload_data_token):
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/profile")
+    filter_select = driver.wait_for_xpath(
+        '//div[@id="filterSelectPhotometryButtonsForm"]'
+    )
+    driver.scroll_to_element_and_click(filter_select)
+    massh_option = driver.wait_for_xpath('//li[@data-value="2massh"]')
+    driver.scroll_to_element_and_click(massh_option)
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+
+    origin_select = driver.wait_for_xpath(
+        '//div[@id="originSelectPhotometryButtonsForm"]'
+    )
+    driver.scroll_to_element_and_click(origin_select)
+    muphoten_option = driver.wait_for_xpath('//li[@data-value="Muphoten"]')
+    driver.scroll_to_element_and_click(muphoten_option)
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+
+    photometry_button_name = str(uuid.uuid4())
+    photometry_button_name_entry = driver.wait_for_xpath(
+        '//input[@name="photometryButtonName"]'
+    )
+    driver.scroll_to_element_and_click(photometry_button_name_entry)
+    photometry_button_name_entry.send_keys(photometry_button_name)
+
+    add_photometry_button_button = driver.wait_for_xpath(
+        '//button[@id="addPhotometryButtonButton"]'
+    )
+    driver.scroll_to_element_and_click(add_photometry_button_button)
+    driver.wait_for_xpath(f'//span[contains(text(), "{photometry_button_name}")]')
+
+    status, data = api('GET', 'internal/profile', token=upload_data_token)
+    assert status == 200
+    assert data['data']['preferences']['photometryButtons'][photometry_button_name] == {
+        'filters': ['2massh'],
+        'origins': ['Muphoten'],
+    }

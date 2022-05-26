@@ -1,6 +1,6 @@
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
@@ -22,7 +22,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const FilterSelect = ({ onFilterSelectChange, initValue }) => {
+const FilterSelect = ({ onFilterSelectChange, initValue, parent }) => {
   const classes = useStyles();
   let filtersEnums = [];
   filtersEnums = filtersEnums.concat(
@@ -54,8 +54,7 @@ const FilterSelect = ({ onFilterSelectChange, initValue }) => {
             Filters
           </InputLabel>
           <Select
-            labelId="demo-simple-select-helper-label"
-            id="demo-simple-select-helper"
+            id={`filterSelect${parent}`}
             multiple
             value={initValue || []}
             label="Select photometry filter"

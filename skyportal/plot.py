@@ -21,7 +21,6 @@ from bokeh.models import (
     Legend,
     LegendItem,
     Dropdown,
-    Label,
 )
 from bokeh.models.widgets import (
     CheckboxGroup,
@@ -479,6 +478,7 @@ def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
     #         legend_loc,
     #     )
 
+
 def get_photometry_button_callback(info, model_dict):
     return CustomJS(
         args={'info': info, 'model_dict': model_dict},
@@ -540,21 +540,21 @@ def make_show_and_hide_photometry_buttons(model_dict, user):
     Returns
     -------
     bokeh row object
-    """  
+    """
     col = column(width_policy="min")
-    first_row = row(children=[
+    first_row = row(
+        children=[
             make_show_all_photometry_button(model_dict),
             make_hide_photometry_button(model_dict),
-        ], sizing_mode="scale_width"
-    ) 
+        ],
+        sizing_mode="scale_width",
+    )
     col.children.append(first_row)
     if user.preferences and "photometryButtons" in user.preferences:
         photometry_buttons = list(user.preferences["photometryButtons"].items())
         for name, info in photometry_buttons:
             btn = Button(label=f"Show {name}", width_policy="min")
-            btn.js_on_click(
-                get_photometry_button_callback(info, model_dict)
-            )
+            btn.js_on_click(get_photometry_button_callback(info, model_dict))
             first_row.children.append(btn)
     return col
 
@@ -581,8 +581,9 @@ def add_axis_labels(plot, panel_name):
     plot.xaxis.axis_label = axis_label_dict[panel_name]['x']
     plot.yaxis.axis_label = axis_label_dict[panel_name]['y']
 
+
 def check_visibility_on_phot_plot(user, show_all_filters, show_all_origins, label):
-    """Function to check if a photometry point should be displayed on the plot in accordance with the user's photometry plotting preferences. 
+    """Function to check if a photometry point should be displayed on the plot in accordance with the user's photometry plotting preferences.
 
     Parameters
     ----------
@@ -595,18 +596,26 @@ def check_visibility_on_phot_plot(user, show_all_filters, show_all_origins, labe
     label : str
         Label of the photometry containing instrument, filter, and origin such as 'ZTF/ztfg/Muphoten'
     """
-    if (show_all_filters and show_all_origins):
+    if show_all_filters and show_all_origins:
         return True
     split = label.split('/')
     filter = split[1]
     origin = None
     if len(split) == 3:
         origin = split[2]
-    visible = False 
+    visible = False
     if user.preferences:
-        if (("automaticallyVisibleFilters" in user.preferences) and (filter in user.preferences['automaticallyVisibleFilters'])) or (origin and ('automaticallyVisibleOrigins' in user.preferences) and (origin in user.preferences['automaticallyVisibleOrigins'])):
-            visible = True 
+        if (
+            ("automaticallyVisibleFilters" in user.preferences)
+            and (filter in user.preferences['automaticallyVisibleFilters'])
+        ) or (
+            origin
+            and ('automaticallyVisibleOrigins' in user.preferences)
+            and (origin in user.preferences['automaticallyVisibleOrigins'])
+        ):
+            visible = True
     return visible
+
 
 def make_scatter(
     plot,
@@ -624,7 +633,7 @@ def make_scatter(
     instruments,
     user,
     show_all_filters,
-    show_all_origins
+    show_all_origins,
 ):
     """Adds a scatter plot to a bokeh Figure object.
     Parameters
@@ -670,8 +679,10 @@ def make_scatter(
     key = f'{split[1]}~{split[2] if len(split) == 3 else "None"}~{name}{i}'
     size = 4
     if user.preferences and "photometryDataPointSize" in user.preferences:
-        size = int(float(user.preferences["photometryDataPointSize"]))
-    visible = check_visibility_on_phot_plot(user, show_all_filters, show_all_origins, label)
+        size = int(user.preferences["photometryDataPointSize"])
+    visible = check_visibility_on_phot_plot(
+        user, show_all_filters, show_all_origins, label
+    )
     model_dict[key] = plot.scatter(
         x=x,
         y=y,
@@ -688,7 +699,18 @@ def make_scatter(
     imhover.renderers.append(model_dict[key])
 
 
-def make_multi_line(plot, model_dict, name, i, label, data_source, renderers, user, show_all_filters, show_all_origins):
+def make_multi_line(
+    plot,
+    model_dict,
+    name,
+    i,
+    label,
+    data_source,
+    renderers,
+    user,
+    show_all_filters,
+    show_all_origins,
+):
     """Adds a multi-line plot to a bokeh Figure object.
     Parameters
     ----------
@@ -718,7 +740,9 @@ def make_multi_line(plot, model_dict, name, i, label, data_source, renderers, us
     """
     split = label.split('/')
     key = f'{split[1]}~{split[2] if len(split) == 3 else "None"}~{name}{i}'
-    visible = check_visibility_on_phot_plot(user, show_all_filters, show_all_origins, label)
+    visible = check_visibility_on_phot_plot(
+        user, show_all_filters, show_all_origins, label
+    )
     model_dict[key] = plot.multi_line(
         xs='xs',
         ys='ys',
@@ -877,7 +901,7 @@ def make_legend_items_and_detection_lines(
     # I don't care about None.
     if 'None' in unique_origins:
         unique_origins.remove('None')
-    
+
     show_all_filters = True
     show_all_origins = True
 
@@ -954,7 +978,7 @@ def make_legend_items_and_detection_lines(
                     instruments,
                     user,
                     show_all_filters,
-                    show_all_origins
+                    show_all_origins,
                 )
             make_multi_line(
                 plot,
@@ -974,9 +998,9 @@ def make_legend_items_and_detection_lines(
                     )
                 ),
                 renderers,
-                user, 
+                user,
                 show_all_filters,
-                show_all_origins
+                show_all_origins,
             )
             make_multi_line(
                 plot,
@@ -986,9 +1010,9 @@ def make_legend_items_and_detection_lines(
                 label,
                 ColumnDataSource(data=dict(xs=[], ys=[], color=[])),
                 renderers,
-                user, 
+                user,
                 show_all_filters,
-                show_all_origins
+                show_all_origins,
             )
         elif panel_name == 'period':
             for ph in ['a', 'b']:
@@ -1009,7 +1033,7 @@ def make_legend_items_and_detection_lines(
                     instruments,
                     user,
                     show_all_filters,
-                    show_all_origins
+                    show_all_origins,
                 )
                 make_multi_line(
                     plot,
@@ -1028,7 +1052,7 @@ def make_legend_items_and_detection_lines(
                     renderers,
                     user,
                     show_all_filters,
-                    show_all_origins
+                    show_all_origins,
                 )
         else:
             raise ValueError("Panel name should be one of mag, flux, and period.")

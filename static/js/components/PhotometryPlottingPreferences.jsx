@@ -5,18 +5,18 @@ import SetAutomaticallyVisiblePhotometry from "./SetAutomaticallyVisiblePhotomet
 import PhotometryButtonsForm from "./PhotometryButtonsForm";
 import DataPointSizeForm from "./DataPointSizeForm";
 
-const PhotometryPlottingPreferences = () => {
-  return (
-    <div>
+const PhotometryPlottingPreferences = () => (
+  <div>
+    <div style={{ paddingBottom: "1rem" }}>
       <UserPreferencesHeader
         variant="h5"
         title="Photometry Plotting Preferences"
       />
-      <SetAutomaticallyVisiblePhotometry />
-      <PhotometryButtonsForm />
-      <DataPointSizeForm />
     </div>
-  );
-};
+    <SetAutomaticallyVisiblePhotometry />
+    <PhotometryButtonsForm />
+    <DataPointSizeForm />
+  </div>
+);
 
 export default PhotometryPlottingPreferences;

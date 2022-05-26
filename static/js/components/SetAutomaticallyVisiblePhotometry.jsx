@@ -1,6 +1,5 @@
 import { makeStyles } from "@material-ui/core";
 import React from "react";
-import { useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
 import FilterSelect from "./FilterSelect";
 import OriginSelect from "./OriginSelect";
@@ -18,7 +17,6 @@ const SetAutomaticallyVisiblePhotometry = () => {
   const dispatch = useDispatch();
   const { automaticallyVisibleFilters, automaticallyVisibleOrigins } =
     useSelector((state) => state.profile.preferences);
-  console.log(automaticallyVisibleFilters) 
   const onFilterSelectChange = (event) => {
     const prefs = {
       automaticallyVisibleFilters: event.target.value.includes(
@@ -39,6 +37,7 @@ const SetAutomaticallyVisiblePhotometry = () => {
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
+  const parent = "AutomaticallyVisiblePhotometry";
   return (
     <div>
       <UserPreferencesHeader
@@ -49,10 +48,12 @@ const SetAutomaticallyVisiblePhotometry = () => {
         <FilterSelect
           onFilterSelectChange={onFilterSelectChange}
           initValue={automaticallyVisibleFilters}
+          parent={parent}
         />
         <OriginSelect
           onOriginSelectChange={onOriginSelectChange}
           initValue={automaticallyVisibleOrigins}
+          parent={parent}
         />
       </div>
     </div>

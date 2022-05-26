@@ -1,6 +1,5 @@
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
@@ -22,7 +21,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const OriginSelect = ({ onOriginSelectChange, initValue }) => {
+const OriginSelect = ({ onOriginSelectChange, initValue, parent }) => {
   const classes = useStyles();
   const origins = ["Clear selections", "Muphoten", "STDpipe"];
 
@@ -47,7 +46,7 @@ const OriginSelect = ({ onOriginSelectChange, initValue }) => {
           <InputLabel id="select-origin-label">Origin</InputLabel>
           <Select
             labelId="select-origin-label"
-            id="select-origin-label"
+            id={`originSelect${parent}`}
             multiple
             value={initValue || []}
             label="Select origin"
