@@ -1,6 +1,6 @@
-import { makeStyles } from "@material-ui/core";
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { makeStyles } from "@material-ui/core";
 import FilterSelect from "./FilterSelect";
 import OriginSelect from "./OriginSelect";
 import UserPreferencesHeader from "./UserPreferencesHeader";

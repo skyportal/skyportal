@@ -27,7 +27,16 @@ import ObservabilityPreferences from "./ObservabilityPreferences";
 import PhotometryPlottingPreferences from "./PhotometryPlottingPreferences";
 import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
 
+import { makeStyles } from "@material-ui/core";
+
+const useStyles = makeStyles(() => ({
+  spacing: {
+    paddingBottom: 0,
+  },
+}));
+
 const UpdateProfileForm = () => {
+  const classes = useStyles();
   const profile = useSelector((state) => state.profile);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -178,7 +187,7 @@ const UpdateProfileForm = () => {
         <CardContent>
           <ObservabilityPreferences />
         </CardContent>
-        <CardContent style={{ paddingBottom: 0 }}>
+        <CardContent className={classes.spacing}>
           <ClassificationsShortcutForm />
         </CardContent>
         <CardContent>

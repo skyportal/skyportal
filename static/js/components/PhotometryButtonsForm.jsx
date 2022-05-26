@@ -66,10 +66,15 @@ const PhotometryButtonsForm = () => {
     };
     dispatch(profileActions.updateUserPreferences(prefs));
   };
+
   const parent = "PhotometryButtonsForm";
+
   return (
     <div>
-      <UserPreferencesHeader title="Photometry Buttons" />
+      <UserPreferencesHeader
+        title="Photometry Buttons"
+        popupText="Select a group of filters and origins, give them a common name, and a button will appear on photometry plots for showing those filters/origins on the plot. The button will not hide the points already visible on the plot, it will only add the selected filters/origins to the visible points."
+      />
       <div className={classes.form}>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div>
