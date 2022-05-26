@@ -23,6 +23,11 @@ def upgrade():
             'needs_replacement', sa.Boolean(), nullable=False, server_default='False'
         ),
     )
+    op.execute(
+        """
+alter table "public"."shift_users" alter column "needs_replacement" drop default;
+"""
+    )
     # ### end Alembic commands ###
 
 
