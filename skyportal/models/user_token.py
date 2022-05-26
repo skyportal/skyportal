@@ -92,6 +92,7 @@ User.groups = relationship(
     secondary='group_users',
     back_populates='users',
     passive_deletes=True,
+    lazy='selectin',
     doc="The Groups this User is a member of.",
 )
 User.shifts = relationship(
@@ -252,7 +253,8 @@ def delete_single_user_group(mapper, connection, target):
     # Delete single-user group
     @event.listens_for(DBSession(), "after_flush_postexec", once=True)
     def receive_after_flush(session, context):
-        DBSession().delete(single_user_group)
+        if single_user_group:
+            DBSession().delete(single_user_group)
 
 
 @event.listens_for(User, 'after_update')

@@ -953,8 +953,11 @@ class PhotometryHandler(BaseHandler):
         # The full docstring/API spec is below as an f-string
 
         phot = Photometry.get_if_accessible_by(
-            photometry_id, self.current_user, raise_if_none=True
+            photometry_id, self.current_user, raise_if_none=False
         )
+
+        if phot is None:
+            return self.error(f'Cannot find photometry point with ID: {photometry_id}.')
 
         # get the desired output format
         format = self.get_query_argument('format', 'mag')
@@ -1000,8 +1003,11 @@ class PhotometryHandler(BaseHandler):
             return self.error('Photometry id must be an int.')
 
         photometry = Photometry.get_if_accessible_by(
-            photometry_id, self.current_user, mode="update", raise_if_none=True
+            photometry_id, self.current_user, mode="update", raise_if_none=False
         )
+
+        if photometry is None:
+            return self.error(f'Cannot find photometry point with ID: {photometry_id}.')
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
@@ -1043,8 +1049,14 @@ class PhotometryHandler(BaseHandler):
         # Update streams, if relevant
         if stream_ids is not None:
             streams = Stream.get_if_accessible_by(
-                stream_ids, self.current_user, raise_if_none=True
+                stream_ids, self.current_user, raise_if_none=False
             )
+
+            if streams is None:
+                return self.error(
+                    f'Cannot find a stream with one of these IDs: {stream_ids}.'
+                )
+
             # Add new stream_photometry rows if not already present
             for stream in streams:
                 if (
@@ -1089,8 +1101,11 @@ class PhotometryHandler(BaseHandler):
                 schema: Error
         """
         photometry = Photometry.get_if_accessible_by(
-            photometry_id, self.current_user, mode="delete", raise_if_none=True
+            photometry_id, self.current_user, mode="delete", raise_if_none=False
         )
+
+        if photometry is None:
+            return self.error(f'Cannot find photometry point with ID: {photometry_id}.')
 
         DBSession().delete(photometry)
         self.verify_and_commit()

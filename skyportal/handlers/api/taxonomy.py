@@ -163,8 +163,10 @@ class TaxonomyHandler(BaseHandler):
             return self.error("Hierarchy does not validate against the schema.")
 
         # establish the groups to use
+
         user_group_ids = [g.id for g in self.current_user.groups]
         user_accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
+
         group_ids = data.pop("group_ids", user_group_ids)
         if group_ids == []:
             group_ids = user_group_ids
