@@ -90,9 +90,9 @@ class Telescope(Base):
                     timezone=local_tz,
                 )
 
-            except Exception:
+            except Exception as e:
                 log(
-                    f'Telescope {self.id} ("{self.name}") cannot calculate an observer.'
+                    f'Telescope {self.id} ("{self.name}") cannot calculate an observer: {e}'
                 )
                 return None
 
