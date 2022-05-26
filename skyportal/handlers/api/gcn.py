@@ -33,7 +33,7 @@ log = make_log('api/gcn_event')
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 
-def post_gcnevent(payload, user_id):
+def post_gcnevent(payload, user_id, session=Session()):
     """Post GcnEvent to database.
     payload: str
         VOEvent readable string
@@ -41,12 +41,17 @@ def post_gcnevent(payload, user_id):
         SkyPortal ID of User posting the GcnEvent
     """
 
-    user = User.query.get(user_id)
+    user = session.query(User).get(user_id)
 
     schema = f'{os.path.dirname(__file__)}/../../utils/schema/VOEvent-v2.0.xsd'
     voevent_schema = xmlschema.XMLSchema(schema)
     if voevent_schema.is_valid(payload):
-        root = lxml.etree.fromstring(payload.encode('ascii'))
+        # check if is string
+        try:
+            payload = payload.encode('ascii')
+        except AttributeError:
+            pass
+        root = lxml.etree.fromstring(payload)
     else:
         raise ValueError("xml file is not valid VOEvent")
 
@@ -62,7 +67,7 @@ def post_gcnevent(payload, user_id):
 
     except NoResultFound:
         event = GcnEvent(dateobs=dateobs, sent_by_id=user.id)
-        DBSession().add(event)
+        session.add(event)
 
     tags = [
         GcnTag(
@@ -74,7 +79,7 @@ def post_gcnevent(payload, user_id):
     ]
 
     gcn_notice = GcnNotice(
-        content=payload.encode('ascii'),
+        content=payload,
         ivorn=root.attrib['ivorn'],
         notice_type=gcn.get_notice_type(root),
         stream=urlparse(root.attrib['ivorn']).path.lstrip('/'),
@@ -84,8 +89,8 @@ def post_gcnevent(payload, user_id):
     )
 
     for tag in tags:
-        DBSession().add(tag)
-    DBSession().add(gcn_notice)
+        session.add(tag)
+    session.add(gcn_notice)
 
     skymap = get_skymap(root, gcn_notice)
     if skymap is None:
@@ -107,8 +112,8 @@ def post_gcnevent(payload, user_id):
         )
     except NoResultFound:
         localization = Localization(**skymap)
-        DBSession().add(localization)
-        DBSession().commit()
+        session.add(localization)
+        session.commit()
 
         log(f"Generating tiles/contours for localization {localization.id}")
 
