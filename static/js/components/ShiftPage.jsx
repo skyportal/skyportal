@@ -123,7 +123,7 @@ const ShiftPage = ({ route }) => {
             ) : null)}
         </Paper>
         <Paper elevation={1}>
-          <CommentOnShift associatedResourceType="shift" />
+          <CommentOnShift />
         </Paper>
         {permission && (
           <Paper>

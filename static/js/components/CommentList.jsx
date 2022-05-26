@@ -161,7 +161,6 @@ const CommentList = ({
   objID = null,
   spectrumID = null,
   gcnEventID = null,
-  shiftID = null,
   includeCommentsOnAllResourceTypes = true,
 }) => {
   const styles = useStyles();
@@ -200,9 +199,9 @@ const CommentList = ({
   if (!gcnEventID && gcnEvent) {
     gcnEventID = gcnEvent.id;
   }
-
+  let shift_id = null;
   if (currentShift) {
-    shiftID = currentShift.id;
+    shift_id = currentShift.id;
   }
 
   const addComment = (formData) => {
@@ -227,7 +226,7 @@ const CommentList = ({
   const addShiftComment = (formData) => {
     dispatch(
       shiftActions.addCommentOnShift({
-        shift_id: shiftID,
+        shift_id,
         ...formData,
       })
     );
@@ -262,7 +261,7 @@ const CommentList = ({
     }
     comments = gcnEvent.comments;
   } else if (associatedResourceType === "shift") {
-    if (shiftID === null) {
+    if (shift_id === null) {
       throw new Error("Must specify a shiftID for comments on shift");
     }
     comments = currentShift?.comments;
@@ -304,8 +303,8 @@ const CommentList = ({
     dispatch(gcnEventActions.deleteCommentOnGcnEvent(gcnID, commentID));
   };
 
-  const deleteCommentOnShift = (commentID) => {
-    dispatch(shiftActions.deleteCommentOnShift(commentID));
+  const deleteCommentOnShift = (shiftID, commentID) => {
+    dispatch(shiftActions.deleteCommentOnShift(shiftID, commentID));
   };
 
   const emojiSupport = (text) =>
@@ -419,7 +418,7 @@ const CommentList = ({
                             color="primary"
                             type="button"
                             name={`deleteCommentButtonShift${id}`}
-                            onClick={() => deleteCommentOnShift(id)}
+                            onClick={() => deleteCommentOnShift(shift_id, id)}
                             className="commentDelete"
                           >
                             <CloseIcon fontSize="small" />
@@ -530,7 +529,7 @@ const CommentList = ({
                             color="primary"
                             type="button"
                             name={`deleteCommentButtonShift${id}`}
-                            onClick={() => deleteCommentOnShift(id)}
+                            onClick={() => deleteCommentOnShift(shift_id, id)}
                             className="commentDelete"
                           >
                             <CloseIcon fontSize="small" />
@@ -610,7 +609,7 @@ const CommentList = ({
                         associatedResourceType === "shift" && (
                           <CommentAttachmentPreview
                             filename={attachment_name}
-                            shiftID={shiftID}
+                            shiftID={shift_id}
                             commentId={id}
                             associatedResourceType="shift"
                           />
@@ -630,7 +629,7 @@ const CommentList = ({
       {permissions.indexOf("Comment") >= 0 && gcnEventID && (
         <CommentEntry addComment={addGcnEventComment} />
       )}
-      {permissions.indexOf("Comment") >= 0 && shiftID && (
+      {permissions.indexOf("Comment") >= 0 && shift_id && (
         <CommentEntry addComment={addShiftComment} />
       )}
     </div>
@@ -641,7 +640,6 @@ CommentList.propTypes = {
   isCandidate: PropTypes.bool,
   objID: PropTypes.string,
   gcnEventID: PropTypes.number,
-  shiftID: PropTypes.number,
   associatedResourceType: PropTypes.string,
   spectrumID: PropTypes.number,
   includeCommentsOnAllResourceTypes: PropTypes.bool,
@@ -651,7 +649,6 @@ CommentList.defaultProps = {
   isCandidate: false,
   objID: null,
   gcnEventID: null,
-  shiftID: null,
   associatedResourceType: "object",
   spectrumID: null,
   includeCommentsOnAllResourceTypes: true,
