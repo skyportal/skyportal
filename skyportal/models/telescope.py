@@ -139,7 +139,7 @@ class Telescope(Base):
         with warnings.catch_warnings():
             # for telescopes above the arcric circle (or below antarctic circle)
             # there is no morning nautical twilight
-            # so it would return a MaskedArray and spew a warning.
+            # so this returns a MaskedArray and raises a warning.
             warnings.simplefilter("ignore")
             t = observer.twilight_morning_nautical(time, which='next')
             if isinstance(t.value, np.ma.core.MaskedArray):
