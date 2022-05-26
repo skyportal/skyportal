@@ -51,7 +51,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const GcnSelectionForm = ({ gcnEvent }) => {
+const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -116,6 +116,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
       const { data } = result;
       setSelectedInstrumentId(data[0]?.id);
       setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
+      setSelectedLocalizationName(gcnEvent.localizations[0]?.localization_name);
     };
 
     getInstruments();
@@ -249,6 +250,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
 
   const handleSelectedLocalizationChange = (e) => {
     setSelectedLocalizationId(e.target.value);
+    setSelectedLocalizationName(locLookUp[e.target.value].localization_name);
   };
 
   function createUrl(instrumentId, queryParams) {
@@ -472,5 +474,6 @@ GcnSelectionForm.propTypes = {
     ),
     id: PropTypes.number,
   }).isRequired,
+  setSelectedLocalizationName: PropTypes.func.isRequired,
 };
 export default GcnSelectionForm;
