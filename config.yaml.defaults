@@ -527,6 +527,7 @@ spectrum_types:
 #    transmission: [0, 1, 1, 0]
 #    description: "basic ATLAS O filter - tophat transmission"
 
-default_role: 'Full user'
-default_groups: []
-default_acls: []
+user:
+  default_role: 'Full user'
+  default_groups: ['Grandma']
+  default_acls: ['Manage shifts']
