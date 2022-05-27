@@ -1,23 +1,15 @@
-import yaml
-
 import gcn
 
 from baselayer.log import make_log
+from baselayer.app.models import init_db
+from baselayer.app.env import load_env
 
-from skyportal.tests import api
+from skyportal.handlers.api.gcn import post_gcnevent
+from skyportal.models import DBSession
 
+env, cfg = load_env()
 
-def get_token():
-    try:
-        token = yaml.load(open('.tokens.yaml'), Loader=yaml.Loader)['INITIAL_ADMIN']
-        print('Token loaded from `.tokens.yaml`')
-        return token
-    except (FileNotFoundError, TypeError, KeyError):
-        print('Error: no token specified, and no suitable token found in .tokens.yaml')
-        return None
-
-
-admin_token = get_token()
+init_db(**cfg['database'])
 
 
 @gcn.include_notice_types(
@@ -36,9 +28,10 @@ admin_token = get_token()
     gcn.NoticeType.ICECUBE_ASTROTRACK_BRONZE,
 )
 def handle(payload, root):
-    response_status, data = api(
-        'POST', 'gcn_event', data={'xml': payload}, token=admin_token
-    )
+
+    user_id = 1
+    with DBSession() as session:
+        post_gcnevent(payload, user_id, session)
 
 
 if __name__ == "__main__":
