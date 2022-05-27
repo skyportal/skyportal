@@ -5,9 +5,7 @@ from baselayer.app.models import init_db
 from baselayer.app.env import load_env
 
 from skyportal.handlers.api.gcn import post_gcnevent
-from skyportal.models import (
-    DBSession,
-)
+from skyportal.models import DBSession
 
 env, cfg = load_env()
 
