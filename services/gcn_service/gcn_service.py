@@ -34,9 +34,9 @@ Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"])
 )
 def handle(payload, root):
 
-    session = Session()
     user_id = 1
-    post_gcnevent(payload, user_id, session)
+    with Session() as session:
+        post_gcnevent(payload, user_id, session)
 
 
 if __name__ == "__main__":
