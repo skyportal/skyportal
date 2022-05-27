@@ -58,7 +58,7 @@ def test_group_admission_read_access(
         token=upload_data_token,
     )
     assert status == 400
-    assert "Cannot find GroupAdmissionRequest with id" in data["message"]
+    assert "Could not find an admission request with the ID" in data["message"]
 
 
 # test get doesn't exist
@@ -70,7 +70,7 @@ def test_group_admission_read_nonexistent(upload_data_token):
         token=upload_data_token,
     )
     assert status == 400
-    assert "Cannot find GroupAdmissionRequest with id" in data["message"]
+    assert "Could not find an admission request with the ID" in data["message"]
 
 
 # test post for someone not me

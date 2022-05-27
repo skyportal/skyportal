@@ -199,7 +199,7 @@ class ClassificationHandler(BaseHandler):
         data = self.get_json()
         obj_id = data['obj_id']
 
-        user_group_ids = [g.id for g in self.current_user.groups]
+        user_group_ids = [g.id for g in self.current_user.accessible_groups]
         group_ids = data.pop("group_ids", user_group_ids)
 
         author = self.associated_user_object
