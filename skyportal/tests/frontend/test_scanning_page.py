@@ -6,6 +6,7 @@ from selenium.webdriver import ActionChains
 from skyportal.tests import api
 
 from tdtax import taxonomy, __version__
+from .test_profile import test_add_classification_shortcut
 
 
 @pytest.mark.flaky(reruns=2)
@@ -539,6 +540,9 @@ def test_candidate_classifications_filtering(
     # Clear old classification selection
     driver.click_xpath("//li[@data-value='Algol']", scroll_parent=True)
     driver.click_xpath("//li[@data-value='AGN']", scroll_parent=True)
+    # Click somewhere outside to remove focus from classification select
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
     driver.click_xpath('//span[text()="Search"]')
     # Should no longer see the classification
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}"]')
@@ -837,3 +841,58 @@ def test_user_without_save_access_cannot_save(
     )
     driver.scroll_to_element_and_click(save_button)
     driver.wait_for_xpath("//*[contains(.,'Insufficient permissions')]")
+
+
+def test_add_classification_on_scanning_page(
+    driver, user, public_group, taxonomy_token, public_filter, upload_data_token
+):
+    shortcut_name = test_add_classification_shortcut(
+        driver, user, public_group, taxonomy_token
+    )
+    driver.get(f"/become_user/{user.id}")
+    candidate_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "candidates",
+        data={
+            "id": f"{candidate_id}",
+            "ra": 234.22,
+            "dec": -22.33,
+            "redshift": 3,
+            "altdata": {"simbad": {"class": "RRLyr"}},
+            "transient": False,
+            "ra_dis": 2.3,
+            "passed_at": str(datetime.datetime.utcnow()),
+            "filter_ids": [public_filter.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    driver.get("/candidates")
+    group_checkbox = driver.wait_for_xpath(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    )
+    driver.scroll_to_element_and_click(group_checkbox)
+    submit_button = driver.wait_for_xpath('//span[text()="Search"]')
+    driver.scroll_to_element_and_click(submit_button)
+    save_button = driver.wait_for_xpath(
+        f'//button[@data-testid="saveCandidateButton_{candidate_id}"]'
+    )
+    driver.scroll_to_element_and_click(save_button)
+
+    add_classifications_button = driver.wait_for_xpath(
+        f'//button[@data-testid="addClassificationsButton_{candidate_id}"]'
+    )
+    driver.scroll_to_element_and_click(add_classifications_button)
+    shortcut_button = driver.wait_for_xpath(
+        f'//button[@data-testid="{shortcut_name}_inDialog"]'
+    )
+    driver.scroll_to_element_and_click(shortcut_button)
+    shortcut_button = driver.wait_for_xpath(
+        '//button[@data-testid="addClassificationsButtonInDialog"]'
+    )
+    driver.scroll_to_element_and_click(shortcut_button)
+
+    driver.get(f"/source/{candidate_id}")
+    driver.wait_for_xpath('//span[contains(text(), "AGN")]')
+    driver.wait_for_xpath('//span[contains(text(), "AM CVn")]')

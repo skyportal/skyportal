@@ -76,13 +76,18 @@ const FollowupRequestSelectionForm = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, setSelectedInstrumentId]);
 
+  if (!Array.isArray(followupRequestList)) {
+    return <p>Waiting for followup requests to load...</p>;
+  }
+
   if (
     instrumentList.length === 0 ||
     telescopeList.length === 0 ||
+    followupRequestList.length === 0 ||
     !selectedInstrumentId ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <p>No robotic followup requests for this source...</p>;
+    return <p>No robotic followup requests found...</p>;
   }
 
   const telLookUp = {};

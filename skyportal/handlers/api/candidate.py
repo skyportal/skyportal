@@ -56,24 +56,25 @@ Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"])
 
 
 def add_linked_thumbnails_and_push_ws_msg(obj_id, user_id):
-    session = Session()
-    try:
-        user = session.query(User).get(user_id)
-        if Obj.get_if_accessible_by(obj_id, user) is None:
-            raise AccessError(
-                f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+    with Session() as session:
+        try:
+            user = session.query(User).get(user_id)
+            if Obj.get_if_accessible_by(obj_id, user) is None:
+                raise AccessError(
+                    f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+                )
+            obj = session.query(Obj).get(obj_id)
+            obj.add_linked_thumbnails(session=session)
+            flow = Flow()
+            flow.push(
+                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
             )
-        obj = session.query(Obj).get(obj_id)
-        obj.add_linked_thumbnails(session=session)
-        flow = Flow()
-        flow.push(
-            '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-        )
-        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
-    except Exception as e:
-        log(f"Unable to add linked thumbnails to {obj_id}: {e}")
-    finally:
-        Session.remove()
+            flow.push(
+                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            )
+        except Exception as e:
+            log(f"Unable to add linked thumbnails to {obj_id}: {e}")
+            session.rollback()
 
 
 def update_redshift_history_if_relevant(request_data, obj, user):
@@ -1039,12 +1040,11 @@ class CandidateHandler(BaseHandler):
                 f"Failed to post candidate for object {obj.id}: {e.args[0]}"
             )
 
+        calling_user_id = self.associated_user_object.id
         if not obj_already_exists:
             IOLoop.current().run_in_executor(
                 None,
-                lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj.id, self.associated_user_object.id
-                ),
+                lambda: add_linked_thumbnails_and_push_ws_msg(obj.id, calling_user_id),
             )
 
         return self.success(data={"ids": [c.id for c in candidates]})

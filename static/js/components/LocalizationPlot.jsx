@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import CircularProgress from "@material-ui/core/CircularProgress";
 
+import { makeStyles } from "@material-ui/core/styles";
 import * as d3 from "d3";
 import d3GeoZoom from "d3-geo-zoom";
 // eslint-disable-next-line
@@ -10,6 +11,12 @@ import GeoPropTypes from "geojson-prop-types";
 
 import * as localizationActions from "../ducks/localization";
 
+const useStyles = makeStyles(() => ({
+  fieldStyle: {
+    stroke: "blue",
+    strokeWidth: "0.5",
+  },
+}));
 const LocalizationPlot = ({
   loc,
   sources,
@@ -214,12 +221,12 @@ const GeoJSONGlobePlot = ({
   height,
   width,
 }) => {
+  const classes = useStyles();
   function renderMap(svg, svgheight, svgwidth, data) {
     const center = [svgwidth / 2, svgheight / 2];
     const projection = d3.geoOrthographic().translate(center).scale(100);
     const geoGenerator = d3.geoPath().projection(projection);
     const graticule = d3.geoGraticule();
-
     // Draw text labels
     const translate = (d) => {
       const coord = projection(d.geometry.coordinates);
@@ -237,6 +244,22 @@ const GeoJSONGlobePlot = ({
 
       // In front of globe?
       return gdistance < 1.57;
+    };
+
+    const filtersToColor = (filters) => {
+      const filterStr = filters.join("");
+      let hash = 0;
+      for (let i = 0; i < filterStr.length; i += 1) {
+        // eslint-disable-next-line no-bitwise
+        hash = filterStr.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      let color = "#";
+      for (let i = 0; i < 3; i += 1) {
+        // eslint-disable-next-line no-bitwise
+        const value = (hash >> (i * 8)) & 0xff;
+        color += `00${value.toString(16)}`.substr(-2);
+      }
+      return color;
     };
 
     function refresh() {
@@ -303,6 +326,35 @@ const GeoJSONGlobePlot = ({
           .attr("r", 3);
       }
 
+      if (data.instrument?.fields && data.options.instrument) {
+        const filterColor = filtersToColor(data.instrument?.filters);
+        data.instrument.fields.forEach((f) => {
+          const { field_id } = f.contour_summary.properties;
+          const { features } = f.contour_summary;
+          svg
+            .data(features)
+            .append("path")
+            .attr("class", field_id)
+            .classed(classes.fieldStyle, true)
+            .style("fill", f.selected ? filterColor : "white")
+            .attr("d", geoGenerator)
+            .on("click", () => {
+              if (f.selected) {
+                f.selected = false;
+              } else {
+                f.selected = true;
+              }
+              refresh();
+            })
+            .append("title")
+            .text(
+              `ra: ${f.ra} \ndec: ${
+                f.dec
+              } \nfilters: ${data.instrument.filters.join(", ")}`
+            );
+        });
+      }
+
       if (data.galaxies?.features && data.options.galaxies) {
         svg
           .selectAll(".label")
@@ -328,25 +380,15 @@ const GeoJSONGlobePlot = ({
           .data(galaxies.features)
           .enter()
           .append("circle")
-          .attr("fill", (d) => (visibleOnSphere(d) ? "red" : "none"))
+          .attr("fill", (d) => (visibleOnSphere(d) ? "green" : "none"))
           .attr("cx", x)
           .attr("cy", y)
-          .attr("r", 3);
-      }
-
-      if (data.instrument?.fields && data.options.instrument) {
-        data.instrument.fields.forEach((f) => {
-          const { field_id } = f.contour_summary.properties;
-          const { features } = f.contour_summary;
-          svg
-            .data(features)
-            .append("path")
-            .attr("class", field_id)
-            .style("fill", "none")
-            .style("stroke", "blue")
-            .style("stroke-width", "0.5px")
-            .attr("d", geoGenerator);
-        });
+          .attr("r", 3)
+          .append("title")
+          .text(
+            (d) =>
+              `coordinates: ${d.geometry.coordinates[0]}, ${d.geometry.coordinates[1]}`
+          );
       }
 
       if (data.observations && data.options.observations) {
@@ -357,10 +399,18 @@ const GeoJSONGlobePlot = ({
             .data(features)
             .append("path")
             .attr("class", field_id)
-            .style("fill", "none")
+            .style("fill", f.selected ? "red" : "white")
             .style("stroke", "blue")
             .style("stroke-width", "0.5px")
-            .attr("d", geoGenerator);
+            .attr("d", geoGenerator)
+            .on("click", () => {
+              if (f.selected) {
+                f.selected = false;
+              } else {
+                f.selected = true;
+              }
+              refresh();
+            });
         });
       }
     }

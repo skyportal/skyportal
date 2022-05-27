@@ -11,7 +11,7 @@ import Input from "@material-ui/core/Input";
 const useStyles = makeStyles((theme) => ({
   formControl: {
     marginTop: theme.spacing(1),
-    minWidth: 120,
+    minWidth: 150,
   },
   chips: {
     display: "flex",

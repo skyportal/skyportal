@@ -2,7 +2,7 @@
 
 ## License
 
-SkyPortal is released under the Modified BSD license, which means that you are allowed to modify the code for your own purposes, as long as you retain our [copyright notice](https://github.com/skyportal/skyportal/blob/master/LICENSE.txt).
+SkyPortal is released under the Modified BSD license, which means that you are allowed to modify the code for your own purposes, as long as you retain our [copyright notice](https://github.com/skyportal/skyportal/blob/main/LICENSE.txt).
 
 However, we would love to grow the SkyPortal community, and integrate improvements directly into our [code repository on GitHub](https://github.com/skyportal/skyportal).
 
@@ -91,7 +91,7 @@ possible:
 ### Focused PRs
 
 In SkyPortal, we squash all PRs before merging them.  Because of this,
-it is okay to merge the master branch into your branch, instead of
+it is okay to merge the main branch into your branch, instead of
 rebasing.
 
 The resulting squashed commit should deal with one topic only.  For
@@ -128,7 +128,7 @@ Sometimes, you are working on a feature that is large enough that it
 spans several sequential PRs.  In this case, each branch will depend
 on the previous, so you may have:
 
-- `part-1` (based on master)
+- `part-1` (based on main)
 - `part-2` (based on feature-part-1)
 - `part-3` (based on feature-part-2)
 
@@ -140,5 +140,5 @@ branch, and direct reviewers there.
 ## Git tips
 
 - `git reflog` shows you the history of branch switches
-- `git reset origin/master && git add --all` squashes your branch into a single commit
+- `git reset origin/main && git add --all` squashes your branch into a single commit
 - `git add -p` adds only certain changes inside a file

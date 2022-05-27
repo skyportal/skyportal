@@ -24,7 +24,7 @@ import * as gcnEventActions from "../ducks/gcnEvent";
 const useStyles = makeStyles((theme) => ({
   linkButton: {
     textDecoration: "none",
-    color: theme.palette.info.main,
+    color: theme.palette.info.dark,
     fontWeight: "bold",
     verticalAlign: "baseline",
     backgroundColor: "transparent",
@@ -124,10 +124,18 @@ const CommentAttachmentPreview = ({
   const theme = useTheme();
   const darkTheme = theme.palette.type === "dark";
 
+  function resourceType(state) {
+    let type = "";
+    if (associatedResourceType === "gcn_event") {
+      type = state.gcnEvent.commentAttachment;
+    } else {
+      type = state.source.commentAttachment;
+    }
+    return type;
+  }
+
   const dispatch = useDispatch();
-  const commentAttachment = useSelector(
-    (state) => state.source.commentAttachment
-  );
+  const commentAttachment = useSelector((state) => resourceType(state));
   const cachedAttachmentCommentId = commentAttachment
     ? commentAttachment.commentId
     : null;
@@ -149,7 +157,9 @@ const CommentAttachmentPreview = ({
 
   let jsonFile = {};
   try {
-    jsonFile = isCached ? JSON.parse(commentAttachment.attachment) : {};
+    jsonFile = isCached
+      ? JSON.parse(Object.entries(commentAttachment)[1][1])
+      : {};
   } catch (e) {
     jsonFile = {
       "JSON Preview Parsing Error": `${e.message}. Please download the file if you want to inspect it.`,
@@ -158,20 +168,28 @@ const CommentAttachmentPreview = ({
 
   if (fileType.toLowerCase() === "json" && !isCached && open) {
     if (associatedResourceType === "sources") {
-      dispatch(sourceActions.getCommentAttachment(objectID, commentId));
+      dispatch(sourceActions.getCommentAttachmentPreview(objectID, commentId));
     } else if (associatedResourceType === "spectra") {
       dispatch(
-        sourceActions.getCommentOnSpectrumAttachment(objectID, commentId)
+        sourceActions.getCommentOnSpectrumAttachmentPreview(objectID, commentId)
       );
     } else if (associatedResourceType === "gcn_event") {
       dispatch(
-        gcnEventActions.getCommentOnGcnEventAttachment(gcnEventID, commentId)
+        gcnEventActions.getCommentOnGcnEventAttachmentPreview(
+          gcnEventID,
+          commentId
+        )
       );
     }
   }
 
+  let baseUrl = "";
   // The FilePreviewer expects a url ending with .pdf for PDF files
-  const baseUrl = `/api/${associatedResourceType}/${objectID}/comments/${commentId}/attachment`;
+  if (associatedResourceType === "gcn_event") {
+    baseUrl = `/api/${associatedResourceType}/${gcnEventID}/comments/${commentId}/attachment`;
+  } else {
+    baseUrl = `/api/${associatedResourceType}/${objectID}/comments/${commentId}/attachment`;
+  }
   const url = fileType === "pdf" ? `${baseUrl}.pdf` : baseUrl;
 
   return (

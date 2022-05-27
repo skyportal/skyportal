@@ -56,6 +56,8 @@ app:
 
   treasuremap_endpoint: http://treasuremap.space
 
+  tns_endpoint: https://sandbox.wis-tns.org
+
   # See https://stackoverflow.com/a/35604855 for syntax
   # These are Javascript component routes
   routes:
@@ -119,7 +121,9 @@ app:
     - path: "/instruments"
       component: InstrumentPage
     - path: "/shifts"
-      component: ShiftPage
+      component: ShiftNoId
+    - path: "/shifts/:id"
+      component: ShiftWithId
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -239,7 +243,7 @@ app:
     #
     # The props property should be a set of properties to be passed on to the
     # underlying React component for the widget. You may run into cases in which
-    # you must pass a more complex, dyamic property (perhaps fetched from the
+    # you must pass a more complex, dynamic property (perhaps fetched from the
     # application redux store). Since you can not know that in the time of the
     # configuration writing, such properties should be directly coded into the
     # HomePage.jsx.template file (see the GroupList widget for an example)
@@ -332,6 +336,16 @@ app:
         md: [8, 1, 2, 2]
         sm: [4.5, 1, 1.5, 2]
         xs: [0, 10, 4, 2]
+
+    NewSource:
+      resizeable: true
+      minW: 3
+      layouts:
+        xlg: [10, 0, 4, 3]
+        lg: [7, 0, 3, 3]
+        md: [0, 0, 8, 3]
+        sm: [0, 0, 4.5, 3]
+        xs: [0, 1, 4, 3]
 
 database:
   database: skyportal
@@ -431,8 +445,8 @@ external_logging:
     excluded_log_files: ["log/websocket_server.log"]
 
 cron:
-  - interval: 60
-    script: jobs/count_unsaved_candidates.py
+  # - interval: 60
+  #  script: jobs/count_unsaved_candidates.py
   # - interval: 1440
   #   script: jobs/delete_unsaved_candidates.py
   #   limit: ["01:00", "02:00"]

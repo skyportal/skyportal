@@ -3,7 +3,7 @@ name: API & frontend
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
 
 jobs:
@@ -36,11 +36,11 @@ jobs:
         with:
           python-version: "3.8"
 
-      - name: Checkout master
+      - name: Checkout main
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          ref: master
+          ref: main
           submodules: true
 
       - uses: actions/cache@v2
@@ -83,7 +83,7 @@ jobs:
         run: |
           curl -sL https://deb.nodesource.com/setup_17.x | sudo -E bash -
 
-          sudo apt install -y wget nodejs unzip firefox nginx
+          sudo apt install -y wget nodejs unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
           pip install pip==21.3.1
           pip install wheel numpy
@@ -152,7 +152,7 @@ jobs:
           make dependencies
 
       - name: Formatting and linting checks
-        if: ${{ github.ref != 'refs/heads/master' && matrix.test_subset == 'api_and_utils' }}
+        if: ${{ github.ref != 'refs/heads/main' && matrix.test_subset == 'api_and_utils' }}
         run: |
           pip install pre-commit
           pre-commit run --from-ref ${{ github.event.pull_request.base.sha }} --to-ref ${{ github.event.pull_request.head.sha }}

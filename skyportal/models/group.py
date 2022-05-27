@@ -374,6 +374,13 @@ class Group(Base):
         passive_deletes=True,
         doc="User requests to join this group.",
     )
+    tnsrobots = relationship(
+        'TNSRobot',
+        back_populates="group",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc="TNS Robots associated with this group.",
+    )
 
 
 GroupUser = join_model('group_users', Group, User)

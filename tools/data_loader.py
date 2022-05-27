@@ -257,6 +257,11 @@ if __name__ == "__main__":
             except KeyError:
                 continue
 
+            if "payload" in obj:
+                date_keys = ["start_date", "end_date"]
+                for key in date_keys:
+                    if key in obj["payload"]:
+                        obj["payload"][key] = obj["payload"][key].isoformat()
             status, response = post(endpoint, data=obj)
 
             print('.' if status == 200 else 'X', end='')

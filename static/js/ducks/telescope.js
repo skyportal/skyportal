@@ -10,6 +10,8 @@ const FETCH_TELESCOPE_OK = "skyportal/FETCH_TELESCOPE_OK";
 
 const SUBMIT_TELESCOPE = "skyportal/SUBMIT_TELESCOPE";
 
+const CURRENT_TELESCOPES_AND_MENU = "skyportal/CURRENT_TELESCOPES_AND_MENU";
+
 export const fetchTelescope = (id) =>
   API.GET(`/api/telescope/${id}`, FETCH_TELESCOPE);
 
@@ -27,10 +29,26 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer = (state = { assignments: [] }, action) => {
+const reducer = (
+  state = {
+    assignments: [],
+    currentTelescopes: null,
+    currentTelescopeMenu: "New Telescope",
+  },
+  action
+) => {
   switch (action.type) {
     case FETCH_TELESCOPE_OK: {
       const telescope = action.data;
+      return {
+        ...state,
+        ...telescope,
+      };
+    }
+    case CURRENT_TELESCOPES_AND_MENU: {
+      const telescope = {};
+      telescope.currentTelescopes = action.data.currentTelescopes;
+      telescope.currentTelescopeMenu = action.data.currentTelescopeMenu;
       return {
         ...state,
         ...telescope,

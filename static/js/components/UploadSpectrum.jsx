@@ -23,6 +23,7 @@ import AccordionDetails from "@material-ui/core/AccordionDetails";
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
 
 import { HtmlTooltip } from "./UploadPhotometry";
+import withRouter from "./withRouter";
 
 import * as spectraActions from "../ducks/spectra";
 import { fetchSource } from "../ducks/source";
@@ -60,7 +61,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const spectrumPreviewSpec = (data) => ({
-  $schema: "https://vega.github.io/schema/vega-lite/v4.json",
+  $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",
   width: "container",
   height: 200,
   data: { values: data },
@@ -707,4 +708,4 @@ UploadSpectrumForm.propTypes = {
   }).isRequired,
 };
 
-export default UploadSpectrumForm;
+export default withRouter(UploadSpectrumForm);

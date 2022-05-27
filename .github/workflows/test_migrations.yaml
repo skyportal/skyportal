@@ -2,10 +2,10 @@ name: Test Skyportal Migrations
 
 on:
   # Run only if potential changes in database schema, or if made on
-  # master
+  # main
   push:
     branches:
-      - master
+      - main
   pull_request:
     paths:
       - "baselayer"
@@ -52,11 +52,11 @@ jobs:
         with:
           python-version: "3.8"
 
-      - name: Checkout master
+      - name: Checkout main
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          ref: master
+          ref: main
           submodules: true
 
       - uses: actions/cache@v2
@@ -75,7 +75,7 @@ jobs:
         run: |
           curl -sL https://deb.nodesource.com/setup_17.x | sudo -E bash -
 
-          sudo apt install -y wget nodejs unzip firefox nginx
+          sudo apt install -y wget nodejs unzip firefox nginx libcurl4-gnutls-dev libgnutls28-dev
 
           pip install pip==21.3.1
           pip install wheel numpy
@@ -101,7 +101,7 @@ jobs:
 
           pip install black
 
-      - name: Save current Alembic head on master
+      - name: Save current Alembic head on main
         run: |
           # Get the head line from Alembic history output
           head=$( PYTHONPATH=. alembic history | grep '(head)' )
@@ -170,17 +170,17 @@ jobs:
 
       - name: Check for migration branching
         run: |
-          # Make sure latest revision on master is included in Alembic history
+          # Make sure latest revision on main is included in Alembic history
           n_current_head=$( PYTHONPATH=. alembic history | grep -c $CURRENT_HEAD )
           if [[ $n_current_head -eq 0 ]]
           then
             cat << EOF
-              The current head Alembic revision on master is not present in this branch's
-              Alembic history. Please merge in the latest commit from master into this PR.
+              The current head Alembic revision on main is not present in this branch's
+              Alembic history. Please merge in the latest commit from main into this PR.
           EOF
             exit 1
           else
-            echo "Alembic history includes the latest on master."
+            echo "Alembic history includes the latest on main."
           fi
 
           # Make sure there are not multiple heads to the Alembic history

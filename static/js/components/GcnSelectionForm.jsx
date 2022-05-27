@@ -75,10 +75,10 @@ const GcnSelectionForm = ({ gcnEvent }) => {
     displayOptionsDefault
   );
 
-  const defaultStartDate = dayjs(gcnEvent.dateobs).format(
+  const defaultStartDate = dayjs(gcnEvent?.dateobs).format(
     "YYYY-MM-DDTHH:mm:ssZ"
   );
-  const defaultEndDate = dayjs(gcnEvent.dateobs)
+  const defaultEndDate = dayjs(gcnEvent?.dateobs)
     .add(7, "day")
     .format("YYYY-MM-DDTHH:mm:ssZ");
   const [formDataState, setFormDataState] = useState({
@@ -110,7 +110,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
       // update
 
       const result = await dispatch(
-        instrumentsActions.fetchGcnEventInstruments(gcnEvent.dateobs)
+        instrumentsActions.fetchGcnEventInstruments(gcnEvent?.dateobs)
       );
 
       const { data } = result;
@@ -175,8 +175,12 @@ const GcnSelectionForm = ({ gcnEvent }) => {
 
   const handleSubmit = async ({ formData }) => {
     setIsSubmitting(true);
-    formData.startDate = formData.startDate.replace("+00:00", "");
-    formData.endDate = formData.endDate.replace("+00:00", "");
+    formData.startDate = formData.startDate
+      .replace("+00:00", "")
+      .replace(".000Z", "");
+    formData.endDate = formData.endDate
+      .replace("+00:00", "")
+      .replace(".000Z", "");
     dispatch(sourcesActions.fetchGcnEventSources(gcnEvent.dateobs, formData));
     formData.includeGeoJSON = true;
     dispatch(
@@ -190,8 +194,13 @@ const GcnSelectionForm = ({ gcnEvent }) => {
     setIsSubmitting(false);
   };
 
+  // const handleSendToObservationPlan = (instrument) => {
+  // const selectedFields = instrument?.fields.filter((f) => f?.selected);
+  // const selectedIds = selectedFields.map((f) => f?.field_id);
+  // };
+
   if (telescopeList.length === 0) {
-    return <p>No robotic followup requests for this source...</p>;
+    return <p>No robotic followup requests found...</p>;
   }
 
   if (
@@ -212,6 +221,9 @@ const GcnSelectionForm = ({ gcnEvent }) => {
   const instruments_with_contour = [];
   gcnEventInstruments?.forEach((instrument) => {
     if (instrument?.fields && instrument?.fields.length > 0) {
+      instrument.fields.forEach((f) => {
+        f.selected = false;
+      });
       if (instrument.fields[0].contour_summary) {
         instruments_with_contour.push(instrument);
         instLookUp[instrument.id] = instrument;
@@ -293,18 +305,39 @@ const GcnSelectionForm = ({ gcnEvent }) => {
 
   return (
     <div>
+      {!(selectedLocalizationId in Object.entries(locLookUp)) ? (
+        <div>
+          <LocalizationPlot
+            loc={gcnEvent.localizations[0]}
+            sources={gcnEventSources}
+            galaxies={gcnEventGalaxies}
+            instrument={instLookUp[selectedInstrumentId]}
+            observations={gcnEventObservations}
+            options={checkedDisplayState}
+          />
+        </div>
+      ) : (
+        <div>
+          <LocalizationPlot
+            loc={locLookUp[selectedLocalizationId]}
+            sources={gcnEventSources}
+            galaxies={gcnEventGalaxies}
+            instrument={instLookUp[selectedInstrumentId]}
+            observations={gcnEventObservations}
+            options={checkedDisplayState}
+          />
+        </div>
+      )}
       <div>
-        <LocalizationPlot
-          loc={locLookUp[selectedLocalizationId]}
-          sources={gcnEventSources}
-          galaxies={gcnEventGalaxies}
-          instrument={instLookUp[selectedInstrumentId]}
-          observations={gcnEventObservations}
-          options={checkedDisplayState}
-        />
-      </div>
-      <div>
-        <InputLabel id="allocationSelectLabel">Localization</InputLabel>
+        <Button
+          variant="outlined"
+          // onClick={() =>
+          //   handleSendToObservationPlan(instLookUp[selectedInstrumentId])
+          // }
+        >
+          Send selected to observation plan
+        </Button>
+        <InputLabel id="localizationSelectLabel">Localization</InputLabel>
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}
           labelId="localizationSelectLabel"

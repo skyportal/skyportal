@@ -12,6 +12,11 @@ import { fetchShifts } from "../ducks/shifts";
 
 dayjs.extend(utc);
 
+function isDailyShift(shiftName) {
+  const regex = /\d+\/\d+$/;
+  return regex.test(shiftName);
+}
+
 const NewShift = () => {
   const groups = useSelector((state) => state.groups.userAccessible);
   const dispatch = useDispatch();
@@ -27,16 +32,52 @@ const NewShift = () => {
   }
 
   const handleSubmit = async ({ formData }) => {
-    formData.start_date = formData.start_date.replace("+00:00", "");
-    formData.end_date = formData.end_date.replace("+00:00", "");
-    const result = await dispatch(submitShift(formData));
-    if (result.status === "success") {
-      dispatch(showNotification("Shift saved"));
-      dispatch(fetchShifts());
+    if (!formData.repeatsDaily) {
+      formData.start_date = formData.start_date
+        .replace("+00:00", "")
+        .replace(".000Z", "");
+      formData.end_date = formData.end_date
+        .replace("+00:00", "")
+        .replace(".000Z", "");
+      delete formData.repeatsDaily;
+      const result = await dispatch(submitShift(formData));
+      if (result.status === "success") {
+        dispatch(showNotification("Shift saved"));
+        dispatch(fetchShifts());
+      }
+    } else {
+      delete formData.repeatsDaily;
+      const startDate = dayjs(formData.start_date).utc();
+      const endDate = dayjs(formData.end_date).utc();
+      const days = endDate.diff(startDate, "days");
+      for (let i = 0; i <= days; i += 1) {
+        const newFormData = { ...formData };
+        newFormData.name = `${newFormData.name} ${i}/${days}`;
+        newFormData.start_date = startDate
+          .add(i, "day")
+          .format("YYYY-MM-DDTHH:mm:ssZ")
+          .replace("+00:00", "")
+          .replace(".000Z", "");
+        newFormData.end_date = endDate
+          .subtract(days - i, "day")
+          .format("YYYY-MM-DDTHH:mm:ssZ")
+          .replace("+00:00", "")
+          .replace(".000Z", "");
+        const result = dispatch(submitShift(newFormData));
+        if (result.status === "success") {
+          dispatch(showNotification("Shift saved"));
+          dispatch(fetchShifts());
+        }
+      }
     }
   };
 
   function validate(formData, errors) {
+    if (isDailyShift(formData.name)) {
+      errors.name.addError(
+        'Shift name cannot contain "number/number" at the end of the name, please fix.'
+      );
+    }
     if (nowDate > formData.end_date) {
       errors.end_date.addError(
         "End date must be after current date, please fix."
@@ -50,6 +91,13 @@ const NewShift = () => {
     return errors;
   }
 
+  const uiSchema = {
+    repeatsDaily: {
+      "ui:widget": "radio",
+      "ui:labels": ["Yes", "No"],
+    },
+  };
+
   const shiftFormSchema = {
     type: "object",
     properties: {
@@ -61,6 +109,10 @@ const NewShift = () => {
         })),
         title: "Group",
         default: groups[0]?.id,
+      },
+      name: {
+        type: "string",
+        title: "Shift name (ie. the Night Shift)",
       },
       start_date: {
         type: "string",
@@ -74,17 +126,24 @@ const NewShift = () => {
         title: "End Date (Local Time)",
         default: defaultEndDate,
       },
-      name: {
+      description: {
         type: "string",
-        title: "Shift name (i.e. the Night Shift)",
+        title: "Shift's description",
+      },
+      repeatsDaily: {
+        type: "boolean",
+        title: "Do you want to create daily shifts over the selected period ?",
+        description:
+          "If checked, shifts will be created for each day between start and end date, each of them starting at the start time and ending at the end time.",
       },
     },
-    required: ["group_id", "start_date", "end_date"],
+    required: ["group_id", "name", "start_date", "end_date"],
   };
 
   return (
     <Form
       schema={shiftFormSchema}
+      uiSchema={uiSchema}
       onSubmit={handleSubmit}
       // eslint-disable-next-line react/jsx-no-bind
       validate={validate}

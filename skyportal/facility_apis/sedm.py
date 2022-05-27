@@ -1,9 +1,11 @@
-from . import FollowUpAPI, Listener
-from baselayer.app.env import load_env
 from datetime import datetime, timedelta
 import json
 import requests
 
+from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
+
+from . import FollowUpAPI, Listener
 from ..utils import http
 
 env, cfg = load_env()
@@ -181,6 +183,13 @@ class SEDMAPI(FollowUpAPI):
 
         DBSession().add(transaction)
 
+        flow = Flow()
+        flow.push(
+            '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': request.obj.internal_key},
+        )
+
     @staticmethod
     def delete(request):
         """Delete a follow-up request from SEDM queue.
@@ -211,6 +220,13 @@ class SEDMAPI(FollowUpAPI):
         )
 
         DBSession().add(transaction)
+
+        flow = Flow()
+        flow.push(
+            '*',
+            'skyportal/REFRESH_SOURCE',
+            payload={'obj_key': request.obj.internal_key},
+        )
 
     @staticmethod
     def update(request):
@@ -244,6 +260,13 @@ class SEDMAPI(FollowUpAPI):
         )
 
         DBSession().add(transaction)
+
+        flow = Flow()
+        flow.push(
+            '*',
+            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
+            payload={"obj_key": request.obj.internal_key},
+        )
 
     _observation_types = [
         '3-shot (gri)',

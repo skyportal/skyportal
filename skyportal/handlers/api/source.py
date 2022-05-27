@@ -88,24 +88,25 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
 
 
 def add_ps1_thumbnail_and_push_ws_msg(obj_id, user_id):
-    session = Session()
-    try:
-        user = session.query(User).get(user_id)
-        if Obj.get_if_accessible_by(obj_id, user) is None:
-            raise AccessError(
-                f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+    with Session() as session:
+        try:
+            user = session.query(User).get(user_id)
+            if Obj.get_if_accessible_by(obj_id, user) is None:
+                raise AccessError(
+                    f"Insufficient permissions for User {user_id} to read Obj {obj_id}"
+                )
+            obj = session.query(Obj).get(obj_id)
+            obj.add_ps1_thumbnail(session=session)
+            flow = Flow()
+            flow.push(
+                '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
             )
-        obj = session.query(Obj).get(obj_id)
-        obj.add_ps1_thumbnail(session=session)
-        flow = Flow()
-        flow.push(
-            '*', "skyportal/REFRESH_SOURCE", payload={"obj_key": obj.internal_key}
-        )
-        flow.push('*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key})
-    except Exception as e:
-        log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
-    finally:
-        Session.remove()
+            flow.push(
+                '*', "skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
+            )
+        except Exception as e:
+            log(f"Unable to generate PS1 thumbnail URL for {obj_id}: {e}")
+            session.rollback()
 
 
 def paginate_summary_query(query, page, num_per_page, total_matches):
@@ -1383,7 +1384,7 @@ class SourceHandler(BaseHandler):
                 comments_filter_author = [comments_filter_author]
             else:
                 return self.error(
-                    "Invalid commentsFilterOrigin value -- must provide at least one string value"
+                    "Invalid commentsFilterAuthor value -- must provide at least one string value"
                 )
         if localization_dateobs is not None:
             if localization_name is not None:
