@@ -52,7 +52,7 @@ def set_default_acls(user):
 
 def set_default_group(user):
     default_groups = []
-    if cfg['misc']['public_group_name'] is not None:
+    if cfg['misc.public_group_name'] is not None:
         default_groups.append(cfg['misc']['public_group_name'])
     if cfg['default_groups'] is not None and isinstance(cfg['default_groups'], list):
         default_groups.extend(cfg['default_groups'])
@@ -114,7 +114,7 @@ def add_user_and_setup_groups(
 
         # Add user to sitewide public group
         public_group = Group.query.filter(
-            Group.name == cfg["misc"]["public_group_name"]
+            Group.name == cfg["misc.public_group_name"]
         ).first()
         if public_group is not None:
             DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
