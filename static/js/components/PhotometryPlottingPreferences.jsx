@@ -1,10 +1,10 @@
 import React from "react";
-import UserPreferencesHeader from "./UserPreferencesHeader";
+import { makeStyles } from "@material-ui/core";
 
+import UserPreferencesHeader from "./UserPreferencesHeader";
 import SetAutomaticallyVisiblePhotometry from "./SetAutomaticallyVisiblePhotometry";
 import PhotometryButtonsForm from "./PhotometryButtonsForm";
 import DataPointSizeForm from "./DataPointSizeForm";
-import { makeStyles } from "@material-ui/core/node_modules/@material-ui/styles";
 
 const useStyles = makeStyles(() => ({
   photometryPlottingPreferencesHeader: {

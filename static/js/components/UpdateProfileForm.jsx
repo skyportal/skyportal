@@ -13,6 +13,7 @@ import DialogContentText from "@material-ui/core/DialogContentText";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import InputLabel from "@material-ui/core/InputLabel";
 import Grid from "@material-ui/core/Grid";
+import { makeStyles } from "@material-ui/core";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useForm } from "react-hook-form";
@@ -26,8 +27,6 @@ import SlackPreferences from "./SlackPreferences";
 import ObservabilityPreferences from "./ObservabilityPreferences";
 import PhotometryPlottingPreferences from "./PhotometryPlottingPreferences";
 import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
-
-import { makeStyles } from "@material-ui/core";
 
 const useStyles = makeStyles(() => ({
   spacing: {

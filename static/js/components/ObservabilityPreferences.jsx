@@ -10,6 +10,9 @@ const ObservabilityPreferences = () => {
 
   const dispatch = useDispatch();
 
+  const telescopeNametoID = { "Clear selections": "-1" };
+  const telescopeIDToName = { "-1": "Clear selections" };
+
   const handleChange = (event) => {
     const prefs = {
       observabilityTelescopes: event.target.value.includes("Clear selections")
@@ -22,8 +25,6 @@ const ObservabilityPreferences = () => {
   };
 
   telescopeList?.sort((a, b) => (a.name < b.name ? -1 : 1));
-  const telescopeNametoID = { "Clear selections": "-1" };
-  const telescopeIDToName = { "-1": "Clear selections" };
   telescopeList?.forEach((telescope) => {
     telescopeNametoID[telescope.name] = telescope.id;
     telescopeIDToName[telescope.id] = telescope.name;
