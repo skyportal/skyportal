@@ -1,5 +1,5 @@
 import React from "react";
-import { Controller, useForm } from "react-hook-form";
+import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import SelectWithChips from "./SelectWithChips";
 
@@ -11,23 +11,25 @@ const FilterSelect = ({ onFilterSelectChange, initValue, parent }) => {
   filtersEnums.sort();
   filtersEnums.unshift("Clear selections");
 
-  const { control } = useForm();
-
   return (
-    <Controller
-      name="filterSelect"
-      control={control}
-      render={({ onChange }) => (
-        <SelectWithChips
-          label="Filters"
-          id={`filterSelect${parent}`}
-          initValue={initValue}
-          onChange={onFilterSelectChange}
-          options={filtersEnums}
-        />
-      )}
+    <SelectWithChips
+      label="Filters"
+      id={`filterSelect${parent}`}
+      initValue={initValue}
+      onChange={onFilterSelectChange}
+      options={filtersEnums}
     />
   );
+};
+
+FilterSelect.propTypes = {
+  onFilterSelectChange: PropTypes.func.isRequired,
+  initValue: PropTypes.arrayOf(PropTypes.string),
+  parent: PropTypes.string.isRequired,
+};
+
+FilterSelect.defaultProps = {
+  initValue: [],
 };
 
 export default FilterSelect;

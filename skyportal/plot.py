@@ -432,32 +432,6 @@ def annotate_spec(plot, spectra, lower, upper):
 
 def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
     """Helper function to add responsive legends to a photometry plot tab"""
-    # if legend_orientation == "horizontal":
-    # width_remaining = width - 120
-    # current_legend_items = []
-    # for item in legend_items:
-    #     # 0.65 is an estimate of the average aspect ratio of the characters in the Helvetica
-    #     # font (the default Bokeh label font) and 13 is the default label font size.
-    #     # The 30 is the pixel width of the label shape. The 6 is the spacing between label entries
-    #     item_width = len(item.label["value"]) * 0.65 * 13 + 30 + 6
-    #     # We've hit the end of the line, wrap to a new one
-    #     if item_width > width_remaining:
-    #         plot.add_layout(
-    #             Legend(
-    #                 orientation=legend_orientation,
-    #                 items=current_legend_items,
-    #                 click_policy="hide",
-    #                 location="top_center",
-    #                 margin=3,
-    #             ),
-    #             "below",
-    #         )
-    #         width_remaining = width - 120
-    #         current_legend_items = [item]
-    #     else:
-    #         current_legend_items.append(item)
-    #         width_remaining -= item_width
-    # Add remaining
     plot.add_layout(
         Legend(
             orientation="horizontal",
@@ -468,15 +442,6 @@ def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
         ),
         "below",
     )
-    # else:
-    #     plot.add_layout(
-    #         Legend(
-    #             click_policy="hide",
-    #             items=legend_items,
-    #             location="top_center",
-    #         ),
-    #         legend_loc,
-    #     )
 
 
 def get_photometry_button_callback(info, model_dict):
@@ -535,28 +500,26 @@ def make_show_all_photometry_button(model_dict):
     return button
 
 
-def make_show_and_hide_photometry_buttons(model_dict, user):
+def make_show_and_hide_photometry_buttons(model_dict, user, device):
     """Make a container for the show and hide photometry buttons.
     Returns
     -------
     bokeh row object
     """
-    col = column(width_policy="min")
-    first_row = row(
-        children=[
-            make_show_all_photometry_button(model_dict),
-            make_hide_photometry_button(model_dict),
-        ],
-        sizing_mode="scale_width",
-    )
-    col.children.append(first_row)
+    buttons = [
+        make_show_all_photometry_button(model_dict),
+        make_hide_photometry_button(model_dict),
+    ]
     if user.preferences and "photometryButtons" in user.preferences:
         photometry_buttons = list(user.preferences["photometryButtons"].items())
         for name, info in photometry_buttons:
             btn = Button(label=f"Show {name}", width_policy="min")
             btn.js_on_click(get_photometry_button_callback(info, model_dict))
-            first_row.children.append(btn)
-    return col
+            buttons.append(btn)
+    if "mobile" in device:
+        return column(buttons)
+    # if not on mobile, return a column of rows with 5 buttons in each row.
+    return column([row(buttons[i : i + 5]) for i in range(0, len(buttons), 5)])
 
 
 def add_axis_labels(plot, panel_name):
@@ -595,6 +558,10 @@ def check_visibility_on_phot_plot(user, show_all_filters, show_all_origins, labe
         Boolean value indicating whether to show all origins or not. Set to true when the plot does not contain any of the user's automatically visible origins as set in the preferences.
     label : str
         Label of the photometry containing instrument, filter, and origin such as 'ZTF/ztfg/Muphoten'
+    Returns
+    -------
+    visible : boolean
+        Boolean value indicating whether the point should be visible or not.
     """
     if show_all_filters and show_all_origins:
         return True
@@ -1521,7 +1488,7 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
 
     layout = column(
         plot,
-        make_show_and_hide_photometry_buttons(model_dict, user),
+        make_show_and_hide_photometry_buttons(model_dict, user, device),
         width=width,
     )
     add_widgets(
@@ -2345,11 +2312,20 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     )
 
     row1 = row(all_column_checkboxes)
-    row2 = row(
-        on_top_spectra_dropdown,
-        show_all_spectra,
-        hide_all_spectra,
-        reset_checkboxes_button,
+    row2 = (
+        column(
+            on_top_spectra_dropdown,
+            show_all_spectra,
+            hide_all_spectra,
+            reset_checkboxes_button,
+        )
+        if "mobile" in device
+        else row(
+            on_top_spectra_dropdown,
+            show_all_spectra,
+            hide_all_spectra,
+            reset_checkboxes_button,
+        )
     )
     row3 = (
         column(z, v_exp, smooth_column)

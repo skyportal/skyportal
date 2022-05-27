@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@material-ui/core/node_modules/@material-ui/styles";
 import { useForm } from "react-hook-form";
-import { Button, Chip, TextField, Typography } from "@material-ui/core";
+import { Button, TextField } from "@material-ui/core";
 import FilterSelect from "./FilterSelect";
 import OriginSelect from "./OriginSelect";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import * as profileActions from "../ducks/profile";
+import DeletableChips from "./DeletableChips";
 
 const useStyles = makeStyles(() => ({
   submitButton: {
@@ -121,16 +122,11 @@ const PhotometryButtonsForm = () => {
           </Button>
         </form>
         {photometryButtons && (
-          <div>
-            <Typography>Photometry Buttons</Typography>
-            {Object.keys(photometryButtons).map((buttonName) => (
-              <Chip
-                key={buttonName}
-                label={buttonName}
-                onDelete={() => onDelete(buttonName)}
-              />
-            ))}
-          </div>
+          <DeletableChips
+            items={Object.keys(photometryButtons)}
+            onDelete={onDelete}
+            title="Photometry Buttons"
+          />
         )}
       </div>
     </div>
