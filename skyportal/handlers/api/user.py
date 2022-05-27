@@ -430,7 +430,11 @@ class UserHandler(BaseHandler):
               application/json:
                 schema: Error
         """
-        user = User.query.get(user_id)
-        DBSession().delete(user)
-        self.verify_and_commit()
+        with self.Session() as session:
+            user = session.scalars(
+                User.select(self.current_user).where(User.id == user_id)
+            ).first()
+            session.delete(user)
+            session.commit()
+
         return self.success()
