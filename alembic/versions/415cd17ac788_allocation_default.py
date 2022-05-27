@@ -27,6 +27,15 @@ def upgrade():
             comment='List of default group IDs to share date with',
         ),
     )
+
+    op.alter_column(
+        'allocations',
+        'default_share_group_ids',
+        existing_type=sa.ARRAY(sa.INTEGER()),
+        comment='List of default group IDs to share data with',
+        existing_comment='List of default group IDs to share date with',
+        existing_nullable=True,
+    )
     # ### end Alembic commands ###
 
 
