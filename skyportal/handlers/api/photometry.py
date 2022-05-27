@@ -996,6 +996,14 @@ class PhotometryHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        try:
+            photometry_id = int(photometry_id)
+        except ValueError:
+            return self.error('Photometry id must be an int.')
+
+        photometry = Photometry.get_if_accessible_by(
+            photometry_id, self.current_user, mode="update", raise_if_none=True
+        )
 
         data = self.get_json()
         group_ids = data.pop("group_ids", None)
@@ -1014,69 +1022,48 @@ class PhotometryHandler(BaseHandler):
                     f'to parse {data} as PhotometryMag, got:'
                     f' "{e2.normalized_messages()}."'
                 )
-        print(phot)
-        with self.Session() as session:
 
-            try:
-                photometry_id = int(photometry_id)
-            except ValueError:
-                return self.error('Photometry id must be an int.')
+        phot.original_user_data = data
+        phot.id = photometry_id
+        DBSession().merge(phot)
 
-            old_phot = session.scalars(
-                Photometry.select(self.current_user, mode='update').where(
-                    Photometry.id == photometry_id
-                )
-            ).first()
-            if old_phot is None:
+        # Update groups, if relevant
+        if group_ids is not None:
+            groups = Group.query.filter(Group.id.in_(group_ids)).all()
+            if not groups:
                 return self.error(
-                    f'Cannot update photometry point with ID: {photometry_id}.'
+                    "Invalid group_ids field. Specify at least one valid group ID."
                 )
+            accessible_group_ids = [g.id for g in self.current_user.accessible_groups]
+            if not all([g.id in accessible_group_ids for g in groups]):
+                return self.error(
+                    "Cannot upload photometry to groups you are not a member of."
+                )
+            photometry.groups = groups
 
-            phot.original_user_data = data
-            phot.id = photometry_id
-            phot.owner_id = old_phot.owner_id
-            session.merge(phot)
-
-            # Update groups, if relevant
-            if group_ids is not None:
-                groups = session.scalars(
-                    Group.select(self.current_user).where(Group.id.in_(group_ids))
-                ).all()
-                if group_ids != [g.id for g in groups]:
-                    return self.error(
-                        f'Cannot find one or more groups with IDs: {group_ids}.'
+        # Update streams, if relevant
+        if stream_ids is not None:
+            streams = Stream.get_if_accessible_by(
+                stream_ids, self.current_user, raise_if_none=True
+            )
+            # Add new stream_photometry rows if not already present
+            for stream in streams:
+                if (
+                    StreamPhotometry.query_records_accessible_by(self.current_user)
+                    .filter(
+                        StreamPhotometry.stream_id == stream.id,
+                        StreamPhotometry.photometr_id == photometry_id,
                     )
-                phot.groups = groups
-
-            # Update streams, if relevant
-            if stream_ids is not None:
-                streams = session.scalars(
-                    Stream.select(self.current_user).where(Stream.id.in_(stream_ids))
-                ).all()
-                if stream_ids != [s.id for s in streams]:
-                    return self.error(
-                        f'Cannot find one or more streams with IDs: {stream_ids}.'
-                    )
-                phot.streams = streams
-
-                # Add new stream_photometry rows if not already present
-                for stream in streams:
-                    if (
-                        session.scalars(
-                            StreamPhotometry.select(self.current_user).where(
-                                StreamPhotometry.stream_id == stream.id,
-                                StreamPhotometry.photometr_id == phot.id,
-                            )
-                        ).first()
-                        is None
-                    ):
-                        session.add(
-                            StreamPhotometry(
-                                photometr_id=photometry_id, stream_id=stream.id
-                            )
+                    .first()
+                    is None
+                ):
+                    DBSession().add(
+                        StreamPhotometry(
+                            photometr_id=photometry_id, stream_id=stream.id
                         )
-            session.commit()
+                    )
 
+        self.verify_and_commit()
         return self.success()
 
     @permissions(['Upload data'])

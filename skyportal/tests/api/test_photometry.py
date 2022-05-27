@@ -1206,8 +1206,6 @@ def test_token_user_update_photometry_groups(
         },
         token=upload_data_token,
     )
-    if status != 200:
-        print(data['message'])
     assert status == 200
     assert data['status'] == 'success'
 
