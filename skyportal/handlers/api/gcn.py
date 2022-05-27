@@ -33,12 +33,14 @@ log = make_log('api/gcn_event')
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 
-def post_gcnevent(payload, user_id, session=Session()):
+def post_gcnevent(payload, user_id, session):
     """Post GcnEvent to database.
     payload: str
         VOEvent readable string
     user_id : int
         SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
     """
 
     user = session.query(User).get(user_id)
@@ -160,7 +162,8 @@ class GcnEventHandler(BaseHandler):
             return self.error("xml must be present in data to parse GcnEvent")
 
         payload = data['xml']
-        event_id = post_gcnevent(payload, self.associated_user_object.id)
+        session = Session()
+        event_id = post_gcnevent(payload, self.associated_user_object.id, session)
 
         return self.success(data={'gcnevent_id': event_id})
 

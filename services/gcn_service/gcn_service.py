@@ -36,7 +36,7 @@ def handle(payload, root):
 
     session = Session()
     user_id = 1
-    post_gcnevent(payload, user_id, session=session)
+    post_gcnevent(payload, user_id, session)
 
 
 if __name__ == "__main__":
