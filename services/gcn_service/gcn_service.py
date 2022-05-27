@@ -1,5 +1,4 @@
 import gcn
-from sqlalchemy.orm import sessionmaker, scoped_session
 
 from baselayer.log import make_log
 from baselayer.app.models import init_db
@@ -13,8 +12,6 @@ from skyportal.models import (
 env, cfg = load_env()
 
 init_db(**cfg['database'])
-
-Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 
 @gcn.include_notice_types(
@@ -35,7 +32,7 @@ Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"])
 def handle(payload, root):
 
     user_id = 1
-    with Session() as session:
+    with DBSession() as session:
         post_gcnevent(payload, user_id, session)
 
 

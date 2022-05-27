@@ -162,7 +162,7 @@ class GcnEventHandler(BaseHandler):
             return self.error("xml must be present in data to parse GcnEvent")
 
         payload = data['xml']
-        with Session() as session:
+        with DBSession() as session:
             event_id = post_gcnevent(payload, self.associated_user_object.id, session)
 
         return self.success(data={'gcnevent_id': event_id})
