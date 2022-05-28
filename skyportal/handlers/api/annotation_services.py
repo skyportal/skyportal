@@ -40,7 +40,7 @@ class GaiaQueryHandler(BaseHandler):
             required: true
             schema:
               type: string
-            description: ID of the object to retrieve WISE colors for
+            description: ID of the object to retrieve Gaia colors for
         requestBody:
           content:
             application/json:
@@ -54,7 +54,7 @@ class GaiaQueryHandler(BaseHandler):
                       The name of the catalog key, associated with a
                       catalog cross match,
                       from which the data should be retrieved.
-                      Default is < >
+                      Default is "gaiaedr3.gaia_source".
                   crossmatchRadius:
                     required: false
                     type: number
@@ -70,7 +70,8 @@ class GaiaQueryHandler(BaseHandler):
                       Will ignore sources fainter than this magnitude.
                       If not specified, will use the default value in
                       the config file, or None if not specified in the config.
-                      If zero or None, will take sources of any magnitude.
+                      If value is cast to False (0, False or None),
+                      will take sources of any magnitude.
                   group_ids:
                     required: false
                     type: array
@@ -137,7 +138,7 @@ class GaiaQueryHandler(BaseHandler):
         # propagate the stars using Gaia proper motion
         # then choose the closest match
         if len(df) > 1:
-            df['adjusted_dist'] = 0  # new column
+            df['adjusted_dist'] = np.nan  # new column
             for index, row in df.iterrows():
                 c = SkyCoord(
                     ra=row['ra'] * u.deg,
