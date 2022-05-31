@@ -74,15 +74,14 @@ def user_or_token_accessible_streams(self):
 @property
 def get_single_user_group(self):
     group = (
-        inspect(self)
-        .session.scalars(
+        DBSession()
+        .scalars(
             sa.select(Group)
             .join(GroupUser)
             .where(Group.single_user_group.is_(True), GroupUser.user_id == self.id)
         )
         .first()
     )
-    print(f'User group: {group}')
     return group
 
 
@@ -270,9 +269,9 @@ def delete_single_user_group(mapper, connection, target):
     # Delete single-user group
     @event.listens_for(inspect(target).session, "after_flush_postexec", once=True)
     def receive_after_flush(session, context):
-        print('received after flush')
         if single_user_group:
-            session.delete(single_user_group)
+            new_single_user_group = session.merge(single_user_group)
+            session.delete(new_single_user_group)
 
 
 @event.listens_for(User, 'after_update')
