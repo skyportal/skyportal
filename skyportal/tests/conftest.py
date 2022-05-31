@@ -1605,6 +1605,8 @@ def shift_user(public_group, public_stream):
     user_id = user.id
     yield user
     UserFactory.teardown(user_id)
+
+
 def analysis_service_token(user):
     token_id = create_token(
         ACLs=["Manage Analysis Services"],
