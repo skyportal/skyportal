@@ -85,7 +85,7 @@ const RessourceTypeNotificationsPreferences = () => {
                 onChange={prefToggled}
               />
             }
-            label="New Source"
+            label="Source"
           />
         </FormGroup>
         {profile.followed_ressources?.source === true && (
