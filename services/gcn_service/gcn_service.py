@@ -11,13 +11,14 @@ env, cfg = load_env()
 
 init_db(**cfg['database'])
 
+notice_types = [
+    getattr(gcn.notice_types, notice_type) for notice_type in cfg["gcn_notice_types"]
+]
+
 
 def handle(payload, root):
     notice_type = gcn.get_notice_type(root)
-    if notice_type in [
-        getattr(gcn.notice_types, notice_type)
-        for notice_type in cfg["gcn_notice_types"]
-    ]:
+    if notice_type in notice_types:
         user_id = 1
         with DBSession() as session:
             post_gcnevent(payload, user_id, session)
