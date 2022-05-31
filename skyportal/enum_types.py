@@ -92,7 +92,14 @@ AUTHENTICATION_TYPES = (
     'HTTPDigestAuth',
     'OAuth1',
 )
-WEBHOOK_STATUS_TYPES = ('pending', 'completed', 'failure', 'cancelled', 'timed_out')
+WEBHOOK_STATUS_TYPES = (
+    'queued',
+    'pending',
+    'completed',
+    'failure',
+    'cancelled',
+    'timed_out',
+)
 allowed_webbook_status_types = sa.Enum(
     *WEBHOOK_STATUS_TYPES, name='webhookstatustypes', validate_strings=True
 )

@@ -1,6 +1,7 @@
 import json
 from urllib.parse import urlparse
 import pandas as pd
+import datetime
 
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -26,6 +27,7 @@ from ...models import (
     Classification,
     Obj,
     Comment,
+    ObjAnalysis,
 )
 from .photometry import serialize
 
@@ -585,9 +587,8 @@ class AnalysisHandler(BaseHandler):
                               type: integer
                               description: New analysis ID
         """
-        log("here")
         data = self.get_json()
-
+        log(data)
         try:
             analysis_service = AnalysisService.get_if_accessible_by(
                 analysis_service_id, self.current_user, mode="read", raise_if_none=True
@@ -609,17 +610,23 @@ class AnalysisHandler(BaseHandler):
             except AccessError:
                 return self.error('Could not find any accessible groups.', status=403)
 
+        data["groups"] = groups
+        author = self.associated_user_object
+        data["author"] = author
+
         inputs = {}
         if analysis_resource_type.lower() == 'obj':
             obj_id = resource_id
             source = Obj.get_if_accessible_by(obj_id, self.current_user)
             if source is None:
                 return self.error(f'Source {obj_id} not found', status=404)
+            data["obj_id"] = obj_id
+            data["obj"] = source
 
             # Let's assemble the input data for this Obj
             for input_type in input_data_types:
                 associated_resource = self.get_associated_obj_resource(input_type)
-                data = (
+                input_data = (
                     associated_resource['class']
                     .query_records_accessible_by(self.current_user)
                     .filter(
@@ -631,22 +638,46 @@ class AnalysisHandler(BaseHandler):
                     .all()
                 )
                 if input_type == 'photometry':
-                    data = [serialize(phot, 'ab', 'flux') for phot in data]
+                    input_data = [serialize(phot, 'ab', 'flux') for phot in input_data]
+                    df = pd.DataFrame(input_data)[
+                        associated_resource['allowed_export_columns']
+                    ]
                 else:
-                    data = [
+                    input_data = [
                         self.generic_serialize(
                             row, associated_resource['allowed_export_columns']
                         )
-                        for row in data
+                        for row in input_data
                     ]
+                    df = pd.DataFrame(input_data)
 
-                df = pd.DataFrame(data)[associated_resource['allowed_export_columns']]
                 inputs[input_type] = df.to_csv(index=False)
 
+            invalid_after = datetime.datetime.utcnow() + datetime.timedelta(
+                seconds=analysis_service.timeout
+            )
+
+            analysis = ObjAnalysis(
+                obj=source,
+                author=author,
+                groups=groups,
+                analysis_service=analysis_service,
+                show_parameters=data.get('show_parameters', False),
+                show_plots=data.get('show_plots', False),
+                show_corner=data.get('show_corner', False),
+                status='queued',
+                handled_by_url="/webhook/obj_analysis/",
+                invalid_after=invalid_after,
+            )
         else:
             return self.error(
                 f'associated_resource_type must be one of {", ".join(["obj"])}'
             )
-        log(data)
-        log(groups)
+
+        DBSession().add(analysis)
+        try:
+            self.verify_and_commit()
+        except IntegrityError as e:
+            return self.error(f'Analysis already exists: {str(e)}')
+
         return self.success(data=inputs)

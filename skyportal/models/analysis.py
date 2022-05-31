@@ -4,6 +4,7 @@ import os
 import json
 import hashlib
 import re
+import uuid
 
 import xarray as xr
 
@@ -250,13 +251,13 @@ class AnalysisMixin:
         sa.String,
         nullable=False,
         unique=True,
-        default=sa.func.uuid_generate_v4(),
+        default=lambda: str(uuid.uuid4()),
         doc='Unique identifier for this analysis result.',
     )
 
     hash = sa.Column(
         sa.String,
-        nullable=False,
+        nullable=True,
         unique=True,
         doc='MD5sum hash of the data to be saved to file. Prevents duplications.',
     )
