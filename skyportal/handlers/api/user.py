@@ -17,10 +17,47 @@ from ...models import (
     GroupUser,
     StreamUser,
     Stream,
+    UserNotification,
 )
 
+import sqlalchemy as sa
 
 env, cfg = load_env()
+
+
+def notify_users(ressourceName, ressourceType, ressourceUrl, additionnalFiltering):
+    # Get all users that have subscribed to this ressourceType (in their user preferences)
+    text = None
+    users = User.query.filter(
+        User.preferences["followed_ressources"][ressourceType]
+        .astext.cast(sa.Boolean)
+        .is_(True)
+    ).all()
+    if ressourceType == 'source':
+        for user in users:
+            if (
+                additionnalFiltering
+                not in user.preferences['followed_ressources']['source_classifications']
+            ):
+                users.remove(user)
+        text = f'Source {ressourceName} classified as {additionnalFiltering}'
+    elif ressourceType == 'gcn':
+        # to implement
+        print('GCN notifications not implemented yet')
+        return False
+    else:
+        print('Incorrect ressourceType')
+        return False
+
+    for user in users:
+        DBSession().add(
+            UserNotification(
+                user=user,
+                text=text,
+                url=ressourceUrl,
+            )
+        )
+    return True
 
 
 def add_user_and_setup_groups(
