@@ -114,7 +114,7 @@ const FollowupRequestLists = ({
     followupRequests.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <p>No robotic followup requests for this source...</p>;
+    return <p>No robotic followup requests found...</p>;
   }
 
   const instLookUp = instrumentList.reduce((r, a) => {
