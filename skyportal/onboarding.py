@@ -38,8 +38,8 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
 
                 try:
                     n_days = int(cfg["invitations.days_until_expiry"])
-                except ValueError:
-                    raise ValueError(
+                except TypeError:
+                    raise TypeError(
                         "Invalid invitation configuration value: invitations.days_until_expiry cannot be cast to int"
                     )
 

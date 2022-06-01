@@ -133,8 +133,8 @@ def add_user_and_setup_groups(
             session.commit()
         except Exception as e:
             session.rollback()
-
-            return log(e.args[0])
+            log(e.args[0])
+            raise e
         return user.id
 
 
