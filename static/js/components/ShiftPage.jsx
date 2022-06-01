@@ -51,8 +51,8 @@ const ShiftPage = ({ route }) => {
       events.length > 0
     ) {
       if (
-        events.find((shift) => shift.id === currentShift.id).shift_users
-          .length !== currentShift.shift_users.length
+        events?.find((shift) => shift.id === currentShift.id)?.shift_users
+          ?.length !== currentShift?.shift_users?.length
       ) {
         setEvents(datestringToDate(shiftList));
       }

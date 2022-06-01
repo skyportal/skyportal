@@ -1,4 +1,4 @@
-import datetime
+import arrow
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token, AccessError
@@ -520,8 +520,11 @@ class ShiftUserHandler(BaseHandler):
 
 
 class ShiftSummary(BaseHandler):
-    # this handler has a get method that returns a summary of all the activity of shift users on skyportal for a given period
-    # it is used to generate a report
+    """
+    This handler has a get method that returns a summary
+    of all the activity of shift users on skyportal for a given period.
+    It is used to generate a report.
+    """
 
     @auth_or_token
     def get(self, shift_id=None):
@@ -535,17 +538,26 @@ class ShiftSummary(BaseHandler):
           - gcn
         parameters:
           - in: path
-            name: start_date
-            required: true
+            name: shift_id
+            required: false
+            schema:
+              type: integer
+          - in: query
+            name: startDate
+            required: false
             schema:
               type: string
-              format: date
-          - in: path
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              shift.start_date >= startDate
+          - in: qyert
             name: end_date
-            required: true
+            required: false
             schema:
               type: string
-              format: date
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              shift.start_date <=endDate
         responses:
           200:
             content:
@@ -553,20 +565,20 @@ class ShiftSummary(BaseHandler):
                 schema: Success
         """
 
-        start_date = self.get_argument("start_date", None)
-        end_date = self.get_argument("end_date", None)
+        start_date = self.get_query_argument("startDate", None)
+        end_date = self.get_query_argument("endDate", None)
         if (start_date is None or end_date is None) and shift_id is None:
             return self.error("Please provide start_date and end_date, or shift_id")
 
         if start_date is not None and end_date is not None:
             try:
-                start_date = datetime.datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
-                end_date = datetime.datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
+                start_date = arrow.get(start_date).datetime
+                end_date = arrow.get(end_date).datetime
             except ValueError:
                 return self.error("Please provide valid start_date and end_date")
             if start_date > end_date:
                 return self.error("Please provide start_date < end_date")
-            if start_date.date() > datetime.datetime.today().date():
+            if start_date > arrow.utcnow():
                 return self.error("Please provide start_date < today")
             # if there is more than 4 weeks, we return an error
             if (end_date - start_date).days > 28:

@@ -51,7 +51,8 @@ def test_shift_summary(
     view_only_token,
     ztf_camera,
 ):
-    # add a shift to the group, with a start day one day before today, and an end day one day after today
+    # add a shift to the group, with a start day one day before today,
+    # and an end day one day after today
     shift_name_1 = str(uuid.uuid4())
     start_date = "2018-01-15T12:00:00"
     end_date = "2018-01-17T12:00:00"
@@ -103,44 +104,6 @@ def test_shift_summary(
 
     # wait for event to load
     time.sleep(15)
-
-    obj_id = str(uuid.uuid4())
-    status, data = api(
-        "POST",
-        "sources",
-        data={
-            "id": obj_id,
-            "ra": 229.9620403,
-            "dec": 34.8442757,
-            "redshift": 3,
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-
-    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
-    assert status == 200
-
-    status, data = api(
-        'POST',
-        'photometry',
-        data={
-            'obj_id': obj_id,
-            'mjd': 58134.025611226854 + 1,
-            'instrument_id': ztf_camera.id,
-            'flux': 12.24,
-            'fluxerr': 0.031,
-            'zp': 25.0,
-            'magsys': 'ab',
-            'filter': 'ztfg',
-        },
-        token=upload_data_token,
-    )
-    assert status == 200
-    assert data['status'] == 'success'
-
-    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
-    assert status == 200
 
     status, data = api('GET', f'shifts/summary/{shift_id}', token=super_admin_token)
     assert status == 200

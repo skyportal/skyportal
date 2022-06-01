@@ -27,11 +27,11 @@ export function deleteShift(shiftID) {
   return API.DELETE(`/api/shifts/${shiftID}`, DELETE_SHIFT);
 }
 
-export function getShiftsSummary({ shiftID, start_date, end_date }) {
+export function getShiftsSummary({ shiftID, startDate, endDate }) {
   let data = null;
   let url = `/api/shifts/summary`;
-  if (start_date && end_date) {
-    data = { start_date, end_date };
+  if (startDate && endDate) {
+    data = { startDate, endDate };
   } else if (shiftID) {
     url = `/api/shifts/summary/${shiftID}`;
   }

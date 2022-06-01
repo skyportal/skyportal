@@ -70,7 +70,7 @@ const useStyles = makeStyles((theme) => ({
   columnItem: {
     marginBottom: theme.spacing(2),
   },
-  noSource: {
+  noSources: {
     padding: theme.spacing(2),
     display: "flex",
     flexDirection: "row",
@@ -141,7 +141,7 @@ const GcnEventSourcesPage = ({ route, sources, localizationName }) => {
   // eslint-disable-next-line
   if (sources?.sources.length === 0) {
     return (
-      <div className={classes.noSource}>
+      <div className={classes.noSources}>
         <Typography variant="h5">Event sources</Typography>
         <br />
         <Typography variant="h5" align="center">

@@ -98,8 +98,8 @@ const ShiftSummary = () => {
     if (formData.end_date && formData.start_date) {
       dispatch(
         shiftActions.getShiftsSummary({
-          start_date: formData.start_date,
-          end_date: formData.end_date,
+          startDate: formData.start_date,
+          endDate: formData.end_date,
         })
       );
       showNotification("Shifts Summary", "Shifts Summary", "success");
