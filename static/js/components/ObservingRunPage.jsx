@@ -1,7 +1,13 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
-import { Button } from "@material-ui/core";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogActions,
+} from "@material-ui/core";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
@@ -37,19 +43,24 @@ const useStyles = makeStyles((theme) => ({
     padding: "1rem",
   },
   observingRunDelete: {
-    cursor: "pointer",
     fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
   },
   observingRunDeleteDisabled: {
     opacity: 0,
   },
+  hover: {
+    "&:hover": {
+      textDecoration: "underline",
+    },
+    color: theme.palette.type === "dark" ? "#fafafa !important" : null,
+  },
 }));
 
-export function observingRunInfo(observingRun, instrumentList, telescopeList) {
+export const observingRunInfo = (
+  observingRun,
+  instrumentList,
+  telescopeList
+) => {
   const { instrument_id } = observingRun;
   const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
 
@@ -71,7 +82,7 @@ export function observingRunInfo(observingRun, instrumentList, telescopeList) {
   const result = dt.humanize(true);
 
   return result;
-}
+};
 
 const ObservingRunList = ({ observingRuns, deletePermission }) => {
   const dispatch = useDispatch();
@@ -79,6 +90,7 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   const dt_month = dayjs.duration(1, "month");
@@ -87,6 +99,14 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
 
   const toggleDisplayAllCheckbox = () => {
     setDisplayAll(!displayAll);
+  };
+
+  const openDialog = () => {
+    setDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setDialogOpen(false);
   };
 
   let observingRunsToShow = [];
@@ -106,6 +126,7 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
       (result) => {
         if (result.status === "success") {
           dispatch(showNotification("Observing run deleted"));
+          closeDialog();
         }
       }
     );
@@ -124,17 +145,22 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
         {observingRunsToShow?.map((run) => (
           <ListItem key={run.id}>
             <ListItemText
-              primary={observingRunTitle(
-                run,
-                instrumentList,
-                telescopeList,
-                groups
-              )}
+              primary={
+                <Link
+                  to={`/run/${run.id}`}
+                  role="link"
+                  className={classes.hover}
+                >
+                  {observingRunTitle(
+                    run,
+                    instrumentList,
+                    telescopeList,
+                    groups
+                  )}
+                </Link>
+              }
               secondary={observingRunInfo(run, instrumentList, telescopeList)}
             />
-            <Link to={`/run/${run.id}`} role="link">
-              <Button size="small">More info</Button>
-            </Link>
             <Button
               key={`${run.id}-delete_button`}
               id="delete_button"
@@ -142,11 +168,26 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
                 root: classes.observingRunDelete,
                 disabled: classes.observingRunDeleteDisabled,
               }}
-              onClick={() => deleteObservingRun(run)}
+              onClick={openDialog}
               disabled={!deletePermission}
+              size="small"
             >
               &times;
             </Button>
+            <Dialog open={dialogOpen} onClose={closeDialog}>
+              <DialogTitle>Delete Observing Run?</DialogTitle>
+              <DialogContent>
+                Are you sure you want to delete this observing run?
+              </DialogContent>
+              <DialogActions>
+                <Button autoFocus onClick={closeDialog}>
+                  Dismiss
+                </Button>
+                <Button color="primary" onClick={() => deleteObservingRun(run)}>
+                  Confirm
+                </Button>
+              </DialogActions>
+            </Dialog>
           </ListItem>
         ))}
       </List>
