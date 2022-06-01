@@ -88,9 +88,6 @@ def add_user_and_setup_groups(
 ):
     with DBSession() as session:
         try:
-            session.execute(
-                f'LOCK TABLE {User.__tablename__} IN SHARE ROW EXCLUSIVE MODE'
-            )
             user = User(
                 username=username.lower(),
                 role_ids=roles,
