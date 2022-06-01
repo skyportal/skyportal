@@ -33,7 +33,7 @@
     "emojilib": "3.0.6",
     "exports-loader": "3.1.0",
     "geojson-prop-types": "0.2.0",
-    "imports-loader": "1.2.0",
+    "imports-loader": "4.0.0",
     "material-ui-phone-number": "2.2.6",
     "mathjax-full": "3.2.0",
     "mathjs": "10.0.2",
