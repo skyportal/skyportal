@@ -267,27 +267,33 @@ class GroupHandler(BaseHandler):
             return self.error(
                 "Invalid group_admins field; unable to parse all items to int"
             )
-        group_admins = (
-            User.query_records_accessible_by(self.current_user)
-            .filter(User.id.in_(group_admin_ids))
-            .all()
-        )
-        if self.current_user not in group_admins and not isinstance(
-            self.current_user, Token
-        ):
-            group_admins.append(self.current_user)
 
-        g = Group(
-            name=data["name"],
-            nickname=data.get("nickname") or None,
-            description=data.get("description") or None,
-        )
-        DBSession().add(g)
-        DBSession().add_all(
-            [GroupUser(group=g, user=user, admin=True) for user in group_admins]
-        )
-        self.verify_and_commit()
-        return self.success(data={"id": g.id})
+        with self.Session() as session:
+            group_admins = session.scalars(
+                User.select(self.current_user).where(User.id.in_(group_admin_ids))
+            ).all()
+            if self.current_user.id not in [
+                u.id for u in group_admins
+            ] and not isinstance(self.current_user, Token):
+                group_admins.append(self.current_user)
+
+            g = Group(
+                name=data["name"],
+                nickname=data.get("nickname") or None,
+                description=data.get("description") or None,
+            )
+
+            session.add(g)
+
+            for user in group_admins:
+                session.merge(user)
+
+            session.add_all(
+                [GroupUser(group=g, user=user, admin=True) for user in group_admins]
+            )
+
+            session.commit()
+            return self.success(data={"id": g.id})
 
     @permissions(["Upload data"])
     def put(self, group_id):
