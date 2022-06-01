@@ -33,7 +33,6 @@ def set_default_role(user, session):
         and cfg['user.default_role'] in role_acls
     ):
         role = session.query(Role).filter(Role.id == cfg['user.default_role']).first()
-        'finding the role in the database'
         if role is None:
             log(
                 f"Invalid default_role configuration value: {cfg['user.default_role']} does not exist"
@@ -69,7 +68,7 @@ def set_default_group(user, session):
                 f"Invalid default_group configuration value: {default_group_name} does not exist"
             )
         else:
-            session.add(GroupUser(user_id=user.id, group_id=group.id, admin=True))
+            session.add(GroupUser(user_id=user.id, group_id=group.id, admin=False))
             if group.streams:
                 for stream in group.streams:
                     session.add(StreamUser(stream_id=stream.id, user_id=user.id))
@@ -134,6 +133,7 @@ def add_user_and_setup_groups(
             session.commit()
         except Exception as e:
             session.rollback()
+
             return log(e.args[0])
         return user.id
 
@@ -236,7 +236,6 @@ class UserHandler(BaseHandler):
                     allOf:
                       - $ref: '#/components/schemas/Success'
                       - type: object
-                        #
                         properties:
                           data:
                             type: object

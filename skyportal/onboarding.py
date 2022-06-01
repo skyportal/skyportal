@@ -98,12 +98,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
 
                 session.commit()
                 return {"is_new": True, "user": user}
-            elif existing_user is not None:
-                return {"is_new": False, "user": existing_user}
-            elif user is not None:
-                return {"is_new": False, "user": user}
         except Exception as e:
-            session.rollback()
             raise e
 
 
