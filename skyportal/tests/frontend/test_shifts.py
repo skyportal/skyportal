@@ -346,7 +346,15 @@ def test_shift_summary(
     assert data['status'] == 'success'
 
     # wait for event to load
-    time.sleep(15)
+    gcnevent_id = data['data']['gcnevent_id']
+    n_times = 0
+    while n_times < 10:
+        status, data = api('GET', f"gcn_event/{gcnevent_id}", token=super_admin_token)
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+        n_times += 1
+    assert n_times < 10
 
     obj_id = str(uuid.uuid4())
     status, data = api(

@@ -101,9 +101,16 @@ def test_shift_summary(
     status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
     assert status == 200
     assert data['status'] == 'success'
-
     # wait for event to load
-    time.sleep(15)
+    gcnevent_id = data['data']['gcnevent_id']
+    n_times = 0
+    while n_times < 10:
+        status, data = api('GET', f"gcn_event/{gcnevent_id}", token=super_admin_token)
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+        n_times += 1
+    assert n_times < 10
 
     status, data = api('GET', f'shifts/summary/{shift_id}', token=super_admin_token)
     assert status == 200
@@ -116,8 +123,8 @@ def test_shift_summary(
     assert shift_id_2 not in data['data']['gcns']['data'][0]['shift_ids']
 
     request_data = {
-        'start_date': "2018-01-14T12:00:00",
-        'end_date': "2018-01-19T12:00:00",
+        'startDate': "2018-01-14T12:00:00",
+        'endDate': "2018-01-19T12:00:00",
     }
 
     status, data = api(
