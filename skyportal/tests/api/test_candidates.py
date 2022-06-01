@@ -3,7 +3,7 @@ import datetime
 import uuid
 import numpy.testing as npt
 
-from skyportal.tests import api
+from skyportal.tests import api, check_success
 
 from tdtax import taxonomy, __version__
 
@@ -280,7 +280,7 @@ def test_candidate_list_sorting_different_origins(
         },
         token=annotation_token,
     )
-    assert status == 200
+    check_success(status, data)
 
     status, data = api(
         "POST",
@@ -292,6 +292,7 @@ def test_candidate_list_sorting_different_origins(
         },
         token=annotation_token,
     )
+    check_success(status, data)
     assert status == 200
 
     # If just sorting on numeric_field, public_candidate should be returned first
@@ -306,6 +307,7 @@ def test_candidate_list_sorting_different_origins(
         },
         token=view_only_token,
     )
+    check_success(status, data)
     assert status == 200
     assert data["data"]["candidates"][0]["id"] == public_candidate2.id
     assert data["data"]["candidates"][1]["id"] == public_candidate.id

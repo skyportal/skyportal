@@ -295,7 +295,7 @@ class CommentHandler(BaseHandler):
             groups = session.scalars(
                 Group.select(self.current_user).where(Group.id.in_(group_ids))
             ).all()
-            if [g.id for g in groups] != group_ids:
+            if {g.id for g in groups} != set(group_ids):
                 return self.error(
                     f'Cannot find one or more groups with IDs: {group_ids}.'
                 )
