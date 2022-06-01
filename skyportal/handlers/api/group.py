@@ -190,8 +190,6 @@ class GroupHandler(BaseHandler):
                 .filter(Group.name == group_name)
                 .all()
             )
-            # Ensure access
-            self.verify_and_commit()
             return self.success(data=groups)
 
         include_single_user_groups = self.get_query_argument(
@@ -213,7 +211,6 @@ class GroupHandler(BaseHandler):
         info["all_groups"] = sorted(
             all_groups_query.all(), key=lambda g: g.name.lower()
         )
-        self.verify_and_commit()
 
         return self.success(data=info)
 

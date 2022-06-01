@@ -4,11 +4,11 @@ import json
 
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
-from sqlalchemy import event
+from sqlalchemy import event, inspect
 
 import requests
 
-from baselayer.app.models import DBSession, Base, User, AccessibleIfUserMatches
+from baselayer.app.models import Base, User, AccessibleIfUserMatches
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 
@@ -122,10 +122,10 @@ def send_slack_notification(mapper, connection, target):
 @event.listens_for(GcnNotice, 'after_insert')
 @event.listens_for(FacilityTransaction, 'after_insert')
 def add_user_notifications(mapper, connection, target):
-    # Add front-end user notifications
-    @event.listens_for(DBSession(), "after_flush", once=True)
-    def receive_after_flush(session, context):
 
+    # Add front-end user notifications
+    @event.listens_for(inspect(target).session, "after_flush", once=True)
+    def receive_after_flush(session, context):
         is_gcnnotice = "dateobs" in target.to_dict()
         is_facility_transaction = "initiator_id" in target.to_dict()
 
@@ -143,26 +143,36 @@ def add_user_notifications(mapper, connection, target):
             ).all()
         else:
             listing_subquery = (
-                Listing.query.filter(Listing.list_name == "favorites")
-                .filter(Listing.obj_id == target.obj_id)
+                sa.select(Listing)
+                .where(Listing.list_name == 'favorites')
+                .where(Listing.obj_id == target.obj_id)
                 .distinct(Listing.user_id)
                 .subquery()
             )
-            users = (
-                User.query.join(listing_subquery, User.id == listing_subquery.c.user_id)
-                .filter(
+
+            users = session.scalars(
+                sa.select(User)
+                .join(listing_subquery, User.id == listing_subquery.c.user_id)
+                .where(
                     User.preferences["favorite_sources_activity_notifications"][
                         target.__tablename__
                     ]
                     .astext.cast(sa.Boolean)
                     .is_(True)
                 )
-                .all()
-            )
+            ).all()
         ws_flow = Flow()
+
         for user in users:
             # Only notify users who have read access to the new record in question
-            if target.__class__.get_if_accessible_by(target.id, user) is not None:
+            accessible_target = session.scalars(
+                target.__class__.select(user, mode='read').where(
+                    target.__class__.id == target.id
+                )
+            ).all()
+
+            if accessible_target is not None:
+
                 if is_gcnnotice:
                     session.add(
                         UserNotification(
@@ -210,4 +220,5 @@ def add_user_notifications(mapper, connection, target):
                             url=f"/source/{target.obj_id}",
                         )
                     )
+
                 ws_flow.push(user.id, "skyportal/FETCH_NOTIFICATIONS")
