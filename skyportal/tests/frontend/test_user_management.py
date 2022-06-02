@@ -20,7 +20,6 @@ def test_delete_user_role(driver, super_admin_user, user):
     filter_for_user(driver, user.username)
     driver.click_xpath(
         f"//*[@data-testid='deleteUserRoleButton_{user.id}_Full user']//*[contains(@class, 'MuiChip-deleteIcon')]",
-        scroll_parent=True,
     )
     driver.wait_for_xpath("//div[text()='User role successfully removed.']", timeout=10)
     driver.wait_for_xpath_to_disappear(

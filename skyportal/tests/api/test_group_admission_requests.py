@@ -1,4 +1,4 @@
-from skyportal.tests import api
+from skyportal.tests import api, check_success, check_failure
 
 
 def test_group_admission_existing_member(user, public_group, upload_data_token):
@@ -7,8 +7,7 @@ def test_group_admission_existing_member(user, public_group, upload_data_token):
     status, data = api(
         'POST', 'group_admission_requests', data=request_data, token=upload_data_token
     )
-    assert status == 400
-    assert "already a member of group" in data["message"]
+    check_failure(status, data, 400, "already a member of group")
 
 
 def test_group_admission_read_access(
@@ -27,8 +26,7 @@ def test_group_admission_read_access(
         data=request_data,
         token=upload_data_token_group2,
     )
-    assert status == 200
-    assert data["status"] == "success"
+    check_success(status, data)
     request_id = data["data"]["id"]
 
     # user_group2 can read their own request
@@ -37,8 +35,9 @@ def test_group_admission_read_access(
         f"group_admission_requests/{request_id}",
         token=upload_data_token_group2,
     )
-    assert status == 200
-    assert data["status"] == "success"
+    check_success(status, data)
+    # assert status == 200
+    # assert data["status"] == "success"
 
     # group_admin_user is associated with the manages_sources_token and
     # should be able to see the request just submitted
@@ -47,8 +46,7 @@ def test_group_admission_read_access(
         f"group_admission_requests/{request_id}",
         token=manage_sources_token,
     )
-    assert status == 200
-    assert data["status"] == "success"
+    check_success(status, data)
 
     # Regular user (upload_data_token) should not be able to see the request
     # as they are neither a group admin nor the requesting user
@@ -57,8 +55,7 @@ def test_group_admission_read_access(
         f"group_admission_requests/{request_id}",
         token=upload_data_token,
     )
-    assert status == 400
-    assert "Could not find an admission request with the ID" in data["message"]
+    check_failure(status, data, 400, "Could not find an admission request with the ID")
 
 
 # test get doesn't exist
