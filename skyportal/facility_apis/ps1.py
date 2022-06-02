@@ -30,7 +30,7 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
         FollowupRequest SkyPortal ID
     instrument_id : int
         Instrument SkyPortal ID
-    user_id: int
+    user_id : int
         User SkyPortal ID
     """
 
@@ -86,9 +86,12 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
 
         from skyportal.handlers.api.photometry import add_external_photometry
 
-        add_external_photometry(data_out, request.requester)
+        if len(df.index) > 0:
+            add_external_photometry(data_out, request.requester)
+            request.status = "Photometry committed to database"
+        else:
+            request.status = "No photometry to commit to database"
 
-        request.status = "Photometry committed to database"
         session.add(request)
         session.commit()
 
@@ -101,8 +104,6 @@ def commit_photometry(text_response, request_id, instrument_id, user_id):
 
     except Exception as e:
         return log(f"Unable to commit photometry for {request_id}: {e}")
-    finally:
-        Session.remove()
 
 
 class PS1API(FollowUpAPI):
@@ -110,7 +111,7 @@ class PS1API(FollowUpAPI):
     """An interface to PS1 forced photometry."""
 
     @staticmethod
-    def get(request):
+    def get(request, session):
 
         """Get a forced photometry request result from PS1.
 
@@ -118,20 +119,16 @@ class PS1API(FollowUpAPI):
         ----------
         request: skyportal.models.FollowupRequest
             The request to add to the queue and the SkyPortal database.
+        session : baselayer.DBSession
+            Database session to use for photometry
         """
 
         from ..models import (
-            DBSession,
             FollowupRequest,
             FacilityTransaction,
             Allocation,
             Instrument,
         )
-
-        Session = scoped_session(
-            sessionmaker(bind=DBSession.session_factory.kw["bind"])
-        )
-        session = Session()
 
         req = (
             session.query(FollowupRequest)
@@ -169,7 +166,10 @@ class PS1API(FollowUpAPI):
         }
 
         url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/detections.csv"
-        r = requests.get(url, params=params)
+        try:
+            r = requests.get(url, params=params, timeout=5.0)  # timeout in seconds
+        except TimeoutError:
+            req.status = 'error: timeout'
 
         if r.status_code == 200:
             try:

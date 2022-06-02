@@ -698,6 +698,15 @@ def test_show_photometry_table(public_source, driver, user):
     )
 
 
+def test_hide_right_pane(public_source, driver, user):
+    driver.get(f"/become_user/{user.id}")
+    driver.get(f"/source/{public_source.id}")
+    driver.click_xpath('//*[@data-testid="hide-right-pane-button"]')
+    driver.wait_for_xpath_to_disappear('//*[@class="MuiCollapse-entered"]')
+    driver.click_xpath('//*[@data-testid="show-right-pane-button"]')
+    driver.wait_for_xpath_to_disappear('//*[@class="MuiCollapse-hidden"]')
+
+
 def test_javascript_sexagesimal_conversion(public_source, driver, user):
     public_source.ra = 342.0708127
     public_source.dec = 56.1130711
@@ -723,9 +732,12 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
         f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
-            'origin': 'cross_match1',
+            'origin': 'gaiaedr3.gaia_source',
             'data': {
-                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 12.8, 'Mag_Rp': 11.0, 'Plx': 20}
+                'Mag_G': 11.3,
+                'Mag_Bp': 12.8,
+                'Mag_Rp': 11.0,
+                'Plx': 20,
             },
         },
         token=annotation_token,

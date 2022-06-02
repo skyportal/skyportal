@@ -79,7 +79,7 @@ const FollowupRequestPrioritizationForm = () => {
     followupRequestList.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <p>No robotic followup requests for this source...</p>;
+    return <p>No robotic followup requests found...</p>;
   }
 
   if (!selectedGcnEventId) {

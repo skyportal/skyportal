@@ -13,7 +13,6 @@ import * as observingRunsActions from "./ducks/observingRuns";
 import * as telescopesActions from "./ducks/telescopes";
 import * as taxonomyActions from "./ducks/taxonomies";
 import * as favoritesActions from "./ducks/favorites";
-import * as followupRequestActions from "./ducks/followup_requests";
 import * as rejectedActions from "./ducks/rejected_candidates";
 import * as shiftsActions from "./ducks/shifts";
 import * as tnsrobotsActions from "./ducks/tnsrobots";
@@ -34,7 +33,6 @@ export default function hydrate() {
     dispatch(recentSourcesActions.fetchRecentSources());
     dispatch(sourceCountsActions.fetchSourceCounts());
     dispatch(observingRunsActions.fetchObservingRuns());
-    dispatch(followupRequestActions.fetchFollowupRequests());
     dispatch(telescopesActions.fetchTelescopes());
     dispatch(taxonomyActions.fetchTaxonomies());
     dispatch(favoritesActions.fetchFavorites());

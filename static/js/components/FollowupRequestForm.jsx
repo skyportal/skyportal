@@ -64,7 +64,11 @@ const FollowupRequestForm = ({
 
       const { data } = result;
       setSelectedAllocationId(data[0]?.id);
-      setSelectedGroupIds([data[0]?.group_id]);
+      if (data[0]?.default_share_group_ids?.length > 0) {
+        setSelectedGroupIds([data[0]?.default_share_group_ids]);
+      } else {
+        setSelectedGroupIds([data[0]?.group_id]);
+      }
     };
 
     getAllocations();
@@ -79,7 +83,7 @@ const FollowupRequestForm = ({
         apiType: "api_classname",
       })
     );
-  }, [setSelectedAllocationId, setSelectedGroupIds]);
+  }, [setSelectedAllocationId, setSelectedGroupIds, dispatch]);
 
   // need to check both of these conditions as selectedAllocationId is
   // initialized to be null and useEffect is not called on the first
@@ -128,6 +132,13 @@ const FollowupRequestForm = ({
 
   const handleSelectedAllocationChange = (e) => {
     setSelectedAllocationId(e.target.value);
+    if (allocationList[e.target.value]?.default_share_group_ids?.length > 0) {
+      setSelectedGroupIds([
+        allocationList[e.target.value]?.default_share_group_ids,
+      ]);
+    } else {
+      setSelectedGroupIds([allocationList[e.target.value]?.group_id]);
+    }
   };
 
   const handleSubmit = async ({ formData }) => {
@@ -186,22 +197,29 @@ const FollowupRequestForm = ({
         groupIDs={selectedGroupIds}
       />
       <div data-testid="followup-request-form">
-        <Form
-          schema={
-            instrumentFormParams[
-              allocationLookUp[selectedAllocationId].instrument_id
-            ].formSchema
-          }
-          uiSchema={
-            instrumentFormParams[
-              allocationLookUp[selectedAllocationId].instrument_id
-            ].uiSchema
-          }
-          liveValidate
-          validate={validate}
-          onSubmit={handleSubmit}
-          disabled={isSubmitting}
-        />
+        {allocationLookUp[selectedAllocationId].instrument_id in
+        instrumentFormParams ? (
+          <Form
+            schema={
+              instrumentFormParams[
+                allocationLookUp[selectedAllocationId].instrument_id
+              ].formSchema
+            }
+            uiSchema={
+              instrumentFormParams[
+                allocationLookUp[selectedAllocationId].instrument_id
+              ].uiSchema
+            }
+            liveValidate
+            validate={validate}
+            onSubmit={handleSubmit}
+            disabled={isSubmitting}
+          />
+        ) : (
+          <div className={classes.marginTop}>
+            <CircularProgress />
+          </div>
+        )}
         {isSubmitting && (
           <div className={classes.marginTop}>
             <CircularProgress />
@@ -221,9 +239,9 @@ FollowupRequestForm.propTypes = {
     })
   ).isRequired,
   instrumentFormParams: PropTypes.shape({
-    formSchema: PropTypes.objectOf(PropTypes.any),
-    uiSchema: PropTypes.objectOf(PropTypes.any),
-    implementedMethods: PropTypes.objectOf(PropTypes.any),
+    formSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    uiSchema: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
+    implementedMethods: PropTypes.objectOf(PropTypes.any), // eslint-disable-line react/forbid-prop-types
   }).isRequired,
 };
 

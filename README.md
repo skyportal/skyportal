@@ -1,7 +1,7 @@
 <h1 align="center">
   <br>
   <img
-    src="https://github.com/skyportal/skyportal/raw/master/static/images/skyportal_logo.png"
+    src="https://github.com/skyportal/skyportal/raw/main/static/images/skyportal_logo.png"
     alt="SkyPortal Logo"
     width="100px"
   />

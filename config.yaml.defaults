@@ -121,7 +121,9 @@ app:
     - path: "/instruments"
       component: InstrumentPage
     - path: "/shifts"
-      component: ShiftPage
+      component: ShiftNoId
+    - path: "/shifts/:id"
+      component: ShiftWithId
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -443,8 +445,8 @@ external_logging:
     excluded_log_files: ["log/websocket_server.log"]
 
 cron:
-  - interval: 60
-    script: jobs/count_unsaved_candidates.py
+  # - interval: 60
+  #  script: jobs/count_unsaved_candidates.py
   # - interval: 1440
   #   script: jobs/delete_unsaved_candidates.py
   #   limit: ["01:00", "02:00"]
@@ -505,6 +507,13 @@ spectrum_types:
    - host_center
   default: source
 
+cross_match:
+  gaia:
+    catalog: "gaiaedr3.gaia_source"
+    radius: 2.0
+    limmag: 20.5
+    number: 1
+
 # define the additional passbands that are not in SNCosmo
 # (https://sncosmo.readthedocs.io/en/stable/bandpass-list.html)
 # the names must be unique. The wavelength array should
@@ -524,3 +533,17 @@ spectrum_types:
 #    wavelength: [5580, 5582, 8249, 8250]
 #    transmission: [0, 1, 1, 0]
 #    description: "basic ATLAS O filter - tophat transmission"
+
+gcn_notice_types:
+  - FERMI_GBM_FLT_POS
+  - FERMI_GBM_GND_POS
+  - FERMI_GBM_FIN_POS
+  - FERMI_GBM_SUBTHRESH
+  - LVC_PRELIMINARY
+  - LVC_INITIAL
+  - LVC_UPDATE
+  - LVC_RETRACTION
+  - AMON_ICECUBE_COINC
+  - AMON_ICECUBE_HESE
+  - ICECUBE_ASTROTRACK_GOLD
+  - ICECUBE_ASTROTRACK_BRONZE

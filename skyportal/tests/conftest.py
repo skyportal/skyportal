@@ -1068,6 +1068,15 @@ def manage_sources_token_two_groups(group_admin_user_two_groups):
 
 
 @pytest.fixture()
+def observing_run_token(user):
+    token_id = create_token(
+        ACLs=["Manage observing runs"], user_id=user.id, name=str(uuid.uuid4())
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
 def upload_data_token(user):
     token_id = create_token(
         ACLs=["Upload data"], user_id=user.id, name=str(uuid.uuid4())
@@ -1546,3 +1555,44 @@ def user_notification(user):
     user_notification = UserNotificationFactory(user=user)
     yield user_notification
     UserNotificationFactory.teardown(user_notification)
+
+
+@pytest.fixture()
+def shift_admin(public_group, public_stream):
+    user = UserFactory(
+        groups=[public_group],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "Group admin"))
+            .scalars()
+            .first()
+        ],
+        streams=[public_stream],
+    )
+    user_id = user.id
+    yield user
+    UserFactory.teardown(user_id)
+
+
+@pytest.fixture()
+def shift_user(public_group, public_stream):
+    user = UserFactory(
+        groups=[public_group],
+        roles=[
+            DBSession()
+            .execute(sa.select(models.Role).filter(models.Role.id == "View only"))
+            .scalars()
+            .first()
+        ],
+        streams=[public_stream],
+        acls=[
+            DBSession()
+            .execute(sa.select(models.ACL).filter(models.ACL.id == "Manage shifts"))
+            .scalars()
+            .first()
+        ],
+    )
+
+    user_id = user.id
+    yield user
+    UserFactory.teardown(user_id)

@@ -70,7 +70,8 @@ export function instrumentInfo(instrument, telescopeList) {
   ) {
     result += "( ";
     if (instrument?.filters) {
-      result += `filters: ${instrument.filters}`;
+      const filters_str = instrument.filters.join(", ");
+      result += `filters: ${filters_str}`;
     }
     if (instrument?.api_classname) {
       result += ` / API Classname: ${instrument?.api_classname}`;
