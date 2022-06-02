@@ -4,7 +4,6 @@ import { makeStyles } from "@material-ui/core";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import SetAutomaticallyVisiblePhotometry from "./SetAutomaticallyVisiblePhotometry";
 import PhotometryButtonsForm from "./PhotometryButtonsForm";
-import DataPointSizeForm from "./DataPointSizeForm";
 
 const useStyles = makeStyles(() => ({
   photometryPlottingPreferencesHeader: {
@@ -24,7 +23,6 @@ const PhotometryPlottingPreferences = () => {
       </div>
       <SetAutomaticallyVisiblePhotometry />
       <PhotometryButtonsForm />
-      <DataPointSizeForm />
     </div>
   );
 };

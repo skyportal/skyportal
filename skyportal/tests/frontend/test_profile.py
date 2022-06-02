@@ -169,20 +169,6 @@ def test_delete_classification_shortcut(driver, user, public_group, taxonomy_tok
     driver.wait_for_xpath_to_disappear(f'//span[contains(text(), "{shortcut_name}")]')
 
 
-def test_set_photometry_data_point_size(driver, user, upload_data_token):
-    driver.get(f"/become_user/{user.id}")
-    driver.get("/profile")
-    data_point_size_entry = driver.wait_for_xpath(
-        '//input[@name="photometryDataPointSize"]'
-    )
-    driver.scroll_to_element_and_click(data_point_size_entry)
-    data_point_size_entry.send_keys(5)
-    status, data = api('GET', 'internal/profile', token=upload_data_token)
-    assert status == 200
-    # default data point size is 4, so after sending the '5' key, data point size should be 45.
-    assert data['data']['preferences']['photometryDataPointSize'] == 45
-
-
 def test_set_automatically_visible_photometry(driver, user, upload_data_token):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
@@ -192,7 +178,10 @@ def test_set_automatically_visible_photometry(driver, user, upload_data_token):
     driver.scroll_to_element_and_click(filter_select)
     massh_option = driver.wait_for_xpath('//li[@data-value="2massh"]')
     driver.scroll_to_element_and_click(massh_option)
+    # remove focus from open select menu
     ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
 
     origin_select = driver.wait_for_xpath(
         '//div[@id="originSelectAutomaticallyVisiblePhotometry"]'
@@ -217,7 +206,10 @@ def test_photometry_buttons_form(driver, user, upload_data_token):
     driver.scroll_to_element_and_click(filter_select)
     massh_option = driver.wait_for_xpath('//li[@data-value="2massh"]')
     driver.scroll_to_element_and_click(massh_option)
+    # remove focus from open select menu
     ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
 
     origin_select = driver.wait_for_xpath(
         '//div[@id="originSelectPhotometryButtonsForm"]'
