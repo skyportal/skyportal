@@ -1,6 +1,6 @@
 """create sensitivity data column
 Revision ID: 7dd63c947072
-Revises: 5bedad46562c
+Revises: 415cd17ac788
 Create Date: 2022-02-24 09:47:20.742186
 """
 from alembic import op
@@ -9,7 +9,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '7dd63c947072'
-down_revision = '5bedad46562c'
+down_revision = '415cd17ac788'
 branch_labels = None
 depends_on = None
 
