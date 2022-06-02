@@ -44,7 +44,7 @@ def handle(payload, root):
 
                 if allocation is not None:
                     payload = {
-                        **gcn_observation_plan,
+                        **gcn_observation_plan['payload'],
                         'start_date': start_date,
                         'end_date': end_date,
                         'queue_name': f'{allocation.instrument.name}-{start_date}',

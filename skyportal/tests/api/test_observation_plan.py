@@ -121,7 +121,7 @@ def test_observation_plan_tiling(
     )
     assert status == 200
     assert data['status'] == 'success'
-    id = data['data']['id']
+    id = data['data']['ids'][0]
 
     # wait for the observation plan to finish
     time.sleep(15)
@@ -332,7 +332,7 @@ def test_observation_plan_galaxy(
     )
     assert status == 200
     assert data['status'] == 'success'
-    id = data['data']['id']
+    id = data['data']['ids'][0]
 
     # wait for the observation plan to populate
     nretries = 0

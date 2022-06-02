@@ -97,6 +97,8 @@ def post_observation_plan(plan, user_id, session):
     except AttributeError:
         formSchema = instrument.api_class_obsplan.form_json_schema
 
+    print(data['payload'])
+
     # validate the payload
     try:
         jsonschema.validate(data['payload'], formSchema)
