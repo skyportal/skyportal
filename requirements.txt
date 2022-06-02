@@ -56,7 +56,7 @@ swifttools==2.4.4
 pip==22.1.2
 gwemopt==0.0.76
 humanize==4.0.0
-simsurvey==0.7.1
+simsurvey==0.7.2
 noaodatalab==2.20.0
 black==22.3.0
 click==8.1.3
