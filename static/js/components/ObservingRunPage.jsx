@@ -84,13 +84,66 @@ export const observingRunInfo = (
   return result;
 };
 
-const ObservingRunList = ({ observingRuns, deletePermission }) => {
+const DeleteObservingRunDialog = ({ run, deletePermission }) => {
+  console.log(run);
+  const classes = useStyles();
   const dispatch = useDispatch();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const openDialog = () => {
+    setDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setDialogOpen(false);
+  };
+  const deleteObservingRun = (observingRun) => {
+    dispatch(observingRunActions.deleteObservingRun(observingRun.id)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Observing run deleted"));
+          closeDialog();
+        }
+      }
+    );
+  };
+  return (
+    <div>
+      <Button
+        key={`${run.id}-delete_button`}
+        id="delete_button"
+        classes={{
+          root: classes.observingRunDelete,
+          disabled: classes.observingRunDeleteDisabled,
+        }}
+        onClick={openDialog}
+        disabled={!deletePermission}
+        size="small"
+      >
+        &times;
+      </Button>
+      <Dialog open={dialogOpen} onClose={closeDialog}>
+        <DialogTitle>Delete Observing Run?</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete this observing run?
+        </DialogContent>
+        <DialogActions>
+          <Button autoFocus onClick={closeDialog}>
+            Dismiss
+          </Button>
+          <Button color="primary" onClick={() => deleteObservingRun(run)}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </div>
+  );
+};
+
+const ObservingRunList = ({ observingRuns, deletePermission }) => {
   const classes = useStyles();
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
   const groups = useSelector((state) => state.groups.all);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   const dt_month = dayjs.duration(1, "month");
@@ -99,14 +152,6 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
 
   const toggleDisplayAllCheckbox = () => {
     setDisplayAll(!displayAll);
-  };
-
-  const openDialog = () => {
-    setDialogOpen(true);
-  };
-
-  const closeDialog = () => {
-    setDialogOpen(false);
   };
 
   let observingRunsToShow = [];
@@ -120,17 +165,6 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
   } else {
     observingRunsToShow = [...observingRuns];
   }
-
-  const deleteObservingRun = (observingRun) => {
-    dispatch(observingRunActions.deleteObservingRun(observingRun.id)).then(
-      (result) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Observing run deleted"));
-          closeDialog();
-        }
-      }
-    );
-  };
 
   return (
     <div className={classes.root}>
@@ -161,33 +195,10 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
               }
               secondary={observingRunInfo(run, instrumentList, telescopeList)}
             />
-            <Button
-              key={`${run.id}-delete_button`}
-              id="delete_button"
-              classes={{
-                root: classes.observingRunDelete,
-                disabled: classes.observingRunDeleteDisabled,
-              }}
-              onClick={openDialog}
-              disabled={!deletePermission}
-              size="small"
-            >
-              &times;
-            </Button>
-            <Dialog open={dialogOpen} onClose={closeDialog}>
-              <DialogTitle>Delete Observing Run?</DialogTitle>
-              <DialogContent>
-                Are you sure you want to delete this observing run?
-              </DialogContent>
-              <DialogActions>
-                <Button autoFocus onClick={closeDialog}>
-                  Dismiss
-                </Button>
-                <Button color="primary" onClick={() => deleteObservingRun(run)}>
-                  Confirm
-                </Button>
-              </DialogActions>
-            </Dialog>
+            <DeleteObservingRunDialog
+              run={run}
+              deletePermission={deletePermission}
+            />
           </ListItem>
         ))}
       </List>
@@ -232,6 +243,13 @@ const ObservingRunPage = () => {
 ObservingRunList.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   observingRuns: PropTypes.arrayOf(PropTypes.any).isRequired,
+  deletePermission: PropTypes.bool.isRequired,
+};
+
+DeleteObservingRunDialog.propTypes = {
+  run: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+  }).isRequired,
   deletePermission: PropTypes.bool.isRequired,
 };
 
