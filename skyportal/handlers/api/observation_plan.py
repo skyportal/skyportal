@@ -26,7 +26,7 @@ from simsurvey.models import AngularTimeSeriesSource
 import tempfile
 from ligo.skymap.distance import parameters_to_marginal_moments
 from ligo.skymap.bayestar import rasterize
-from ligo.skymap import plot  # noqa: F401
+from ligo.skymap import plot  # noqa: F401 F811
 import random
 import sncosmo
 
@@ -853,7 +853,7 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
         self.push_notification(f'TreasureMap delete succeeded: {request_text}.')
         return self.success()
 
-      
+
 class ObservationPlanGeoJSONHandler(BaseHandler):
     @auth_or_token
     def get(self, observation_plan_request_id):
@@ -913,7 +913,7 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
         else:
             return self.error('Observation plan not yet available.')
 
-      
+
 class ObservationPlanAirmassChartHandler(BaseHandler):
     @auth_or_token
     async def get(self, localization_id, telescope_id):
@@ -993,7 +993,7 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
 
         await self.send_file(data, filename, output_type=output_format)
 
-        
+
 def observation_simsurvey(
     observations,
     localization,
@@ -1186,7 +1186,8 @@ def observation_simsurvey(
         "data": buf.read(),
         "reason": "",
     }
-  
+
+
 class ObservationPlanSimSurveyHandler(BaseHandler):
     @auth_or_token
     async def get(self, observation_plan_request_id):
