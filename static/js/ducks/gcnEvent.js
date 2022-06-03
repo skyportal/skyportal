@@ -39,6 +39,9 @@ const SEND_OBSERVATION_PLAN_REQUEST = "skyportal/SEND_OBSERVATION_PLAN_REQUEST";
 const REMOVE_OBSERVATION_PLAN_REQUEST =
   "skyportal/REMOVE_OBSERVATION_PLAN_REQUEST";
 
+const CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN =
+  "skyportal/CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN";
+
 export const fetchGcnEvent = (dateobs) =>
   API.GET(`/api/gcn_event/${dateobs}`, FETCH_GCNEVENT);
 
@@ -120,6 +123,12 @@ export const deleteObservationPlanRequestTreasureMap = (id) =>
   API.DELETE(
     `/api/observation_plan/${id}/treasuremap`,
     DELETE_OBSERVATION_PLAN_REQUEST_TREASUREMAP
+  );
+
+export const createObservationPlanRequestObservingRun = (id) =>
+  API.POST(
+    `/api/observation_plan/${id}/observing_run`,
+    CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN
   );
 
 export function getCommentOnGcnEventAttachment(gcnEventID, commentID) {

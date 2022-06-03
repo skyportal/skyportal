@@ -190,6 +190,14 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     setIsDeletingTreasureMap(null);
   };
 
+  const [isCreatingObservingRun, setIsCreatingObservingRun] = useState(null);
+  const handleCreateObservingRun = async (id) => {
+    console.log("id", id);
+    setIsCreatingObservingRun(id);
+    await dispatch(Actions.createObservationPlanRequestObservingRun(id));
+    setIsCreatingObservingRun(null);
+  };
+
   const [isSending, setIsSending] = useState(null);
   const handleSend = async (id) => {
     setIsSending(id);
@@ -438,6 +446,28 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
               >
                 GIF
               </Button>
+            </div>
+            <div>
+              {isCreatingObservingRun === observationplanRequest.id ? (
+                <div>
+                  <CircularProgress />
+                </div>
+              ) : (
+                <div>
+                  <Button
+                    onClick={() => {
+                      handleCreateObservingRun(observationplanRequest.id);
+                    }}
+                    size="small"
+                    color="primary"
+                    type="submit"
+                    variant="outlined"
+                    data-testid={`observingRunRequest_${observationplanRequest.id}`}
+                  >
+                    Create Observing Run
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         );
