@@ -2575,12 +2575,6 @@ class SourceNotificationHandler(BaseHandler):
                 "all list items to integers."
             )
 
-        # groups = (
-        #     Group.query_records_accessible_by(self.current_user)
-        #     .filter(Group.id.in_(group_ids))
-        #     .all()
-        # )
-
         if data.get("sourceId") is None:
             return self.error("Missing required parameter `sourceId`")
 

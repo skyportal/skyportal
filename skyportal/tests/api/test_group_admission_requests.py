@@ -36,8 +36,6 @@ def test_group_admission_read_access(
         token=upload_data_token_group2,
     )
     check_success(status, data)
-    # assert status == 200
-    # assert data["status"] == "success"
 
     # group_admin_user is associated with the manages_sources_token and
     # should be able to see the request just submitted
