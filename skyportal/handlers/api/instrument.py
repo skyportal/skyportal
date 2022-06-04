@@ -726,7 +726,8 @@ InstrumentHandler.post.__doc__ = f"""
                               description: >-
                                 Exposure time in seconds.
                       description: >-
-                        List of filters and associated limiting magnitude and exposure time. Filters must be the same as in the filters property.
+                        List of filters and associated limiting magnitude and exposure time. 
+                        Filters must be the same as in the filters property.
                     field_data:
                       type: dict
                       items:
