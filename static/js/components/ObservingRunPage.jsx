@@ -85,7 +85,6 @@ export const observingRunInfo = (
 };
 
 const DeleteObservingRunDialog = ({ run, deletePermission }) => {
-  console.log(run);
   const classes = useStyles();
   const dispatch = useDispatch();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -169,13 +168,19 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
   return (
     <div className={classes.root}>
       <List component="nav">
-        <input
-          type="checkbox"
-          onChange={toggleDisplayAllCheckbox}
-          name="observationRun"
-          data-testid="observationRunCheckbox"
-        />
-        Display all observing runs? &nbsp;&nbsp;
+        <Button
+          onClick={toggleDisplayAllCheckbox}
+          data-testid="observationRunButton"
+        >
+          {displayAll
+            ? "Show only upcoming observing runs"
+            : "Show all observing runs"}
+        </Button>
+        {observingRunsToShow === 0 ? (
+          <Typography>No observing runs to display...</Typography>
+        ) : (
+          ""
+        )}
         {observingRunsToShow?.map((run) => (
           <ListItem key={run.id}>
             <ListItemText
