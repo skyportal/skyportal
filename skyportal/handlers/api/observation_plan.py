@@ -1053,15 +1053,8 @@ def observation_simsurvey(
 
     trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
 
-    pointings = {
-        'ra': [],
-        'dec': [],
-        'field_id': [],
-        'limMag': [],
-        'jd': [],
-        'filter': [],
-        'skynoise': [],
-    }
+    keys = ['ra', 'dec', 'field_id', 'limMag', 'jd', 'filter', 'skynoise']
+    pointings = {k: [] for k in keys}
     for obs in observations:
         nmag = -2.5 * np.log10(
             np.sqrt(
@@ -1244,8 +1237,8 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
             schema:
               type: string
             description: |
-              Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource. 
-              Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt 
+              Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource.
+              Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt
               from https://github.com/mbulla/kilonova_models.
         responses:
           200:
@@ -1306,7 +1299,9 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
         unique_filters = observation_plan.unique_filters
 
-        if not set(unique_filters).issubset(set(list(instrument.sensitivity_data))):
+        if not set(unique_filters).issubset(
+            set(list(instrument.sensitivity_data.keys()))
+        ):
             return self.error('Need sensitivity_data for all filters present')
 
         for filt in unique_filters:

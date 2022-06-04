@@ -48,11 +48,10 @@ class InstrumentHandler(BaseHandler):
         sensitivity_data = data.get("sensitivity_data", None)
         if sensitivity_data:
             filters = data.get("filters", [])
-            for filter in sensitivity_data:
-                if filter not in filters:
-                    return self.error(
-                        'Filter names must be present in both sensitivity_data property and filters property'
-                    )
+            if not set(list(sensitivity_data.keys())).issubset(filters):
+                return self.error(
+                    'Filter names must be present in both sensitivity_data property and filters property'
+                )
 
         field_data = data.pop("field_data", None)
         field_region = data.pop("field_region", None)
@@ -571,11 +570,10 @@ class InstrumentHandler(BaseHandler):
         filters = instrument.filters
         sensitivity_data = data.get('sensitivity_data', None)
         if sensitivity_data:
-            for filter in sensitivity_data:
-                if filter not in filters:
-                    return self.error(
-                        'Filter names must be present in both sensitivity_data property and filters property'
-                    )
+            if not set(list(sensitivity_data.keys())).issubset(filters):
+                return self.error(
+                    'Filter names must be present in both sensitivity_data property and filters property'
+                )
 
         field_data = data.pop("field_data", None)
         field_region = data.pop("field_region", None)
@@ -723,10 +721,10 @@ InstrumentHandler.post.__doc__ = f"""
                               type: string
                             exposure_time:
                               type: float
-                              description: >-
+                              description: |
                                 Exposure time in seconds.
-                      description: >-
-                        List of filters and associated limiting magnitude and exposure time. 
+                      description: |
+                        List of filters and associated limiting magnitude and exposure time.
                         Filters must be the same as in the filters property.
                     field_data:
                       type: dict
