@@ -1009,6 +1009,7 @@ def observation_simsurvey(
 ):
 
     """Create a plot to display the simsurvey analyis for a given skymap
+
         Parameters
         ----------
         observations : skyportal.models.observation_plan.PlannedObservation
