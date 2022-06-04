@@ -117,7 +117,7 @@ const MainContent = ({ root }) => {
             <Route path="{{ route.path }}" element={{ "{<" }}{{ route.component }}{{ "/>}" }} />
             {%- endfor %}
 
-            <Route component={<NoMatchingRoute/>} />
+            <Route path="*" element={<NoMatchingRoute/>} />
 
           </Routes>
 
