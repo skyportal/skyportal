@@ -1244,7 +1244,9 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
             schema:
               type: string
             description: |
-              Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource. Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt from https://github.com/mbulla/kilonova_models.
+              Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource. 
+              Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt 
+              from https://github.com/mbulla/kilonova_models.
         responses:
           200:
             content:
