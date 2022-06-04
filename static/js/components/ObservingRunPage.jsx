@@ -171,6 +171,7 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
         <Button
           onClick={toggleDisplayAllCheckbox}
           data-testid="observationRunButton"
+          variant="outlined"
         >
           {displayAll
             ? "Show only upcoming observing runs"
