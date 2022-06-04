@@ -1253,7 +1253,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
         """
 
         number_of_injections = self.get_query_argument("numberInjections", 1000)
-        number_of_detections = self.get_query_argument("numberInjections", 1)
+        number_of_detections = self.get_query_argument("numberDetections", 1)
         detection_threshold = self.get_query_argument("detectionThreshold", 5)
         minimum_phase = self.get_query_argument("minimumPhase", 0)
         maximum_phase = self.get_query_argument("maximumPhase", 3)
