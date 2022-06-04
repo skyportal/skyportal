@@ -46,7 +46,7 @@ TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
 def post_observation_plan(plan, user_id, session):
     """Post ObservationPlan to database.
-    
+
     Parameters
     ----------
     plan: dict
