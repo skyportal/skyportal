@@ -382,7 +382,10 @@ def test_fetch_all_spectrum_annotations(
         token=upload_data_token,
     )
 
+    # make sure the dictionaries are sorted
+    data['data'] = sorted(data['data'], key=lambda x: x['origin'])
+
     assert status == 200
     assert len(data['data']) == 2
-    assert data['data'][0]['data']['gaia_G'] == 15.7
-    assert data['data'][1]['data']['redshift'] == 0.07
+    assert data['data'][0]['data']['redshift'] == 0.07
+    assert data['data'][1]['data']['gaia_G'] == 15.7
