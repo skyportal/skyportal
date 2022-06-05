@@ -194,10 +194,11 @@ const GcnSelectionForm = ({ gcnEvent }) => {
     setIsSubmitting(false);
   };
 
-  // const handleSendToObservationPlan = (instrument) => {
-  // const selectedFields = instrument?.fields.filter((f) => f?.selected);
-  // const selectedIds = selectedFields.map((f) => f?.field_id);
-  // };
+  const handleSendToObservationPlan = (instrument) => {
+    const selectedFields = instrument?.fields.filter((f) => f?.selected);
+    const selectedIds = selectedFields.map((f) => f?.field_id);
+    console.log(selectedFields);
+  };
 
   if (telescopeList.length === 0) {
     return <p>No robotic followup requests found...</p>;
@@ -330,10 +331,10 @@ const GcnSelectionForm = ({ gcnEvent }) => {
       )}
       <div>
         <Button
-          variant="outlined"
-          // onClick={() =>
-          //   handleSendToObservationPlan(instLookUp[selectedInstrumentId])
-          // }
+          variant="contained"
+          onClick={() =>
+            handleSendToObservationPlan(instLookUp[selectedInstrumentId])
+          }
         >
           Send selected to observation plan
         </Button>
