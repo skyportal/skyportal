@@ -65,7 +65,7 @@ const FollowupRequestForm = ({
       const { data } = result;
       setSelectedAllocationId(data[0]?.id);
       if (data[0]?.default_share_group_ids?.length > 0) {
-        setSelectedGroupIds([data[0]?.default_share_group_ids]);
+        setSelectedGroupIds(data[0]?.default_share_group_ids);
       } else {
         setSelectedGroupIds([data[0]?.group_id]);
       }
