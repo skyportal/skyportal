@@ -221,9 +221,6 @@ const GcnSelectionForm = ({ gcnEvent }) => {
   const instruments_with_contour = [];
   gcnEventInstruments?.forEach((instrument) => {
     if (instrument?.fields && instrument?.fields.length > 0) {
-      instrument.fields.forEach((f) => {
-        f.selected = false;
-      });
       if (instrument.fields[0].contour_summary) {
         instruments_with_contour.push(instrument);
         instLookUp[instrument.id] = instrument;

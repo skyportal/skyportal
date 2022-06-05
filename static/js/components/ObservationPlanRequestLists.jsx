@@ -111,7 +111,7 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
     fetchObsList();
   }, [dispatch, setObsList, observationplanRequest]);
 
-  const handleSendToObservationPlan = async (obsPlanList) => {
+  const handleDeleteObservationPlanFields = async (obsPlanList) => {
     const selectedFields = obsPlanList?.geojson.filter((f) => f?.selected);
     const selectedIds = selectedFields.map((f) => f?.properties?.field_id);
     await dispatch(
@@ -139,7 +139,7 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
           />
           <Button
             variant="contained"
-            onClick={() => handleSendToObservationPlan(obsList)}
+            onClick={() => handleDeleteObservationPlanFields(obsList)}
           >
             Delete selected from observation plan
           </Button>
