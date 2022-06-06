@@ -167,7 +167,7 @@ def test_add_sources_two_groups(
     obj_button.clear()
     obj_button.send_keys(obj_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -438,7 +438,7 @@ def test_filter_by_alias_and_origin(
     alias_field = driver.wait_for_xpath("//*[@data-testid='alias-text']//input")
     alias_field.send_keys(str(uuid.uuid4()))
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -452,7 +452,7 @@ def test_filter_by_alias_and_origin(
     )
     alias_field.send_keys(origin)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
