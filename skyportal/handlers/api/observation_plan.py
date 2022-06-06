@@ -1299,9 +1299,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
         unique_filters = observation_plan.unique_filters
 
-        if not set(unique_filters).issubset(
-            set(list(instrument.sensitivity_data.keys()))
-        ):
+        if not set(unique_filters).issubset(set(instrument.sensitivity_data.keys())):
             return self.error('Need sensitivity_data for all filters present')
 
         for filt in unique_filters:

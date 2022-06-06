@@ -48,7 +48,7 @@ class InstrumentHandler(BaseHandler):
         sensitivity_data = data.get("sensitivity_data", None)
         if sensitivity_data:
             filters = data.get("filters", [])
-            if not set(list(sensitivity_data.keys())).issubset(filters):
+            if not set(sensitivity_data.keys()).issubset(filters):
                 return self.error(
                     'Filter names must be present in both sensitivity_data property and filters property'
                 )
@@ -570,7 +570,7 @@ class InstrumentHandler(BaseHandler):
         filters = instrument.filters
         sensitivity_data = data.get('sensitivity_data', None)
         if sensitivity_data:
-            if not set(list(sensitivity_data.keys())).issubset(filters):
+            if not set(sensitivity_data.keys()).issubset(filters):
                 return self.error(
                     'Filter names must be present in both sensitivity_data property and filters property'
                 )
