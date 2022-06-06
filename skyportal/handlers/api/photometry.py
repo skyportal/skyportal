@@ -18,6 +18,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import and_
 
 from baselayer.app.access import permissions, auth_or_token
+from baselayer.app.custom_exceptions import AccessError
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 from ..base import BaseHandler
@@ -1101,7 +1102,10 @@ class ObjPhotometryHandler(BaseHandler):
     def get(self, obj_id):
         phase_fold_data = self.get_query_argument("phaseFoldData", False)
 
-        Obj.get_if_accessible_by(obj_id, self.current_user, raise_if_none=True)
+        if Obj.get_if_accessible_by(obj_id, self.current_user) is None:
+            raise AccessError(
+                f"Insufficient permissions for User {self.current_user.id} to read Obj {obj_id}"
+            )
         photometry = Photometry.query_records_accessible_by(self.current_user).filter(
             Photometry.obj_id == obj_id
         )

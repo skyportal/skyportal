@@ -12,7 +12,6 @@ from baselayer.app.models import (
     UserAccessControl,
     DBSession,
     safe_aliased,
-    AccessibleIfUserMatches,
 )
 from baselayer.app.env import load_env
 
@@ -39,13 +38,46 @@ def manage_shift_access_logic(cls, user_or_token):
     return query
 
 
-# shift admins can set the admin status of other shift members
 def shiftuser_update_access_logic(cls, user_or_token):
     aliased = safe_aliased(cls)
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.id)
+    user_shift_admin = (
+        DBSession()
+        .query(Shift)
+        .join(GroupUser, GroupUser.group_id == Shift.group_id)
+        .filter(sa.and_(GroupUser.user_id == user_id, GroupUser.admin.is_(True)))
+    )
+    query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.shift_id)
     if not user_or_token.is_system_admin:
-        query = query.filter(aliased.user_id == user_id, aliased.admin.is_(True))
+        query = query.filter(
+            sa.or_(
+                aliased.user_id == user_id,
+                sa.and_(aliased.admin.is_(True), aliased.user_id == user_id),
+                aliased.shift_id.in_([shift.id for shift in user_shift_admin.all()]),
+            )
+        )
+    return query
+
+
+def shiftuser_delete_access_logic(cls, user_or_token):
+    aliased = safe_aliased(cls)
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    user_shift_admin = (
+        DBSession()
+        .query(Shift)
+        .join(GroupUser, GroupUser.group_id == Shift.group_id)
+        .filter(sa.and_(GroupUser.user_id == user_id, GroupUser.admin.is_(True)))
+    )
+    query = DBSession().query(cls).join(aliased, cls.shift_id == aliased.shift_id)
+    if not user_or_token.is_system_admin:
+        query = query.filter(
+            sa.or_(
+                aliased.user_id == user_id,
+                sa.and_(aliased.admin.is_(True), aliased.user_id == user_id),
+                aliased.shift_id.in_([shift.id for shift in user_shift_admin.all()]),
+                aliased.needs_replacement.is_(True),
+            )
+        )
     return query
 
 
@@ -110,17 +142,15 @@ ShiftUser.admin = sa.Column(
     default=False,
     doc="Boolean flag indicating whether the User is an admin of the shift.",
 )
+# add a column that is a boolean saying if a user needs a replacement for the shift
+ShiftUser.needs_replacement = sa.Column(
+    sa.Boolean,
+    nullable=False,
+    default=False,
+    doc="Boolean flag indicating whether the User needs a replacement for the shift.",
+)
 
 ShiftUser.update = CustomUserAccessControl(shiftuser_update_access_logic)
-ShiftUser.delete = (
-    # TODO: admins can leave a shift ONLY if there is at least one other admin
-    # users can remove themselves from a shift
-    # admins of a shift can remove users from it
-    (AccessibleIfUserMatches('user'))
-    & ShiftUser.read
-    & CustomUserAccessControl(
-        lambda cls, user_or_token: DBSession().query(cls).join(Shift)
-    )
-)
+ShiftUser.delete = CustomUserAccessControl(shiftuser_delete_access_logic)
 
 ShiftUser.create = ShiftUser.read

@@ -64,7 +64,11 @@ const FollowupRequestForm = ({
 
       const { data } = result;
       setSelectedAllocationId(data[0]?.id);
-      setSelectedGroupIds([data[0]?.group_id]);
+      if (data[0]?.default_share_group_ids?.length > 0) {
+        setSelectedGroupIds([data[0]?.default_share_group_ids]);
+      } else {
+        setSelectedGroupIds([data[0]?.group_id]);
+      }
     };
 
     getAllocations();
@@ -128,6 +132,13 @@ const FollowupRequestForm = ({
 
   const handleSelectedAllocationChange = (e) => {
     setSelectedAllocationId(e.target.value);
+    if (allocationList[e.target.value]?.default_share_group_ids?.length > 0) {
+      setSelectedGroupIds([
+        allocationList[e.target.value]?.default_share_group_ids,
+      ]);
+    } else {
+      setSelectedGroupIds([allocationList[e.target.value]?.group_id]);
+    }
   };
 
   const handleSubmit = async ({ formData }) => {

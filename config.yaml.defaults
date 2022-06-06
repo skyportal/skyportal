@@ -121,7 +121,9 @@ app:
     - path: "/instruments"
       component: InstrumentPage
     - path: "/shifts"
-      component: ShiftPage
+      component: ShiftNoId
+    - path: "/shifts/:id"
+      component: ShiftWithId
 
   sidebar:
     # See https://material-ui.com/components/material-icons/
@@ -524,3 +526,17 @@ spectrum_types:
 #    wavelength: [5580, 5582, 8249, 8250]
 #    transmission: [0, 1, 1, 0]
 #    description: "basic ATLAS O filter - tophat transmission"
+
+gcn_notice_types:
+  - FERMI_GBM_FLT_POS
+  - FERMI_GBM_GND_POS
+  - FERMI_GBM_FIN_POS
+  - FERMI_GBM_SUBTHRESH
+  - LVC_PRELIMINARY
+  - LVC_INITIAL
+  - LVC_UPDATE
+  - LVC_RETRACTION
+  - AMON_ICECUBE_COINC
+  - AMON_ICECUBE_HESE
+  - ICECUBE_ASTROTRACK_GOLD
+  - ICECUBE_ASTROTRACK_BRONZE

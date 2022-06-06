@@ -1,7 +1,8 @@
 __all__ = ['Telescope']
 
+import numpy as np
 from datetime import timedelta
-
+import warnings
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import URLType
@@ -12,6 +13,9 @@ from astropy import units as u
 from astropy import time as ap_time
 
 from baselayer.app.models import Base, restricted
+from baselayer.log import make_log
+
+log = make_log('api/source')
 
 
 class Telescope(Base):
@@ -63,16 +67,34 @@ class Telescope(Base):
         try:
             return self._observer
         except AttributeError:
-            tf = timezonefinder.TimezoneFinder(in_memory=True)
-            local_tz = tf.closest_timezone_at(
-                lng=(self.lon + 180) % 360 - 180, lat=self.lat, delta_degree=5
-            )
-            self._observer = astroplan.Observer(
-                longitude=self.lon * u.deg,
-                latitude=self.lat * u.deg,
-                elevation=self.elevation * u.m,
-                timezone=local_tz,
-            )
+            if not self.fixed_location:
+                return None
+
+            try:
+                tf = timezonefinder.TimezoneFinder(in_memory=True)
+                local_tz = tf.closest_timezone_at(
+                    lng=(self.lon + 180) % 360 - 180, lat=self.lat, delta_degree=5
+                )
+                elevation = self.elevation
+                if (
+                    self.elevation is None
+                    or self.elevation == ""
+                    or np.isnan(self.elevation)
+                ):
+                    elevation = 0
+
+                self._observer = astroplan.Observer(
+                    longitude=self.lon * u.deg,
+                    latitude=self.lat * u.deg,
+                    elevation=elevation * u.m,
+                    timezone=local_tz,
+                )
+
+            except Exception as e:
+                log(
+                    f'Telescope {self.id} ("{self.name}") cannot calculate an observer: {e}'
+                )
+                return None
 
         return self._observer
 
@@ -82,6 +104,8 @@ class Telescope(Base):
         if time is None:
             time = ap_time.Time.now()
         observer = self.observer
+        if observer is None:
+            return None
         return observer.sun_set_time(time, which='next')
 
     def next_sunrise(self, time=None):
@@ -90,6 +114,8 @@ class Telescope(Base):
         if time is None:
             time = ap_time.Time.now()
         observer = self.observer
+        if observer is None:
+            return None
         return observer.sun_rise_time(time, which='next')
 
     def next_twilight_evening_nautical(self, time=None):
@@ -98,6 +124,8 @@ class Telescope(Base):
         if time is None:
             time = ap_time.Time.now()
         observer = self.observer
+        if observer is None:
+            return None
         return observer.twilight_evening_nautical(time, which='next')
 
     def next_twilight_morning_nautical(self, time=None):
@@ -106,7 +134,17 @@ class Telescope(Base):
         if time is None:
             time = ap_time.Time.now()
         observer = self.observer
-        return observer.twilight_morning_nautical(time, which='next')
+        if observer is None:
+            return None
+        with warnings.catch_warnings():
+            # for telescopes above the arctic circle (or below antarctic circle)
+            # there is no morning nautical twilight
+            # so this returns a MaskedArray and raises a warning.
+            warnings.simplefilter("ignore")
+            t = observer.twilight_morning_nautical(time, which='next')
+            if isinstance(t.value, np.ma.core.MaskedArray):
+                return None
+        return t
 
     def next_twilight_evening_astronomical(self, time=None):
         """The astropy timestamp of the next evening astronomical (-18 degree)
@@ -114,7 +152,14 @@ class Telescope(Base):
         if time is None:
             time = ap_time.Time.now()
         observer = self.observer
-        return observer.twilight_evening_astronomical(time, which='next')
+        if observer is None:
+            return None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            t = observer.twilight_evening_astronomical(time, which='next')
+            if isinstance(t.value, np.ma.core.MaskedArray):
+                return None
+        return t
 
     def next_twilight_morning_astronomical(self, time=None):
         """The astropy timestamp of the next morning astronomical (-18 degree)
@@ -122,14 +167,24 @@ class Telescope(Base):
         if time is None:
             time = ap_time.Time.now()
         observer = self.observer
-        return observer.twilight_morning_astronomical(time, which='next')
+        if observer is None:
+            return None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            t = observer.twilight_morning_astronomical(time, which='next')
+            if isinstance(t.value, np.ma.core.MaskedArray):
+                return None
+        return t
 
     def ephemeris(self, time):
+
+        if self.observer is None:
+            return {}
 
         sunrise = self.next_sunrise(time=time)
         sunset = self.next_sunset(time=time)
 
-        if sunset > sunrise:
+        if sunset is not None and sunset > sunrise:
             sunset = self.observer.sun_set_time(time, which='previous')
             time = sunset - ap_time.TimeDelta(30, format='sec')
 
