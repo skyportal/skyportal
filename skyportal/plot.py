@@ -880,6 +880,38 @@ def mark_detections(plot, detection_dates, ymin, ymax):
     )
 
 
+def get_show_all_flag(user, data, type):
+    """Return a flag of whether to show all photometry points of a certain type on the phot plot.
+
+    Parameters
+    ----------
+    user : User object
+        Current user.
+    data : pandas DataFrame object
+        Photometry data (ungrouped)
+    type : str
+        Thing we're filtering the photometry by. Currently one of 'filters' or 'origins'.
+
+    Returns
+    -------
+    boolean flag for show all.
+    """
+    # The purpose of the boolean flag is for the case where the plot contains none of the user's automatically visible filters
+    # /origins: in that case we will display all of the photometry points and set show_all_filters/origins to `True`. Otherwise, we
+    # would like to selectively display points based on the user's preferences, so the flags will be set to `False`.
+    unique_values = list(data[type[:-1]].unique())
+    if 'None' in unique_values:
+        unique_values.remove('None')
+    show_all = True
+    if user.preferences:
+        if f"automaticallyVisible{type.capitalize()}" in user.preferences:
+            for value in user.preferences[f'automaticallyVisible{type.capitalize()}']:
+                if value in unique_values:
+                    show_all = False
+                    break
+    return show_all
+
+
 def make_legend_items_and_detection_lines(
     grouped_data,
     plot,
@@ -946,26 +978,9 @@ def make_legend_items_and_detection_lines(
         instrument=[],
         stacked=[],
     )
-    unique_filters = list(data['filter'].unique())
-    unique_origins = list(data['origin'].unique())
-    # I don't care about None.
-    if 'None' in unique_origins:
-        unique_origins.remove('None')
 
-    show_all_filters = True
-    show_all_origins = True
-
-    if user.preferences:
-        if "automaticallyVisibleFilters" in user.preferences:
-            for filter in user.preferences['automaticallyVisibleFilters']:
-                if filter in unique_filters:
-                    show_all_filters = False
-                    break
-        if "automaticallyVisibleOrigins" in user.preferences:
-            for origin in user.preferences['automaticallyVisibleOrigins']:
-                if origin in unique_origins:
-                    show_all_origins = False
-                    break
+    show_all_filters = get_show_all_flag(user, data, 'filters')
+    show_all_origins = get_show_all_flag(user, data, 'origins')
 
     legend_items = []
     for i, (label, df) in enumerate(grouped_data):
