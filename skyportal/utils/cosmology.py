@@ -6,7 +6,7 @@ from baselayer.log import make_log
 log = make_log('cosmology')
 
 
-def establish_cosmology(cfg={}, fallback_cosmology=cosmology.Planck18_arXiv_v2):
+def establish_cosmology(cfg={}, fallback_cosmology=cosmology.Planck18):
     def _get_cosmology():
         if cfg.get('misc'):
             if cfg["misc"].get('cosmology'):
