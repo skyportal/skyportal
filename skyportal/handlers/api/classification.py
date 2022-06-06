@@ -243,8 +243,13 @@ class ClassificationHandler(BaseHandler):
         )
 
         DBSession().add(classification)
-        print(data['classification'])
-        notify_users(obj_id, "source", f"/source/{obj_id}", str(data['classification']))
+        notify_users(
+            obj_id,
+            "sources",
+            f"/source/{obj_id}",
+            str(data['classification']),
+            DBSession,
+        )
 
         self.verify_and_commit()
 

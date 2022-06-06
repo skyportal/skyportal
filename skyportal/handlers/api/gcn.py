@@ -10,6 +10,7 @@ from tornado.ioloop import IOLoop
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import sessionmaker, scoped_session
+from baselayer.app.env import load_env
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -25,10 +26,12 @@ from ...models import (
     ObservationPlanRequest,
     User,
 )
+from skyportal.handlers.api.user import notify_users
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
 log = make_log('api/gcn_event')
 
+_, cfg = load_env()
 
 Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
@@ -115,12 +118,20 @@ def post_gcnevent(payload, user_id, session):
     except NoResultFound:
         localization = Localization(**skymap)
         session.add(localization)
+        notify_users(
+            dateobs,
+            "gcn_events",
+            f"/gcn_events/{dateobs}",
+            gcn.NoticeType(gcn.get_notice_type(root)).name,
+            session,
+        )
         session.commit()
 
         log(f"Generating tiles/contours for localization {localization.id}")
 
         IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
         IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
+    # fin the gcn notice type name
 
     return event.id
 
@@ -458,3 +469,17 @@ class LocalizationHandler(BaseHandler):
         self.verify_and_commit()
 
         return self.success()
+
+
+class GcnNoticeTypesHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        '''
+        This method return the list of notices from the config file
+        ---
+        description: Returns the list of notices
+        tags:
+          - gcn_notices
+        '''
+        notices = cfg['gcn_notice_types']
+        return self.success(data=notices)

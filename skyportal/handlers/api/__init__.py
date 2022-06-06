@@ -21,10 +21,7 @@ from .followup_request import (
 )
 from .facility_listener import FacilityMessageHandler
 from .galaxy import GalaxyCatalogHandler
-from .gcn import (
-    GcnEventHandler,
-    LocalizationHandler,
-)
+from .gcn import GcnEventHandler, LocalizationHandler, GcnNoticeTypesHandler
 from .group import (
     GroupHandler,
     GroupUserHandler,
