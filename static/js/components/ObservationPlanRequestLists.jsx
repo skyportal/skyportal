@@ -141,7 +141,7 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
             variant="contained"
             onClick={() => handleDeleteObservationPlanFields(obsList)}
           >
-            Delete selected from observation plan
+            Delete selected fields from observation plan
           </Button>
         </div>
       )}
