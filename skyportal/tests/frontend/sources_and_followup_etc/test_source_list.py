@@ -52,7 +52,7 @@ def test_add_sources_two_groups(
     obj_button.clear()
     obj_button.send_keys(obj_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -254,9 +254,7 @@ def test_filter_by_classification(
     driver.click_xpath(
         f"//li[@data-value='{taxonomy_name}: Algol']", scroll_parent=True
     )
-    driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
-    )
+    driver.click_xpath("//button[text()='Submit']")
 
     # Should see the posted source
     driver.wait_for_xpath(f'//a[@data-testid="{source_id}"]')
@@ -364,10 +362,7 @@ def test_filter_by_spectrum_time(
     )
 
     before_input.send_keys(str(test_time.isoformat()))
-
-    driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
-    )
+    driver.click_xpath("//button[text()='Submit']")
 
     # Should see the first source
     driver.wait_for_xpath(f'//a[@data-testid="{obj_id1}"]')
@@ -528,10 +523,7 @@ def test_hr_diagram(
     obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
     obj_button.clear()
     obj_button.send_keys(source_id)
-    driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
-        scroll_parent=True,
-    )
+    driver.click_xpath("//button[text()='Submit']")
 
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{source_id}')]")

@@ -56,7 +56,7 @@ def test_comment_username_autosuggestion(driver, user, public_source):
     comment_text = f"hey @{user.username[:5]}"
     enter_comment_text(driver, comment_text)
     matchButtonXpath = (
-        f'//button//span[text()="{user.username} {user.first_name} {user.last_name}"]'
+        f'//button[text()="{user.username} {user.first_name} {user.last_name}"]'
     )
     driver.wait_for_xpath(matchButtonXpath)
     driver.click_xpath(matchButtonXpath)
@@ -74,7 +74,7 @@ def test_comment_user_last_name_autosuggestion(driver, user, public_source):
     comment_text = f"hey @{user.last_name[:5]}"
     enter_comment_text(driver, comment_text)
     matchButtonXpath = (
-        f'//button//span[text()="{user.username} {user.first_name} {user.last_name}"]'
+        f'//button[text()="{user.username} {user.first_name} {user.last_name}"]'
     )
     driver.wait_for_xpath(matchButtonXpath)
     driver.click_xpath(matchButtonXpath)
