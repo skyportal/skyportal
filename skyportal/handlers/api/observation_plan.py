@@ -909,7 +909,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
     def delete(self, observation_plan_request_id):
         """
         ---
-        description: Get GeoJSON summary of the observation plan.
+        description: Delete selected fields from the observation plan.
         tags:
           - observation_plan_requests
         parameters:
