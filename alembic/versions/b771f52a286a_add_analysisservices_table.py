@@ -74,6 +74,7 @@ def upgrade():
             nullable=True,
         ),
         sa.Column('timeout', sa.Float(), nullable=True),
+        sa.Column('upload_only', sa.Boolean(), nullable=True),
         sa.PrimaryKeyConstraint('id'),
     )
     op.create_index(
