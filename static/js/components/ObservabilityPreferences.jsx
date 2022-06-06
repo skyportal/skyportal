@@ -1,13 +1,14 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 
-import { makeStyles, useTheme } from "@material-ui/core/styles";
-import Select from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
-import InputLabel from "@material-ui/core/InputLabel";
-import FormControl from "@material-ui/core/FormControl";
-import Chip from "@material-ui/core/Chip";
-import Input from "@material-ui/core/Input";
+import { useTheme } from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import InputLabel from "@mui/material/InputLabel";
+import FormControl from "@mui/material/FormControl";
+import Chip from "@mui/material/Chip";
+import Input from "@mui/material/Input";
 import * as profileActions from "../ducks/profile";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 

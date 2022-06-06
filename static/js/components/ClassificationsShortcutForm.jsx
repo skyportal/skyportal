@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useForm } from "react-hook-form";
-import InputLabel from "@material-ui/core/InputLabel";
-import Chip from "@material-ui/core/Chip";
-import { makeStyles } from "@material-ui/core/styles";
-import { Button, TextField, Typography } from "@material-ui/core";
+import InputLabel from "@mui/material/InputLabel";
+import Chip from "@mui/material/Chip";
+import makeStyles from "@mui/styles/makeStyles";
+import { Button, TextField, Typography } from "@mui/material";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import * as profileActions from "../ducks/profile";
 import ClassificationSelect from "./ClassificationSelect";

@@ -1,14 +1,16 @@
 import React from "react";
 import PropTypes from "prop-types";
-import Typography from "@material-ui/core/Typography";
-import Paper from "@material-ui/core/Paper";
+import Typography from "@mui/material/Typography";
+import Paper from "@mui/material/Paper";
 import {
-  makeStyles,
   createTheme,
-  MuiThemeProvider,
+  ThemeProvider,
+  StyledEngineProvider,
   useTheme,
-} from "@material-ui/core/styles";
-import CircularProgress from "@material-ui/core/CircularProgress";
+  adaptV4Theme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+import CircularProgress from "@mui/material/CircularProgress";
 
 import MUIDataTable from "mui-datatables";
 
@@ -29,34 +31,36 @@ const useStyles = makeStyles((theme) => ({
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
+  createTheme(
+    adaptV4Theme({
+      palette: theme.palette,
+      overrides: {
+        MUIDataTablePagination: {
+          toolbar: {
+            flexFlow: "row wrap",
+            justifyContent: "flex-end",
+            padding: "0.5rem 1rem 0",
+            [theme.breakpoints.up("sm")]: {
+              // Cancel out small screen styling and replace
+              padding: "0px",
+              paddingRight: "2px",
+              flexFlow: "row nowrap",
+            },
           },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
+          tableCellContainer: {
+            padding: "1rem",
+          },
+          selectRoot: {
+            marginRight: "0.5rem",
+            [theme.breakpoints.up("sm")]: {
+              marginLeft: "0",
+              marginRight: "2rem",
+            },
           },
         },
       },
-    },
-  });
+    })
+  );
 
 const GalaxyTable = ({ galaxies }) => {
   const classes = useStyles();
@@ -238,9 +242,15 @@ const GalaxyTable = ({ galaxies }) => {
       <Typography variant="h5">Galaxies</Typography>
       {galaxies ? (
         <Paper className={classes.container}>
-          <MuiThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable data={galaxies} options={options} columns={columns} />
-          </MuiThemeProvider>
+          <StyledEngineProvider injectFirst>
+            <ThemeProvider theme={getMuiTheme(theme)}>
+              <MUIDataTable
+                data={galaxies}
+                options={options}
+                columns={columns}
+              />
+            </ThemeProvider>
+          </StyledEngineProvider>
         </Paper>
       ) : (
         <CircularProgress />

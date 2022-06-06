@@ -2,11 +2,13 @@ import React from "react";
 import PropTypes from "prop-types";
 
 import {
-  makeStyles,
   createTheme,
-  MuiThemeProvider,
+  ThemeProvider,
+  StyledEngineProvider,
   useTheme,
-} from "@material-ui/core/styles";
+  adaptV4Theme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
 import MUIDataTable from "mui-datatables";
 
 import dayjs from "dayjs";
@@ -27,46 +29,48 @@ const useStyles = makeStyles(() => ({
 
 // Tweak responsive column widths
 const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTableBodyCell: {
-        root: {
-          padding: `${theme.spacing(0.5)}px 0 ${theme.spacing(
-            0.5
-          )}px ${theme.spacing(0.5)}px`,
-        },
-      },
-      MuiIconButton: {
-        root: {
-          padding: "0.5rem",
-        },
-      },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
+  createTheme(
+    adaptV4Theme({
+      palette: theme.palette,
+      overrides: {
+        MUIDataTableBodyCell: {
+          root: {
+            padding: `${theme.spacing(0.5)} 0 ${theme.spacing(
+              0.5
+            )} ${theme.spacing(0.5)}`,
           },
         },
-        tableCellContainer: {
-          padding: "1rem",
+        MuiIconButton: {
+          root: {
+            padding: "0.5rem",
+          },
         },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
+        MUIDataTablePagination: {
+          toolbar: {
+            flexFlow: "row wrap",
+            justifyContent: "flex-end",
+            padding: "0.5rem 1rem 0",
+            [theme.breakpoints.up("sm")]: {
+              // Cancel out small screen styling and replace
+              padding: "0px",
+              paddingRight: "2px",
+              flexFlow: "row nowrap",
+            },
+          },
+          tableCellContainer: {
+            padding: "1rem",
+          },
+          selectRoot: {
+            marginRight: "0.5rem",
+            [theme.breakpoints.up("sm")]: {
+              marginLeft: "0",
+              marginRight: "2rem",
+            },
           },
         },
       },
-    },
-  });
+    })
+  );
 
 // Table for displaying annotations
 const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
@@ -152,9 +156,11 @@ const AnnotationsTable = ({ annotations, spectrumAnnotations = [] }) => {
 
   return (
     <div className={classes.container}>
-      <MuiThemeProvider theme={getMuiTheme(theme)}>
-        <MUIDataTable columns={columns} data={tableData} options={options} />
-      </MuiThemeProvider>
+      <StyledEngineProvider injectFirst>
+        <ThemeProvider theme={getMuiTheme(theme)}>
+          <MUIDataTable columns={columns} data={tableData} options={options} />
+        </ThemeProvider>
+      </StyledEngineProvider>
     </div>
   );
 };

@@ -3,24 +3,25 @@ import ReactMarkdown from "react-markdown";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
-import { Button } from "@material-ui/core";
-import Tooltip from "@material-ui/core/Tooltip";
-import GroupIcon from "@material-ui/icons/Group";
-import { makeStyles, withStyles } from "@material-ui/core/styles";
-import ChatBubbleOutlineIcon from "@material-ui/icons/ChatBubbleOutline";
-import Dialog from "@material-ui/core/Dialog";
-import DialogContent from "@material-ui/core/DialogContent";
-import MuiDialogTitle from "@material-ui/core/DialogTitle";
-import IconButton from "@material-ui/core/IconButton";
-import CloseIcon from "@material-ui/icons/Close";
-import InfoOutlinedIcon from "@material-ui/icons/InfoOutlined";
-import Typography from "@material-ui/core/Typography";
-import grey from "@material-ui/core/colors/grey";
-
+import { Button } from "@mui/material";
+import Tooltip from "@mui/material/Tooltip";
+import GroupIcon from "@mui/icons-material/Group";
+import makeStyles from "@mui/styles/makeStyles";
+import withStyles from "@mui/styles/withStyles";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import MuiDialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import CloseIcon from "@mui/icons-material/Close";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import Typography from "@mui/material/Typography";
 import dayjs from "dayjs";
+
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 import emoji from "emoji-dictionary";
+import { grey } from "@mui/material/colors";
 
 import * as sourceActions from "../ducks/source";
 import * as gcnEventActions from "../ducks/gcnEvent";
@@ -185,6 +186,7 @@ const DialogTitle = withStyles(dialogTitleStyles)(
           aria-label="close"
           className={classes.closeButton}
           onClick={onClose}
+          size="large"
         >
           <CloseIcon />
         </IconButton>

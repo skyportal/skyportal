@@ -2,26 +2,28 @@ import React, { useEffect, Suspense, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 
-import Paper from "@material-ui/core/Paper";
-import Typography from "@material-ui/core/Typography";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 import {
-  makeStyles,
   createTheme,
-  MuiThemeProvider,
+  ThemeProvider,
+  StyledEngineProvider,
   useTheme,
-} from "@material-ui/core/styles";
-import useMediaQuery from "@material-ui/core/useMediaQuery";
-import Button from "@material-ui/core/Button";
-import IconButton from "@material-ui/core/IconButton";
-import OpenInNewIcon from "@material-ui/icons/OpenInNew";
-import ArrowUpward from "@material-ui/icons/ArrowUpward";
-import ArrowDownward from "@material-ui/icons/ArrowDownward";
-import SortIcon from "@material-ui/icons/Sort";
-import Chip from "@material-ui/core/Chip";
-import Box from "@material-ui/core/Box";
-import Tooltip from "@material-ui/core/Tooltip";
-import Popover from "@material-ui/core/Popover";
-import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
+  adaptV4Theme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import ArrowUpward from "@mui/icons-material/ArrowUpward";
+import ArrowDownward from "@mui/icons-material/ArrowDownward";
+import SortIcon from "@mui/icons-material/Sort";
+import Chip from "@mui/material/Chip";
+import Box from "@mui/material/Box";
+import Tooltip from "@mui/material/Tooltip";
+import Popover from "@mui/material/Popover";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import Form from "@rjsf/material-ui";
 import MUIDataTable from "mui-datatables";
 
@@ -129,92 +131,94 @@ const useStyles = makeStyles((theme) => ({
 
 // Tweak responsive column widths
 const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTableBodyCell: {
-        root: {
-          padding: `${theme.spacing(1)}px ${theme.spacing(
-            0.5
-          )}px ${theme.spacing(1)}px ${theme.spacing(1)}px`,
+  createTheme(
+    adaptV4Theme({
+      palette: theme.palette,
+      overrides: {
+        MUIDataTableBodyCell: {
+          root: {
+            padding: `${theme.spacing(1)} ${theme.spacing(0.5)} ${theme.spacing(
+              1
+            )} ${theme.spacing(1)}`,
+          },
+          stackedHeader: {
+            verticalAlign: "top",
+          },
+          stackedCommon: {
+            [theme.breakpoints.up("xs")]: { width: "calc(100%)" },
+            "&$stackedHeader": {
+              display: "none",
+              overflowWrap: "break-word",
+            },
+          },
         },
-        stackedHeader: {
-          verticalAlign: "top",
+        MUIDataTablePagination: {
+          toolbar: {
+            flexFlow: "row wrap",
+            justifyContent: "flex-end",
+            padding: "0.5rem 1rem 0",
+            [theme.breakpoints.up("sm")]: {
+              // Cancel out small screen styling and replace
+              padding: "0px",
+              paddingRight: "2px",
+              flexFlow: "row nowrap",
+            },
+          },
+          navContainer: {
+            flexDirection: "column",
+            alignItems: "center",
+            [theme.breakpoints.up("sm")]: {
+              flexDirection: "row",
+            },
+          },
+          selectRoot: {
+            marginRight: "0.5rem",
+            [theme.breakpoints.up("sm")]: {
+              marginLeft: "0",
+              marginRight: "2rem",
+            },
+          },
         },
-        stackedCommon: {
-          [theme.breakpoints.up("xs")]: { width: "calc(100%)" },
-          "&$stackedHeader": {
-            display: "none",
-            overflowWrap: "break-word",
+        MUIDataTableToolbar: {
+          filterPaper: {
+            // Use fullscreen dialog for small-screen filter form
+            width: "100%",
+            maxWidth: "100%",
+            margin: 0,
+            maxHeight: "calc(100vh - 1rem)",
+            borderRadius: 0,
+            top: "0 !important",
+            left: "0 !important",
+            [theme.breakpoints.up("md")]: {
+              // Override the overrides above for bigger screens
+              maxWidth: "25%",
+              top: "unset !important",
+              left: "unset !important",
+              float: "right",
+              position: "unset",
+              margin: "1rem",
+            },
+          },
+          filterCloseIcon: {
+            [theme.breakpoints.up("md")]: {
+              top: "1rem !important",
+              right: "1rem !important",
+            },
+          },
+        },
+        MUIDataTableFilter: {
+          root: {
+            maxHeight: "calc(100vh - 5rem)",
+          },
+        },
+        MUIDataTableFilterList: {
+          chip: {
+            maxWidth: "100%",
           },
         },
       },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        navContainer: {
-          flexDirection: "column",
-          alignItems: "center",
-          [theme.breakpoints.up("sm")]: {
-            flexDirection: "row",
-          },
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-      MUIDataTableToolbar: {
-        filterPaper: {
-          // Use fullscreen dialog for small-screen filter form
-          width: "100%",
-          maxWidth: "100%",
-          margin: 0,
-          maxHeight: "calc(100vh - 1rem)",
-          borderRadius: 0,
-          top: "0 !important",
-          left: "0 !important",
-          [theme.breakpoints.up("md")]: {
-            // Override the overrides above for bigger screens
-            maxWidth: "25%",
-            top: "unset !important",
-            left: "unset !important",
-            float: "right",
-            position: "unset",
-            margin: "1rem",
-          },
-        },
-        filterCloseIcon: {
-          [theme.breakpoints.up("md")]: {
-            top: "1rem !important",
-            right: "1rem !important",
-          },
-        },
-      },
-      MUIDataTableFilter: {
-        root: {
-          maxHeight: "calc(100vh - 5rem)",
-        },
-      },
-      MUIDataTableFilterList: {
-        chip: {
-          maxWidth: "100%",
-        },
-      },
-    },
-  });
+    })
+  );
 
 const getMostRecentClassification = (classifications) => {
   // Display the most recent non-zero probability class
@@ -229,15 +233,17 @@ const getMostRecentClassification = (classifications) => {
 };
 
 const getMuiPopoverTheme = () =>
-  createTheme({
-    overrides: {
-      MuiPopover: {
-        paper: {
-          maxWidth: "30rem",
+  createTheme(
+    adaptV4Theme({
+      overrides: {
+        MuiPopover: {
+          paper: {
+            maxWidth: "30rem",
+          },
         },
       },
-    },
-  });
+    })
+  );
 
 const defaultNumPerPage = 25;
 
@@ -294,6 +300,7 @@ const CustomSortToolbar = ({
           disabled={selectedAnnotationSortOptions === null}
           className={classes.sortButtton}
           data-testid="sortOnAnnotationButton"
+          size="large"
         >
           <span>
             <SortIcon />
@@ -788,45 +795,48 @@ const CandidateList = () => {
       >
         <HelpOutlineIcon />
       </IconButton>
-      <MuiThemeProvider theme={getMuiPopoverTheme(theme)}>
-        <Popover
-          id={annotationsHelpId}
-          open={annotationsHelpOpen}
-          anchorEl={annotationsHeaderAnchor}
-          onClose={handleCloseAnnotationsHelp}
-          className={classes.helpPopover}
-          anchorOrigin={{
-            vertical: "top",
-            horizontal: "right",
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "left",
-          }}
-        >
-          <Typography className={classes.typography}>
-            Annotation fields are uniquely identified by the combination of
-            origin and key. That is, two annotation values belonging to a key
-            with the same name will be considered different if they come from
-            different origins. <br />
-            <b>Sorting: </b> Clicking on an annotation field will display it, if
-            available, in the Info column. You can then click on the sort tool
-            button at the top of the table to sort on that annotation field. You
-            can also set the initial sorting parameters when submitting a new
-            candidates search via the form at the top of the page.
-            <br />
-            <b>Filtering: </b> Filtering on annotations is available through the
-            filtering tool at the top right of the table. <br />
-            <i>
-              Warning: applying multiple filters on annotations from different
-              origins is not supported currently and will return zero results.
-              For example, you cannot filter for a specific annotation value in
-              annotations from both &quot;origin_a&quot; and
-              &quot;origin_b&quot; at the same time.
-            </i>
-          </Typography>
-        </Popover>
-      </MuiThemeProvider>
+      <StyledEngineProvider injectFirst>
+        <ThemeProvider theme={getMuiPopoverTheme(theme)}>
+          <Popover
+            id={annotationsHelpId}
+            open={annotationsHelpOpen}
+            anchorEl={annotationsHeaderAnchor}
+            onClose={handleCloseAnnotationsHelp}
+            className={classes.helpPopover}
+            anchorOrigin={{
+              vertical: "top",
+              horizontal: "right",
+            }}
+            transformOrigin={{
+              vertical: "top",
+              horizontal: "left",
+            }}
+          >
+            <Typography className={classes.typography}>
+              Annotation fields are uniquely identified by the combination of
+              origin and key. That is, two annotation values belonging to a key
+              with the same name will be considered different if they come from
+              different origins. <br />
+              <b>Sorting: </b> Clicking on an annotation field will display it,
+              if available, in the Info column. You can then click on the sort
+              tool button at the top of the table to sort on that annotation
+              field. You can also set the initial sorting parameters when
+              submitting a new candidates search via the form at the top of the
+              page.
+              <br />
+              <b>Filtering: </b> Filtering on annotations is available through
+              the filtering tool at the top right of the table. <br />
+              <i>
+                Warning: applying multiple filters on annotations from different
+                origins is not supported currently and will return zero results.
+                For example, you cannot filter for a specific annotation value
+                in annotations from both &quot;origin_a&quot; and
+                &quot;origin_b&quot; at the same time.
+              </i>
+            </Typography>
+          </Popover>
+        </ThemeProvider>
+      </StyledEngineProvider>
     </div>
   );
 
@@ -1105,17 +1115,19 @@ const CandidateList = () => {
           <Spinner />
         </Box>
         <Box display={queryInProgress ? "none" : "block"}>
-          <MuiThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              // Reset key to reset page number
-              // https://github.com/gregnb/mui-datatables/issues/1166
-              key={`table_${pageNumber}`}
-              columns={columns}
-              data={candidates !== null ? candidates : []}
-              className={classes.table}
-              options={options}
-            />
-          </MuiThemeProvider>
+          <StyledEngineProvider injectFirst>
+            <ThemeProvider theme={getMuiTheme(theme)}>
+              <MUIDataTable
+                // Reset key to reset page number
+                // https://github.com/gregnb/mui-datatables/issues/1166
+                key={`table_${pageNumber}`}
+                columns={columns}
+                data={candidates !== null ? candidates : []}
+                className={classes.table}
+                options={options}
+              />
+            </ThemeProvider>
+          </StyledEngineProvider>
         </Box>
       </div>
       <div className={classes.pages}>

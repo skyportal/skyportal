@@ -4,7 +4,7 @@ import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { showNotification } from "baselayer/components/Notifications";
-import { CircularProgress } from "@material-ui/core";
+import { CircularProgress } from "@mui/material";
 import PropTypes from "prop-types";
 import * as shiftActions from "../ducks/shift";
 

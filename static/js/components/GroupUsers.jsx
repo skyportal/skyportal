@@ -2,19 +2,24 @@ import React from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import { createTheme, MuiThemeProvider } from "@material-ui/core/styles";
-import MoreVertIcon from "@material-ui/icons/MoreVert";
-import Popover from "@material-ui/core/Popover";
+import {
+  createTheme,
+  ThemeProvider,
+  StyledEngineProvider,
+  adaptV4Theme,
+} from "@mui/material/styles";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import Popover from "@mui/material/Popover";
 import MUIDataTable from "mui-datatables";
-import Divider from "@material-ui/core/Divider";
-import Chip from "@material-ui/core/Chip";
-import useMediaQuery from "@material-ui/core/useMediaQuery";
-import IconButton from "@material-ui/core/IconButton";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
-import Accordion from "@material-ui/core/Accordion";
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import Typography from "@material-ui/core/Typography";
+import Divider from "@mui/material/Divider";
+import Chip from "@mui/material/Chip";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import IconButton from "@mui/material/IconButton";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import Typography from "@mui/material/Typography";
 
 import ManageUserButtons from "./GroupPageManageUserButtons";
 import NewGroupUserForm from "./NewGroupUserForm";
@@ -23,23 +28,25 @@ import AddUsersFromGroupForm from "./AddUsersFromGroupForm";
 import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
 
 const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTableHeadCell: {
-        hintIconAlone: {
-          marginTop: 0,
-        },
-        hintIconWithSortIcon: {
-          marginTop: 0,
-        },
-        sortLabelRoot: {
-          height: "auto",
-          marginBottom: "auto",
+  createTheme(
+    adaptV4Theme({
+      palette: theme.palette,
+      overrides: {
+        MUIDataTableHeadCell: {
+          hintIconAlone: {
+            marginTop: 0,
+          },
+          hintIconWithSortIcon: {
+            marginTop: 0,
+          },
+          sortLabelRoot: {
+            height: "auto",
+            marginBottom: "auto",
+          },
         },
       },
-    },
-  });
+    })
+  );
 
 const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -101,6 +108,7 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
                 edge="end"
                 aria-label="open-manage-user-popover"
                 onClick={(e) => handlePopoverOpen(e, user.id)}
+                size="large"
               >
                 <MoreVertIcon />
               </IconButton>
@@ -221,13 +229,15 @@ const GroupUsers = ({ group, classes, currentUser, theme, isAdmin }) => {
         <Typography className={classes.heading}>Members</Typography>
       </AccordionSummary>
       <AccordionDetails className={classes.accordion_details}>
-        <MuiThemeProvider theme={getMuiTheme(theme)}>
-          <MUIDataTable
-            columns={columns}
-            data={group?.users ? groupUsers : []}
-            options={options}
-          />
-        </MuiThemeProvider>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={getMuiTheme(theme)}>
+            <MUIDataTable
+              columns={columns}
+              data={group?.users ? groupUsers : []}
+              options={options}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
         <Divider />
         <div className={classes.paper}>
           {isAdmin(currentUser) && (

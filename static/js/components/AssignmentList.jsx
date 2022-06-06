@@ -2,19 +2,21 @@ import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import {
-  makeStyles,
   createTheme,
-  MuiThemeProvider,
+  ThemeProvider,
+  StyledEngineProvider,
   useTheme,
-} from "@material-ui/core/styles";
-import IconButton from "@material-ui/core/IconButton";
-import DeleteIcon from "@material-ui/icons/Delete";
-import Accordion from "@material-ui/core/Accordion";
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import Typography from "@material-ui/core/Typography";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
-import CircularProgress from "@material-ui/core/CircularProgress";
+  adaptV4Theme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+import IconButton from "@mui/material/IconButton";
+import DeleteIcon from "@mui/icons-material/Delete";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import Typography from "@mui/material/Typography";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
 import dayjs from "dayjs";
 
@@ -42,47 +44,49 @@ const useStyles = makeStyles(() => ({
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTable: {
-        paper: {
-          width: "100%",
+  createTheme(
+    adaptV4Theme({
+      palette: theme.palette,
+      overrides: {
+        MUIDataTable: {
+          paper: {
+            width: "100%",
+          },
         },
-      },
-      MUIDataTableBodyCell: {
-        stackedCommon: {
-          overflow: "hidden",
-          "&:last-child": {
-            paddingLeft: "0.25rem",
+        MUIDataTableBodyCell: {
+          stackedCommon: {
+            overflow: "hidden",
+            "&:last-child": {
+              paddingLeft: "0.25rem",
+            },
+          },
+        },
+        MUIDataTablePagination: {
+          toolbar: {
+            flexFlow: "row wrap",
+            justifyContent: "flex-end",
+            padding: "0.5rem 1rem 0",
+            [theme.breakpoints.up("sm")]: {
+              // Cancel out small screen styling and replace
+              padding: "0px",
+              paddingRight: "2px",
+              flexFlow: "row nowrap",
+            },
+          },
+          tableCellContainer: {
+            padding: "1rem",
+          },
+          selectRoot: {
+            marginRight: "0.5rem",
+            [theme.breakpoints.up("sm")]: {
+              marginLeft: "0",
+              marginRight: "2rem",
+            },
           },
         },
       },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
-          },
-        },
-        tableCellContainer: {
-          padding: "1rem",
-        },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
-          },
-        },
-      },
-    },
-  });
+    })
+  );
 
 const AssignmentList = ({ assignments }) => {
   const styles = useStyles();
@@ -172,6 +176,7 @@ const AssignmentList = ({ assignments }) => {
           onClick={() => {
             deleteAssignment(id);
           }}
+          size="large"
         >
           <DeleteIcon />
         </IconButton>
@@ -249,13 +254,15 @@ const AssignmentList = ({ assignments }) => {
           <Typography variant="subtitle1">Assignments</Typography>
         </AccordionSummary>
         <AccordionDetails>
-          <MuiThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              data={assignments}
-              options={options}
-              columns={columns}
-            />
-          </MuiThemeProvider>
+          <StyledEngineProvider injectFirst>
+            <ThemeProvider theme={getMuiTheme(theme)}>
+              <MUIDataTable
+                data={assignments}
+                options={options}
+                columns={columns}
+              />
+            </ThemeProvider>
+          </StyledEngineProvider>
         </AccordionDetails>
       </Accordion>
     </div>
