@@ -119,7 +119,7 @@ def test_add_sources_two_groups(
     obj_button.clear()
     obj_button.send_keys(obj_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -266,9 +266,7 @@ def test_filter_by_classification(
         scroll_parent=True,
     )
     driver.click_xpath(f"//li[@data-value='{taxonomy_name}: AGN']", scroll_parent=True)
-    driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
-    )
+    driver.click_xpath("//button[text()='Submit']")
     # Should no longer see the source
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
 
@@ -378,9 +376,8 @@ def test_filter_by_spectrum_time(
     )
 
     after_input.send_keys(str(test_time.isoformat()))
-
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//button[text()='Submit']",
     )
 
     # Should see the posted source
@@ -429,7 +426,7 @@ def test_filter_by_alias_and_origin(
 
     alias_field.send_keys(alias)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 

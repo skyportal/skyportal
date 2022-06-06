@@ -92,7 +92,7 @@ def test_comment_user_first_name_autosuggestion(driver, user, public_source):
     comment_text = f"hey @{user.first_name[:5]}"
     enter_comment_text(driver, comment_text)
     matchButtonXpath = (
-        f'//button//span[text()="{user.username} {user.first_name} {user.last_name}"]'
+        f'//button[text()="{user.username} {user.first_name} {user.last_name}"]'
     )
     driver.wait_for_xpath(matchButtonXpath)
     driver.click_xpath(matchButtonXpath)
@@ -831,5 +831,5 @@ def test_duplicate_sources_render(
     driver.get(f"/become_user/{user.id}")
     driver.get(f"/source/{public_source.id}")
     driver.wait_for_xpath('//*[contains(text(), "Possible duplicate of:")]')
-    driver.click_xpath(f'//button//span[text()="{obj_id2}"]')
+    driver.click_xpath(f'//button[text()="{obj_id2}"]')
     driver.wait_for_xpath(f'//div[text()="{obj_id2}"]')
