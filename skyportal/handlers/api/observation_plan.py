@@ -918,13 +918,16 @@ class ObservationPlanFieldsHandler(BaseHandler):
             required: true
             schema:
               type: string
-          - in: query
-            name: fieldIds
-            nullable: false
-            schema:
-              type: list
-            description: |
-              List of field IDs to remove from the plan
+        requestBody:
+          content:
+            application/json:
+              schema:
+                properties:
+                  fieldIds:
+                    type: array
+                    items:
+                      type: integer
+                    description: List of field IDs to remove from the plan
         responses:
           200:
             content:
@@ -967,7 +970,7 @@ class ObservationPlanFieldsHandler(BaseHandler):
                         session.delete(observation)
                     else:
                         continue
-                session.commit()
+                self.verify_and_commit()
 
             self.push_all(
                 action="skyportal/REFRESH_GCNEVENT",
