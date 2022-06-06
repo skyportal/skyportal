@@ -2,6 +2,8 @@ __all__ = ['PhotStat']
 
 import numpy as np
 import sqlalchemy as sa
+from sqlalchemy import event
+
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -9,10 +11,13 @@ from datetime import datetime
 
 from baselayer.app.env import load_env
 from baselayer.app.models import (
+    DBSession,
     Base,
     public,
     restricted,
 )
+
+from skyportal.models.photometry import Photometry
 
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
@@ -558,3 +563,45 @@ class PhotStat(Base):
         )
 
         return np.sqrt(new_var)
+
+
+@event.listens_for(Photometry, 'after_insert')
+def insert_into_phot_stat(mapper, connection, target):
+
+    # Create or update PhotStat object
+    @event.listens_for(DBSession(), "after_flush", once=True)
+    def receive_after_flush(session, context):
+        obj_id = target.obj_id
+        phot_stat = session.scalars(
+            sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+        ).first()
+        if phot_stat is None:
+            all_phot = session.scalars(
+                sa.select(Photometry).where(Photometry.obj_id == obj_id)
+            ).all()
+            phot_stat = PhotStat()
+            phot_stat.full_update(all_phot)
+            session.add(phot_stat)
+            session.flush()
+        else:
+            phot_stat.add_photometry_point(target)
+            session.flush()
+
+
+@event.listens_for(Photometry, 'after_delete')
+@event.listens_for(Photometry, 'after_update')
+def fully_update_phot_stat(mapper, connection, target):
+
+    # Fully update PhotStat object
+    @event.listens_for(DBSession(), "after_flush", once=True)
+    def receive_after_flush(session, context):
+        obj_id = target.obj_id
+        phot_stat = session.scalars(
+            sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+        ).first()
+        if phot_stat is not None:
+            all_phot = session.scalars(
+                sa.select(Photometry).where(Photometry.obj_id == obj_id)
+            ).all()
+            phot_stat.full_update(all_phot)
+            session.flush()
