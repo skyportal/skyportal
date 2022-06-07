@@ -1,10 +1,16 @@
 import json
 from urllib.parse import urlparse
-import pandas as pd
 import datetime
+import functools
 
+import pandas as pd
+import requests
+from requests_oauthlib import OAuth1
+from requests.auth import HTTPBasicAuth, HTTPDigestAuth
+from tornado.ioloop import IOLoop
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker, scoped_session
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
@@ -12,6 +18,7 @@ from baselayer.app.model_util import recursive_to_dict
 
 from baselayer.log import make_log
 from baselayer.app.env import load_env
+from ...app_utils import get_app_base_url
 
 from ...enum_types import ANALYSIS_INPUT_TYPES, AUTHENTICATION_TYPES, ANALYSIS_TYPES
 
@@ -34,6 +41,8 @@ from .photometry import serialize
 log = make_log('app/analysis')
 
 _, cfg = load_env()
+
+Session = scoped_session(sessionmaker(bind=DBSession.session_factory.kw["bind"]))
 
 
 def valid_url(trial_url):
@@ -437,6 +446,85 @@ class AnalysisServiceHandler(BaseHandler):
 
 
 class AnalysisHandler(BaseHandler):
+    def call_external_analysis_service(
+        self,
+        analysis_id,
+        url,
+        callback_url,
+        inputs={},
+        authentication_type='none',
+        authinfo=None,
+        callback_method="POST",
+        invalid_after=None,
+        analysis_resource_type=None,
+        resource_id=None,
+        request_timeout=30.0,
+    ):
+        """
+        Call an external analysis service with pre-assembled input data and user-specified
+        authentication.
+        """
+        headers = {}
+        auth = None
+        payload_data = {
+            "callback_url": callback_url,
+            "inputs": inputs,
+            "callback_method": callback_method,
+            "invalid_after": str(invalid_after),
+            "analysis_resource_type": analysis_resource_type,
+            "resource_id": resource_id,
+        }
+
+        if authentication_type == 'api_key':
+            payload_data.update({authinfo['api_key_name']: authinfo['api_key']})
+        elif authentication_type == 'header_token':
+            headers.update(authinfo['header_token'])
+        elif authentication_type == 'HTTPBasicAuth':
+            auth = HTTPBasicAuth(authinfo['username'], authinfo['password'])
+        elif authentication_type == 'HTTPDigestAuth':
+            auth = HTTPDigestAuth(authinfo['username'], authinfo['password'])
+        elif authentication_type == 'OAuth1':
+            auth = OAuth1(
+                authinfo['app_key'],
+                authinfo['app_secret'],
+                authinfo['user_oauth_token'],
+                authinfo['user_oauth_token_secret'],
+            )
+        elif authentication_type == 'none':
+            pass
+        else:
+            raise ValueError(f"Invalid authentication_type: {authentication_type}")
+
+        try:
+            result = requests.post(
+                url,
+                json=payload_data,
+                headers=headers,
+                auth=auth,
+                timeout=request_timeout,
+            )
+        except requests.exceptions.Timeout as e:
+            log(e)
+            raise ValueError(f"Request to {url} timed out.")
+
+        if analysis_resource_type.lower() == 'obj':
+            try:
+                session = Session()
+                analysis = session.query(ObjAnalysis).get(analysis_id)
+            except AccessError:
+                log(f'Could not access Analysis {analysis_id}.')
+                raise AccessError
+        else:
+            raise ValueError(
+                f"Invalid analysis_resource_type: {analysis_resource_type}"
+            )
+
+        analysis.status = 'pending' if result.status_code == 200 else 'failure'
+        analysis.status_message = result.text
+        analysis.last_activity = datetime.datetime.utcnow()
+        session.commit()
+        return log(f"Completed analysis {analysis_id}")
+
     def generic_serialize(self, row, columns):
         return {c: getattr(row, c) for c in columns}
 
@@ -519,7 +607,7 @@ class AnalysisHandler(BaseHandler):
         return associated_resource_types[associated_resource_type]
 
     @permissions(['Run Analyses'])
-    def post(self, analysis_resource_type, resource_id, analysis_service_id):
+    async def post(self, analysis_resource_type, resource_id, analysis_service_id):
         """
         ---
         description: Begin an analysis run
@@ -666,7 +754,7 @@ class AnalysisHandler(BaseHandler):
                 show_plots=data.get('show_plots', False),
                 show_corner=data.get('show_corner', False),
                 status='queued',
-                handled_by_url="/webhook/obj_analysis/",
+                handled_by_url="/webhook/obj_analysis",
                 invalid_after=invalid_after,
             )
         else:
@@ -680,4 +768,24 @@ class AnalysisHandler(BaseHandler):
         except IntegrityError as e:
             return self.error(f'Analysis already exists: {str(e)}')
 
-        return self.success(data=inputs)
+        # Now call the analysis service to start the analysis, using the `input` data
+        # that we assembled above.
+        external_analysis_service = functools.partial(
+            self.call_external_analysis_service,
+            analysis.id,
+            analysis_service.url,
+            f'{get_app_base_url()}/{analysis.handled_by_url}/{analysis.token}',
+            inputs=inputs,
+            authentication_type=analysis_service.authentication_type,
+            authinfo=analysis_service.authinfo,
+            callback_method="POST",
+            invalid_after=invalid_after,
+            analysis_resource_type=analysis_resource_type,
+            resource_id=resource_id,
+        )
+
+        self.push_notification(
+            'Sending data to analysis service to start the analysis.',
+        )
+        _ = IOLoop.current().run_in_executor(None, external_analysis_service)
+        return self.success(data={"id": analysis.id})
