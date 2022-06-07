@@ -114,7 +114,7 @@ const FollowupRequestLists = ({
     followupRequests.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <p>No robotic followup requests for this source...</p>;
+    return <p>No robotic followup requests found...</p>;
   }
 
   const instLookUp = instrumentList.reduce((r, a) => {
@@ -407,7 +407,7 @@ FollowupRequestLists.propTypes = {
     // eslint-disable-next-line react/forbid-prop-types
     aliasLookup: PropTypes.objectOf(PropTypes.any),
   }).isRequired,
-  handleTableChange: PropTypes.func.isRequired,
+  handleTableChange: PropTypes.func,
   pageNumber: PropTypes.number,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
@@ -421,5 +421,6 @@ FollowupRequestLists.defaultProps = {
   pageNumber: 1,
   totalMatches: 0,
   numPerPage: 10,
+  handleTableChange: null,
 };
 export default FollowupRequestLists;

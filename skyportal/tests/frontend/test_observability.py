@@ -21,8 +21,8 @@ def test_user_preference_filtering(
 
     # Now go to preferences and set to only show p60
     driver.get("/profile")
-    driver.click_xpath("//*[@data-testid='selectTelescopes']")
-    driver.click_xpath(f"//*[@data-testid='telescope_{p60_telescope.id}']")
+    driver.click_xpath("//*[@id='selectTelescopes']")
+    driver.click_xpath(f"//li[@data-value='{p60_telescope.name}']")
 
     # Now should only show p60
     driver.get(f'/observability/{public_source.id}')

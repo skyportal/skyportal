@@ -135,16 +135,22 @@ class TelescopeHandler(BaseHandler):
         telescopes = []
         for telescope in data:
             temp = telescope.to_dict()
-            temp['is_night_astronomical'] = bool(
-                telescope.next_twilight_morning_astronomical().jd
-                < telescope.next_twilight_evening_astronomical().jd
-            )
-            temp[
-                'next_twilight_morning_astronomical'
-            ] = telescope.next_twilight_morning_astronomical().iso
-            temp[
-                'next_twilight_evening_astronomical'
-            ] = telescope.next_twilight_evening_astronomical().iso
+            if telescope.next_twilight_morning_astronomical() is not None:
+                temp['is_night_astronomical'] = bool(
+                    telescope.next_twilight_morning_astronomical().jd
+                    < telescope.next_twilight_evening_astronomical().jd
+                )
+                temp[
+                    'next_twilight_morning_astronomical'
+                ] = telescope.next_twilight_morning_astronomical().iso
+                temp[
+                    'next_twilight_evening_astronomical'
+                ] = telescope.next_twilight_evening_astronomical().iso
+            else:
+                temp['is_night_astronomical'] = False
+                temp['next_twilight_morning_astronomical'] = False
+                temp['next_twilight_evening_astronomical'] = False
+
             telescopes.append(temp)
         self.verify_and_commit()
         return self.success(data=telescopes)

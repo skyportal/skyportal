@@ -200,7 +200,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
   // };
 
   if (telescopeList.length === 0) {
-    return <p>No robotic followup requests for this source...</p>;
+    return <p>No robotic followup requests found...</p>;
   }
 
   if (
@@ -221,9 +221,6 @@ const GcnSelectionForm = ({ gcnEvent }) => {
   const instruments_with_contour = [];
   gcnEventInstruments?.forEach((instrument) => {
     if (instrument?.fields && instrument?.fields.length > 0) {
-      instrument.fields.forEach((f) => {
-        f.selected = false;
-      });
       if (instrument.fields[0].contour_summary) {
         instruments_with_contour.push(instrument);
         instLookUp[instrument.id] = instrument;
