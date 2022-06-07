@@ -93,7 +93,11 @@ const ShiftPage = ({ route }) => {
       <Grid item md={6} sm={12}>
         <Paper elevation={1}>
           {shiftList ? (
-            <MyCalendar events={shiftList} currentShift={currentShift} setShow={setShow}/>
+            <MyCalendar
+              events={shiftList}
+              currentShift={currentShift}
+              setShow={setShow}
+            />
           ) : (
             <CircularProgress />
           )}

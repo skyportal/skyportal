@@ -3,11 +3,11 @@ import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
 import Form from "@rjsf/material-ui";
-import { Paper, Collapse, Divider } from "@material-ui/core";
+import { Paper, Collapse, Divider, Tooltip } from "@material-ui/core";
 import { showNotification } from "baselayer/components/Notifications";
 import List from "@material-ui/core/List";
 import ListItem from "@material-ui/core/ListItem";
-import { ExpandMore, ExpandLess } from "@material-ui/icons";
+import { ExpandMore, ExpandLess, HelpOutline } from "@material-ui/icons";
 import * as shiftActions from "../ducks/shift";
 import SourceTable from "./SourceTable";
 import * as sourcesActions from "../ducks/sources";
@@ -35,6 +35,17 @@ const useStyles = makeStyles((theme) => ({
     flexDirection: "column",
     alignContent: "center",
     justifyContent: "center",
+  },
+  title: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "left",
+    gap: "10px",
+  },
+  tooltip: {
+    fontSize: "1rem",
+    maxWidth: "60rem",
   },
 }));
 
@@ -267,6 +278,25 @@ const ShiftSummary = () => {
   return (
     <div>
       <Paper className={classes.content}>
+        <div className={classes.title}>
+          <h2>Shift Summary</h2>
+          <Tooltip
+            title={
+              <p style={{ margin: "0" }}>
+                You can click on a shift from the calendar to get the list of
+                GCN Events that occured during that shift.
+                <br />
+                You can also use this form to select a time period to get the
+                list of GCN Events and shifts that occured during that time
+                period.
+              </p>
+            }
+            placement="right"
+            classes={{ tooltip: classes.tooltip }}
+          >
+            <HelpOutline />
+          </Tooltip>
+        </div>
         <Form
           schema={shiftFormSchema}
           onSubmit={handleSubmit}
