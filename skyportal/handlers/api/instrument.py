@@ -50,7 +50,7 @@ class InstrumentHandler(BaseHandler):
             filters = data.get("filters", [])
             if not set(sensitivity_data.keys()).issubset(filters):
                 return self.error(
-                    'Filter names must be present in both sensitivity_data property and filters property'
+                    'Sensitivity_data filters must be a subset of the instrument filters'
                 )
 
         field_data = data.pop("field_data", None)
@@ -725,7 +725,8 @@ InstrumentHandler.post.__doc__ = f"""
                                 Exposure time in seconds.
                       description: |
                         List of filters and associated limiting magnitude and exposure time.
-                        Filters must be the same as in the filters property.
+                        Sensitivity_data filters must be a subset of the instrument filters.
+                        Limiting magnitude assumed to be AB magnitude.
                     field_data:
                       type: dict
                       items:

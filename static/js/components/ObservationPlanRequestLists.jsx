@@ -28,6 +28,7 @@ const useStyles = makeStyles(() => ({
   actionButtons: {
     display: "flex",
     flexFlow: "row wrap",
+    gap: "0.2rem",
   },
   accordion: {
     width: "99%",
