@@ -1162,10 +1162,12 @@ def transformed_model_dict(model_dict):
     """In order to programmatically toggle visibilty, the model_dict keys are altered to contain the filter, instrument, and origin of
     the photometry point. However, many widgets need the original model dict with keys such as obs0 and bin0 in order to work correctly.
     This function changes the keys of the model dict to work with that format.
+
     Parameters
     ----------
     model_dict : dict
         Dictionary with string keys and GlyphRenderer values.
+    
     Returns
     -------
     dict with transformed keys.
