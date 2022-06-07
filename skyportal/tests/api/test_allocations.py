@@ -1,7 +1,9 @@
 from skyportal.tests import api
 
 
-def test_super_user_post_allocation(sedm, public_group, super_admin_token):
+def test_super_user_post_allocation(
+    sedm, public_group, public_group2, super_admin_token
+):
 
     request_data = {
         'group_id': public_group.id,
@@ -11,6 +13,7 @@ def test_super_user_post_allocation(sedm, public_group, super_admin_token):
         'start_date': '3021-02-27T00:00:00',
         'end_date': '3021-07-20T00:00:00',
         'proposal_id': 'COO-2020A-P01',
+        'default_share_group_ids': [public_group.id, public_group2.id],
     }
 
     status, data = api('POST', 'allocation', data=request_data, token=super_admin_token)

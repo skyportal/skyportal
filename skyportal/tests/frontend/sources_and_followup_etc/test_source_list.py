@@ -515,10 +515,8 @@ def test_hr_diagram(
         f'sources/{source_id}/annotations',
         data={
             'obj_id': source_id,
-            'origin': 'cross_match1',
-            'data': {
-                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20},
-            },
+            'origin': 'gaiaedr3.gaia_source',
+            'data': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20},
         },
         token=annotation_token,
     )

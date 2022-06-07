@@ -394,6 +394,7 @@ allocation:
     group_id: =program_A
     instrument_id: =SEDM
     =id: SEDM_allocation
+    default_share_group_ids: [=program_A, =program_B]
   - pi: Michael Coughlin
     proposal_id: LT-001
     start_date: "3020-02-12T00:00:00"

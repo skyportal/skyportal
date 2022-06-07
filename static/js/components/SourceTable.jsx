@@ -426,7 +426,7 @@ const SourceTable = ({
             container
             direction="row"
             spacing={3}
-            justify="center"
+            justifyContent="center"
             alignItems="center"
           >
             <ThumbnailList
@@ -1231,7 +1231,7 @@ const SourceTable = ({
           container
           direction="column"
           alignItems="flex-start"
-          justify="flex-start"
+          justifyContent="flex-start"
           spacing={3}
         >
           {queryInProgress ? (
