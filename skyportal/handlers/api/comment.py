@@ -387,40 +387,29 @@ class CommentHandler(BaseHandler):
             associated_resource_type.lower() == "sources"
             or associated_resource_type.lower() == "spectra"
         ):
-            if users_mentioned_in_comment:
-                for user_mentioned in users_mentioned_in_comment:
-                    DBSession().add(
-                        UserNotification(
-                            user=user_mentioned,
-                            text=f"*@{self.current_user.username}* mentioned you in a comment on *{obj_id}*",
-                            notification_type="mention",
-                            url=f"/source/{obj_id}",
-                        )
-                    )
+            text_to_send = f"*@{self.current_user.username}* mentioned you in a comment on *{obj_id}*"
+            url_endpoint = f"/source/{obj_id}"
         elif associated_resource_type.lower() == "gcn_event":
-            if users_mentioned_in_comment:
-                for user_mentioned in users_mentioned_in_comment:
-                    DBSession().add(
-                        UserNotification(
-                            user=user_mentioned,
-                            text=f"*@{self.current_user.username}* mentioned you in a comment on *{gcnevent_id}*",
-                            notification_type="mention",
-                            url=f"/gcn_events/{gcnevent_id}",
-                        )
-                    )
+            text_to_send = f"*@{self.current_user.username}* mentioned you in a comment on *{gcnevent_id}*"
+            url_endpoint = f"/gcn_events/{gcnevent_id}"
         elif associated_resource_type.lower() == "shift":
-            if users_mentioned_in_comment:
-                for user_mentioned in users_mentioned_in_comment:
-                    DBSession().add(
-                        UserNotification(
-                            user=user_mentioned,
-                            text=f"*@{self.current_user.username}* mentioned you in a comment on *{shift_id}*",
-                            notification_type="mention",
-                            url="/shifts",
-                        )
-                    )
+            text_to_send = (
+                f"*@{self.current_user.username}* mentioned you in a comment on *shift*"
+            )
+            url_endpoint = "/shifts"
         else:
             return self.error(f'Unknown resource type "{associated_resource_type}".')
+
+        if users_mentioned_in_comment:
+            for user_mentioned in users_mentioned_in_comment:
+                DBSession().add(
+                    UserNotification(
+                        user=user_mentioned,
+                        text=text_to_send,
+                        notification_type="mention",
+                        url=url_endpoint,
+                    )
+                )
 
         DBSession().add(comment)
         self.verify_and_commit()
