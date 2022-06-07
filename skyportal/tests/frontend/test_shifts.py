@@ -381,7 +381,6 @@ def test_shift_summary(
             n_times += 1
     assert n_times < 15
 
-
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
