@@ -537,6 +537,85 @@ class AnalysisServiceHandler(BaseHandler):
 
 
 class AnalysisHandler(BaseHandler):
+    def call_external_analysis_service(
+        self,
+        analysis_id,
+        url,
+        callback_url,
+        inputs={},
+        authentication_type='none',
+        authinfo=None,
+        callback_method="POST",
+        invalid_after=None,
+        analysis_resource_type=None,
+        resource_id=None,
+        request_timeout=30.0,
+    ):
+        """
+        Call an external analysis service with pre-assembled input data and user-specified
+        authentication.
+        """
+        headers = {}
+        auth = None
+        payload_data = {
+            "callback_url": callback_url,
+            "inputs": inputs,
+            "callback_method": callback_method,
+            "invalid_after": str(invalid_after),
+            "analysis_resource_type": analysis_resource_type,
+            "resource_id": resource_id,
+        }
+
+        if authentication_type == 'api_key':
+            payload_data.update({authinfo['api_key_name']: authinfo['api_key']})
+        elif authentication_type == 'header_token':
+            headers.update(authinfo['header_token'])
+        elif authentication_type == 'HTTPBasicAuth':
+            auth = HTTPBasicAuth(authinfo['username'], authinfo['password'])
+        elif authentication_type == 'HTTPDigestAuth':
+            auth = HTTPDigestAuth(authinfo['username'], authinfo['password'])
+        elif authentication_type == 'OAuth1':
+            auth = OAuth1(
+                authinfo['app_key'],
+                authinfo['app_secret'],
+                authinfo['user_oauth_token'],
+                authinfo['user_oauth_token_secret'],
+            )
+        elif authentication_type == 'none':
+            pass
+        else:
+            raise ValueError(f"Invalid authentication_type: {authentication_type}")
+
+        try:
+            result = requests.post(
+                url,
+                json=payload_data,
+                headers=headers,
+                auth=auth,
+                timeout=request_timeout,
+            )
+        except requests.exceptions.Timeout as e:
+            log(e)
+            raise ValueError(f"Request to {url} timed out.")
+
+        if analysis_resource_type.lower() == 'obj':
+            try:
+                session = Session()
+                analysis = session.query(ObjAnalysis).get(analysis_id)
+            except AccessError:
+                log(f'Could not access Analysis {analysis_id}.')
+                raise AccessError
+        else:
+            raise ValueError(
+                f"Invalid analysis_resource_type: {analysis_resource_type}"
+            )
+
+        analysis.status = 'pending' if result.status_code == 200 else 'failure'
+        analysis.status_message = result.text
+        analysis.last_activity = datetime.datetime.utcnow()
+        session.commit()
+        return log(f"Completed analysis {analysis_id}")
+
     def generic_serialize(self, row, columns):
         return {c: getattr(row, c) for c in columns}
 
