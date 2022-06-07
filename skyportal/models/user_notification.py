@@ -5,7 +5,7 @@ import json
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from sqlalchemy import event
-
+import arrow
 import requests
 
 from baselayer.app.models import DBSession, Base, User, AccessibleIfUserMatches
@@ -21,8 +21,18 @@ from .spectrum import Spectrum
 from .comment import Comment
 from .listing import Listing
 from .facility_transaction import FacilityTransaction
+from ..email_utils import send_email
+from twilio.rest import Client as TwilioClient
+import gcn
+
+from skyportal.models import Shift, ShiftUser
 
 _, cfg = load_env()
+
+account_sid = cfg["twilio.sms_account_sid"]
+auth_token = cfg["twilio.sms_auth_token"]
+from_number = cfg["twilio.from_number"]
+client = TwilioClient(account_sid, auth_token)
 
 
 class UserNotification(Base):
@@ -116,6 +126,92 @@ def send_slack_notification(mapper, connection, target):
     )
 
 
+@event.listens_for(UserNotification, 'after_insert')
+def send_email_notification(mapper, connection, target):
+
+    if not target.user:
+        return
+
+    if not target.user.preferences:
+        return
+
+    prefs = target.user.preferences.get('followed_ressources')
+
+    if not prefs:
+        return
+
+    subject = None
+    body = None
+
+    if target.notification_type == "sources":
+        if not target.user.preferences['followed_ressources'].get("sources", False):
+            if not target.user.preferences['followed_ressources'].get(
+                "sources_by_email", False
+            ):
+                return
+        subject = "New followed classification on a source"
+        body = f'{target.text} ({get_app_base_url()}{target.url})'
+    elif target.notification_type == "gcn_events":
+        if not target.user.preferences['followed_ressources'].get("gcn_events", False):
+            if not target.user.preferences['followed_ressources'].get(
+                "gcn_events_by_email", False
+            ):
+                return
+        subject = "New GCN Event with followed notice type"
+        body = f'{target.text} ({get_app_base_url()}{target.url})'
+    print("sending email to ", target.user.contact_email)
+    send_email(
+        recipients=[target.user.contact_email],
+        subject=subject,
+        body=body,
+    )
+
+
+@event.listens_for(UserNotification, 'after_insert')
+def send_sms_notification(mapper, connection, target):
+
+    if not target.user:
+        return
+
+    if not target.user.preferences:
+        return
+
+    prefs = target.user.preferences.get('followed_ressources')
+
+    if not prefs:
+        return
+
+    if target.notification_type == "sources":
+        if not target.user.preferences['followed_ressources'].get("sources", False):
+            if not target.user.preferences['followed_ressources'].get(
+                "sources_by_sms", False
+            ):
+                if not target.user.preferences['followed_ressources'].get(
+                    "sources_by_sms_on_shift", False
+                ):
+                    return
+    elif target.notification_type == "gcn_events":
+        if not target.user.preferences['followed_ressources'].get("gcn_events", False):
+            if not target.user.preferences['followed_ressources'].get(
+                "gcn_events_by_sms", False
+            ):
+                return
+    print("sending email to ", target.user.contact_email)
+
+    current_shift = (
+        Shift.query.join(ShiftUser)
+        .filter(ShiftUser.user_id == target.user.id)
+        .filter(Shift.start_date <= arrow.utcnow().datetime)
+        .filter(Shift.end_date >= arrow.utcnow().datetime)
+        .first()
+    )
+    if current_shift is not None:
+        print('user is on shift')
+        client.messages.create(
+            body=target.text, from_=from_number, to=target.user.contact_phone.e164
+        )
+
+
 @event.listens_for(Classification, 'after_insert')
 @event.listens_for(Spectrum, 'after_insert')
 @event.listens_for(Comment, 'after_insert')
@@ -128,8 +224,23 @@ def add_user_notifications(mapper, connection, target):
 
         is_gcnnotice = "dateobs" in target.to_dict()
         is_facility_transaction = "initiator_id" in target.to_dict()
-
-        if is_gcnnotice:
+        is_gcnevent = "dateobs" in target.to_dict()
+        is_classification = (
+            "obj_id" in target.to_dict() and "classification" in target.to_dict()
+        )
+        if is_gcnevent:
+            users = User.query.filter(
+                User.preferences["followed_ressources"]["gcn_events"]
+                .astext.cast(sa.Boolean)
+                .is_(True)
+            ).all()
+        elif is_classification:
+            users = User.query.filter(
+                User.preferences["followed_ressources"]["sources"]
+                .astext.cast(sa.Boolean)
+                .is_(True)
+            ).all()
+        elif is_gcnnotice:
             users = User.query.filter(
                 User.preferences["slack_integration"]["gcnnotices"]
                 .astext.cast(sa.Boolean)
@@ -163,7 +274,43 @@ def add_user_notifications(mapper, connection, target):
         for user in users:
             # Only notify users who have read access to the new record in question
             if target.__class__.get_if_accessible_by(target.id, user) is not None:
-                if is_gcnnotice:
+                if is_gcnevent:
+                    if (
+                        "gcn_notice_types"
+                        in user.preferences['followed_ressources'].keys()
+                    ):
+                        if (
+                            gcn.NoticeType(target.notice_type).name
+                            in user.preferences['followed_ressources'][
+                                'gcn_notice_types'
+                            ]
+                        ):
+                            print('gcn event notification for userr', user.id)
+                            session.add(
+                                UserNotification(
+                                    user=user,
+                                    text=f"New GcnEvent *{target.dateobs}* with Notice Type *{gcn.NoticeType(target.notice_type).name}*",
+                                    notification_type="gcn_events",
+                                    url=f"/gcn_events/{str(target.dateobs).replace(' ','T')}",
+                                )
+                            )
+                elif is_classification:
+                    if "sources" in user.preferences['followed_ressources'].keys():
+                        if (
+                            target.classification
+                            in user.preferences['followed_ressources'][
+                                'sources_classifications'
+                            ]
+                        ):
+                            session.add(
+                                UserNotification(
+                                    user=user,
+                                    text=f"New Classification *{target.classification}* for source *{target.obj_id}*",
+                                    notification_type="sources",
+                                    url=f"/sources/{target.obj_id}",
+                                )
+                            )
+                elif is_gcnnotice:
                     session.add(
                         UserNotification(
                             user=user,

@@ -4,7 +4,6 @@ import FormGroup from "@material-ui/core/FormGroup";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Switch from "@material-ui/core/Switch";
 import { withStyles, makeStyles } from "@material-ui/core/styles";
-import { Button } from "@material-ui/core";
 import PropTypes from "prop-types";
 import Dialog from "@material-ui/core/Dialog";
 import DialogContent from "@material-ui/core/DialogContent";
@@ -14,6 +13,7 @@ import CloseIcon from "@material-ui/icons/Close";
 import Typography from "@material-ui/core/Typography";
 import grey from "@material-ui/core/colors/grey";
 import { NotificationsActiveOutlined } from "@material-ui/icons";
+import { Box, Slider, Checkbox, Button } from "@material-ui/core";
 import * as profileActions from "../ducks/profile";
 
 const useStyles = makeStyles((theme) => ({
@@ -28,6 +28,16 @@ const useStyles = makeStyles((theme) => ({
     gap: "10px",
     width: "60rem",
     height: "5rem",
+  },
+  options: {
+    marginLeft: "4rem",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "left",
+    alignItems: "center",
+    gap: "10px",
+    width: "60rem",
+    height: "4rem",
   },
   button: {
     height: "3rem",
@@ -74,6 +84,8 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
   const [open, setOpen] = useState(false);
   const profile = useSelector((state) => state.profile.preferences);
   const dispatch = useDispatch();
+  const [value, setValue] = React.useState([8, 20]);
+  const [inverted, setInverted] = React.useState(false);
 
   const handleClose = () => {
     setOpen(false);
@@ -135,12 +147,12 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
       notificationRessourceType === "sources" &&
       type === "sms_on_shift"
     ) {
-      label = "only on Shift";
+      label = "on Shift";
     } else if (
       notificationRessourceType === "gcn_events" &&
       type === "sms_on_shift"
     ) {
-      label = "only on Shift";
+      label = "on Shift";
     }
     return label;
   };
@@ -167,6 +179,26 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
       name = "gcn_events_by_sms_on_shift";
     }
     return name;
+  };
+
+  const valuetext = (val) => `${val}H`;
+  const handleChange = (event, newValue) => {
+    setValue(newValue);
+  };
+
+  const handleChangeCommitted = () => {
+    if (
+      notificationRessourceType === "gcn_events" ||
+      notificationRessourceType === "sources"
+    ) {
+      const prefs = {
+        followed_ressources: {
+          [`${notificationRessourceType}_by_sms_time_slot`]: value,
+        },
+      };
+
+      dispatch(profileActions.updateUserPreferences(prefs));
+    }
   };
 
   return (
@@ -217,26 +249,50 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
                     label={handleLabel("sms")}
                   />
                 </FormGroup>
-                {console.log(
-                  profile?.followed_ressources?.[
-                    `${notificationRessourceType}_by_sms`
-                  ]
-                )}
+              </div>
+              <div className={classes.options}>
                 {profile?.followed_ressources?.[
                   `${notificationRessourceType}_by_sms`
                 ] && (
-                  <FormGroup row>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={handleChecked("sms_on_shift")}
-                          name={handleName("sms_on_shift")}
-                          onChange={prefToggled}
-                        />
-                      }
-                      label={handleLabel("sms_on_shift")}
-                    />
-                  </FormGroup>
+                  <>
+                    <FormGroup row>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={handleChecked("sms_on_shift")}
+                            name={handleName("sms_on_shift")}
+                            onChange={prefToggled}
+                          />
+                        }
+                        label={handleLabel("sms_on_shift")}
+                      />
+                    </FormGroup>
+                    <Box
+                      sx={{ width: 300 }}
+                      display="flex"
+                      flexDirection="row"
+                      alignItems="center"
+                    >
+                      <Slider
+                        getAriaLabel={() => "Time Slot"}
+                        value={value}
+                        onChange={handleChange}
+                        onChangeCommitted={handleChangeCommitted}
+                        valueLabelDisplay="on"
+                        getAriaValueText={valuetext}
+                        min={0}
+                        max={24}
+                        step={1}
+                        marks
+                        track={inverted ? "inverted" : "normal"}
+                      />
+                      <Checkbox
+                        checked={inverted === true}
+                        onChange={() => setInverted(!inverted)}
+                        label="Invert"
+                      />
+                    </Box>
+                  </>
                 )}
               </div>
             </div>

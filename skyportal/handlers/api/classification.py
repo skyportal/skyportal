@@ -3,7 +3,6 @@ from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token
 from ..base import BaseHandler
 from ...models import DBSession, Group, Classification, Taxonomy
-from skyportal.handlers.api.user import notify_users
 
 DEFAULT_CLASSIFICATIONS_PER_PAGE = 100
 MAX_CLASSIFICATIONS_PER_PAGE = 500
@@ -243,13 +242,6 @@ class ClassificationHandler(BaseHandler):
         )
 
         DBSession().add(classification)
-        notify_users(
-            obj_id,
-            "sources",
-            f"/source/{obj_id}",
-            str(data['classification']),
-            DBSession,
-        )
 
         self.verify_and_commit()
 
@@ -324,12 +316,6 @@ class ClassificationHandler(BaseHandler):
                 group_ids, self.current_user, raise_if_none=True
             )
             c.groups = groups
-        notify_users(
-            c.obj.internal_key,
-            "source",
-            f"/source/{c.obj.internal_key}",
-            data['classification'],
-        )
         self.verify_and_commit()
         self.push_all(
             action='skyportal/REFRESH_SOURCE',

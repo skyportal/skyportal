@@ -26,7 +26,6 @@ from ...models import (
     ObservationPlanRequest,
     User,
 )
-from skyportal.handlers.api.user import notify_users
 from ...utils.gcn import get_dateobs, get_tags, get_skymap, get_contour
 
 log = make_log('api/gcn_event')
@@ -118,13 +117,6 @@ def post_gcnevent(payload, user_id, session):
     except NoResultFound:
         localization = Localization(**skymap)
         session.add(localization)
-        notify_users(
-            dateobs,
-            "gcn_events",
-            f"/gcn_events/{dateobs}",
-            gcn.NoticeType(gcn.get_notice_type(root)).name,
-            session,
-        )
         session.commit()
 
         log(f"Generating tiles/contours for localization {localization.id}")
