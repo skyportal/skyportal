@@ -7,6 +7,9 @@ from sqlalchemy import event
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
+# see this: https://amercader.net/blog/beware-of-json-fields-in-sqlalchemy/
+from sqlalchemy.ext.mutable import MutableDict
+
 from datetime import datetime
 
 from baselayer.app.env import load_env
@@ -30,6 +33,9 @@ class PhotStat(Base):
     These correspond to all photometric points,
     regardless of permissioning.
     """
+
+    def __init__(self, obj_id):
+        self.obj_id = obj_id
 
     read = public
 
@@ -60,7 +66,7 @@ class PhotStat(Base):
     )
 
     num_obs_per_filter = sa.Column(
-        JSONB,
+        MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
         doc='Number of observations taken of this object in each filter. '
@@ -77,7 +83,7 @@ class PhotStat(Base):
     )
 
     num_det_per_filter = sa.Column(
-        JSONB,
+        MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
         doc='Number of detections (measurements above threshold) '
@@ -167,7 +173,7 @@ class PhotStat(Base):
     )
 
     mean_mag_per_filter = sa.Column(
-        JSONB,
+        MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
         doc='Average magnitude in various filters. '
@@ -177,7 +183,7 @@ class PhotStat(Base):
     )
 
     mean_color = sa.Column(
-        JSONB,
+        MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
         doc='Average magnitude difference in various filters combinations. '
@@ -195,7 +201,7 @@ class PhotStat(Base):
     )
 
     peak_mag_per_filter = sa.Column(
-        JSONB,
+        MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
         doc='Brightest recorded apparent magnitude in each filter. '
@@ -211,7 +217,7 @@ class PhotStat(Base):
     )
 
     faintest_mag_per_filter = sa.Column(
-        JSONB,
+        MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
         doc='Faintest recorded apparent magnitude (not including non-detections), '
@@ -222,15 +228,15 @@ class PhotStat(Base):
         sa.Float,
         nullable=True,
         index=True,
-        doc='Deepest recorded limiting magnitude using any filter. '
+        doc='Deepest recorded limiting magnitude for non-detections, using any filter. '
         'Will be None if all photometry points are detections. ',
     )
 
     deepest_limit_per_filter = sa.Column(
-        JSONB,
+        MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
-        doc='Deepest recorded limiting magnitude in each filter. '
+        doc='Deepest recorded limiting magnitude for non-detections in each filter. '
         'Will be None if all photometry points are detections. ',
     )
 
@@ -242,7 +248,7 @@ class PhotStat(Base):
     )
 
     mag_rms_per_filter = sa.Column(
-        JSONB,
+        MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
         doc='Average variability of the magnitude, '
@@ -279,13 +285,15 @@ class PhotStat(Base):
                 lim = -2.5 * np.log10(fivesigma)
 
         self.num_obs_global += 1
-        self.num_obs_per_filter[filt] = self.num_obs_per_filter.get(filt, 0) + 1
+        if filt in self.num_obs_per_filter:
+            self.num_obs_per_filter[filt] += 1
+        else:
+            self.num_obs_per_filter[filt] = 1
 
         if self.num_obs_global == 1:  # this is the first point
             self.recent_obs_mjd = mjd
             if det:
                 self.num_det_global = 1
-                self.num_det_per_filter = {filt: 1}
                 self.first_detected_mjd = mjd
                 self.first_detected_mag = mag
                 self.first_detected_filter = filt
@@ -295,7 +303,7 @@ class PhotStat(Base):
                 self.time_to_non_detection = None
                 self.mean_mag_global = mag
                 self.mean_mag_per_filter = {filt: mag}
-                self.mean_color = None
+                self.mean_color = {}
                 self.mag_rms_global = 0
                 self.mag_rms_per_filter = {filt: 0}
                 self.peak_mag_global = mag
@@ -352,7 +360,7 @@ class PhotStat(Base):
 
                 # update colors as differences of mean magnitudes
                 mean_mags = self.mean_mag_per_filter  # short hand
-                for k, v in mean_mags.items():
+                for k in mean_mags.keys():
                     if k == filt:  # skip this filter
                         continue
 
@@ -374,7 +382,10 @@ class PhotStat(Base):
 
                 # update the number of detections
                 self.num_det_global += 1
-                self.num_det_per_filter[filt] = self.num_det_per_filter.get(filt, 0) + 1
+                if filt in self.num_det_per_filter:
+                    self.num_det_per_filter[filt] += 1
+                else:
+                    self.num_det_per_filter[filt] = 1
 
             else:  # non-detection
                 if self.first_detected_mjd is None or self.first_detected_mjd > mjd:
@@ -458,6 +469,7 @@ class PhotStat(Base):
 
         # reset all dictionaries
         self.num_obs_per_filter = {}
+        self.num_det_per_filter = {}
         self.mean_mag_per_filter = {}
         self.mag_rms_per_filter = {}
         self.peak_mag_per_filter = {}
@@ -468,12 +480,17 @@ class PhotStat(Base):
         # total number of points
         self.num_obs_global = len(phot_list)
 
+        # total number of points in each filter
+        for filt in filters:
+            self.num_obs_per_filter[filt] = len(filters[filters == filt])
+
         # if the list includes any photometry points at all!
         if self.num_obs_global:
             self.recent_obs_mjd = max(mjds)
 
         # if any of the points are detections
         if np.any(dets):
+            # good means has detection
             good_mjds = mjds[dets]
             good_mags = mags[dets]
             good_filters = filters[dets]
@@ -505,7 +522,7 @@ class PhotStat(Base):
                 filt_mags = good_mags[good_filters == filt]
 
                 if len(filt_mjds):
-                    self.num_obs_per_filter[filt] = len(filt_mjds)
+                    self.num_det_per_filter[filt] = len(filt_mjds)
                     self.mean_mag_per_filter[filt] = np.nanmean(filt_mags)
                     self.mag_rms_per_filter[filt] = np.nanstd(filt_mags)
                     self.peak_mag_per_filter[filt] = min(filt_mags)
@@ -515,7 +532,8 @@ class PhotStat(Base):
             mean_mags = self.mean_mag_per_filter
             for f1 in set(good_filters):
                 for f2 in set(good_filters):
-                    self.mean_color[f'{f1}-{f2}'] = mean_mags[f1] = mean_mags[f2]
+                    if f1 != f2:
+                        self.mean_color[f'{f1}-{f2}'] = mean_mags[f1] - mean_mags[f2]
 
         # if any are non-detections
         if np.any(dets == 0):
@@ -569,8 +587,8 @@ class PhotStat(Base):
 def insert_into_phot_stat(mapper, connection, target):
 
     # Create or update PhotStat object
-    @event.listens_for(DBSession(), "after_flush", once=True)
-    def receive_after_flush(session, context):
+    @event.listens_for(DBSession(), "before_flush", once=True)
+    def receive_after_flush(session, context, instances):
         obj_id = target.obj_id
         phot_stat = session.scalars(
             sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
@@ -579,13 +597,13 @@ def insert_into_phot_stat(mapper, connection, target):
             all_phot = session.scalars(
                 sa.select(Photometry).where(Photometry.obj_id == obj_id)
             ).all()
-            phot_stat = PhotStat()
+            phot_stat = PhotStat(obj_id=obj_id)
             phot_stat.full_update(all_phot)
             session.add(phot_stat)
-            session.flush()
+
         else:
             phot_stat.add_photometry_point(target)
-            session.flush()
+            session.add(phot_stat)
 
 
 @event.listens_for(Photometry, 'after_delete')
@@ -593,8 +611,8 @@ def insert_into_phot_stat(mapper, connection, target):
 def fully_update_phot_stat(mapper, connection, target):
 
     # Fully update PhotStat object
-    @event.listens_for(DBSession(), "after_flush", once=True)
-    def receive_after_flush(session, context):
+    @event.listens_for(DBSession(), "before_flush", once=True)
+    def receive_after_flush(session, context, instances):
         obj_id = target.obj_id
         phot_stat = session.scalars(
             sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
@@ -604,4 +622,3 @@ def fully_update_phot_stat(mapper, connection, target):
                 sa.select(Photometry).where(Photometry.obj_id == obj_id)
             ).all()
             phot_stat.full_update(all_phot)
-            session.flush()

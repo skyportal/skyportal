@@ -33,7 +33,7 @@ class PhotStatHandler(BaseHandler):
               content:
                 application/json:
                   schema: Error
-        ---
+
         """
         obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj is None:
@@ -74,7 +74,7 @@ class PhotStatHandler(BaseHandler):
               content:
                 application/json:
                   schema: Error
-        ---
+
         """
         obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj is None:
@@ -91,7 +91,7 @@ class PhotStatHandler(BaseHandler):
             stmt = sa.select(Photometry).where(Photometry.obj_id == obj_id)
             photometry = session.scalars(stmt).all()
 
-            phot_stat = PhotStat()
+            phot_stat = PhotStat(obj_id=obj_id)
             phot_stat.full_update(photometry)
             session.add(phot_stat)
             self.verify_and_commit()
@@ -122,7 +122,7 @@ class PhotStatHandler(BaseHandler):
               content:
                 application/json:
                   schema: Error
-        ---
+
         """
         obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj is None:
@@ -166,7 +166,6 @@ class PhotStatHandler(BaseHandler):
               content:
                 application/json:
                   schema: Error
-        ---
         """
         obj = Obj.get_if_accessible_by(obj_id, self.current_user)
         if obj is None:

@@ -292,7 +292,7 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Photometry of the object.",
     )
 
-    phot_stats = relationship(
+    photstats = relationship(
         'PhotStat',
         back_populates='obj',
         cascade='save-update, merge, refresh-expire, expunge, delete',

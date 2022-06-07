@@ -104,6 +104,7 @@ def serialize(phot, outsys, format):
         'dec': phot.dec,
         'filter': phot.filter,
         'mjd': phot.mjd,
+        'snr': phot.snr,
         'instrument_id': phot.instrument_id,
         'instrument_name': phot.instrument.name,
         'ra_unc': phot.ra_unc,
