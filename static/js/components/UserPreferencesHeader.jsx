@@ -19,7 +19,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const UserPreferencesHeader = ({ title, popupText }) => {
+const UserPreferencesHeader = ({ title, popupText, variant = "h6" }) => {
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = useState(null);
   const handleClick = (event) => {
@@ -33,7 +33,7 @@ const UserPreferencesHeader = ({ title, popupText }) => {
   return (
     <div>
       <div className={classes.header}>
-        <Typography variant="h6" display="inline">
+        <Typography variant={variant} display="inline">
           {title}
         </Typography>
         {popupText && (
@@ -65,9 +65,11 @@ const UserPreferencesHeader = ({ title, popupText }) => {
 UserPreferencesHeader.propTypes = {
   title: PropTypes.string.isRequired,
   popupText: PropTypes.string,
+  variant: PropTypes.string,
 };
 UserPreferencesHeader.defaultProps = {
   popupText: null,
+  variant: "h6",
 };
 
 export default UserPreferencesHeader;
