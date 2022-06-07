@@ -109,12 +109,18 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
       setObsList(response.data);
     };
     fetchObsList();
-    if (obsList && Array.isArray(obsList)) {
-      obsList.forEach((f) => {
-        f.selected = false;
-      });
-    }
   }, [dispatch, setObsList, observationplanRequest]);
+
+  const handleDeleteObservationPlanFields = async (obsPlanList) => {
+    const selectedFields = obsPlanList?.geojson.filter((f) => f?.selected);
+    const selectedIds = selectedFields.map((f) => f?.properties?.field_id);
+    await dispatch(
+      Actions.deleteObservationPlanFields(
+        observationplanRequest.id,
+        selectedIds
+      )
+    );
+  };
 
   return (
     <div>
@@ -131,6 +137,12 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
             height={300}
             width={300}
           />
+          <Button
+            variant="contained"
+            onClick={() => handleDeleteObservationPlanFields(obsList)}
+          >
+            Delete selected fields from observation plan
+          </Button>
         </div>
       )}
     </div>
