@@ -30,6 +30,7 @@ def handle(payload, root):
         user_id = 1
         with DBSession() as session:
             event_id = post_gcnevent(payload, user_id, session)
+            event = session.query(GcnEvent).get(event_id)
 
             start_date = str(datetime.utcnow()).replace("T", "")
             end_date = str(datetime.utcnow() + timedelta(days=1)).replace("T", "")
@@ -40,7 +41,6 @@ def handle(payload, root):
                     .filter(Allocation.proposal_id == proposal_id)
                     .first()
                 )
-                event = session.query(GcnEvent).get(event_id)
 
                 if allocation is not None:
                     payload = {
