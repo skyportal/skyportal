@@ -732,9 +732,12 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
         f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
-            'origin': 'cross_match1',
+            'origin': 'gaiaedr3.gaia_source',
             'data': {
-                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 12.8, 'Mag_Rp': 11.0, 'Plx': 20}
+                'Mag_G': 11.3,
+                'Mag_Bp': 12.8,
+                'Mag_Rp': 11.0,
+                'Plx': 20,
             },
         },
         token=annotation_token,

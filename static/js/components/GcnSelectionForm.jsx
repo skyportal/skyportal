@@ -201,7 +201,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   // };
 
   if (telescopeList.length === 0) {
-    return <p>No robotic followup requests for this source...</p>;
+    return <p>No robotic followup requests found...</p>;
   }
 
   if (
