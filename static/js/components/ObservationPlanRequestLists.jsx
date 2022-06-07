@@ -15,8 +15,10 @@ import {
   useTheme,
 } from "@material-ui/core/styles";
 import MUIDataTable from "mui-datatables";
+import GeoPropTypes from "geojson-prop-types";
 
-import * as Actions from "../ducks/gcnEvent";
+import * as gcnEventActions from "../ducks/gcnEvent";
+import * as instrumentsActions from "../ducks/instruments";
 import { GET } from "../API";
 
 import LocalizationPlot from "./LocalizationPlot";
@@ -81,7 +83,7 @@ const getMuiTheme = (theme) =>
     },
   });
 
-const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
+const ObservationPlanGlobe = ({ observationplanRequest, loc, instrument }) => {
   const dispatch = useDispatch();
 
   const displayOptions = [
@@ -95,6 +97,7 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
     displayOptions.map((x) => [x, false])
   );
   displayOptionsDefault.localization = true;
+  displayOptionsDefault.instrument = true;
   displayOptionsDefault.observations = true;
 
   const [obsList, setObsList] = useState(null);
@@ -112,10 +115,12 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
   }, [dispatch, setObsList, observationplanRequest]);
 
   const handleDeleteObservationPlanFields = async (obsPlanList) => {
+    // console.log("instrument", instrument);
+
     const selectedFields = obsPlanList?.geojson.filter((f) => f?.selected);
     const selectedIds = selectedFields.map((f) => f?.properties?.field_id);
     await dispatch(
-      Actions.deleteObservationPlanFields(
+      gcnEventActions.deleteObservationPlanFields(
         observationplanRequest.id,
         selectedIds
       )
@@ -133,6 +138,7 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
           <LocalizationPlot
             loc={loc}
             observations={obsList}
+            instrument={instrument}
             options={displayOptionsDefault}
             height={300}
             width={300}
@@ -172,6 +178,36 @@ ObservationPlanGlobe.propTypes = {
       }),
     }),
   }).isRequired,
+  instrument: PropTypes.shape({
+    name: PropTypes.string,
+    type: PropTypes.string,
+    band: PropTypes.string,
+    fields: PropTypes.arrayOf(
+      PropTypes.shape({
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        id: PropTypes.number,
+        contour: PropTypes.oneOfType([
+          GeoPropTypes.FeatureCollection,
+          PropTypes.shape({
+            type: PropTypes.string,
+            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          }),
+        ]),
+        contour_summary: PropTypes.oneOfType([
+          GeoPropTypes.FeatureCollection,
+          PropTypes.shape({
+            type: PropTypes.string,
+            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          }),
+        ]),
+      })
+    ),
+  }),
+};
+
+ObservationPlanGlobe.defaultProps = {
+  instrument: null,
 };
 
 const ObservationPlanRequestLists = ({ gcnEvent }) => {
@@ -184,35 +220,35 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
   const [isDeleting, setIsDeleting] = useState(null);
   const handleDelete = async (id) => {
     setIsDeleting(id);
-    await dispatch(Actions.deleteObservationPlanRequest(id));
+    await dispatch(gcnEventActions.deleteObservationPlanRequest(id));
     setIsDeleting(null);
   };
 
   const [isSubmittingTreasureMap, setIsSubmittingTreasureMap] = useState(null);
   const handleSubmitTreasureMap = async (id) => {
     setIsSubmittingTreasureMap(id);
-    await dispatch(Actions.submitObservationPlanRequestTreasureMap(id));
+    await dispatch(gcnEventActions.submitObservationPlanRequestTreasureMap(id));
     setIsSubmittingTreasureMap(null);
   };
 
   const [isDeletingTreasureMap, setIsDeletingTreasureMap] = useState(null);
   const handleDeleteTreasureMap = async (id) => {
     setIsDeletingTreasureMap(id);
-    await dispatch(Actions.deleteObservationPlanRequestTreasureMap(id));
+    await dispatch(gcnEventActions.deleteObservationPlanRequestTreasureMap(id));
     setIsDeletingTreasureMap(null);
   };
 
   const [isSending, setIsSending] = useState(null);
   const handleSend = async (id) => {
     setIsSending(id);
-    await dispatch(Actions.sendObservationPlanRequest(id));
+    await dispatch(gcnEventActions.sendObservationPlanRequest(id));
     setIsSending(null);
   };
 
   const [isRemoving, setIsRemoving] = useState(null);
   const handleRemove = async (id) => {
     setIsRemoving(id);
-    await dispatch(Actions.removeObservationPlanRequest(id));
+    await dispatch(gcnEventActions.removeObservationPlanRequest(id));
     setIsRemoving(null);
   };
 
@@ -220,9 +256,14 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     (state) => state.instruments
   );
 
+  const gcnEventInstruments = useSelector(
+    (state) => state?.instruments?.gcnEventInstruments
+  );
+
   useEffect(() => {
     const getLocalizations = async () => {
       setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
+      dispatch(instrumentsActions.fetchGcnEventInstruments(gcnEvent?.dateobs));
     };
 
     getLocalizations();
@@ -235,7 +276,8 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
   if (
     !instrumentList ||
     instrumentList.length === 0 ||
-    Object.keys(instrumentFormParams).length === 0
+    Object.keys(instrumentFormParams).length === 0 ||
+    gcnEventInstruments.length === 0
   ) {
     return <CircularProgress />;
   }
@@ -255,6 +297,15 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     r[a.id] = a;
     return r;
   }, {});
+
+  const instFieldsLookUp = {};
+  gcnEventInstruments?.forEach((instrument) => {
+    if (instrument?.fields && instrument?.fields.length > 0) {
+      if (instrument.fields[0].contour_summary) {
+        instFieldsLookUp[instrument.id] = instrument;
+      }
+    }
+  });
 
   const locLookUp = {};
   // eslint-disable-next-line no-unused-expressions
@@ -580,12 +631,14 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
     const renderLocalization = (dataIndex) => {
       const observationplanRequest =
         requestsGroupedByInstId[instrument_id][dataIndex];
+      const instrument = instFieldsLookUp[instrument_id];
 
       return (
         <div>
           <ObservationPlanGlobe
             loc={locLookUp[selectedLocalizationId]}
             observationplanRequest={observationplanRequest}
+            instrument={instrument}
           />
         </div>
       );
