@@ -1295,6 +1295,10 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
         planned_observations = observation_plan.planned_observations
         num_observations = observation_plan.num_observations
         if num_observations == 0:
+            self.push_notification(
+                'Need at least one observation to evaluate efficiency',
+                notification_type='error',
+            )
             return self.error('Need at least one observation to evaluate efficiency')
 
         unique_filters = observation_plan.unique_filters
