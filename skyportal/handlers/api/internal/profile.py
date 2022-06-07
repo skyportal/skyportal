@@ -204,6 +204,8 @@ class ProfileHandler(BaseHandler):
                 user_prefs["classificationShortcuts"] = preferences[
                     "classificationShortcuts"
                 ]
+            if "photometryButtons" in preferences:
+                user_prefs["photometryButtons"] = preferences["photometryButtons"]
             user_prefs = recursive_update(user_prefs, preferences)
         user.preferences = user_prefs
 
