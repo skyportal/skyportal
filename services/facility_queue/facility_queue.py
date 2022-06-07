@@ -100,12 +100,12 @@ class FacilityQueue(asyncio.Queue):
                                 followup_request.status = f"Task is running (started at {json_response['starttimestamp']})"
                                 req.last_query = datetime.utcnow()
                                 session.add(req)
-                                await self.put(req)
+                                await self.put(req.id)
                             else:
                                 followup_request.status = f"Waiting for job to start (queued at {json_response['timestamp']})"
                                 req.last_query = datetime.utcnow()
                                 session.add(req)
-                                await self.put(req)
+                                await self.put(req.id)
                         else:
                             followup_request.status = f'error: {response.content}'
 
