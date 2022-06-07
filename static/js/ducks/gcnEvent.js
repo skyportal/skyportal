@@ -133,7 +133,7 @@ export const createObservationPlanRequestObservingRun = (id) =>
     `/api/observation_plan/${id}/observing_run`,
     CREATE_OBSERVATION_PLAN_REQUEST_OBSERVING_RUN
   );
-    
+
 export const deleteObservationPlanFields = (id, fieldIds) =>
   API.DELETE(
     `/api/observation_plan/${id}/fields`,
