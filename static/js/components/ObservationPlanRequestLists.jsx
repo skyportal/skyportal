@@ -192,7 +192,6 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
 
   const [isCreatingObservingRun, setIsCreatingObservingRun] = useState(null);
   const handleCreateObservingRun = async (id) => {
-    console.log("id", id);
     setIsCreatingObservingRun(id);
     await dispatch(Actions.createObservationPlanRequestObservingRun(id));
     setIsCreatingObservingRun(null);

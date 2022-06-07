@@ -76,7 +76,9 @@ def post_assignment(data, user_id, session):
 
     run_id = assignment.run_id
     data['priority'] = assignment.priority.name
-    ObservingRun.get_if_accessible_by(run_id, user, raise_if_none=True)
+    run = ObservingRun.get_if_accessible_by(run_id, user, raise_if_none=False)
+    if run is None:
+        raise ValueError('Observing run is not accessible.')
 
     predecessor = (
         ClassicalAssignment.query_records_accessible_by(user)
@@ -95,6 +97,7 @@ def post_assignment(data, user_id, session):
     assignment.requester_id = user.id
     session.add(assignment)
     session.commit()
+
     flow = Flow()
     flow.push(
         '*',
@@ -216,9 +219,15 @@ class AssignmentHandler(BaseHandler):
         data = self.get_json()
 
         with DBSession() as session:
-            assignment_id = post_assignment(
-                data, self.associated_user_object.id, session
-            )
+            try:
+                assignment_id = post_assignment(
+                    data, self.associated_user_object.id, session
+                )
+            except Exception as e:
+                return self.error(
+                    'Error posting followup request: ' f'"{e.normalized_messages()}"'
+                )
+
             return self.success(data={"id": assignment_id})
 
     @permissions(["Upload data"])

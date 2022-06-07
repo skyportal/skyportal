@@ -840,7 +840,6 @@ def test_user_without_save_access_cannot_save(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
     )
     driver.scroll_to_element_and_click(save_button)
-    # driver.wait_for_xpath("//*[contains(.,'Insufficient permissions')]")
 
 
 def test_add_classification_on_scanning_page(
