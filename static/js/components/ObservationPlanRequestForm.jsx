@@ -10,11 +10,15 @@ import Form from "@rjsf/material-ui";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import { makeStyles } from "@material-ui/core/styles";
 import { showNotification } from "baselayer/components/Notifications";
+import GeoPropTypes from "geojson-prop-types";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as allocationActions from "../ducks/allocations";
 import * as instrumentActions from "../ducks/instruments";
 import GroupShareSelect from "./GroupShareSelect";
+import LocalizationPlot from "./LocalizationPlot";
+
+import { GET } from "../API";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
@@ -47,6 +51,111 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+const ObservationPlanGlobe = ({ loc, instrument, setSelectedFields }) => {
+  const dispatch = useDispatch();
+
+  const displayOptions = [
+    "localization",
+    "sources",
+    "galaxies",
+    "instrument",
+    "observations",
+  ];
+  const displayOptionsDefault = Object.fromEntries(
+    displayOptions.map((x) => [x, false])
+  );
+  displayOptionsDefault.localization = true;
+  displayOptionsDefault.instrument = true;
+
+  const [skymapInstrument, setSkymapInstrument] = useState(null);
+  useEffect(() => {
+    const fetchSkymapInstrument = async () => {
+      const response = await dispatch(
+        GET(
+          `/api/instrument/${instrument.id}?includeGeoJSONSummary=True&localizationDateobs=${loc.dateobs}&localizationName=${loc.localization_name}`,
+          "skyportal/FETCH_INSTRUMENT"
+        )
+      );
+      setSkymapInstrument(response.data);
+    };
+    fetchSkymapInstrument();
+  }, [dispatch, setSkymapInstrument, loc, instrument]);
+
+  const handleAddObservationPlanFields = async (obsPlanSkymapInstrument) => {
+    const selectedFields = obsPlanSkymapInstrument?.fields?.filter(
+      (f) => f?.selected
+    );
+    const selectedIds = selectedFields.map((f) => f?.field_id);
+    setSelectedFields(selectedIds);
+  };
+
+  return (
+    <div>
+      {!loc ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <div>
+          <LocalizationPlot
+            loc={loc}
+            instrument={skymapInstrument}
+            options={displayOptionsDefault}
+            height={300}
+            width={300}
+          />
+          <Button
+            variant="contained"
+            onClick={() => handleAddObservationPlanFields(skymapInstrument)}
+          >
+            Use selected fields in observation plan
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+ObservationPlanGlobe.propTypes = {
+  loc: PropTypes.shape({
+    id: PropTypes.number,
+    dateobs: PropTypes.string,
+    localization_name: PropTypes.string,
+  }).isRequired,
+  instrument: PropTypes.shape({
+    id: PropTypes.number,
+    name: PropTypes.string,
+    type: PropTypes.string,
+    band: PropTypes.string,
+    fields: PropTypes.arrayOf(
+      PropTypes.shape({
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        id: PropTypes.number,
+        contour: PropTypes.oneOfType([
+          GeoPropTypes.FeatureCollection,
+          PropTypes.shape({
+            type: PropTypes.string,
+            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          }),
+        ]),
+        contour_summary: PropTypes.oneOfType([
+          GeoPropTypes.FeatureCollection,
+          PropTypes.shape({
+            type: PropTypes.string,
+            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          }),
+        ]),
+      })
+    ),
+  }),
+  setSelectedFields: PropTypes.func.isRequired,
+};
+
+ObservationPlanGlobe.defaultProps = {
+  instrument: null,
+};
+
 const ObservationPlanRequestForm = ({ gcnevent }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -60,6 +169,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [planQueues, setPlanQueues] = useState([]);
+  const [selectedFields, setSelectedFields] = useState([]);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
@@ -164,6 +274,9 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   };
 
   const handleQueueSubmit = async ({ formData }) => {
+    if (selectedFields.length > 0) {
+      formData.field_ids = selectedFields;
+    }
     const json = {
       gcnevent_id: gcnevent.id,
       allocation_id: selectedAllocationId,
@@ -202,6 +315,15 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
   return (
     <div className={classes.container}>
+      <div>
+        <ObservationPlanGlobe
+          loc={gcnevent.localizations[0]}
+          instrument={
+            instLookUp[allocationLookUp[selectedAllocationId].instrument_id]
+          }
+          setSelectedFields={setSelectedFields}
+        />
+      </div>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
       <Select
         inputProps={{ MenuProps: { disableScrollLock: true } }}
