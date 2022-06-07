@@ -966,6 +966,7 @@ def make_legend_items_and_detection_lines(
     -------
     List of LegendItem objects
     """
+
     empty_data_source = dict(
         mjd=[],
         flux=[],
@@ -1167,7 +1168,7 @@ def transformed_model_dict(model_dict):
     ----------
     model_dict : dict
         Dictionary with string keys and GlyphRenderer values.
-    
+
     Returns
     -------
     dict with transformed keys.
