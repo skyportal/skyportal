@@ -5,6 +5,7 @@ from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
+    GaiaQueryHandler,
     IRSAQueryWISEHandler,
     VizierQueryHandler,
     DatalabQueryHandler,
@@ -54,6 +55,7 @@ from .observation_plan import (
     ObservationPlanMovieHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
+    ObservationPlanFieldsHandler,
 )
 from .photometry import (
     PhotometryHandler,

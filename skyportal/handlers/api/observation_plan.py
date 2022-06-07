@@ -904,6 +904,84 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
             return self.error('Observation plan not yet available.')
 
 
+class ObservationPlanFieldsHandler(BaseHandler):
+    @auth_or_token
+    def delete(self, observation_plan_request_id):
+        """
+        ---
+        description: Delete selected fields from the observation plan.
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        requestBody:
+          content:
+            application/json:
+              schema:
+                properties:
+                  fieldIds:
+                    type: array
+                    items:
+                      type: integer
+                    description: List of field IDs to remove from the plan
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleObservationPlanRequest
+        """
+
+        data = self.get_json()
+        field_ids_to_remove = data.pop('fieldIds', None)
+
+        if field_ids_to_remove is None:
+            return self.error('Need to specify field IDs to remove')
+
+        options = [
+            joinedload(ObservationPlanRequest.observation_plans)
+            .joinedload(EventObservationPlan.planned_observations)
+            .joinedload(PlannedObservation.field)
+            .undefer(InstrumentField.contour_summary)
+        ]
+
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="read",
+            options=options,
+        )
+        if observation_plan_request is None:
+            return self.error(
+                f'No observation plan with ID: {observation_plan_request_id}'
+            )
+        self.verify_and_commit()
+
+        if len(observation_plan_request.observation_plans) > 0:
+            observation_plan = observation_plan_request.observation_plans[0]
+            dateobs = observation_plan_request.gcnevent.dateobs
+
+            with DBSession() as session:
+                for observation in observation_plan.planned_observations:
+                    if observation.field_id in field_ids_to_remove:
+                        session.delete(observation)
+                    else:
+                        continue
+                self.verify_and_commit()
+
+            self.push_all(
+                action="skyportal/REFRESH_GCNEVENT",
+                payload={"gcnEvent_dateobs": dateobs},
+            )
+
+            return self.success()
+        else:
+            return self.error('Observation plan not yet available.')
+
+
 class ObservationPlanAirmassChartHandler(BaseHandler):
     @auth_or_token
     async def get(self, localization_id, telescope_id):
