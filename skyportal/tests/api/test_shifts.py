@@ -47,9 +47,6 @@ def test_shift_summary(
     public_group,
     super_admin_token,
     super_admin_user,
-    upload_data_token,
-    view_only_token,
-    ztf_camera,
 ):
     # add a shift to the group, with a start day one day before today,
     # and an end day one day after today
@@ -102,15 +99,16 @@ def test_shift_summary(
     assert status == 200
     assert data['status'] == 'success'
     # wait for event to load
-    gcnevent_id = data['data']['gcnevent_id']
     n_times = 0
-    while n_times < 10:
-        status, data = api('GET', f"gcn_event/{gcnevent_id}", token=super_admin_token)
+    while n_times < 15:
+        status, data = api(
+            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
+        )
         if data['status'] == 'success':
             break
         time.sleep(2)
         n_times += 1
-    assert n_times < 10
+    assert n_times < 15
 
     status, data = api('GET', f'shifts/summary/{shift_id}', token=super_admin_token)
     assert status == 200
