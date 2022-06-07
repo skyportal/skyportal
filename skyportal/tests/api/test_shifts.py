@@ -3,6 +3,7 @@ from datetime import date, timedelta
 import uuid
 import os
 import time
+import numpy as np
 
 
 def test_shift(public_group, super_admin_token, view_only_token, super_admin_user):
@@ -108,6 +109,29 @@ def test_shift_summary(
             break
         time.sleep(2)
         n_times += 1
+    assert n_times < 15
+
+    # wait for the localization to load
+    n_times = 0
+    skymap = "214.74000_28.14000_11.19000"
+    params = {"include2DMap": True}
+    while n_times < 15:
+        status, data = api(
+            'GET',
+            f'localization/2018-01-16T00:36:53/name/{skymap}',
+            token=super_admin_token,
+            params=params,
+        )
+
+        if data['status'] == 'success':
+            data = data["data"]
+            assert data["dateobs"] == "2018-01-16T00:36:53"
+            assert data["localization_name"] == "214.74000_28.14000_11.19000"
+            assert np.isclose(np.sum(data["flat_2d"]), 1)
+            break
+        else:
+            time.sleep(2)
+            n_times += 1
     assert n_times < 15
 
     status, data = api('GET', f'shifts/summary/{shift_id}', token=super_admin_token)

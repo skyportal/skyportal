@@ -4,6 +4,7 @@ from datetime import date, timedelta
 import uuid
 import time
 import os
+import numpy as np
 
 
 def test_shift(
@@ -357,6 +358,30 @@ def test_shift_summary(
         n_times += 1
     assert n_times < 30
 
+    # wait for the localization to load
+    n_times = 0
+    skymap = "214.74000_28.14000_11.19000"
+    params = {"include2DMap": True}
+    while n_times < 15:
+        status, data = api(
+            'GET',
+            f'localization/2018-01-16T00:36:53/name/{skymap}',
+            token=super_admin_token,
+            params=params,
+        )
+
+        if data['status'] == 'success':
+            data = data["data"]
+            assert data["dateobs"] == "2018-01-16T00:36:53"
+            assert data["localization_name"] == "214.74000_28.14000_11.19000"
+            assert np.isclose(np.sum(data["flat_2d"]), 1)
+            break
+        else:
+            time.sleep(2)
+            n_times += 1
+    assert n_times < 15
+
+
     obj_id = str(uuid.uuid4())
     status, data = api(
         "POST",
@@ -416,7 +441,7 @@ def test_shift_summary(
         )
     )
 
-    driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]")
+    driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]", timeout=30)
 
     driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys("1")
     driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
