@@ -17,7 +17,7 @@ const ra_to_hours = (ra, sep = null) => {
   return `${ra_h}h${ra_m}m${ra_s}s`;
 };
 
-const dec_to_dms = (deci, sep = null) => {
+const dec_to_dms = (deci, sep = null, signed = true) => {
   const dec = Math.abs(deci);
   const deg = Math.floor(dec);
   const deg_padded = numeral(deg).format("00");
@@ -26,6 +26,12 @@ const dec_to_dms = (deci, sep = null) => {
   const sec = (dec - deg - min / 60) * 3600;
   const secstr = numeral(sec).format("00.00");
   let sign = "+";
+
+  // this is for the case where the '+' sign needs to be omitted
+  if (!(deci < 0) && signed === false) {
+    sign = "";
+  }
+
   if (deci < 0) {
     sign = "-";
   }
@@ -41,9 +47,8 @@ function time_relative_to_local(isostring) {
   return dayjs(isostring).local().fromNow();
 }
 
-const flux_to_mag = (flux, zp) => {
+const flux_to_mag = (flux, zp) =>
   // Take a flux value and return the AB mag. Return null if flux is negative or null
-  return flux && flux > 0 ? -2.5 * Math.log10(flux) + zp : null;
-};
+  flux && flux > 0 ? -2.5 * Math.log10(flux) + zp : null;
 
 export { ra_to_hours, dec_to_dms, time_relative_to_local, flux_to_mag };
