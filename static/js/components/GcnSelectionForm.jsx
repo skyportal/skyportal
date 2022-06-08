@@ -250,12 +250,22 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     setSelectedLocalizationName(locLookUp[e.target.value].localization_name);
   };
 
-  function createUrl(instrumentId, queryParams) {
+  function createGcnUrl(instrumentId, queryParams) {
     let url = `/api/observation/gcn/${instrumentId}`;
     if (queryParams) {
       const filteredQueryParams = filterOutEmptyValues(queryParams);
       const queryString = new URLSearchParams(filteredQueryParams).toString();
       url += `?${queryString}`;
+    }
+    return url;
+  }
+
+  function createSimSurveyUrl(instrumentId, queryParams, localization) {
+    let url = `/api/observation/simsurvey/${instrumentId}`;
+    if (queryParams) {
+      const filteredQueryParams = filterOutEmptyValues(queryParams);
+      const queryString = new URLSearchParams(filteredQueryParams).toString();
+      url += `?${queryString}&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}`;
     }
     return url;
   }
@@ -277,7 +287,15 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     return errors;
   }
 
-  const url = createUrl(selectedInstrumentId, formDataState);
+  const gcnUrl = createGcnUrl(selectedInstrumentId, formDataState);
+  const simSurveyUrl = createSimSurveyUrl(
+    selectedInstrumentId,
+    formDataState,
+    locLookUp[selectedLocalizationId]
+  );
+
+  console.log("gcnEventObservations", gcnEventObservations);
+
   const GcnSourceSelectionFormSchema = {
     type: "object",
     properties: {
@@ -406,7 +424,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
         )}
       </div>
       <Button
-        href={`${url}`}
+        href={`${gcnUrl}`}
         download={`observationGcn-${selectedInstrumentId}`}
         size="small"
         color="primary"
@@ -415,6 +433,17 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
         data-testid={`observationGcn_${selectedInstrumentId}`}
       >
         GCN
+      </Button>
+      <Button
+        href={`${simSurveyUrl}`}
+        download={`observationGcn-${selectedInstrumentId}`}
+        size="small"
+        color="primary"
+        type="submit"
+        variant="outlined"
+        data-testid={`observationGcn_${selectedInstrumentId}`}
+      >
+        SimSurvey
       </Button>
       {isSubmittingTreasureMap === selectedInstrumentId ? (
         <div>
