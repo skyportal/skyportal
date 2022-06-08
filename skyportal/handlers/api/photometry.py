@@ -1082,6 +1082,24 @@ class PhotometryHandler(BaseHandler):
                     )
 
         self.verify_and_commit()
+
+        phot_stat = (
+            DBSession()
+            .scalars(sa.select(PhotStat).where(PhotStat.obj_id == photometry.obj_id))
+            .first()
+        )
+        if phot_stat is not None:
+            all_phot = (
+                DBSession()
+                .scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                )
+                .all()
+            )
+            phot_stat.full_update(all_phot)
+
+        DBSession().commit()  # this happens above a user level permission
+
         return self.success()
 
     @permissions(['Upload data'])
@@ -1112,7 +1130,25 @@ class PhotometryHandler(BaseHandler):
         )
 
         DBSession().delete(photometry)
+
         self.verify_and_commit()
+
+        phot_stat = (
+            DBSession()
+            .scalars(sa.select(PhotStat).where(PhotStat.obj_id == photometry.obj_id))
+            .first()
+        )
+        if phot_stat is not None:
+            all_phot = (
+                DBSession()
+                .scalars(
+                    sa.select(Photometry).where(Photometry.obj_id == photometry.obj_id)
+                )
+                .all()
+            )
+            phot_stat.full_update(all_phot)
+
+        DBSession().commit()  # this happens above a user level permission
 
         return self.success()
 

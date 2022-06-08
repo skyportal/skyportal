@@ -621,23 +621,23 @@ def insert_into_phot_stat(mapper, connection, target):
             session.add(phot_stat)
 
 
-@event.listens_for(Photometry, 'after_delete')
-@event.listens_for(Photometry, 'after_update')
-def fully_update_phot_stat(mapper, connection, target):
-    print("Fully updating phot_stat")
-
-    # Fully update PhotStat object
-    @event.listens_for(DBSession(), "before_flush", once=True)
-    def receive_after_flush(session, context, instances):
-        print('received after flush')
-        obj_id = target.obj_id
-        phot_stat = session.scalars(
-            sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
-        ).first()
-
-        if phot_stat is not None:
-            all_phot = session.scalars(
-                sa.select(Photometry).where(Photometry.obj_id == obj_id)
-            ).all()
-            print(f'len(all_phot) = {len(all_phot)}')
-            phot_stat.full_update(all_phot)
+# @event.listens_for(Photometry, 'after_delete')
+# @event.listens_for(Photometry, 'after_update')
+# def fully_update_phot_stat(mapper, connection, target):
+#     print("Fully updating phot_stat")
+#
+#     # Fully update PhotStat object
+#     @event.listens_for(DBSession(), "before_flush", once=True)
+#     def receive_after_flush(session, context, instances):
+#         print('received after flush')
+#         obj_id = target.obj_id
+#         phot_stat = session.scalars(
+#             sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+#         ).first()
+#
+#         if phot_stat is not None:
+#             all_phot = session.scalars(
+#                 sa.select(Photometry).where(Photometry.obj_id == obj_id)
+#             ).all()
+#             print(f'len(all_phot) = {len(all_phot)}')
+#             phot_stat.full_update(all_phot)
