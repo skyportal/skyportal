@@ -242,7 +242,6 @@ class ClassificationHandler(BaseHandler):
         )
 
         DBSession().add(classification)
-
         self.verify_and_commit()
 
         self.push_all(
@@ -316,6 +315,7 @@ class ClassificationHandler(BaseHandler):
                 group_ids, self.current_user, raise_if_none=True
             )
             c.groups = groups
+
         self.verify_and_commit()
         self.push_all(
             action='skyportal/REFRESH_SOURCE',

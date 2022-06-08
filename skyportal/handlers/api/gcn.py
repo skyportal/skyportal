@@ -123,7 +123,6 @@ def post_gcnevent(payload, user_id, session):
 
         IOLoop.current().run_in_executor(None, lambda: add_tiles(localization.id))
         IOLoop.current().run_in_executor(None, lambda: add_contour(localization.id))
-    # fin the gcn notice type name
 
     return event.id
 
@@ -472,6 +471,17 @@ class GcnNoticeTypesHandler(BaseHandler):
         description: Returns the list of notices
         tags:
           - gcn_notices
+        responses:
+          200:
+            content:
+                list:
+                    - type: string
+                        description: The notice types
+          400:
+            content:
+                application/json:
+                    schema: Error
+        """
         '''
         notices = cfg['gcn_notice_types']
         return self.success(data=notices)
