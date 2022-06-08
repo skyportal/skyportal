@@ -868,6 +868,15 @@ gcn_event:
   - xml:
       file: ../skyportal/tests/data/GRB180116A_Fermi_GBM_Gnd_Pos.xml
 
+gcn_event/1/comments:
+  - text: "This is a test comment"
+    author_id: testadmin
+    created_at: "2022-03-18 16:00:00"
+
+
+
+
+
 galaxy_catalog:
   - catalog_name: CLU_mini
     catalog_data:
@@ -877,21 +886,21 @@ shifts:
   - group_id: =program_A
     start_date: "2022-03-18 8:00:00"
     end_date: "2022-03-18 14:00:00"
-    name: "the Day Shift"
-    shift_admins:
-      - =testadmin
-    =id: dayshift
-
-  - group_id: =program_B
-    start_date: "2022-03-18 16:00:00"
-    end_date: "2022-03-18 22:00:00"
     name: "the Night Shift"
     shift_admins:
-      - =groupadmin
+      - =testadmin
     =id: nightshift
 
+  - group_id: =program_B
+    start_date: "2018-01-15 20:00:00"
+    end_date: "2018-01-16 20:00:00"
+    name: "the GCN Shift"
+    shift_admins:
+      - =groupadmin
+    =id: gcnshift
 
-shifts/=nightshift/users:
+
+shifts/=gcnshift/users:
   - userID: =viewonlyuser
     admin: false
     needs_replacement: true
