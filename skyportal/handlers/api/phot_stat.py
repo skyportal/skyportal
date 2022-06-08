@@ -43,10 +43,21 @@ class PhotStatHandler(BaseHandler):
             stmt = sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
             phot_stat = session.scalars(stmt).first()
 
-        if phot_stat is None:
-            return self.error(
-                f'Could not find a PhotStat for object with id "{obj_id}". '
+            if phot_stat is None:
+                return self.error(
+                    f'Could not find a PhotStat for object with id "{obj_id}". '
+                )
+
+            stmt = (
+                sa.select(Photometry)
+                .where(Photometry.obj_id == obj_id)
+                .order_by(Photometry.created_at.desc())
             )
+            last_photometry = session.scalars(stmt).first()
+            if last_photometry:
+                phot_stat.last_phot_add_time = last_photometry.created_at
+            else:
+                phot_stat.last_phot_add_time = None
 
         return self.success(data=phot_stat)
 

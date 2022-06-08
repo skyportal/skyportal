@@ -2,6 +2,7 @@ import uuid
 import datetime
 import json
 from io import StringIO
+import traceback
 
 from astropy.time import Time
 from astropy.table import Table
@@ -700,7 +701,8 @@ def add_external_photometry(json, user):
 
     if len(df.index) > MAX_NUMBER_ROWS:
         raise ValueError(
-            f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. Please break up the data into smaller sets and try again'
+            f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
+            'Please break up the data into smaller sets and try again'
         )
 
     username = user.username
@@ -784,7 +786,8 @@ class PhotometryHandler(BaseHandler):
 
         if len(df.index) > MAX_NUMBER_ROWS:
             return self.error(
-                f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. Please break up the data into smaller sets and try again'
+                f'Maximum number of photometry rows to post exceeded: {len(df.index)} > {MAX_NUMBER_ROWS}. '
+                'Please break up the data into smaller sets and try again'
             )
 
         username = self.associated_user_object.username
@@ -809,9 +812,9 @@ class PhotometryHandler(BaseHandler):
                     self.associated_user_object,
                     session,
                 )
-            except Exception as e:
+            except Exception:
                 session.rollback()
-                return self.error(e.args[0])
+                return self.error(traceback.format_exc())
 
         log(
             f'Request from {username} with {len(df.index)} rows complete with upload_id {upload_id}'
@@ -959,9 +962,9 @@ class PhotometryHandler(BaseHandler):
                 # release the lock
                 self.verify_and_commit()
 
-            except Exception as e:
+            except Exception:
                 session.rollback()
-                return self.error(e.args[0])
+                return self.error(traceback.format_exc())
 
         # get ids in the correct order
         ids = [id_map[pdidx] for pdidx, _ in df.iterrows()]

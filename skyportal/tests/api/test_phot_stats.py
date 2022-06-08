@@ -162,23 +162,28 @@ def test_phot_stat_consistent(
     assert status == 200
     assert data['status'] == 'success'
 
-    num_points = 10
+    num_points = 20
+    mjd = np.random.uniform(55000, 56000, num_points)
+    mjd.sort()
+
     flux = np.random.normal(300, 10, num_points)
-    flux[5] = 10.1
-    flux[7] = 10.2
+    flux[0:5] = 10.1
+
     filt = np.random.choice(['ztfg', 'ztfr', 'ztfi'], num_points)
 
     # post all these points
     phot_ids = []
-    for i, f in enumerate(flux):
+    insert_idx = list(range(num_points))
+    np.random.shuffle(insert_idx)  # input data in random order
+    for i in insert_idx:
         status, data = api(
             'POST',
             'photometry',
             data={
                 'obj_id': source_id,
-                'mjd': 58000.0 + np.random.rand() * 100,
+                'mjd': mjd[i],
                 'instrument_id': ztf_camera.id,
-                'flux': f,
+                'flux': flux[i],
                 'fluxerr': 10.0,
                 'zp': 25.0,
                 'magsys': 'ab',
@@ -188,6 +193,8 @@ def test_phot_stat_consistent(
             },
             token=upload_data_token,
         )
+        if status != 200:
+            print(data)
         assert status == 200
         assert data['status'] == 'success'
         phot_ids.append(data['data']['ids'][0])
@@ -199,15 +206,25 @@ def test_phot_stat_consistent(
     )
     assert status == 200
     photometry = data['data']
-    mag = [p['mag'] for p in photometry]
-    assert all(type(m) == float and not np.isnan(m) for m in mag)
-    mag = np.array(mag)
-    mjd = np.array([p['mjd'] for p in photometry])
-    filt = np.array([p['filter'] for p in photometry])
-    det = np.array([p['snr'] > PHOT_DETECTION_THRESHOLD for p in photometry])
-    lim = np.array([p['limiting_mag'] for p in photometry])
+    assert len(photometry) == num_points
 
-    assert np.sum(det) == num_points - 2
+    # get the magnitudes, detections, and limits
+    # in the order of MJD, not the order they were posted
+    phot_dict = {p['mjd']: p for p in photometry}
+    mag = []
+    det = []
+    lim = []
+    for j in mjd:
+        assert j in phot_dict
+        mag.append(phot_dict[j]['mag'])
+        det.append(phot_dict[j]['snr'] > PHOT_DETECTION_THRESHOLD)
+        lim.append(phot_dict[j]['limiting_mag'])
+
+    mag = np.array(mag)
+    det = np.array(det)
+    lim = np.array(lim)
+    assert all(isinstance(m, float) and not np.isnan(m) for m in mag)
+    assert np.sum(det) == num_points - 5
 
     status, data = api(
         'GET',
@@ -246,7 +263,9 @@ def test_phot_stat_consistent(
     assert status == 200
 
     idx = np.ones(num_points, dtype=bool)
-    idx[6] = False
+    # point inserted at index 6 is some other index
+    # in the lists of mjd/mag/filt/det/lim values
+    idx[insert_idx[6]] = False
     mjd_less = mjd[idx]
     mag_less = mag[idx]
     filt_less = filt[idx]
@@ -268,13 +287,13 @@ def test_phot_stat_consistent(
         'photometry',
         data={
             'obj_id': source_id,
-            'mjd': mjd[6],
+            'mjd': mjd[insert_idx[6]],
             'instrument_id': ztf_camera.id,
-            'flux': flux[6],
+            'flux': flux[insert_idx[6]],
             'fluxerr': 10.0,
             'zp': 25.0,
             'magsys': 'ab',
-            'filter': filt[6],
+            'filter': filt[insert_idx[6]],
             'group_ids': [public_group.id],
             'altdata': {'some_key': str(uuid.uuid4())},
         },
@@ -295,7 +314,7 @@ def test_phot_stat_consistent(
     flux[2] = 700.2
     status, data = api(
         'PATCH',
-        f'photometry/{phot_ids[2]}',
+        f'photometry/{phot_ids[insert_idx.index(2)]}',
         data={
             'obj_id': source_id,
             'mjd': mjd[2],
@@ -312,9 +331,13 @@ def test_phot_stat_consistent(
     )
     assert status == 200
 
-    status, data = api('GET', f'photometry/{phot_ids[2]}', token=upload_data_token)
+    status, data = api(
+        'GET', f'photometry/{phot_ids[insert_idx.index(2)]}', token=upload_data_token
+    )
     assert status == 200
+    assert mjd[2] == data['data']['mjd']
     mag[2] = data['data']['mag']
+    det[2] = data['data']['snr'] > PHOT_DETECTION_THRESHOLD
 
     status, data = api('GET', f'sources/{source_id}/phot_stat', token=upload_data_token)
     assert status == 200
@@ -359,10 +382,6 @@ def test_phot_stat_consistent(
     phot_stat = data['data']
 
     check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim)
-
-
-def test_time_to_last_non_detection(upload_data_token, public_group, ztf_camera):
-    pass
 
 
 def check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim):
@@ -439,7 +458,22 @@ def check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim):
                 mag2 = np.mean(mag[det & (filt == f2)])
                 assert np.isclose(phot_stat['mean_color'][f'{f1}-{f2}'], mag1 - mag2)
 
-    except AssertionError:
+        date_array = np.array(
+            list(zip(mjd, det)), dtype=[('mjd', 'float'), ('det', 'bool')]
+        )
+        date_array.sort(order='mjd')
+
+        # the last non-detection:
+        idx = np.argmax(date_array['det']) - 1
+        if idx >= 0:
+            dt = date_array['mjd'][idx + 1] - date_array['mjd'][idx]
+            assert np.isclose(phot_stat['time_to_non_detection'], dt)
+            assert phot_stat['last_non_detection_mjd'] == date_array['mjd'][idx]
+        else:
+            assert phot_stat['time_to_non_detection'] is None
+            assert phot_stat['last_non_detection_mjd'] is None
+
+    except Exception as e:
         from pprint import pprint
 
         print('Data from photometry points:')
@@ -451,4 +485,4 @@ def check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim):
         print('PhotStat object:')
         pprint(phot_stat)
         print(traceback.format_exc())
-        raise
+        raise e

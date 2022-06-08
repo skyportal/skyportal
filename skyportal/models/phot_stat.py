@@ -41,6 +41,15 @@ class PhotStat(Base):
 
     write = update = delete = restricted
 
+    last_update = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        index=True,
+        doc='Time when this PhotStat entry underwent an update '
+        'using the most recent photometry point or all points '
+        'in a full update. ',
+    )
+
     last_full_update = sa.Column(
         sa.DateTime,
         nullable=True,
@@ -326,22 +335,26 @@ class PhotStat(Base):
             self.recent_obs_mjd = max(mjd, self.recent_obs_mjd)
 
             if det:
-                if mjd < self.first_detected_mjd:
+                if self.first_detected_mjd is None or mjd < self.first_detected_mjd:
                     self.first_detected_mjd = mjd
                     self.first_detected_mag = mag
                     self.first_detected_filter = filt
-                if mjd > self.last_detected_mjd:
+                if self.last_detected_mjd is None or mjd > self.last_detected_mjd:
                     self.last_detected_mjd = mjd
                     self.last_detected_mag = mag
                     self.last_detected_filter = filt
 
                 # update the RMS based on old RMS and mean:
-                self.mag_rms_global = self.update_scatter(
-                    self.mag_rms_global,
-                    self.mean_mag_global,
-                    self.num_det_global,
-                    mag,
-                )
+                if self.mag_rms_global is not None:
+                    self.mag_rms_global = self.update_scatter(
+                        self.mag_rms_global,
+                        self.mean_mag_global,
+                        self.num_det_global,
+                        mag,
+                    )
+                else:
+                    self.mag_rms_global = 0
+
                 if filt in self.mag_rms_per_filter:
                     self.mag_rms_per_filter[filt] = self.update_scatter(
                         self.mag_rms_per_filter[filt],
@@ -353,9 +366,13 @@ class PhotStat(Base):
                     self.mag_rms_per_filter[filt] = 0
 
                 # update the mean magnitudes:
-                self.mean_mag_global = self.update_average(
-                    self.mean_mag_global, self.num_det_global, mag
-                )
+                if self.mean_mag_global is not None:
+                    self.mean_mag_global = self.update_average(
+                        self.mean_mag_global, self.num_det_global, mag
+                    )
+                else:
+                    self.mean_mag_global = mag
+
                 if filt in self.mean_mag_per_filter:
                     self.mean_mag_per_filter[filt] = self.update_average(
                         self.mean_mag_per_filter[filt],
@@ -422,6 +439,8 @@ class PhotStat(Base):
                 self.time_to_non_detection = (
                     self.first_detected_mjd - self.last_non_detection_mjd
                 )
+
+        self.last_update = datetime.utcnow()
 
     def full_update(self, phot_list):
         """
@@ -557,12 +576,17 @@ class PhotStat(Base):
             lim_filters = filters[dets == 0]
             # find the deepest limit
             self.deepest_limit_global = max(lim_mags)
-            mjds_before = lim_mjds[lim_mjds < self.first_detected_mjd]
+            if self.first_detected_mjd:
+                mjds_before = lim_mjds[lim_mjds < self.first_detected_mjd]
+            else:
+                mjds_before = lim_mjds
+
             if len(mjds_before):
                 self.last_non_detection_mjd = max(mjds_before)
-                self.time_to_non_detection = (
-                    self.first_detected_mjd - self.last_non_detection_mjd
-                )
+                if self.first_detected_mjd and self.last_non_detection_mjd:
+                    self.time_to_non_detection = (
+                        self.first_detected_mjd - self.last_non_detection_mjd
+                    )
 
             # stats for non-detections for each filter
             for filt in set(lim_filters):
@@ -570,6 +594,7 @@ class PhotStat(Base):
                 if len(filt_mags):
                     self.deepest_limit_per_filter[filt] = max(filt_mags)
 
+        self.last_update = datetime.utcnow()
         self.last_full_update = datetime.utcnow()
 
     @staticmethod
