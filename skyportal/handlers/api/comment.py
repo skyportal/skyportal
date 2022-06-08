@@ -387,15 +387,13 @@ class CommentHandler(BaseHandler):
             associated_resource_type.lower() == "sources"
             or associated_resource_type.lower() == "spectra"
         ):
-            text_to_send = f"*@{self.current_user.username}* mentioned you in a comment on *{obj_id}*"
+            text_to_send = f"*@{self.current_user.created_by.username}* mentioned you in a comment on *{obj_id}*"
             url_endpoint = f"/source/{obj_id}"
         elif associated_resource_type.lower() == "gcn_event":
-            text_to_send = f"*@{self.current_user.username}* mentioned you in a comment on *{gcnevent_id}*"
+            text_to_send = f"*@{self.current_user.created_by.username}* mentioned you in a comment on *{gcnevent_id}*"
             url_endpoint = f"/gcn_events/{gcnevent_id}"
         elif associated_resource_type.lower() == "shift":
-            text_to_send = (
-                f"*@{self.current_user.username}* mentioned you in a comment on *shift*"
-            )
+            text_to_send = f"*@{self.current_user.created_by.username}* mentioned you in a comment on *shift*"
             url_endpoint = "/shifts"
         else:
             return self.error(f'Unknown resource type "{associated_resource_type}".')
