@@ -1239,11 +1239,27 @@ def observation_simsurvey(
     ax.set_ylabel('Declination [deg]')
     ax.set_xlabel('RA [deg]')
 
-    ntransient = len(lcs.meta_notobserved) + len(lcs.meta_full)
+    all_transients = []
+    if lcs.meta_notobserved is not None:
+        all_transients.append(len(lcs.meta_notobserved))
+    if lcs.meta_full is not None:
+        all_transients.append(len(lcs.meta_full))
+    ntransient = np.sum(all_transients)
+
+    if lcs.meta_full is not None:
+        n_in_covered = len(lcs.meta_full['z'])
+    else:
+        n_in_covered = 0
+
+    if lcs.lcs is not None:
+        n_detected = len(lcs.lcs)
+    else:
+        n_detected = 0
+
     title_string = f"""
         Number of created kNe: {ntransient}
-        Number of created kNe falling in the covered area: {len(lcs.meta_full['z'])}
-        Number of detected over all created: {len(lcs.lcs)/ntransient}"""
+        Number of created kNe falling in the covered area: {n_in_covered}
+        Number of detected over all created: {n_detected/ntransient}"""
     ax.set_title(title_string)
 
     plt.tight_layout()

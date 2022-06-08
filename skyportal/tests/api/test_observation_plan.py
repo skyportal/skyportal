@@ -70,6 +70,14 @@ def test_observation_plan_tiling(
             'api_classname_obsplan': 'ZTFMMAAPI',
             'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
             'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
+            'sensitivity_data': {
+                'ztfr': {
+                    'limiting_magnitude': 20.3,
+                    'magsys': 'ab',
+                    'exposure_time': 30,
+                    'zeropoint': 26.3,
+                }
+            },
         },
         token=super_admin_token,
     )
@@ -106,7 +114,7 @@ def test_observation_plan_tiling(
             'schedule_strategy': 'tiling',
             'schedule_type': 'greedy_slew',
             'exposure_time': '300',
-            'filters': 'ztfg',
+            'filters': 'ztfr',
             'maximum_airmass': 2.0,
             'integrated_probability': 100,
             'minimum_time_difference': 30,
@@ -165,6 +173,11 @@ def test_observation_plan_tiling(
             for obs in planned_observations
         ]
     )
+
+    status, data = api(
+        'GET', f'observation_plan/{id}/simsurvey', token=super_admin_token
+    )
+    assert status == 200
 
 
 @pytest.mark.flaky(reruns=2)
