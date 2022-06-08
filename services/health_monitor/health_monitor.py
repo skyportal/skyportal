@@ -11,6 +11,7 @@ log = make_log('health')
 
 
 ALLOWED_DOWNTIME_SECONDS = 120
+SECONDS_BETWEEN_CHECKS = 60.5
 
 
 def migrated():
@@ -26,7 +27,7 @@ def migrated():
 
 
 def backends_down():
-    down = []
+    down = set()
     for i in range(cfg['server.processes']):
         port = cfg['ports.app_internal'] + i
         try:
@@ -37,7 +38,7 @@ def backends_down():
             status_code = r.status_code
 
         if status_code != 200:
-            down.append(i)
+            down.add(i)
 
     return down
 
@@ -60,17 +61,25 @@ def restart_app(app_nr):
 
 if __name__ == "__main__":
     log('Monitoring system health')
+
+    all_backends = set(range(cfg['server.processes']))
+    backends_seen = set()
     downtimes = {}
 
     while True:
-        time.sleep(60)
+        time.sleep(SECONDS_BETWEEN_CHECKS)
 
         if not migrated():
             log('Database not migrated; waiting')
             continue
 
         down = backends_down()
-        downtimes = {k: downtimes.get(k, time.time()) for k in down}
+
+        # Update list of backends that have been seen healthy at least once.
+        # We don't start a counter against a backend until it's been seen.
+        backends_seen = backends_seen | (all_backends - down)
+
+        downtimes = {k: downtimes.get(k, time.time()) for k in (down & backends_seen)}
 
         for app in list(downtimes.keys()):
             downtime = time.time() - downtimes[app]
