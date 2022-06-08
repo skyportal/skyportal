@@ -471,17 +471,6 @@ class GcnNoticeTypesHandler(BaseHandler):
         description: Returns the list of notices
         tags:
           - gcn_notices
-        responses:
-          200:
-            content:
-                list:
-                    - type: string
-                        description: The notice types
-          400:
-            content:
-                application/json:
-                    schema: Error
-        """
         '''
         notices = cfg['gcn_notice_types']
         return self.success(data=notices)

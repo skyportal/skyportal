@@ -94,7 +94,8 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
   const prefToggled = (event) => {
     if (
       notificationRessourceType === "gcn_events" ||
-      notificationRessourceType === "sources"
+      notificationRessourceType === "sources" ||
+      notificationRessourceType === "favorite_sources"
     ) {
       const prefs = {
         followed_ressources: {
@@ -112,10 +113,20 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
       checked = profile.followed_ressources?.sources_by_email === true;
     } else if (notificationRessourceType === "gcn_events" && type === "email") {
       checked = profile.followed_ressources?.gcn_events_by_email === true;
+    } else if (
+      notificationRessourceType === "favorite_sources" &&
+      type === "email"
+    ) {
+      checked = profile.followed_ressources?.favorite_sources_by_email === true;
     } else if (notificationRessourceType === "sources" && type === "sms") {
       checked = profile.followed_ressources?.sources_by_sms === true;
     } else if (notificationRessourceType === "gcn_events" && type === "sms") {
       checked = profile.followed_ressources?.gcn_events_by_sms === true;
+    } else if (
+      notificationRessourceType === "favorite_sources" &&
+      type === "sms"
+    ) {
+      checked = profile.followed_ressources?.favorite_sources_by_sms === true;
     } else if (
       notificationRessourceType === "sources" &&
       type === "sms_on_shift"
@@ -127,6 +138,12 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
     ) {
       checked =
         profile.followed_ressources?.gcn_events_by_sms_on_shift === true;
+    } else if (
+      notificationRessourceType === "favorite_sources" &&
+      type === "sms_on_shift"
+    ) {
+      checked =
+        profile.followed_ressources?.favorite_sources_by_sms_on_shift === true;
     }
 
     return checked;
@@ -139,10 +156,20 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
     } else if (notificationRessourceType === "gcn_events" && type === "email") {
       label =
         "Email when a new GCN event with the selected Notice Type is added";
+    } else if (
+      notificationRessourceType === "favorite_sources" &&
+      type === "email"
+    ) {
+      label = "Email when something new is done on a favorite source";
     } else if (notificationRessourceType === "sources" && type === "sms") {
       label = "SMS when a new classification is added to a source";
     } else if (notificationRessourceType === "gcn_events" && type === "sms") {
       label = "SMS when a new GCN event with the selected Notice Type is added";
+    } else if (
+      notificationRessourceType === "favorite_sources" &&
+      type === "sms"
+    ) {
+      label = "SMS when something new is done on a favorite source";
     } else if (
       notificationRessourceType === "sources" &&
       type === "sms_on_shift"
@@ -150,6 +177,11 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
       label = "on Shift";
     } else if (
       notificationRessourceType === "gcn_events" &&
+      type === "sms_on_shift"
+    ) {
+      label = "on Shift";
+    } else if (
+      notificationRessourceType === "favorite_sources" &&
       type === "sms_on_shift"
     ) {
       label = "on Shift";
@@ -163,10 +195,20 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
       name = "sources_by_email";
     } else if (notificationRessourceType === "gcn_events" && type === "email") {
       name = "gcn_events_by_email";
+    } else if (
+      notificationRessourceType === "favorite_sources" &&
+      type === "email"
+    ) {
+      name = "favorite_sources_by_email";
     } else if (notificationRessourceType === "sources" && type === "sms") {
       name = "sources_by_sms";
     } else if (notificationRessourceType === "gcn_events" && type === "sms") {
       name = "gcn_events_by_sms";
+    } else if (
+      notificationRessourceType === "favorite_sources" &&
+      type === "sms"
+    ) {
+      name = "favorite_sources_by_sms";
     } else if (
       notificationRessourceType === "sources" &&
       type === "sms_on_shift"
@@ -177,6 +219,11 @@ const NotificationSettingSelect = ({ notificationRessourceType }) => {
       type === "sms_on_shift"
     ) {
       name = "gcn_events_by_sms_on_shift";
+    } else if (
+      notificationRessourceType === "favorite_sources" &&
+      type === "sms_on_shift"
+    ) {
+      name = "favorite_sources_by_sms_on_shift";
     }
     return name;
   };
