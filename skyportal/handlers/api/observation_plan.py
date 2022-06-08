@@ -1075,6 +1075,7 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
 
         await self.send_file(data, filename, output_type=output_format)
 
+
 class ObservationPlanCreateObservingRunHandler(BaseHandler):
     @auth_or_token
     def post(self, observation_plan_request_id):
@@ -1178,7 +1179,8 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
 
             self.push_notification('Observing run post succeeded')
             return self.success()
-          
+
+
 def observation_simsurvey(
     observations,
     localization,

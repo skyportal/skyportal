@@ -471,7 +471,7 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
               >
                 SimSurvey
               </Button>
-            </div> 
+            </div>
             <div>
               {isCreatingObservingRun === observationplanRequest.id ? (
                 <div>
