@@ -279,7 +279,7 @@ const GcnEventPage = ({ route }) => {
           <Accordion defaultExpanded>
             <AccordionSummary>
               <Typography className={styles.accordionHeading}>
-                Skymap Display
+                Analysis
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
@@ -293,7 +293,7 @@ const GcnEventPage = ({ route }) => {
           </Accordion>
         </div>
         <div className={styles.columnItem}>
-          <Accordion defaultExpanded>
+          <Accordion defaultClosed>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls="gcnEvent-content"

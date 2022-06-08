@@ -14,11 +14,10 @@ import GeoPropTypes from "geojson-prop-types";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as allocationActions from "../ducks/allocations";
-import * as instrumentActions from "../ducks/instruments";
+import * as instrumentsActions from "../ducks/instruments";
+import * as instrumentActions from "../ducks/instrument";
 import GroupShareSelect from "./GroupShareSelect";
 import LocalizationPlot from "./LocalizationPlot";
-
-import { GET } from "../API";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
 
@@ -71,10 +70,7 @@ const ObservationPlanGlobe = ({ loc, instrument, setSelectedFields }) => {
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
       const response = await dispatch(
-        GET(
-          `/api/instrument/${instrument.id}?includeGeoJSONSummary=True&localizationDateobs=${loc.dateobs}&localizationName=${loc.localization_name}`,
-          "skyportal/FETCH_INSTRUMENT"
-        )
+        instrumentActions.fetchInstrumentSkymap(instrument.id, loc)
       );
       setSkymapInstrument(response.data);
     };
@@ -102,7 +98,7 @@ const ObservationPlanGlobe = ({ loc, instrument, setSelectedFields }) => {
             instrument={skymapInstrument}
             options={displayOptionsDefault}
             height={300}
-            width={300}
+            width={600}
           />
           <Button
             variant="contained"
@@ -196,7 +192,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     getAllocations();
 
     dispatch(
-      instrumentActions.fetchInstrumentForms({
+      instrumentsActions.fetchInstrumentForms({
         apiType: "api_classname_obsplan",
       })
     );
