@@ -397,5 +397,5 @@ def test_token_user_post_sensitivity_data(super_admin_token):
     assert data['status'] == 'error'
     assert (
         data['message']
-        == 'Filter names must be present in both sensitivity_data property and filters property'
+        == 'Sensitivity_data filters must be a subset of the instrument filters'
     )
