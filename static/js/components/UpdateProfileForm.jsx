@@ -13,6 +13,7 @@ import DialogContentText from "@material-ui/core/DialogContentText";
 import DialogTitle from "@material-ui/core/DialogTitle";
 import InputLabel from "@material-ui/core/InputLabel";
 import Grid from "@material-ui/core/Grid";
+import { makeStyles } from "@material-ui/core";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useForm } from "react-hook-form";
@@ -24,10 +25,18 @@ import NotificationPreferences from "./NotificationPreferences";
 import FavoriteSourcesNotificationPreferences from "./FavoriteSourcesNotificationPreferences";
 import SlackPreferences from "./SlackPreferences";
 import ObservabilityPreferences from "./ObservabilityPreferences";
+import PhotometryPlottingPreferences from "./PhotometryPlottingPreferences";
 import ClassificationsShortcutForm from "./ClassificationsShortcutForm";
 import RessourceTypeNotificationsPreferences from "./RessourceTypeNotificationsPreferences";
 
+const useStyles = makeStyles(() => ({
+  spacing: {
+    paddingBottom: 0,
+  },
+}));
+
 const UpdateProfileForm = () => {
+  const classes = useStyles();
   const profile = useSelector((state) => state.profile);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -178,11 +187,14 @@ const UpdateProfileForm = () => {
         <CardContent>
           <ObservabilityPreferences />
         </CardContent>
-        <CardContent>
+        <CardContent className={classes.spacing}>
           <ClassificationsShortcutForm />
         </CardContent>
         <CardContent>
           <RessourceTypeNotificationsPreferences />
+        </CardContent>
+        <CardContent>
+          <PhotometryPlottingPreferences />
         </CardContent>
       </Card>
       <Dialog
