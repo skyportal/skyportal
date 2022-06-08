@@ -100,22 +100,20 @@ def test_shift_summary(
     assert status == 200
     assert data['status'] == 'success'
     # wait for event to load
-    n_times = 0
-    while n_times < 15:
+
+    for n_times in range(16):
         status, data = api(
             'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
         )
         if data['status'] == 'success':
             break
         time.sleep(2)
-        n_times += 1
     assert n_times < 15
 
     # wait for the localization to load
-    n_times = 0
     skymap = "214.74000_28.14000_11.19000"
     params = {"include2DMap": True}
-    while n_times < 15:
+    for n_times_2 in range(16):
         status, data = api(
             'GET',
             f'localization/2018-01-16T00:36:53/name/{skymap}',
@@ -131,8 +129,7 @@ def test_shift_summary(
             break
         else:
             time.sleep(2)
-            n_times += 1
-    assert n_times < 15
+    assert n_times_2 < 15
 
     status, data = api('GET', f'shifts/summary/{shift_id}', token=super_admin_token)
     assert status == 200
