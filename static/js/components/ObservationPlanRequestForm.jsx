@@ -38,10 +38,19 @@ const useStyles = makeStyles(() => ({
   localizationSelect: {
     width: "100%",
   },
+  fieldsToUseSelect: {
+    width: "100%",
+  },
   allocationSelectItem: {
     whiteSpace: "break-spaces",
   },
   localizationSelectItem: {
+    whiteSpace: "break-spaces",
+  },
+  fieldsToUseSelectItem: {
+    whiteSpace: "break-spaces",
+  },
+  SelectItem: {
     whiteSpace: "break-spaces",
   },
   container: {
@@ -51,6 +60,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 const ObservationPlanGlobe = ({ loc, instrument, setSelectedFields }) => {
+  const classes = useStyles();
   const dispatch = useDispatch();
 
   const displayOptions = [
@@ -85,29 +95,60 @@ const ObservationPlanGlobe = ({ loc, instrument, setSelectedFields }) => {
     setSelectedFields(selectedIds);
   };
 
+  const fields = [];
+  skymapInstrument?.fields?.forEach((field) => {
+    fields.push(Number(field.id));
+  });
+  fields.sort();
+
   return (
     <div>
-      {!loc ? (
-        <div>
-          <CircularProgress />
-        </div>
-      ) : (
-        <div>
-          <LocalizationPlot
-            loc={loc}
-            instrument={skymapInstrument}
-            options={displayOptionsDefault}
-            height={300}
-            width={600}
-          />
-          <Button
-            variant="contained"
-            onClick={() => handleAddObservationPlanFields(skymapInstrument)}
-          >
-            Use selected fields in observation plan
-          </Button>
-        </div>
-      )}
+      <div>
+        {!loc ? (
+          <div>
+            <CircularProgress />
+          </div>
+        ) : (
+          <div>
+            <LocalizationPlot
+              loc={loc}
+              instrument={skymapInstrument}
+              options={displayOptionsDefault}
+              height={300}
+              width={600}
+            />
+            <Button
+              variant="contained"
+              onClick={() => handleAddObservationPlanFields(skymapInstrument)}
+            >
+              Use selected fields in observation plan
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <InputLabel id="fieldsToUseSelectLabel">Fields to use</InputLabel>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="fieldsToSelectLabel"
+          name="fieldsToUseSelect"
+          className={classes.fieldsToUseSelect}
+          isMulti
+          closeMenuOnSelect={false}
+          defaultValue={[fields[0], fields[1]]}
+        >
+          {fields?.map((field) => (
+            <MenuItem
+              value={field}
+              key={field}
+              className={classes.fieldsToUseSelectItem}
+            >
+              {field}
+            </MenuItem>
+          ))}
+        </Select>
+      </div>
     </div>
   );
 };
