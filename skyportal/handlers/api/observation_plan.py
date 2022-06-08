@@ -1,4 +1,6 @@
 import astropy
+from astropy import units as u
+import healpy as hp
 import humanize
 import jsonschema
 import requests
@@ -17,8 +19,16 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.patches as mpatches
+import pandas as pd
+import simsurvey
+from simsurvey.utils import model_tools
+from simsurvey.models import AngularTimeSeriesSource
 import tempfile
+from ligo.skymap.distance import parameters_to_marginal_moments
+from ligo.skymap.bayestar import rasterize
+from ligo.skymap import plot  # noqa: F401 F811
 import random
+import sncosmo
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -487,7 +497,7 @@ def observation_animations(
     ----------
     observations : skyportal.models.observation_plan.PlannedObservation
         The planned observations associated with the request
-    localization : skyportal.models.localizstion.Localization
+    localization : skyportal.models.localization.Localization
         The skymap that the request is made based on
     output_format : str, optional
         "gif" or "mp4" -- determines the format of the returned movie
@@ -1065,7 +1075,6 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
 
         await self.send_file(data, filename, output_type=output_format)
 
-
 class ObservationPlanCreateObservingRunHandler(BaseHandler):
     @auth_or_token
     def post(self, observation_plan_request_id):
@@ -1169,3 +1178,363 @@ class ObservationPlanCreateObservingRunHandler(BaseHandler):
 
             self.push_notification('Observing run post succeeded')
             return self.success()
+          
+def observation_simsurvey(
+    observations,
+    localization,
+    instrument,
+    output_format='pdf',
+    figsize=(10, 8),
+    number_of_injections=1000,
+    number_of_detections=2,
+    detection_threshold=5,
+    minimum_phase=0,
+    maximum_phase=3,
+    injection_filename='data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
+):
+
+    """Create a plot to display the simsurvey analyis for a given skymap
+        Parameters
+        ----------
+        observations : skyportal.models.observation_plan.PlannedObservation
+            The planned observations associated with the request
+        localization : skyportal.models.localization.Localization
+            The skymap that the request is made based on
+        instrument : skyportal.models.instrument.Instrument
+            The instrument that the request is made based on
+        event : skyportal.models.gcn.GcnEvent
+            The instrument that the request is made based on
+        output_format : str, optional
+            "gif" or "mp4" -- determines the format of the returned movie
+        figsize : tuple, optional
+            Matplotlib figsize of the movie created
+        number_of_injections: int
+            Number of simulations to evaluate efficiency with. Defaults to 1000.
+        number_of_detections: int
+            Number of detections required for detection. Defaults to 1.
+        detection_threshold: int
+            Threshold (in sigmas) required for detection. Defaults to 5.
+        minimum_phase: int
+            Minimum phase (in days) post event time to consider detections. Defaults to 0.
+        maximum_phase: int
+            Maximum phase (in days) post event time to consider detections. Defaults to 3.
+        injection_filename: str
+            Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource
+    . Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt from https://github.com/mbulla/kilonova_models.
+        Returns
+        -------
+        dict
+            success : bool
+                Whether the request was successful or not, returning
+                a sensible error in 'reason'
+            name : str
+                suggested filename based on `source_name` and `output_format`
+            data : str
+                binary encoded data for the plot (to be streamed)
+            reason : str
+                If not successful, a reason is returned.
+    """
+
+    trigger_time = astropy.time.Time(localization.dateobs, format='datetime')
+
+    keys = ['ra', 'dec', 'field_id', 'limMag', 'jd', 'filter', 'skynoise']
+    pointings = {k: [] for k in keys}
+    for obs in observations:
+        nmag = -2.5 * np.log10(
+            np.sqrt(
+                instrument.sensitivity_data[obs.filt]['exposure_time']
+                / obs.exposure_time
+            )
+        )
+        limMag = instrument.sensitivity_data[obs.filt]['limiting_magnitude'] + nmag
+        zp = instrument.sensitivity_data[obs.filt]['zeropoint'] + nmag
+
+        pointings["ra"].append(obs.field.ra)
+        pointings["dec"].append(obs.field.dec)
+        pointings["filter"].append(obs.filt)
+        pointings["jd"].append(Time(obs.obstime, format='datetime').jd)
+        pointings["field_id"].append(obs.field.field_id)
+
+        pointings["limMag"].append(limMag)
+        pointings["skynoise"].append(10 ** (-0.4 * (limMag - zp)) / 5.0)
+        pointings["zp"] = zp
+
+    df = pd.DataFrame.from_dict(pointings)
+    plan = simsurvey.SurveyPlan(
+        time=df['jd'],
+        band=df['filter'],
+        obs_field=df['field_id'].astype(int),
+        skynoise=df['skynoise'],
+        zp=df['zp'],
+        fields={k: v for k, v in pointings.items() if k in ['ra', 'dec', 'field_id']},
+    )
+
+    order = hp.nside2order(localization.nside)
+    t = rasterize(localization.table, order)
+    result = t['PROB'], t['DISTMU'], t['DISTSIGMA'], t['DISTNORM']
+    hp_data = hp.reorder(result, 'NESTED', 'RING')
+    map_struct = {}
+    map_struct['prob'] = hp_data[0]
+    map_struct['distmu'] = hp_data[1]
+    map_struct['distsigma'] = hp_data[2]
+
+    distmean, diststd = parameters_to_marginal_moments(
+        map_struct['prob'], map_struct['distmu'], map_struct['distsigma']
+    )
+
+    distance_lower = astropy.coordinates.Distance(
+        np.max([1, (distmean - 5 * diststd)]) * u.Mpc
+    )
+    distance_upper = astropy.coordinates.Distance((distmean + 5 * diststd) * u.Mpc)
+    phase, wave, cos_theta, flux = model_tools.read_possis_file(injection_filename)
+    transientprop = {
+        'lcmodel': sncosmo.Model(
+            AngularTimeSeriesSource(
+                phase=phase, wave=wave, flux=flux, cos_theta=cos_theta
+            )
+        )
+    }
+    tr = simsurvey.get_transient_generator(
+        [distance_lower.z, distance_upper.z],
+        transient="generic",
+        template="AngularTimeSeriesSource",
+        ntransient=number_of_injections,
+        ratefunc=lambda z: 5e-7,
+        dec_range=(-90, 90),
+        ra_range=(0, 360),
+        mjd_range=(trigger_time.jd, trigger_time.jd),
+        transientprop=transientprop,
+        skymap=map_struct,
+    )
+
+    survey = simsurvey.SimulSurvey(
+        generator=tr,
+        plan=plan,
+        phase_range=(minimum_phase, maximum_phase),
+        n_det=number_of_detections,
+        threshold=detection_threshold,
+    )
+
+    lcs = survey.get_lightcurves(notebook=True)
+
+    matplotlib.use("Agg")
+    fig = plt.figure(figsize=figsize, constrained_layout=False)
+    ax = plt.axes([0.05, 0.05, 0.9, 0.9], projection='geo degrees mollweide')
+    ax.grid()
+    if lcs.meta_notobserved is not None:
+        ax.scatter(
+            lcs.meta_notobserved['ra'],
+            lcs.meta_notobserved['dec'],
+            transform=ax.get_transform('world'),
+            marker='*',
+            color='grey',
+            label='not_observed',
+            alpha=0.7,
+        )
+    if lcs.meta is not None:
+        ax.scatter(
+            lcs.meta['ra'],
+            lcs.meta['dec'],
+            transform=ax.get_transform('world'),
+            marker='*',
+            color='red',
+            label='detected',
+            alpha=0.7,
+        )
+    ax.legend(loc=0)
+    ax.set_ylabel('Declination [deg]')
+    ax.set_xlabel('RA [deg]')
+
+    all_transients = []
+    if lcs.meta_notobserved is not None:
+        all_transients.append(len(lcs.meta_notobserved))
+    if lcs.meta_full is not None:
+        all_transients.append(len(lcs.meta_full))
+    ntransient = np.sum(all_transients)
+
+    if lcs.meta_full is not None:
+        n_in_covered = len(lcs.meta_full['z'])
+    else:
+        n_in_covered = 0
+
+    if lcs.lcs is not None:
+        n_detected = len(lcs.lcs)
+    else:
+        n_detected = 0
+
+    title_string = f"""
+        Number of created kNe: {ntransient}
+        Number of created kNe falling in the covered area: {n_in_covered}
+        Number of detected over all created: {n_detected/ntransient}"""
+    ax.set_title(title_string)
+
+    plt.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format=output_format)
+    plt.close(fig)
+    buf.seek(0)
+
+    return {
+        "success": True,
+        "name": f"simsurvey_{instrument.name}.{output_format}",
+        "data": buf.read(),
+        "reason": "",
+    }
+
+
+class ObservationPlanSimSurveyHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, observation_plan_request_id):
+        """
+        ---
+        description: Perform an efficiency analysis of the observation plan.
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+          - in: query
+            name: numberInjections
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Number of simulations to evaluate efficiency with. Defaults to 1000.
+          - in: query
+            name: numberDetections
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Number of detections required for detection. Defaults to 1.
+          - in: query
+            name: detectionThreshold
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Threshold (in sigmas) required for detection. Defaults to 5.
+          - in: query
+            name: minimumPhase
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Minimum phase (in days) post event time to consider detections. Defaults to 0.
+          - in: query
+            name: maximumPhase
+            nullable: true
+            schema:
+              type: number
+            description: |
+              Maximum phase (in days) post event time to consider detections. Defaults to 3.
+          - in: query
+            name: injectionFilename
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Path to file for injestion as a simsurvey.models.AngularTimeSeriesSource.
+              Defaults to nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt
+              from https://github.com/mbulla/kilonova_models.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: SingleObservationPlanRequest
+        """
+
+        number_of_injections = self.get_query_argument("numberInjections", 1000)
+        number_of_detections = self.get_query_argument("numberDetections", 1)
+        detection_threshold = self.get_query_argument("detectionThreshold", 5)
+        minimum_phase = self.get_query_argument("minimumPhase", 0)
+        maximum_phase = self.get_query_argument("maximumPhase", 3)
+        injection_filename = self.get_query_argument(
+            "injectionFilename",
+            'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
+        )
+
+        options = [
+            joinedload(ObservationPlanRequest.observation_plans)
+            .joinedload(EventObservationPlan.planned_observations)
+            .joinedload(PlannedObservation.field)
+        ]
+
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="read",
+            raise_if_none=True,
+            options=options,
+        )
+        self.verify_and_commit()
+
+        allocation = Allocation.get_if_accessible_by(
+            observation_plan_request.allocation_id,
+            self.current_user,
+            raise_if_none=True,
+        )
+
+        localization = (
+            Localization.query_records_accessible_by(
+                self.current_user,
+            )
+            .filter(Localization.id == observation_plan_request.localization_id)
+            .first()
+        )
+
+        instrument = allocation.instrument
+
+        if instrument.sensitivity_data is None:
+            return self.error('Need sensitivity_data to evaluate efficiency')
+
+        observation_plan = observation_plan_request.observation_plans[0]
+        planned_observations = observation_plan.planned_observations
+        num_observations = observation_plan.num_observations
+        if num_observations == 0:
+            self.push_notification(
+                'Need at least one observation to evaluate efficiency',
+                notification_type='error',
+            )
+            return self.error('Need at least one observation to evaluate efficiency')
+
+        unique_filters = observation_plan.unique_filters
+
+        if not set(unique_filters).issubset(set(instrument.sensitivity_data.keys())):
+            return self.error('Need sensitivity_data for all filters present')
+
+        for filt in unique_filters:
+            if not {'exposure_time', 'limiting_magnitude', 'zeropoint'}.issubset(
+                set(list(instrument.sensitivity_data[filt].keys()))
+            ):
+                return self.error(
+                    f'Sensitivity_data dictionary missing keys for filter {filt}'
+                )
+
+        output_format = 'pdf'
+        simsurvey_analysis = functools.partial(
+            observation_simsurvey,
+            planned_observations,
+            localization,
+            instrument,
+            output_format=output_format,
+            number_of_injections=number_of_injections,
+            number_of_detections=number_of_detections,
+            detection_threshold=detection_threshold,
+            minimum_phase=minimum_phase,
+            maximum_phase=maximum_phase,
+            injection_filename=injection_filename,
+        )
+
+        self.push_notification(
+            'Simsurvey analysis in progress. Download will start soon.'
+        )
+        rez = await IOLoop.current().run_in_executor(None, simsurvey_analysis)
+
+        filename = rez["name"]
+        data = io.BytesIO(rez["data"])
+
+        await self.send_file(data, filename, output_type=output_format)
