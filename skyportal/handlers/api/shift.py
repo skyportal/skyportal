@@ -1,3 +1,4 @@
+import arrow
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token, AccessError
@@ -10,6 +11,7 @@ from ...models import (
     User,
     Token,
     UserNotification,
+    GcnEvent,
 )
 
 
@@ -515,3 +517,156 @@ class ShiftUserHandler(BaseHandler):
             action='skyportal/REFRESH_SHIFTS', payload={'shift_id': int(shift_id)}
         )
         return self.success()
+
+
+class ShiftSummary(BaseHandler):
+    """
+    This handler has a get method that returns a summary
+    of all the activity of shift users on skyportal for a given period.
+    It is used to generate a report.
+    """
+
+    @auth_or_token
+    def get(self, shift_id=None):
+        """
+        ---
+        description: Get a summary of all the activity of shift users on skyportal for a given period
+        tags:
+          - shifts
+          - users
+          - sources
+          - gcn
+        parameters:
+          - in: path
+            name: shift_id
+            required: false
+            schema:
+              type: integer
+          - in: query
+            name: startDate
+            required: false
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              shift.start_date >= startDate
+          - in: qyert
+            name: end_date
+            required: false
+            schema:
+              type: string
+            description: |
+              Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by
+              shift.start_date <=endDate
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+
+        start_date = self.get_query_argument("startDate", None)
+        end_date = self.get_query_argument("endDate", None)
+        if (start_date is None or end_date is None) and shift_id is None:
+            return self.error("Please provide start_date and end_date, or shift_id")
+
+        if start_date is not None and end_date is not None:
+            try:
+                start_date = arrow.get(start_date).datetime
+                end_date = arrow.get(end_date).datetime
+            except ValueError:
+                return self.error("Please provide valid start_date and end_date")
+            if start_date > end_date:
+                return self.error("Please provide start_date < end_date")
+            if start_date > arrow.utcnow():
+                return self.error("Please provide start_date < today")
+            # if there is more than 4 weeks, we return an error
+            if (end_date - start_date).days > 28:
+                return self.error("Please provide a period of less than 4 weeks")
+
+        report = {}
+        if start_date and end_date:
+            s = (
+                Shift.query_records_accessible_by(
+                    self.current_user,
+                    mode="read",
+                    options=[
+                        joinedload(Shift.shift_users),
+                    ],
+                )
+                .filter(Shift.start_date >= start_date)
+                .filter(Shift.start_date <= end_date)
+                .order_by(Shift.start_date.asc())
+                .all()
+            )
+        else:
+            s = (
+                Shift.query_records_accessible_by(
+                    self.current_user,
+                    mode="read",
+                    options=[
+                        joinedload(Shift.shift_users),
+                    ],
+                )
+                .filter(Shift.id == shift_id)
+                .all()
+            )
+        if len(s) == 0:
+            return self.error("No shifts found")
+        shifts = []
+        for shift in s:
+            susers = []
+            for su in shift.shift_users:
+                user = su.user.to_dict()
+                user["admin"] = su.admin
+                user["needs_replacement"] = su.needs_replacement
+                del user["oauth_uid"]
+                susers.append(user)
+            shift = shift.to_dict()
+            shift["shift_users"] = susers
+            shifts.append(shift)
+
+        report['shifts'] = {}
+        report['shifts']['total'] = len(shifts)
+        report['shifts']['data'] = shifts
+        if shift_id and not start_date and not end_date:
+            start_date = shifts[0]['start_date']
+            end_date = shifts[0]['end_date']
+
+        gcns = (
+            GcnEvent.query_records_accessible_by(
+                self.current_user,
+                mode="read",
+            )
+            .filter(GcnEvent.dateobs >= start_date)
+            .filter(GcnEvent.dateobs <= end_date)
+            .order_by(GcnEvent.dateobs.asc())
+            .all()
+        )
+        gcn_added_during_shifts = []
+        # get the gcns added during the shifts
+        if len(gcns) > 0:
+            for shift in shifts:
+                # get list of user_id who are shift_users
+                for gcn in gcns:
+                    gcn = gcn.to_dict()
+                    if (
+                        gcn["dateobs"] >= shift["start_date"]
+                        and gcn["dateobs"] <= shift["end_date"]
+                    ):
+                        if gcn["id"] not in [
+                            gcn["id"] for gcn in gcn_added_during_shifts
+                        ]:
+                            gcn['shift_ids'] = [shift['id']]
+                            gcn_added_during_shifts.append(gcn)
+
+                        else:
+                            for gcn_added in gcn_added_during_shifts:
+                                if gcn_added['id'] == gcn['id']:
+                                    gcn_added['shift_ids'].append(shift['id'])
+                                    break
+            report['gcns'] = {'total': len(gcn_added_during_shifts)}
+            report['gcns']['data'] = gcn_added_during_shifts
+
+        self.push_all(action="skyportal/FETCH_SHIFT_SUMMARY", payload=report)
+        return self.success(data=report)
