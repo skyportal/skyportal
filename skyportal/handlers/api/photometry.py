@@ -33,6 +33,7 @@ from ...models import (
     PHOT_ZP,
     GroupPhotometry,
     StreamPhotometry,
+    PhotStat,
 )
 
 from ...models.schema import (
@@ -599,6 +600,24 @@ def insert_new_photometry_data(
             "stream_photometry",
             ('photometr_id', 'stream_id', 'created_at', 'modified'),
         )
+
+    # add a phot stats for each photometry
+    for phot in params:
+        obj_id = phot['obj_id']
+        phot_stat = session.scalars(
+            sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
+        ).first()
+        if phot_stat is None:
+            all_phot = session.scalars(
+                sa.select(Photometry).where(Photometry.obj_id == obj_id)
+            ).all()
+            phot_stat = PhotStat(obj_id=obj_id)
+            phot_stat.full_update(all_phot)
+            session.add(phot_stat)
+
+        else:
+            phot_stat.add_photometry_point(phot)
+            session.add(phot_stat)
 
     session.commit()
     return ids, upload_id

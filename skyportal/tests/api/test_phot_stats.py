@@ -165,7 +165,11 @@ def test_phot_stat_consistent(
     num_points = 10
     flux = np.random.normal(300, 10, num_points)
     flux[5] = 10.1
+    flux[6] = 10.2
+    filt = np.random.choice(['ztfg', 'ztfr', 'ztfi'], num_points)
 
+    # post all these points
+    phot_ids = []
     for i, f in enumerate(flux):
         status, data = api(
             'POST',
@@ -178,7 +182,7 @@ def test_phot_stat_consistent(
                 'fluxerr': 10.0,
                 'zp': 25.0,
                 'magsys': 'ab',
-                'filter': 'ztfg',
+                'filter': filt[i],
                 'group_ids': [public_group.id],
                 'altdata': {'some_key': str(uuid.uuid4())},
             },
@@ -186,6 +190,7 @@ def test_phot_stat_consistent(
         )
         assert status == 200
         assert data['status'] == 'success'
+        phot_ids.append(data['data']['ids'][0])
 
     status, data = api(
         'GET',
@@ -193,21 +198,68 @@ def test_phot_stat_consistent(
         token=upload_data_token,
     )
     assert status == 200
-    # photometry = data['data']
-    # mag = [p['mag'] for p in photometry]
-    # assert all(type(m) == float and not np.isnan(m) for m in mag)
-    # mag = np.array(mag)
-    # mjd = np.array([p['mjd'] for p in photometry])
-    # filt = np.array([p['filter'] for p in photometry])
-    # det = np.array([p['snr'] > PHOT_DETECTION_THRESHOLD for p in photometry])
-    #
-    # assert np.sum(det) == num_points - 1
-    #
-    # status, data = api(
-    #     'GET',
-    #     f'sources/{source_id}/phot_stat',
-    #     token=upload_data_token,
-    # )
+    photometry = data['data']
+    mag = [p['mag'] for p in photometry]
+    assert all(type(m) == float and not np.isnan(m) for m in mag)
+    mag = np.array(mag)
+    mjd = np.array([p['mjd'] for p in photometry])
+    filt = np.array([p['filter'] for p in photometry])
+    det = np.array([p['snr'] > PHOT_DETECTION_THRESHOLD for p in photometry])
+    lim = np.array([p['limiting_mag'] for p in photometry])
+
+    assert np.sum(det) == num_points - 2
+
+    status, data = api(
+        'GET',
+        f'sources/{source_id}/phot_stat',
+        token=upload_data_token,
+    )
+    assert status == 200
+    phot_stat = data['data']
+
+    check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim)
+
+    # now re-calculate the points
+    status, data = api(
+        'DELETE', f'sources/{source_id}/phot_stat', token=super_admin_token
+    )
+    assert status == 200
+
+    status, data = api(
+        'POST', f'sources/{source_id}/phot_stat', token=super_admin_token
+    )
+    assert status == 200
+
+    status, data = api(
+        'GET',
+        f'sources/{source_id}/phot_stat',
+        token=upload_data_token,
+    )
+    assert status == 200
+    phot_stat = data['data']
+    check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim)
+
+    # now delete a point
+    status, data = api('DELETE', f'photometry/{phot_ids[6]}', token=upload_data_token)
+
+    assert status == 200
+
+    idx = np.ones(num_points, dtype=bool)
+    idx[6] = False
+    mjd_less = mjd[idx]
+    mag_less = mag[idx]
+    filt_less = filt[idx]
+    det_less = det[idx]
+    lim_less = lim[idx]
+
+    status, data = api('GET', f'sources/{source_id}/phot_stat', token=upload_data_token)
+
+    assert status == 200
+    phot_stat = data['data']
+
+    check_phot_stat_is_consistent(
+        phot_stat, mjd_less, mag_less, filt_less, det_less, lim_less
+    )
 
 
 def test_time_to_last_non_detection(upload_data_token, public_group, ztf_camera):
@@ -224,8 +276,10 @@ def check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim):
 
         # per filter
         for f in filter_set:
-            assert phot_stat['num_obs_per_filter'][f] == len(mjd[filt == f])
-            assert phot_stat['num_det_per_filter'][f] == len(mjd[det & (filt == f)])
+            if len(mjd[filt == f]):
+                assert phot_stat['num_obs_per_filter'][f] == len(mjd[filt == f])
+            if len(mjd[det & (filt == f)]):
+                assert phot_stat['num_det_per_filter'][f] == len(mjd[det & (filt == f)])
 
         # latest observation
         assert phot_stat['recent_obs_mjd'] == np.max(mjd)
@@ -262,15 +316,14 @@ def check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim):
                 phot_stat['mag_rms_per_filter'][f], np.std(mag[det & (filt == f)])
             )
 
-        # check the deepest limits (non-detections
-        assert phot_stat['deepest_limit_global'] == min(lim[~det])
+        # check the deepest limits (non-detections)
+        if len(lim[~det]):
+            assert phot_stat['deepest_limit_global'] == min(lim[~det])
         for f in filter_set:
             if len(lim[~det & (filt == f)]) > 0:
                 assert phot_stat['deepest_limit_per_filter'][f] == min(
                     lim[~det & (filt == f)]
                 )
-            else:
-                assert phot_stat['deepest_limit_per_filter'][f] == np.nan
 
         # check the color
         for f1 in filter_set:
@@ -282,10 +335,15 @@ def check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim):
                 assert np.isclose(phot_stat['mean_color'][f'{f1}-{f2}'], mag1 - mag2)
 
     except AssertionError:
+        from pprint import pprint
+
+        print('Data from photometry points:')
         print(f'mag: {mag}')
         print(f'mjd: {mjd}')
         print(f'filt: {filt}')
         print(f'det: {det}')
         print(f'lim: {lim}')
+        print('PhotStat object:')
+        pprint(phot_stat)
         print(traceback.format_exc())
         raise

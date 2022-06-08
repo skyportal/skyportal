@@ -2005,10 +2005,12 @@ class SourceHandler(BaseHandler):
         self.verify_and_commit()
 
         if not obj_already_exists:
+            user_id = self.associated_user_object.id
             IOLoop.current().run_in_executor(
                 None,
                 lambda: add_linked_thumbnails_and_push_ws_msg(
-                    obj.id, self.associated_user_object.id
+                    obj.id,
+                    user_id,
                 ),
             )
         else:

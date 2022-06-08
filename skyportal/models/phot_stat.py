@@ -20,7 +20,7 @@ from baselayer.app.models import (
     restricted,
 )
 
-from skyportal.models.photometry import Photometry
+from skyportal.models.photometry import Photometry, PHOT_ZP
 
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
@@ -265,24 +265,31 @@ class PhotStat(Base):
 
         Parameters
         ----------
-        phot: scalar skypotyal.models.Photometry
+        phot: scalar dict or skypotyal.models.Photometry
             A new photometry point that was added to the object.
 
         """
-        filt = phot.filter
-        mjd = phot.mjd
-        mag = phot.mag
-        det = phot.snr and phot.snr > PHOT_DETECTION_THRESHOLD
+        if isinstance(phot, Photometry):
+            phot = phot.__dict__
+        elif not isinstance(phot, dict):
+            raise TypeError('phot must be a dict or Photometry object')
+
+        filt = phot['filter']
+        mjd = phot['mjd']
+        mag = -2.5 * np.log10(phot['flux']) + PHOT_ZP
+        snr = phot['flux'] / phot['fluxerr']
+        det = not np.isnan(snr) and snr > PHOT_DETECTION_THRESHOLD
+
         if not det:  # get limiting magnitude for non-detection
             if (
-                phot.original_user_data is not None
-                and 'limiting_mag' in phot.original_user_data
+                phot['original_user_data'] is not None
+                and 'limiting_mag' in phot['original_user_data']
             ):
-                lim = phot.original_user_data['limiting_mag']
+                lim = phot['original_user_data']['limiting_mag']
             else:
-                fluxerr = phot.fluxerr
+                fluxerr = phot['fluxerr']
                 fivesigma = 5 * fluxerr
-                lim = -2.5 * np.log10(fivesigma)
+                lim = -2.5 * np.log10(fivesigma) + PHOT_ZP
 
         self.num_obs_global += 1
         if filt in self.num_obs_per_filter:
@@ -434,20 +441,28 @@ class PhotStat(Base):
         mjds = np.array([phot.mjd for phot in phot_list])
         mags = np.array([phot.mag for phot in phot_list])
         dets = np.array(
-            [phot.snr and phot.snr > PHOT_DETECTION_THRESHOLD for phot in phot_list]
+            [
+                phot.flux
+                and phot.fluxerr
+                and phot.flux / phot.fluxerr > PHOT_DETECTION_THRESHOLD
+                for phot in phot_list
+            ]
         )
         lims = np.nan * np.ones(len(dets))
+
         for i, phot in enumerate(phot_list):
+            if isinstance(phot, Photometry):
+                phot = phot.__dict__
             if not dets[i]:  # get limiting magnitude for non-detection
                 if (
-                    phot.original_user_data is not None
-                    and 'limiting_mag' in phot.original_user_data
+                    phot['original_user_data'] is not None
+                    and 'limiting_mag' in phot['original_user_data']
                 ):
-                    lims[i] = phot.original_user_data['limiting_mag']
+                    lims[i] = phot['original_user_data']['limiting_mag']
                 else:
-                    fluxerr = phot.fluxerr
+                    fluxerr = phot['fluxerr']
                     fivesigma = 5 * fluxerr
-                    lims[i] = -2.5 * np.log10(fivesigma)
+                    lims[i] = -2.5 * np.log10(fivesigma) + PHOT_ZP
 
         # reset all scalar properties
         self.num_obs_global = 0
@@ -609,16 +624,20 @@ def insert_into_phot_stat(mapper, connection, target):
 @event.listens_for(Photometry, 'after_delete')
 @event.listens_for(Photometry, 'after_update')
 def fully_update_phot_stat(mapper, connection, target):
+    print("Fully updating phot_stat")
 
     # Fully update PhotStat object
     @event.listens_for(DBSession(), "before_flush", once=True)
     def receive_after_flush(session, context, instances):
+        print('received after flush')
         obj_id = target.obj_id
         phot_stat = session.scalars(
             sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
         ).first()
+
         if phot_stat is not None:
             all_phot = session.scalars(
                 sa.select(Photometry).where(Photometry.obj_id == obj_id)
             ).all()
+            print(f'len(all_phot) = {len(all_phot)}')
             phot_stat.full_update(all_phot)
