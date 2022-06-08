@@ -28,6 +28,10 @@ const GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW_OK =
   "skyportal/GET_COMMENT_ON_SHIFT_ATTACHMENT_PREVIEW_OK";
 const CURRENT_SHIFT_SELECTED_USERS = "skyportal/CURRENT_SHIFT_SELECTED_USERS";
 
+const FETCH_SHIFT_SUMMARY = "skyportal/FETCH_SHIFT_SUMMARY";
+
+const FETCH_SHIFT_SUMMARY_OK = "skyportal/FETCH_SHIFT_SUMMARY_OK";
+
 export const fetchShift = (id) => API.GET(`/api/shifts/${id}`, FETCH_SHIFT);
 
 export const submitShift = (run) => API.POST(`/api/shifts`, SUBMIT_SHIFT, run);
@@ -88,6 +92,17 @@ export function getCommentOnShiftAttachmentPreview(shiftID, commentID) {
   );
 }
 
+export function getShiftsSummary({ shiftID, startDate, endDate }) {
+  let data = null;
+  let url = `/api/shifts/summary`;
+  if (startDate && endDate) {
+    data = { startDate, endDate };
+  } else if (shiftID) {
+    url = `/api/shifts/summary/${shiftID}`;
+  }
+  return API.GET(url, FETCH_SHIFT_SUMMARY, data);
+}
+
 // Websocket message handler
 messageHandler.add((actionType, payload, dispatch, getState) => {
   const { shift } = getState();
@@ -102,7 +117,10 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
 });
 
-const reducer = (state = { currentShift: {}, selectedUsers: [] }, action) => {
+const reducer = (
+  state = { currentShift: {}, selectedUsers: [], shiftsSummary: [] },
+  action
+) => {
   switch (action.type) {
     case CURRENT_SHIFT: {
       const currentShift = action.data;
@@ -140,6 +158,13 @@ const reducer = (state = { currentShift: {}, selectedUsers: [] }, action) => {
       return {
         ...state,
         selectedUsers,
+      };
+    }
+    case FETCH_SHIFT_SUMMARY_OK: {
+      const shiftsSummary = action.data;
+      return {
+        ...state,
+        shiftsSummary,
       };
     }
     default:

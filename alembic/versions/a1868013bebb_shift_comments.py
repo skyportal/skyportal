@@ -1,9 +1,7 @@
 """shift_comments
-
 Revision ID: a1868013bebb
 Revises: 8acd303bd097
 Create Date: 2022-05-26 10:00:32.455132
-
 """
 from alembic import op
 import sqlalchemy as sa
@@ -11,7 +9,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'a1868013bebb'
-down_revision = '8acd303bd097'
+down_revision = '415cd17ac788'
 branch_labels = None
 depends_on = None
 
