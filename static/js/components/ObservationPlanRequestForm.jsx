@@ -59,7 +59,12 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const ObservationPlanGlobe = ({ loc, instrument, setSelectedFields }) => {
+const ObservationPlanGlobe = ({
+  loc,
+  instrument,
+  selectedFields,
+  setSelectedFields,
+}) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -88,10 +93,10 @@ const ObservationPlanGlobe = ({ loc, instrument, setSelectedFields }) => {
   }, [dispatch, setSkymapInstrument, loc, instrument]);
 
   const handleAddObservationPlanFields = async (obsPlanSkymapInstrument) => {
-    const selectedFields = obsPlanSkymapInstrument?.fields?.filter(
+    const theseSelectedFields = obsPlanSkymapInstrument?.fields?.filter(
       (f) => f?.selected
     );
-    const selectedIds = selectedFields.map((f) => f?.field_id);
+    const selectedIds = theseSelectedFields.map((f) => f?.field_id);
     setSelectedFields(selectedIds);
   };
 
@@ -100,6 +105,10 @@ const ObservationPlanGlobe = ({ loc, instrument, setSelectedFields }) => {
     fields.push(Number(field.id));
   });
   fields.sort();
+
+  const handleSelectedFieldChange = (e) => {
+    setSelectedFields(e.target.value);
+  };
 
   return (
     <div>
@@ -134,9 +143,10 @@ const ObservationPlanGlobe = ({ loc, instrument, setSelectedFields }) => {
           labelId="fieldsToSelectLabel"
           name="fieldsToUseSelect"
           className={classes.fieldsToUseSelect}
-          isMulti
+          multiple
           closeMenuOnSelect={false}
-          defaultValue={[fields[0], fields[1]]}
+          value={selectedFields}
+          onChange={handleSelectedFieldChange}
         >
           {fields?.map((field) => (
             <MenuItem
@@ -186,6 +196,7 @@ ObservationPlanGlobe.propTypes = {
       })
     ),
   }),
+  selectedFields: PropTypes.arrayOf(PropTypes.number).isRequired,
   setSelectedFields: PropTypes.func.isRequired,
 };
 
@@ -358,6 +369,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           instrument={
             instLookUp[allocationLookUp[selectedAllocationId].instrument_id]
           }
+          selectedFields={selectedFields}
           setSelectedFields={setSelectedFields}
         />
       </div>
