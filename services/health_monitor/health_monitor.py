@@ -17,7 +17,7 @@ ALLOWED_DOWNTIME_SECONDS = cfg['health_monitor.allowed_downtime_seconds']
 def migrated():
     try:
         r = requests.get(
-            f'http://localhost:{cfg["ports.migration_manager"]}', timeout=1
+            f'http://localhost:{cfg["ports.migration_manager"]}', timeout=10
         )
         data = r.json()
         return data["migrated"]
