@@ -1250,7 +1250,7 @@ class PhotometryOriginHandler(BaseHandler):
                 schema: Error
         """
         origins = DBSession().query(Photometry.origin).distinct().all()
-        return self.success(data=[o[0] for o in origins])
+        return self.success(data=[origin[0] for origin in origins])
 
 
 PhotometryHandler.get.__doc__ = f"""
