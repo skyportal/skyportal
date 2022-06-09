@@ -27,6 +27,10 @@ env, cfg = load_env()
 
 
 def set_default_role(user, session):
+    '''
+    Set the default role for a user. The default role can be set in the config file.
+    This method does not commit the session, so the session needs to be commited after calling this method.
+    '''
     if (
         cfg['user.default_role'] is not None
         and isinstance(cfg['user.default_role'], str)
@@ -42,6 +46,10 @@ def set_default_role(user, session):
 
 
 def set_default_acls(user, session):
+    '''
+    Set the default acls for a user. The default acls can be set in the config file.
+    This method does not commit the session, so the session needs to be commited after calling this method.
+    '''
     if cfg['user.default_acls'] is not None:
         for acl_id in cfg['user.default_acls']:
             if acl_id not in all_acl_ids:
@@ -53,6 +61,10 @@ def set_default_acls(user, session):
 
 
 def set_default_group(user, session):
+    '''
+    Set the default groups for a user. The default groups can be set in the config file.
+    This method does not commit the session, so the session needs to be commited after calling this method.
+    '''
     default_groups = []
     if cfg['misc.public_group_name'] is not None:
         default_groups.append(cfg['misc.public_group_name'])

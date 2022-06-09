@@ -536,8 +536,8 @@ cross_match:
 
 user:
   default_role: 'Full user'
-  default_groups: ['Grandma']
-  default_acls: ['Manage shifts']
+  default_groups: []
+  default_acls: []
 
 gcn_notice_types:
   - FERMI_GBM_FLT_POS
