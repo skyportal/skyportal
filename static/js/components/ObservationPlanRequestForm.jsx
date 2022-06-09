@@ -39,7 +39,7 @@ const useStyles = makeStyles(() => ({
     width: "100%",
   },
   fieldsToUseSelect: {
-    width: "100%",
+    width: "80%",
   },
   allocationSelectItem: {
     whiteSpace: "break-spaces",
@@ -110,6 +110,10 @@ const ObservationPlanGlobe = ({
     setSelectedFields(e.target.value);
   };
 
+  function clearedSelectedFields() {
+    setSelectedFields([]);
+  }
+
   return (
     <div>
       <div>
@@ -144,7 +148,6 @@ const ObservationPlanGlobe = ({
           name="fieldsToUseSelect"
           className={classes.fieldsToUseSelect}
           multiple
-          closeMenuOnSelect={false}
           value={selectedFields}
           onChange={handleSelectedFieldChange}
         >
@@ -158,6 +161,14 @@ const ObservationPlanGlobe = ({
             </MenuItem>
           ))}
         </Select>
+        <Button
+          id="clear-fieldsToUseSelect"
+          size="small"
+          color="secondary"
+          onClick={() => clearedSelectedFields()}
+        >
+          Clear Fields
+        </Button>
       </div>
     </div>
   );

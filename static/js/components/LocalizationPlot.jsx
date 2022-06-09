@@ -348,7 +348,7 @@ const GeoJSONGlobePlot = ({
             })
             .append("title")
             .text(
-              `ra: ${f.ra} \ndec: ${
+              `field ID: ${field_id} \nra: ${f.ra} \ndec: ${
                 f.dec
               } \nfilters: ${data.instrument.filters.join(", ")}`
             );

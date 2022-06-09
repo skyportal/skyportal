@@ -195,11 +195,6 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     setIsSubmitting(false);
   };
 
-  // const handleSendToObservationPlan = (instrument) => {
-  // const selectedFields = instrument?.fields.filter((f) => f?.selected);
-  // const selectedIds = selectedFields.map((f) => f?.field_id);
-  // };
-
   if (telescopeList.length === 0) {
     return <p>No robotic followup requests found...</p>;
   }
@@ -328,14 +323,6 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
         </div>
       )}
       <div>
-        <Button
-          variant="outlined"
-          // onClick={() =>
-          //   handleSendToObservationPlan(instLookUp[selectedInstrumentId])
-          // }
-        >
-          Send selected to observation plan
-        </Button>
         <InputLabel id="localizationSelectLabel">Localization</InputLabel>
         <Select
           inputProps={{ MenuProps: { disableScrollLock: true } }}
