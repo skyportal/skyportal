@@ -1398,6 +1398,8 @@ class SourceHandler(BaseHandler):
                 localization = (
                     Localization.query_records_accessible_by(self.current_user)
                     .filter(Localization.dateobs == localization_dateobs)
+                    # order by descending date to find the most recent localization
+                    .order_by(Localization.modified.desc())
                     .first()
                 )
             if localization is None:

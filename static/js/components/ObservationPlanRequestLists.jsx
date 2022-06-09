@@ -28,6 +28,7 @@ const useStyles = makeStyles(() => ({
   actionButtons: {
     display: "flex",
     flexFlow: "row wrap",
+    gap: "0.2rem",
   },
   accordion: {
     width: "99%",
@@ -109,12 +110,18 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
       setObsList(response.data);
     };
     fetchObsList();
-    if (obsList && Array.isArray(obsList)) {
-      obsList.forEach((f) => {
-        f.selected = false;
-      });
-    }
   }, [dispatch, setObsList, observationplanRequest]);
+
+  const handleDeleteObservationPlanFields = async (obsPlanList) => {
+    const selectedFields = obsPlanList?.geojson.filter((f) => f?.selected);
+    const selectedIds = selectedFields.map((f) => f?.properties?.field_id);
+    await dispatch(
+      Actions.deleteObservationPlanFields(
+        observationplanRequest.id,
+        selectedIds
+      )
+    );
+  };
 
   return (
     <div>
@@ -131,6 +138,12 @@ const ObservationPlanGlobe = ({ observationplanRequest, loc }) => {
             height={300}
             width={300}
           />
+          <Button
+            variant="contained"
+            onClick={() => handleDeleteObservationPlanFields(obsList)}
+          >
+            Delete selected fields from observation plan
+          </Button>
         </div>
       )}
     </div>
@@ -437,6 +450,19 @@ const ObservationPlanRequestLists = ({ gcnEvent }) => {
                 data-testid={`movieRequest_${observationplanRequest.id}`}
               >
                 GIF
+              </Button>
+            </div>
+            <div>
+              <Button
+                href={`/api/observation_plan/${observationplanRequest.id}/simsurvey`}
+                download={`observation-plan-simsurvey-${observationplanRequest.id}`}
+                size="small"
+                color="primary"
+                type="submit"
+                variant="outlined"
+                data-testid={`simsurveyRequest_${observationplanRequest.id}`}
+              >
+                SimSurvey
               </Button>
             </div>
           </div>

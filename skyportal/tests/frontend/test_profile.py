@@ -25,7 +25,6 @@ def test_token_acls_options_rendering2(driver, super_admin_user):
         driver.wait_for_xpath(f'//*[@data-testid="acls[{i}]"]')
 
 
-@pytest.mark.xfail(strict=False)
 def test_add_and_see_realname_in_user_profile(driver, user):
     driver.get(f"/become_user/{user.id}")
     driver.get("/profile")
@@ -41,10 +40,13 @@ def test_add_and_see_realname_in_user_profile(driver, user):
     )
 
     # now that we added the name, let's see if it's displayed correctly
-    name_display = driver.wait_for_xpath(
+    driver.wait_for_xpath(
         '//*[@id="userRealname"][contains(@style, "visibility: visible")]'
-    ).text
-    assert name_display == f"{first_name} {last_name}"
+    )
+
+    driver.wait_for_xpath(
+        f'//*[@id="userRealname"][contains(text(), "{first_name}") and contains(text(), "{last_name}")]'
+    )
 
 
 def test_add_data_to_user_profile(driver, user):

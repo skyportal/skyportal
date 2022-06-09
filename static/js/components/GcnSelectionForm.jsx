@@ -51,7 +51,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const GcnSelectionForm = ({ gcnEvent }) => {
+const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   const classes = useStyles();
   const dispatch = useDispatch();
 
@@ -116,6 +116,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
       const { data } = result;
       setSelectedInstrumentId(data[0]?.id);
       setSelectedLocalizationId(gcnEvent.localizations[0]?.id);
+      setSelectedLocalizationName(gcnEvent.localizations[0]?.localization_name);
     };
 
     getInstruments();
@@ -200,7 +201,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
   // };
 
   if (telescopeList.length === 0) {
-    return <p>No robotic followup requests for this source...</p>;
+    return <p>No robotic followup requests found...</p>;
   }
 
   if (
@@ -221,9 +222,6 @@ const GcnSelectionForm = ({ gcnEvent }) => {
   const instruments_with_contour = [];
   gcnEventInstruments?.forEach((instrument) => {
     if (instrument?.fields && instrument?.fields.length > 0) {
-      instrument.fields.forEach((f) => {
-        f.selected = false;
-      });
       if (instrument.fields[0].contour_summary) {
         instruments_with_contour.push(instrument);
         instLookUp[instrument.id] = instrument;
@@ -249,6 +247,7 @@ const GcnSelectionForm = ({ gcnEvent }) => {
 
   const handleSelectedLocalizationChange = (e) => {
     setSelectedLocalizationId(e.target.value);
+    setSelectedLocalizationName(locLookUp[e.target.value].localization_name);
   };
 
   function createUrl(instrumentId, queryParams) {
@@ -472,5 +471,6 @@ GcnSelectionForm.propTypes = {
     ),
     id: PropTypes.number,
   }).isRequired,
+  setSelectedLocalizationName: PropTypes.func.isRequired,
 };
 export default GcnSelectionForm;

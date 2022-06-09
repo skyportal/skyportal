@@ -75,6 +75,14 @@ export function allocationInfo(allocation, groups) {
       </div>
     );
   }
+
+  const share_groups = [];
+  if (allocation.default_share_group_ids?.length > 0) {
+    allocation.default_share_group_ids.forEach((share_group_id) => {
+      share_groups.push(groups?.filter((g) => g.id === share_group_id)[0].name);
+    });
+  }
+
   const startDate = new Date(`${allocation.start_date}Z`).toLocaleString(
     "en-US",
     { hour12: false }
@@ -84,13 +92,16 @@ export function allocationInfo(allocation, groups) {
   });
   let result = `From ${startDate} to ${endDate}`;
 
-  if (allocation?.pi || group?.name) {
+  if (allocation?.pi || group?.name || share_groups.length > 0) {
     result += "\r\n(";
     if (allocation?.pi) {
       result += `PI: ${allocation.pi}`;
     }
     if (group?.name) {
       result += ` / Group: ${group?.name}`;
+    }
+    if (share_groups.length > 0) {
+      result += ` / Default Share Groups: ${share_groups.join(", ")}`;
     }
     result += ")";
   }

@@ -119,14 +119,18 @@ const TelescopeInfo = () => {
                 key={`${telescope.id}_time`}
               >
                 <i>
-                  Next Sunrise (Astronomical):{" "}
-                  {telescope.next_twilight_morning_astronomical.slice(0, -4)}{" "}
-                  UTC
+                  {telescope.next_twilight_morning_astronomical &&
+                    `Next Sunrise (Astronomical): ${telescope.next_twilight_morning_astronomical.slice(
+                      0,
+                      -4
+                    )} UTC`}
                 </i>
                 <i>
-                  Next Sunset (Astronomical):{" "}
-                  {telescope.next_twilight_evening_astronomical.slice(0, -4)}{" "}
-                  UTC
+                  {telescope.next_twilight_evening_astronomical &&
+                    `Next Sunset (Astronomical): ${telescope.next_twilight_evening_astronomical.slice(
+                      0,
+                      -4
+                    )} UTC`}
                 </i>
               </div>
             )}
