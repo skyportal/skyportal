@@ -83,8 +83,9 @@ class GaiaQuery:
         except (HTTPError, ConnectionResetError):
             log("Warning: main Gaia TAP+ server failed")
             self.is_backup = True
-        except:  # noqa: E722
+        except Exception as e:  # noqa: E722
             log("Warning: main Gaia TAP+ server failed in a way we didn't expect.")
+            log(f'Exception type={type(e).__name__}. Exception message={e}')
             self.is_backup = True
 
         if self.is_backup:
