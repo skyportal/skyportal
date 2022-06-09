@@ -89,6 +89,12 @@ class Instrument(Base):
         doc='List of filters on the instrument (if any).',
     )
 
+    sensitivity_data = sa.Column(
+        JSONB,
+        nullable=True,
+        doc="JSON describing the filters on the instrument and the filter's corresponding limiting magnitude and exposure time.",
+    )
+
     allocations = relationship(
         'Allocation',
         back_populates="instrument",

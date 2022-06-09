@@ -966,6 +966,7 @@ def make_legend_items_and_detection_lines(
     -------
     List of LegendItem objects
     """
+
     empty_data_source = dict(
         mjd=[],
         flux=[],
@@ -1158,6 +1159,27 @@ def make_legend_items_and_detection_lines(
     return legend_items
 
 
+def transformed_model_dict(model_dict):
+    """In order to programmatically toggle visibilty, the model_dict keys are altered to contain the filter, instrument, and origin of
+    the photometry point. However, many widgets need the original model dict with keys such as obs0 and bin0 in order to work correctly.
+    This function changes the keys of the model dict to work with that format.
+
+    Parameters
+    ----------
+    model_dict : dict
+        Dictionary with string keys and GlyphRenderer values.
+
+    Returns
+    -------
+    dict with transformed keys.
+    """
+    transformed_model_dict = {}
+    for k, v in model_dict.items():
+        label = k.split('~')[2] if '~' in k else k
+        transformed_model_dict[label] = v
+    return transformed_model_dict
+
+
 def make_binsize_slider(grouped_data, model_dict):
     """Makes a slider to control binsize.
 
@@ -1172,6 +1194,7 @@ def make_binsize_slider(grouped_data, model_dict):
     -------
     bokeh Slider object
     """
+    model_dict = transformed_model_dict(model_dict)
     slider = Slider(
         start=0.0,
         end=15.0,
@@ -1210,6 +1233,7 @@ def make_export_csv_button(grouped_data, model_dict, obj_id):
     -------
     bokeh Button object
     """
+    model_dict = transformed_model_dict(model_dict)
     button = Button(label="Export Bold Light Curve to CSV")
     button.js_on_click(
         CustomJS(
@@ -1265,6 +1289,7 @@ def make_period_controls(
     -------
     bokeh column object
     """
+    model_dict = transformed_model_dict(model_dict)
     period_selection = RadioGroup(labels=period_labels, active=0)
 
     phase_selection = RadioGroup(labels=["One phase", "Two phases"], active=1)

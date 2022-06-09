@@ -18,7 +18,9 @@ log = make_log('api/observation_plan')
 
 env, cfg = load_env()
 
-default_filters = cfg.get('app.observation_plan.default_filters', ['g', 'r', 'i'])
+default_filters = cfg['app.observation_plan.default_filters']
+if default_filters is None:
+    default_filters = ['g', 'r', 'i']
 
 
 def generate_plan(observation_plan_id, request_id, user_id):
@@ -347,8 +349,9 @@ class MMAAPI(FollowUpAPI):
             )
 
             log(f"Generating schedule for observation plan {plan.id}")
+            requester_id = request.requester.id
             IOLoop.current().run_in_executor(
-                None, lambda: generate_plan(plan.id, request.id, request.requester.id)
+                None, lambda: generate_plan(plan.id, request.id, requester_id)
             )
         else:
             raise ValueError(

@@ -72,8 +72,8 @@ class Telescope(Base):
 
             try:
                 tf = timezonefinder.TimezoneFinder(in_memory=True)
-                local_tz = tf.closest_timezone_at(
-                    lng=(self.lon + 180) % 360 - 180, lat=self.lat, delta_degree=5
+                local_tz = tf.timezone_at(
+                    lng=(self.lon + 180) % 360 - 180, lat=self.lat
                 )
                 elevation = self.elevation
                 if (
