@@ -147,6 +147,12 @@ class UserObjListHandler(BaseHandler):
                 "Input `list_name` must begin with alphanumeric/underscore"
             )
 
+        if (
+            user_id != self.associated_user_object.id
+            and not self.associated_user_object.is_admin
+        ):
+            return self.error("Only admins can add listings to other users' accounts")
+
         query = Listing.query_records_accessible_by(self.current_user).filter(
             Listing.user_id == int(user_id),
             Listing.obj_id == obj_id,
