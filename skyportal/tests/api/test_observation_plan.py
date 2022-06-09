@@ -103,6 +103,7 @@ def test_observation_plan_tiling(
     assert data['status'] == 'success'
     allocation_id = data['data']['id']
 
+    queue_name = str(uuid.uuid4())
     request_data = {
         'allocation_id': allocation_id,
         'gcnevent_id': gcnevent_id,
@@ -118,7 +119,7 @@ def test_observation_plan_tiling(
             'maximum_airmass': 2.0,
             'integrated_probability': 100,
             'minimum_time_difference': 30,
-            'queue_name': 'ToO_Fake',
+            'queue_name': queue_name,
             'program_id': 'Partnership',
             'subprogram_name': 'GRB',
         },
@@ -129,7 +130,7 @@ def test_observation_plan_tiling(
     )
     assert status == 200
     assert data['status'] == 'success'
-    id = data['data']['id']
+    id = data['data']['ids'][0]
 
     # wait for the observation plan to finish
     time.sleep(15)
@@ -318,6 +319,7 @@ def test_observation_plan_galaxy(
     assert data['status'] == 'success'
     allocation_id = data['data']['id']
 
+    queue_name = str(uuid.uuid4())
     request_data = {
         'allocation_id': allocation_id,
         'gcnevent_id': gcnevent_id,
@@ -334,7 +336,7 @@ def test_observation_plan_galaxy(
             'maximum_airmass': 2.0,
             'integrated_probability': 100,
             'minimum_time_difference': 30,
-            'queue_name': 'ToO_Fake',
+            'queue_name': queue_name,
             'program_id': 'Partnership',
             'subprogram_name': 'GRB',
         },
@@ -345,7 +347,7 @@ def test_observation_plan_galaxy(
     )
     assert status == 200
     assert data['status'] == 'success'
-    id = data['data']['id']
+    id = data['data']['ids'][0]
 
     # wait for the observation plan to populate
     nretries = 0
