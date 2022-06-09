@@ -411,6 +411,8 @@ def add_user_notifications(mapper, connection, target):
                                 )
                         elif (
                             "sources" in user.preferences['followed_ressources'].keys()
+                            and "sources_classifications"
+                            in user.preferences['followed_ressources'].keys()
                         ):
                             if (
                                 target.classification
