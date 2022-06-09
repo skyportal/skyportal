@@ -1,18 +1,36 @@
-import React from "react";
+import React, { useEffect } from "react";
 import PropTypes from "prop-types";
+import { useSelector, useDispatch } from "react-redux";
 import SelectWithChips from "./SelectWithChips";
 
+import * as photometryActions from "../ducks/photometry";
+
 const OriginSelect = ({ onOriginSelectChange, initValue, parent }) => {
-  const origins = ["Clear selections", "Muphoten", "STDpipe"];
+  const dispatch = useDispatch();
+  const origins = () => {
+    dispatch(photometryActions.fetchAllOrigins());
+  };
+
+  useEffect(() => {
+    origins();
+  }, []);
+
+  const originsList = ["Clear selections"].concat(
+    useSelector((state) => state.photometry.origins)
+  );
 
   return (
-    <SelectWithChips
-      label="Origin"
-      id={`originSelect${parent}`}
-      initValue={initValue}
-      onChange={onOriginSelectChange}
-      options={origins}
-    />
+    <>
+      {originsList && (
+        <SelectWithChips
+          label="Origin"
+          id={`originSelect${parent}`}
+          initValue={initValue}
+          onChange={onOriginSelectChange}
+          options={originsList}
+        />
+      )}
+    </>
   );
 };
 

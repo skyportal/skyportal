@@ -60,6 +60,7 @@ from .photometry import (
     ObjPhotometryHandler,
     BulkDeletePhotometryHandler,
     PhotometryRangeHandler,
+    PhotometryOriginHandler,
 )
 from .color_mag import ObjColorMagHandler
 from .photometry_request import PhotometryRequestHandler
