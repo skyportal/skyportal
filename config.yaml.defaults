@@ -534,6 +534,9 @@ cross_match:
 #    transmission: [0, 1, 1, 0]
 #    description: "basic ATLAS O filter - tophat transmission"
 
+ports:
+  facility_queue: 64510
+
 gcn_notice_types:
   - FERMI_GBM_FLT_POS
   - FERMI_GBM_GND_POS
