@@ -294,8 +294,6 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     locLookUp[selectedLocalizationId]
   );
 
-  console.log("gcnEventObservations", gcnEventObservations);
-
   const GcnSourceSelectionFormSchema = {
     type: "object",
     properties: {

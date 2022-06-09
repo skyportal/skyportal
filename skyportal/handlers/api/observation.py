@@ -1607,11 +1607,24 @@ class ObservationSimSurveyHandler(BaseHandler):
         localization_name = self.get_query_argument('localizationName', None)
         localization_cumprob = self.get_query_argument("localizationCumprob", 0.95)
 
+        number_of_injections = self.get_query_argument("numberInjections", 1000)
+        number_of_detections = self.get_query_argument("numberDetections", 1)
+        detection_threshold = self.get_query_argument("detectionThreshold", 5)
+        minimum_phase = self.get_query_argument("minimumPhase", 0)
+        maximum_phase = self.get_query_argument("maximumPhase", 3)
+        injection_filename = self.get_query_argument(
+            "injectionFilename",
+            'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
+        )
+
         if start_date is None:
             return self.error(message="Missing start_date")
 
         if end_date is None:
             return self.error(message="Missing end_date")
+
+        if localization_dateobs is None:
+            return self.error(message="Missing required localizationDateobs")
 
         start_date = arrow.get(start_date.strip()).datetime
         end_date = arrow.get(end_date.strip()).datetime
@@ -1631,6 +1644,28 @@ class ObservationSimSurveyHandler(BaseHandler):
         if instrument is None:
             return self.error(message=f"Invalid instrument ID {instrument_id}")
 
+        if instrument.sensitivity_data is None:
+            return self.error('Need sensitivity_data to evaluate efficiency')
+
+        if localization_name is None:
+            localization = (
+                Localization.query_records_accessible_by(
+                    self.current_user,
+                )
+                .filter(Localization.dateobs == localization_dateobs)
+                .order_by(Localization.created_at.desc())
+                .first()
+            )
+        else:
+            localization = (
+                Localization.query_records_accessible_by(
+                    self.current_user,
+                )
+                .filter(Localization.dateobs == localization_dateobs)
+                .filter(Localization.localization_name == localization_name)
+                .first()
+            )
+
         data = get_observations(
             self.current_user,
             start_date,
@@ -1646,28 +1681,6 @@ class ObservationSimSurveyHandler(BaseHandler):
         observations = data["observations"]
         if len(observations) == 0:
             return self.error('Need at least one observation to send to Treasure Map')
-
-        number_of_injections = self.get_query_argument("numberInjections", 1000)
-        number_of_detections = self.get_query_argument("numberDetections", 1)
-        detection_threshold = self.get_query_argument("detectionThreshold", 5)
-        minimum_phase = self.get_query_argument("minimumPhase", 0)
-        maximum_phase = self.get_query_argument("maximumPhase", 3)
-        injection_filename = self.get_query_argument(
-            "injectionFilename",
-            'data/nsns_nph1.0e+06_mejdyn0.020_mejwind0.130_phi30.txt',
-        )
-
-        localization = (
-            Localization.query_records_accessible_by(
-                self.current_user,
-            )
-            .filter(Localization.dateobs == localization_dateobs)
-            .filter(Localization.localization_name == localization_name)
-            .first()
-        )
-
-        if instrument.sensitivity_data is None:
-            return self.error('Need sensitivity_data to evaluate efficiency')
 
         unique_filters = list({observation["filt"] for observation in observations})
 
