@@ -32,6 +32,7 @@ import sncosmo
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 from ..base import BaseHandler
 from ...models import (
     Allocation,
@@ -44,12 +45,105 @@ from ...models import (
     ObservationPlanRequest,
     PlannedObservation,
     Telescope,
+    User,
 )
 
 from ...models.schema import ObservationPlanPost
 
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
+
+
+def post_observation_plan(plan, user_id, session):
+    """Post ObservationPlan to database.
+
+    Parameters
+    ----------
+    plan: dict
+        Observation plan dictionary
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    user = session.query(User).get(user_id)
+
+    try:
+        data = ObservationPlanPost.load(plan)
+    except ValidationError as e:
+        raise ValidationError(
+            f'Invalid / missing parameters: {e.normalized_messages()}'
+        )
+
+    data["requester_id"] = user.id
+    data["last_modified_by_id"] = user.id
+    data['allocation_id'] = int(data['allocation_id'])
+    data['localization_id'] = int(data['localization_id'])
+
+    allocation = Allocation.get_if_accessible_by(
+        data['allocation_id'],
+        user,
+        raise_if_none=False,
+    )
+    if allocation is None:
+        raise AttributeError(f"Missing allocation with ID: {data['allocation_id']}")
+
+    instrument = allocation.instrument
+    if instrument.api_classname_obsplan is None:
+        raise AttributeError('Instrument has no remote API.')
+
+    if not instrument.api_class_obsplan.implements()['submit']:
+        raise AttributeError(
+            'Cannot submit observation plan requests for this Instrument.'
+        )
+
+    target_groups = []
+    for group_id in data.pop('target_group_ids', []):
+        g = Group.get_if_accessible_by(group_id, user, raise_if_none=False)
+        if g is None:
+            raise AttributeError(f"Missing group with ID: {group_id}")
+        target_groups.append(g)
+
+    try:
+        formSchema = instrument.api_class_obsplan.custom_json_schema(instrument, user)
+    except AttributeError:
+        formSchema = instrument.api_class_obsplan.form_json_schema
+
+    # validate the payload
+    try:
+        jsonschema.validate(data['payload'], formSchema)
+    except jsonschema.exceptions.ValidationError as e:
+        raise jsonschema.exceptions.ValidationError(f'Payload failed to validate: {e}')
+
+    observation_plan_request = ObservationPlanRequest.__schema__().load(data)
+    observation_plan_request.target_groups = target_groups
+    session.add(observation_plan_request)
+    session.commit()
+
+    flow = Flow()
+
+    flow.push(
+        '*',
+        "skyportal/REFRESH_GCNEVENT",
+        payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
+    )
+
+    try:
+        instrument.api_class_obsplan.submit(observation_plan_request)
+    except Exception as e:
+        observation_plan_request.status = 'failed to submit'
+        raise AttributeError(f'Error submitting observation plan: {e.args[0]}')
+    finally:
+        session.commit()
+
+    flow.push(
+        '*',
+        "skyportal/REFRESH_GCNEVENT",
+        payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
+    )
+
+    return observation_plan_request.id
 
 
 class ObservationPlanRequestHandler(BaseHandler):
@@ -86,83 +180,16 @@ class ObservationPlanRequestHandler(BaseHandler):
         else:
             observation_plans = [json_data]
 
-        for plan in observation_plans:
-            try:
-                data = ObservationPlanPost.load(plan)
-            except ValidationError as e:
-                return self.error(
-                    f'Invalid / missing parameters: {e.normalized_messages()}'
+        ids = []
+        with DBSession() as session:
+            ids = []
+            for plan in observation_plans:
+                observation_plan_request_id = post_observation_plan(
+                    plan, self.associated_user_object.id, session
                 )
+                ids = [observation_plan_request_id]
 
-            data["requester_id"] = self.associated_user_object.id
-            data["last_modified_by_id"] = self.associated_user_object.id
-            data['allocation_id'] = int(data['allocation_id'])
-            data['localization_id'] = int(data['localization_id'])
-
-            allocation = Allocation.get_if_accessible_by(
-                data['allocation_id'],
-                self.current_user,
-                raise_if_none=False,
-            )
-            if allocation is None:
-                return self.error(
-                    f"Missing allocation with ID: {data['allocation_id']}"
-                )
-
-            instrument = allocation.instrument
-            if instrument.api_classname_obsplan is None:
-                return self.error('Instrument has no remote API.')
-
-            if not instrument.api_class_obsplan.implements()['submit']:
-                return self.error(
-                    'Cannot submit observation plan requests for this Instrument.'
-                )
-
-            target_groups = []
-            for group_id in data.pop('target_group_ids', []):
-                g = Group.get_if_accessible_by(
-                    group_id, self.current_user, raise_if_none=False
-                )
-                if g is None:
-                    return self.error(f"Missing group with ID: {group_id}")
-                target_groups.append(g)
-
-            try:
-                formSchema = instrument.api_class_obsplan.custom_json_schema(
-                    instrument, self.current_user
-                )
-            except AttributeError:
-                formSchema = instrument.api_class_obsplan.form_json_schema
-
-            # validate the payload
-            try:
-                jsonschema.validate(data['payload'], formSchema)
-            except jsonschema.exceptions.ValidationError as e:
-                return self.error(f'Payload failed to validate: {e}')
-
-            observation_plan_request = ObservationPlanRequest.__schema__().load(data)
-            observation_plan_request.target_groups = target_groups
-            DBSession().add(observation_plan_request)
-            self.verify_and_commit()
-
-            self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
-                payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
-            )
-
-            try:
-                instrument.api_class_obsplan.submit(observation_plan_request)
-            except Exception as e:
-                observation_plan_request.status = 'failed to submit'
-                return self.error(f'Error submitting observation plan: {e.args[0]}')
-            finally:
-                self.verify_and_commit()
-            self.push_all(
-                action="skyportal/REFRESH_GCNEVENT",
-                payload={"gcnEvent_dateobs": observation_plan_request.gcnevent.dateobs},
-            )
-
-        return self.success(data={"id": observation_plan_request.id})
+            return self.success(data={"ids": ids})
 
     @auth_or_token
     def get(self, observation_plan_request_id=None):
