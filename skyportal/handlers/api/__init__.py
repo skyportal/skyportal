@@ -48,6 +48,7 @@ from .observation import (
 )
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
+    DefaultObservationPlanRequestHandler,
     ObservationPlanRequestHandler,
     ObservationPlanTreasureMapHandler,
     ObservationPlanGCNHandler,
