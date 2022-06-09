@@ -10,8 +10,8 @@ env, cfg = load_env()
 log = make_log('health')
 
 
-ALLOWED_DOWNTIME_SECONDS = 120
-SECONDS_BETWEEN_CHECKS = 60.5
+SECONDS_BETWEEN_CHECKS = cfg['health_monitor.seconds_between_checks']
+ALLOWED_DOWNTIME_SECONDS = cfg['health_monitor.allowed_downtime_seconds']
 
 
 def migrated():
@@ -60,7 +60,9 @@ def restart_app(app_nr):
 
 
 if __name__ == "__main__":
-    log('Monitoring system health')
+    log(
+        f'Monitoring system health [{SECONDS_BETWEEN_CHECKS}s interval, max downtime {ALLOWED_DOWNTIME_SECONDS}s]'
+    )
 
     all_backends = set(range(cfg['server.processes']))
     backends_seen = set()
@@ -77,13 +79,21 @@ if __name__ == "__main__":
 
         # Update list of backends that have been seen healthy at least once.
         # We don't start a counter against a backend until it's been seen.
-        backends_seen = backends_seen | (all_backends - down)
+        newly_seen = (all_backends - down) - backends_seen
+        backends_seen = backends_seen | newly_seen
+
+        if newly_seen:
+            log(f'New healthy app(s) {newly_seen}')
 
         downtimes = {k: downtimes.get(k, time.time()) for k in (down & backends_seen)}
 
-        for app in list(downtimes.keys()):
+        for app in list(downtimes):
             downtime = time.time() - downtimes[app]
             if downtime > ALLOWED_DOWNTIME_SECONDS:
                 log(f'App {app} unresponsive: restarting')
                 restart_app(app)
+                # We attemped to restart the app. Now pretend as if it
+                # is an entirely new backend that has never been seen healthy.
+                backends_seen.remove(app)
+                log(f'Waiting for app {app} to return, monitoring {backends_seen}')
                 del downtimes[app]
