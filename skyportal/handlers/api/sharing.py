@@ -104,7 +104,7 @@ class SharingHandler(BaseHandler):
                     and "System admin" not in self.current_user.permissions
                 ):
                     return self.error(
-                        f"Cannot share spectrum id {phot.id}: you are not the owner of this spectrum."
+                        f"Cannot share spectrum id {spec.id}: you are not the owner of this spectrum."
                     )
                 for group in groups:
                     spec.groups.append(group)
