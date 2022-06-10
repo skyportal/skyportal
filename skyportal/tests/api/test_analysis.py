@@ -15,7 +15,7 @@ def test_post_new_analysis_service(analysis_service_token, public_group):
         'contact_email': "vr@ls.st",
         'url': f"http://localhost:5000/analysis/{name}",
         'authentication_type': "none",
-        'type': 'lightcurve_fitting',
+        'analysis_type': 'lightcurve_fitting',
         'input_data_types': ['photometry', 'redshift'],
         'timeout': 60,
         'group_ids': [public_group.id],
@@ -61,7 +61,7 @@ def test_update_analysis_service(analysis_service_token, public_group):
         'contact_email': "vr@ls.st",
         'url': f"http://localhost:5000/analysis/{name}",
         'authentication_type': "none",
-        'type': 'lightcurve_fitting',
+        'analysis_type': 'lightcurve_fitting',
         'input_data_types': ['photometry', 'redshift'],
         'timeout': 60,
         'group_ids': [public_group.id],
@@ -115,7 +115,7 @@ def test_get_two_analysis_services(analysis_service_token, public_group):
         'contact_email': "vr@ls.st",
         'url': f"http://localhost:5000/analysis/{name}",
         'authentication_type': "none",
-        'type': 'lightcurve_fitting',
+        'analysis_type': 'lightcurve_fitting',
         'input_data_types': ['photometry', 'redshift'],
         'timeout': 60,
         'group_ids': [public_group.id],
@@ -138,7 +138,7 @@ def test_get_two_analysis_services(analysis_service_token, public_group):
         'contact_email': "hsl@harvard.edu",
         'url': f"http://localhost:5000/analysis/{name_1}",
         'authentication_type': "none",
-        'type': 'lightcurve_fitting',
+        'analysis_type': 'lightcurve_fitting',
         'input_data_types': ['spectra'],
         'timeout': 1200.0,
         'group_ids': [public_group.id],
@@ -170,7 +170,7 @@ def test_get_two_analysis_services(analysis_service_token, public_group):
 def test_missing_required_analysis_service_parameter(
     analysis_service_token, public_group
 ):
-    # Do not send `type` as required
+    # Do not send `analysis_type` as required
 
     name = str(uuid.uuid4())
     post_data = {
@@ -203,7 +203,7 @@ def test_duplicate_analysis_service(analysis_service_token, public_group):
         'contact_name': "Vera Rubin",
         'url': f"http://localhost:5000/analysis/{name}",
         'authentication_type': "none",
-        'type': 'lightcurve_fitting',
+        'analysis_type': 'lightcurve_fitting',
         'input_data_types': ['photometry', 'redshift'],
         'group_ids': [public_group.id],
     }
@@ -242,7 +242,7 @@ def test_bad_url(analysis_service_token, public_group):
         'contact_name': "Vera Rubin",
         'url': f"my_code_{name}.py",
         'authentication_type': "none",
-        'type': 'lightcurve_fitting',
+        'analysis_type': 'lightcurve_fitting',
         'input_data_types': ['photometry', 'redshift'],
         'group_ids': [public_group.id],
     }
@@ -266,7 +266,7 @@ def test_bad_authentication_type(analysis_service_token, public_group):
         'contact_name': "Vera Rubin",
         'url': f"http://localhost:5000/analysis/{name}",
         'authentication_type': "oauth2",
-        'type': 'lightcurve_fitting',
+        'analysis_type': 'lightcurve_fitting',
         'input_data_types': ['photometry', 'redshift'],
         'group_ids': [public_group.id],
     }
@@ -296,7 +296,7 @@ def test_authentication_credentials(analysis_service_token, public_group):
         'url': f"http://localhost:5000/analysis/{name}",
         'authentication_type': "header_token",
         '_authinfo': json.dumps(authinfo),
-        'type': 'lightcurve_fitting',
+        'analysis_type': 'lightcurve_fitting',
         'input_data_types': ['photometry', 'redshift'],
         'group_ids': [public_group.id],
     }
@@ -335,7 +335,7 @@ def test_authentication_credentials(analysis_service_token, public_group):
         'url': f"http://localhost:5000/analysis/{name}",
         'authentication_type': "api_key",
         '_authinfo': json.dumps(authinfo),
-        'type': 'lightcurve_fitting',
+        'analysis_type': 'lightcurve_fitting',
         'input_data_types': ['photometry', 'redshift'],
         'group_ids': [public_group.id],
     }
@@ -364,7 +364,7 @@ def test_add_and_retrieve_analysis_service_group_access(
         'contact_email': "vr@ls.st",
         'url': f"http://localhost:5000/analysis/{name}",
         'authentication_type': "none",
-        'type': 'lightcurve_fitting',
+        'analysis_type': 'lightcurve_fitting',
         'input_data_types': ['photometry', 'redshift'],
         'timeout': 60,
         'group_ids': [public_group2.id],
@@ -397,7 +397,7 @@ def test_add_and_retrieve_analysis_service_group_access(
         'contact_email': "vr@ls.st",
         'url': f"http://localhost:5000/analysis/{name}",
         'authentication_type': "none",
-        'type': 'lightcurve_fitting',
+        'analysis_type': 'lightcurve_fitting',
         'input_data_types': ['photometry', 'redshift'],
         'timeout': 60,
         'group_ids': [public_group.id, public_group2.id],

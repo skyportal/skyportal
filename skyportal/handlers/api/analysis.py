@@ -93,7 +93,7 @@ class AnalysisServiceHandler(BaseHandler):
                   enabled:
                     type: boolean
                     description: Whether the service is enabled or not.
-                  type:
+                  analysis_type:
                     type: string
                     description: Type of analysis. One of: {', '.join(f"'{t}'" for t in ANALYSIS_TYPES)}
                   input_data_types:
@@ -119,7 +119,7 @@ class AnalysisServiceHandler(BaseHandler):
                   - name
                   - url
                   - authentication_type
-                  - type
+                  - analysis_type
                   - input_data_types
         responses:
           200:
@@ -322,7 +322,7 @@ class AnalysisServiceHandler(BaseHandler):
                   enabled:
                     type: boolean
                     description: Whether the service is enabled or not.
-                  type:
+                  analysis_type:
                     type: string
                     description: Type of analysis. One of: {', '.join(f"'{t}'" for t in ANALYSIS_TYPES)}
                   input_data_types:

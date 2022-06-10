@@ -103,7 +103,7 @@ class AnalysisService(Base):
 
     enabled = sa.Column(sa.Boolean, nullable=False, default=True)
 
-    type = sa.Column(
+    analysis_type = sa.Column(
         allowed_analysis_types,
         nullable=False,
         doc=f'''Type of analysis. One of: {', '.join(f"'{t}'" for t in ANALYSIS_TYPES)}''',
