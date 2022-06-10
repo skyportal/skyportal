@@ -105,7 +105,7 @@ class AnalysisServiceHandler(BaseHandler):
                         {', '.join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES)}
                   timeout:
                     type: float
-                    description: Max time in seconds to wait for the analysis service to complete. Defult is 3600.0.
+                    description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                     default: 3600.0
                   group_ids:
                     type: array
@@ -334,7 +334,7 @@ class AnalysisServiceHandler(BaseHandler):
                         {', '.join(f"'{t}'" for t in ANALYSIS_INPUT_TYPES)}
                   timeout:
                     type: float
-                    description: Max time in seconds to wait for the analysis service to complete. Defult is 3600.0.
+                    description: Max time in seconds to wait for the analysis service to complete. Default is 3600.0.
                     default: 3600.0
                   group_ids:
                     type: array
