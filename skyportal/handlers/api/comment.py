@@ -343,7 +343,6 @@ class CommentHandler(BaseHandler):
                 bot=is_bot_request,
                 obj_id=spectrum.obj_id,
             )
-            obj_id = spectrum_id
         elif associated_resource_type.lower() == "gcn_event":
             gcnevent_id = resource_id
             try:
@@ -384,24 +383,17 @@ class CommentHandler(BaseHandler):
             return self.error(f'Unknown resource type "{associated_resource_type}".')
 
         users_mentioned_in_comment = users_mentioned(comment_text)
-        username = (
-            self.current_user.created_by.username
-            if 'created_by' in self.current_user.to_dict().keys()
-            else self.current_user.username
-        )
-        if (
-            associated_resource_type.lower() == "sources"
-            or associated_resource_type.lower() == "spectra"
-        ):
-            text_to_send = f"*@{username}* mentioned you in a comment on *{obj_id}*"
+        if associated_resource_type.lower() == "sources":
+            text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{obj_id}*"
             url_endpoint = f"/source/{obj_id}"
+        elif associated_resource_type.lower() == "spectra":
+            text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{spectrum_id}*"
+            url_endpoint = f"/source/{spectrum_id}"
         elif associated_resource_type.lower() == "gcn_event":
-            text_to_send = (
-                f"*@{username}* mentioned you in a comment on *{gcnevent_id}*"
-            )
+            text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{gcnevent_id}*"
             url_endpoint = f"/gcn_events/{gcnevent_id}"
         elif associated_resource_type.lower() == "shift":
-            text_to_send = f"*@{username}* mentioned you in a comment on *shift*"
+            text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *shift {shift_id}*"
             url_endpoint = "/shifts"
         else:
             return self.error(f'Unknown resource type "{associated_resource_type}".')
@@ -442,7 +434,7 @@ class CommentHandler(BaseHandler):
         elif isinstance(comment, CommentOnShift):
             self.push_all(
                 action='skyportal/REFRESH_SHIFTS',
-                payload={'shift_id: comment.shift_id},
+                payload={'shift_id': comment.shift_id},
             )
 
         return self.success(data={'comment_id': comment.id})
