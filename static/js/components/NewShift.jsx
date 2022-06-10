@@ -126,6 +126,11 @@ const NewShift = () => {
         title: "End Date (Local Time)",
         default: defaultEndDate,
       },
+      required_users_number: {
+        type: "integer",
+        title: "Number of users required",
+        default: 4,
+      },
       description: {
         type: "string",
         title: "Shift's description",

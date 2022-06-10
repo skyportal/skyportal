@@ -713,6 +713,9 @@ function CurrentShiftMenu({ currentShift }) {
                 ", "
               )}`}</i>
             </div>
+            <div>
+              <i id="total_shift_members">{`\n Number of Members : ${currentShift.shift_users.length}/${currentShift.required_users_number}`}</i>
+            </div>
             {shiftDateStartEnd ? (
               <>
                 <p id="current_shift_date" className={classes.shiftgroup}>
@@ -803,6 +806,7 @@ CurrentShiftMenu.propTypes = {
         admin: PropTypes.bool,
       })
     ),
+    required_users_number: PropTypes.number,
   }).isRequired,
 };
 
