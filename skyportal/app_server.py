@@ -317,7 +317,7 @@ skyportal_handlers = [
         r'/api/internal/plot/airmass/hours_below/(.*)/([0-9]+)',
         PlotHoursBelowAirmassHandler,
     ),
-    (r'/api/internal/ephemeris/([0-9]+)', EphemerisHandler),
+    (r'/api/internal/ephemeris', EphemerisHandler),
     (r'/api/internal/log', LogHandler),
     (r'/api/internal/recent_sources(/.*)?', RecentSourcesHandler),
     (r'/api/internal/annotations_info', AnnotationsInfoHandler),

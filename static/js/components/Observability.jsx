@@ -1,6 +1,6 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import Grid from "@material-ui/core/Grid";
 import Typography from "@material-ui/core/Typography";
 import Paper from "@material-ui/core/Paper";
@@ -10,12 +10,12 @@ import CircularProgress from "@material-ui/core/CircularProgress";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { AirMassPlotWithEphemURL } from "./AirmassPlot";
 // eslint-disable-next-line
 import HoursBelowAirmassPlot from "./HoursBelowAirmassPlot";
 import ObservabilityPreferences from "./ObservabilityPreferences";
-
+import AirmassPlot from "./AirmassPlot";
 import withRouter from "./withRouter";
+import * as ephemerisActions from "../ducks/ephemeris";
 
 const useStyles = makeStyles({
   inner: { margin: "1rem", padding: "1rem" },
@@ -29,7 +29,35 @@ const ObservabilityPage = ({ route }) => {
   const preferences = useSelector(
     (state) => state.profile.preferences.observabilityTelescopes
   );
+  const [ephemerides, setEphemerides] = useState(null);
   const classes = useStyles();
+  const dispatch = useDispatch();
+
+  const selectedTelescopes = telescopeList
+    ?.filter((telescope) =>
+      preferences && preferences.length > 0
+        ? preferences.indexOf(telescope.id) !== -1
+        : true
+    )
+    .filter((telescope) => telescope.fixed_location === true);
+
+  useEffect(() => {
+    const getEphem = async (selected_telescopes) => {
+      const result = await dispatch(
+        ephemerisActions.fetchEphemerides(
+          selected_telescopes.map((telescope) => telescope.id)
+        )
+      );
+      if (result.status === "success") {
+        setEphemerides(result.data);
+      }
+    };
+    if (selectedTelescopes?.length > 0) {
+      getEphem(selectedTelescopes);
+    }
+  }, [telescopeList, preferences, dispatch]);
+
+  // ephmerides is an object where each key is the telescope id and the value is the ephemeris
 
   return (
     <div>
@@ -40,46 +68,45 @@ const ObservabilityPage = ({ route }) => {
         <ObservabilityPreferences />
       </Paper>
       <Grid container spacing={3}>
-        {telescopeList
-          ?.filter((telescope) => telescope.fixed_location)
-          // If telescope preferences exist, filter only for those
-          ?.filter((telescope) =>
-            preferences && preferences.length > 0
-              ? preferences.indexOf(telescope.id) !== -1
-              : true
-          )
-          ?.map((telescope) => (
-            <Grid item key={telescope.id}>
-              <Paper>
-                <div className={classes.inner}>
-                  <Typography variant="h6">{telescope.name}</Typography>
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
-                    <AirMassPlotWithEphemURL
-                      dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
-                      ephemerisUrl={`/api/internal/ephemeris/${telescope.id}`}
-                    />
-                  </Suspense>
-                  <Suspense
-                    fallback={
-                      <div>
-                        <CircularProgress color="secondary" />
-                      </div>
-                    }
-                  >
-                    <HoursBelowAirmassPlot
-                      dataUrl={`/api/internal/plot/airmass/hours_below/${route.id}/${telescope.id}`}
-                    />
-                  </Suspense>
-                </div>
-              </Paper>
-            </Grid>
-          ))}
+        {ephemerides &&
+          selectedTelescopes
+            ?.filter(
+              // check that the telescope id is a key in the ephemerides object
+              (telescope) =>
+                Object.prototype.hasOwnProperty.call(ephemerides, telescope.id)
+            )
+            ?.map((telescope) => (
+              <Grid item key={telescope.id}>
+                <Paper>
+                  <div className={classes.inner}>
+                    <Typography variant="h6">{telescope.name}</Typography>
+                    <Suspense
+                      fallback={
+                        <div>
+                          <CircularProgress color="secondary" />
+                        </div>
+                      }
+                    >
+                      <AirmassPlot
+                        dataUrl={`/api/internal/plot/airmass/objtel/${route.id}/${telescope.id}`}
+                        ephemeris={ephemerides[telescope.id]}
+                      />
+                    </Suspense>
+                    <Suspense
+                      fallback={
+                        <div>
+                          <CircularProgress color="secondary" />
+                        </div>
+                      }
+                    >
+                      <HoursBelowAirmassPlot
+                        dataUrl={`/api/internal/plot/airmass/hours_below/${route.id}/${telescope.id}`}
+                      />
+                    </Suspense>
+                  </div>
+                </Paper>
+              </Grid>
+            ))}
       </Grid>
     </div>
   );
