@@ -56,7 +56,7 @@ def upgrade():
         sa.Column('enabled', sa.Boolean(), nullable=False),
         # add meta_anlysis_type, making use of more than one primary data sources
         sa.Column(
-            'type',
+            'analysis_type',
             sa.Enum(
                 'lightcurve_fitting',
                 'spectrum_fitting',
