@@ -12,6 +12,7 @@ log = make_log('health')
 
 SECONDS_BETWEEN_CHECKS = cfg['health_monitor.seconds_between_checks']
 ALLOWED_DOWNTIME_SECONDS = cfg['health_monitor.allowed_downtime_seconds']
+REQUEST_TIMEOUT_SECONDS = cfg['health_monitor.request_timeout_seconds']
 
 
 def migrated():
@@ -31,7 +32,9 @@ def backends_down():
     for i in range(cfg['server.processes']):
         port = cfg['ports.app_internal'] + i
         try:
-            r = requests.get(f'http://localhost:{port}/api/sysinfo', timeout=10)
+            r = requests.get(
+                f'http://localhost:{port}/api/sysinfo', timeout=REQUEST_TIMEOUT_SECONDS
+            )
         except:  # noqa: E722
             status_code = 0
         else:
