@@ -7,12 +7,12 @@ import * as photometryActions from "../ducks/photometry";
 
 const OriginSelect = ({ onOriginSelectChange, initValue, parent }) => {
   const dispatch = useDispatch();
-  const origins = () => {
+  const fetchOrigins = () => {
     dispatch(photometryActions.fetchAllOrigins());
   };
 
   useEffect(() => {
-    origins();
+    fetchOrigins();
   }, []);
 
   const originsList = ["Clear selections"].concat(
