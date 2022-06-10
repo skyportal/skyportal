@@ -59,14 +59,10 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const ObservationPlanGlobe = ({
-  loc,
-  skymapInstrument,
-  selectedFields,
-  setSelectedFields,
-}) => {
+const ObservationPlanGlobe = ({ loc, skymapInstrument }) => {
   const classes = useStyles();
-  const dispatch = useDispatch();
+  // dummy state for rerendering component
+  const [dummy, setDummy] = useState();
 
   const displayOptions = [
     "localization",
@@ -81,14 +77,6 @@ const ObservationPlanGlobe = ({
   displayOptionsDefault.localization = true;
   displayOptionsDefault.instrument = true;
 
-  const handleAddObservationPlanFields = async (obsPlanSkymapInstrument) => {
-    const theseSelectedFields = obsPlanSkymapInstrument?.fields?.filter(
-      (f) => f?.selected
-    );
-    const selectedIds = theseSelectedFields.map((f) => f?.field_id);
-    setSelectedFields(selectedIds);
-  };
-
   const fields = [];
   skymapInstrument?.fields?.forEach((field) => {
     fields.push(Number(field.id));
@@ -96,12 +84,23 @@ const ObservationPlanGlobe = ({
   fields.sort((a, b) => a - b);
 
   const handleSelectedFieldChange = (e) => {
-    setSelectedFields(e.target.value);
+    const fields = e.target.value;
+    skymapInstrument?.fields?.forEach((f) => {
+      if (fields.includes(Number(f.id))) {
+        f.selected = true;
+      } else {
+        f.selected = false;
+      }
+    });
+    setDummy([]);
   };
 
-  function clearedSelectedFields() {
-    setSelectedFields([]);
-  }
+  const clearSelectedFields = () => {
+    skymapInstrument?.fields?.forEach((f) => {
+      f.selected = false;
+    });
+    setDummy([]);
+  };
 
   return (
     <div>
@@ -118,13 +117,8 @@ const ObservationPlanGlobe = ({
               options={displayOptionsDefault}
               height={300}
               width={600}
+              setDummy={setDummy}
             />
-            <Button
-              variant="contained"
-              onClick={() => handleAddObservationPlanFields(skymapInstrument)}
-            >
-              Use selected fields in observation plan
-            </Button>
           </div>
         )}
       </div>
@@ -137,7 +131,11 @@ const ObservationPlanGlobe = ({
           name="fieldsToUseSelect"
           className={classes.fieldsToUseSelect}
           multiple
-          value={selectedFields}
+          value={
+            skymapInstrument?.fields
+              ?.filter((f) => f?.selected)
+              .map((f) => f?.field_id) || []
+          }
           onChange={handleSelectedFieldChange}
         >
           {fields?.map((field) => (
@@ -154,7 +152,7 @@ const ObservationPlanGlobe = ({
           id="clear-fieldsToUseSelect"
           size="small"
           color="secondary"
-          onClick={() => clearedSelectedFields()}
+          onClick={() => clearSelectedFields()}
         >
           Clear Fields
         </Button>
@@ -210,125 +208,124 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
 
   const { telescopeList } = useSelector((state) => state.telescopes);
   const { allocationList } = useSelector((state) => state.allocations);
-  
+
   const allGroups = useSelector((state) => state.groups.all);
   const [selectedAllocationId, setSelectedAllocationId] = useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [planQueues, setPlanQueues] = useState([]);
-  const [selectedFields, setSelectedFields] = useState([]);
   const [skymapInstrument, setSkymapInstrument] = useState(null);
-  
+
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
-    );
+  );
 
-    const groupLookUp = {};
-    // eslint-disable-next-line no-unused-expressions
-    allGroups?.forEach((group) => {
-      groupLookUp[group.id] = group;
-    });
-    
-    const telLookUp = {};
-    // eslint-disable-next-line no-unused-expressions
-    telescopeList?.forEach((tel) => {
-      telLookUp[tel.id] = tel;
-    });
-    
-    const allocationLookUp = {};
-    // eslint-disable-next-line no-unused-expressions
-    allocationList?.forEach((allocation) => {
-      allocationLookUp[allocation.id] = allocation;
-    });
-    
-    const instLookUp = {};
-    // eslint-disable-next-line no-unused-expressions
-    instrumentList?.forEach((instrumentObj) => {
-      instLookUp[instrumentObj.id] = instrumentObj;
-    });
-    
-    const loc = gcnevent.localizations[0]
-    console.log(instLookUp)
-    console.log(instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id])
-    console.log(selectedAllocationId)
-    
-    useEffect(() => {
-      const fetchSkymapInstrument = async () => {
-        const response = await dispatch(
-          instrumentActions.fetchInstrumentSkymap(instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id].id , loc)
-        );
-        setSkymapInstrument(response.data);
-      };
-      fetchSkymapInstrument();
-    }, [dispatch, setSkymapInstrument, loc, selectedAllocationId]);
-  
+  const groupLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  allGroups?.forEach((group) => {
+    groupLookUp[group.id] = group;
+  });
+
+  const telLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  telescopeList?.forEach((tel) => {
+    telLookUp[tel.id] = tel;
+  });
+
+  const allocationLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  allocationList?.forEach((allocation) => {
+    allocationLookUp[allocation.id] = allocation;
+  });
+
+  const instLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  instrumentList?.forEach((instrumentObj) => {
+    instLookUp[instrumentObj.id] = instrumentObj;
+  });
+
+  const loc = gcnevent.localizations[0];
+
+  useEffect(() => {
+    const fetchSkymapInstrument = async () => {
+      const response = await dispatch(
+        instrumentActions.fetchInstrumentSkymap(
+          instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
+          loc
+        )
+      );
+      setSkymapInstrument(response.data);
+    };
+    fetchSkymapInstrument();
+  }, [dispatch, setSkymapInstrument, loc, selectedAllocationId]);
+
   useEffect(() => {
     const getAllocations = async () => {
       // Wait for the allocations to update before setting
       // the new default form fields, so that the allocations list can
       // update
-      
+
       const result = await dispatch(
         allocationActions.fetchAllocations({
           apiType: "api_classname_obsplan",
         })
-        );
-        
-        const { data } = result;
-        setSelectedAllocationId(data[0]?.id);
-        setSelectedGroupIds([data[0]?.group_id]);
-        setSelectedLocalizationId(gcnevent.localizations[0]?.id);
-      };
-      
-      getAllocations();
+      );
+
+      const { data } = result;
+      setSelectedAllocationId(data[0]?.id);
+      setSelectedGroupIds([data[0]?.group_id]);
+      setSelectedLocalizationId(gcnevent.localizations[0]?.id);
+    };
+
+    getAllocations();
 
     dispatch(
       instrumentsActions.fetchInstrumentForms({
         apiType: "api_classname_obsplan",
       })
-      );
-      dispatch(
-        allocationActions.fetchAllocations({
-          apiType: "api_classname_obsplan",
-        })
-        );
-        
-        // Don't want to reset everytime the component rerenders and
-        // the defaultStartDate is updated, so ignore ESLint here
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, [
-        dispatch,
-        setSelectedAllocationId,
-        setSelectedGroupIds,
-        setSelectedLocalizationId,
-      ]);
-      
-      // need to check both of these conditions as selectedAllocationId is
-      // initialized to be null and useEffect is not called on the first
-      // render to update it, so it can be null even if allocationList is not
-      // empty.
-      if (
-        allocationList.length === 0 ||
-        !selectedAllocationId ||
-        Object.keys(instrumentFormParams).length === 0
-        ) {
-          return <h3>No robotic instruments available...</h3>;
-        }
-        
-        if (
-          !allGroups ||
-          allGroups.length === 0 ||
-          telescopeList.length === 0 ||
-          instrumentList.length === 0
-          ) {
-            return (
-              <div>
+    );
+    dispatch(
+      allocationActions.fetchAllocations({
+        apiType: "api_classname_obsplan",
+      })
+    );
+
+    // Don't want to reset everytime the component rerenders and
+    // the defaultStartDate is updated, so ignore ESLint here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    dispatch,
+    setSelectedAllocationId,
+    setSelectedGroupIds,
+    setSelectedLocalizationId,
+  ]);
+
+  // need to check both of these conditions as selectedAllocationId is
+  // initialized to be null and useEffect is not called on the first
+  // render to update it, so it can be null even if allocationList is not
+  // empty.
+  if (
+    allocationList.length === 0 ||
+    !selectedAllocationId ||
+    Object.keys(instrumentFormParams).length === 0
+  ) {
+    return <h3>No robotic instruments available...</h3>;
+  }
+
+  if (
+    !allGroups ||
+    allGroups.length === 0 ||
+    telescopeList.length === 0 ||
+    instrumentList.length === 0
+  ) {
+    return (
+      <div>
         <CircularProgress color="secondary" />
       </div>
     );
   }
-  
+
   const handleSelectedAllocationChange = (e) => {
     setSelectedAllocationId(e.target.value);
   };
@@ -338,6 +335,9 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   };
 
   const handleQueueSubmit = async ({ formData }) => {
+    const selectedFields = skymapInstrument?.fields
+      ?.filter((f) => f.selected)
+      .map((f) => f.id);
     if (selectedFields.length > 0) {
       formData.field_ids = selectedFields;
     }
@@ -383,8 +383,6 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         <ObservationPlanGlobe
           loc={gcnevent.localizations[0]}
           skymapInstrument={skymapInstrument}
-          selectedFields={selectedFields}
-          setSelectedFields={setSelectedFields}
         />
       </div>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
@@ -439,14 +437,18 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         <div>
           <Form
             schema={
-              instrumentFormParams ? instrumentFormParams[
-                allocationLookUp[selectedAllocationId].instrument_id
-              ]?.formSchema : []
+              instrumentFormParams
+                ? instrumentFormParams[
+                    allocationLookUp[selectedAllocationId].instrument_id
+                  ]?.formSchema
+                : []
             }
             uiSchema={
-              instrumentFormParams ? instrumentFormParams[
-                allocationLookUp[selectedAllocationId].instrument_id
-              ]?.uiSchema : []
+              instrumentFormParams
+                ? instrumentFormParams[
+                    allocationLookUp[selectedAllocationId].instrument_id
+                  ]?.uiSchema
+                : []
             }
             liveValidate
             validate={validate}
