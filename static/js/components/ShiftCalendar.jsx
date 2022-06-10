@@ -71,9 +71,15 @@ async function handleSelectSlot({ start, end }) {
   }
 }
 
-function setCurrentShift(event) {
+function setCurrentShift({ event, setShow }) {
   dispatch({ type: "skyportal/CURRENT_SHIFT", data: event });
   dispatch({ type: "skyportal/CURRENT_SHIFT_SELECTED_USERS", data: [] });
+  dispatch(
+    shiftActions.getShiftsSummary({
+      shiftID: event.id,
+    })
+  );
+  setShow(false);
 }
 
 function Event({ event }) {
@@ -87,7 +93,7 @@ function Event({ event }) {
   );
 }
 
-function MyCalendar({ events, currentShift }) {
+function MyCalendar({ events, currentShift, setShow }) {
   currentUser = useSelector((state) => state.profile);
   dispatch = useDispatch();
   groups = useSelector((state) => state.groups.userAccessible);
@@ -131,7 +137,7 @@ function MyCalendar({ events, currentShift }) {
           endAccessor="end_date"
           titleAccessor="name"
           selectable
-          onSelectEvent={(event) => setCurrentShift(event)}
+          onSelectEvent={(event) => setCurrentShift({ event, setShow })}
           onSelectSlot={handleSelectSlot}
           eventPropGetter={(event) => {
             let backgroundColor = "#0d98ba";

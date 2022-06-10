@@ -213,6 +213,10 @@ const FollowupRequestLists = ({
       const renderModify = (dataIndex) => {
         const followupRequest =
           requestsGroupedByInstId[instrument_id][dataIndex];
+
+        const isDone =
+          followupRequest.status === "Photometry committed to database";
+
         return (
           <div className={classes.actionButtons}>
             {implementsDelete && isDeleting === followupRequest.id ? (
@@ -235,24 +239,28 @@ const FollowupRequestLists = ({
                 </Button>
               </div>
             )}
-            {implementsGet && isGetting === followupRequest.id ? (
+            {!isDone && (
               <div>
-                <CircularProgress />
-              </div>
-            ) : (
-              <div>
-                <Button
-                  onClick={() => {
-                    handleGet(followupRequest.id);
-                  }}
-                  size="small"
-                  color="primary"
-                  type="submit"
-                  variant="outlined"
-                  data-testid={`getRequest_${followupRequest.id}`}
-                >
-                  Retrieve
-                </Button>
+                {implementsGet && isGetting === followupRequest.id ? (
+                  <div>
+                    <CircularProgress />
+                  </div>
+                ) : (
+                  <div>
+                    <Button
+                      onClick={() => {
+                        handleGet(followupRequest.id);
+                      }}
+                      size="small"
+                      color="primary"
+                      type="submit"
+                      variant="outlined"
+                      data-testid={`getRequest_${followupRequest.id}`}
+                    >
+                      Retrieve
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
             {implementsEdit && (
@@ -413,7 +421,7 @@ FollowupRequestLists.propTypes = {
     // eslint-disable-next-line react/forbid-prop-types
     aliasLookup: PropTypes.objectOf(PropTypes.any),
   }).isRequired,
-  handleTableChange: PropTypes.func.isRequired,
+  handleTableChange: PropTypes.func,
   pageNumber: PropTypes.number,
   totalMatches: PropTypes.number,
   numPerPage: PropTypes.number,
@@ -427,5 +435,6 @@ FollowupRequestLists.defaultProps = {
   pageNumber: 1,
   totalMatches: 0,
   numPerPage: 10,
+  handleTableChange: null,
 };
 export default FollowupRequestLists;

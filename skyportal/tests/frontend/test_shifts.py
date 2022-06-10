@@ -2,8 +2,9 @@ from skyportal.tests import api
 from selenium.webdriver.common.keys import Keys
 from datetime import date, timedelta
 import uuid
-from selenium.common.exceptions import TimeoutException
 import time
+import os
+import numpy as np
 
 
 def test_shift(
@@ -40,17 +41,14 @@ def test_shift(
     driver.get(f"/shifts/{data['data']['id']}")
 
     # check for API shift
-    try:
-        driver.wait_for_xpath(
-            f'//*/strong[contains(.,"{name}")]',
-            timeout=10,
-        )
-    except TimeoutException:
-        driver.refresh()
-        driver.wait_for_xpath(
-            f'//*/strong[contains(.,"{name}")]',
-            timeout=10,
-        )
+    driver.wait_for_xpath(
+        f'//*/strong[contains(.,"{name}")]',
+        timeout=30,
+    )
+
+    driver.click_xpath(
+        '//*/button[@name="add_shift_button"]',
+    )
 
     form_name = str(uuid.uuid4())
     driver.wait_for_xpath('//*[@id="root_name"]').send_keys(form_name)
@@ -286,4 +284,188 @@ def test_shift(
     assert (
         len(driver.find_elements_by_xpath(f'//*/strong[contains(.,"{form_name}")]'))
         == 0
+    )
+
+
+def test_shift_summary(
+    public_group,
+    super_admin_token,
+    super_admin_user,
+    upload_data_token,
+    view_only_token,
+    ztf_camera,
+    driver,
+):
+    # add a shift to the group, with a start day one day before today, and an end day one day after today
+    shift_name_1 = str(uuid.uuid4())
+    start_date = "2018-01-15T12:00:00"
+    end_date = "2018-01-17T12:00:00"
+    request_data = {
+        'name': shift_name_1,
+        'group_id': public_group.id,
+        'start_date': start_date,
+        'end_date': end_date,
+        'description': 'Shift during GCN',
+        'shift_admins': [super_admin_user.id],
+    }
+
+    status, data = api('POST', 'shifts', data=request_data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    shift_id = data['data']['id']
+
+    shift_name_2 = str(uuid.uuid4())
+    start_date = "2018-01-17T12:00:00"
+    end_date = "2018-01-18T12:00:00"
+    request_data = {
+        'name': shift_name_2,
+        'group_id': public_group.id,
+        'start_date': start_date,
+        'end_date': end_date,
+        'description': 'Shift not during GCN',
+        'shift_admins': [super_admin_user.id],
+    }
+
+    status, data = api('POST', 'shifts', data=request_data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    shift_id_2 = data['data']['id']
+
+    status, data = api('GET', f'shifts/{public_group.id}', token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    datafile = f'{os.path.dirname(__file__)}/../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml'
+    with open(datafile, 'rb') as fid:
+        payload = fid.read()
+    data = {'xml': payload}
+
+    status, data = api('POST', 'gcn_event', data=data, token=super_admin_token)
+    assert status == 200
+    assert data['status'] == 'success'
+
+    # wait for event to load
+    for n_times in range(26):
+        status, data = api(
+            'GET', "gcn_event/2018-01-16T00:36:53", token=super_admin_token
+        )
+        if data['status'] == 'success':
+            break
+        time.sleep(2)
+    assert n_times < 25
+
+    # wait for the localization to load
+    skymap = "214.74000_28.14000_11.19000"
+    params = {"include2DMap": True}
+    for n_times_2 in range(26):
+        status, data = api(
+            'GET',
+            f'localization/2018-01-16T00:36:53/name/{skymap}',
+            token=super_admin_token,
+            params=params,
+        )
+
+        if data['status'] == 'success':
+            data = data["data"]
+            assert data["dateobs"] == "2018-01-16T00:36:53"
+            assert data["localization_name"] == "214.74000_28.14000_11.19000"
+            assert np.isclose(np.sum(data["flat_2d"]), 1)
+            break
+        else:
+            time.sleep(2)
+    assert n_times_2 < 25
+
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 229.9620403,
+            "dec": 34.8442757,
+            "redshift": 3,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': obj_id,
+            'mjd': 58134.025611226854 + 1,
+            'instrument_id': ztf_camera.id,
+            'flux': 12.24,
+            'fluxerr': 0.031,
+            'zp': 25.0,
+            'magsys': 'ab',
+            'filter': 'ztfg',
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    status, data = api("GET", f"sources/{obj_id}", token=view_only_token)
+    assert status == 200
+
+    driver.get(f"/become_user/{super_admin_user.id}")
+    # go to the shift page
+    driver.get(f"/shifts/{shift_id}")
+
+    # check for API shift
+    driver.wait_for_xpath(
+        f'//*/strong[contains(.,"{shift_name_1}")]',
+        timeout=30,
+    )
+
+    driver.wait_for_xpath(
+        '//*[@id="gcn_2018-01-16T00:36:53"][contains(.,"2018-01-16T00:36:53")]',
+        timeout=30,
+    )
+
+    driver.scroll_to_element_and_click(
+        driver.wait_for_xpath(
+            '//*[@id="gcn_list_item_2018-01-16T00:36:53"]', timeout=30
+        )
+    )
+
+    driver.wait_for_xpath(f"//a[contains(@href, '/source/{obj_id}')]", timeout=30)
+
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys("1")
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys("14")
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys("2018")
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('12:00')
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys(Keys.TAB)
+    driver.wait_for_xpath('//*[@id="root_start_date"]').send_keys('A')
+
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys("1")
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys("19")
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys("2018")
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('12:00')
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys(Keys.TAB)
+    driver.wait_for_xpath('//*[@id="root_end_date"]').send_keys('A')
+
+    submit_button_xpath = '//button[@type="submit"]'
+    driver.wait_for_xpath(submit_button_xpath)
+    driver.click_xpath(submit_button_xpath)
+
+    driver.wait_for_xpath(
+        f'//*[@id="shift_{shift_id}"][contains(.,"{shift_name_1}")]',
+        timeout=30,
+    )
+
+    driver.wait_for_xpath(
+        f'//*[@id="shift_{shift_id_2}"][contains(.,"{shift_name_2}")]',
+        timeout=30,
     )

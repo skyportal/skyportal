@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useForm } from "react-hook-form";
 import InputLabel from "@mui/material/InputLabel";
-import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
-import { Button, TextField, Typography } from "@mui/material";
+import { Button, TextField } from "@mui/material";
 import UserPreferencesHeader from "./UserPreferencesHeader";
 import * as profileActions from "../ducks/profile";
 import ClassificationSelect from "./ClassificationSelect";
+import DeletableChips from "./DeletableChips";
 
 const useStyles = makeStyles(() => ({
   chips: {
@@ -101,18 +101,11 @@ const ClassificationsShortcutForm = () => {
           </Button>
         </form>
         {profile?.classificationShortcuts && (
-          <div>
-            <Typography>Shortcuts</Typography>
-            {Object.keys(profile?.classificationShortcuts)?.map(
-              (shortcutName) => (
-                <Chip
-                  key={shortcutName}
-                  label={shortcutName}
-                  onDelete={() => onDelete(shortcutName)}
-                />
-              )
-            )}
-          </div>
+          <DeletableChips
+            items={Object.keys(profile?.classificationShortcuts)}
+            onDelete={onDelete}
+            title="Shortcuts"
+          />
         )}
       </div>
     </div>

@@ -124,6 +124,17 @@ const SurveyLinkList = ({ ra, dec, id }) => {
         }${dec}%3A0%201%22&sort=date%20desc%2C%20bibcode%20desc&p_=0`}
       />
       <SurveyLink
+        name="Aladin"
+        url={`http://aladin.unistra.fr/AladinLite/?target=${ra_to_hours(
+          ra,
+          "%20"
+        )}${dec > 0 ? "%2B" : ""}${dec_to_dms(
+          dec,
+          "%20",
+          false
+        )}&fov=0.08&survey=P%2FPanSTARRS%2FDR1%2Fcolor-z-zg-g`}
+      />
+      <SurveyLink
         name="CFHT"
         url={`http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/cadcbin/megapipe/imc.pl?lang=en&object=&size=256&ra=${ra}&dec=${dec}`}
       />
@@ -168,6 +179,10 @@ const SurveyLinkList = ({ ra, dec, id }) => {
       <SurveyLink
         name="Gaia DR2"
         url={`http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=I/345/gaia2&-out.add=_r&-out.add=2C_DEJ&-sort=_r&-to=&-out.max=20&-meta.ucd=2&-meta.foot=1&-c=${ra_hrs}+${dec_hrs}&-c.rs=10`}
+      />
+      <SurveyLink
+        name="Galex"
+        url={`http://galex.stsci.edu/GR6/?page=searchresults&type=mastform&ra=${ra}&dec=${dec}&radius=1.0&outputformat=HTML_Table&max_records=20&action=Search`}
       />
       <SurveyLink
         name="HEASARC"

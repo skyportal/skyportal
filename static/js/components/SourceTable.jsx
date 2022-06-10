@@ -296,6 +296,7 @@ const SourceTable = ({
   numPerPage,
   sortingCallback,
   favoritesRemoveButton = false,
+  hideTitle = false,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -1247,7 +1248,7 @@ const SourceTable = ({
               <StyledEngineProvider injectFirst>
                 <ThemeProvider theme={getMuiTheme(theme)}>
                   <MUIDataTable
-                    title={title}
+                    title={!hideTitle ? title : ""}
                     columns={columns}
                     data={sources}
                     options={options}
@@ -1311,6 +1312,7 @@ SourceTable.propTypes = {
   numPerPage: PropTypes.number,
   sortingCallback: PropTypes.func,
   favoritesRemoveButton: PropTypes.bool,
+  hideTitle: PropTypes.bool,
 };
 
 SourceTable.defaultProps = {
@@ -1322,6 +1324,7 @@ SourceTable.defaultProps = {
   numPerPage: 10,
   sortingCallback: null,
   favoritesRemoveButton: false,
+  hideTitle: false,
 };
 
 export default SourceTable;

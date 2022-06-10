@@ -1,6 +1,5 @@
 import React from "react";
 import PropTypes from "prop-types";
-import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import {
   createTheme,
@@ -62,7 +61,7 @@ const getMuiTheme = (theme) =>
     })
   );
 
-const GalaxyTable = ({ galaxies }) => {
+const GalaxyTable = ({ galaxies, hideTitle = false }) => {
   const classes = useStyles();
   const theme = useTheme();
 
@@ -239,7 +238,6 @@ const GalaxyTable = ({ galaxies }) => {
 
   return (
     <div>
-      <Typography variant="h5">Galaxies</Typography>
       {galaxies ? (
         <Paper className={classes.container}>
           <StyledEngineProvider injectFirst>
@@ -281,10 +279,12 @@ GalaxyTable.propTypes = {
       btc: PropTypes.number,
     })
   ),
+  hideTitle: PropTypes.bool,
 };
 
 GalaxyTable.defaultProps = {
   galaxies: null,
+  hideTitle: false,
 };
 
 export default GalaxyTable;
