@@ -53,6 +53,7 @@ from .observation_plan import (
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
+    ObservationPlanSimSurveyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
     ObservationPlanFieldsHandler,

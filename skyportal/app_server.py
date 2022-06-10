@@ -45,6 +45,7 @@ from skyportal.handlers.api import (
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
+    ObservationPlanSimSurveyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
     ObservationPlanFieldsHandler,
@@ -212,6 +213,10 @@ skyportal_handlers = [
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/movie',
         ObservationPlanMovieHandler,
+    ),
+    (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/simsurvey',
+        ObservationPlanSimSurveyHandler,
     ),
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/geojson',
