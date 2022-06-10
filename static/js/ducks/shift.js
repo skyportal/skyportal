@@ -111,7 +111,7 @@ messageHandler.add((actionType, payload, dispatch, getState) => {
   }
   if (actionType === REFRESH_CURRENT_SHIFT_COMMENTS) {
     const shift_id = shift?.currentShift.id;
-    if (shift_id === payload.obj_internal_key) {
+    if (shift_id === payload.shift_id) {
       dispatch(fetchShift(shift.currentShift.id));
     }
   }
