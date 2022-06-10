@@ -6,7 +6,6 @@ import {
   ThemeProvider,
   StyledEngineProvider,
   useTheme,
-  adaptV4Theme,
 } from "@mui/material/styles";
 import makeStyles from "@mui/styles/makeStyles";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -30,11 +29,11 @@ const useStyles = makeStyles((theme) => ({
 
 // Tweak responsive styling
 const getMuiTheme = (theme) =>
-  createTheme(
-    adaptV4Theme({
-      palette: theme.palette,
-      overrides: {
-        MUIDataTablePagination: {
+  createTheme({
+    palette: theme.palette,
+    components: {
+      MUIDataTablePagination: {
+        styleOverrides: {
           toolbar: {
             flexFlow: "row wrap",
             justifyContent: "flex-end",
@@ -58,8 +57,8 @@ const getMuiTheme = (theme) =>
           },
         },
       },
-    })
-  );
+    },
+  });
 
 const ExecutedObservationsTable = ({
   observations,

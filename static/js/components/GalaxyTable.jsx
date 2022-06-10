@@ -243,6 +243,7 @@ const GalaxyTable = ({ galaxies, hideTitle = false }) => {
           <StyledEngineProvider injectFirst>
             <ThemeProvider theme={getMuiTheme(theme)}>
               <MUIDataTable
+                title={!hideTitle ? "Galaxies" : ""}
                 data={galaxies}
                 options={options}
                 columns={columns}

@@ -6,7 +6,6 @@ import {
   createTheme,
   ThemeProvider,
   StyledEngineProvider,
-  adaptV4Theme,
 } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { grey } from "@mui/material/colors";
@@ -14,45 +13,46 @@ import { grey } from "@mui/material/colors";
 const Theme = ({ disableTransitions, children }) => {
   const theme = useSelector((state) => state.profile.preferences.theme);
   const dark = theme === "dark";
-  const materialTheme = createTheme(
-    adaptV4Theme({
-      // Color palette inspired from: https://coolors.co/e63946-f1faee-a8dadc-457b9d-1d3557
-      palette: {
-        mode: theme || "light",
-        primary: {
-          main: "#457b9d",
-          light: "#457b9d",
-          dark: "#1d3557",
-          contrastText: "#fff",
-        },
-        secondary: {
-          main: "#b1dae9",
-          light: "#b1dae9",
-          dark: "#76aace",
-          contrastText: "#fff",
-        },
-        info: {
-          main: "#f1faee",
-        },
-        warning: {
-          main: "#fca311",
-        },
-        error: {
-          main: "#e63946",
-        },
-        background: dark ? { default: "#303030" } : { default: "#f0f2f5" },
+  const materialTheme = createTheme({
+    palette: {
+      mode: theme || "light",
+      primary: {
+        main: "#457b9d",
+        light: "#457b9d",
+        dark: "#1d3557",
+        contrastText: "#fff",
       },
-      plotFontSizes: {
-        titleFontSize: 15,
-        labelFontSize: 15,
+      secondary: {
+        main: "#b1dae9",
+        light: "#b1dae9",
+        dark: "#76aace",
+        contrastText: "#fff",
       },
-      overrides: {
-        MuiTypography: {
+      info: {
+        main: "#f1faee",
+      },
+      warning: {
+        main: "#fca311",
+      },
+      error: {
+        main: "#e63946",
+      },
+      background: dark ? { default: "#303030" } : { default: "#f0f2f5" },
+    },
+    plotFontSizes: {
+      titleFontSize: 15,
+      labelFontSize: 15,
+    },
+    components: {
+      MuiTypography: {
+        styleOverrides: {
           body1: {
             color: dark ? grey[50] : null,
           },
         },
-        MuiButton: {
+      },
+      MuiButton: {
+        styleOverrides: {
           textPrimary: {
             color: dark ? "#b1dae9" : null,
           },
@@ -60,7 +60,9 @@ const Theme = ({ disableTransitions, children }) => {
             color: dark ? "#b1dae9" : null,
           },
         },
-        MuiCssBaseline: {
+      },
+      MuiCssBaseline: {
+        styleOverrides: {
           "@global": {
             html: {
               fontFamily: "Roboto, Helvetica, Arial, sans-serif",
@@ -94,17 +96,19 @@ const Theme = ({ disableTransitions, children }) => {
           },
         },
       },
+    },
 
-      // Only added during testing; removes animations, transitions, and
-      // rippple effects
-      ...(disableTransitions && {
-        props: {
+    // Only added during testing; removes animations, transitions, and
+    // rippple effects
+    ...(disableTransitions && {
+      components: {
+        defaultProps: {
           MuiButtonBase: {
             disableRipple: true,
           },
         },
-        overrides: {
-          MuiCssBaseline: {
+        MuiCssBaseline: {
+          styleOverrides: {
             "@global": {
               "*, *::before, *::after": {
                 transition: "none !important",
@@ -113,9 +117,9 @@ const Theme = ({ disableTransitions, children }) => {
             },
           },
         },
-      }),
-    })
-  );
+      },
+    }),
+  });
 
   return (
     <StyledEngineProvider injectFirst>
