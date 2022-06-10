@@ -914,7 +914,7 @@ analysis_service:
     url: "http://localhost:6801/analysis/demo_analysis"
     authentication_type: "header_token"
     _authinfo: '{"header_token": {"Authorization": "Bearer MY_TOKEN"}}'
-    type: "lightcurve_fitting"
+    analysis_type: "lightcurve_fitting"
     input_data_types: ["photometry", "redshift"]
     group_ids:
       - =program_A

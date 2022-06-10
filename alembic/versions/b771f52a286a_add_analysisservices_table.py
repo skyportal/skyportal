@@ -54,6 +54,7 @@ def upgrade():
             nullable=True,
         ),
         sa.Column('enabled', sa.Boolean(), nullable=False),
+        # add meta_anlysis_type, making use of more than one primary data sources
         sa.Column(
             'type',
             sa.Enum(
