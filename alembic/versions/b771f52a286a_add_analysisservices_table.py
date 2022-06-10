@@ -56,7 +56,12 @@ def upgrade():
         sa.Column('enabled', sa.Boolean(), nullable=False),
         sa.Column(
             'type',
-            sa.Enum('lightcurve_fitting', 'spectrum_fitting', name='analysistypes'),
+            sa.Enum(
+                'lightcurve_fitting',
+                'spectrum_fitting',
+                'meta_analysis',
+                name='analysistypes',
+            ),
             nullable=False,
         ),
         sa.Column(
