@@ -75,7 +75,6 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                 session.add(user)
                 session.flush()
                 set_default_acls(user, session)
-                set_default_group(user, session)
                 session.commit()
                 return {"is_new": True, "user": user}
             elif not cfg["invitations.enabled"]:
@@ -91,14 +90,14 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                     for name in backend.setting("USER_FIELDS", USER_FIELDS)
                 }
                 user = strategy.create_user(**fields, **{"oauth_uid": uid})
-
                 set_default_role(user, session)
                 set_default_acls(user, session)
                 set_default_group(user, session)
-
+                print('this should not run if there is an error')
                 session.commit()
                 return {"is_new": True, "user": user}
         except Exception as e:
+            session.rollback()
             raise e
 
 

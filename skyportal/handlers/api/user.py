@@ -30,6 +30,7 @@ def set_default_role(user, session):
     '''
     Set the default role for a user. The default role can be set in the config file.
     This method does not commit the session, so the session needs to be commited after calling this method.
+    If the default role from the config does not exist, an exception is raised, and can be caught by the caller (i.e in a handler).
     '''
     if (
         cfg['user.default_role'] is not None
@@ -38,7 +39,8 @@ def set_default_role(user, session):
     ):
         role = session.query(Role).filter(Role.id == cfg['user.default_role']).first()
         if role is None:
-            log(
+            # raise an error:
+            raise Exception(
                 f"Invalid default_role configuration value: {cfg['user.default_role']} does not exist"
             )
         else:
@@ -49,12 +51,13 @@ def set_default_acls(user, session):
     '''
     Set the default acls for a user. The default acls can be set in the config file.
     This method does not commit the session, so the session needs to be commited after calling this method.
+    If the default acl from the config does not exist, an exception is raised, and can be caught by the caller (i.e in a handler).
     '''
     if cfg['user.default_acls'] is not None:
         for acl_id in cfg['user.default_acls']:
             if acl_id not in all_acl_ids:
-                log(
-                    f"Invalid default_acls configuration value: {acl_id} does not exist"
+                raise Exception(
+                    f"Invalid default_acl configuration value: {acl_id} does not exist"
                 )
         for acl_id in cfg['user.default_acls']:
             session.add(UserACL(user_id=user.id, acl_id=acl_id))
@@ -64,6 +67,7 @@ def set_default_group(user, session):
     '''
     Set the default groups for a user. The default groups can be set in the config file.
     This method does not commit the session, so the session needs to be commited after calling this method.
+    If the default group from the config does not exist, an exception is raised, and can be caught by the caller (i.e in a handler).
     '''
     default_groups = []
     if cfg['misc.public_group_name'] is not None:
@@ -76,7 +80,7 @@ def set_default_group(user, session):
     for default_group_name in default_groups:
         group = session.query(Group).filter(Group.name == default_group_name).first()
         if group is None:
-            log(
+            raise Exception(
                 f"Invalid default_group configuration value: {default_group_name} does not exist"
             )
         else:
@@ -93,7 +97,6 @@ def add_user_and_setup_groups(
     contact_phone=None,
     contact_email=None,
     roles=[],
-    acls=[],
     group_ids_and_admin=[],
     oauth_uid=None,
     expiration_date=None,
@@ -428,17 +431,20 @@ class UserHandler(BaseHandler):
             contact_email = email
         else:
             contact_email = None
+        try:
+            user_id = add_user_and_setup_groups(
+                username=data["username"],
+                first_name=data.get("first_name"),
+                last_name=data.get("last_name"),
+                contact_phone=contact_phone,
+                contact_email=contact_email,
+                oauth_uid=data.get("oauth_uid"),
+                roles=roles,
+                group_ids_and_admin=group_ids_and_admin,
+            )
+        except Exception as e:
+            return self.error(str(e))
 
-        user_id = add_user_and_setup_groups(
-            username=data["username"],
-            first_name=data.get("first_name"),
-            last_name=data.get("last_name"),
-            contact_phone=contact_phone,
-            contact_email=contact_email,
-            oauth_uid=data.get("oauth_uid"),
-            roles=roles,
-            group_ids_and_admin=group_ids_and_admin,
-        )
         self.verify_and_commit()
         return self.success(data={"id": user_id})
 
