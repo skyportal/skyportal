@@ -104,7 +104,7 @@ const ObservationPlanGlobe = ({
   skymapInstrument?.fields?.forEach((field) => {
     fields.push(Number(field.id));
   });
-  fields.sort();
+  fields.sort((a, b) => a - b);
 
   const handleSelectedFieldChange = (e) => {
     setSelectedFields(e.target.value);
