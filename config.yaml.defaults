@@ -559,11 +559,11 @@ gcn_observation_plans:
       schedule_strategy: tiling
       galaxy_catalog: CLU_mini
       exposure_time: 300
-      filters: 'g,r,g'
+      filters: g,r,g
       maximum_airmass: 2
       integrated_probability: 90
       minimum_time_difference: 30
-      program_id: 'Partnership'
+      program_id: Partnership
       subprogram_name: GRB
 
 health_monitor:
