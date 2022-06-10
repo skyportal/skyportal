@@ -71,12 +71,12 @@ if __name__ == "__main__":
     backends_seen = set()
     downtimes = {}
 
+    while not migrated():
+        log('Database not migrated; waiting')
+        time.sleep(30)
+
     while True:
         time.sleep(SECONDS_BETWEEN_CHECKS)
-
-        if not migrated():
-            log('Database not migrated; waiting')
-            continue
 
         down = backends_down()
 
