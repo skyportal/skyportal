@@ -20,7 +20,7 @@ import DeleteComment from "./DeleteComment";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const CompactCommentList = ({
+const RegularCommentList = ({
   associatedResourceType = "object",
   objID = null,
   gcnEventID = null,
@@ -142,7 +142,7 @@ const CompactCommentList = ({
   );
 };
 
-CompactCommentList.propTypes = {
+RegularCommentList.propTypes = {
   objID: PropTypes.string,
   gcnEventID: PropTypes.number,
   associatedResourceType: PropTypes.string,
@@ -158,7 +158,7 @@ CompactCommentList.propTypes = {
   shift_id: PropTypes.number,
 };
 
-CompactCommentList.defaultProps = {
+RegularCommentList.defaultProps = {
   objID: null,
   gcnEventID: null,
   associatedResourceType: "object",
@@ -174,4 +174,4 @@ CompactCommentList.defaultProps = {
   shift_id: null,
 };
 
-export default CompactCommentList;
+export default RegularCommentList;
