@@ -6,10 +6,10 @@ from astropy import time as ap_time
 
 class EphemerisHandler(BaseHandler):
     @auth_or_token
-    def get(self):
+    def get(self, telescope_id=None):
 
         time = self.get_query_argument('time', None)
-        telescope_ids = self.get_query_argument('telescopeIds', None)
+
         if time is not None:
             try:
                 time = ap_time.Time(time, format='iso')
@@ -17,18 +17,43 @@ class EphemerisHandler(BaseHandler):
                 return self.error(f'Invalid time format: {e.args[0]}')
         else:
             time = ap_time.Time.now()
-        if telescope_ids is not None:
+
+        ephemerides = None
+
+        if telescope_id is not None:
             try:
-                telescope_ids = [int(t) for t in telescope_ids.split(',')]
+                telescope_id = int(telescope_id)
             except ValueError as e:
-                return self.error(f'Invalid telescopeIds format: {e.args[0]}')
-
-            telescopes = Telescope.query.filter(Telescope.id.in_(telescope_ids)).all()
+                return self.error(f'Invalid value for Telescope id: {e.args[0]}')
+            telescope = Telescope.query.filter(Telescope.id == telescope_id).first()
+            if telescope is None:
+                return self.error('No Telescope with this id')
+            else:
+                if telescope.fixed_location is not True:
+                    return self.error('Telescope is not fixed')
+                else:
+                    ephemerides = telescope.ephemeris(time)
         else:
-            telescopes = Telescope.query.all()
+            telescope_ids = self.get_query_argument('telescopeIds', None)
+            if telescope_ids is not None:
+                try:
+                    telescope_ids = [int(t) for t in telescope_ids.split(',')]
+                except ValueError as e:
+                    return self.error(f'Invalid telescopeIds format: {e.args[0]}')
 
-        ephemerides = {
-            telescope.id: telescope.ephemeris(time) for telescope in telescopes
-        }
+                telescopes = Telescope.query.filter(
+                    Telescope.id.in_(telescope_ids)
+                ).all()
+                if len(telescopes) > 16:
+                    telescopes = telescopes[:16]
+            else:
+                telescopes = Telescope.query.all()
+                if len(telescopes) > 16:
+                    telescopes = telescopes[:16]
+
+            ephemerides = {
+                telescope.id: telescope.ephemeris(time) for telescope in telescopes
+            }
+
         self.verify_and_commit()
         return self.success(data=ephemerides)

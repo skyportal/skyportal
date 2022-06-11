@@ -7,6 +7,7 @@ import Paper from "@material-ui/core/Paper";
 import { makeStyles } from "@material-ui/core/styles";
 import { Link } from "react-router-dom";
 import CircularProgress from "@material-ui/core/CircularProgress";
+import { Pagination } from "@material-ui/lab";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -29,15 +30,17 @@ const ObservabilityPage = ({ route }) => {
   const preferences = useSelector(
     (state) => state.profile.preferences.observabilityTelescopes
   );
-  const [ephemerides, setEphemerides] = useState(null);
+  const [ephemerides, setEphemerides] = useState({});
   const classes = useStyles();
   const dispatch = useDispatch();
+  const [page, setPage] = useState(1);
 
   const selectedTelescopes = telescopeList
-    ?.filter((telescope) =>
-      preferences && preferences.length > 0
-        ? preferences.indexOf(telescope.id) !== -1
-        : true
+    ?.filter(
+      (telescope) =>
+        preferences &&
+        preferences.length > 0 &&
+        preferences.indexOf(telescope.id) !== -1
     )
     .filter((telescope) => telescope.fixed_location === true);
 
@@ -45,7 +48,9 @@ const ObservabilityPage = ({ route }) => {
     const getEphem = async (selected_telescopes) => {
       const result = await dispatch(
         ephemerisActions.fetchEphemerides(
-          selected_telescopes.map((telescope) => telescope.id)
+          [...selected_telescopes]
+            .splice((page - 1) * 16, page * 16)
+            .map((telescope) => telescope.id)
         )
       );
       if (result.status === "success") {
@@ -54,8 +59,10 @@ const ObservabilityPage = ({ route }) => {
     };
     if (selectedTelescopes?.length > 0) {
       getEphem(selectedTelescopes);
+    } else if (selectedTelescopes?.length === 0) {
+      setEphemerides({});
     }
-  }, [telescopeList, preferences, dispatch]);
+  }, [telescopeList, preferences, page, dispatch]);
 
   // ephmerides is an object where each key is the telescope id and the value is the ephemeris
 
@@ -66,6 +73,11 @@ const ObservabilityPage = ({ route }) => {
       </Typography>
       <Paper className={classes.preferences}>
         <ObservabilityPreferences />
+        <Pagination
+          count={Math.ceil(selectedTelescopes?.length / 16)}
+          page={page}
+          onChange={(event, value) => setPage(value)}
+        />
       </Paper>
       <Grid container spacing={3}>
         {ephemerides &&
@@ -107,6 +119,33 @@ const ObservabilityPage = ({ route }) => {
                 </Paper>
               </Grid>
             ))}
+        {telescopeList?.length > 0 &&
+          Object?.keys(typeof ephemerides === "object" ? ephemerides : {})
+            ?.length === 0 &&
+          selectedTelescopes?.length > 0 && (
+            <Grid item md={12} sm={12}>
+              <Paper>
+                <Typography variant="h6">Loading Plots...</Typography>
+              </Paper>
+            </Grid>
+          )}
+        {telescopeList?.length > 0 &&
+          Object?.keys(typeof ephemerides === "object" ? ephemerides : {})
+            ?.length === 0 &&
+          (selectedTelescopes?.length === 0 || !selectedTelescopes) && (
+            <Grid item md={12} sm={12}>
+              <Paper>
+                <Typography variant="h6">No telescopes selected</Typography>
+              </Paper>
+            </Grid>
+          )}
+        {(telescopeList?.length === 0 || !telescopeList) && (
+          <Grid item md={12} sm={12}>
+            <Paper>
+              <Typography variant="h6">Fetching Telescopes...</Typography>
+            </Paper>
+          </Grid>
+        )}
       </Grid>
     </div>
   );
