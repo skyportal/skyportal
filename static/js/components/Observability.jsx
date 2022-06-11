@@ -24,12 +24,15 @@ const useStyles = makeStyles({
     padding: "1rem",
   },
   preferences: {
+    displaypadding: "1rem",
+    marginTop: "1rem",
+  },
+  preferencesContent: {
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    displaypadding: "1rem",
-    marginTop: "1rem",
+    margin: "1rem",
   },
 });
 
@@ -84,14 +87,18 @@ const ObservabilityPage = ({ route }) => {
       <Typography variant="h4">
         Observability of <Link to={`/source/${route.id}`}>{route.id}</Link>
       </Typography>
-      <Paper className={classes.preferences}>
-        <ObservabilityPreferences />
-        <Pagination
-          count={Math.ceil(selectedTelescopes?.length / 16)}
-          page={page}
-          onChange={(event, value) => setPage(value)}
-        />
-      </Paper>
+      {telescopeList?.length > 0 && (
+        <Paper className={classes.preferences}>
+          <div className={classes.preferencesContent}>
+            <ObservabilityPreferences />
+            <Pagination
+              count={Math.ceil(selectedTelescopes?.length / 16)}
+              page={page}
+              onChange={(event, value) => setPage(value)}
+            />
+          </div>
+        </Paper>
+      )}
       <Grid container spacing={3}>
         {!loading && ephemerides
           ? selectedTelescopes
@@ -139,14 +146,18 @@ const ObservabilityPage = ({ route }) => {
         {(telescopeList?.length === 0 || !telescopeList) && (
           <Grid item md={12} sm={12}>
             <Paper>
-              <Typography variant="h6">Fetching Telescopes...</Typography>
+              <Typography variant="h6" style={{ margin: "1rem" }}>
+                Fetching Telescopes...
+              </Typography>
             </Paper>
           </Grid>
         )}
         {loading && telescopeList?.length > 0 && (
           <Grid item md={12} sm={12}>
             <Paper>
-              <Typography variant="h6">Loading Plots...</Typography>
+              <Typography variant="h6" style={{ margin: "1rem" }}>
+                Loading Plots...
+              </Typography>
             </Paper>
           </Grid>
         )}
@@ -156,7 +167,9 @@ const ObservabilityPage = ({ route }) => {
           (selectedTelescopes?.length === 0 || !selectedTelescopes) && (
             <Grid item md={12} sm={12}>
               <Paper>
-                <Typography variant="h6">No telescopes selected</Typography>
+                <Typography variant="h6" style={{ margin: "1rem" }}>
+                  No telescopes selected
+                </Typography>
               </Paper>
             </Grid>
           )}
