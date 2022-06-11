@@ -10,7 +10,14 @@ import ReactDOM from "react-dom";
 import { BrowserRouter, Routes, Route, useLocation, useParams } from "react-router-dom";
 
 import { MuiPickersUtilsProvider } from "@material-ui/pickers";
-import { makeStyles } from "@material-ui/core/styles";
+import {
+  createTheme,
+  ThemeProvider,
+  StyledEngineProvider,
+  useTheme,
+  adaptV4Theme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
 import { isMobile } from "react-device-detect";
 
 import DayJSUtils from "@date-io/dayjs";
@@ -41,7 +48,6 @@ import ErrorBoundary from "./ErrorBoundary";
 
 messageHandler.init(store.dispatch, store.getState);
 
-
 const useStyles = makeStyles((theme) => ({
   content: {
     flexGrow: 1,
@@ -70,10 +76,42 @@ const useStyles = makeStyles((theme) => ({
   }
 }));
 
+const getMuiTheme = (theme) =>
+  createTheme(
+    adaptV4Theme({
+    content: {
+     flexGrow: 1,
+     padding: theme.spacing(2),
+     transition: theme.transitions.create("margin", {
+       easing: theme.transitions.easing.sharp,
+       duration: theme.transitions.duration.leavingScreen,
+     }),
+     marginTop: "6em", // top bar height
+     marginLeft: isMobile ? "0" : "190px",
+     "& a": {
+       textDecoration: "none",
+       color: "gray",
+       fontWeight: "bold",
+     },
+   },
+   contentShift: {
+     transition: theme.transitions.create("margin", {
+       easing: theme.transitions.easing.easeOut,
+       duration: theme.transitions.duration.enteringScreen,
+     }),
+     marginLeft: 0,
+   },
+   websocket: {
+     display: "none",
+   }
+ })
+);
+
 const MainContent = ({ root }) => {
   const { open } = useSelector((state) => state.sidebar);
 
-  const classes = useStyles();
+  // const classes = useStyles();
+  const theme = useTheme();
 
   useEffect(() => {
     store.dispatch(hydrate());
@@ -86,9 +124,11 @@ const MainContent = ({ root }) => {
   }, [location]);
 
   return (
-    <Theme {% if testing %} disableTransitions {% endif %}>
+   <StyledEngineProvider injectFirst>
+    <ThemeProvider theme={getMuiTheme(theme)}>
+     <Theme {% if testing %} disableTransitions {% endif %}>
 
-      <div className={classes.websocket}>
+      <div>
         <WebSocket
           url={`${window.location.protocol === "https:" ? "wss" :
           "ws"}://${root}websocket`}
@@ -104,9 +144,6 @@ const MainContent = ({ root }) => {
 
         <div
           role="main"
-          className={clsx(classes.content, {
-            [classes.contentShift]: !open,
-          })}
         >
 
           <Notifications />
@@ -125,6 +162,8 @@ const MainContent = ({ root }) => {
 
       </MuiPickersUtilsProvider>
     </Theme>
+   </ThemeProvider>
+  </StyledEngineProvider>
   );
 };
 
