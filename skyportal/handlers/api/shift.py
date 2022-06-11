@@ -70,7 +70,7 @@ class ShiftHandler(BaseHandler):
                               description: New Shift's description
                             required_users_number:
                               type: integer
-                              description: New Shift's required users number
+                              description: The number of users required to join this shift for it to be considered full
           400:
             content:
               application/json:
