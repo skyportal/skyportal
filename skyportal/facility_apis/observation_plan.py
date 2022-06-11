@@ -349,8 +349,9 @@ class MMAAPI(FollowUpAPI):
             )
 
             log(f"Generating schedule for observation plan {plan.id}")
+            requester_id = request.requester.id
             IOLoop.current().run_in_executor(
-                None, lambda: generate_plan(plan.id, request.id, request.requester.id)
+                None, lambda: generate_plan(plan.id, request.id, requester_id)
             )
         else:
             raise ValueError(
