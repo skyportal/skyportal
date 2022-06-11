@@ -27,6 +27,8 @@ const LocalizationPlot = ({
   height,
   width,
   setDummy,
+  rotation,
+  setRotation,
 }) => {
   const cachedLocalization = useSelector((state) => state.localization);
   const dispatch = useDispatch();
@@ -60,6 +62,8 @@ const LocalizationPlot = ({
         height={height}
         width={width}
         setDummy={setDummy}
+        rotation={rotation}
+        setRotation={setRotation}
       />
     </>
   );
@@ -223,11 +227,16 @@ const GeoJSONGlobePlot = ({
   height,
   width,
   setDummy,
+  rotation,
+  setRotation,
 }) => {
   const classes = useStyles();
   function renderMap(svg, svgheight, svgwidth, data) {
     const center = [svgwidth / 2, svgheight / 2];
-    const projection = d3.geoOrthographic().translate(center).scale(100);
+    const projection = d3.geoOrthographic().translate(center).scale(300);
+    if (rotation) {
+      projection.rotate(rotation);
+    }
     const geoGenerator = d3.geoPath().projection(projection);
     const graticule = d3.geoGraticule();
     // Draw text labels
@@ -275,6 +284,8 @@ const GeoJSONGlobePlot = ({
         .style("stroke", "none")
         .style("opacity", 1)
         .attr("d", geoGenerator);
+      console.log(projection.invert(projection.invert(center)));
+      console.log(center);
 
       // Draw grid
       svg
@@ -348,7 +359,7 @@ const GeoJSONGlobePlot = ({
                 f.selected = true;
               }
               refresh();
-              setDummy([]);
+              setRotation(projection.invert(projection.invert(center)));
             })
             .append("title")
             .text(

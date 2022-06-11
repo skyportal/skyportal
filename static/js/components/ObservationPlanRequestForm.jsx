@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
@@ -59,10 +59,82 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const ObservationPlanGlobe = ({ loc, skymapInstrument }) => {
+const FieldSelect = ({ skymapInstrument, setDummy }) => {
   const classes = useStyles();
-  // dummy state for rerendering component
+  const fieldsRef = useRef(skymapInstrument?.fields);
+
+  const handleSelectedFieldChange = (e) => {
+    const fields = e.target.value;
+    skymapInstrument?.fields?.forEach((f) => {
+      if (fields.includes(Number(f.id))) {
+        f.selected = true;
+      } else {
+        f.selected = false;
+      }
+    });
+    // force rerender of skymap in order to display selected fields
+    setDummy([]);
+  };
+
+  const clearSelectedFields = () => {
+    skymapInstrument?.fields?.forEach((f) => {
+      f.selected = false;
+    });
+    setDummy([]);
+  };
+
+  const fields = [];
+  skymapInstrument?.fields?.forEach((field) => {
+    fields.push(Number(field.id));
+  });
+  fields.sort((a, b) => a - b);
+
+  return (
+    <div>
+      <InputLabel id="fieldsToUseSelectLabel">Fields to use</InputLabel>
+      <Select
+        inputProps={{ MenuProps: { disableScrollLock: true } }}
+        labelId="fieldsToSelectLabel"
+        name="fieldsToUseSelect"
+        className={classes.fieldsToUseSelect}
+        multiple
+        value={
+          skymapInstrument?.fields
+            ?.filter((f) => f?.selected)
+            .map((f) => f?.field_id) || []
+        }
+        onChange={handleSelectedFieldChange}
+      >
+        {fields?.map((field) => (
+          <MenuItem
+            value={field}
+            key={field}
+            className={classes.fieldsToUseSelectItem}
+          >
+            {field}
+          </MenuItem>
+        ))}
+      </Select>
+      <Button
+        id="clear-fieldsToUseSelect"
+        size="small"
+        color="secondary"
+        onClick={() => clearSelectedFields()}
+      >
+        Clear Fields
+      </Button>
+    </div>
+  );
+};
+
+const ObservationPlanGlobe = ({
+  loc,
+  skymapInstrument,
+  setSkymapInstrument,
+}) => {
+  // dummy state for forced rerendering of component
   const [dummy, setDummy] = useState();
+  const [rotation, setRotation] = useState([0, 0]);
 
   const displayOptions = [
     "localization",
@@ -77,31 +149,6 @@ const ObservationPlanGlobe = ({ loc, skymapInstrument }) => {
   displayOptionsDefault.localization = true;
   displayOptionsDefault.instrument = true;
 
-  const fields = [];
-  skymapInstrument?.fields?.forEach((field) => {
-    fields.push(Number(field.id));
-  });
-  fields.sort((a, b) => a - b);
-
-  const handleSelectedFieldChange = (e) => {
-    const fields = e.target.value;
-    skymapInstrument?.fields?.forEach((f) => {
-      if (fields.includes(Number(f.id))) {
-        f.selected = true;
-      } else {
-        f.selected = false;
-      }
-    });
-    setDummy([]);
-  };
-
-  const clearSelectedFields = () => {
-    skymapInstrument?.fields?.forEach((f) => {
-      f.selected = false;
-    });
-    setDummy([]);
-  };
-
   return (
     <div>
       <div>
@@ -115,48 +162,14 @@ const ObservationPlanGlobe = ({ loc, skymapInstrument }) => {
               loc={loc}
               instrument={skymapInstrument}
               options={displayOptionsDefault}
-              height={300}
-              width={600}
               setDummy={setDummy}
+              rotation={rotation}
+              setRotation={setRotation}
             />
           </div>
         )}
       </div>
-
-      <div>
-        <InputLabel id="fieldsToUseSelectLabel">Fields to use</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="fieldsToSelectLabel"
-          name="fieldsToUseSelect"
-          className={classes.fieldsToUseSelect}
-          multiple
-          value={
-            skymapInstrument?.fields
-              ?.filter((f) => f?.selected)
-              .map((f) => f?.field_id) || []
-          }
-          onChange={handleSelectedFieldChange}
-        >
-          {fields?.map((field) => (
-            <MenuItem
-              value={field}
-              key={field}
-              className={classes.fieldsToUseSelectItem}
-            >
-              {field}
-            </MenuItem>
-          ))}
-        </Select>
-        <Button
-          id="clear-fieldsToUseSelect"
-          size="small"
-          color="secondary"
-          onClick={() => clearSelectedFields()}
-        >
-          Clear Fields
-        </Button>
-      </div>
+      <FieldSelect skymapInstrument={skymapInstrument} setDummy={setDummy} />
     </div>
   );
 };
@@ -383,6 +396,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         <ObservationPlanGlobe
           loc={gcnevent.localizations[0]}
           skymapInstrument={skymapInstrument}
+          setSkymapInstrument={setSkymapInstrument}
         />
       </div>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
