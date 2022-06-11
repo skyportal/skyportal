@@ -26,6 +26,7 @@ const LocalizationPlot = ({
   options,
   height,
   width,
+  setDummy,
 }) => {
   const cachedLocalization = useSelector((state) => state.localization);
   const dispatch = useDispatch();
@@ -58,6 +59,7 @@ const LocalizationPlot = ({
         options={options}
         height={height}
         width={width}
+        setDummy={setDummy}
       />
     </>
   );
@@ -220,6 +222,7 @@ const GeoJSONGlobePlot = ({
   options,
   height,
   width,
+  setDummy,
 }) => {
   const classes = useStyles();
   function renderMap(svg, svgheight, svgwidth, data) {
@@ -345,6 +348,7 @@ const GeoJSONGlobePlot = ({
                 f.selected = true;
               }
               refresh();
+              setDummy([]);
             })
             .append("title")
             .text(

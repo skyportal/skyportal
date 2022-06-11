@@ -59,14 +59,10 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const ObservationPlanGlobe = ({
-  loc,
-  instrument,
-  selectedFields,
-  setSelectedFields,
-}) => {
+const ObservationPlanGlobe = ({ loc, skymapInstrument }) => {
   const classes = useStyles();
-  const dispatch = useDispatch();
+  // dummy state for rerendering component
+  const [dummy, setDummy] = useState();
 
   const displayOptions = [
     "localization",
@@ -81,25 +77,6 @@ const ObservationPlanGlobe = ({
   displayOptionsDefault.localization = true;
   displayOptionsDefault.instrument = true;
 
-  const [skymapInstrument, setSkymapInstrument] = useState(null);
-  useEffect(() => {
-    const fetchSkymapInstrument = async () => {
-      const response = await dispatch(
-        instrumentActions.fetchInstrumentSkymap(instrument.id, loc)
-      );
-      setSkymapInstrument(response.data);
-    };
-    fetchSkymapInstrument();
-  }, [dispatch, setSkymapInstrument, loc, instrument]);
-
-  const handleAddObservationPlanFields = async (obsPlanSkymapInstrument) => {
-    const theseSelectedFields = obsPlanSkymapInstrument?.fields?.filter(
-      (f) => f?.selected
-    );
-    const selectedIds = theseSelectedFields.map((f) => f?.field_id);
-    setSelectedFields(selectedIds);
-  };
-
   const fields = [];
   skymapInstrument?.fields?.forEach((field) => {
     fields.push(Number(field.id));
@@ -107,12 +84,23 @@ const ObservationPlanGlobe = ({
   fields.sort((a, b) => a - b);
 
   const handleSelectedFieldChange = (e) => {
-    setSelectedFields(e.target.value);
+    const fields = e.target.value;
+    skymapInstrument?.fields?.forEach((f) => {
+      if (fields.includes(Number(f.id))) {
+        f.selected = true;
+      } else {
+        f.selected = false;
+      }
+    });
+    setDummy([]);
   };
 
-  function clearedSelectedFields() {
-    setSelectedFields([]);
-  }
+  const clearSelectedFields = () => {
+    skymapInstrument?.fields?.forEach((f) => {
+      f.selected = false;
+    });
+    setDummy([]);
+  };
 
   return (
     <div>
@@ -129,13 +117,8 @@ const ObservationPlanGlobe = ({
               options={displayOptionsDefault}
               height={300}
               width={600}
+              setDummy={setDummy}
             />
-            <Button
-              variant="contained"
-              onClick={() => handleAddObservationPlanFields(skymapInstrument)}
-            >
-              Use selected fields in observation plan
-            </Button>
           </div>
         )}
       </div>
@@ -148,7 +131,11 @@ const ObservationPlanGlobe = ({
           name="fieldsToUseSelect"
           className={classes.fieldsToUseSelect}
           multiple
-          value={selectedFields}
+          value={
+            skymapInstrument?.fields
+              ?.filter((f) => f?.selected)
+              .map((f) => f?.field_id) || []
+          }
           onChange={handleSelectedFieldChange}
         >
           {fields?.map((field) => (
@@ -165,7 +152,7 @@ const ObservationPlanGlobe = ({
           id="clear-fieldsToUseSelect"
           size="small"
           color="secondary"
-          onClick={() => clearedSelectedFields()}
+          onClick={() => clearSelectedFields()}
         >
           Clear Fields
         </Button>
@@ -228,11 +215,50 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [planQueues, setPlanQueues] = useState([]);
-  const [selectedFields, setSelectedFields] = useState([]);
+  const [skymapInstrument, setSkymapInstrument] = useState(null);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
+
+  const groupLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  allGroups?.forEach((group) => {
+    groupLookUp[group.id] = group;
+  });
+
+  const telLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  telescopeList?.forEach((tel) => {
+    telLookUp[tel.id] = tel;
+  });
+
+  const allocationLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  allocationList?.forEach((allocation) => {
+    allocationLookUp[allocation.id] = allocation;
+  });
+
+  const instLookUp = {};
+  // eslint-disable-next-line no-unused-expressions
+  instrumentList?.forEach((instrumentObj) => {
+    instLookUp[instrumentObj.id] = instrumentObj;
+  });
+
+  const loc = gcnevent.localizations[0];
+
+  useEffect(() => {
+    const fetchSkymapInstrument = async () => {
+      const response = await dispatch(
+        instrumentActions.fetchInstrumentSkymap(
+          instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
+          loc
+        )
+      );
+      setSkymapInstrument(response.data);
+    };
+    fetchSkymapInstrument();
+  }, [dispatch, setSkymapInstrument, loc, selectedAllocationId]);
 
   useEffect(() => {
     const getAllocations = async () => {
@@ -300,30 +326,6 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     );
   }
 
-  const groupLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
-  allGroups?.forEach((group) => {
-    groupLookUp[group.id] = group;
-  });
-
-  const telLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
-  telescopeList?.forEach((tel) => {
-    telLookUp[tel.id] = tel;
-  });
-
-  const allocationLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
-  allocationList?.forEach((allocation) => {
-    allocationLookUp[allocation.id] = allocation;
-  });
-
-  const instLookUp = {};
-  // eslint-disable-next-line no-unused-expressions
-  instrumentList?.forEach((instrumentObj) => {
-    instLookUp[instrumentObj.id] = instrumentObj;
-  });
-
   const handleSelectedAllocationChange = (e) => {
     setSelectedAllocationId(e.target.value);
   };
@@ -333,6 +335,9 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   };
 
   const handleQueueSubmit = async ({ formData }) => {
+    const selectedFields = skymapInstrument?.fields
+      ?.filter((f) => f.selected)
+      .map((f) => f.id);
     if (selectedFields.length > 0) {
       formData.field_ids = selectedFields;
     }
@@ -377,11 +382,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       <div>
         <ObservationPlanGlobe
           loc={gcnevent.localizations[0]}
-          instrument={
-            instLookUp[allocationLookUp[selectedAllocationId].instrument_id]
-          }
-          selectedFields={selectedFields}
-          setSelectedFields={setSelectedFields}
+          skymapInstrument={skymapInstrument}
         />
       </div>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
@@ -436,14 +437,18 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         <div>
           <Form
             schema={
-              instrumentFormParams[
-                allocationLookUp[selectedAllocationId].instrument_id
-              ].formSchema
+              instrumentFormParams
+                ? instrumentFormParams[
+                    allocationLookUp[selectedAllocationId].instrument_id
+                  ]?.formSchema
+                : []
             }
             uiSchema={
-              instrumentFormParams[
-                allocationLookUp[selectedAllocationId].instrument_id
-              ].uiSchema
+              instrumentFormParams
+                ? instrumentFormParams[
+                    allocationLookUp[selectedAllocationId].instrument_id
+                  ]?.uiSchema
+                : []
             }
             liveValidate
             validate={validate}
