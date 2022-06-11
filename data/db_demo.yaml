@@ -3,8 +3,6 @@ groups:
     =id: program_A
   - name: Program B
     =id: program_B
-  - name: Default Group
-    =id: default_group
 
 user:
   - username: testadmin

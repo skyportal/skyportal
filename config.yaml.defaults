@@ -536,7 +536,7 @@ cross_match:
 
 user:
   default_role: 'Full user'
-  default_groups: ['Default Group']
+  default_groups: []
   default_acls: []
 
 ports:
