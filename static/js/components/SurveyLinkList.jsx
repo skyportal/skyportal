@@ -124,7 +124,7 @@ const SurveyLinkList = ({ ra, dec, id }) => {
         }${dec}%3A0%201%22&sort=date%20desc%2C%20bibcode%20desc&p_=0`}
       />
       <SurveyLink
-        name="Aladin"
+        name="Aladin (Stars)"
         url={`http://aladin.unistra.fr/AladinLite/?target=${ra_to_hours(
           ra,
           "%20"
