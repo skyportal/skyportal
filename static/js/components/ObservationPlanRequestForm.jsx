@@ -286,7 +286,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
 
-  const loc = gcnevent.localizations[0];
+  const loc = gcnevent?.localizations[0];
 
   useEffect(() => {
     const fetchSkymapInstrument = async () => {
@@ -298,7 +298,10 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       );
       setSkymapInstrument(response.data);
     };
-    if (selectedAllocationId && loc) {
+    if (
+      instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id &&
+      gcnevent
+    ) {
       fetchSkymapInstrument();
     }
   }, [dispatch, setSkymapInstrument, loc, selectedAllocationId]);
