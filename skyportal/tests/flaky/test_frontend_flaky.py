@@ -528,7 +528,7 @@ def test_followup_request_frontend(
     )
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_observationplan_request(driver, user, super_admin_token, public_group):
 
     datafile = f'{os.path.dirname(__file__)}/../data/GW190425_initial.xml'
@@ -659,19 +659,18 @@ def test_observationplan_request(driver, user, super_admin_token, public_group):
     # Click somewhere outside to remove focus from instrument select
     driver.click_xpath("//body")
     driver.click_xpath(submit_button_xpath)
-    time.sleep(30)
-    submit_button_xpath = (
-        '//button[@type="submit"]//span[contains(., "Generate Observation Plans")]'
-    )
+
+    submit_button_xpath = '//button[contains(., "Generate Observation Plans")]'
     driver.wait_for_xpath(submit_button_xpath)
     driver.click_xpath(submit_button_xpath)
+    time.sleep(30)
 
     driver.wait_for_xpath(
         f"//div[@data-testid='{instrument_name}-requests-header']", timeout=30
     )
     driver.click_xpath(f"//div[@data-testid='{instrument_name}-requests-header']")
     driver.wait_for_xpath(
-        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "g,r,i")]',
+        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "ztfg,ztfr,ztfi")]',
         timeout=15,
     )
     driver.wait_for_xpath(

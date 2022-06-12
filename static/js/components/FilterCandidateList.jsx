@@ -363,9 +363,10 @@ const FilterCandidateList = ({
                     onChange={(newValue) => onChange(newValue)}
                     label="Start (UTC)"
                     showTodayButton={false}
-                    className="startDatePicker"
-                    /* eslint-disable-next-line react/jsx-props-no-spreading */
-                    renderInput={(params) => <TextField {...params} />}
+                    renderInput={(params) => (
+                      /* eslint-disable-next-line react/jsx-props-no-spreading */
+                      <TextField id="startDatePicker" {...params} />
+                    )}
                   />
                 </LocalizationProvider>
               )}
@@ -383,9 +384,10 @@ const FilterCandidateList = ({
                     onChange={(newValue) => onChange(newValue)}
                     label="End (UTC)"
                     showTodayButton={false}
-                    className="endDatePicker"
-                    /* eslint-disable-next-line react/jsx-props-no-spreading */
-                    renderInput={(props) => <TextField {...props} />}
+                    renderInput={(props) => (
+                      /* eslint-disable-next-line react/jsx-props-no-spreading */
+                      <TextField id="endDatePicker" {...props} />
+                    )}
                   />
                 </LocalizationProvider>
               )}

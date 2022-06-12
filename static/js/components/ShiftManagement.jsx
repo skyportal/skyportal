@@ -579,7 +579,7 @@ function CurrentShiftMenu({ currentShift }) {
                 labelId="select-user-replace-chip-label"
                 id="select-user-replace-chip"
                 value={selectedToReplace}
-                onClick={handleChangeReplace}
+                onChange={handleChangeReplace}
                 input={<OutlinedInput id="select-chip" label="Chip" />}
                 renderValue={(selectedToReplaceValue) => (
                   <Box id="selected_users">
