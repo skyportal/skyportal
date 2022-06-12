@@ -6,7 +6,9 @@ import PropTypes from "prop-types";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import Button from "@mui/material/Button";
-import { KeyboardDateTimePicker } from "@material-ui/pickers";
+import DateTimePicker from "@mui/lab/DateTimePicker";
+import AdapterDateFns from "@mui/lab/AdapterDateFns";
+import LocalizationProvider from "@mui/lab/LocalizationProvider";
 import Paper from "@mui/material/Paper";
 import SearchIcon from "@mui/icons-material/Search";
 import Input from "@mui/material/Input";
@@ -355,17 +357,17 @@ const FilterCandidateList = ({
             )}
             <Controller
               render={({ onChange, value }) => (
-                <KeyboardDateTimePicker
-                  value={value ? dayjs.utc(value) : null}
-                  onChange={(e, date) =>
-                    date ? onChange(dayjs.utc(date)) : onChange(date)
-                  }
-                  label="Start (UTC)"
-                  format="YYYY/MM/DD HH:mm"
-                  ampm={false}
-                  showTodayButton={false}
-                  data-testid="startDatePicker"
-                />
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DateTimePicker
+                    value={value}
+                    onChange={(newValue) => onChange(newValue)}
+                    label="Start (UTC)"
+                    showTodayButton={false}
+                    data-testid="startDatePicker"
+                    /* eslint-disable-next-line react/jsx-props-no-spreading */
+                    renderInput={(params) => <TextField {...params} />}
+                  />
+                </LocalizationProvider>
               )}
               rules={{ validate: validateDates }}
               name="startDate"
@@ -375,17 +377,17 @@ const FilterCandidateList = ({
             &nbsp;
             <Controller
               render={({ onChange, value }) => (
-                <KeyboardDateTimePicker
-                  value={value ? dayjs.utc(value) : null}
-                  onChange={(e, date) =>
-                    date ? onChange(dayjs.utc(date)) : onChange(date)
-                  }
-                  label="End (UTC)"
-                  format="YYYY/MM/DD HH:mm"
-                  ampm={false}
-                  showTodayButton={false}
-                  data-testid="endDatePicker"
-                />
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DateTimePicker
+                    value={value}
+                    onChange={(newValue) => onChange(newValue)}
+                    label="End (UTC)"
+                    showTodayButton={false}
+                    data-testid="endDatePicker"
+                    /* eslint-disable-next-line react/jsx-props-no-spreading */
+                    renderInput={(props) => <TextField {...props} />}
+                  />
+                </LocalizationProvider>
               )}
               rules={{ validate: validateDates }}
               name="endDate"
