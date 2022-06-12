@@ -6,7 +6,8 @@ import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";

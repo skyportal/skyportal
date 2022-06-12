@@ -23,7 +23,8 @@ import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import Popover from "@mui/material/Popover";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import MUIDataTable from "mui-datatables";
 
 import { showNotification } from "baselayer/components/Notifications";

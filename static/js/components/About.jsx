@@ -29,7 +29,7 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   bibcard: {
-    marginTop: "1rem",
+    marginTop: "5rem",
     "& .MuiTypography-body1": {
       margin: 0,
     },

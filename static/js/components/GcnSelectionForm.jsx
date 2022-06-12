@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { PropTypes } from "prop-types";
 import Button from "@mui/material/Button";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";

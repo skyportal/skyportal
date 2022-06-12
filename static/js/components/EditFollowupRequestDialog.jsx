@@ -5,7 +5,8 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import Button from "@mui/material/Button";
 import makeStyles from "@mui/styles/makeStyles";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import * as Actions from "../ducks/source";
 
 const useStyles = makeStyles(() => ({

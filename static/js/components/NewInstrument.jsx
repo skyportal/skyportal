@@ -1,6 +1,7 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import CircularProgress from "@mui/material/CircularProgress";
 import dataUriToBuffer from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";

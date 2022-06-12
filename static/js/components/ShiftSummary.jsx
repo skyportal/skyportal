@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { makeStyles } from "@material-ui/core/styles";
 import dayjs from "dayjs";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import { Paper, Collapse, Divider, Tooltip } from "@material-ui/core";
 import { showNotification } from "baselayer/components/Notifications";
 import List from "@material-ui/core/List";

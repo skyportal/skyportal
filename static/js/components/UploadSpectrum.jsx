@@ -3,7 +3,8 @@ import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import MUIDataTable from "mui-datatables";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import dataUriToBuffer from "data-uri-to-buffer";
 import Typography from "@mui/material/Typography";
 import Accordion from "@mui/material/Accordion";

@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from "react-redux";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import CircularProgress from "@mui/material/CircularProgress";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";

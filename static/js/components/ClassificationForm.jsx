@@ -8,7 +8,8 @@ import Input from "@mui/material/Input";
 import InputLabel from "@mui/material/InputLabel";
 import Chip from "@mui/material/Chip";
 import makeStyles from "@mui/styles/makeStyles";
-import Form from "@rjsf/material-ui";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 
 import { showNotification } from "baselayer/components/Notifications";
 import * as Actions from "../ducks/source";
