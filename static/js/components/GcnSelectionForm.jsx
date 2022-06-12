@@ -65,6 +65,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
   const displayOptionsDefault = Object.fromEntries(
     displayOptions.map((x) => [x, false])
   );
+  const [selectedFields, setSelectedFields] = useState([]);
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState(null);
   const [selectedLocalizationId, setSelectedLocalizationId] = useState(null);
@@ -308,6 +309,8 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
             instrument={instLookUp[selectedInstrumentId]}
             observations={gcnEventObservations}
             options={checkedDisplayState}
+            selectedFields={selectedFields}
+            setSelectedFields={setSelectedFields}
           />
         </div>
       ) : (
@@ -319,6 +322,8 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
             instrument={instLookUp[selectedInstrumentId]}
             observations={gcnEventObservations}
             options={checkedDisplayState}
+            selectedFields={selectedFields}
+            setSelectedFields={setSelectedFields}
           />
         </div>
       )}

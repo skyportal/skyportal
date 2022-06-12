@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Button from "@material-ui/core/Button";
 import Chip from "@material-ui/core/Chip";
@@ -59,28 +59,19 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const FieldSelect = ({ skymapInstrument, setDummy }) => {
+const FieldSelect = ({
+  skymapInstrument,
+  selectedFields,
+  setSelectedFields,
+}) => {
   const classes = useStyles();
-  const fieldsRef = useRef(skymapInstrument?.fields);
 
   const handleSelectedFieldChange = (e) => {
-    const fields = e.target.value;
-    skymapInstrument?.fields?.forEach((f) => {
-      if (fields.includes(Number(f.id))) {
-        f.selected = true;
-      } else {
-        f.selected = false;
-      }
-    });
-    // force rerender of skymap in order to display selected fields
-    setDummy([]);
+    setSelectedFields(e.target.value);
   };
 
   const clearSelectedFields = () => {
-    skymapInstrument?.fields?.forEach((f) => {
-      f.selected = false;
-    });
-    setDummy([]);
+    setSelectedFields([]);
   };
 
   const fields = [];
@@ -98,11 +89,7 @@ const FieldSelect = ({ skymapInstrument, setDummy }) => {
         name="fieldsToUseSelect"
         className={classes.fieldsToUseSelect}
         multiple
-        value={
-          skymapInstrument?.fields
-            ?.filter((f) => f?.selected)
-            .map((f) => f?.field_id) || []
-        }
+        value={selectedFields || []}
         onChange={handleSelectedFieldChange}
       >
         {fields?.map((field) => (
@@ -127,13 +114,48 @@ const FieldSelect = ({ skymapInstrument, setDummy }) => {
   );
 };
 
+FieldSelect.propTypes = {
+  skymapInstrument: PropTypes.shape({
+    id: PropTypes.number,
+    name: PropTypes.string,
+    type: PropTypes.string,
+    band: PropTypes.string,
+    fields: PropTypes.arrayOf(
+      PropTypes.shape({
+        ra: PropTypes.number,
+        dec: PropTypes.number,
+        id: PropTypes.number,
+        contour: PropTypes.oneOfType([
+          GeoPropTypes.FeatureCollection,
+          PropTypes.shape({
+            type: PropTypes.string,
+            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          }),
+        ]),
+        contour_summary: PropTypes.oneOfType([
+          GeoPropTypes.FeatureCollection,
+          PropTypes.shape({
+            type: PropTypes.string,
+            features: PropTypes.array, // eslint-disable-line react/forbid-prop-types
+          }),
+        ]),
+      })
+    ),
+  }),
+  selectedFields: PropTypes.arrayOf(PropTypes.number).isRequired,
+  setSelectedFields: PropTypes.func.isRequired,
+};
+
+FieldSelect.defaultProps = {
+  skymapInstrument: null,
+};
+
 const ObservationPlanGlobe = ({
   loc,
   skymapInstrument,
-  setSkymapInstrument,
+  selectedFields,
+  setSelectedFields,
 }) => {
-  // dummy state for forced rerendering of component
-  const [dummy, setDummy] = useState();
   const [rotation, setRotation] = useState([0, 0]);
 
   const displayOptions = [
@@ -162,14 +184,19 @@ const ObservationPlanGlobe = ({
               loc={loc}
               instrument={skymapInstrument}
               options={displayOptionsDefault}
-              setDummy={setDummy}
               rotation={rotation}
               setRotation={setRotation}
+              selectedFields={selectedFields}
+              setSelectedFields={setSelectedFields}
             />
           </div>
         )}
       </div>
-      <FieldSelect skymapInstrument={skymapInstrument} setDummy={setDummy} />
+      <FieldSelect
+        selectedFields={selectedFields}
+        setSelectedFields={setSelectedFields}
+        skymapInstrument={skymapInstrument}
+      />
     </div>
   );
 };
@@ -180,7 +207,7 @@ ObservationPlanGlobe.propTypes = {
     dateobs: PropTypes.string,
     localization_name: PropTypes.string,
   }).isRequired,
-  instrument: PropTypes.shape({
+  skymapInstrument: PropTypes.shape({
     id: PropTypes.number,
     name: PropTypes.string,
     type: PropTypes.string,
@@ -212,7 +239,7 @@ ObservationPlanGlobe.propTypes = {
 };
 
 ObservationPlanGlobe.defaultProps = {
-  instrument: null,
+  skymapInstrument: null,
 };
 
 const ObservationPlanRequestForm = ({ gcnevent }) => {
@@ -229,6 +256,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [planQueues, setPlanQueues] = useState([]);
   const [skymapInstrument, setSkymapInstrument] = useState(null);
+  const [selectedFields, setSelectedFields] = useState([]);
 
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
@@ -270,7 +298,9 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       );
       setSkymapInstrument(response.data);
     };
-    fetchSkymapInstrument();
+    if (selectedAllocationId && loc) {
+      fetchSkymapInstrument();
+    }
   }, [dispatch, setSkymapInstrument, loc, selectedAllocationId]);
 
   useEffect(() => {
@@ -348,9 +378,6 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   };
 
   const handleQueueSubmit = async ({ formData }) => {
-    const selectedFields = skymapInstrument?.fields
-      ?.filter((f) => f.selected)
-      .map((f) => f.id);
     if (selectedFields.length > 0) {
       formData.field_ids = selectedFields;
     }
@@ -396,7 +423,8 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
         <ObservationPlanGlobe
           loc={gcnevent.localizations[0]}
           skymapInstrument={skymapInstrument}
-          setSkymapInstrument={setSkymapInstrument}
+          selectedFields={selectedFields}
+          setSelectedFields={setSelectedFields}
         />
       </div>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
@@ -455,14 +483,14 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
                 ? instrumentFormParams[
                     allocationLookUp[selectedAllocationId].instrument_id
                   ]?.formSchema
-                : []
+                : {}
             }
             uiSchema={
               instrumentFormParams
                 ? instrumentFormParams[
                     allocationLookUp[selectedAllocationId].instrument_id
                   ]?.uiSchema
-                : []
+                : {}
             }
             liveValidate
             validate={validate}

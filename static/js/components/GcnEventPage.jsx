@@ -277,7 +277,11 @@ const GcnEventPage = ({ route }) => {
       <Grid item xs={7}>
         <div className={styles.columnItem}>
           <Accordion defaultExpanded>
-            <AccordionSummary>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="gcnEvent-content"
+              id="analysis-header"
+            >
               <Typography className={styles.accordionHeading}>
                 Analysis
               </Typography>
