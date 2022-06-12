@@ -363,7 +363,7 @@ const FilterCandidateList = ({
                     onChange={(newValue) => onChange(newValue)}
                     label="Start (UTC)"
                     showTodayButton={false}
-                    data-testid="startDatePicker"
+                    className="startDatePicker"
                     /* eslint-disable-next-line react/jsx-props-no-spreading */
                     renderInput={(params) => <TextField {...params} />}
                   />
@@ -383,7 +383,7 @@ const FilterCandidateList = ({
                     onChange={(newValue) => onChange(newValue)}
                     label="End (UTC)"
                     showTodayButton={false}
-                    data-testid="endDatePicker"
+                    className="endDatePicker"
                     /* eslint-disable-next-line react/jsx-props-no-spreading */
                     renderInput={(props) => <TextField {...props} />}
                   />

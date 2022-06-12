@@ -54,7 +54,7 @@ def test_candidate_group_filtering(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
     )
     driver.scroll_to_element_and_click(group_checkbox)
-    submit_button = driver.wait_for_xpath('//span[text()="Search"]')
+    submit_button = driver.wait_for_xpath('//button[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):  # data-testid
         driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
@@ -128,19 +128,19 @@ def test_candidate_saved_status_filtering(
     driver.click_xpath(
         "//li[@data-value='notSavedToAnyAccessible']", scroll_parent=True
     )
-    driver.click_xpath('//span[text()="Search"]')
+    driver.click_xpath('//button[text()="Search"]')
     for i in range(5):
         driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}_{i}"]')
 
     # Set to candidates is saved to any accessibe groups and submit again
     driver.click_xpath("//*[@data-testid='savedStatusSelect']")
     driver.click_xpath("//li[@data-value='savedToAnyAccessible']", scroll_parent=True)
-    driver.click_xpath('//span[text()="Search"]')
+    driver.click_xpath('//button[text()="Search"]')
     for i in range(5):
         driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_candidate_date_filtering(
     driver,
     user,
@@ -194,23 +194,21 @@ def test_candidate_date_filtering(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    start_date_input = driver.wait_for_xpath(
-        "//*[@data-testid='startDatePicker']//input"
-    )
+    start_date_input = driver.wait_for_xpath("//input[@id='mui-12']")
     start_date_input.clear()
-    start_date_input.send_keys("200012120000")
-    end_date_input = driver.wait_for_xpath("//*[@data-testid='endDatePicker']//input")
+    start_date_input.send_keys("12/01/2020 12:00 p")
+    end_date_input = driver.wait_for_xpath("//input[@id='mui-13']")
     end_date_input.clear()
-    end_date_input.send_keys("200112120000")
-    submit_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Search"]')
+    end_date_input.send_keys("12/01/2020 12:00 p")
+    submit_button = driver.wait_for_xpath_to_be_clickable('//button[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
         driver.wait_for_xpath_to_disappear(
             f'//a[@data-testid="{candidate_id}_{i}"]', 10
         )
     end_date_input.clear()
-    end_date_input.send_keys("209012120000")
-    submit_button = driver.wait_for_xpath_to_be_clickable('//span[text()="Search"]')
+    end_date_input.send_keys("12/01/2090 12:00 p")
+    submit_button = driver.wait_for_xpath_to_be_clickable('//button[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     for i in range(5):
         driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]', 10)
@@ -226,7 +224,7 @@ def test_save_candidate_quick_save(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    driver.click_xpath('//span[text()="Search"]', wait_clickable=False)
+    driver.click_xpath('//button[text()="Search"]', wait_clickable=False)
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
     save_button = driver.wait_for_xpath(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
@@ -248,7 +246,7 @@ def test_save_candidate_select_groups(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    driver.click_xpath('//span[text()="Search"]')
+    driver.click_xpath('//button[text()="Search"]')
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
     carat = driver.wait_for_xpath(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
@@ -285,7 +283,7 @@ def test_save_candidate_no_groups_error_message(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    driver.click_xpath('//span[text()="Search"]')
+    driver.click_xpath('//button[text()="Search"]')
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
     carat = driver.wait_for_xpath_to_be_clickable(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
@@ -352,7 +350,7 @@ def test_submit_annotations_sorting(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    driver.click_xpath('//span[text()="Search"]')
+    driver.click_xpath('//button[text()="Search"]')
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
 
     driver.click_xpath("//p[text()='numeric_field: 1.0000']")
@@ -417,7 +415,7 @@ def test_submit_annotations_filtering(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    driver.click_xpath('//span[text()="Search"]')
+    driver.click_xpath('//button[text()="Search"]')
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
 
     # scroll to top of page so dialog doesn't get cut off
@@ -443,7 +441,7 @@ def test_submit_annotations_filtering(
     max_box = driver.wait_for_xpath("//*[@id='root_max']")
     max_text = "1.5"
     max_box.send_keys(max_text)
-    driver.click_xpath("//span[text()='Submit']")
+    driver.click_xpath("//button[text()='Submit']")
 
     # Check that results come back as expected
     # The first candidate should exist
@@ -531,7 +529,7 @@ def test_candidate_classifications_filtering(
     header = driver.wait_for_xpath("//header")
     ActionChains(driver).move_to_element(header).click().perform()
 
-    driver.click_xpath('//span[text()="Search"]')
+    driver.click_xpath('//button[text()="Search"]')
     # Should see the posted classification
     driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}"]')
 
@@ -543,7 +541,7 @@ def test_candidate_classifications_filtering(
     # Click somewhere outside to remove focus from classification select
     header = driver.wait_for_xpath("//header")
     ActionChains(driver).move_to_element(header).click().perform()
-    driver.click_xpath('//span[text()="Search"]')
+    driver.click_xpath('//button[text()="Search"]')
     # Should no longer see the classification
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{candidate_id}"]')
 
@@ -603,7 +601,7 @@ def test_candidate_redshift_filtering(
     max_box = driver.wait_for_xpath("//input[@id='maximum-redshift']")
     max_text = "0.5"
     max_box.send_keys(max_text)
-    driver.click_xpath('//span[text()="Search"]')
+    driver.click_xpath('//button[text()="Search"]')
     # Should see the obj_id1 but not obj_id2
     driver.wait_for_xpath(f'//a[@data-testid="{obj_id1}"]')
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{obj_id2}"]')
@@ -644,12 +642,12 @@ def test_candidate_rejection_filtering(
         wait_clickable=False,
     )
 
-    driver.click_xpath('//span[text()="Search"]')
+    driver.click_xpath('//button[text()="Search"]')
 
     # make sure candidate appears and click the icon to reject it
     driver.click_xpath(f'//*[@data-testid="rejected-visible_{candidate_id}"]')
 
-    driver.click_xpath('//span[text()="Search"]')
+    driver.click_xpath('//button[text()="Search"]')
 
     # now the candidate doesn't show up anymore
     driver.wait_for_xpath('//*[contains(text(), "no matching records found")]')
@@ -657,7 +655,7 @@ def test_candidate_rejection_filtering(
     # choose to show rejected now
     driver.click_xpath('//div[@id="mui-component-select-rejectedStatus"]')
     driver.click_xpath("//li[@data-value='show']", scroll_parent=True)
-    driver.click_xpath('//span[text()="Search"]')
+    driver.click_xpath('//button[text()="Search"]')
 
     # make sure candidate appears and that it has a "rejected" icon
     driver.wait_for_xpath(f'//*[@data-testid="rejected_invisible_{candidate_id}"]')
@@ -732,7 +730,7 @@ def test_add_scanning_profile(
     driver.wait_for_xpath('//input[@id="minimum-redshift"][@value="0.0"]')
     driver.wait_for_xpath('//input[@id="maximum-redshift"][@value="1.0"]')
     driver.wait_for_xpath(
-        f'//span[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]//input[@value]'
+        f'//span[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
     )
     driver.wait_for_xpath('//div[text()="kowalski"]')
     driver.wait_for_xpath('//div[text()="offset_from_host_galaxy"]')
@@ -763,7 +761,7 @@ def test_delete_scanning_profile(driver, user, public_group):
     driver.click_xpath('//button[@data-testid="saveScanningProfileButton"]')
     driver.wait_for_xpath('//div[text()="123hrs"]')
     # Delete and check that it disappears
-    driver.click_xpath('//tr[.//div[text()="123hrs"]]//button[./span[text()="Delete"]]')
+    driver.click_xpath('//tr[.//div[text()="123hrs"]]//button[text()="Delete"]')
     driver.wait_for_xpath_to_disappear('//div[text()="123hrs"]')
 
 
@@ -834,7 +832,7 @@ def test_user_without_save_access_cannot_save(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]',
         wait_clickable=False,
     )
-    driver.click_xpath('//span[text()="Search"]', wait_clickable=False)
+    driver.click_xpath('//button[text()="Search"]', wait_clickable=False)
     driver.wait_for_xpath(f'//a[@data-testid="{public_candidate.id}"]')
     save_button = driver.wait_for_xpath(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
@@ -873,7 +871,7 @@ def test_add_classification_on_scanning_page(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
     )
     driver.scroll_to_element_and_click(group_checkbox)
-    submit_button = driver.wait_for_xpath('//span[text()="Search"]')
+    submit_button = driver.wait_for_xpath('//button[text()="Search"]')
     driver.scroll_to_element_and_click(submit_button)
     save_button = driver.wait_for_xpath(
         f'//button[@data-testid="saveCandidateButton_{candidate_id}"]'

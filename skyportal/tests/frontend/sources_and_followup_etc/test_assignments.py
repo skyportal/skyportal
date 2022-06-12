@@ -32,6 +32,9 @@ def test_submit_and_delete_new_assignment(
     driver.click_xpath("//div[@id='observing-run-assignments-header']")
     driver.wait_for_xpath('//button[@aria-label="delete-assignment"]')
     driver.wait_for_xpath(f'//*[text()="{comment_text}"]')
+    import pdb
+
+    pdb.set_trace()
     driver.click_xpath('//button[@aria-label="delete-assignment"]')
     driver.wait_for_xpath_to_disappear('//button[@aria-label="delete-assignment"]')
     driver.wait_for_xpath_to_disappear(f'//*[text()="{comment_text}"]')

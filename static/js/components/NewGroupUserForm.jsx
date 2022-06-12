@@ -74,12 +74,7 @@ const NewGroupUserForm = ({ group_id }) => {
       </Typography>
       <Autocomplete
         data-testid="newGroupUser"
-        value={
-          allUsers?.filter((user) => user.id === formState.userID)[0] || null
-        }
-        onChange={(event, newValue) => {
-          setFormState({ userID: newValue?.id });
-        }}
+        onChange={(event, newValue) => setFormState({ userID: newValue?.id })}
         filterOptions={(options, params) => {
           const filtered = filter(options, params);
           return filtered;
@@ -89,8 +84,7 @@ const NewGroupUserForm = ({ group_id }) => {
         handleHomeEndKeys
         options={allUsers}
         getOptionLabel={(option) => option.username}
-        renderOption={(option) => option.username}
-        style={{ width: 300, paddingBottom: 10 }}
+        sx={{ width: 300, paddingBottom: 10 }}
         defaultValue={null}
         renderInput={(params) => (
           <TextField

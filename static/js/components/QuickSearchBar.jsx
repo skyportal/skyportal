@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDispatch } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import makeStyles from "@mui/styles/makeStyles";
 
 import TextField from "@mui/material/TextField";
@@ -125,7 +125,7 @@ const QuickSearchBar = () => {
       onInputChange={(e, val) => setInputValue(val)}
       onChange={(event, newValue, reason) => {
         setValue(newValue);
-        if (reason === "select-option") {
+        if (reason === "selectOption") {
           navigate(`/source/${newValue}`);
         }
         if (reason === "clear") {
@@ -144,14 +144,6 @@ const QuickSearchBar = () => {
       limitTags={15}
       value={value}
       popupIcon={null}
-      renderOption={(option) => {
-        const v = `/source/${option}`;
-        return (
-          <Link to={v} id={`quickSearchLinkTo${option}`}>
-            {option}
-          </Link>
-        );
-      }}
       renderInput={(params) => (
         <TextField
           // eslint-disable-next-line react/jsx-props-no-spreading

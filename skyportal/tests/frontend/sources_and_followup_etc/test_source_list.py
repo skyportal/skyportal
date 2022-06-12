@@ -520,7 +520,7 @@ def test_hr_diagram(
     obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
     obj_button.clear()
     obj_button.send_keys(source_id)
-    driver.click_xpath("//button[text()='Submit']")
+    driver.click_xpath("//button[text()='Submit']", scroll_parent=True)
 
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{source_id}')]")
