@@ -76,41 +76,21 @@ const useStyles = makeStyles((theme) => ({
   }
 }));
 
-const getMuiTheme = (theme) =>
-  createTheme(
-    adaptV4Theme({
-    content: {
-     flexGrow: 1,
-     padding: theme.spacing(2),
-     transition: theme.transitions.create("margin", {
-       easing: theme.transitions.easing.sharp,
-       duration: theme.transitions.duration.leavingScreen,
-     }),
-     marginTop: "6em", // top bar height
-     marginLeft: isMobile ? "0" : "190px",
-     "& a": {
-       textDecoration: "none",
-       color: "gray",
-       fontWeight: "bold",
-     },
-   },
-   contentShift: {
-     transition: theme.transitions.create("margin", {
-       easing: theme.transitions.easing.easeOut,
-       duration: theme.transitions.duration.enteringScreen,
-     }),
-     marginLeft: 0,
-   },
-   websocket: {
-     display: "none",
-   }
- })
-);
-
 const MainContent = ({ root }) => {
+
+  const theme = useTheme();
+  return (
+    <ThemeProvider theme={theme}>
+      <MainContentInternal root={root} />
+    </ThemeProvider>
+  )
+
+};
+
+const MainContentInternal = ({ root }) => {
   const { open } = useSelector((state) => state.sidebar);
 
-  // const classes = useStyles();
+  const classes = useStyles();
   const theme = useTheme();
 
   useEffect(() => {
@@ -125,7 +105,6 @@ const MainContent = ({ root }) => {
 
   return (
    <StyledEngineProvider injectFirst>
-    <ThemeProvider theme={getMuiTheme(theme)}>
      <Theme {% if testing %} disableTransitions {% endif %}>
 
       <div>
@@ -144,6 +123,9 @@ const MainContent = ({ root }) => {
 
         <div
           role="main"
+          className={clsx(classes.content, {
+            [classes.contentShift]: !open,
+          })}
         >
 
           <Notifications />
@@ -162,7 +144,6 @@ const MainContent = ({ root }) => {
 
       </MuiPickersUtilsProvider>
     </Theme>
-   </ThemeProvider>
   </StyledEngineProvider>
   );
 };
