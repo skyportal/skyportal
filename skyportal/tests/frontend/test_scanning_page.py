@@ -140,7 +140,7 @@ def test_candidate_saved_status_filtering(
         driver.wait_for_xpath(f'//a[@data-testid="{candidate_id}_{i}"]')
 
 
-# @pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=2)
 def test_candidate_date_filtering(
     driver,
     user,
