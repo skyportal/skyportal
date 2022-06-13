@@ -2,20 +2,20 @@ import React, { useRef, useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { Link, useParams } from "react-router-dom";
-import { makeStyles } from "@material-ui/core/styles";
+import makeStyles from "@mui/styles/makeStyles";
 
-import Select from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
-import InputLabel from "@material-ui/core/InputLabel";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import FormControl from "@material-ui/core/FormControl";
-import Button from "@material-ui/core/Button";
-import Slider from "@material-ui/core/Slider";
-import Input from "@material-ui/core/Input";
-import Grid from "@material-ui/core/Grid";
-import Card from "@material-ui/core/Card";
-import CardContent from "@material-ui/core/CardContent";
-import Typography from "@material-ui/core/Typography";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import InputLabel from "@mui/material/InputLabel";
+import CircularProgress from "@mui/material/CircularProgress";
+import FormControl from "@mui/material/FormControl";
+import Button from "@mui/material/Button";
+import Slider from "@mui/material/Slider";
+import Input from "@mui/material/Input";
+import Grid from "@mui/material/Grid";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
 import Dygraph from "dygraphs";
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -103,6 +103,7 @@ function GLS(t_data_uf, y_data_uf, kwa) {
   let omega;
   let wi;
 
+  /* eslint-disable react/destructuring-assignment  */
   const goodi = t_data_uf
     ?.map((e, ind) =>
       !(
@@ -115,8 +116,10 @@ function GLS(t_data_uf, y_data_uf, kwa) {
         : undefined
     )
     ?.filter((x) => x);
-  const t_data = goodi.map((ind) => t_data_uf[ind]);
-  const y_data = goodi.map((ind) => y_data_uf[ind]);
+  /* eslint-enable react/destructuring-assignment  */
+
+  const t_data = goodi.map((ind) => t_data_uf[ind]); // eslint-disable-line react/destructuring-assignment
+  const y_data = goodi.map((ind) => y_data_uf[ind]); // eslint-disable-line react/destructuring-assignment
   const e_y = goodi.map((ind) => kwa.e_y[ind]);
 
   const tmin = Math.min.apply(null, t_data);
@@ -521,7 +524,7 @@ const Periodogram = () => {
         <Grid
           container
           direction="row"
-          justify="flex-start"
+          justifyContent="flex-start"
           alignItems="flex-start"
           spacing={1}
         >
@@ -566,7 +569,7 @@ const Periodogram = () => {
                     <Grid
                       container
                       direction="column"
-                      justify="space-evenly"
+                      justifyContent="space-evenly"
                       alignItems="flex-start"
                       spacing={2}
                     >
@@ -668,7 +671,7 @@ const Periodogram = () => {
                             </Typography>
                             <Slider
                               value={periodmultiplier}
-                              getAriaValueText={valuetext}
+                              getAriaValueText={valuetext} // eslint-disable-line react/jsx-no-bind
                               aria-labelledby="period-slider"
                               step={null}
                               max={3}

@@ -7,10 +7,11 @@ import "reactgridlayoutcss/styles.css";
 // eslint-disable-next-line import/no-extraneous-dependencies
 import "reactresizablecss/styles.css";
 
-import { makeStyles, useTheme } from "@material-ui/core/styles";
-import IconButton from "@material-ui/core/IconButton";
-import CachedIcon from "@material-ui/icons/Cached";
-import Tooltip from "@material-ui/core/Tooltip";
+import { useTheme } from "@mui/material/styles";
+import makeStyles from '@mui/styles/makeStyles';
+import IconButton from "@mui/material/IconButton";
+import CachedIcon from "@mui/icons-material/Cached";
+import Tooltip from "@mui/material/Tooltip";
 import convertLength from "convert-css-length";
 
 import * as profileActions from "../ducks/profile";

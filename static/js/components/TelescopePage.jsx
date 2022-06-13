@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 
-import { useTheme } from "@material-ui/core/styles";
+import { useTheme } from "@mui/material/styles";
 import TelescopePageDesktop from "./TelescopePageDesktop";
 import TelescopePageMobile from "./TelescopePageMobile";
 
