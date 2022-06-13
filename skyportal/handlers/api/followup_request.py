@@ -44,6 +44,7 @@ from ...models import (
     Obj,
     Group,
     Allocation,
+    User,
     cosmo,
 )
 
@@ -52,6 +53,63 @@ from sqlalchemy.orm import joinedload
 from ...models.schema import AssignmentSchema, FollowupRequestPost
 
 MAX_FOLLOWUP_REQUESTS = 1000
+
+
+def post_assignment(data, user_id, session):
+    """Post assignment to database.
+    data: dict
+        Assignment dictionary
+    user_id : int
+        SkyPortal ID of User posting the GcnEvent
+    session: sqlalchemy.Session
+        Database session for this transaction
+    """
+
+    user = session.query(User).get(user_id)
+
+    try:
+        assignment = ClassicalAssignment(**AssignmentSchema.load(data=data))
+    except ValidationError as e:
+        raise ValidationError(
+            'Error parsing followup request: ' f'"{e.normalized_messages()}"'
+        )
+
+    run_id = assignment.run_id
+    data['priority'] = assignment.priority.name
+    run = ObservingRun.get_if_accessible_by(run_id, user, raise_if_none=False)
+    if run is None:
+        raise ValueError('Observing run is not accessible.')
+
+    predecessor = (
+        ClassicalAssignment.query_records_accessible_by(user)
+        .filter(
+            ClassicalAssignment.obj_id == assignment.obj_id,
+            ClassicalAssignment.run_id == run_id,
+        )
+        .first()
+    )
+
+    if predecessor is not None:
+        raise ValueError('Object is already assigned to this run.')
+
+    assignment = ClassicalAssignment(**data)
+
+    assignment.requester_id = user.id
+    session.add(assignment)
+    session.commit()
+
+    flow = Flow()
+    flow.push(
+        '*',
+        "skyportal/REFRESH_SOURCE",
+        payload={"obj_key": assignment.obj.internal_key},
+    )
+    flow.push(
+        '*',
+        "skyportal/REFRESH_OBSERVING_RUN",
+        payload={"run_id": assignment.run_id},
+    )
+    return assignment.id
 
 
 class AssignmentHandler(BaseHandler):
@@ -159,43 +217,18 @@ class AssignmentHandler(BaseHandler):
         """
 
         data = self.get_json()
-        try:
-            assignment = ClassicalAssignment(**AssignmentSchema.load(data=data))
-        except ValidationError as e:
-            return self.error(
-                'Error parsing followup request: ' f'"{e.normalized_messages()}"'
-            )
 
-        run_id = assignment.run_id
-        data['priority'] = assignment.priority.name
-        ObservingRun.get_if_accessible_by(run_id, self.current_user, raise_if_none=True)
+        with DBSession() as session:
+            try:
+                assignment_id = post_assignment(
+                    data, self.associated_user_object.id, session
+                )
+            except Exception as e:
+                return self.error(
+                    'Error posting followup request: ' f'"{e.normalized_messages()}"'
+                )
 
-        predecessor = (
-            ClassicalAssignment.query_records_accessible_by(self.current_user)
-            .filter(
-                ClassicalAssignment.obj_id == assignment.obj_id,
-                ClassicalAssignment.run_id == run_id,
-            )
-            .first()
-        )
-
-        if predecessor is not None:
-            return self.error('Object is already assigned to this run.')
-
-        assignment = ClassicalAssignment(**data)
-
-        assignment.requester_id = self.associated_user_object.id
-        DBSession().add(assignment)
-        self.verify_and_commit()
-        self.push_all(
-            action="skyportal/REFRESH_SOURCE",
-            payload={"obj_key": assignment.obj.internal_key},
-        )
-        self.push_all(
-            action="skyportal/REFRESH_OBSERVING_RUN",
-            payload={"run_id": assignment.run_id},
-        )
-        return self.success(data={"id": assignment.id})
+            return self.success(data={"id": assignment_id})
 
     @permissions(["Upload data"])
     def put(self, assignment_id):
