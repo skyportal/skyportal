@@ -3,7 +3,7 @@ from baselayer.app.access import auth_or_token
 from ....models import Telescope
 from astropy import time as ap_time
 
-MAX_TELESCOPES_TO_RETURN = 16
+MAX_TELESCOPES_TO_DISPLAY = 16
 
 
 class EphemerisHandler(BaseHandler):
@@ -13,7 +13,7 @@ class EphemerisHandler(BaseHandler):
         f"""
         ---
         single:
-          description: Retrieve ephemeris data for a single telescope, or for all telescopes if no telescope_id is provided, up to {MAX_TELESCOPES_TO_RETURN} telescopes.
+          description: Retrieve ephemeris data for a single telescope, or for all telescopes if no telescope_id is provided, up to {MAX_TELESCOPES_TO_DISPLAY} telescopes.
           tags:
             - ephemeris
           parameters:
@@ -35,7 +35,7 @@ class EphemerisHandler(BaseHandler):
         multiple:
           tags:
             - ephemeris
-          description: Retrieve ephemeris data for multiple telescopes, up to {MAX_TELESCOPES_TO_RETURN}
+          description: Retrieve ephemeris data for multiple telescopes, up to {MAX_TELESCOPES_TO_DISPLAY}
           parameters:
           - in: query
             name: telescope_ids
@@ -89,16 +89,16 @@ class EphemerisHandler(BaseHandler):
                 except ValueError as e:
                     return self.error(f'Invalid telescopeIds format: {e.args[0]}')
 
-                if len(telescope_ids) > MAX_TELESCOPES_TO_RETURN:
-                    telescope_ids = telescope_ids[:MAX_TELESCOPES_TO_RETURN]
+                if len(telescope_ids) > MAX_TELESCOPES_TO_DISPLAY:
+                    telescope_ids = telescope_ids[:MAX_TELESCOPES_TO_DISPLAY]
 
                 telescopes = Telescope.query.filter(
                     Telescope.id.in_(telescope_ids)
                 ).all()
             else:
                 telescopes = Telescope.query.all()
-                if len(telescopes) > MAX_TELESCOPES_TO_RETURN:
-                    telescopes = telescopes[:MAX_TELESCOPES_TO_RETURN]
+                if len(telescopes) > MAX_TELESCOPES_TO_DISPLAY:
+                    telescopes = telescopes[:MAX_TELESCOPES_TO_DISPLAY]
 
             ephemerides = {
                 telescope.id: telescope.ephemeris(time) for telescope in telescopes
