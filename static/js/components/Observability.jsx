@@ -152,7 +152,7 @@ const ObservabilityPage = ({ route }) => {
             </Paper>
           </Grid>
         )}
-        {loading && telescopeList?.length > 0 && (
+        {loading && telescopeList?.length > 0 && preferences?.length && (
           <Grid item md={12} sm={12}>
             <Paper>
               <Typography variant="h6" style={{ margin: "1rem" }}>

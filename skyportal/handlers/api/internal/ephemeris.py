@@ -3,6 +3,8 @@ from baselayer.app.access import auth_or_token
 from ....models import Telescope
 from astropy import time as ap_time
 
+MAX_TELESCOPES_TO_RETURN = 16
+
 
 class EphemerisHandler(BaseHandler):
     @auth_or_token
@@ -41,15 +43,16 @@ class EphemerisHandler(BaseHandler):
                 except ValueError as e:
                     return self.error(f'Invalid telescopeIds format: {e.args[0]}')
 
+                if len(telescope_ids) > MAX_TELESCOPES_TO_RETURN:
+                    telescope_ids = telescope_ids[:MAX_TELESCOPES_TO_RETURN]
+
                 telescopes = Telescope.query.filter(
                     Telescope.id.in_(telescope_ids)
                 ).all()
-                if len(telescopes) > 16:
-                    telescopes = telescopes[:16]
             else:
                 telescopes = Telescope.query.all()
-                if len(telescopes) > 16:
-                    telescopes = telescopes[:16]
+                if len(telescopes) > MAX_TELESCOPES_TO_RETURN:
+                    telescopes = telescopes[:MAX_TELESCOPES_TO_RETURN]
 
             ephemerides = {
                 telescope.id: telescope.ephemeris(time) for telescope in telescopes

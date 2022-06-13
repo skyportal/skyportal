@@ -51,6 +51,10 @@ const SelectWithChips = (props) => {
     }
   }
 
+  if (max_chip_nb === -1 && char_count > 0 && char_count <= max_chars) {
+    max_chip_nb = initValue.length;
+  }
+
   const MenuProps = {
     PaperProps: {
       style: {
@@ -82,7 +86,10 @@ const SelectWithChips = (props) => {
                   <Chip key={value} label={value} />
                 ) : (
                   selected.indexOf(value) === max_chip_nb && (
-                    <Chip key={value} label={`+${selected?.length - 1}`} />
+                    <Chip
+                      key={value}
+                      label={`+${selected?.length - max_chip_nb}`}
+                    />
                   )
                 )
               )}
