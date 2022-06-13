@@ -179,17 +179,49 @@ function CurrentShiftMenu({ currentShift }) {
     };
 
     function addUsersToShift(selected_users) {
+      const users_to_add = [];
       if (selected_users.length > 0) {
-        Object.keys(selected_users).forEach((user) => {
+        for (
+          let i = currentShift.shift_users.length;
+          i < currentShift.required_users_number;
+          i += 1
+        ) {
+          users_to_add.push(selected_users[i]);
+        }
+        if (users_to_add.length > 0) {
+          if (users_to_add.length !== selected_users.length) {
+            dispatch(
+              showNotification(
+                "You selected more users than the required number of users for this shift. Adding only the remaining users to the shift.",
+                "warning"
+              )
+            );
+          }
+          Object.keys(users).forEach((user) => {
+            dispatch(
+              addShiftUser({
+                userID: selected_users[user].id,
+                admin: false,
+                shift_id: currentShift.id,
+              })
+            ).then((response) => {
+              if (response.status === "success") {
+                dispatch(showNotification("User added to shift"));
+              } else {
+                dispatch(
+                  showNotification("Error adding user to shift", "error")
+                );
+              }
+            });
+          });
+        } else {
           dispatch(
-            addShiftUser({
-              userID: selected_users[user].id,
-              admin: false,
-              shift_id: currentShift.id,
-            })
+            showNotification(
+              "Shift already Full, no users added to shift",
+              "warning"
+            )
           );
-        });
-        dispatch(showNotification("Users added to shift"));
+        }
       } else {
         dispatch(showNotification("No users selected", "error"));
       }
