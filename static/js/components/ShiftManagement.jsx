@@ -179,14 +179,16 @@ function CurrentShiftMenu({ currentShift }) {
     };
 
     function addUsersToShift(selected_users) {
-      const users_to_add = [];
       if (selected_users.length > 0) {
-        for (
-          let i = currentShift.shift_users.length;
-          i < currentShift.required_users_number;
-          i += 1
-        ) {
-          users_to_add.push(selected_users[i]);
+        const users_to_add = [];
+        let counter = currentShift.shift_users.length;
+        for (let i = 0; i < selected_users.length; i + 1) {
+          if (counter === currentShift.required_users_number) {
+            break;
+          } else {
+            users_to_add.push(selected_users[i]);
+            counter += 1;
+          }
         }
         if (users_to_add.length > 0) {
           if (users_to_add.length !== selected_users.length) {

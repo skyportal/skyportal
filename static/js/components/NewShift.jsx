@@ -128,8 +128,7 @@ const NewShift = () => {
       },
       required_users_number: {
         type: "integer",
-        title: "Number of users required",
-        default: 4,
+        title: "Number of users required in the shift (optional)",
       },
       description: {
         type: "string",

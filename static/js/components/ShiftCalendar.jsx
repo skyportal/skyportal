@@ -121,11 +121,11 @@ async function handleSelectSlot({ start, end }) {
       if (group_id !== null) {
         const start_date = start.toISOString().replace("Z", "");
         const end_date = end.toISOString().replace("Z", "");
-        const required_users_number = window.prompt("Number of users");
-        if (
-          required_users_number !== "" &&
-          !Number.isNaN(required_users_number)
-        ) {
+        let required_users_number = window.prompt("Number of users");
+        if (required_users_number !== "") {
+          required_users_number = parseInt(required_users_number, 10);
+        }
+        if (!Number.isNaN(required_users_number)) {
           dispatch(
             shiftActions.submitShift({
               name,
@@ -141,7 +141,12 @@ async function handleSelectSlot({ start, end }) {
             }
           });
         } else {
-          dispatch(showNotification("Number of users not entered", "error"));
+          dispatch(
+            showNotification(
+              "Shift not created. Required users number needs to be a number",
+              "error"
+            )
+          );
         }
       }
     }
