@@ -118,7 +118,7 @@ async function handleSelectSlot({ start, end }) {
           )
         );
       }
-      if (group_id !== null) {
+      if (groups.find((group) => group.id === parseInt(group_id, 10))) {
         const start_date = start.toISOString().replace("Z", "");
         const end_date = end.toISOString().replace("Z", "");
         let required_users_number = window.prompt("Number of users");
@@ -148,6 +148,10 @@ async function handleSelectSlot({ start, end }) {
             )
           );
         }
+      } else {
+        dispatch(
+          showNotification("Shift not created, Incorrect Group ID.", "error")
+        );
       }
     }
   } else if (name === "") {
