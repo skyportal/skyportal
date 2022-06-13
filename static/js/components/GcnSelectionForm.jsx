@@ -206,7 +206,7 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
 
   if (
     !gcnEvent ||
-    !gcnEventSources ||
+    // !gcnEventSources ||
     !gcnEventObservations ||
     !gcnEventGalaxies ||
     !gcnEventInstruments
@@ -265,7 +265,10 @@ const GcnSelectionForm = ({ gcnEvent, setSelectedLocalizationName }) => {
     if (queryParams) {
       const filteredQueryParams = filterOutEmptyValues(queryParams);
       const queryString = new URLSearchParams(filteredQueryParams).toString();
-      url += `?${queryString}&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}`;
+      url += `?${queryString}`;
+    }
+    if (localization) {
+      url += `&localizationDateobs=${localization.dateobs}&localizationName=${localization.localization_name}`;
     }
     return url;
   }
