@@ -81,7 +81,7 @@ def test_default_observation_plan_tiling(user, super_admin_token, public_group):
             'filter_strategy': 'block',
             'schedule_strategy': 'tiling',
             'schedule_type': 'greedy_slew',
-            'exposure_time': '300',
+            'exposure_time': 300,
             'filters': 'ztfr',
             'maximum_airmass': 2.0,
             'integrated_probability': 100,
