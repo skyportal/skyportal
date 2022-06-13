@@ -16,7 +16,9 @@ const OriginSelect = ({ onOriginSelectChange, initValue, parent }) => {
   }, []);
 
   const originsList = ["Clear selections"].concat(
-    useSelector((state) => state.photometry.origins)
+    useSelector((state) => state.photometry.origins)?.filter(
+      (origin) => origin !== "None"
+    )
   );
 
   return (
