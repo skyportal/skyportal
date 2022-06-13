@@ -69,13 +69,13 @@ const ShiftPage = ({ route }) => {
             let usersHaveChanged = false;
             // check if the users have the same ids, or if they need a replacement when they didnt need one before, and vice versa
             for (let i = 0; i < updatedShift.shift_users.length; i += 1) {
+              const current_user = currentShift.shift_users[i];
+              const updated_user = updatedShift.shift_users[i];
               if (
-                updatedShift.shift_users[i].id !==
-                  currentShift.shift_users[i].id ||
-                updatedShift.shift_users[i].needs_replacement !==
-                  currentShift.shift_users[i].needs_replacement ||
-                updatedShift.shift_users[i].modified !==
-                  currentShift.shift_users[i].modified
+                updated_user.id !== current_user.id ||
+                updated_user.needs_replacement !==
+                  current_user.needs_replacement ||
+                updated_user.modified !== current_user.modified
               ) {
                 usersHaveChanged = true;
                 break;
@@ -125,13 +125,12 @@ const ShiftPage = ({ route }) => {
           </Paper>
         )}
         <Paper elevation={1}>
-          {currentShift &&
-            (shiftList && !show && currentShift ? (
-              <CurrentShiftMenu currentShift={currentShift} />
-            ) : null)}
+          {shiftList && !show && currentShift ? (
+            <CurrentShiftMenu currentShift={currentShift} />
+          ) : null}
         </Paper>
         <Paper elevation={1}>
-          <CommentOnShift />
+          {shiftList && !show && currentShift ? <CommentOnShift /> : null}
         </Paper>
       </Grid>
       <Grid item md={12} sm={12}>
