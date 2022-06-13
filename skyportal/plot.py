@@ -437,16 +437,51 @@ def annotate_spec(plot, spectra, lower, upper):
 
 def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
     """Helper function to add responsive legends to a photometry plot tab"""
-    plot.add_layout(
-        Legend(
-            orientation="horizontal",
-            items=legend_items,
-            click_policy="hide",
-            location="top_center",
-            margin=3,
-        ),
-        "below",
-    )
+    if legend_orientation == "horizontal":
+        width_remaining = width - 120
+        current_legend_items = []
+        for item in legend_items:
+            # 0.65 is an estimate of the average aspect ratio of the characters in the Helvetica
+            # font (the default Bokeh label font) and 13 is the default label font size.
+            # The 30 is the pixel width of the label shape. The 6 is the spacing between label entries
+            item_width = len(item.label["value"]) * 0.65 * 13 + 30 + 6
+            # We've hit the end of the line, wrap to a new one
+            if item_width > width_remaining:
+                plot.add_layout(
+                    Legend(
+                        orientation=legend_orientation,
+                        items=current_legend_items,
+                        click_policy="hide",
+                        location="top_center",
+                        margin=3,
+                    ),
+                    "below",
+                )
+                width_remaining = width - 120
+                current_legend_items = [item]
+            else:
+                current_legend_items.append(item)
+                width_remaining -= item_width
+        # Add remaining
+        plot.add_layout(
+            Legend(
+                orientation=legend_orientation,
+                items=current_legend_items,
+                click_policy="hide",
+                location="top_center",
+                margin=3,
+            ),
+            "below",
+        )
+    else:
+        plot.add_layout(
+            Legend(
+                click_policy="hide",
+                items=legend_items,
+                location="top_center",
+            ),
+            legend_loc,
+        )
 
 
 def get_photometry_button_callback(info, model_dict):
@@ -1566,7 +1601,7 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
     )
     legend_loc = "below" if "mobile" in device or "tablet" in device else "right"
     legend_orientation = (
-        "vertical" if device in ["mobile", "mobile_portrait"] else "horizontal"
+        "vertical" if device in ["browser", "mobile_portrait"] else "horizontal"
     )
 
     ranges = {
