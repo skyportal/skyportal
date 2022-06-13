@@ -9,10 +9,10 @@ MAX_TELESCOPES_TO_RETURN = 16
 class EphemerisHandler(BaseHandler):
     @auth_or_token
     def get(self, telescope_id=None):
-        """
+        f"""
         ---
         single:
-          description: Retrieve ephemeris data for a single telescope, or for all telescopes if no telescope_id is provided, up to MAX_TELESCOPES_TO_RETURN telescopes.
+          description: Retrieve ephemeris data for a single telescope, or for all telescopes if no telescope_id is provided, up to {MAX_TELESCOPES_TO_RETURN} telescopes.
           tags:
             - ephemeris
           parameters:
@@ -34,7 +34,7 @@ class EphemerisHandler(BaseHandler):
         multiple:
           tags:
             - ephemeris
-          description: Retrieve ephemeris data for multiple telescopes, up to MAX_TELESCOPES_TO_RETURN
+          description: Retrieve ephemeris data for multiple telescopes, up to {MAX_TELESCOPES_TO_RETURN}
           parameters:
           - in: query
             name: telescope_ids
