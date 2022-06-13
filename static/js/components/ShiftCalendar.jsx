@@ -88,6 +88,11 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const red = "#c0392b";
+const orange = "#e46828";
+const green = "#359d73";
+const grey = "#95a5a6";
+
 function isDailyShift(shiftName) {
   const regex = /\d+\/\d+$/;
   return regex.test(shiftName);
@@ -222,7 +227,7 @@ function MyCalendar({ events, currentShift, setShow }) {
       .map((user) => user.id)
       .includes(currentUser.id);
     const style = {
-      background: "#808080",
+      background: grey,
     };
     if (
       event?.shift_users?.length < event?.required_users_number &&
@@ -235,18 +240,18 @@ function MyCalendar({ events, currentShift, setShow }) {
           72 * 60 * 60 * 1000 &&
         event.start_date.getTime() - new Date().getTime() > 24 * 60 * 60 * 1000
       ) {
-        style.background = "#ffc107";
+        style.background = orange;
       } else if (
         event.start_date.getTime() - new Date().getTime() <=
         24 * 60 * 60 * 1000
       ) {
-        style.background = "#ff0000";
+        style.background = red;
       }
     }
-    if (currentUserInShift && style.background === "#808080") {
-      style.background = "#0dba86";
-    } else if (currentUserInShift && style.background !== "#808080") {
-      style.background = `repeating-linear-gradient(45deg, #0dba86, #0dba86 10px, ${style.background} 10px, ${style.background} 20px)`;
+    if (currentUserInShift && style.background === grey) {
+      style.background = green;
+    } else if (currentUserInShift && style.background !== grey) {
+      style.background = `repeating-linear-gradient(45deg, ${green}, ${green} 10px, ${style.background} 10px, ${style.background} 20px)`;
     }
     if (event.id === currentShift.id) {
       style.borderColor = "black";
@@ -268,15 +273,15 @@ function MyCalendar({ events, currentShift, setShow }) {
   const Title = () => (
     <div className={classes.tooltipContent}>
       <div className={classes.legend}>
-        <div style={{ background: "#0dba86" }} className={classes.circle} />
+        <div style={{ background: green }} className={classes.circle} />
         <p> Shift that you are a member of</p>
       </div>
       <div className={classes.legend}>
-        <div style={{ background: "#808080" }} className={classes.circle} />
+        <div style={{ background: grey }} className={classes.circle} />
         <p> Shift that you are a NOT a member of</p>
       </div>
       <div className={classes.legend}>
-        <div style={{ background: "#ff0000" }} className={classes.circle} />
+        <div style={{ background: red }} className={classes.circle} />
         <p>
           {" "}
           Shift will happen in less then 24 hours, and the required number of
@@ -284,7 +289,7 @@ function MyCalendar({ events, currentShift, setShow }) {
         </p>
       </div>
       <div className={classes.legend}>
-        <div style={{ background: "#ffc107" }} className={classes.circle} />
+        <div style={{ background: orange }} className={classes.circle} />
         <p>
           {" "}
           Shift will happen in less then 72 hours but more than 24 hours, and
@@ -294,13 +299,13 @@ function MyCalendar({ events, currentShift, setShow }) {
       <div className={classes.legend}>
         <div
           style={{
-            background: `repeating-linear-gradient(45deg, #0dba86, #0dba86 17.5px, #ff0000 17.5px, #ff0000 30px)`,
+            background: `repeating-linear-gradient(45deg, ${green}, ${green} 17.5px, ${red} 17.5px, ${red} 30px)`,
           }}
           className={classes.circle}
         />
         <div
           style={{
-            background: `repeating-linear-gradient(45deg, #0dba86, #0dba86 17.5px, #ffc107 17.5px, #ffc107 30px)`,
+            background: `repeating-linear-gradient(45deg, ${green}, ${green} 17.5px, ${orange} 17.5px, ${orange} 30px)`,
           }}
           className={classes.circle}
         />
