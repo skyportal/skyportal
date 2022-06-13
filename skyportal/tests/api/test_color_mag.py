@@ -224,7 +224,7 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
         f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
-            'origin': 'gaiadr3.gaia_source',
+            'origin': 'gaiadr2.gaia_source',
             'data': {'MagG': 15.2, 'MagBp': 16.2, 'MagRp': 14.0, 'Plx': 20},
         },
         token=annotation_token,
@@ -260,7 +260,7 @@ def test_add_multiple_color_mag_annotations(annotation_token, user, public_sourc
     assert abs(data['data'][0]['color'] - 2.1) < 0.1
 
     # make sure the second one still exists
-    assert data['data'][1]['origin'] == 'gaiadr3.gaia_source'
+    assert data['data'][1]['origin'] == 'gaiadr2.gaia_source'
     assert abs(data['data'][1]['abs_mag'] - 11.7) < 0.1
     assert abs(data['data'][1]['color'] - 2.2) < 0.1
 
