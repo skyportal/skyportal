@@ -50,6 +50,10 @@ from ...models import (
 
 from ...models.schema import ObservationPlanPost
 
+from skyportal.handlers.api.source import post_source
+from skyportal.handlers.api.followup_request import post_assignment
+from skyportal.handlers.api.observingrun import post_observing_run
+
 env, cfg = load_env()
 TREASUREMAP_URL = cfg['app.treasuremap_endpoint']
 
@@ -1099,6 +1103,111 @@ class ObservationPlanAirmassChartHandler(BaseHandler):
         await self.send_file(data, filename, output_type=output_format)
 
 
+class ObservationPlanCreateObservingRunHandler(BaseHandler):
+    @auth_or_token
+    def post(self, observation_plan_request_id):
+        """
+        ---
+        description: Submit the fields in the observation plan
+           to an observing run
+        tags:
+          - observation_plan_requests
+        parameters:
+          - in: path
+            name: observation_plan_id
+            required: true
+            schema:
+              type: string
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+
+        options = [
+            joinedload(ObservationPlanRequest.observation_plans)
+            .joinedload(EventObservationPlan.planned_observations)
+            .joinedload(PlannedObservation.field)
+        ]
+
+        observation_plan_request = ObservationPlanRequest.get_if_accessible_by(
+            observation_plan_request_id,
+            self.current_user,
+            mode="read",
+            raise_if_none=True,
+            options=options,
+        )
+        self.verify_and_commit()
+
+        allocation = Allocation.get_if_accessible_by(
+            observation_plan_request.allocation_id,
+            self.current_user,
+            raise_if_none=True,
+        )
+
+        instrument = allocation.instrument
+
+        observation_plan = observation_plan_request.observation_plans[0]
+        planned_observations = observation_plan.planned_observations
+
+        if len(planned_observations) == 0:
+            return self.error('Cannot create observing run with no observations.')
+
+        with DBSession() as session:
+
+            observing_run = {
+                'instrument_id': instrument.id,
+                'group_id': allocation.group_id,
+                'calendar_date': str(observation_plan.validity_window_end.date()),
+            }
+            run_id = post_observing_run(
+                observing_run, self.associated_user_object.id, session
+            )
+
+            min_priority = 1
+            max_priority = 5
+            priorities = []
+            for obs in planned_observations:
+                priorities.append(obs.weight)
+
+            for obs in planned_observations:
+                source = {
+                    'id': f'{obs.field.ra}-{obs.field.dec}',
+                    'ra': obs.field.ra,
+                    'dec': obs.field.dec,
+                }
+                obj_id = post_source(source, self.associated_user_object.id, session)
+                if np.max(priorities) - np.min(priorities) == 0.0:
+                    # assign equal weights if all the same
+                    normalized_priority = 0.5
+                else:
+                    normalized_priority = (obs.weight - np.min(priorities)) / (
+                        np.max(priorities) - np.min(priorities)
+                    )
+
+                priority = np.ceil(
+                    (max_priority - min_priority) * normalized_priority + min_priority
+                )
+                assignment = {
+                    'run_id': run_id,
+                    'obj_id': obj_id,
+                    'priority': str(int(priority)),
+                }
+                try:
+                    post_assignment(assignment, self.associated_user_object.id, session)
+                except ValueError:
+                    # No need to assign multiple times to same run
+                    pass
+
+            self.push_notification('Observing run post succeeded')
+            return self.success()
+
+
 def observation_simsurvey(
     observations,
     localization,
@@ -1114,7 +1223,6 @@ def observation_simsurvey(
 ):
 
     """Create a plot to display the simsurvey analyis for a given skymap
-
         Parameters
         ----------
         observations : skyportal.models.observation_plan.PlannedObservation

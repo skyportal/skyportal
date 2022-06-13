@@ -56,6 +56,7 @@ from .observation_plan import (
     ObservationPlanSimSurveyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
+    ObservationPlanCreateObservingRunHandler,
     ObservationPlanFieldsHandler,
 )
 from .photometry import (
