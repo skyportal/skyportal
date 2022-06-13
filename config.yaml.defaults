@@ -587,3 +587,6 @@ health_monitor:
   request_timeout_seconds: 30
   # How long do we give apps after restart to become healthy
   startup_grace_seconds: 30
+
+sn_analysis_service:
+  port: 6801

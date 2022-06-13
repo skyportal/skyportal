@@ -1,6 +1,5 @@
 import functools
 import time
-import sys
 
 import matplotlib
 
@@ -8,16 +7,21 @@ from quart import Quart
 from quart import request
 from astropy.table import Table
 import sncosmo
+from baselayer.log import make_log
+from baselayer.app.env import load_env
+
+_, cfg = load_env()
+log = make_log('sn_analysis_service')
 
 matplotlib.use('Agg')
 
 app = Quart(__name__)
-app.debug = True
+app.debug = False
 
 
 async def run_sn_model(dd, set_z=False, source_name="nugent-sn2p"):
 
-    print('entered run_sn_model()', file=sys.stderr)
+    log('entered run_sn_model()')
     data_dict = await dd
 
     data = Table.read(data_dict["inputs"]["photometry"], format='ascii.csv')
@@ -35,7 +39,7 @@ async def run_sn_model(dd, set_z=False, source_name="nugent-sn2p"):
     time.sleep(5)
     model = sncosmo.Model(source=source_name)
 
-    print(f'{z=}', file=sys.stderr)
+    log(f'{z=}')
     if set_z and z is not None:
         model.set(z=z)
 
@@ -45,17 +49,13 @@ async def run_sn_model(dd, set_z=False, source_name="nugent-sn2p"):
         model,
         ['t0', 'amplitude'],
     )
-    print("Number of chi^2 function calls:", result.ncall, file=sys.stderr)
-    print("Number of degrees of freedom in fit:", result.ndof, file=sys.stderr)
-    print("chi^2 value at minimum:", result.chisq, file=sys.stderr)
-    print("model parameters:", result.param_names, file=sys.stderr)
-    print("best-fit values:", result.parameters, file=sys.stderr)
-    print(
-        "The result contains the following attributes:\n",
-        result.keys(),
-        file=sys.stderr,
-    )
-    print(f'{result["success"]=}', file=sys.stderr)
+    log(f"Number of χ² function calls: {result.ncall}")
+    log(f"Number of degrees of freedom in fit: {result.ndof}")
+    log(f"χ² value at minimum: {result.chisq}")
+    log(f"model parameters: {result.param_names}")
+    log(f"best-fit values: {result.parameters}")
+    log(f"The result contains the following attributes:\n {result.keys()}")
+    log(f'{result["success"]=}')
 
     _ = sncosmo.plot_lc(
         data,
@@ -66,12 +66,13 @@ async def run_sn_model(dd, set_z=False, source_name="nugent-sn2p"):
         figtext=data_dict["resource_id"],
         fname='/tmp/lc.png',
     )
+    log('made lightcurve plot')
 
 
 @app.route('/analysis/demo_analysis', methods=['POST'])
 async def demo_analysis():
-    print('entered demo_analysis()', file=sys.stderr)
-    print(f'{request.method} {request.url}', file=sys.stderr)
+    log('entered demo_analysis()')
+    log(f'{request.method} {request.url}')
     data_dict = request.get_json(silent=True)
 
     runner = functools.partial(run_sn_model, data_dict, set_z=True)
@@ -82,4 +83,4 @@ async def demo_analysis():
 
 
 if __name__ == "__main__":
-    app.run(port=6801)
+    app.run(port=cfg['sn_analysis_service.port'])
