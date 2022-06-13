@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import PropTypes from "prop-types";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { makeStyles } from "@material-ui/core/styles";
+import makeStyles from "@mui/styles/makeStyles";
 
 import { ra_to_hours, dec_to_dms } from "../units";
 

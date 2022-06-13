@@ -552,4 +552,24 @@ gcn_notice_types:
   - ICECUBE_ASTROTRACK_BRONZE
 
 gcn_observation_plans:
-  - {'allocation-proposal_id': 'ZTF-001', 'payload': {'filter_strategy': 'block', 'schedule_type': 'greedy_slew', 'schedule_strategy': 'tiling', 'galaxy_catalog': 'CLU_mini', 'exposure_time': '300', 'filters': 'g,r,g', 'maximum_airmass': 2, 'integrated_probability': 90, 'minimum_time_difference': 30, 'program_id': 'Partnership', 'subprogram_name': 'GRB'}}
+  - allocation-proposal_id: ZTF-001
+    payload:
+      filter_strategy: block
+      schedule_type: greedy_slew
+      schedule_strategy: tiling
+      galaxy_catalog: CLU_mini
+      exposure_time: 300
+      filters: g,r,g
+      maximum_airmass: 2
+      integrated_probability: 90
+      minimum_time_difference: 30
+      program_id: Partnership
+      subprogram_name: GRB
+
+health_monitor:
+  seconds_between_checks: 30.5
+  allowed_downtime_seconds: 120
+  allowed_times_down: 3
+  request_timeout_seconds: 30
+  # How long do we give apps after restart to become healthy
+  startup_grace_seconds: 30

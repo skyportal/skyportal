@@ -57,6 +57,7 @@ from .observation_plan import (
     ObservationPlanSimSurveyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
+    ObservationPlanCreateObservingRunHandler,
     ObservationPlanFieldsHandler,
 )
 from .photometry import (
@@ -64,6 +65,7 @@ from .photometry import (
     ObjPhotometryHandler,
     BulkDeletePhotometryHandler,
     PhotometryRangeHandler,
+    PhotometryOriginHandler,
 )
 from .color_mag import ObjColorMagHandler
 from .photometry_request import PhotometryRequestHandler

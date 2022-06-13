@@ -68,7 +68,7 @@ def test_add_new_group_explicit_self_admin(driver, super_admin_user, user):
     driver.wait_for_xpath(f'//a[contains(.,"{test_proj_name}")]')
 
 
-@pytest.mark.flaky(reruns=2)
+# @pytest.mark.flaky(reruns=2)
 def test_add_new_group_user_admin(
     driver, super_admin_user, super_admin_token, user_no_groups, public_group
 ):

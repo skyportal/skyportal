@@ -1,12 +1,12 @@
 import React, { Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
-import Grid from "@material-ui/core/Grid";
-import Typography from "@material-ui/core/Typography";
-import Paper from "@material-ui/core/Paper";
-import { makeStyles } from "@material-ui/core/styles";
+import Grid from "@mui/material/Grid";
+import Typography from "@mui/material/Typography";
+import Paper from "@mui/material/Paper";
+import makeStyles from "@mui/styles/makeStyles";
 import { Link } from "react-router-dom";
-import CircularProgress from "@material-ui/core/CircularProgress";
+import CircularProgress from "@mui/material/CircularProgress";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";

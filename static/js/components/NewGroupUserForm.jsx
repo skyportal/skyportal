@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useDispatch, useSelector } from "react-redux";
-import TextField from "@material-ui/core/TextField";
-import Autocomplete, {
-  createFilterOptions,
-} from "@material-ui/lab/Autocomplete";
-import Button from "@material-ui/core/Button";
-import Typography from "@material-ui/core/Typography";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import { makeStyles } from "@material-ui/core/styles";
+import TextField from "@mui/material/TextField";
+import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import CircularProgress from "@mui/material/CircularProgress";
+import makeStyles from "@mui/styles/makeStyles";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -76,12 +74,7 @@ const NewGroupUserForm = ({ group_id }) => {
       </Typography>
       <Autocomplete
         data-testid="newGroupUser"
-        value={
-          allUsers?.filter((user) => user.id === formState.userID)[0] || null
-        }
-        onChange={(event, newValue) => {
-          setFormState({ userID: newValue?.id });
-        }}
+        onChange={(event, newValue) => setFormState({ userID: newValue?.id })}
         filterOptions={(options, params) => {
           const filtered = filter(options, params);
           return filtered;
@@ -91,8 +84,7 @@ const NewGroupUserForm = ({ group_id }) => {
         handleHomeEndKeys
         options={allUsers}
         getOptionLabel={(option) => option.username}
-        renderOption={(option) => option.username}
-        style={{ width: 300, paddingBottom: 10 }}
+        sx={{ width: 300, paddingBottom: 10 }}
         defaultValue={null}
         renderInput={(params) => (
           <TextField

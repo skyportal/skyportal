@@ -3,17 +3,17 @@ import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 
-import Accordion from "@material-ui/core/Accordion";
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import Button from "@material-ui/core/Button";
-import Chip from "@material-ui/core/Chip";
-import { makeStyles } from "@material-ui/core/styles";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
-import IconButton from "@material-ui/core/IconButton";
-import GetAppIcon from "@material-ui/icons/GetApp";
-import Grid from "@material-ui/core/Grid";
-import Typography from "@material-ui/core/Typography";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import makeStyles from "@mui/styles/makeStyles";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import IconButton from "@mui/material/IconButton";
+import GetAppIcon from "@mui/icons-material/GetApp";
+import Grid from "@mui/material/Grid";
+import Typography from "@mui/material/Typography";
 
 // eslint-disable-next-line
 import GeoPropTypes from "geojson-prop-types";
@@ -86,7 +86,11 @@ const DownloadXMLButton = ({ gcn_notice }) => {
   return (
     <div>
       <Chip size="small" label={gcn_notice.ivorn} key={gcn_notice.ivorn} />
-      <IconButton href={URL.createObjectURL(blob)} download={gcn_notice.ivorn}>
+      <IconButton
+        href={URL.createObjectURL(blob)}
+        download={gcn_notice.ivorn}
+        size="large"
+      >
         <GetAppIcon />
       </IconButton>
     </div>
@@ -139,7 +143,7 @@ const GcnEventSourcesPage = ({ route, sources, localizationName }) => {
   };
 
   // eslint-disable-next-line
-  if (sources?.sources.length === 0) {
+  if (!sources || sources?.sources?.length === 0) {
     return (
       <div className={classes.noSources}>
         <Typography variant="h5">Event sources</Typography>
@@ -216,8 +220,12 @@ GcnEventSourcesPage.propTypes = {
         ),
       })
     ),
-  }).isRequired,
+  }),
   localizationName: PropTypes.string.isRequired,
+};
+
+GcnEventSourcesPage.defaultProps = {
+  sources: null,
 };
 
 const GcnEventPage = ({ route }) => {
@@ -246,9 +254,9 @@ const GcnEventPage = ({ route }) => {
     dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
   }, [route, dispatch]);
 
-  useEffect(() => {
-    dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
-  }, [route, dispatch]);
+  // useEffect(() => {
+  //  dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
+  // }, [route, dispatch]);
 
   useEffect(() => {
     dispatch(observationsActions.fetchGcnEventObservations(route.dateobs));
@@ -264,7 +272,7 @@ const GcnEventPage = ({ route }) => {
 
   if (
     !gcnEvent ||
-    !gcnEventSources ||
+    // !gcnEventSources ||
     !gcnEventObservations ||
     !gcnEventGalaxies ||
     !gcnEventInstruments

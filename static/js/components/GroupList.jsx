@@ -1,13 +1,13 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
-import Paper from "@material-ui/core/Paper";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
-import Typography from "@material-ui/core/Typography";
-import DragHandleIcon from "@material-ui/icons/DragHandle";
-import { makeStyles } from "@material-ui/core/styles";
+import Paper from "@mui/material/Paper";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import Typography from "@mui/material/Typography";
+import DragHandleIcon from "@mui/icons-material/DragHandle";
+import makeStyles from "@mui/styles/makeStyles";
 
 const useStyles = makeStyles(() => ({
   listContainer: {
@@ -58,7 +58,7 @@ const GroupList = ({ title, groups, classes }) => {
 
 GroupList.propTypes = {
   title: PropTypes.string.isRequired,
-  groups: PropTypes.arrayOf(PropTypes.object),
+  groups: PropTypes.arrayOf(PropTypes.object), // eslint-disable-line react/forbid-prop-types
   classes: PropTypes.shape({
     widgetPaperDiv: PropTypes.string.isRequired,
     widgetIcon: PropTypes.string.isRequired,
