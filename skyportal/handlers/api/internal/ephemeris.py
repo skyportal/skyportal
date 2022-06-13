@@ -8,6 +8,7 @@ MAX_TELESCOPES_TO_RETURN = 16
 
 class EphemerisHandler(BaseHandler):
     @auth_or_token
+    # TODO: add pagination to this endpoint
     def get(self, telescope_id=None):
         f"""
         ---
