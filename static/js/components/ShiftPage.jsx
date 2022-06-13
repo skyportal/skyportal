@@ -69,13 +69,13 @@ const ShiftPage = ({ route }) => {
             let usersHaveChanged = false;
             // check if the users have the same ids, or if they need a replacement when they didnt need one before, and vice versa
             for (let i = 0; i < updatedShift.shift_users.length; i += 1) {
-              const current_user = currentShift.shift_users[i];
-              const updated_user = updatedShift.shift_users[i];
+              const old_shift_user = currentShift.shift_users[i];
+              const new_shift_user = updatedShift.shift_users[i];
               if (
-                updated_user.id !== current_user.id ||
-                updated_user.needs_replacement !==
-                  current_user.needs_replacement ||
-                updated_user.modified !== current_user.modified
+                new_shift_user.id !== old_shift_user.id ||
+                new_shift_user.needs_replacement !==
+                  old_shift_user.needs_replacement ||
+                new_shift_user.modified !== old_shift_user.modified
               ) {
                 usersHaveChanged = true;
                 break;
