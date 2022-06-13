@@ -93,7 +93,6 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                 set_default_role(user, session)
                 set_default_acls(user, session)
                 set_default_group(user, session)
-                print('this should not run if there is an error')
                 session.commit()
                 return {"is_new": True, "user": user}
         except Exception as e:
