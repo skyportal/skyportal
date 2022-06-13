@@ -80,7 +80,7 @@ class GaiaQuery:
         """
         try:
             g = Gaia
-            q = f"SELECT TOP 1  * from {self.main_db}.gaia_source"
+            q = f"SELECT TOP 1 ra, dec from {self.main_db}.gaia_source"
             job = g.launch_job(q)
             _ = job.get_results()
             self.is_backup = False
@@ -98,7 +98,7 @@ class GaiaQuery:
             try:
                 self.main_db = GaiaQuery.alt_main_db
                 g = vo.dal.TAPService(GaiaQuery.alt_tap)
-                q = f"SELECT TOP 1 * from {self.alt_main_db}.gaia_source"
+                q = f"SELECT TOP 1 ra, dec from {self.alt_main_db}.gaia_source"
                 _ = g.search(q)
                 self.connection = g
                 return True
