@@ -197,7 +197,7 @@ function CurrentShiftMenu({ currentShift }) {
               )
             );
           }
-          Object.keys(users).forEach((user) => {
+          Object.keys(users_to_add).forEach((user) => {
             dispatch(
               addShiftUser({
                 userID: selected_users[user].id,
