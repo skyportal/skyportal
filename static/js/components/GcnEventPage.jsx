@@ -139,7 +139,7 @@ const GcnEventSourcesPage = ({ route, sources, localizationName }) => {
   };
 
   // eslint-disable-next-line
-  if (sources?.sources.length === 0) {
+  if (!sources || sources?.sources?.length === 0) {
     return (
       <div className={classes.noSources}>
         <Typography variant="h5">Event sources</Typography>
@@ -216,8 +216,12 @@ GcnEventSourcesPage.propTypes = {
         ),
       })
     ),
-  }).isRequired,
+  }),
   localizationName: PropTypes.string.isRequired,
+};
+
+GcnEventSourcesPage.defaultProps = {
+  sources: null,
 };
 
 const GcnEventPage = ({ route }) => {
@@ -246,9 +250,9 @@ const GcnEventPage = ({ route }) => {
     dispatch(gcnEventActions.fetchGcnEvent(route.dateobs));
   }, [route, dispatch]);
 
-  useEffect(() => {
-    dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
-  }, [route, dispatch]);
+  // useEffect(() => {
+  //  dispatch(sourcesActions.fetchGcnEventSources(route.dateobs));
+  // }, [route, dispatch]);
 
   useEffect(() => {
     dispatch(observationsActions.fetchGcnEventObservations(route.dateobs));
@@ -264,7 +268,7 @@ const GcnEventPage = ({ route }) => {
 
   if (
     !gcnEvent ||
-    !gcnEventSources ||
+    // !gcnEventSources ||
     !gcnEventObservations ||
     !gcnEventGalaxies ||
     !gcnEventInstruments

@@ -132,12 +132,12 @@ const FollowupRequestForm = ({
 
   const handleSelectedAllocationChange = (e) => {
     setSelectedAllocationId(e.target.value);
-    if (allocationList[e.target.value]?.default_share_group_ids?.length > 0) {
-      setSelectedGroupIds([
-        allocationList[e.target.value]?.default_share_group_ids,
-      ]);
+    if (allocationLookUp[e.target.value]?.default_share_group_ids?.length > 0) {
+      setSelectedGroupIds(
+        allocationLookUp[e.target.value]?.default_share_group_ids
+      );
     } else {
-      setSelectedGroupIds([allocationList[e.target.value]?.group_id]);
+      setSelectedGroupIds([allocationLookUp[e.target.value]?.group_id]);
     }
   };
 
