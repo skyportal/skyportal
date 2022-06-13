@@ -41,15 +41,6 @@ const useStyles = makeStyles(() => ({
   fieldsToUseSelect: {
     width: "80%",
   },
-  allocationSelectItem: {
-    whiteSpace: "break-spaces",
-  },
-  localizationSelectItem: {
-    whiteSpace: "break-spaces",
-  },
-  fieldsToUseSelectItem: {
-    whiteSpace: "break-spaces",
-  },
   SelectItem: {
     whiteSpace: "break-spaces",
   },
@@ -93,11 +84,7 @@ const FieldSelect = ({
         onChange={handleSelectedFieldChange}
       >
         {fields?.map((field) => (
-          <MenuItem
-            value={field}
-            key={field}
-            className={classes.fieldsToUseSelectItem}
-          >
+          <MenuItem value={field} key={field} className={classes.SelectItem}>
             {field}
           </MenuItem>
         ))}
@@ -443,7 +430,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           <MenuItem
             value={allocation.id}
             key={allocation.id}
-            className={classes.allocationSelectItem}
+            className={classes.SelectItem}
           >
             {`${
               telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
@@ -466,7 +453,7 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           <MenuItem
             value={localization.id}
             key={localization.id}
-            className={classes.localizationSelectItem}
+            className={classes.SelectItem}
           >
             {`${localization.localization_name}`}
           </MenuItem>
