@@ -244,7 +244,7 @@ def atlas_request_matcher(r1, r2):
 
 def ps1_request_matcher(r1, r2):
     """
-    Helper function to help determine if two requests to the PS1 DR2 API are equivalent
+    Helper function to help determine if two requests to the PS1 DR3 API are equivalent
     """
 
     # A request matches an PS1 request if the URI and method matches

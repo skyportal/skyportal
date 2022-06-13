@@ -726,7 +726,7 @@ def test_source_hr_diagram(driver, user, public_source, annotation_token):
         f'sources/{public_source.id}/annotations',
         data={
             'obj_id': public_source.id,
-            'origin': 'gaiaedr3.gaia_source',
+            'origin': 'gaiadr3.gaia_source',
             'data': {
                 'Mag_G': 11.3,
                 'Mag_Bp': 12.8,
