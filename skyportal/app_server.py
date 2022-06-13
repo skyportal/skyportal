@@ -48,6 +48,7 @@ from skyportal.handlers.api import (
     ObservationPlanSimSurveyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
+    ObservationPlanCreateObservingRunHandler,
     ObservationPlanFieldsHandler,
     PhotometryHandler,
     BulkDeletePhotometryHandler,
@@ -222,6 +223,10 @@ skyportal_handlers = [
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/geojson',
         ObservationPlanGeoJSONHandler,
+    ),
+    (
+        r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/observing_run',
+        ObservationPlanCreateObservingRunHandler,
     ),
     (
         r'/api/observation_plan(/[0-9A-Za-z-_\.\+]+)/fields',
