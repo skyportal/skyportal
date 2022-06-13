@@ -1231,6 +1231,28 @@ class PhotometryRangeHandler(BaseHandler):
         return self.success(data=output)
 
 
+class PhotometryOriginHandler(BaseHandler):
+    @auth_or_token
+    def get(self):
+        """
+        ---
+        description: Get all photometry origins
+        tags:
+          - photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        origins = DBSession().query(Photometry.origin).distinct().all()
+        return self.success(data=[origin[0] for origin in origins])
+
+
 PhotometryHandler.get.__doc__ = f"""
         ---
         description: Retrieve photometry
