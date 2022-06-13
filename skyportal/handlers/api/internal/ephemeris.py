@@ -9,6 +9,51 @@ MAX_TELESCOPES_TO_RETURN = 16
 class EphemerisHandler(BaseHandler):
     @auth_or_token
     def get(self, telescope_id=None):
+        """
+        ---
+        single:
+          description: Retrieve ephemeris data for a single telescope, or for all telescopes if no telescope_id is provided, up to MAX_TELESCOPES_TO_RETURN telescopes.
+          tags:
+            - ephemeris
+          parameters:
+            - in: path
+              name: telescope_id
+              required: false
+              schema:
+                type: string
+          responses:
+            200:
+              content:
+                application/json:
+                    schema:
+                        type: object
+            400:
+              content:
+                application/json:
+                  schema: Error
+        multiple:
+          tags:
+            - ephemeris
+          description: Retrieve ephemeris data for multiple telescopes, up to MAX_TELESCOPES_TO_RETURN
+          parameters:
+          - in: query
+            name: telescope_ids
+            nullable: true
+            schema:
+              type: array
+            description: |
+                List of telescope IDs to retrieve ephemeris data for.
+          responses:
+            200:
+              content:
+                application/json:
+                  schema:
+                    type: object
+            400:
+              content:
+                application/json:
+                  schema: Error
+        """
 
         time = self.get_query_argument('time', None)
 
