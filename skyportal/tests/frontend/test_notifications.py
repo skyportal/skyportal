@@ -35,7 +35,7 @@ def test_mention_generates_notification_then_mark_read_and_delete(
     driver.click_xpath('//*[@data-testid="notificationsButton"]')
     driver.wait_for_xpath('//*[text()=" mentioned you in a comment on "]')
     driver.click_xpath('//*[contains(@data-testid, "markReadButton")]')
-    driver.wait_for_xpath_to_disappear("//span[text()='1']")
+    driver.wait_for_xpath("//button[text()='Mark unread']")
     driver.click_xpath('//*[contains(@data-testid, "deleteNotificationButton")]')
     driver.wait_for_xpath_to_disappear('//*[text()=" mentioned you in a comment on "]')
     driver.wait_for_xpath("//*[text()='No notifications']")

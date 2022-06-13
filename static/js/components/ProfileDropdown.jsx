@@ -2,22 +2,22 @@ import React from "react";
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 
-import MenuItem from "@material-ui/core/MenuItem";
-import MenuList from "@material-ui/core/MenuList";
+import MenuItem from "@mui/material/MenuItem";
+import MenuList from "@mui/material/MenuList";
 
-import { makeStyles } from "@material-ui/core/styles";
-import Box from "@material-ui/core/Box";
-import Popover from "@material-ui/core/Popover";
-import Typography from "@material-ui/core/Typography";
-import Button from "@material-ui/core/Button";
+import makeStyles from "@mui/styles/makeStyles";
+import Box from "@mui/material/Box";
+import Popover from "@mui/material/Popover";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
 
-import IconButton from "@material-ui/core/IconButton";
-import Divider from "@material-ui/core/Divider";
+import IconButton from "@mui/material/IconButton";
+import Divider from "@mui/material/Divider";
 import UserAvatar from "./UserAvatar";
 
 const useStyles = makeStyles((theme) => ({
   avatar: {
-    padding: `${theme.spacing(2)}px 0 ${theme.spacing(1)}px 0`,
+    padding: `${theme.spacing(2)} 0 ${theme.spacing(1)} 0`,
   },
   nodecor: {
     textDecoration: "none",
@@ -28,7 +28,7 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "center",
   },
   signOutMargin: {
-    margin: `0 0 ${theme.spacing(2)}px 0`,
+    margin: `0 0 ${theme.spacing(2)} 0`,
   },
   typography: {
     padding: theme.spacing(1),
@@ -37,7 +37,7 @@ const useStyles = makeStyles((theme) => ({
     display: "none",
   },
   paddingSides: {
-    margin: `0 ${theme.spacing(2)}px 0 ${theme.spacing(2)}px`,
+    margin: `0 ${theme.spacing(2)} 0 ${theme.spacing(2)}`,
   },
   popoverMenu: {
     minWidth: "10rem",
@@ -70,6 +70,7 @@ const ProfileDropdown = () => {
         component="span"
         onClick={handleClick}
         data-testid="avatar"
+        size="large"
       >
         <UserAvatar
           size={50}

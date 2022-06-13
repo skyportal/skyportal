@@ -3,32 +3,35 @@ import { useDispatch, useSelector } from "react-redux";
 import { useForm, Controller } from "react-hook-form";
 
 import MUIDataTable from "mui-datatables";
-import Paper from "@material-ui/core/Paper";
-import Chip from "@material-ui/core/Chip";
-import Typography from "@material-ui/core/Typography";
-import TextareaAutosize from "@material-ui/core/TextareaAutosize";
-import Box from "@material-ui/core/Box";
-import Autocomplete from "@material-ui/lab/Autocomplete";
-import Button from "@material-ui/core/Button";
-import Select from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
-import TextField from "@material-ui/core/TextField";
-import AddCircleIcon from "@material-ui/icons/AddCircle";
-import EditIcon from "@material-ui/icons/Edit";
-import IconButton from "@material-ui/core/IconButton";
-import Dialog from "@material-ui/core/Dialog";
-import DialogContent from "@material-ui/core/DialogContent";
-import DialogTitle from "@material-ui/core/DialogTitle";
+import Paper from "@mui/material/Paper";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
+import TextareaAutosize from "@mui/material/TextareaAutosize";
+import Box from "@mui/material/Box";
+import Autocomplete from "@mui/material/Autocomplete";
+import Button from "@mui/material/Button";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
+import AddCircleIcon from "@mui/icons-material/AddCircle";
+import EditIcon from "@mui/icons-material/Edit";
+import IconButton from "@mui/material/IconButton";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import { DatePicker } from "@material-ui/pickers";
-import Tooltip from "@material-ui/core/Tooltip";
-import HelpIcon from "@material-ui/icons/Help";
+import Tooltip from "@mui/material/Tooltip";
+import HelpIcon from "@mui/icons-material/Help";
 import {
-  makeStyles,
   createTheme,
-  MuiThemeProvider,
+  ThemeProvider,
+  StyledEngineProvider,
   useTheme,
-} from "@material-ui/core/styles";
-import Form from "@rjsf/material-ui";
+  adaptV4Theme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
 import PapaParse from "papaparse";
 
 import dayjs from "dayjs";
@@ -64,16 +67,18 @@ const useStyles = makeStyles(() => ({
 }));
 
 const dataTableStyles = (theme) =>
-  createTheme({
-    overrides: {
-      MuiPaper: {
-        elevation4: {
-          boxShadow: "none !important",
+  createTheme(
+    adaptV4Theme({
+      overrides: {
+        MuiPaper: {
+          elevation4: {
+            boxShadow: "none !important",
+          },
         },
       },
-    },
-    palette: theme.palette,
-  });
+      palette: theme.palette,
+    })
+  );
 
 const sampleCSVText = `example1@gmail.com,1,3,false
 example2@gmail.com,1 2 3,2 5 9,false false true`;
@@ -625,13 +630,15 @@ const UserInvitations = () => {
         className={classes.section}
         data-testid="pendingInvitations"
       >
-        <MuiThemeProvider theme={dataTableStyles(theme)}>
-          <MUIDataTable
-            columns={columns}
-            data={invitations}
-            options={options}
-          />
-        </MuiThemeProvider>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={dataTableStyles(theme)}>
+            <MUIDataTable
+              columns={columns}
+              data={invitations}
+              options={options}
+            />
+          </ThemeProvider>
+        </StyledEngineProvider>
       </Paper>
       <Typography variant="h5">Bulk Invite New Users</Typography>
       <Paper variant="outlined" className={classes.section}>

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { makeStyles } from "@material-ui/core/styles";
-import Typography from "@material-ui/core/Typography";
-import Popover from "@material-ui/core/Popover";
-import IconButton from "@material-ui/core/IconButton";
-import HelpOutlineIcon from "@material-ui/icons/HelpOutline";
+import makeStyles from "@mui/styles/makeStyles";
+import Typography from "@mui/material/Typography";
+import Popover from "@mui/material/Popover";
+import IconButton from "@mui/material/IconButton";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
 const useStyles = makeStyles((theme) => ({
   header: {
@@ -19,7 +19,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const UserPreferencesHeader = ({ title, popupText }) => {
+const UserPreferencesHeader = ({ title, popupText, variant = "h6" }) => {
   const classes = useStyles();
   const [anchorEl, setAnchorEl] = useState(null);
   const handleClick = (event) => {
@@ -33,7 +33,7 @@ const UserPreferencesHeader = ({ title, popupText }) => {
   return (
     <div>
       <div className={classes.header}>
-        <Typography variant="h6" display="inline">
+        <Typography variant={variant} display="inline">
           {title}
         </Typography>
         {popupText && (
@@ -65,9 +65,11 @@ const UserPreferencesHeader = ({ title, popupText }) => {
 UserPreferencesHeader.propTypes = {
   title: PropTypes.string.isRequired,
   popupText: PropTypes.string,
+  variant: PropTypes.string,
 };
 UserPreferencesHeader.defaultProps = {
   popupText: null,
+  variant: "h6",
 };
 
 export default UserPreferencesHeader;

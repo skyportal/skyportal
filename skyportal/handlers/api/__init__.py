@@ -5,6 +5,7 @@ from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
+    GaiaQueryHandler,
     IRSAQueryWISEHandler,
     VizierQueryHandler,
     DatalabQueryHandler,
@@ -52,14 +53,18 @@ from .observation_plan import (
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
+    ObservationPlanSimSurveyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
+    ObservationPlanCreateObservingRunHandler,
+    ObservationPlanFieldsHandler,
 )
 from .photometry import (
     PhotometryHandler,
     ObjPhotometryHandler,
     BulkDeletePhotometryHandler,
     PhotometryRangeHandler,
+    PhotometryOriginHandler,
 )
 from .phot_stat import PhotStatHandler
 from .color_mag import ObjColorMagHandler
@@ -68,10 +73,7 @@ from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
 from .sharing import SharingHandler
-from .shift import (
-    ShiftHandler,
-    ShiftUserHandler,
-)
+from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary
 from .source import (
     SourceHandler,
     SourceOffsetsHandler,

@@ -45,6 +45,14 @@ class InstrumentHandler(BaseHandler):
             telescope_id, self.current_user, raise_if_none=True, mode="read"
         )
 
+        sensitivity_data = data.get("sensitivity_data", None)
+        if sensitivity_data:
+            filters = data.get("filters", [])
+            if not set(sensitivity_data.keys()).issubset(filters):
+                return self.error(
+                    'Sensitivity_data filters must be a subset of the instrument filters'
+                )
+
         field_data = data.pop("field_data", None)
         field_region = data.pop("field_region", None)
 
@@ -559,6 +567,14 @@ class InstrumentHandler(BaseHandler):
         if instrument is None:
             return self.error(f'Missing instrument with ID {instrument_id}')
 
+        filters = instrument.filters
+        sensitivity_data = data.get('sensitivity_data', None)
+        if sensitivity_data:
+            if not set(sensitivity_data.keys()).issubset(filters):
+                return self.error(
+                    'Filter names must be present in both sensitivity_data property and filters property'
+                )
+
         field_data = data.pop("field_data", None)
         field_region = data.pop("field_region", None)
 
@@ -692,6 +708,25 @@ InstrumentHandler.post.__doc__ = f"""
                         has no filters (e.g., because it is a spectrograph),
                         leave blank or pass the empty list.
                       default: []
+                    sensitivity_data:
+                      type: object
+                      properties:
+                        filter_name:
+                          type: object
+                          enum: {list(ALLOWED_BANDPASSES)}
+                          properties:
+                            limiting_magnitude:
+                              type: float
+                            magsys:
+                              type: string
+                            exposure_time:
+                              type: float
+                              description: |
+                                Exposure time in seconds.
+                      description: |
+                        List of filters and associated limiting magnitude and exposure time.
+                        Sensitivity_data filters must be a subset of the instrument filters.
+                        Limiting magnitude assumed to be AB magnitude.
                     field_data:
                       type: dict
                       items:
@@ -880,10 +915,10 @@ def add_tiles(instrument_id, instrument_name, regions, field_data, session=Sessi
                         },
                     ],
                 }
+                if field_id == -1:
+                    del contour_summary['properties']['field_id']
             else:
                 contour_summary = contour
-            if field_id == -1:
-                del contour_summary['properties']['field_id']
 
             if field_id == -1:
                 field = InstrumentField(

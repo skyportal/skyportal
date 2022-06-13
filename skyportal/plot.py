@@ -386,6 +386,10 @@ def annotate_spec(plot, spectra, lower, upper):
         Results of query for spectra of object.
     lower, upper : float
         Plot limits allowing calculation of annotation symbol y value.
+
+    Returns
+    -------
+    None
     """
     # get y position of annotation
     text_y = upper - (upper - lower) * 0.05
@@ -480,14 +484,51 @@ def add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc):
         )
 
 
-def make_clear_photometry_button(model_dict):
-    """Make a button to clear photometry.
+def get_photometry_button_callback(info, model_dict):
+    """Get the callback function for a photometry button for showing photometry
+    points
+
+    Parameters
+    ----------
+    info : dict
+        Dictionary including the filters and origins that should be turned visible
+        on click of this photometry button.
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+
+    Returns
+    -------
+    CustomJS defining the callback
+    """
+    return CustomJS(
+        args={'info': info, 'model_dict': model_dict},
+        code="""
+        for (const [key, value] of Object.entries(model_dict)) {
+          const [filter, origin, extra] = key.split("~");
+          if (info['filters'].includes(filter) || info['origins'].includes(origin)) {
+            value.visible = true;
+          }
+        }
+        """,
+    )
+
+
+def make_hide_photometry_button(model_dict):
+    """Make a button to hide photometry on the photometry plot.
+
+    Parameters
+    ----------
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+
     Returns
     -------
     bokeh Button object
     """
-    button = Button(name="Clear Photometry", label="Clear Photometry", width=112)
-    callback_clear_photometry = CustomJS(
+    button = Button(
+        name="Hide All Photometry", label="Hide All Photometry", width_policy="min"
+    )
+    callback_hide_photometry = CustomJS(
         args={'model_dict': model_dict},
         code="""
         for (const [key, value] of Object.entries(model_dict)) {
@@ -495,18 +536,26 @@ def make_clear_photometry_button(model_dict):
         }
         """,
     )
-    button.js_on_click(callback_clear_photometry)
+    button.js_on_click(callback_hide_photometry)
     return button
 
 
-def make_add_all_photometry_button(model_dict):
-    """Make a button to add photometry.
+def make_show_all_photometry_button(model_dict):
+    """Make a button to show all photometry on the photometry plot.
+
+    Parameters
+    ----------
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+
     Returns
     -------
     bokeh Button object
     """
-    button = Button(name="Add All Photometry", label="Add All Photometry", width=120)
-    callback_add_photometry = CustomJS(
+    button = Button(
+        name="Show All Photometry", label="Show All Photometry", width_policy="min"
+    )
+    callback_show_photometry = CustomJS(
         args={'model_dict': model_dict},
         code="""
         for (const [key, value] of Object.entries(model_dict)) {
@@ -514,27 +563,45 @@ def make_add_all_photometry_button(model_dict):
         }
         """,
     )
-    button.js_on_click(callback_add_photometry)
+    button.js_on_click(callback_show_photometry)
     return button
 
 
-def make_clear_and_add_photometry_buttons(model_dict):
-    """Make a container for the clear and add photometry buttons.
+def make_show_and_hide_photometry_buttons(model_dict, user, device):
+    """Make a container for the show and hide photometry buttons.
+
+    Parameters
+    ----------
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+    user : User object
+        Current user.
+    device : str
+        String representation of device being used by the user. Contains "browser",
+        "mobile", or "tablet"
+
     Returns
     -------
     bokeh row object
     """
-    return row(
-        css_classes=["clear_and_add_buttons"],
-        children=[
-            make_add_all_photometry_button(model_dict),
-            make_clear_photometry_button(model_dict),
-        ],
-    )
+    buttons = [
+        make_show_all_photometry_button(model_dict),
+        make_hide_photometry_button(model_dict),
+    ]
+    if user.preferences and "photometryButtons" in user.preferences:
+        for name, info in user.preferences["photometryButtons"].items():
+            btn = Button(label=f"Show {name}", width_policy="min")
+            btn.js_on_click(get_photometry_button_callback(info, model_dict))
+            buttons.append(btn)
+    if "mobile" in device:
+        return column(buttons)
+    # if not on mobile, return a column of rows with 5 buttons in each row.
+    return column([row(buttons[i : i + 5]) for i in range(0, len(buttons), 5)])
 
 
 def add_axis_labels(plot, panel_name):
     """Add axis labels to a photometry plot.
+
     Parameters
     ----------
     plot : bokeh Figure object
@@ -556,6 +623,52 @@ def add_axis_labels(plot, panel_name):
     plot.yaxis.axis_label = axis_label_dict[panel_name]['y']
 
 
+def check_visibility_on_phot_plot(user, show_all_filters, show_all_origins, label):
+    """Function to check if a photometry point should be displayed on the plot in
+    accordance with the user's photometry plotting preferences.
+
+    Parameters
+    ----------
+    user : User object
+        Current user
+    show_all_filters: Boolean
+        Boolean value indicating whether to show all filters or not. Set to true
+        when the plot does not contain any of the user's automatically visible filters
+        as set in the preferences.
+    show_all_origins: Boolean
+        Boolean value indicating whether to show all origins or not. Set to true
+        when the plot does not contain any of the user's automatically visible
+        origins as set in the preferences.
+    label : str
+        Label of the photometry containing instrument, filter, and origin such as
+        'ZTF/ztfg/Muphoten'
+
+    Returns
+    -------
+    visible : boolean
+        Boolean value indicating whether the point should be visible or not.
+    """
+    if show_all_filters and show_all_origins:
+        return True
+    split = label.split('/')
+    filter = split[1]
+    origin = None
+    if len(split) == 3:
+        origin = split[2]
+    visible = False
+    if user.preferences:
+        if (
+            ("automaticallyVisibleFilters" in user.preferences)
+            and (filter in user.preferences['automaticallyVisibleFilters'])
+        ) or (
+            origin
+            and ('automaticallyVisibleOrigins' in user.preferences)
+            and (origin in user.preferences['automaticallyVisibleOrigins'])
+        ):
+            visible = True
+    return visible
+
+
 def make_scatter(
     plot,
     model_dict,
@@ -571,8 +684,12 @@ def make_scatter(
     color_dict,
     markers,
     instruments,
+    user,
+    show_all_filters,
+    show_all_origins,
 ):
     """Adds a scatter plot to a bokeh Figure object.
+
     Parameters
     ----------
     plot : bokeh Figure object
@@ -582,9 +699,11 @@ def make_scatter(
     name : str
         Short name describing the scatter points such as 'obs', 'unobs', or 'bin'
     i : int
-        Index of the loop that iterates over all the separate photometry. Used to keep track of which photometry point the GlyphRenderer belongs to
+        Index of the loop that iterates over all the separate photometry. Used to
+        keep track of which photometry point the GlyphRenderer belongs to
     label : str
-        Label of the photometry containing instrument, filter, and origin such as 'ZTF/ztfg/None'
+        Label of the photometry containing instrument, filter, and origin such as
+        'ZTF/ztfg/Muphoten'
     data_source : bokeh ColumnDataSource object
         ColumnDataSource used for plot.scatter
     x : str
@@ -592,7 +711,8 @@ def make_scatter(
     y : str
         y name like 'lim_mag'
     renderers : list
-        List of renderers for the current legend item. This scatter plot GlyphRenderer is added to the renderers.
+        List of renderers for the current legend item. This scatter plot
+        GlyphRenderer is added to the renderers.
     imhover : HoverTool object
         HoverTool for current photometry
     spinner : Spinner object
@@ -603,15 +723,34 @@ def make_scatter(
         List of marker shapes
     instruments : list
         List of instruments
+    user : User object
+        Current user.
+    show_all_filters: Boolean
+        Boolean value indicating whether to show all filters or not. Set to true
+        when the plot does not contain any of the user's automatically visible
+        filters as set in the preferences.
+    show_all_origins: Boolean
+        Boolean value indicating whether to show all origins or not. Set to
+        true when the plot does not contain any of the user's automatically
+        visible origins as set in the preferences.
 
     Returns
     -------
     None
     """
-    key = f'{label}~{name}{i}'
+    split = label.split('/')
+    key = f'{split[1]}~{split[2] if len(split) == 3 else "None"}~{name}{i}'
+    size = 4
+    if user.preferences and "photometryDataPointSize" in user.preferences:
+        size = int(user.preferences["photometryDataPointSize"])
+    visible = check_visibility_on_phot_plot(
+        user, show_all_filters, show_all_origins, label
+    )
     model_dict[key] = plot.scatter(
         x=x,
         y=y,
+        size=size,
+        visible=visible,
         color=color_dict,
         marker=factor_mark('instrument', markers, instruments),
         fill_alpha=0.1,
@@ -624,8 +763,20 @@ def make_scatter(
     spinner.js_link('value', model_dict[key].glyph, 'size')
 
 
-def make_multi_line(plot, model_dict, name, i, label, data_source, renderers):
+def make_multi_line(
+    plot,
+    model_dict,
+    name,
+    i,
+    label,
+    data_source,
+    renderers,
+    user,
+    show_all_filters,
+    show_all_origins,
+):
     """Adds a multi-line plot to a bokeh Figure object.
+
     Parameters
     ----------
     plot : bokeh Figure object
@@ -635,21 +786,40 @@ def make_multi_line(plot, model_dict, name, i, label, data_source, renderers):
     name : str
         Short name describing the scatter points such as 'obs', 'unobs', or 'bin'
     i : int
-        Index of the loop that iterates over all the separate photometry. Used to keep track of which photometry point the GlyphRenderer belongs to
+        Index of the loop that iterates over all the separate photometry. Used to
+        keep track of which photometry point the GlyphRenderer belongs to
     label : str
-        Label of the photometry containing instrument, filter, and origin such as 'ZTF/ztfg/None'
+        Label of the photometry containing instrument, filter, and origin such as
+        'ZTF/ztfg/Muphoten'
     data_source : bokeh ColumnDataSource object
         ColumnDataSource used for plot.scatter
     renderers : list
-        List of renderers for the current legend item. This scatter plot GlyphRenderer is added to the renderers.
+        List of renderers for the current legend item. This scatter plot
+        GlyphRenderer is added to the renderers.
+    user : User object
+        Current user.
+    show_all_filters: Boolean
+        Boolean value indicating whether to show all filters or not. Set to true
+         when the plot does not contain any of the user's automatically visible
+         filters as set in the preferences.
+    show_all_origins: Boolean
+        Boolean value indicating whether to show all origins or not. Set to true
+        when the plot does not contain any of the user's automatically visible
+        origins as set in the preferences.
+
     Returns
     -------
     None
     """
-    key = f'{label}~{name}{i}'
+    split = label.split('/')
+    key = f'{split[1]}~{split[2] if len(split) == 3 else "None"}~{name}{i}'
+    visible = check_visibility_on_phot_plot(
+        user, show_all_filters, show_all_origins, label
+    )
     model_dict[key] = plot.multi_line(
         xs='xs',
         ys='ys',
+        visible=visible,
         color='color',
         source=data_source,
     )
@@ -657,7 +827,9 @@ def make_multi_line(plot, model_dict, name, i, label, data_source, renderers):
 
 
 def get_errs(panel_name, df, ph=''):
-    """Gets the errors for a certain panel. Used to make the error lines on the data points.
+    """Gets the errors for a certain panel. Used to make the error lines on the data
+    points.
+
     Parameters
     ----------
     panel_name : str
@@ -666,6 +838,7 @@ def get_errs(panel_name, df, ph=''):
         Photometry data
     ph : Optional str
         Only used with the period panel. ph is 'a' or 'b'
+
     Returns
     -------
     Tuple containing the x and y errors
@@ -690,6 +863,7 @@ def get_errs(panel_name, df, ph=''):
 
 def mark_detections(plot, detection_dates, ymin, ymax):
     """Mark detection lines on a plot
+
     Parameters
     ----------
     plot : bokeh Figure object
@@ -699,6 +873,7 @@ def mark_detections(plot, detection_dates, ymin, ymax):
         Minimum y range value of the plot
     ymax : int
         Maximum y range value of the plot
+
     Returns
     -------
     None
@@ -740,6 +915,38 @@ def mark_detections(plot, detection_dates, ymin, ymax):
     )
 
 
+def get_show_all_flag(user, data, type):
+    """Return a flag of whether to show all photometry points of a certain type on the phot plot.
+
+    Parameters
+    ----------
+    user : User object
+        Current user.
+    data : pandas DataFrame object
+        Photometry data (ungrouped)
+    type : str
+        Thing we're filtering the photometry by. Currently one of 'filters' or 'origins'.
+
+    Returns
+    -------
+    boolean flag for show all.
+    """
+    # The purpose of the boolean flag is for the case where the plot contains none of the user's automatically visible filters
+    # /origins: in that case we will display all of the photometry points and set show_all_filters/origins to `True`. Otherwise, we
+    # would like to selectively display points based on the user's preferences, so the flags will be set to `False`.
+    unique_values = list(data[type[:-1]].unique())
+    if 'None' in unique_values:
+        unique_values.remove('None')
+    show_all = True
+    if user.preferences:
+        if f"automaticallyVisible{type.capitalize()}" in user.preferences:
+            for value in user.preferences[f'automaticallyVisible{type.capitalize()}']:
+                if value in unique_values:
+                    show_all = False
+                    break
+    return show_all
+
+
 def make_legend_items_and_detection_lines(
     grouped_data,
     plot,
@@ -754,8 +961,12 @@ def make_legend_items_and_detection_lines(
     markers,
     instruments,
     period,
+    user,
 ):
     """Makes the legend items for a plot and adds detections lines.
+
+    Parameters
+    ----------
     grouped_data : pandas DataFrameGroupBy object
         The photometry data grouped by label.
     plot : bokeh Figure object
@@ -770,7 +981,8 @@ def make_legend_items_and_detection_lines(
     color_dict : dict
         Dictionary defining which color the data points should be
     y_range : tuple(int)
-        Tuple containing the minimum and maximum y range values of the plot respectively
+        Tuple containing the minimum and maximum y range values of the plot
+        respectively
     data : pandas DataFrame object
         Photometry data (ungrouped)
     obsind : pandas Series object
@@ -782,11 +994,14 @@ def make_legend_items_and_detection_lines(
         List of instruments
     period : float
         period used for manipulating the data frame
+    user : User object
+        Current user.
 
     Returns
     -------
     List of LegendItem objects
     """
+
     empty_data_source = dict(
         mjd=[],
         flux=[],
@@ -799,6 +1014,9 @@ def make_legend_items_and_detection_lines(
         instrument=[],
         stacked=[],
     )
+
+    show_all_filters = get_show_all_flag(user, data, 'filters')
+    show_all_origins = get_show_all_flag(user, data, 'origins')
 
     legend_items = []
     for i, (label, df) in enumerate(grouped_data):
@@ -860,6 +1078,9 @@ def make_legend_items_and_detection_lines(
                     color_dict,
                     markers,
                     instruments,
+                    user,
+                    show_all_filters,
+                    show_all_origins,
                 )
             make_multi_line(
                 plot,
@@ -879,6 +1100,9 @@ def make_legend_items_and_detection_lines(
                     )
                 ),
                 renderers,
+                user,
+                show_all_filters,
+                show_all_origins,
             )
             make_multi_line(
                 plot,
@@ -888,6 +1112,9 @@ def make_legend_items_and_detection_lines(
                 label,
                 ColumnDataSource(data=dict(xs=[], ys=[], color=[])),
                 renderers,
+                user,
+                show_all_filters,
+                show_all_origins,
             )
         elif panel_name == 'period':
             for ph in ['a', 'b']:
@@ -907,6 +1134,9 @@ def make_legend_items_and_detection_lines(
                     color_dict,
                     markers,
                     instruments,
+                    user,
+                    show_all_filters,
+                    show_all_origins,
                 )
                 make_multi_line(
                     plot,
@@ -923,6 +1153,9 @@ def make_legend_items_and_detection_lines(
                         )
                     ),
                     renderers,
+                    user,
+                    show_all_filters,
+                    show_all_origins,
                 )
         else:
             raise ValueError("Panel name should be one of mag, flux, and period.")
@@ -961,12 +1194,42 @@ def make_legend_items_and_detection_lines(
     return legend_items
 
 
+def transformed_model_dict(model_dict):
+    """In order to programmatically toggle visibilty, the model_dict keys are altered to contain the filter, instrument, and origin of
+    the photometry point. However, many widgets need the original model dict with keys such as obs0 and bin0 in order to work correctly.
+    This function changes the keys of the model dict to work with that format.
+
+    Parameters
+    ----------
+    model_dict : dict
+        Dictionary with string keys and GlyphRenderer values.
+
+    Returns
+    -------
+    dict with transformed keys.
+    """
+    transformed_model_dict = {}
+    for k, v in model_dict.items():
+        label = k.split('~')[2] if '~' in k else k
+        transformed_model_dict[label] = v
+    return transformed_model_dict
+
+
 def make_binsize_slider(grouped_data, model_dict):
     """Makes a slider to control binsize.
+
+    Parameters
+    ----------
+    grouped_data : pandas DataFrameGroupBy object
+        The photometry data grouped by label.
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+
     Returns
     -------
     bokeh Slider object
     """
+    model_dict = transformed_model_dict(model_dict)
     slider = Slider(
         start=0.0,
         end=15.0,
@@ -991,10 +1254,21 @@ def make_binsize_slider(grouped_data, model_dict):
 
 def make_export_csv_button(grouped_data, model_dict, obj_id):
     """Makes a button to export a bold light curve to CSV.
+
+    Parameters
+    ----------
+    grouped_data : pandas DataFrameGroupBy object
+        The photometry data grouped by label.
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+    obj_id : str
+        ID of the object
+
     Returns
     -------
     bokeh Button object
     """
+    model_dict = transformed_model_dict(model_dict)
     button = Button(label="Export Bold Light Curve to CSV")
     button.js_on_click(
         CustomJS(
@@ -1024,10 +1298,33 @@ def make_period_controls(
     layout,
 ):
     """Makes period controls to be used in a period photometry panel.
+
+    Parameters
+    ----------
+    period_labels : list
+        List of labels for the period buttons.
+    period_list : list
+        List of periods for the period buttons.
+    period : float
+        The current period.
+    grouped_data : pandas DataFrameGroupBy object
+        The photometry data grouped by label.
+    plot : bokeh Plot object
+        The plot object.
+    model_dict : dict
+        A dictionary containing all of the GlyphRenderers for the plot.
+    device : str
+        The device to use for the plot.
+    width : int
+        The width of the plot.
+    layout : bokeh Layout object
+        The layout object.
+
     Returns
     -------
     bokeh column object
     """
+    model_dict = transformed_model_dict(model_dict)
     period_selection = RadioGroup(labels=period_labels, active=0)
 
     phase_selection = RadioGroup(labels=["One phase", "Two phases"], active=1)
@@ -1141,10 +1438,13 @@ def add_widgets(
     width,
 ):
     """Adds widgets to the layout of a photometry panel.
+
     Parameters
     ----------
     panel_name : str
-        Name of the panel. One of 'mag', 'flux', and 'period'. Used to determine which widgets to add.
+        Name of the panel. One of 'mag', 'flux', and 'period'. Used to determine
+        which
+        widgets to add.
     layout : bokeh column object
         The layout of the panel. Widgets added to this object.
     grouped_data : pandas DataFrameGroupBy object
@@ -1157,9 +1457,11 @@ def add_widgets(
         Information needed for the period controls
     plot : bokeh Figure object
     device : str
-        String representation of device being used by the user. Contains "browser", "mobile", or "tablet"
+        String representation of device being used by the user. Contains "browser",
+        "mobile", or "tablet"
     width : int
         Width of the plot
+
     Returns
     -------
     None
@@ -1195,12 +1497,14 @@ def add_widgets(
 
 def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra):
     """Makes a panel for the photometry plot.
+
     Parameters
     ----------
     panel_name : str
         Name of the panel. One of 'mag', 'flux', and 'period'
     device : str
-        String representation of device being used by the user. Contains "browser", "mobile", or "tablet"
+        String representation of device being used by the user. Contains "browser",
+        "mobile", or "tablet"
     width : int
         Width of the plot
     user : User object
@@ -1211,6 +1515,7 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
         ID of the source/object the photometry is for
     spectra : list of Spectra objects
         The source/object's spectra
+
     Returns
     -------
     bokeh Panel object or None if the panel should
@@ -1368,7 +1673,29 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
 
     model_dict = {}
     spinner = Spinner(
-        title="Data point size", low=1, high=40, step=0.5, value=4, width=80
+        title="Data point size",
+        low=1,
+        high=60,
+        step=0.5,
+        value=(
+            user.preferences['photometryDataPointSize']
+            if user.preferences and 'photometryDataPointSize' in user.preferences
+            else 4
+        ),
+        width_policy="min",
+    )
+    spinner.js_on_change(
+        'value',
+        CustomJS(
+            args=dict(spinner=spinner),
+            code=open(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    '../static/js/plotjs',
+                    'update_data_point_size.js',
+                )
+            ).read(),
+        ),
     )
 
     legend_items = make_legend_items_and_detection_lines(
@@ -1385,6 +1712,7 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
         markers,
         instruments,
         period,
+        user,
     )
 
     add_plot_legend(plot, legend_items, width, legend_orientation, legend_loc)
@@ -1394,8 +1722,10 @@ def make_photometry_panel(panel_name, device, width, user, data, obj_id, spectra
 
     layout = column(
         plot,
-        row(make_clear_and_add_photometry_buttons(model_dict), spinner),
-        width=width,
+        column(
+            make_show_and_hide_photometry_buttons(model_dict, user, device), spinner
+        ),
+        # width=width,
     )
     add_widgets(
         panel_name,
@@ -1425,7 +1755,8 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
     width : int
         Width of the plot
     device : str
-        String representation of device being used by the user. Contains "browser", "mobile", or "tablet"
+        String representation of device being used by the user. Contains "browser",
+        "mobile", or "tablet"
 
     Returns
     -------
@@ -1469,10 +1800,11 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
 
     data.sort_values(by=['effwave'], inplace=True)
 
+    # labels for legend items
     labels = []
     for i, datarow in data.iterrows():
         label = f'{datarow["instrument"]}/{datarow["filter"]}'
-        if datarow['origin'] is not None:
+        if datarow['origin'] != 'None':
             label += f'/{datarow["origin"]}'
         labels.append(label)
 
@@ -1502,7 +1834,7 @@ def photometry_plot(obj_id, user, width=600, device="browser"):
             panels.append(panel)
     tabs = Tabs(
         tabs=panels,
-        width=width,
+        # width=width,
     )
     try:
         return bokeh_embed.json_item(tabs)
@@ -2103,10 +2435,10 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
         )
         column_checkboxes.js_on_click(callback_toggle_lines)
 
-    clear_all_spectra = Button(
-        name="Clear Spectra", label="Clear Spectra", width_policy="min"
+    hide_all_spectra = Button(
+        name="Hide All Spectra", label="Hide All Spectra", width_policy="min"
     )
-    callback_clear_all_spectra = CustomJS(
+    callback_hide_all_spectra = CustomJS(
         args={'model_dict': model_dict},
         code="""
             for (const[key, value] of Object.entries(model_dict)) {
@@ -2116,12 +2448,12 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             }
         """,
     )
-    clear_all_spectra.js_on_click(callback_clear_all_spectra)
+    hide_all_spectra.js_on_click(callback_hide_all_spectra)
 
-    add_all_spectra = Button(
-        name="Add All Spectra", label="Add All Spectra", width_policy="min"
+    show_all_spectra = Button(
+        name="Show All Spectra", label="Show All Spectra", width_policy="min"
     )
-    callback_add_all_spectra = CustomJS(
+    callback_show_all_spectra = CustomJS(
         args={'model_dict': model_dict},
         code="""
             for (const[key, value] of Object.entries(model_dict)) {
@@ -2131,7 +2463,7 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
             }
         """,
     )
-    add_all_spectra.js_on_click(callback_add_all_spectra)
+    show_all_spectra.js_on_click(callback_show_all_spectra)
 
     reset_checkboxes_button = Button(
         name="Reset Checkboxes", label="Reset Checkboxes", width_policy="min"
@@ -2217,11 +2549,20 @@ def make_spectrum_layout(obj, spectra, user, device, width, smoothing, smooth_nu
     )
 
     row1 = row(all_column_checkboxes)
-    row2 = row(
-        on_top_spectra_dropdown,
-        add_all_spectra,
-        clear_all_spectra,
-        reset_checkboxes_button,
+    row2 = (
+        column(
+            on_top_spectra_dropdown,
+            show_all_spectra,
+            hide_all_spectra,
+            reset_checkboxes_button,
+        )
+        if "mobile" in device
+        else row(
+            on_top_spectra_dropdown,
+            show_all_spectra,
+            hide_all_spectra,
+            reset_checkboxes_button,
+        )
     )
     row3 = (
         column(z, v_exp, smooth_column)

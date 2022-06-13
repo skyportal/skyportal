@@ -166,6 +166,12 @@ User.transactions = relationship(
     doc="The FacilityTransactions initiated by this User.",
     foreign_keys="FacilityTransaction.initiator_id",
 )
+User.transaction_requests = relationship(
+    'FacilityTransactionRequest',
+    back_populates='initiator',
+    doc="The FacilityTransactionRequests initiated by this User.",
+    foreign_keys="FacilityTransactionRequest.initiator_id",
+)
 User.assignments = relationship(
     'ClassicalAssignment',
     back_populates='requester',

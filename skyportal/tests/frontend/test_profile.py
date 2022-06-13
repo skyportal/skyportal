@@ -1,6 +1,8 @@
 import pytest
 import uuid
 
+import numpy as np
+
 from skyportal.tests import api
 from tdtax import taxonomy, __version__
 from selenium.webdriver.common.keys import Keys
@@ -169,3 +171,132 @@ def test_delete_classification_shortcut(driver, user, public_group, taxonomy_tok
     )
     driver.scroll_to_element_and_click(delete_icon)
     driver.wait_for_xpath_to_disappear(f'//span[contains(text(), "{shortcut_name}")]')
+
+
+def test_set_automatically_visible_photometry(
+    driver, user, upload_data_token, public_source, ztf_camera, public_group
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'instrument_id': ztf_camera.id,
+            "mjd": [59408, 59409, 59410],
+            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
+            "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
+            "limiting_mag": [20.0, 20.1, 20.2],
+            "magsys": ["ab", "ab", "ab"],
+            "filter": ["ztfr", "ztfg", "ztfr"],
+            "ra": [42.01, 42.01, 42.02],
+            "dec": [42.02, 42.01, 42.03],
+            "origin": [None, "Muphoten", "lol"],
+            'group_ids': [public_group.id],
+            "altdata": [{"key1": "value1"}, {"key2": "value2"}, {"key3": "value3"}],
+        },
+        token=upload_data_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    ids = data["data"]["ids"]
+    assert len(ids) == 3
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/profile")
+    filter_select = driver.wait_for_xpath(
+        '//div[@id="filterSelectAutomaticallyVisiblePhotometry"]'
+    )
+    driver.scroll_to_element_and_click(filter_select)
+    massh_option = driver.wait_for_xpath('//li[@data-value="2massh"]')
+    driver.scroll_to_element_and_click(massh_option)
+    # remove focus from open select menu
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
+    origin_select = driver.wait_for_xpath(
+        '//div[@id="originSelectAutomaticallyVisiblePhotometry"]'
+    )
+    driver.scroll_to_element_and_click(origin_select)
+    muphoten_option = driver.wait_for_xpath('//li[@data-value="Muphoten"]')
+    muphoten_option.location_once_scrolled_into_view
+    muphoten_option.click()
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+
+    status, data = api('GET', 'internal/profile', token=upload_data_token)
+    assert status == 200
+    assert data['data']['preferences']['automaticallyVisibleFilters'] == ['2massh']
+    assert data['data']['preferences']['automaticallyVisibleOrigins'] == ['Muphoten']
+
+
+def test_photometry_buttons_form(
+    driver, user, upload_data_token, public_source, ztf_camera, public_group
+):
+    status, data = api(
+        'POST',
+        'photometry',
+        data={
+            'obj_id': str(public_source.id),
+            'instrument_id': ztf_camera.id,
+            "mjd": [59408, 59409, 59410],
+            "mag": [19.2, 19.3, np.random.uniform(19, 20)],
+            "magerr": [0.05, 0.06, np.random.uniform(0.01, 0.1)],
+            "limiting_mag": [20.0, 20.1, 20.2],
+            "magsys": ["ab", "ab", "ab"],
+            "filter": ["ztfr", "ztfg", "ztfr"],
+            "ra": [42.01, 42.01, 42.02],
+            "dec": [42.02, 42.01, 42.03],
+            "origin": [None, "Muphoten", "lol"],
+            'group_ids': [public_group.id],
+            "altdata": [{"key1": "value1"}, {"key2": "value2"}, {"key3": "value3"}],
+        },
+        token=upload_data_token,
+    )
+
+    assert status == 200
+    assert data['status'] == 'success'
+    ids = data["data"]["ids"]
+    assert len(ids) == 3
+
+    driver.get(f"/become_user/{user.id}")
+    driver.get("/profile")
+    filter_select = driver.wait_for_xpath(
+        '//div[@id="filterSelectPhotometryButtonsForm"]'
+    )
+    driver.scroll_to_element_and_click(filter_select)
+    massh_option = driver.wait_for_xpath('//li[@data-value="2massh"]')
+    driver.scroll_to_element_and_click(massh_option)
+    # remove focus from open select menu
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+    header = driver.wait_for_xpath("//header")
+    ActionChains(driver).move_to_element(header).click().perform()
+
+    origin_select = driver.wait_for_xpath(
+        '//div[@id="originSelectPhotometryButtonsForm"]'
+    )
+    driver.scroll_to_element_and_click(origin_select)
+    muphoten_option = driver.wait_for_xpath('//li[@data-value="Muphoten"]')
+    muphoten_option.location_once_scrolled_into_view
+    muphoten_option.click()
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+
+    photometry_button_name = str(uuid.uuid4())
+    photometry_button_name_entry = driver.wait_for_xpath(
+        '//input[@name="photometryButtonName"]'
+    )
+    driver.scroll_to_element_and_click(photometry_button_name_entry)
+    photometry_button_name_entry.send_keys(photometry_button_name)
+
+    add_photometry_button_button = driver.wait_for_xpath(
+        '//button[@id="addPhotometryButtonButton"]'
+    )
+    driver.scroll_to_element_and_click(add_photometry_button_button)
+    driver.wait_for_xpath(f'//span[contains(text(), "{photometry_button_name}")]')
+
+    status, data = api('GET', 'internal/profile', token=upload_data_token)
+    assert status == 200
+    assert data['data']['preferences']['photometryButtons'][photometry_button_name] == {
+        'filters': ['2massh'],
+        'origins': ['Muphoten'],
+    }
