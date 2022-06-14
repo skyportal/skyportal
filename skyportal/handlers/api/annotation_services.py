@@ -33,7 +33,7 @@ class GaiaQueryHandler(BaseHandler):
         ---
         description: |
             get Gaia parallax and magnitudes and post them as an annotation,
-            based on cross-match to the Gaia eDR3.
+            based on cross-match to the Gaia DR3.
         parameters:
           - in: path
             name: obj_id
@@ -54,7 +54,7 @@ class GaiaQueryHandler(BaseHandler):
                       The name of the catalog key, associated with a
                       catalog cross match,
                       from which the data should be retrieved.
-                      Default is "gaiaedr3.gaia_source".
+                      Default is "gaiadr3.gaia_source".
                   crossmatchRadius:
                     required: false
                     type: number
@@ -112,7 +112,7 @@ class GaiaQueryHandler(BaseHandler):
 
         author = self.associated_user_object
 
-        catalog = data.pop('catalog', cfg['catalog'] or "gaiaedr3.gaia_source")
+        catalog = data.pop('catalog', cfg['catalog'] or "gaiadr3.gaia_source")
         radius_arcsec = data.pop(
             'crossmatchRadius', cfg['cross_match.gaia.radius'] or 2.0
         )

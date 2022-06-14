@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useDispatch } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
-import { makeStyles } from "@material-ui/core/styles";
+import { useNavigate } from "react-router-dom";
+import makeStyles from "@mui/styles/makeStyles";
 
-import TextField from "@material-ui/core/TextField";
-import Autocomplete from "@material-ui/lab/Autocomplete";
-import SearchIcon from "@material-ui/icons/Search";
-import InputAdornment from "@material-ui/core/InputAdornment";
-import CircularProgress from "@material-ui/core/CircularProgress";
+import TextField from "@mui/material/TextField";
+import Autocomplete from "@mui/material/Autocomplete";
+import SearchIcon from "@mui/icons-material/Search";
+import InputAdornment from "@mui/material/InputAdornment";
+import CircularProgress from "@mui/material/CircularProgress";
 
 import { GET } from "../API";
 
@@ -120,12 +120,12 @@ const QuickSearchBar = () => {
       id="quick-search-bar"
       style={{ padding: "0.3rem" }}
       classes={{ root: classes.root, paper: classes.paper }}
-      getOptionSelected={(option, val) => option.name === val.name}
+      isOptionEqualToValue={(option, val) => option.name === val.name}
       getOptionLabel={(option) => option}
       onInputChange={(e, val) => setInputValue(val)}
       onChange={(event, newValue, reason) => {
         setValue(newValue);
-        if (reason === "select-option") {
+        if (reason === "selectOption") {
           navigate(`/source/${newValue}`);
         }
         if (reason === "clear") {
@@ -144,14 +144,6 @@ const QuickSearchBar = () => {
       limitTags={15}
       value={value}
       popupIcon={null}
-      renderOption={(option) => {
-        const v = `/source/${option}`;
-        return (
-          <Link to={v} id={`quickSearchLinkTo${option}`}>
-            {option}
-          </Link>
-        );
-      }}
       renderInput={(params) => (
         <TextField
           // eslint-disable-next-line react/jsx-props-no-spreading
