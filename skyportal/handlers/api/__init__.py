@@ -5,6 +5,7 @@ from .classification import ClassificationHandler, ObjClassificationHandler
 from .comment import CommentHandler, CommentAttachmentHandler
 from .annotation import AnnotationHandler
 from .annotation_services import (
+    GaiaQueryHandler,
     IRSAQueryWISEHandler,
     VizierQueryHandler,
     DatalabQueryHandler,
@@ -44,6 +45,7 @@ from .observation import (
     ObservationGCNHandler,
     ObservationTreasureMapHandler,
     ObservationExternalAPIHandler,
+    ObservationSimSurveyHandler,
 )
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
@@ -52,14 +54,18 @@ from .observation_plan import (
     ObservationPlanGCNHandler,
     ObservationPlanSubmitHandler,
     ObservationPlanMovieHandler,
+    ObservationPlanSimSurveyHandler,
     ObservationPlanGeoJSONHandler,
     ObservationPlanAirmassChartHandler,
+    ObservationPlanCreateObservingRunHandler,
+    ObservationPlanFieldsHandler,
 )
 from .photometry import (
     PhotometryHandler,
     ObjPhotometryHandler,
     BulkDeletePhotometryHandler,
     PhotometryRangeHandler,
+    PhotometryOriginHandler,
 )
 from .color_mag import ObjColorMagHandler
 from .photometry_request import PhotometryRequestHandler
@@ -67,10 +73,7 @@ from .public_group import PublicGroupHandler
 from .roles import RoleHandler, UserRoleHandler
 from .obj import ObjHandler
 from .sharing import SharingHandler
-from .shift import (
-    ShiftHandler,
-    ShiftUserHandler,
-)
+from .shift import ShiftHandler, ShiftUserHandler, ShiftSummary
 from .source import (
     SourceHandler,
     SourceOffsetsHandler,
@@ -95,6 +98,11 @@ from .taxonomy import TaxonomyHandler
 from .telescope import TelescopeHandler
 from .tns import ObjTNSHandler, SpectrumTNSHandler, TNSRobotHandler
 from .thumbnail import ThumbnailHandler
-from .user import UserHandler
+from .user import (
+    UserHandler,
+    set_default_acls,
+    set_default_group,
+    set_default_role,
+)
 from .unsourced_finder import UnsourcedFinderHandler
 from .weather import WeatherHandler

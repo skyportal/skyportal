@@ -70,6 +70,14 @@ def test_observation_plan_tiling(
             'api_classname_obsplan': 'ZTFMMAAPI',
             'field_data': pd.read_csv(fielddatafile)[:5].to_dict(orient='list'),
             'field_region': Regions.read(regionsdatafile).serialize(format='ds9'),
+            'sensitivity_data': {
+                'ztfr': {
+                    'limiting_magnitude': 20.3,
+                    'magsys': 'ab',
+                    'exposure_time': 30,
+                    'zeropoint': 26.3,
+                }
+            },
         },
         token=super_admin_token,
     )
@@ -95,6 +103,7 @@ def test_observation_plan_tiling(
     assert data['status'] == 'success'
     allocation_id = data['data']['id']
 
+    queue_name = str(uuid.uuid4())
     request_data = {
         'allocation_id': allocation_id,
         'gcnevent_id': gcnevent_id,
@@ -105,12 +114,12 @@ def test_observation_plan_tiling(
             'filter_strategy': 'block',
             'schedule_strategy': 'tiling',
             'schedule_type': 'greedy_slew',
-            'exposure_time': '300',
-            'filters': 'ztfg',
+            'exposure_time': 300,
+            'filters': 'ztfr',
             'maximum_airmass': 2.0,
             'integrated_probability': 100,
             'minimum_time_difference': 30,
-            'queue_name': 'ToO_Fake',
+            'queue_name': queue_name,
             'program_id': 'Partnership',
             'subprogram_name': 'GRB',
         },
@@ -121,7 +130,7 @@ def test_observation_plan_tiling(
     )
     assert status == 200
     assert data['status'] == 'success'
-    id = data['data']['id']
+    id = data['data']['ids'][0]
 
     # wait for the observation plan to finish
     time.sleep(15)
@@ -165,6 +174,11 @@ def test_observation_plan_tiling(
             for obs in planned_observations
         ]
     )
+
+    status, data = api(
+        'GET', f'observation_plan/{id}/simsurvey', token=super_admin_token
+    )
+    assert status == 200
 
 
 @pytest.mark.flaky(reruns=2)
@@ -305,6 +319,7 @@ def test_observation_plan_galaxy(
     assert data['status'] == 'success'
     allocation_id = data['data']['id']
 
+    queue_name = str(uuid.uuid4())
     request_data = {
         'allocation_id': allocation_id,
         'gcnevent_id': gcnevent_id,
@@ -316,12 +331,12 @@ def test_observation_plan_galaxy(
             'schedule_strategy': 'galaxy',
             'galaxy_catalog': catalog_name,
             'schedule_type': 'greedy_slew',
-            'exposure_time': '300',
+            'exposure_time': 300,
             'filters': 'ztfg',
             'maximum_airmass': 2.0,
             'integrated_probability': 100,
             'minimum_time_difference': 30,
-            'queue_name': 'ToO_Fake',
+            'queue_name': queue_name,
             'program_id': 'Partnership',
             'subprogram_name': 'GRB',
         },
@@ -332,7 +347,7 @@ def test_observation_plan_galaxy(
     )
     assert status == 200
     assert data['status'] == 'success'
-    id = data['data']['id']
+    id = data['data']['ids'][0]
 
     # wait for the observation plan to populate
     nretries = 0

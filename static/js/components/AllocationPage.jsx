@@ -1,16 +1,16 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
-import Typography from "@material-ui/core/Typography";
-import Paper from "@material-ui/core/Paper";
-import Grid from "@material-ui/core/Grid";
-import { makeStyles } from "@material-ui/core/styles";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import Typography from "@mui/material/Typography";
+import Paper from "@mui/material/Paper";
+import Grid from "@mui/material/Grid";
+import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
-import { Button } from "@material-ui/core";
-import CircularProgress from "@material-ui/core/CircularProgress";
+import { Button } from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
 import NewAllocation from "./NewAllocation";
 
 import * as allocationActions from "../ducks/allocation";
@@ -75,6 +75,14 @@ export function allocationInfo(allocation, groups) {
       </div>
     );
   }
+
+  const share_groups = [];
+  if (allocation.default_share_group_ids?.length > 0) {
+    allocation.default_share_group_ids.forEach((share_group_id) => {
+      share_groups.push(groups?.filter((g) => g.id === share_group_id)[0].name);
+    });
+  }
+
   const startDate = new Date(`${allocation.start_date}Z`).toLocaleString(
     "en-US",
     { hour12: false }
@@ -84,13 +92,16 @@ export function allocationInfo(allocation, groups) {
   });
   let result = `From ${startDate} to ${endDate}`;
 
-  if (allocation?.pi || group?.name) {
+  if (allocation?.pi || group?.name || share_groups.length > 0) {
     result += "\r\n(";
     if (allocation?.pi) {
       result += `PI: ${allocation.pi}`;
     }
     if (group?.name) {
       result += ` / Group: ${group?.name}`;
+    }
+    if (share_groups.length > 0) {
+      result += ` / Default Share Groups: ${share_groups.join(", ")}`;
     }
     result += ")";
   }

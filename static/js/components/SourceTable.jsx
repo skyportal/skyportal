@@ -3,32 +3,34 @@ import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 
-import TableCell from "@material-ui/core/TableCell";
-import TableRow from "@material-ui/core/TableRow";
-import IconButton from "@material-ui/core/IconButton";
-import Button from "@material-ui/core/Button";
-import Grid from "@material-ui/core/Grid";
-import Chip from "@material-ui/core/Chip";
-import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
+import TableCell from "@mui/material/TableCell";
+import TableRow from "@mui/material/TableRow";
+import IconButton from "@mui/material/IconButton";
+import Button from "@mui/material/Button";
+import Grid from "@mui/material/Grid";
+import Chip from "@mui/material/Chip";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import MUIDataTable from "mui-datatables";
 import {
-  makeStyles,
   createTheme,
-  MuiThemeProvider,
+  ThemeProvider,
+  StyledEngineProvider,
   useTheme,
-} from "@material-ui/core/styles";
-import CheckIcon from "@material-ui/icons/Check";
-import ClearIcon from "@material-ui/icons/Clear";
-import InfoIcon from "@material-ui/icons/Info";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import Divider from "@material-ui/core/Divider";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
-import ExpandLess from "@material-ui/icons/ExpandLess";
-import ExpandMore from "@material-ui/icons/ExpandMore";
-import Collapse from "@material-ui/core/Collapse";
-import List from "@material-ui/core/List";
-import Typography from "@material-ui/core/Typography";
+  adaptV4Theme,
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+import CheckIcon from "@mui/icons-material/Check";
+import ClearIcon from "@mui/icons-material/Clear";
+import InfoIcon from "@mui/icons-material/Info";
+import CircularProgress from "@mui/material/CircularProgress";
+import Divider from "@mui/material/Divider";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import ExpandLess from "@mui/icons-material/ExpandLess";
+import ExpandMore from "@mui/icons-material/ExpandMore";
+import Collapse from "@mui/material/Collapse";
+import List from "@mui/material/List";
+import Typography from "@mui/material/Typography";
 
 import { isMobileOnly } from "react-device-detect";
 
@@ -150,7 +152,7 @@ const useStyles = makeStyles((theme) => ({
   },
   objId: {
     color:
-      theme.palette.type === "dark"
+      theme.palette.mode === "dark"
         ? theme.palette.secondary.main
         : theme.palette.primary.main,
   },
@@ -183,89 +185,91 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const getMuiTheme = (theme) =>
-  createTheme({
-    palette: theme.palette,
-    overrides: {
-      MUIDataTableHeadCell: {
-        sortLabelRoot: {
-          height: "1.4rem",
-        },
-      },
-      // Hide default filter items for custom form
-      MuiGridList: {
-        root: {
-          display: "none",
-        },
-      },
-      MUIDataTableFilter: {
-        root: {
-          height: "100%",
-        },
-        header: {
-          display: "none",
-        },
-      },
-      MUIDataTablePagination: {
-        toolbar: {
-          flexFlow: "row wrap",
-          justifyContent: "flex-end",
-          padding: "0.5rem 1rem 0",
-          [theme.breakpoints.up("sm")]: {
-            // Cancel out small screen styling and replace
-            padding: "0px",
-            paddingRight: "2px",
-            flexFlow: "row nowrap",
+  createTheme(
+    adaptV4Theme({
+      palette: theme.palette,
+      overrides: {
+        MUIDataTableHeadCell: {
+          sortLabelRoot: {
+            height: "1.4rem",
           },
         },
-        navContainer: {
-          flexDirection: "column",
-          alignItems: "center",
-          [theme.breakpoints.up("sm")]: {
-            flexDirection: "row",
+        // Hide default filter items for custom form
+        MuiGridList: {
+          root: {
+            display: "none",
           },
         },
-        selectRoot: {
-          marginRight: "0.5rem",
-          [theme.breakpoints.up("sm")]: {
-            marginLeft: "0",
-            marginRight: "2rem",
+        MUIDataTableFilter: {
+          root: {
+            height: "100%",
+          },
+          header: {
+            display: "none",
+          },
+        },
+        MUIDataTablePagination: {
+          toolbar: {
+            flexFlow: "row wrap",
+            justifyContent: "flex-end",
+            padding: "0.5rem 1rem 0",
+            [theme.breakpoints.up("sm")]: {
+              // Cancel out small screen styling and replace
+              padding: "0px",
+              paddingRight: "2px",
+              flexFlow: "row nowrap",
+            },
+          },
+          navContainer: {
+            flexDirection: "column",
+            alignItems: "center",
+            [theme.breakpoints.up("sm")]: {
+              flexDirection: "row",
+            },
+          },
+          selectRoot: {
+            marginRight: "0.5rem",
+            [theme.breakpoints.up("sm")]: {
+              marginLeft: "0",
+              marginRight: "2rem",
+            },
+          },
+        },
+        MUIDataTableToolbar: {
+          filterPaper: {
+            // Use fullscreen dialog for small-screen filter form
+            width: "100%",
+            maxWidth: "100%",
+            margin: 0,
+            maxHeight: "calc(100vh - 1rem)",
+            borderRadius: 0,
+            top: "0 !important",
+            left: "0 !important",
+            [theme.breakpoints.up("md")]: {
+              // Override the overrides above for bigger screens
+              maxWidth: "50%",
+              top: "unset !important",
+              left: "unset !important",
+              float: "right",
+              position: "unset",
+              margin: "1rem",
+            },
+          },
+          filterCloseIcon: {
+            [theme.breakpoints.up("md")]: {
+              top: "1rem !important",
+              right: "1rem !important",
+            },
+          },
+        },
+        MUIDataTableFilterList: {
+          chip: {
+            maxWidth: "100%",
           },
         },
       },
-      MUIDataTableToolbar: {
-        filterPaper: {
-          // Use fullscreen dialog for small-screen filter form
-          width: "100%",
-          maxWidth: "100%",
-          margin: 0,
-          maxHeight: "calc(100vh - 1rem)",
-          borderRadius: 0,
-          top: "0 !important",
-          left: "0 !important",
-          [theme.breakpoints.up("md")]: {
-            // Override the overrides above for bigger screens
-            maxWidth: "50%",
-            top: "unset !important",
-            left: "unset !important",
-            float: "right",
-            position: "unset",
-            margin: "1rem",
-          },
-        },
-        filterCloseIcon: {
-          [theme.breakpoints.up("md")]: {
-            top: "1rem !important",
-            right: "1rem !important",
-          },
-        },
-      },
-      MUIDataTableFilterList: {
-        chip: {
-          maxWidth: "100%",
-        },
-      },
-    },
-  });
+    })
+  );
 
 let defaultDisplayedColumns = [
   "Source ID",
@@ -292,6 +296,7 @@ const SourceTable = ({
   numPerPage,
   sortingCallback,
   favoritesRemoveButton = false,
+  hideTitle = false,
 }) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
@@ -426,7 +431,7 @@ const SourceTable = ({
             container
             direction="row"
             spacing={3}
-            justify="center"
+            justifyContent="center"
             alignItems="center"
           >
             <ThumbnailList
@@ -1231,7 +1236,7 @@ const SourceTable = ({
           container
           direction="column"
           alignItems="flex-start"
-          justify="flex-start"
+          justifyContent="flex-start"
           spacing={3}
         >
           {queryInProgress ? (
@@ -1240,14 +1245,16 @@ const SourceTable = ({
             </Grid>
           ) : (
             <Grid item className={classes.tableGrid}>
-              <MuiThemeProvider theme={getMuiTheme(theme)}>
-                <MUIDataTable
-                  title={title}
-                  columns={columns}
-                  data={sources}
-                  options={options}
-                />
-              </MuiThemeProvider>
+              <StyledEngineProvider injectFirst>
+                <ThemeProvider theme={getMuiTheme(theme)}>
+                  <MUIDataTable
+                    title={!hideTitle ? title : ""}
+                    columns={columns}
+                    data={sources}
+                    options={options}
+                  />
+                </ThemeProvider>
+              </StyledEngineProvider>
             </Grid>
           )}
         </Grid>
@@ -1305,6 +1312,7 @@ SourceTable.propTypes = {
   numPerPage: PropTypes.number,
   sortingCallback: PropTypes.func,
   favoritesRemoveButton: PropTypes.bool,
+  hideTitle: PropTypes.bool,
 };
 
 SourceTable.defaultProps = {
@@ -1316,6 +1324,7 @@ SourceTable.defaultProps = {
   numPerPage: 10,
   sortingCallback: null,
   favoritesRemoveButton: false,
+  hideTitle: false,
 };
 
 export default SourceTable;

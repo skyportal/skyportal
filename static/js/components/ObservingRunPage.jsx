@@ -1,15 +1,21 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
-import { Button } from "@material-ui/core";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
-import Typography from "@material-ui/core/Typography";
-import Paper from "@material-ui/core/Paper";
-import Grid from "@material-ui/core/Grid";
-import { makeStyles } from "@material-ui/core/styles";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogActions,
+} from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import Typography from "@mui/material/Typography";
+import Paper from "@mui/material/Paper";
+import Grid from "@mui/material/Grid";
+import makeStyles from "@mui/styles/makeStyles";
 import PropTypes from "prop-types";
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -37,19 +43,24 @@ const useStyles = makeStyles((theme) => ({
     padding: "1rem",
   },
   observingRunDelete: {
-    cursor: "pointer",
     fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
   },
   observingRunDeleteDisabled: {
     opacity: 0,
   },
+  hover: {
+    "&:hover": {
+      textDecoration: "underline",
+    },
+    color: theme.palette.mode === "dark" ? "#fafafa !important" : null,
+  },
 }));
 
-export function observingRunInfo(observingRun, instrumentList, telescopeList) {
+export const observingRunInfo = (
+  observingRun,
+  instrumentList,
+  telescopeList
+) => {
   const { instrument_id } = observingRun;
   const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
 
@@ -71,10 +82,63 @@ export function observingRunInfo(observingRun, instrumentList, telescopeList) {
   const result = dt.humanize(true);
 
   return result;
-}
+};
+
+const DeleteObservingRunDialog = ({ run, deletePermission }) => {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const openDialog = () => {
+    setDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setDialogOpen(false);
+  };
+  const deleteObservingRun = (observingRun) => {
+    dispatch(observingRunActions.deleteObservingRun(observingRun.id)).then(
+      (result) => {
+        if (result.status === "success") {
+          dispatch(showNotification("Observing run deleted"));
+          closeDialog();
+        }
+      }
+    );
+  };
+  return (
+    <div>
+      <Button
+        key={`${run.id}-delete_button`}
+        id="delete_button"
+        classes={{
+          root: classes.observingRunDelete,
+          disabled: classes.observingRunDeleteDisabled,
+        }}
+        onClick={openDialog}
+        disabled={!deletePermission}
+        size="small"
+      >
+        &times;
+      </Button>
+      <Dialog open={dialogOpen} onClose={closeDialog}>
+        <DialogTitle>Delete Observing Run?</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete this observing run?
+        </DialogContent>
+        <DialogActions>
+          <Button autoFocus onClick={closeDialog}>
+            Dismiss
+          </Button>
+          <Button color="primary" onClick={() => deleteObservingRun(run)}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </div>
+  );
+};
 
 const ObservingRunList = ({ observingRuns, deletePermission }) => {
-  const dispatch = useDispatch();
   const classes = useStyles();
   const { instrumentList } = useSelector((state) => state.instruments);
   const { telescopeList } = useSelector((state) => state.telescopes);
@@ -101,52 +165,46 @@ const ObservingRunList = ({ observingRuns, deletePermission }) => {
     observingRunsToShow = [...observingRuns];
   }
 
-  const deleteObservingRun = (observingRun) => {
-    dispatch(observingRunActions.deleteObservingRun(observingRun.id)).then(
-      (result) => {
-        if (result.status === "success") {
-          dispatch(showNotification("Observing run deleted"));
-        }
-      }
-    );
-  };
-
   return (
     <div className={classes.root}>
       <List component="nav">
-        <input
-          type="checkbox"
-          onChange={toggleDisplayAllCheckbox}
-          name="observationRun"
-          data-testid="observationRunCheckbox"
-        />
-        Display all observing runs? &nbsp;&nbsp;
+        <Button
+          onClick={toggleDisplayAllCheckbox}
+          data-testid="observationRunButton"
+          variant="contained"
+        >
+          {displayAll
+            ? "Show only upcoming observing runs"
+            : "Show all observing runs"}
+        </Button>
+        {observingRunsToShow === 0 ? (
+          <Typography>No observing runs to display...</Typography>
+        ) : (
+          ""
+        )}
         {observingRunsToShow?.map((run) => (
           <ListItem key={run.id}>
             <ListItemText
-              primary={observingRunTitle(
-                run,
-                instrumentList,
-                telescopeList,
-                groups
-              )}
+              primary={
+                <Link
+                  to={`/run/${run.id}`}
+                  role="link"
+                  className={classes.hover}
+                >
+                  {observingRunTitle(
+                    run,
+                    instrumentList,
+                    telescopeList,
+                    groups
+                  )}
+                </Link>
+              }
               secondary={observingRunInfo(run, instrumentList, telescopeList)}
             />
-            <Link to={`/run/${run.id}`} role="link">
-              <Button size="small">More info</Button>
-            </Link>
-            <Button
-              key={`${run.id}-delete_button`}
-              id="delete_button"
-              classes={{
-                root: classes.observingRunDelete,
-                disabled: classes.observingRunDeleteDisabled,
-              }}
-              onClick={() => deleteObservingRun(run)}
-              disabled={!deletePermission}
-            >
-              &times;
-            </Button>
+            <DeleteObservingRunDialog
+              run={run}
+              deletePermission={deletePermission}
+            />
           </ListItem>
         ))}
       </List>
@@ -191,6 +249,13 @@ const ObservingRunPage = () => {
 ObservingRunList.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types
   observingRuns: PropTypes.arrayOf(PropTypes.any).isRequired,
+  deletePermission: PropTypes.bool.isRequired,
+};
+
+DeleteObservingRunDialog.propTypes = {
+  run: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+  }).isRequired,
   deletePermission: PropTypes.bool.isRequired,
 };
 

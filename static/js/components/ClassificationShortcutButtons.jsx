@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useSelector } from "react-redux";
-import Button from "@material-ui/core/Button";
+import Button from "@mui/material/Button";
 
 const ClassificationShortcutButtons = ({
   selectedClassifications,

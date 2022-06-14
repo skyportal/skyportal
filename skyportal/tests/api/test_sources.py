@@ -400,7 +400,7 @@ def test_cannot_post_source_with_null_radec(
         },
         token=upload_data_token,
     )
-    assert status == 400
+    assert status == 500
 
 
 def test_add_source_without_group_id(upload_data_token, view_only_token, public_group):
@@ -461,7 +461,7 @@ def test_starlist(upload_data_token, public_source):
     assert "starlist_str" in data["data"]
     assert isinstance(data["data"]["starlist_info"][2]["dec"], float)
 
-    # use DR2 for offsets ... it should not be identical position as DR2
+    # use DR3 for offsets ... it should not be identical position as DR3
     status, data = api(
         "GET",
         f"sources/{public_source.id}/offsets",

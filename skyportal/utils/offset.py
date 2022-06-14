@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import numpy.ma as ma
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 from joblib import Memory
 
 from astropy import units as u
@@ -48,7 +48,7 @@ PS1_CUTOUT_TIMEOUT = 10
 class GaiaQuery:
 
     alt_tap = 'https://gaia.aip.de/tap'
-    alt_main_db = 'gaiaedr3'
+    alt_main_db = 'gaiadr3'
 
     # conversion for units in VO tables to astropy units
     unit_conversion = {
@@ -58,9 +58,15 @@ class GaiaQuery:
         'Magnitude[mag]': u.mag,
         'Angular Velocity[mas/year]': u.mas / u.yr,
         'Angle[mas]': u.mas,
+        'yr': u.yr,
+        'mas.yr**-1': u.mas / u.yr,
+        'mas': u.mas,
+        'mag': u.mag,
+        'deg': u.deg,
+        'Angle[rad], Angle[rad]': u.deg,  # this is the `pos` in degrees, incorrectly reported as radians
     }
 
-    def __init__(self, main_db="gaiaedr3"):
+    def __init__(self, main_db="gaiadr3"):
         self.main_db = main_db
         self.db_connected = self._connect()
         log(
@@ -74,7 +80,7 @@ class GaiaQuery:
         """
         try:
             g = Gaia
-            q = f"SELECT TOP 1  * from {self.main_db}.gaia_source"
+            q = f"SELECT TOP 1 ra, dec from {self.main_db}.gaia_source"
             job = g.launch_job(q)
             _ = job.get_results()
             self.is_backup = False
@@ -83,12 +89,16 @@ class GaiaQuery:
         except (HTTPError, ConnectionResetError):
             log("Warning: main Gaia TAP+ server failed")
             self.is_backup = True
+        except Exception as e:  # noqa: E722
+            log("Warning: main Gaia TAP+ server failed in a way we didn't expect.")
+            log(f'Exception type={type(e).__name__}. Exception message={e}')
+            self.is_backup = True
 
         if self.is_backup:
             try:
                 self.main_db = GaiaQuery.alt_main_db
                 g = vo.dal.TAPService(GaiaQuery.alt_tap)
-                q = f"SELECT TOP 1 * from {self.alt_main_db}.gaia_source"
+                q = f"SELECT TOP 1 ra, dec from {self.alt_main_db}.gaia_source"
                 _ = g.search(q)
                 self.connection = g
                 return True
@@ -1282,7 +1292,7 @@ def get_finding_chart(
     colors = sns.color_palette("colorblind", ncolors)
 
     start_text = [-0.45, 0.99]
-    origin = "GaiaEDR3" if not used_ztfref else "ZTFref"
+    origin = "GaiaDR3" if not used_ztfref else "ZTFref"
     starlist_str = (
         f"# Note: {origin} used for offset star positions\n"
         "# Note: spacing in starlist many not copy/paste correctly in PDF\n"

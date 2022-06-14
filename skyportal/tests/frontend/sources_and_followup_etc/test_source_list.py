@@ -52,7 +52,7 @@ def test_add_sources_two_groups(
     obj_button.clear()
     obj_button.send_keys(obj_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -119,7 +119,7 @@ def test_add_sources_two_groups(
     obj_button.clear()
     obj_button.send_keys(obj_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -167,7 +167,7 @@ def test_add_sources_two_groups(
     obj_button.clear()
     obj_button.send_keys(obj_id)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -254,9 +254,7 @@ def test_filter_by_classification(
     driver.click_xpath(
         f"//li[@data-value='{taxonomy_name}: Algol']", scroll_parent=True
     )
-    driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
-    )
+    driver.click_xpath("//button[text()='Submit']")
 
     # Should see the posted source
     driver.wait_for_xpath(f'//a[@data-testid="{source_id}"]')
@@ -268,9 +266,7 @@ def test_filter_by_classification(
         scroll_parent=True,
     )
     driver.click_xpath(f"//li[@data-value='{taxonomy_name}: AGN']", scroll_parent=True)
-    driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
-    )
+    driver.click_xpath("//button[text()='Submit']")
     # Should no longer see the source
     driver.wait_for_xpath_to_disappear(f'//a[@data-testid="{source_id}"]')
 
@@ -364,10 +360,7 @@ def test_filter_by_spectrum_time(
     )
 
     before_input.send_keys(str(test_time.isoformat()))
-
-    driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
-    )
+    driver.click_xpath("//button[text()='Submit']")
 
     # Should see the first source
     driver.wait_for_xpath(f'//a[@data-testid="{obj_id1}"]')
@@ -383,9 +376,8 @@ def test_filter_by_spectrum_time(
     )
 
     after_input.send_keys(str(test_time.isoformat()))
-
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']"
+        "//button[text()='Submit']",
     )
 
     # Should see the posted source
@@ -434,7 +426,7 @@ def test_filter_by_alias_and_origin(
 
     alias_field.send_keys(alias)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -446,7 +438,7 @@ def test_filter_by_alias_and_origin(
     alias_field = driver.wait_for_xpath("//*[@data-testid='alias-text']//input")
     alias_field.send_keys(str(uuid.uuid4()))
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -460,7 +452,7 @@ def test_filter_by_alias_and_origin(
     )
     alias_field.send_keys(origin)
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -474,7 +466,7 @@ def test_filter_by_alias_and_origin(
     )
     origin_field.send_keys(str(uuid.uuid4()))
     driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
+        "//button[text()='Submit']",
         scroll_parent=True,
     )
 
@@ -515,10 +507,8 @@ def test_hr_diagram(
         f'sources/{source_id}/annotations',
         data={
             'obj_id': source_id,
-            'origin': 'cross_match1',
-            'data': {
-                'gaia': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20},
-            },
+            'origin': 'gaiadr3.gaia_source',
+            'data': {'Mag_G': 11.3, 'Mag_Bp': 11.8, 'Mag_Rp': 11.0, 'Plx': 20},
         },
         token=annotation_token,
     )
@@ -530,10 +520,7 @@ def test_hr_diagram(
     obj_button = driver.wait_for_xpath("//input[@name='sourceID']")
     obj_button.clear()
     obj_button.send_keys(source_id)
-    driver.click_xpath(
-        "//div[contains(@class, 'MUIDataTableFilter-root')]//span[text()='Submit']",
-        scroll_parent=True,
-    )
+    driver.click_xpath("//button[text()='Submit']", scroll_parent=True)
 
     # find the name of the newly added source
     driver.wait_for_xpath(f"//a[contains(@href, '/source/{source_id}')]")

@@ -3,7 +3,7 @@ from astropy import units as u
 
 from skyportal.utils.cosmology import establish_cosmology
 
-fallback_cosmology = cosmology.Planck18_arXiv_v2
+fallback_cosmology = cosmology.Planck18
 
 
 def test_default_cosmology():

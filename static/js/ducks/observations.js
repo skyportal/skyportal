@@ -81,6 +81,7 @@ messageHandler.add((actionType, payload, dispatch) => {
 
 export function fetchGcnEventObservations(dateobs, filterParams = {}) {
   filterParams.localizationDateobs = dateobs;
+  filterParams.numPerPage = 1000;
 
   if (!Object.keys(filterParams).includes("startDate")) {
     if (dateobs) {

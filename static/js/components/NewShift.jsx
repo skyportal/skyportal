@@ -1,7 +1,8 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Form from "@rjsf/material-ui";
-import CircularProgress from "@material-ui/core/CircularProgress";
+// eslint-disable-next-line import/no-unresolved
+import Form from "@rjsf/material-ui/v5";
+import CircularProgress from "@mui/material/CircularProgress";
 import { showNotification } from "baselayer/components/Notifications";
 
 import dayjs from "dayjs";
@@ -125,6 +126,10 @@ const NewShift = () => {
         format: "date-time",
         title: "End Date (Local Time)",
         default: defaultEndDate,
+      },
+      required_users_number: {
+        type: "integer",
+        title: "Number of users required in the shift (optional)",
       },
       description: {
         type: "string",

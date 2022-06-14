@@ -157,6 +157,13 @@ User.comments_on_gcns = relationship(
     cascade="delete",
     passive_deletes=True,
 )
+User.comments_on_shifts = relationship(
+    "CommentOnShift",
+    back_populates="author",
+    foreign_keys="CommentOnShift.author_id",
+    cascade="delete",
+    passive_deletes=True,
+)
 User.followup_requests = relationship(
     'FollowupRequest',
     back_populates='requester',
@@ -176,6 +183,12 @@ User.transactions = relationship(
     back_populates='initiator',
     doc="The FacilityTransactions initiated by this User.",
     foreign_keys="FacilityTransaction.initiator_id",
+)
+User.transaction_requests = relationship(
+    'FacilityTransactionRequest',
+    back_populates='initiator',
+    doc="The FacilityTransactionRequests initiated by this User.",
+    foreign_keys="FacilityTransactionRequest.initiator_id",
 )
 User.assignments = relationship(
     'ClassicalAssignment',
