@@ -276,7 +276,6 @@ function CurrentShiftMenu({ currentShift }) {
       let button;
       if (selected_users.length > 0) {
         const usersToAdd = selected_users.filter(usersNotInShift);
-        console.log(usersToAdd);
         if (usersToAdd.length > 0) {
           button = (
             <Tooltip title="Adds selected users to shift">
