@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import Box from "@material-ui/core/Box";
-import Button from "@material-ui/core/Button";
-import Select from "@material-ui/core/Select";
-import Chip from "@material-ui/core/Chip";
-import MenuItem from "@material-ui/core/MenuItem";
-import Input from "@material-ui/core/Input";
-import FormControl from "@material-ui/core/FormControl";
-import InputLabel from "@material-ui/core/InputLabel";
-import TextField from "@material-ui/core/TextField";
-import Paper from "@material-ui/core/Paper";
-import { makeStyles, useTheme } from "@material-ui/core/styles";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Select from "@mui/material/Select";
+import Chip from "@mui/material/Chip";
+import MenuItem from "@mui/material/MenuItem";
+import Input from "@mui/material/Input";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import TextField from "@mui/material/TextField";
+import Paper from "@mui/material/Paper";
+import { useTheme } from "@mui/material/styles";
+
+import makeStyles from "@mui/styles/makeStyles";
 
 import * as groupsActions from "../ducks/groups";
 import * as usersActions from "../ducks/users";
@@ -70,7 +72,7 @@ const NewGroupForm = () => {
 
   const useStyles = makeStyles((theme) => ({
     formControl: {
-      margin: `${theme.spacing(1)}px 0`,
+      margin: `${theme.spacing(1)} 0`,
       minWidth: 130,
     },
     chips: {

@@ -4,12 +4,12 @@ import { useSelector, useDispatch } from "react-redux";
 
 import PropTypes from "prop-types";
 
-import { Button } from "@material-ui/core";
-import Tooltip from "@material-ui/core/Tooltip";
-import GroupIcon from "@material-ui/icons/Group";
-import CloseIcon from "@material-ui/icons/Close";
-import { makeStyles } from "@material-ui/core/styles";
-import InfoOutlinedIcon from "@material-ui/icons/InfoOutlined";
+import { Button } from "@mui/material";
+import Tooltip from "@mui/material/Tooltip";
+import GroupIcon from "@mui/icons-material/Group";
+import CloseIcon from "@mui/icons-material/Close";
+import makeStyles from "@mui/styles/makeStyles";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";

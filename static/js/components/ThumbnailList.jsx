@@ -5,12 +5,12 @@ import { useSelector } from "react-redux";
 import dayjs from "dayjs";
 import calendar from "dayjs/plugin/calendar";
 
-import { makeStyles } from "@material-ui/core/styles";
-import Grid from "@material-ui/core/Grid";
+import makeStyles from "@mui/styles/makeStyles";
+import Grid from "@mui/material/Grid";
 
-import Card from "@material-ui/core/Card";
-import CardContent from "@material-ui/core/CardContent";
-import Typography from "@material-ui/core/Typography";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
 
 dayjs.extend(calendar);
 
@@ -22,9 +22,9 @@ const useStyles = makeStyles((theme) => ({
     flexGrow: 1,
   }),
   cardTitle: {
-    padding: `${theme.spacing(0.75)}px ${theme.spacing(1)}px ${theme.spacing(
+    padding: `${theme.spacing(0.75)} ${theme.spacing(1)} ${theme.spacing(
       0.75
-    )}px ${theme.spacing(1)}px`,
+    )} ${theme.spacing(1)}`,
   },
   title: {
     fontSize: "0.875rem",
@@ -231,7 +231,7 @@ const ThumbnailList = ({
 ThumbnailList.propTypes = {
   ra: PropTypes.number.isRequired,
   dec: PropTypes.number.isRequired,
-  thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired,
+  thumbnails: PropTypes.arrayOf(PropTypes.object).isRequired, // eslint-disable-line react/forbid-prop-types
   size: PropTypes.string,
   displayTypes: PropTypes.arrayOf(PropTypes.string),
   useGrid: PropTypes.bool,

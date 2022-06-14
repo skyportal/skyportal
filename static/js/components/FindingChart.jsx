@@ -1,19 +1,19 @@
 import React, { useRef, useState, Suspense } from "react";
 import { Link, useParams } from "react-router-dom";
-import { makeStyles } from "@material-ui/core/styles";
+import makeStyles from "@mui/styles/makeStyles";
 
-import Select from "@material-ui/core/Select";
-import MenuItem from "@material-ui/core/MenuItem";
-import InputLabel from "@material-ui/core/InputLabel";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import FormControl from "@material-ui/core/FormControl";
-import Button from "@material-ui/core/Button";
-import Input from "@material-ui/core/Input";
-import Grid from "@material-ui/core/Grid";
-import Card from "@material-ui/core/Card";
-import CardContent from "@material-ui/core/CardContent";
-import Typography from "@material-ui/core/Typography";
-import PrintIcon from "@material-ui/icons/Print";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import InputLabel from "@mui/material/InputLabel";
+import CircularProgress from "@mui/material/CircularProgress";
+import FormControl from "@mui/material/FormControl";
+import Button from "@mui/material/Button";
+import Input from "@mui/material/Input";
+import Grid from "@mui/material/Grid";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
+import PrintIcon from "@mui/icons-material/Print";
 
 import TextLoop from "react-text-loop";
 import { useImage } from "react-image";
@@ -131,7 +131,7 @@ const FindingChart = () => {
         <Grid
           container
           direction="row"
-          justify="flex-start"
+          justifyContent="flex-start"
           alignItems="flex-start"
           spacing={1}
         >
@@ -154,7 +154,7 @@ const FindingChart = () => {
                     <Grid
                       container
                       direction="column"
-                      justify="space-evenly"
+                      justifyContent="space-evenly"
                       alignItems="flex-start"
                       spacing={2}
                     >
@@ -200,7 +200,7 @@ const FindingChart = () => {
                             className={classes.items}
                           >
                             <MenuItem value="ztfref">ZTF Ref</MenuItem>
-                            <MenuItem value="gaia">Gaia EDR3</MenuItem>
+                            <MenuItem value="gaia">Gaia DR3</MenuItem>
                           </Controller>
                         </FormControl>
                       </Grid>
@@ -279,7 +279,6 @@ const FindingChart = () => {
                       <Grid item xs={8}>
                         <Button
                           variant="contained"
-                          color="default"
                           className={classes.button}
                           startIcon={<PrintIcon />}
                           onClick={handlePrint}
