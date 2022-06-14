@@ -36,7 +36,7 @@ const ObservabilityPreferences = () => {
   telescopeNameList.unshift("Clear selections");
 
   return (
-    <div>
+    <div style={{ marginBottom: "1rem" }}>
       <UserPreferencesHeader
         title="Observability Preferences"
         popupText={
