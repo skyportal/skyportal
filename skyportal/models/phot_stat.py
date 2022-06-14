@@ -161,7 +161,8 @@ class PhotStat(Base):
         nullable=True,
         index=True,
         doc='Latest non-detection that occurred before any detections. '
-        'Will be None if none of the observations are non-detections. ',
+        'Will be None if none of the observations are non-detections '
+        'or if the first photometry point is a detection. ',
     )
 
     time_to_non_detection = sa.Column(
@@ -209,12 +210,28 @@ class PhotStat(Base):
         'Will be None if no points are detections. ',
     )
 
+    peak_mjd_global = sa.Column(
+        sa.Float,
+        nullable=True,
+        index=True,
+        doc='Modified Julian date of the brightest recorded observation, '
+        'in any filter. ',
+    )
+
     peak_mag_per_filter = sa.Column(
         MutableDict.as_mutable(JSONB),
         nullable=True,
         index=True,
         doc='Brightest recorded apparent magnitude in each filter. '
         'Will be None if no points are detections. ',
+    )
+
+    peak_mjd_per_filter = sa.Column(
+        MutableDict.as_mutable(JSONB),
+        nullable=True,
+        index=True,
+        doc='Modified Julian date of the brightest recorded observation, '
+        'in each filter. ',
     )
 
     faintest_mag_global = sa.Column(
@@ -247,6 +264,28 @@ class PhotStat(Base):
         index=True,
         doc='Deepest recorded limiting magnitude for non-detections in each filter. '
         'Will be None if all photometry points are detections. ',
+    )
+
+    rise_rate = sa.Column(
+        sa.Float,
+        nullable=True,
+        index=True,
+        doc='Rate of change in magnitude (in magnitudes per day) '
+        'measured from the first detection to the peak magnitude. '
+        'Peak magnitude is chosen using the same filter as the first detection. '
+        'Will be None if no points are detections or if '
+        'the first detection is also the peak. ',
+    )
+
+    decay_rate = sa.Column(
+        sa.Float,
+        nullable=True,
+        index=True,
+        doc='Rate of change in magnitude (in magnitudes per day) '
+        'measured from the the peak magnitude to the last detection. '
+        'Peak magnitude is chosen using the same filter as the last detection. '
+        'Will be None if no points are detections or if '
+        'the last detection is also the peak. ',
     )
 
     mag_rms_global = sa.Column(
@@ -323,9 +362,13 @@ class PhotStat(Base):
                 self.mag_rms_global = 0
                 self.mag_rms_per_filter = {filt: 0}
                 self.peak_mag_global = mag
+                self.peak_mjd_global = mjd
                 self.peak_mag_per_filter = {filt: mag}
+                self.peak_mjd_per_filter = {filt: mjd}
                 self.faintest_mag_global = mag
                 self.faintest_mag_per_filter = {filt: mag}
+                self.rise_rate = None
+                self.decay_rate = None
             else:
                 self.deepest_limit_global = lim
                 self.deepest_limit_per_filter = {filt: lim}
@@ -393,16 +436,55 @@ class PhotStat(Base):
                     self.mean_color[f'{filt}-{k}'] = mean_mags[filt] - mean_mags[k]
 
                 # find the brightest magnitude (lowest number)
-                self.peak_mag_global = min(mag, self.peak_mag_global or np.inf)
-                self.peak_mag_per_filter[filt] = min(
-                    mag, self.peak_mag_per_filter.get(filt, np.inf)
-                )
+                if self.peak_mag_global is None or self.peak_mag_global > mag:
+                    self.peak_mag_global = mag
+                    self.peak_mjd_global = mjd
+                if (
+                    filt not in self.peak_mag_per_filter
+                    or self.peak_mag_per_filter[filt] > mag
+                ):
+                    self.peak_mag_per_filter[filt] = mag
+                    self.peak_mjd_per_filter[filt] = mjd
 
                 # find the faintest (detected) magnitude (highest number)
                 self.faintest_mag_global = max(mag, self.faintest_mag_global or -np.inf)
                 self.faintest_mag_per_filter[filt] = max(
                     mag, self.faintest_mag_per_filter.get(filt, -np.inf)
                 )
+
+                # check if new point removes "last_non_detection_mjd"
+                if (
+                    self.last_non_detection_mjd is not None
+                    and mjd < self.last_non_detection_mjd
+                ):
+                    self.last_non_detection_mjd = None
+
+                # update the rise and decay rates
+                if (
+                    self.first_detected_filter is not None
+                    and self.first_detected_filter in self.peak_mag_per_filter
+                ):
+                    peak_mag = self.peak_mag_per_filter[self.first_detected_filter]
+                    peak_mjd = self.peak_mjd_per_filter[self.first_detected_filter]
+                    if peak_mjd > self.first_detected_mjd:
+                        self.rise_rate = -(peak_mag - self.first_detected_mag) / (
+                            peak_mjd - self.first_detected_mjd
+                        )
+                    else:
+                        self.rise_rate = None
+
+                if (
+                    self.last_detected_filter is not None
+                    and self.last_detected_filter in self.peak_mag_per_filter
+                ):
+                    peak_mag = self.peak_mag_per_filter[self.last_detected_filter]
+                    peak_mjd = self.peak_mjd_per_filter[self.last_detected_filter]
+                    if peak_mjd < self.last_detected_mjd:
+                        self.decay_rate = -(peak_mag - self.last_detected_mag) / (
+                            peak_mjd - self.last_detected_mjd
+                        )
+                    else:
+                        self.decay_rate = None
 
                 # update the number of detections
                 self.num_det_global += 1
@@ -412,11 +494,6 @@ class PhotStat(Base):
                     self.num_det_per_filter[filt] = 1
 
             else:  # non-detection
-                if self.first_detected_mjd is None or self.first_detected_mjd > mjd:
-                    self.last_non_detection_mjd = max(
-                        mjd, self.last_non_detection_mjd or 0
-                    )
-
                 # the deepest limiting magnitude for this object:
                 self.deepest_limit_global = max(
                     lim, self.deepest_limit_global or -np.inf
@@ -439,6 +516,8 @@ class PhotStat(Base):
                 self.time_to_non_detection = (
                     self.first_detected_mjd - self.last_non_detection_mjd
                 )
+            else:
+                self.time_to_non_detection = None
 
         self.last_update = datetime.utcnow()
 
@@ -496,6 +575,7 @@ class PhotStat(Base):
         self.mean_mag_global = None
         self.mag_rms_global = None
         self.peak_mag_global = None
+        self.peak_mjd_global = None
         self.faintest_mag_global = None
         self.deepest_limit_global = None
         self.last_non_detection_mjd = None
@@ -507,6 +587,7 @@ class PhotStat(Base):
         self.mean_mag_per_filter = {}
         self.mag_rms_per_filter = {}
         self.peak_mag_per_filter = {}
+        self.peak_mjd_per_filter = {}
         self.faintest_mag_per_filter = {}
         self.deepest_limit_per_filter = {}
         self.mean_color = {}
@@ -548,6 +629,7 @@ class PhotStat(Base):
             self.mean_mag_global = np.nanmean(good_mags)
             self.mag_rms_global = np.nanstd(good_mags)
             self.peak_mag_global = min(good_mags)
+            self.peak_mjd_global = good_mjds[np.argmin(good_mags)]
             self.faintest_mag_global = max(good_mags)
 
             # stats for detections for each filter
@@ -560,6 +642,7 @@ class PhotStat(Base):
                     self.mean_mag_per_filter[filt] = np.nanmean(filt_mags)
                     self.mag_rms_per_filter[filt] = np.nanstd(filt_mags)
                     self.peak_mag_per_filter[filt] = min(filt_mags)
+                    self.peak_mjd_per_filter[filt] = filt_mjds[np.argmin(filt_mags)]
                     self.faintest_mag_per_filter[filt] = max(filt_mags)
 
             # find all the color terms
@@ -568,6 +651,27 @@ class PhotStat(Base):
                 for f2 in set(good_filters):
                     if f1 != f2:
                         self.mean_color[f'{f1}-{f2}'] = mean_mags[f1] - mean_mags[f2]
+
+            # update the rise and decay rates
+            if (
+                self.first_detected_filter is not None
+                and self.first_detected_filter in self.peak_mag_per_filter
+            ):
+                peak_mag = self.peak_mag_per_filter[self.first_detected_filter]
+                peak_mjd = self.peak_mjd_per_filter[self.first_detected_filter]
+                self.rise_rate = -(peak_mag - self.first_detected_mag) / (
+                    peak_mjd - self.first_detected_mjd
+                )
+
+            if (
+                self.last_detected_filter is not None
+                and self.last_detected_filter in self.peak_mag_per_filter
+            ):
+                peak_mag = self.peak_mag_per_filter[self.last_detected_filter]
+                peak_mjd = self.peak_mjd_per_filter[self.last_detected_filter]
+                self.decay_rate = -(peak_mag - self.last_detected_mag) / (
+                    peak_mjd - self.last_detected_mjd
+                )
 
         # if any are non-detections
         if np.any(dets == 0):
@@ -583,7 +687,7 @@ class PhotStat(Base):
 
             if len(mjds_before):
                 self.last_non_detection_mjd = max(mjds_before)
-                if self.first_detected_mjd and self.last_non_detection_mjd:
+                if self.first_detected_mjd:
                     self.time_to_non_detection = (
                         self.first_detected_mjd - self.last_non_detection_mjd
                     )
@@ -644,25 +748,3 @@ def insert_into_phot_stat(mapper, connection, target):
         else:
             phot_stat.add_photometry_point(target)
             session.add(phot_stat)
-
-
-# @event.listens_for(Photometry, 'after_delete')
-# @event.listens_for(Photometry, 'after_update')
-# def fully_update_phot_stat(mapper, connection, target):
-#     print("Fully updating phot_stat")
-#
-#     # Fully update PhotStat object
-#     @event.listens_for(DBSession(), "before_flush", once=True)
-#     def receive_after_flush(session, context, instances):
-#         print('received after flush')
-#         obj_id = target.obj_id
-#         phot_stat = session.scalars(
-#             sa.select(PhotStat).where(PhotStat.obj_id == obj_id)
-#         ).first()
-#
-#         if phot_stat is not None:
-#             all_phot = session.scalars(
-#                 sa.select(Photometry).where(Photometry.obj_id == obj_id)
-#             ).all()
-#             print(f'len(all_phot) = {len(all_phot)}')
-#             phot_stat.full_update(all_phot)

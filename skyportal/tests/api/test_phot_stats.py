@@ -117,6 +117,95 @@ def test_delete_phot_stat_does_not_cascade(
     assert {p['id'] for p in data['data']} == set(phot_ids)
 
 
+def test_phot_stats_simple_lightcurve(
+    upload_data_token, super_admin_token, public_source, public_group, ztf_camera
+):
+    source_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": source_id,
+            "ra": np.random.uniform(0, 360),
+            "dec": np.random.uniform(-90, 90),
+            "redshift": np.random.uniform(0, 1),
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data['status'] == 'success'
+
+    mjd = np.linspace(57000, 57100, 5)
+    flux = np.array([10.0, 110.0, 170.0, 180.0, 100.0])
+    mjd = mjd[::-1]
+    flux = flux[::-1]
+
+    # post all these points
+    for i in range(len(mjd)):
+        status, data = api(
+            'POST',
+            'photometry',
+            data={
+                'obj_id': source_id,
+                'mjd': mjd[i],
+                'instrument_id': ztf_camera.id,
+                'flux': flux[i],
+                'fluxerr': 10.0,
+                'zp': 25.0,
+                'magsys': 'ab',
+                'filter': 'ztfr',
+                'group_ids': [public_group.id],
+                'altdata': {'some_key': str(uuid.uuid4())},
+            },
+            token=upload_data_token,
+        )
+        if status != 200:
+            print(data)
+        assert status == 200
+        assert data['status'] == 'success'
+
+    status, data = api(
+        'GET',
+        f'sources/{source_id}/photometry',
+        token=upload_data_token,
+    )
+    assert status == 200
+    photometry = data['data']
+
+    # get the magnitudes, detections, and limits
+    # in the order of MJD, not the order they were posted
+    phot_dict = {p['mjd']: p for p in photometry}
+    mag = []
+    det = []
+    lim = []
+    filt = []
+    for j in mjd:
+        assert j in phot_dict
+        mag.append(phot_dict[j]['mag'])
+        det.append(phot_dict[j]['snr'] > PHOT_DETECTION_THRESHOLD)
+        lim.append(phot_dict[j]['limiting_mag'])
+        filt.append(phot_dict[j]['filter'])
+
+    mag = np.array(mag)
+    det = np.array(det)
+    lim = np.array(lim)
+    filt = np.array(filt)
+    assert all(isinstance(m, float) and not np.isnan(m) for m in mag)
+    print(f'mags: {mag}')
+
+    # get the photometry stats
+    status, data = api(
+        'GET',
+        f'sources/{source_id}/phot_stat',
+        token=upload_data_token,
+    )
+    assert status == 200
+    phot_stat = data['data']
+
+    check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim)
+
+
 def test_phot_stats_for_public_source(upload_data_token, public_source):
     status, data = api(
         'GET',
@@ -175,6 +264,7 @@ def test_phot_stat_consistent(
     phot_ids = []
     insert_idx = list(range(num_points))
     np.random.shuffle(insert_idx)  # input data in random order
+
     for i in insert_idx:
         status, data = api(
             'POST',
@@ -417,6 +507,7 @@ def check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim):
         # check the mag mean, peak and rms
         assert np.isclose(phot_stat['mean_mag_global'], np.mean(mag[det]))
         assert np.isclose(phot_stat['peak_mag_global'], min(mag[det]))
+        assert phot_stat['peak_mjd_global'] == mjd[det][np.argmin(mag[det])]
         assert np.isclose(phot_stat['faintest_mag_global'], max(mag[det]))
         assert np.isclose(phot_stat['mag_rms_global'], np.std(mag[det]))
 
@@ -427,6 +518,10 @@ def check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim):
                 )
                 assert np.isclose(
                     phot_stat['peak_mag_per_filter'][f], min(mag[det & (filt == f)])
+                )
+                assert (
+                    phot_stat['peak_mjd_per_filter'][f]
+                    == mjd[det & (filt == f)][np.argmin(mag[det & (filt == f)])]
                 )
                 assert np.isclose(
                     phot_stat['faintest_mag_per_filter'][f], max(mag[det & (filt == f)])
@@ -459,19 +554,60 @@ def check_phot_stat_is_consistent(phot_stat, mjd, mag, filt, det, lim):
                 assert np.isclose(phot_stat['mean_color'][f'{f1}-{f2}'], mag1 - mag2)
 
         date_array = np.array(
-            list(zip(mjd, det)), dtype=[('mjd', 'float'), ('det', 'bool')]
+            list(zip(mjd, det, filt, mag)),
+            dtype=[
+                ('mjd', 'float'),
+                ('det', 'bool'),
+                ('filt', 'S256'),
+                ('mag', 'float'),
+            ],
         )
         date_array.sort(order='mjd')
 
         # the last non-detection:
-        idx = np.argmax(date_array['det']) - 1
-        if idx >= 0:
-            dt = date_array['mjd'][idx + 1] - date_array['mjd'][idx]
-            assert np.isclose(phot_stat['time_to_non_detection'], dt)
-            assert phot_stat['last_non_detection_mjd'] == date_array['mjd'][idx]
-        else:
+        if all(date_array['det'] == 0):
+            assert phot_stat['last_non_detection_mjd'] == date_array['mjd'][-1]
             assert phot_stat['time_to_non_detection'] is None
-            assert phot_stat['last_non_detection_mjd'] is None
+        else:
+            idx = np.argmax(date_array['det']) - 1
+            if idx >= 0:
+                assert phot_stat['last_non_detection_mjd'] == date_array['mjd'][idx]
+                dt = date_array['mjd'][idx + 1] - date_array['mjd'][idx]
+                assert np.isclose(phot_stat['time_to_non_detection'], dt)
+            else:
+                assert phot_stat['last_non_detection_mjd'] is None
+                assert phot_stat['time_to_non_detection'] is None
+
+        # rise and decay rates:
+        detections = date_array[date_array['det']]
+
+        # check the rise rate
+        first_filter = detections['filt'][0]
+        first_mjd = detections['mjd'][0]
+        first_mag = detections['mag'][0]
+        # peak in the SAME FILTER as the first detection:
+        peak_idx = np.argmin(detections[detections['filt'] == first_filter]['mag'])
+        peak_mjd = detections[detections['filt'] == first_filter]['mjd'][peak_idx]
+        peak_mag = detections[detections['filt'] == first_filter]['mag'][peak_idx]
+        if peak_mjd > first_mjd:
+            rise_rate = -(peak_mag - first_mag) / (peak_mjd - first_mjd)
+            assert np.isclose(phot_stat['rise_rate'], rise_rate)
+        else:
+            assert phot_stat['rise_rate'] is None
+
+        # check the decay rate
+        last_filter = date_array['filt'][date_array['det']][-1]
+        last_mjd = date_array['mjd'][date_array['det']][-1]
+        last_mag = date_array['mag'][date_array['det']][-1]
+        # peak in the SAME FILTER as the last detection:
+        peak_idx = np.argmin(detections[detections['filt'] == last_filter]['mag'])
+        peak_mjd = detections[detections['filt'] == last_filter]['mjd'][peak_idx]
+        peak_mag = detections[detections['filt'] == last_filter]['mag'][peak_idx]
+        if peak_mjd < last_mjd:
+            decay_rate = -(peak_mag - last_mag) / (peak_mjd - last_mjd)
+            assert np.isclose(phot_stat['decay_rate'], decay_rate)
+        else:
+            assert phot_stat['decay_rate'] is None
 
     except Exception as e:
         from pprint import pprint

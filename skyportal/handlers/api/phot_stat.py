@@ -48,6 +48,9 @@ class PhotStatHandler(BaseHandler):
                     f'Could not find a PhotStat for object with id "{obj_id}". '
                 )
 
+            # this is a non-permissioned query:
+            # it will get the time of the latest photometry
+            # regardless of the user's permissions to view it.
             stmt = (
                 sa.select(Photometry)
                 .where(Photometry.obj_id == obj_id)
