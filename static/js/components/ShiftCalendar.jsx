@@ -92,6 +92,7 @@ const red = "#c0392b";
 const orange = "#e46828";
 const green = "#359d73";
 const grey = "#95a5a6";
+const blue = "#357ec7";
 
 function isDailyShift(shiftName) {
   const regex = /\d+\/\d+$/;
@@ -236,9 +237,11 @@ function MyCalendar({ events, currentShift, setShow }) {
       .map((user) => user.id)
       .includes(currentUser.id);
     const style = {
-      background: grey,
+      background: blue,
     };
-    if (
+    if (event?.end_date < new Date()) {
+      style.background = grey;
+    } else if (
       event?.shift_users?.length < event?.required_users_number &&
       event?.end_date > new Date()
     ) {
@@ -257,9 +260,13 @@ function MyCalendar({ events, currentShift, setShow }) {
         style.background = red;
       }
     }
-    if (currentUserInShift && style.background === grey) {
+    if (currentUserInShift && style.background === blue) {
       style.background = green;
-    } else if (currentUserInShift && style.background !== grey) {
+    } else if (
+      currentUserInShift &&
+      style.background !== grey &&
+      style.background !== blue
+    ) {
       style.background = `repeating-linear-gradient(45deg, ${green}, ${green} 10px, ${style.background} 10px, ${style.background} 20px)`;
     }
     if (event.id === currentShift.id) {
@@ -287,13 +294,17 @@ function MyCalendar({ events, currentShift, setShow }) {
       </div>
       <div className={classes.legend}>
         <div style={{ background: grey }} className={classes.circle} />
-        <p> Shift that you are a NOT a member of</p>
+        <p> Shift that already happened</p>
+      </div>
+      <div className={classes.legend}>
+        <div style={{ background: blue }} className={classes.circle} />
+        <p> Shift that did not happen yet, or is happening right now</p>
       </div>
       <div className={classes.legend}>
         <div style={{ background: red }} className={classes.circle} />
         <p>
           {" "}
-          Shift will happen in less then 24 hours, and the required number of
+          Shift will happen in less than 24 hours, and the required number of
           users is not reached
         </p>
       </div>
@@ -320,8 +331,8 @@ function MyCalendar({ events, currentShift, setShow }) {
         />
         <p>
           {" "}
-          You are a member of a shift, but it will happen in less than 72 hours{" "}
-          <br /> and did not reach the required number of users
+          Member of the shift, but it will happen in less than 72 hours <br />{" "}
+          and did not reach the required number of users
         </p>
       </div>
     </div>
