@@ -204,6 +204,8 @@ class AnalysisServiceHandler(BaseHandler):
             return self.error(
                 f'Analysis Service with that name already exists: {str(e)}'
             )
+        except Exception as e:
+            return self.error(f'Unexpected Error adding Analysis Service: {str(e)}')
 
         return self.success(data={"id": analysis_service.id})
 
@@ -256,6 +258,7 @@ class AnalysisServiceHandler(BaseHandler):
             analysis_dict["groups"] = s.groups
             return self.success(data=analysis_dict)
 
+        # retrieve multiple services
         analysis_services = AnalysisService.get_records_accessible_by(self.current_user)
         self.verify_and_commit()
 
