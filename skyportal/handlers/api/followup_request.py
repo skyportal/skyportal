@@ -499,8 +499,10 @@ class FollowupRequestHandler(BaseHandler):
 
         total_matches = followup_requests.count()
         if n_per_page is not None:
-            followup_requests = followup_requests.limit(n_per_page).offset(
-                (page_number - 1) * n_per_page
+            followup_requests = (
+                followup_requests.distinct()
+                .limit(n_per_page)
+                .offset((page_number - 1) * n_per_page)
             )
         followup_requests = followup_requests.all()
 

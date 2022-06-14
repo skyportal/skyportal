@@ -386,8 +386,9 @@ class MMAAPI(FollowUpAPI):
                 'Should only be one observation plan associated to this request'
             )
 
-        observation_plan = req.observation_plans[0]
-        DBSession().delete(observation_plan)
+        if len(req.observation_plans) > 0:
+            observation_plan = req.observation_plans[0]
+            DBSession().delete(observation_plan)
 
         DBSession().delete(req)
         DBSession().commit()

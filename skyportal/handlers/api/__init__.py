@@ -45,6 +45,7 @@ from .observation import (
     ObservationGCNHandler,
     ObservationTreasureMapHandler,
     ObservationExternalAPIHandler,
+    ObservationSimSurveyHandler,
 )
 from .observingrun import ObservingRunHandler
 from .observation_plan import (
