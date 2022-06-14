@@ -1,5 +1,6 @@
 __all__ = ['PhotStat']
 
+import json
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy import event
@@ -333,7 +334,10 @@ class PhotStat(Base):
                 phot['original_user_data'] is not None
                 and 'limiting_mag' in phot['original_user_data']
             ):
-                lim = phot['original_user_data']['limiting_mag']
+                user_data = phot['original_user_data']
+                if isinstance(user_data, str):
+                    user_data = json.loads(user_data)
+                lim = user_data['limiting_mag']
             else:
                 fluxerr = phot['fluxerr']
                 fivesigma = 5 * fluxerr
@@ -659,9 +663,12 @@ class PhotStat(Base):
             ):
                 peak_mag = self.peak_mag_per_filter[self.first_detected_filter]
                 peak_mjd = self.peak_mjd_per_filter[self.first_detected_filter]
-                self.rise_rate = -(peak_mag - self.first_detected_mag) / (
-                    peak_mjd - self.first_detected_mjd
-                )
+                if peak_mjd > self.first_detected_mjd:
+                    self.rise_rate = -(peak_mag - self.first_detected_mag) / (
+                        peak_mjd - self.first_detected_mjd
+                    )
+                else:
+                    self.rise_rate = None
 
             if (
                 self.last_detected_filter is not None
@@ -669,9 +676,12 @@ class PhotStat(Base):
             ):
                 peak_mag = self.peak_mag_per_filter[self.last_detected_filter]
                 peak_mjd = self.peak_mjd_per_filter[self.last_detected_filter]
-                self.decay_rate = -(peak_mag - self.last_detected_mag) / (
-                    peak_mjd - self.last_detected_mjd
-                )
+                if peak_mjd < self.last_detected_mjd:
+                    self.decay_rate = -(peak_mag - self.last_detected_mag) / (
+                        peak_mjd - self.last_detected_mjd
+                    )
+                else:
+                    self.decay_rate = None
 
         # if any are non-detections
         if np.any(dets == 0):

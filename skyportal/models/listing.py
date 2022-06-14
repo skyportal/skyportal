@@ -27,7 +27,6 @@ class Listing(Base):
         sa.ForeignKey('objs.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
-        unique=True,
         doc="The ID of the object that is on this Listing",
     )
 
