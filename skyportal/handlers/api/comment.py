@@ -387,7 +387,7 @@ class CommentHandler(BaseHandler):
                     f'Unknown resource type "{associated_resource_type}".'
                 )
 
-            users_mentioned_in_comment = users_mentioned(comment_text)
+            users_mentioned_in_comment = users_mentioned(comment_text, session)
             if associated_resource_type.lower() == "sources":
                 text_to_send = f"*@{self.associated_user_object.username}* mentioned you in a comment on *{obj_id}*"
                 url_endpoint = f"/source/{obj_id}"
