@@ -727,6 +727,14 @@ class AnalysisHandler(BaseHandler):
             schema:
               type: string
             description: the analysis service id to be used
+          - in: query
+            name: optional_url_parameters
+            nullable: true
+            schema:
+              type:
+                object
+              additionalProperties:
+                type: string
         requestBody:
           content:
             application/json:
@@ -771,6 +779,8 @@ class AnalysisHandler(BaseHandler):
                               type: integer
                               description: New analysis ID
         """
+        optional_url_parameters = self.get_query_argument('optional_url_parameters', {})
+        log(f"optional_url_parameters: {optional_url_parameters}")
         data = self.get_json()
         try:
             analysis_service = AnalysisService.get_if_accessible_by(
