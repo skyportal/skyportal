@@ -171,7 +171,7 @@ def test_shift(
 
     # check the option to show all shifts
     driver.wait_for_xpath(
-        '//*[contains(., "Show All Shifts")]/../span[@class="MuiSwitch-root"]',
+        '//*[contains(., "Show All Shifts")]/../span[contains(@class, "MuiSwitch-root")]',
         timeout=30,
     ).click()
 
@@ -221,7 +221,7 @@ def test_shift(
     driver.click_xpath(notification_xpath, timeout=10)
 
     driver.wait_for_xpath(
-        '//*[contains(., "Show All Shifts")]/../span[@class="MuiSwitch-root"]',
+        '//*[contains(., "Show All Shifts")]/../span[contains(@class, "MuiSwitch-root")]',
         timeout=30,
     ).click()
 
