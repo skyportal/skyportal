@@ -182,7 +182,7 @@ function CurrentShiftMenu({ currentShift }) {
       if (selected_users.length > 0) {
         const users_to_add = [];
         let counter = currentShift.shift_users.length;
-        for (let i = 0; i < selected_users.length; i + 1) {
+        for (let i = 0; i < selected_users.length; i += 1) {
           if (counter === currentShift.required_users_number) {
             break;
           } else {
@@ -199,10 +199,10 @@ function CurrentShiftMenu({ currentShift }) {
               )
             );
           }
-          Object.keys(users_to_add).forEach((user) => {
+          users_to_add.forEach((user) => {
             dispatch(
               addShiftUser({
-                userID: selected_users[user].id,
+                userID: user.id,
                 admin: false,
                 shift_id: currentShift.id,
               })
@@ -276,6 +276,7 @@ function CurrentShiftMenu({ currentShift }) {
       let button;
       if (selected_users.length > 0) {
         const usersToAdd = selected_users.filter(usersNotInShift);
+        console.log(usersToAdd);
         if (usersToAdd.length > 0) {
           button = (
             <Tooltip title="Adds selected users to shift">
