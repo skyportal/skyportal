@@ -20,7 +20,7 @@ const DeleteComment = ({
   shift_id = null,
 }) => {
   const dispatch = useDispatch();
-  const deleteComment = (sourceID, commentID) => {
+  const deleteCommentOnObject = (sourceID, commentID) => {
     dispatch(sourceActions.deleteComment(sourceID, commentID));
   };
 
@@ -38,80 +38,47 @@ const DeleteComment = ({
     dispatch(shiftActions.deleteCommentOnShift(shiftID, commentID));
   };
 
+  const deleteComment = (resourceType) => {
+    switch (resourceType) {
+      case "object":
+        deleteCommentOnObject(objID, id);
+        break;
+      case "spectrum":
+        deleteCommentOnSpectrum(spectrum_id, id);
+        break;
+      case "gcnEvent":
+        deleteCommentOnGcnEvent(gcnEventID, id);
+        break;
+      case "shift":
+        deleteCommentOnShift(shift_id, id);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <>
-      {associatedResourceType === "gcn_event" && (
-        <Button
-          style={
-            hoverID === id
-              ? {
-                  display: "block",
-                  minWidth: "0",
-                  lineHeight: "0",
-                  padding: "0",
-                }
-              : { display: "none" }
-          }
-          size="small"
-          color="primary"
-          type="button"
-          name={`deleteCommentButtonGcnEvent${id}`}
-          onClick={() => deleteCommentOnGcnEvent(gcnEventID, id)}
-          className="commentDelete"
-        >
-          <CloseIcon fontSize="small" />
-        </Button>
-      )}
-      {associatedResourceType === "shift" && (
-        <Button
-          style={
-            hoverID === id
-              ? {
-                  display: "block",
-                  minWidth: "0",
-                  lineHeight: "0",
-                  padding: "0",
-                }
-              : { display: "none" }
-          }
-          size="small"
-          color="primary"
-          type="button"
-          name={`deleteCommentButtonShift${id}`}
-          onClick={() => deleteCommentOnShift(shift_id, id)}
-          className="commentDelete"
-        >
-          <CloseIcon fontSize="small" />
-        </Button>
-      )}
-      {(associatedResourceType === "object" ||
-        associatedResourceType === "spectra") && (
-        <Button
-          style={
-            hoverID === id
-              ? {
-                  display: "block",
-                  minWidth: "0",
-                  lineHeight: "0",
-                  padding: "0",
-                }
-              : { display: "none" }
-          }
-          size="small"
-          color="primary"
-          name={`deleteCommentButton${
-            (spectrum_id ? "Spectrum" : "Source") + id
-          }`}
-          onClick={() =>
-            spectrum_id
-              ? deleteCommentOnSpectrum(spectrum_id, id)
-              : deleteComment(objID, id)
-          }
-          className="commentDelete"
-        >
-          <CloseIcon fontSize="small" />
-        </Button>
-      )}
+      <Button
+        style={
+          hoverID === id
+            ? {
+                display: "block",
+                minWidth: "0",
+                lineHeight: "0",
+                padding: "0",
+              }
+            : { display: "none" }
+        }
+        size="small"
+        color="primary"
+        type="button"
+        name={`deleteCommentButton${id}`}
+        onClick={() => deleteComment(associatedResourceType)}
+        className="commentDelete"
+      >
+        <CloseIcon fontSize="small" />
+      </Button>
     </>
   );
 };
