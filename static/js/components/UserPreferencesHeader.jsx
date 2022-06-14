@@ -14,6 +14,9 @@ const useStyles = makeStyles((theme) => ({
       marginRight: "0.5rem",
     },
   },
+  title: {
+    marginBottom: theme.spacing(1),
+  },
   typography: {
     padding: theme.spacing(2),
   },
@@ -33,7 +36,11 @@ const UserPreferencesHeader = ({ title, popupText, variant = "h6" }) => {
   return (
     <div>
       <div className={classes.header}>
-        <Typography variant={variant} display="inline">
+        <Typography
+          variant={variant}
+          display="inline"
+          className={classes.title}
+        >
           {title}
         </Typography>
         {popupText && (
