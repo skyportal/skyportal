@@ -2,16 +2,23 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import DateTimePicker from "@mui/lab/DateTimePicker";
+import AdapterDateFns from "@mui/lab/AdapterDateFns";
+import LocalizationProvider from "@mui/lab/LocalizationProvider";
 import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/material-ui/v5";
 import CircularProgress from "@mui/material/CircularProgress";
 import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
 import GeoPropTypes from "geojson-prop-types";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import relativeTime from "dayjs/plugin/relativeTime";
 
 import * as gcnEventActions from "../ducks/gcnEvent";
 import * as allocationActions from "../ducks/allocations";
@@ -21,6 +28,9 @@ import GroupShareSelect from "./GroupShareSelect";
 import LocalizationPlot from "./LocalizationPlot";
 
 import "react-datepicker/dist/react-datepicker-cssmodules.css";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 const useStyles = makeStyles(() => ({
   chips: {
@@ -246,6 +256,11 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
   const [skymapInstrument, setSkymapInstrument] = useState(null);
   const [selectedFields, setSelectedFields] = useState([]);
 
+  const defaultAirmassTime = Date(
+    dayjs(gcnevent?.dateobs).format("YYYY-MM-DDTHH:mm:ssZ")
+  );
+  const [airmassTime, setAirmassTime] = useState(defaultAirmassTime);
+
   const { instrumentList, instrumentFormParams } = useSelector(
     (state) => state.instruments
   );
@@ -281,18 +296,20 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
       const response = await dispatch(
         instrumentActions.fetchInstrumentSkymap(
           instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id,
-          loc
+          loc,
+          airmassTime.toISOString().replace("Z", "")
         )
       );
       setSkymapInstrument(response.data);
     };
     if (
       instLookUp[allocationLookUp[selectedAllocationId]?.instrument_id]?.id &&
-      gcnevent
+      gcnevent &&
+      airmassTime
     ) {
       fetchSkymapInstrument();
     }
-  }, [dispatch, setSkymapInstrument, loc, selectedAllocationId]);
+  }, [dispatch, setSkymapInstrument, loc, selectedAllocationId, airmassTime]);
 
   useEffect(() => {
     const getAllocations = async () => {
@@ -408,6 +425,10 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
     return errors;
   };
 
+  const handleChange = (newValue) => {
+    setAirmassTime(newValue);
+  };
+
   return (
     <div className={classes.container}>
       <div>
@@ -417,6 +438,21 @@ const ObservationPlanRequestForm = ({ gcnevent }) => {
           selectedFields={selectedFields}
           setSelectedFields={setSelectedFields}
         />
+      </div>
+      <div>
+        <InputLabel id="airmassTimeSelectLabel">Airmass Time</InputLabel>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DateTimePicker
+            value={airmassTime}
+            onChange={(newValue) => handleChange(newValue)}
+            label="Time to compute airmass (UTC)"
+            showTodayButton={false}
+            renderInput={(params) => (
+              /* eslint-disable-next-line react/jsx-props-no-spreading */
+              <TextField id="airmassTimePicker" {...params} />
+            )}
+          />
+        </LocalizationProvider>
       </div>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
       <Select
