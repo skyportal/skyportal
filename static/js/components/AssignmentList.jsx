@@ -2,19 +2,20 @@ import React, { useEffect } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 import {
-  makeStyles,
   createTheme,
-  MuiThemeProvider,
+  ThemeProvider,
+  StyledEngineProvider,
   useTheme,
-} from "@material-ui/core/styles";
-import IconButton from "@material-ui/core/IconButton";
-import DeleteIcon from "@material-ui/icons/Delete";
-import Accordion from "@material-ui/core/Accordion";
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import Typography from "@material-ui/core/Typography";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
-import CircularProgress from "@material-ui/core/CircularProgress";
+} from "@mui/material/styles";
+import makeStyles from "@mui/styles/makeStyles";
+import IconButton from "@mui/material/IconButton";
+import DeleteIcon from "@mui/icons-material/Delete";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import Typography from "@mui/material/Typography";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import CircularProgress from "@mui/material/CircularProgress";
 import MUIDataTable from "mui-datatables";
 import dayjs from "dayjs";
 
@@ -172,6 +173,7 @@ const AssignmentList = ({ assignments }) => {
           onClick={() => {
             deleteAssignment(id);
           }}
+          size="large"
         >
           <DeleteIcon />
         </IconButton>
@@ -249,13 +251,15 @@ const AssignmentList = ({ assignments }) => {
           <Typography variant="subtitle1">Assignments</Typography>
         </AccordionSummary>
         <AccordionDetails>
-          <MuiThemeProvider theme={getMuiTheme(theme)}>
-            <MUIDataTable
-              data={assignments}
-              options={options}
-              columns={columns}
-            />
-          </MuiThemeProvider>
+          <StyledEngineProvider injectFirst>
+            <ThemeProvider theme={getMuiTheme(theme)}>
+              <MUIDataTable
+                data={assignments}
+                options={options}
+                columns={columns}
+              />
+            </ThemeProvider>
+          </StyledEngineProvider>
         </AccordionDetails>
       </Accordion>
     </div>
