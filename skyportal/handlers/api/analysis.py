@@ -97,6 +97,15 @@ class AnalysisServiceHandler(BaseHandler):
                     description: |
                         URL to running service accessible to this SkyPortal instance.
                         For example, http://localhost:5000/analysis/<service_name>.
+                  optional_url_parameters:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+                    description: |
+                        Optional URL parameters that can be passed to the service, along
+                        with a list of possible values (to be used in a dropdown UI)
                   authentication_type:
                     type: string
                     description: |
@@ -333,6 +342,15 @@ class AnalysisServiceHandler(BaseHandler):
                     description: |
                         URL to running service accessible to this SkyPortal instance.
                         For example, http://localhost:5000/analysis/<service_name>.
+                  optional_url_parameters:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+                    description: |
+                        Optional URL parameters that can be passed to the service, along
+                        with a list of possible values (to be used in a dropdown UI)
                   authentication_type:
                     type: string
                     description: |
@@ -636,6 +654,14 @@ class AnalysisHandler(BaseHandler):
             schema:
               type: string
             description: the analysis service id to be used
+          - in: query
+            name: optional_url_parameters
+            nullable: true
+            schema:
+              type:
+                object
+              additionalProperties:
+                type: string
         requestBody:
           content:
             application/json:
@@ -675,8 +701,10 @@ class AnalysisHandler(BaseHandler):
                               type: integer
                               description: New analysis ID
         """
+        optional_url_parameters = self.get_query_argument('optional_url_parameters', {})
+        log(f"optional_url_parameters: {optional_url_parameters}")
         data = self.get_json()
-        log(data)
+        log(f"data={data}")
         try:
             analysis_service = AnalysisService.get_if_accessible_by(
                 analysis_service_id, self.current_user, mode="read", raise_if_none=True

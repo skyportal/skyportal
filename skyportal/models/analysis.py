@@ -105,6 +105,15 @@ class AnalysisService(Base):
         ),
     )
 
+    optional_url_parameters = sa.Column(
+        JSONType,
+        nullable=True,
+        doc=(
+            'Optional parameters to be passed to the analysis service, along with '
+            'possible values to be shown in the UI. '
+        ),
+    )
+
     authentication_type = sa.Column(
         allowed_external_authentication_types,
         nullable=False,
