@@ -171,7 +171,8 @@ def test_shift(
 
     # check the option to show all shifts
     driver.wait_for_xpath(
-        '//*[contains(., "Show All Shifts")]/../span[@class="MuiSwitch-root"]'
+        '//*[contains(., "Show All Shifts")]/../span[@class="MuiSwitch-root"]',
+        timeout=30,
     ).click()
 
     shift_on_calendar = f'//*/span/strong[contains(.,"{form_name}")]'
