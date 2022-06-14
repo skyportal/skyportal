@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { makeStyles } from "@material-ui/core/node_modules/@material-ui/styles";
+import { makeStyles } from "@mui/styles";
 import { useForm } from "react-hook-form";
-import { Button, TextField } from "@material-ui/core";
+import { Button, TextField } from "@mui/material";
 import FilterSelect from "./FilterSelect";
 import OriginSelect from "./OriginSelect";
 import UserPreferencesHeader from "./UserPreferencesHeader";

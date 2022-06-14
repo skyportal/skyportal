@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import {
   FormControl,
   InputLabel,
-  makeStyles,
   Select,
   MenuItem,
   useTheme,
   Chip,
-} from "@material-ui/core";
+} from "@mui/material";
+import { makeStyles } from "@mui/styles";
 import PropTypes from "prop-types";
 
 const useStyles = makeStyles((theme) => ({
