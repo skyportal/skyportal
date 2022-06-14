@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import Select from "@material-ui/core/Select";
-import InputLabel from "@material-ui/core/InputLabel";
-import MenuItem from "@material-ui/core/MenuItem";
+import Select from "@mui/material/Select";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
 // eslint-disable-next-line import/no-unresolved
 import Form from "@rjsf/material-ui/v5";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import { makeStyles } from "@material-ui/core/styles";
+import CircularProgress from "@mui/material/CircularProgress";
+import makeStyles from "@mui/styles/makeStyles";
 
 import * as defaultObservationPlansActions from "../ducks/default_observation_plans";
 import * as allocationActions from "../ducks/allocations";
@@ -26,16 +26,10 @@ const useStyles = makeStyles(() => ({
   marginTop: {
     marginTop: "1rem",
   },
-  allocationSelect: {
+  Select: {
     width: "100%",
   },
-  localizationSelect: {
-    width: "100%",
-  },
-  allocationSelectItem: {
-    whiteSpace: "break-spaces",
-  },
-  localizationSelectItem: {
+  selectItem: {
     whiteSpace: "break-spaces",
   },
   container: {
@@ -180,13 +174,13 @@ const NewDefaultObservationPlan = () => {
         value={selectedAllocationId}
         onChange={handleSelectedAllocationChange}
         name="followupRequestAllocationSelect"
-        className={classes.allocationSelect}
+        className={classes.Select}
       >
         {allocationList?.map((allocation) => (
           <MenuItem
             value={allocation.id}
             key={allocation.id}
-            className={classes.allocationSelectItem}
+            className={classes.SelectItem}
           >
             {`${
               telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
