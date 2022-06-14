@@ -4,12 +4,15 @@ import PropTypes from "prop-types";
 import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import moment from "moment";
-import { CircularProgress, Tooltip } from "@material-ui/core";
-import { HelpOutline } from "@material-ui/icons";
-import { makeStyles } from "@material-ui/core/styles";
-import FormGroup from "@material-ui/core/FormGroup";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import Switch from "@material-ui/core/Switch";
+import {
+  CircularProgress,
+  Tooltip,
+  FormControlLabel,
+  FormGroup,
+  Switch,
+} from "@mui/material";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
+import makeStyles from "@mui/styles/makeStyles";
 import { showNotification } from "baselayer/components/Notifications";
 import GroupsSelect from "./GroupsSelect";
 import * as shiftActions from "../ducks/shift";
@@ -343,7 +346,7 @@ function MyCalendar({ events, currentShift, setShow }) {
       placement="top"
       classes={{ tooltip: classes.tooltip }}
     >
-      <HelpOutline />
+      <HelpOutlineOutlinedIcon />
     </Tooltip>
   );
 

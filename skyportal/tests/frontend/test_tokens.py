@@ -33,7 +33,7 @@ def test_delete_token(driver, user, view_only_token):
     driver.get(f'/become_user/{user.id}')
     driver.get('/profile')
     driver.wait_for_xpath(f'//input[@value="{view_only_token}"]')
-    driver.click_xpath('//span[contains(text(),"Delete")]')
+    driver.click_xpath('//button[contains(text(),"Delete")]')
     driver.wait_for_xpath_to_disappear(f'//input[@value="{view_only_token}"]')
 
 

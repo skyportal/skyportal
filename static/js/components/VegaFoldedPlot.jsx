@@ -2,7 +2,7 @@ import React from "react";
 import { isMobileOnly } from "react-device-detect";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
-import { useTheme } from "@material-ui/core/styles";
+import { useTheme } from "@mui/material/styles";
 
 const spec = (url, colorScale, titleFontSize, labelFontSize) => ({
   $schema: "https://vega.github.io/schema/vega-lite/v5.2.0.json",

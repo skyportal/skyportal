@@ -2,24 +2,24 @@ import React, { useEffect, Suspense } from "react";
 import PropTypes from "prop-types";
 import { useSelector, useDispatch } from "react-redux";
 
-import TableCell from "@material-ui/core/TableCell";
-import TableRow from "@material-ui/core/TableRow";
+import TableCell from "@mui/material/TableCell";
+import TableRow from "@mui/material/TableRow";
 
-import Typography from "@material-ui/core/Typography";
-import IconButton from "@material-ui/core/IconButton";
-import Grid from "@material-ui/core/Grid";
-import Chip from "@material-ui/core/Chip";
-import BuildIcon from "@material-ui/icons/Build";
+import Typography from "@mui/material/Typography";
+import IconButton from "@mui/material/IconButton";
+import Grid from "@mui/material/Grid";
+import Chip from "@mui/material/Chip";
+import BuildIcon from "@mui/icons-material/Build";
 
-import Link from "@material-ui/core/Link";
-import PictureAsPdfIcon from "@material-ui/icons/PictureAsPdf";
-import ImageAspectRatioIcon from "@material-ui/icons/ImageAspectRatio";
-import CircularProgress from "@material-ui/core/CircularProgress";
+import Link from "@mui/material/Link";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import ImageAspectRatioIcon from "@mui/icons-material/ImageAspectRatio";
+import CircularProgress from "@mui/material/CircularProgress";
 
-import Menu from "@material-ui/core/Menu";
-import MenuItem from "@material-ui/core/MenuItem";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 
-import { makeStyles } from "@material-ui/core/styles";
+import makeStyles from "@mui/styles/makeStyles";
 
 import MUIDataTable from "mui-datatables";
 import ThumbnailList from "./ThumbnailList";
@@ -73,6 +73,7 @@ const SimpleMenu = ({ assignment }) => {
         aria-haspopup="true"
         onClick={handleClick}
         variant="contained"
+        size="large"
       >
         <BuildIcon />
       </IconButton>
@@ -200,7 +201,7 @@ const RunSummary = ({ route }) => {
             container
             direction="row"
             spacing={3}
-            justify="center"
+            justifyContent="center"
             alignItems="center"
           >
             <ThumbnailList

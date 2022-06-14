@@ -1,9 +1,9 @@
 import React from "react";
 import { useSelector } from "react-redux";
-import { makeStyles } from "@material-ui/core/styles";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import { Divider } from "@material-ui/core";
+import makeStyles from "@mui/styles/makeStyles";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import { Divider } from "@mui/material";
 
 const useStyles = makeStyles(() => ({
   root: {
