@@ -560,7 +560,7 @@ def observation_animations(
         "ztfr": "#DC3545",
         "ztfi": "#F3DC11",
         "AllWISE": "#2F5492",
-        "Gaia_EDR3": "#FF7F0E",
+        "Gaia_DR3": "#FF7F0E",
         "PS1_DR1": "#3BBED5",
         "GALEX": "#6607C2",
         "TNS": "#ED6CF6",
