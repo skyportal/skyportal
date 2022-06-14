@@ -86,7 +86,7 @@ def test_shift(
 
     # delete the comment from the shift
     driver.scroll_to_element_and_click(driver.wait_for_xpath('//*[@id="comment"]'))
-    driver.click_xpath('//*[contains(@name, "deleteCommentButtonShift")]')
+    driver.click_xpath('//*[contains(@name, "deleteCommentButton")]')
 
     # check if comment has been successfully deleted
     assert (
