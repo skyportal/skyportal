@@ -157,8 +157,7 @@ def test_get_two_analysis_services(analysis_service_token, public_group):
 
     as_ids = [a['id'] for a in data['data']]
 
-    for as_id in [analysis_service_id, analysis_service_id_1]:
-        assert as_id in as_ids
+    assert set(analysis_service_id, analysis_service_id_1) == set(as_ids)
 
         status, data = api(
             'DELETE', f'analysis_service/{as_id}', token=analysis_service_token
@@ -386,7 +385,7 @@ def test_add_and_retrieve_analysis_service_group_access(
     )
     assert status == 403
 
-    # Both tokens should be able to view this annotation
+    # Both tokens should be able to view this analysis service
     name = str(uuid.uuid4())
     post_data = {
         'name': name,
