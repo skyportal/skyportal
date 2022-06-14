@@ -2,6 +2,7 @@ import arrow
 from sqlalchemy.orm import joinedload
 from marshmallow.exceptions import ValidationError
 from baselayer.app.access import permissions, auth_or_token, AccessError
+from skyportal.models.comment import CommentOnShift
 from ..base import BaseHandler
 from ...models import (
     DBSession,
@@ -187,6 +188,35 @@ class ShiftHandler(BaseHandler):
             shift["shift_users"] = susers
             shift["group"] = shift["group"].to_dict()
             shift["group"]["group_users"] = gusers
+            comments = (
+                CommentOnShift.query_records_accessible_by(
+                    self.current_user,
+                    options=[
+                        joinedload(CommentOnShift.author),
+                        joinedload(CommentOnShift.groups),
+                    ],
+                )
+                .filter(CommentOnShift.shift_id == shift["id"])
+                .all()
+            )
+            shift["comments"] = sorted(
+                (
+                    {
+                        **{
+                            k: v
+                            for k, v in c.to_dict().items()
+                            if k != "attachment_bytes"
+                        },
+                        "author": {
+                            **c.author.to_dict(),
+                            "gravatar_url": c.author.gravatar_url,
+                        },
+                    }
+                    for c in comments
+                ),
+                key=lambda x: x["created_at"],
+                reverse=True,
+            )
             shifts.append(shift)
 
         self.verify_and_commit()

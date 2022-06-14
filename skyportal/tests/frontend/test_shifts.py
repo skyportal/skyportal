@@ -74,6 +74,26 @@ def test_shift(
     driver.wait_for_xpath(event_shift_xpath)
     driver.click_xpath(event_shift_xpath)
 
+    # add a comment to the shift
+    driver.wait_for_xpath('//*[@id="root_comment"]').send_keys('This is a comment')
+    driver.click_xpath('//button[@type="submitComment"]')
+
+    # check for comment in shift page
+    assert (
+        len(driver.find_elements_by_xpath('//*[contains(text(), "This is a comment")]'))
+        == 1
+    )
+
+    # delete the comment from the shift
+    driver.scroll_to_element_and_click(driver.wait_for_xpath('//*[@id="comment"]'))
+    driver.click_xpath('//*[contains(@name, "deleteCommentButton")]')
+
+    # check if comment has been successfully deleted
+    assert (
+        len(driver.find_elements_by_xpath('//*[contains(text(), "This is a comment")]'))
+        == 0
+    )
+
     # check for deactivated button to add users
     deactivated_add_user_button = '//*[@id="deactivated-add-users-button"]'
     driver.wait_for_xpath(deactivated_add_user_button)

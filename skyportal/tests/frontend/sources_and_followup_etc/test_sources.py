@@ -379,7 +379,8 @@ def test_delete_comment(driver, user, public_source):
     add_comment_and_wait_for_display(driver, comment_text)
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
     comment_div = comment_text_p.find_element_by_xpath("../..")
-    comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
+    comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
+    print("comment_id", comment_id)
     delete_button = comment_div.find_element_by_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']"
     )
@@ -398,7 +399,7 @@ def test_delete_comment(driver, user, public_source):
             return
         else:
             comment_div = comment_text_div.find_element_by_xpath("..")
-            comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
+            comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
             delete_button = comment_div.find_element_by_xpath(
                 f"//*[@name='deleteCommentButton{comment_id}']"
             )
@@ -421,7 +422,7 @@ def test_regular_user_cannot_delete_unowned_comment(
     driver.get(f"/source/{public_source.id}")
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
     comment_div = comment_text_p.find_element_by_xpath("../..")
-    comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
+    comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
     delete_button = comment_div.find_element_by_xpath(
         f"//*[@name='deleteCommentButton{comment_id}']"
     )
@@ -445,7 +446,7 @@ def test_super_user_can_delete_unowned_comment(
 
     comment_text_p = driver.wait_for_xpath(f'//p[text()="{comment_text}"]')
     comment_div = comment_text_p.find_element_by_xpath("../..")
-    comment_id = comment_div.get_attribute("name").split("commentDiv")[-1]
+    comment_id = comment_div.get_attribute("name").split("commentDivSource")[-1]
 
     # wait for delete button to become interactible - hence pause 0.1
     driver.scroll_to_element(comment_text_p)

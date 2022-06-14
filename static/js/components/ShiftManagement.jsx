@@ -21,6 +21,7 @@ import {
   deleteShiftUser,
   updateShiftUser,
 } from "../ducks/shifts";
+import CommentList from "./CommentList";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -39,6 +40,9 @@ const useStyles = makeStyles((theme) => ({
     paddingBottom: "0",
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
+  },
+  content: {
+    padding: "1rem",
   },
   buttons: {
     display: "flex",
@@ -148,7 +152,7 @@ const userLabel = (user) => {
   return label;
 };
 
-function CurrentShiftMenu({ currentShift }) {
+export function CurrentShiftMenu({ currentShift }) {
   const classes = useStyles();
   const currentUser = useSelector((state) => state.profile);
   const dispatch = useDispatch();
@@ -846,4 +850,17 @@ CurrentShiftMenu.propTypes = {
   }).isRequired,
 };
 
-export default CurrentShiftMenu;
+export function CommentOnShift() {
+  const classes = useStyles();
+  const { currentShift } = useSelector((state) => state.shift);
+
+  return (
+    currentShift.name != null && (
+      <div id="current_shift_comment" className={classes.root}>
+        <div className={classes.content}>
+          <CommentList associatedResourceType="shift" />
+        </div>
+      </div>
+    )
+  );
+}

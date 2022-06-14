@@ -8,7 +8,7 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import NewShift from "./NewShift";
 import MyCalendar from "./ShiftCalendar";
-import CurrentShiftMenu from "./ShiftManagement";
+import { CurrentShiftMenu, CommentOnShift } from "./ShiftManagement";
 import ShiftSummary from "./ShiftSummary";
 
 import { getShiftsSummary } from "../ducks/shift";
@@ -61,24 +61,30 @@ const ShiftPage = ({ route }) => {
           Object.keys(updatedShift).length > 0 &&
           Object.keys(currentShift).length > 0
         ) {
-          let usersHaveChanged = false;
-          // check if the users have the same ids, or if they need a replacement when they didnt need one before, and vice versa
-          for (let i = 0; i < updatedShift.shift_users.length; i += 1) {
-            if (
-              updatedShift.shift_users[i].id !==
-                currentShift.shift_users[i].id ||
-              updatedShift.shift_users[i].needs_replacement !==
-                currentShift.shift_users[i].needs_replacement ||
-              updatedShift.shift_users[i].modified !==
-                currentShift.shift_users[i].modified
-            ) {
-              usersHaveChanged = true;
-              break;
-            }
-          }
-          if (usersHaveChanged) {
+          if (
+            updatedShift?.comments?.length !== currentShift?.comments?.length
+          ) {
             dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
-            setShow(false);
+          } else {
+            let usersHaveChanged = false;
+            // check if the users have the same ids, or if they need a replacement when they didnt need one before, and vice versa
+            for (let i = 0; i < updatedShift.shift_users.length; i += 1) {
+              const old_shift_user = currentShift.shift_users[i];
+              const new_shift_user = updatedShift.shift_users[i];
+              if (
+                new_shift_user.id !== old_shift_user.id ||
+                new_shift_user.needs_replacement !==
+                  old_shift_user.needs_replacement ||
+                new_shift_user.modified !== old_shift_user.modified
+              ) {
+                usersHaveChanged = true;
+                break;
+              }
+            }
+            if (usersHaveChanged) {
+              dispatch({ type: "skyportal/CURRENT_SHIFT", data: updatedShift });
+              setShow(false);
+            }
           }
         }
       }
@@ -119,10 +125,12 @@ const ShiftPage = ({ route }) => {
           </Paper>
         )}
         <Paper elevation={1}>
-          {currentShift &&
-            (shiftList && !show && currentShift ? (
-              <CurrentShiftMenu currentShift={currentShift} />
-            ) : null)}
+          {shiftList && !show && currentShift ? (
+            <CurrentShiftMenu currentShift={currentShift} />
+          ) : null}
+        </Paper>
+        <Paper elevation={1}>
+          {shiftList && !show && currentShift ? <CommentOnShift /> : null}
         </Paper>
       </Grid>
       <Grid item md={12} sm={12}>

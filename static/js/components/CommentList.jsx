@@ -1,27 +1,21 @@
 import React, { useState } from "react";
-import ReactMarkdown from "react-markdown";
 import { useSelector, useDispatch } from "react-redux";
 
 import PropTypes from "prop-types";
 
-import { Button } from "@mui/material";
-import Tooltip from "@mui/material/Tooltip";
-import GroupIcon from "@mui/icons-material/Group";
-import CloseIcon from "@mui/icons-material/Close";
 import makeStyles from "@mui/styles/makeStyles";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import emoji from "emoji-dictionary";
 
 import * as sourceActions from "../ducks/source";
 import * as gcnEventActions from "../ducks/gcnEvent";
+import * as shiftActions from "../ducks/shift";
 
 import CommentEntry from "./CommentEntry";
-import UserAvatar from "./UserAvatar";
-import CommentAttachmentPreview from "./CommentAttachmentPreview";
+import CompactCommentList from "./CompactCommentList";
+import RegularCommentList from "./RegularCommentList";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -189,6 +183,7 @@ const CommentList = ({
   const compactComments = useSelector(
     (state) => state.profile.preferences?.compactComments
   );
+  const { currentShift } = useSelector((state) => state.shift);
 
   if (!objID && obj) {
     objID = obj.id;
@@ -196,6 +191,10 @@ const CommentList = ({
 
   if (!gcnEventID && gcnEvent) {
     gcnEventID = gcnEvent.id;
+  }
+  let shift_id = null;
+  if (currentShift) {
+    shift_id = currentShift.id;
   }
 
   const addComment = (formData) => {
@@ -212,6 +211,15 @@ const CommentList = ({
     dispatch(
       gcnEventActions.addCommentOnGcnEvent({
         gcnevent_id: gcnEventID,
+        ...formData,
+      })
+    );
+  };
+
+  const addShiftComment = (formData) => {
+    dispatch(
+      shiftActions.addCommentOnShift({
+        shift_id,
         ...formData,
       })
     );
@@ -245,48 +253,16 @@ const CommentList = ({
       throw new Error("Must specify a gcnEventID for comments on gcnEvent");
     }
     comments = gcnEvent.comments;
+  } else if (associatedResourceType === "shift") {
+    if (shift_id === null) {
+      throw new Error("Must specify a shiftID for comments on shift");
+    }
+    comments = currentShift?.comments;
   } else {
     throw new Error(`Illegal input ${associatedResourceType} to CommentList. `);
   }
 
   comments = comments || [];
-
-  const renderCommentText = (text, spectrum_id) => {
-    if (
-      spectrum_id &&
-      objID in spectra &&
-      associatedResourceType === "object"
-    ) {
-      const spectrum = spectra[objID].find((spec) => spec.id === spectrum_id);
-      const dayFraction =
-        (parseFloat(spectrum.observed_at.substring(11, 13)) / 24) * 10;
-      return `**Spectrum ${spectrum.observed_at.substring(
-        2,
-        10
-      )}.${dayFraction.toFixed(0)}** ${text}`;
-    }
-
-    return text;
-  };
-
-  const deleteComment = (sourceID, commentID) => {
-    dispatch(sourceActions.deleteComment(sourceID, commentID));
-  };
-
-  const deleteCommentOnSpectrum = (commentSpectrumID, commentID) => {
-    dispatch(
-      sourceActions.deleteCommentOnSpectrum(commentSpectrumID, commentID)
-    );
-  };
-
-  const deleteCommentOnGcnEvent = (gcnID, commentID) => {
-    dispatch(gcnEventActions.deleteCommentOnGcnEvent(gcnID, commentID));
-  };
-
-  const emojiSupport = (text) =>
-    text.value.replace(/:\w+:/gi, (name) =>
-      emoji.getUnicode(name) ? emoji.getUnicode(name) : name
-    );
 
   // Color styling
   const userColorTheme = useSelector(
@@ -309,6 +285,7 @@ const CommentList = ({
             spectrum_id,
           }) => (
             <span
+              id="comment"
               key={(spectrum_id ? "Spectrum" : "Source") + id}
               className={commentStyle}
               onMouseOver={() =>
@@ -319,238 +296,57 @@ const CommentList = ({
               onBlur={() => handleMouseLeave()}
             >
               {compactComments ? (
-                <div className={styles.compactContainer}>
-                  <div className={styles.commentUserAvatar}>
-                    <UserAvatar
-                      size={24}
-                      firstName={author.first_name}
-                      lastName={author.last_name}
-                      username={author.username}
-                      gravatarUrl={author.gravatar_url}
-                    />
-                  </div>
-                  <div
-                    className={styles.compactWrap}
-                    name={`commentDiv${
-                      (spectrum_id ? "Spectrum" : "Source") + id
-                    }`}
-                  >
-                    <ReactMarkdown
-                      source={renderCommentText(
-                        text,
-                        spectrum_id,
-                        associatedResourceType
-                      )}
-                      escapeHtml={false}
-                      className={styles.commentMessage}
-                      renderers={{ text: emojiSupport }}
-                    />
-                    <div className={styles.compactButtons}>
-                      <Tooltip
-                        title={dayjs().to(dayjs.utc(`${created_at}Z`))}
-                        placement="left"
-                      >
-                        <InfoOutlinedIcon fontSize="small" />
-                      </Tooltip>
-                      <div className={styles.spacer}>
-                        {associatedResourceType === "gcn_event" && (
-                          <Button
-                            style={
-                              hoverID === id
-                                ? {
-                                    display: "block",
-                                    minWidth: "0",
-                                    lineHeight: "0",
-                                    padding: "0",
-                                  }
-                                : { display: "none" }
-                            }
-                            size="small"
-                            color="primary"
-                            type="button"
-                            name={`deleteCommentButtonGcnEvent${id}`}
-                            onClick={() =>
-                              deleteCommentOnGcnEvent(gcnEventID, id)
-                            }
-                            className="commentDelete"
-                          >
-                            <CloseIcon fontSize="small" />
-                          </Button>
-                        )}
-                        {(associatedResourceType === "object" ||
-                          associatedResourceType === "spectra") && (
-                          <Button
-                            style={
-                              hoverID === id
-                                ? {
-                                    display: "block",
-                                    minWidth: "0",
-                                    lineHeight: "0",
-                                    padding: "0",
-                                  }
-                                : { display: "none" }
-                            }
-                            size="small"
-                            color="primary"
-                            name={`deleteCommentButton${
-                              (spectrum_id ? "Spectrum" : "Source") + id
-                            }`}
-                            onClick={() =>
-                              spectrum_id
-                                ? deleteCommentOnSpectrum(spectrum_id, id)
-                                : deleteComment(objID, id)
-                            }
-                            className="commentDelete"
-                          >
-                            <CloseIcon fontSize="small" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <CompactCommentList
+                  associatedResourceType={associatedResourceType}
+                  styles={styles}
+                  id={id}
+                  objID={objID}
+                  gcnEventID={gcnEventID}
+                  author={author}
+                  created_at={created_at}
+                  text={text}
+                  spectrum_id={spectrum_id}
+                  hoverID={hoverID}
+                  shift_id={shift_id}
+                />
               ) : (
-                <>
-                  <div className={styles.commentUserAvatar}>
-                    <UserAvatar
-                      size={24}
-                      firstName={author.first_name}
-                      lastName={author.last_name}
-                      username={author.username}
-                      gravatarUrl={author.gravatar_url}
-                    />
-                  </div>
-                  <div className={styles.commentContent}>
-                    <div className={styles.commentHeader}>
-                      <div className={styles.commentHeaderContent}>
-                        <span className={styles.commentUser}>
-                          <span className={styles.commentUserName}>
-                            {author.username}
-                          </span>
-                        </span>
-                        <span className={styles.commentTime}>
-                          {dayjs().to(dayjs.utc(`${created_at}Z`))}
-                        </span>
-                        <span className={styles.commentUserGroup}>
-                          <Tooltip
-                            title={groups
-                              ?.map((group) => group.name)
-                              ?.join(", ")}
-                          >
-                            <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
-                          </Tooltip>
-                        </span>
-                      </div>
-                      <div className={styles.defaultCommentDelete}>
-                        {associatedResourceType === "gcn_event" && (
-                          <Button
-                            style={
-                              hoverID === id
-                                ? {
-                                    display: "block",
-                                    minWidth: "0",
-                                    lineHeight: "0",
-                                    padding: "0",
-                                  }
-                                : { display: "none" }
-                            }
-                            size="small"
-                            color="primary"
-                            type="button"
-                            name={`deleteCommentButtonGcnEvent${id}`}
-                            onClick={() =>
-                              deleteCommentOnGcnEvent(gcnEventID, id)
-                            }
-                            className="commentDelete"
-                          >
-                            <CloseIcon fontSize="small" />
-                          </Button>
-                        )}
-                        {(associatedResourceType === "object" ||
-                          associatedResourceType === "spectra") && (
-                          <Button
-                            style={
-                              hoverID === id
-                                ? {
-                                    display: "block",
-                                    minWidth: "0",
-                                    lineHeight: "0",
-                                    padding: "0",
-                                  }
-                                : { display: "none" }
-                            }
-                            size="small"
-                            color="primary"
-                            type="button"
-                            name={`deleteCommentButton${
-                              (spectrum_id ? "Spectrum" : "Source") + id
-                            }`}
-                            onClick={() =>
-                              spectrum_id
-                                ? deleteCommentOnSpectrum(spectrum_id, id)
-                                : deleteComment(objID, id)
-                            }
-                            className="commentDelete"
-                          >
-                            <CloseIcon fontSize="small" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <div
-                      className={styles.wrap}
-                      name={`commentDiv${
-                        (spectrum_id ? "Spectrum" : "Source") + id
-                      }`}
-                    >
-                      <ReactMarkdown
-                        source={renderCommentText(
-                          text,
-                          spectrum_id,
-                          associatedResourceType
-                        )}
-                        escapeHtml={false}
-                        className={styles.commentMessage}
-                        renderers={{ text: emojiSupport }}
-                      />
-                    </div>
-                    <span>
-                      {attachment_name &&
-                        (associatedResourceType === "object" ||
-                          associatedResourceType === "spectra") && (
-                          <CommentAttachmentPreview
-                            filename={attachment_name}
-                            objectID={spectrum_id || objID}
-                            commentId={id}
-                            associatedResourceType={
-                              spectrum_id ? "spectra" : "sources"
-                            }
-                          />
-                        )}
-                      {attachment_name &&
-                        associatedResourceType === "gcn_event" && (
-                          <CommentAttachmentPreview
-                            filename={attachment_name}
-                            gcnEventID={gcnEventID}
-                            commentId={id}
-                            associatedResourceType="gcn_event"
-                          />
-                        )}
-                    </span>
-                  </div>
-                </>
+                <RegularCommentList
+                  associatedResourceType={associatedResourceType}
+                  styles={styles}
+                  id={id}
+                  objID={objID}
+                  gcnEventID={gcnEventID}
+                  author={author}
+                  created_at={created_at}
+                  text={text}
+                  attachment_name={attachment_name}
+                  groups={groups}
+                  spectrum_id={spectrum_id}
+                  hoverID={hoverID}
+                  shift_id={shift_id}
+                />
               )}
             </span>
           )
         )}
       </div>
       <br />
-      {permissions.indexOf("Comment") >= 0 && objID && (
-        <CommentEntry addComment={addComment} />
-      )}
-      {permissions.indexOf("Comment") >= 0 && gcnEventID && (
-        <CommentEntry addComment={addGcnEventComment} />
-      )}
+      {permissions.indexOf("Comment") >= 0 &&
+        objID &&
+        (associatedResourceType === "object" ||
+          associatedResourceType === "spectra") && (
+          <CommentEntry addComment={addComment} />
+        )}
+      {permissions.indexOf("Comment") >= 0 &&
+        gcnEventID &&
+        associatedResourceType === "gcn_event" && (
+          <CommentEntry addComment={addGcnEventComment} />
+        )}
+      {permissions.indexOf("Comment") >= 0 &&
+        shift_id &&
+        associatedResourceType === "shift" && (
+          <CommentEntry addComment={addShiftComment} />
+        )}
     </div>
   );
 };
