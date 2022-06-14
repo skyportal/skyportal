@@ -2159,7 +2159,7 @@ class SourceOffsetsHandler(BaseHandler):
           schema:
             type: boolean
           description: |
-            Use ZTFref catalog for offset star positions, otherwise Gaia DR2
+            Use ZTFref catalog for offset star positions, otherwise Gaia DR3
         responses:
           200:
             content:
@@ -2371,7 +2371,7 @@ class SourceFinderHandler(BaseHandler):
           schema:
             type: boolean
           description: |
-            Use ZTFref catalog for offset star positions, otherwise DR2
+            Use ZTFref catalog for offset star positions, otherwise DR3
         - in: query
           name: obstime
           nullable: True
