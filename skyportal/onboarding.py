@@ -10,6 +10,11 @@ from .models import (
 )
 from baselayer.app.env import load_env
 
+from skyportal.handlers.api import (
+    set_default_role,
+    set_default_acls,
+    set_default_group,
+)
 
 env, cfg = load_env()
 
@@ -18,68 +23,81 @@ USER_FIELDS = ["username", "email"]
 
 def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     invite_token = strategy.session_get("invite_token")
-
-    existing_user = DBSession().query(User).filter(User.oauth_uid == uid).first()
-
-    if cfg["invitations.enabled"]:
-
-        if existing_user is None and invite_token is None:
-            raise Exception(
-                "Authentication Error: Missing invite token. A valid invite token is required."
-            )
-        elif existing_user is not None:
-            return {"is_new": False, "user": existing_user}
-
+    with DBSession() as session:
         try:
-            n_days = int(cfg["invitations.days_until_expiry"])
-        except ValueError:
-            raise ValueError(
-                "Invalid invitation configuration value: invitations.days_until_expiry cannot be cast to int"
-            )
+            existing_user = session.query(User).filter(User.oauth_uid == uid).first()
 
-        invitation = Invitation.query.filter(Invitation.token == invite_token).first()
-        if invitation is None:
-            raise Exception(
-                "Authentication Error: Invalid invite token. A valid invite token is required."
-            )
+            if cfg["invitations.enabled"]:
 
-        cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
-        if invitation.created_at < cutoff_datetime:
-            raise Exception("Authentication Error: Invite token expired.")
-        if invitation.used:
-            raise Exception("Authentication Error: Invite token has already been used.")
+                if existing_user is None and invite_token is None:
+                    raise Exception(
+                        "Authentication Error: Missing invite token. A valid invite token is required."
+                    )
+                elif existing_user is not None:
+                    return {"is_new": False, "user": existing_user}
 
-        user = User(
-            username=details["username"],
-            contact_email=details["email"],
-            first_name=details["first_name"],
-            last_name=details["last_name"],
-            oauth_uid=uid,
-            expiration_date=invitation.user_expiration_date,
-        )
-        user.roles.append(invitation.role)
-        DBSession().add(user)
-        DBSession().commit()
-        return {"is_new": True, "user": user}
-    elif not cfg["invitations.enabled"]:
-        if existing_user is not None:
-            return {"is_new": False, "user": existing_user}
+                try:
+                    n_days = int(cfg["invitations.days_until_expiry"])
+                except TypeError:
+                    raise TypeError(
+                        "Invalid invitation configuration value: invitations.days_until_expiry cannot be cast to int"
+                    )
 
-        if user is not None:  # Matching user already exists
-            return {"is_new": False, "user": user}
+                invitation = (
+                    session.query(Invitation)
+                    .filter(Invitation.token == invite_token)
+                    .first()
+                )
+                if invitation is None:
+                    raise Exception(
+                        "Authentication Error: Invalid invite token. A valid invite token is required."
+                    )
 
-        # No matching user exists; create a new user
-        fields = {
-            name: kwargs.get(name, details.get(name))
-            for name in backend.setting("USER_FIELDS", USER_FIELDS)
-        }
-        user = strategy.create_user(**fields, **{"oauth_uid": uid})
-        DBSession().commit()
-        return {"is_new": True, "user": user}
-    elif existing_user is not None:
-        return {"is_new": False, "user": existing_user}
-    elif user is not None:
-        return {"is_new": False, "user": user}
+                cutoff_datetime = datetime.datetime.now() - datetime.timedelta(
+                    days=n_days
+                )
+                if invitation.created_at < cutoff_datetime:
+                    raise Exception("Authentication Error: Invite token expired.")
+                if invitation.used:
+                    raise Exception(
+                        "Authentication Error: Invite token has already been used."
+                    )
+
+                user = User(
+                    username=details["username"],
+                    contact_email=details["email"],
+                    first_name=details["first_name"],
+                    last_name=details["last_name"],
+                    oauth_uid=uid,
+                    expiration_date=invitation.user_expiration_date,
+                )
+                user.roles.append(invitation.role)
+                session.add(user)
+                session.flush()
+                set_default_acls(user, session)
+                session.commit()
+                return {"is_new": True, "user": user}
+            elif not cfg["invitations.enabled"]:
+                if existing_user is not None:
+                    return {"is_new": False, "user": existing_user}
+
+                if user is not None:  # Matching user already exists
+                    return {"is_new": False, "user": user}
+
+                # No matching user exists; create a new user
+                fields = {
+                    name: kwargs.get(name, details.get(name))
+                    for name in backend.setting("USER_FIELDS", USER_FIELDS)
+                }
+                user = strategy.create_user(**fields, **{"oauth_uid": uid})
+                set_default_role(user, session)
+                set_default_acls(user, session)
+                set_default_group(user, session)
+                session.commit()
+                return {"is_new": True, "user": user}
+        except Exception as e:
+            session.rollback()
+            raise e
 
 
 def get_username(strategy, details, backend, uid, user=None, *args, **kwargs):

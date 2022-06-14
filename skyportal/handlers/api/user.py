@@ -6,6 +6,7 @@ import arrow
 from ..base import BaseHandler
 from baselayer.app.access import permissions, auth_or_token
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 from ...models import (
     DBSession,
     User,
@@ -19,8 +20,74 @@ from ...models import (
     Stream,
 )
 
+from skyportal.model_util import role_acls, all_acl_ids
 
+log = make_log("api/user")
 env, cfg = load_env()
+
+
+def set_default_role(user, session):
+    '''
+    Set the default role for a user. The default role can be set in the config file.
+    This method does not commit the session, so the session needs to be commited after calling this method.
+    If the default role from the config does not exist, an exception is raised, and can be caught by the caller (i.e in a handler).
+    '''
+    if (
+        cfg['user.default_role'] is not None
+        and isinstance(cfg['user.default_role'], str)
+        and cfg['user.default_role'] in role_acls
+    ):
+        role = session.query(Role).filter(Role.id == cfg['user.default_role']).first()
+        if role is None:
+            # raise an error:
+            raise Exception(
+                f"Invalid default_role configuration value: {cfg['user.default_role']} does not exist"
+            )
+        else:
+            session.add(UserRole(user_id=user.id, role_id=role.id))
+
+
+def set_default_acls(user, session):
+    '''
+    Set the default acls for a user. The default acls can be set in the config file.
+    This method does not commit the session, so the session needs to be commited after calling this method.
+    If the default acl from the config does not exist, an exception is raised, and can be caught by the caller (i.e in a handler).
+    '''
+    if cfg['user.default_acls'] is not None:
+        for acl_id in cfg['user.default_acls']:
+            if acl_id not in all_acl_ids:
+                raise Exception(
+                    f"Invalid default_acl configuration value: {acl_id} does not exist"
+                )
+        for acl_id in cfg['user.default_acls']:
+            session.add(UserACL(user_id=user.id, acl_id=acl_id))
+
+
+def set_default_group(user, session):
+    '''
+    Set the default groups for a user. The default groups can be set in the config file.
+    This method does not commit the session, so the session needs to be commited after calling this method.
+    If the default group from the config does not exist, an exception is raised, and can be caught by the caller (i.e in a handler).
+    '''
+    default_groups = []
+    if cfg['misc.public_group_name'] is not None:
+        default_groups.append(cfg['misc.public_group_name'])
+    if cfg['user.default_groups'] is not None and isinstance(
+        cfg['user.default_groups'], list
+    ):
+        default_groups.extend(cfg['user.default_groups'])
+    default_groups = list(set(default_groups))
+    for default_group_name in default_groups:
+        group = session.query(Group).filter(Group.name == default_group_name).first()
+        if group is None:
+            raise Exception(
+                f"Invalid default_group configuration value: {default_group_name} does not exist"
+            )
+        else:
+            session.add(GroupUser(user_id=user.id, group_id=group.id, admin=False))
+            if group.streams:
+                for stream in group.streams:
+                    session.add(StreamUser(stream_id=stream.id, user_id=user.id))
 
 
 def add_user_and_setup_groups(
@@ -34,35 +101,53 @@ def add_user_and_setup_groups(
     oauth_uid=None,
     expiration_date=None,
 ):
-    # Add user
-    user = User(
-        username=username.lower(),
-        role_ids=roles,
-        first_name=first_name,
-        last_name=last_name,
-        contact_phone=contact_phone,
-        contact_email=contact_email,
-        oauth_uid=oauth_uid,
-        expiration_date=expiration_date,
-    )
-    DBSession().add(user)
-    DBSession().flush()
+    with DBSession() as session:
+        try:
+            user = User(
+                username=username.lower(),
+                role_ids=roles,
+                first_name=first_name,
+                last_name=last_name,
+                contact_phone=contact_phone,
+                contact_email=contact_email,
+                oauth_uid=oauth_uid,
+                expiration_date=expiration_date,
+            )
+            session.add(user)
+            session.flush()
+            if roles == []:
+                set_default_role(user, session)
 
-    # Add user to specified groups & associated streams
-    for group_id, admin in group_ids_and_admin:
-        DBSession().add(GroupUser(user_id=user.id, group_id=group_id, admin=admin))
-        group = Group.query.get(group_id)
-        if group.streams:
-            for stream in group.streams:
-                DBSession().add(StreamUser(user_id=user.id, stream_id=stream.id))
+            if group_ids_and_admin == []:
+                set_default_group(user, session)
+            else:
+                for group_id, admin in group_ids_and_admin:
+                    session.add(
+                        GroupUser(user_id=user.id, group_id=group_id, admin=admin)
+                    )
+                    group = session.query(Group).filter(Group.id == group_id).first()
+                    if group.streams:
+                        for stream in group.streams:
+                            session.add(
+                                StreamUser(stream_id=stream.id, user_id=user.id)
+                            )
 
-    # Add user to sitewide public group
-    public_group = Group.query.filter(
-        Group.name == cfg["misc"]["public_group_name"]
-    ).first()
-    if public_group is not None:
-        DBSession().add(GroupUser(group_id=public_group.id, user_id=user.id))
-    return user.id
+                # Add user to sitewide public group
+                public_group = (
+                    session.query(Group)
+                    .filter(Group.name == cfg["misc.public_group_name"])
+                    .first()
+                )
+                if public_group is not None:
+                    session.add(GroupUser(group_id=public_group.id, user_id=user.id))
+
+            set_default_acls(user, session)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            log(e.args[0])
+            raise e
+        return user.id
 
 
 class UserHandler(BaseHandler):
@@ -320,7 +405,7 @@ class UserHandler(BaseHandler):
                               description: New user ID
         """
         data = self.get_json()
-        roles = data.get("roles", ["Full user"])
+        roles = data.get("roles", [])
         group_ids_and_admin = data.get("groupIDsAndAdmin", [])
 
         phone = data.get("contact_phone")
@@ -346,17 +431,20 @@ class UserHandler(BaseHandler):
             contact_email = email
         else:
             contact_email = None
+        try:
+            user_id = add_user_and_setup_groups(
+                username=data["username"],
+                first_name=data.get("first_name"),
+                last_name=data.get("last_name"),
+                contact_phone=contact_phone,
+                contact_email=contact_email,
+                oauth_uid=data.get("oauth_uid"),
+                roles=roles,
+                group_ids_and_admin=group_ids_and_admin,
+            )
+        except Exception as e:
+            return self.error(str(e))
 
-        user_id = add_user_and_setup_groups(
-            username=data["username"],
-            first_name=data.get("first_name"),
-            last_name=data.get("last_name"),
-            contact_phone=contact_phone,
-            contact_email=contact_email,
-            oauth_uid=data.get("oauth_uid"),
-            roles=roles,
-            group_ids_and_admin=group_ids_and_admin,
-        )
         self.verify_and_commit()
         return self.success(data={"id": user_id})
 

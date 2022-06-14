@@ -534,6 +534,11 @@ cross_match:
 #    transmission: [0, 1, 1, 0]
 #    description: "basic ATLAS O filter - tophat transmission"
 
+user:
+  default_role: 'Full user'
+  default_groups: []
+  default_acls: []
+
 ports:
   facility_queue: 64510
 
