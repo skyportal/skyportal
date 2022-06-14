@@ -1,17 +1,17 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { makeStyles } from "@material-ui/core/styles";
-import Button from "@material-ui/core/Button";
-import OutlinedInput from "@material-ui/core/OutlinedInput";
-import InputLabel from "@material-ui/core/InputLabel";
-import MenuItem from "@material-ui/core/MenuItem";
-import FormControl from "@material-ui/core/FormControl";
-import Select from "@material-ui/core/Select";
-import Chip from "@material-ui/core/Chip";
-import Checkbox from "@material-ui/core/Checkbox";
-import Box from "@material-ui/core/Box";
-import ListItemText from "@material-ui/core/ListItemText";
-import Tooltip from "@material-ui/core/Tooltip";
+import makeStyles from "@mui/styles/makeStyles";
+import Button from "@mui/material/Button";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import FormControl from "@mui/material/FormControl";
+import Select from "@mui/material/Select";
+import Chip from "@mui/material/Chip";
+import Checkbox from "@mui/material/Checkbox";
+import Box from "@mui/material/Box";
+import ListItemText from "@mui/material/ListItemText";
+import Tooltip from "@mui/material/Tooltip";
 import PropTypes from "prop-types";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -180,16 +180,50 @@ function CurrentShiftMenu({ currentShift }) {
 
     function addUsersToShift(selected_users) {
       if (selected_users.length > 0) {
-        Object.keys(selected_users).forEach((user) => {
+        const users_to_add = [];
+        let counter = currentShift.shift_users.length;
+        for (let i = 0; i < selected_users.length; i += 1) {
+          if (counter === currentShift.required_users_number) {
+            break;
+          } else {
+            users_to_add.push(selected_users[i]);
+            counter += 1;
+          }
+        }
+        if (users_to_add.length > 0) {
+          if (users_to_add.length !== selected_users.length) {
+            dispatch(
+              showNotification(
+                "You selected more users than the required number of users for this shift. Adding only the remaining users to the shift.",
+                "warning"
+              )
+            );
+          }
+          users_to_add.forEach((user) => {
+            dispatch(
+              addShiftUser({
+                userID: user.id,
+                admin: false,
+                shift_id: currentShift.id,
+              })
+            ).then((response) => {
+              if (response.status === "success") {
+                dispatch(showNotification("User added to shift"));
+              } else {
+                dispatch(
+                  showNotification("Error adding user to shift", "error")
+                );
+              }
+            });
+          });
+        } else {
           dispatch(
-            addShiftUser({
-              userID: selected_users[user].id,
-              admin: false,
-              shift_id: currentShift.id,
-            })
+            showNotification(
+              "Shift already Full, no users added to shift",
+              "warning"
+            )
           );
-        });
-        dispatch(showNotification("Users added to shift"));
+        }
       } else {
         dispatch(showNotification("No users selected", "error"));
       }
@@ -579,7 +613,7 @@ function CurrentShiftMenu({ currentShift }) {
                 labelId="select-user-replace-chip-label"
                 id="select-user-replace-chip"
                 value={selectedToReplace}
-                onClick={handleChangeReplace}
+                onChange={handleChangeReplace}
                 input={<OutlinedInput id="select-chip" label="Chip" />}
                 renderValue={(selectedToReplaceValue) => (
                   <Box id="selected_users">
@@ -713,6 +747,11 @@ function CurrentShiftMenu({ currentShift }) {
                 ", "
               )}`}</i>
             </div>
+            {currentShift.required_users_number && (
+              <div>
+                <i id="total_shift_members">{`\n Number of Members : ${currentShift.shift_users.length}/${currentShift.required_users_number}`}</i>
+              </div>
+            )}
             {shiftDateStartEnd ? (
               <>
                 <p id="current_shift_date" className={classes.shiftgroup}>
@@ -803,6 +842,7 @@ CurrentShiftMenu.propTypes = {
         admin: PropTypes.bool,
       })
     ),
+    required_users_number: PropTypes.number,
   }).isRequired,
 };
 

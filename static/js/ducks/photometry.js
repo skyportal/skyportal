@@ -6,6 +6,8 @@ import store from "../store";
 const FETCH_SOURCE_PHOTOMETRY = "skyportal/FETCH_SOURCE_PHOTOMETRY";
 const FETCH_SOURCE_PHOTOMETRY_OK = "skyportal/FETCH_SOURCE_PHOTOMETRY_OK";
 const FETCH_FILTER_WAVELENGTHS = "skyportal/FETCH_FILTER_WAVELENGTHS";
+const FETCH_ALL_ORIGINS = "skyportal/FETCH_ALL_ORIGINS";
+const FETCH_ALL_ORIGINS_OK = "skyportal/FETCH_ALL_ORIGINS_OK";
 
 // eslint-disable-next-line import/prefer-default-export
 export function fetchSourcePhotometry(id) {
@@ -18,6 +20,10 @@ export function fetchFilterWavelengths(filterParams = {}) {
     FETCH_FILTER_WAVELENGTHS,
     filterParams
   );
+}
+
+export function fetchAllOrigins() {
+  return API.GET("/api/photometry/origins", FETCH_ALL_ORIGINS);
 }
 
 // Websocket message handler
@@ -39,6 +45,13 @@ const reducer = (state = {}, action) => {
         };
       }
       return state;
+    }
+    case FETCH_ALL_ORIGINS_OK: {
+      const origins = action.data;
+      return {
+        ...state,
+        origins,
+      };
     }
     default:
       return state;

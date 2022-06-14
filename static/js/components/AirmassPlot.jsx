@@ -3,9 +3,9 @@ import { useDispatch } from "react-redux";
 import PropTypes from "prop-types";
 import embed from "vega-embed";
 import dayjs from "dayjs";
-import { useTheme } from "@material-ui/core/styles";
+import { useTheme } from "@mui/material/styles";
 
-import CircularProgress from "@material-ui/core/CircularProgress";
+import CircularProgress from "@mui/material/CircularProgress";
 
 import * as ephemerisActions from "../ducks/ephemeris";
 

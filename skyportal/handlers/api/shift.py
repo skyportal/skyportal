@@ -68,6 +68,9 @@ class ShiftHandler(BaseHandler):
                             description:
                               type: string
                               description: New Shift's description
+                            required_users_number:
+                              type: integer
+                              description: The number of users required to join this shift for it to be considered full
           400:
             content:
               application/json:
@@ -337,6 +340,11 @@ class ShiftUserHandler(BaseHandler):
             return self.error(
                 f"User {user_id} is already a member of shift {shift_id}."
             )
+        if shift.required_users_number:
+            if len(shift.shift_users) >= shift.required_users_number:
+                return self.error(
+                    f"Shift {shift_id} has reached its maximum number of users."
+                )
 
         DBSession().add(
             ShiftUser(
