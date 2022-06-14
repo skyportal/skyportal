@@ -890,6 +890,7 @@ shifts:
     name: "the Night Shift"
     shift_admins:
       - =testadmin
+    required_users_number: 6
     =id: nightshift
 
   - group_id: =program_B
@@ -898,6 +899,7 @@ shifts:
     name: "the GCN Shift"
     shift_admins:
       - =groupadmin
+    required_users_number: 4
     =id: gcnshift
 
 
