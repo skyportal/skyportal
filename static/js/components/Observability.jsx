@@ -7,7 +7,7 @@ import Paper from "@mui/material/Paper";
 import makeStyles from "@mui/styles/makeStyles";
 import { Link } from "react-router-dom";
 import CircularProgress from "@mui/material/CircularProgress";
-import Pagination from '@mui/material/Pagination';
+import Pagination from "@mui/material/Pagination";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
